@@ -1,0 +1,318 @@
+name: Build Docker Images
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+on:
+  push:
+    branches:
+      - main
+      - test/*
+      - cloud/*
+      - feature/*
+      - release/*
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      build_method:
+        description: "Dockerfile style (goreleaser=new, legacy=docker-builds-compatible)"
+        required: false
+        default: "goreleaser"
+        type: choice
+        options:
+          - goreleaser
+          - legacy
+      build_admin_tools:
+        description: "Build admin-tools image"
+        required: false
+        default: false
+        type: boolean
+
+
+
+jobs:
+  build-push-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set environment variables
+        run: |
+          {
+            echo "IMAGE_SHA_TAG=sha-${GITHUB_SHA:0:7}"
+            branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+            echo "IMAGE_BRANCH_TAG=branch-${branch_name}"
+            echo "TEMPORAL_SHA=${GITHUB_SHA}"
+            echo "TEMPORAL_VERSION=$(git describe --tags --always)"
+            TAG_LATEST=${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 'true' || 'false' }}
+            echo "TAG_LATEST=${TAG_LATEST}"
+          } >> "$GITHUB_ENV"
+          
+          # Set build method (default to goreleaser)
+          BUILD_METHOD="${{ github.event.inputs.build_method }}"
+          if [ -z "$BUILD_METHOD" ]; then
+            BUILD_METHOD="goreleaser"
+          fi
+          echo "BUILD_METHOD=${BUILD_METHOD}" >> "$GITHUB_ENV"
+          echo "Build method: ${BUILD_METHOD}"
+          
+          # Admin tools flag (default to true for PRs and main, false for release branches)
+          BUILD_ADMIN_TOOLS="${{ github.event.inputs.build_admin_tools }}"
+          if [ -z "$BUILD_ADMIN_TOOLS" ]; then
+            branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+            if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              BUILD_ADMIN_TOOLS="true"
+            elif [[ "${branch_name}" == release/* ]]; then
+              BUILD_ADMIN_TOOLS="false"
+            else
+              BUILD_ADMIN_TOOLS="true"
+            fi
+          fi
+          echo "BUILD_ADMIN_TOOLS=${BUILD_ADMIN_TOOLS}" >> "$GITHUB_ENV"
+          echo "Build admin-tools: ${BUILD_ADMIN_TOOLS}"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Install goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          install-only: true
+          version: '~> v2'
+
+      - name: Build binaries with goreleaser
+        run: |
+          goreleaser build --snapshot --clean \
+            --id temporal-server \
+            --id temporal-cassandra-tool \
+            --id temporal-sql-tool \
+            --id temporal-elasticsearch-tool \
+            --id tdbg
+
+      - name: Show goreleaser output structure
+        run: |
+          echo "=== Goreleaser dist structure ==="
+          find dist -type f -name "temporal-server" -o -name "tdbg" -o -name "temporal-*-tool" | sort
+
+      - name: Download temporal CLI (legacy build only)
+        if: env.BUILD_METHOD == 'legacy'
+        run: |
+          CLI_VERSION="${TEMPORAL_CLI_VERSION:-$(grep -A1 'variable "TEMPORAL_CLI_VERSION"' .docker/docker-bake.hcl | grep 'default =' | cut -d'"' -f2)}"
+          echo "Downloading temporal CLI ${CLI_VERSION}..."
+          echo "TEMPORAL_CLI_VERSION=${CLI_VERSION}" >> "$GITHUB_ENV"
+          mkdir -p .docker/dist/tmp
+          for arch in amd64 arm64; do
+            echo "Downloading for linux/${arch}..."
+            CLI_VERSION_NO_V="${CLI_VERSION#v}"
+            curl -fsSL "https://github.com/temporalio/cli/releases/download/${CLI_VERSION}/temporal_cli_${CLI_VERSION_NO_V}_linux_${arch}.tar.gz" | \
+              tar -xzf - -C .docker/dist/tmp
+            mkdir -p ".docker/dist/${arch}"
+            mv .docker/dist/tmp/temporal ".docker/dist/${arch}/temporal"
+          done
+          rm -rf .docker/dist/tmp
+
+      - name: Download tctl (legacy build only)
+        if: env.BUILD_METHOD == 'legacy'
+        run: |
+          TCTL_VERSION="${TCTL_VERSION:-$(grep -A1 'variable "TCTL_VERSION"' .docker/docker-bake.hcl | grep 'default =' | cut -d'"' -f2)}"
+          echo "Downloading tctl ${TCTL_VERSION}..."
+          echo "TCTL_VERSION=${TCTL_VERSION}" >> "$GITHUB_ENV"
+          mkdir -p .docker/dist/tmp
+          for arch in amd64 arm64; do
+            echo "Downloading for linux/${arch}..."
+            TCTL_VERSION_NO_V="${TCTL_VERSION#v}"
+            curl -fsSL "https://github.com/temporalio/tctl/releases/download/${TCTL_VERSION}/tctl_${TCTL_VERSION_NO_V}_linux_${arch}.tar.gz" | \
+              tar -xzf - -C .docker/dist/tmp
+            mkdir -p ".docker/dist/${arch}"
+            mv .docker/dist/tmp/tctl ".docker/dist/${arch}/tctl"
+            # Note: tctl-authorization-plugin comes with tctl in the same archive
+            if [ -f .docker/dist/tmp/tctl-authorization-plugin ]; then
+              mv .docker/dist/tmp/tctl-authorization-plugin ".docker/dist/${arch}/tctl-authorization-plugin"
+            fi
+          done
+          rm -rf .docker/dist/tmp
+
+      - name: Organize binaries
+        run: |
+          echo "=== Organizing binaries ==="
+          mkdir -p .docker/dist/amd64 .docker/dist/arm64
+          
+          # Copy amd64 binaries
+          for binary in temporal-server temporal-cassandra-tool temporal-sql-tool temporal-elasticsearch-tool tdbg; do
+            find dist -type f -name "$binary" | grep linux_amd64 | xargs -I {} cp {} .docker/dist/amd64/
+          done
+          
+          # Copy arm64 binaries
+          for binary in temporal-server temporal-cassandra-tool temporal-sql-tool temporal-elasticsearch-tool tdbg; do
+            find dist -type f -name "$binary" | grep linux_arm64 | xargs -I {} cp {} .docker/dist/arm64/
+          done
+          
+          echo "=== Verifying binaries ==="
+          echo "AMD64 binaries:"
+          ls -lh .docker/dist/amd64/
+          echo "ARM64 binaries:"
+          ls -lh .docker/dist/arm64/
+
+      - name: Upload binaries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: temporal-binaries
+          path: dist/
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Prepare binaries for legacy Dockerfile
+        if: env.BUILD_METHOD == 'legacy'
+        run: |
+          echo "=== Copying binaries to build/ for legacy Dockerfiles ==="
+          mkdir -p build/amd64 build/arm64
+          cp -r .docker/dist/amd64/* build/amd64/
+          cp -r .docker/dist/arm64/* build/arm64/
+          echo "Binaries ready in build/ directory"
+          ls -lh build/amd64/
+          ls -lh build/arm64/
+
+      - name: Build native images for testing
+        run: |
+          NATIVE_PLATFORM="linux/$(go env GOARCH)"
+          echo "Building for platform: ${NATIVE_PLATFORM}"
+          echo "Build method: ${{ env.BUILD_METHOD }}"
+          
+          # Determine which bake target group to build based on build method
+          if [ "${{ env.BUILD_METHOD }}" = "legacy" ]; then
+            if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
+              BAKE_TARGET="legacy"
+              echo "Building legacy server and admin-tools images"
+            else
+              BAKE_TARGET="server-legacy"
+              echo "Building legacy server image only"
+            fi
+          else
+            if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
+              BAKE_TARGET="default"
+              echo "Building server and admin-tools images"
+            else
+              BAKE_TARGET="server"
+              echo "Building server image only"
+            fi
+          fi
+          
+          docker buildx bake \
+            -f .docker/docker-bake.hcl \
+            --set "*.platform=${NATIVE_PLATFORM}" \
+            --load \
+            "${BAKE_TARGET}"
+        env:
+          IMAGE_REPO: ghcr.io/chaptersix
+          IMAGE_SHA_TAG: ${{ env.IMAGE_SHA_TAG }}
+          IMAGE_BRANCH_TAG: ${{ env.IMAGE_BRANCH_TAG }}
+          TEMPORAL_SHA: ${{ env.TEMPORAL_SHA }}
+          TEMPORAL_VERSION: ${{ env.TEMPORAL_VERSION }}
+          TEMPORAL_CLI_VERSION: ${{ env.TEMPORAL_CLI_VERSION }}
+          TAG_LATEST: ${{ env.TAG_LATEST }}
+
+      - name: Build and push multiarch images
+        if: github.event_name == 'push'
+        run: |
+          echo "Build method: ${{ env.BUILD_METHOD }}"
+          
+          # Determine which bake target group to build based on build method
+          if [ "${{ env.BUILD_METHOD }}" = "legacy" ]; then
+            if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
+              BAKE_TARGET="legacy"
+              echo "Building and pushing legacy server and admin-tools images"
+            else
+              BAKE_TARGET="server-legacy"
+              echo "Building and pushing legacy server image only"
+            fi
+          else
+            if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
+              BAKE_TARGET="default"
+              echo "Building and pushing server and admin-tools images"
+            else
+              BAKE_TARGET="server"
+              echo "Building and pushing server image only"
+            fi
+          fi
+          
+          docker buildx bake \
+            -f .docker/docker-bake.hcl \
+            --push \
+            "${BAKE_TARGET}"
+        env:
+          IMAGE_REPO: ghcr.io/chaptersix
+          IMAGE_SHA_TAG: ${{ env.IMAGE_SHA_TAG }}
+          IMAGE_BRANCH_TAG: ${{ env.IMAGE_BRANCH_TAG }}
+          TEMPORAL_SHA: ${{ env.TEMPORAL_SHA }}
+          TEMPORAL_VERSION: ${{ env.TEMPORAL_VERSION }}
+          TEMPORAL_CLI_VERSION: ${{ env.TEMPORAL_CLI_VERSION }}
+          TAG_LATEST: ${{ env.TAG_LATEST }}
+
+      - name: Run Trivy on Server image
+        if: github.event_name == 'push'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/chaptersix/server:${{ env.IMAGE_SHA_TAG }}
+          format: 'sarif'
+          output: 'trivy-server.sarif'
+
+      - name: Run Trivy on Admin Tools image
+        if: github.event_name == 'push' && env.BUILD_ADMIN_TOOLS == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/chaptersix/admin-tools:${{ env.IMAGE_SHA_TAG }}
+          format: 'sarif'
+          output: 'trivy-admin-tools.sarif'
+
+      - name: Upload Trivy results to GitHub Security
+        if: github.event_name == 'push'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: '.'
+
+      - name: Image summary
+        if: github.event_name == 'push'
+        run: |
+          {
+            echo "### 🐳 Published Images"
+            echo ""
+            echo "- \`ghcr.io/chaptersix/server:${{ env.IMAGE_SHA_TAG }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
+            echo "- \`ghcr.io/chaptersix/admin-tools:${{ env.IMAGE_SHA_TAG }}\`" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          {
+            echo ""
+            echo "Pull with:"
+            echo "\`\`\`bash"
+            echo "docker pull ghcr.io/chaptersix/server:${{ env.IMAGE_SHA_TAG }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
+            echo "docker pull ghcr.io/chaptersix/admin-tools:${{ env.IMAGE_SHA_TAG }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"

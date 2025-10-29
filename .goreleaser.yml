@@ -1,15 +1,13 @@
+version: 2
+
 before:
   hooks:
     - go mod download
 
 archives:
   - id: default
-    builds:
-      - temporal-server
-      - temporal-cassandra-tool
-      - temporal-sql-tool
-      - temporal-elasticsearch-tool
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format: tar.gz
     format_overrides:
       - goos: windows
         format: zip
@@ -83,7 +81,7 @@ checksum:
   algorithm: sha256
 
 changelog:
-  skip: true
+  disable: true
 
 announce:
-  skip: "true"
+  skip: true
