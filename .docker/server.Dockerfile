@@ -8,16 +8,18 @@ ARG DOCKERIZE_VERSION=v0.9.2
 ARG TEMPORAL_VERSION=dev
 
 # Install runtime dependencies and dockerize
-RUN apk upgrade --no-cache && \
-    apk add --no-cache \
-    ca-certificates \
-    tzdata \
-    curl \
-    go && \
-    go install github.com/jwilder/dockerize@${DOCKERIZE_VERSION} && \
-    mv /root/go/bin/dockerize /usr/local/bin/dockerize && \
-    apk del go && \
-    rm -rf /root/go
+RUN apk update --no-cache \
+    && apk add --no-cache wget openssl \
+    && set -eux; \
+    case "${TARGETARCH}" in \
+    amd64) DOCKERIZE_ARCH=amd64 ;; \
+    arm64) DOCKERIZE_ARCH=arm64 ;; \
+    arm) DOCKERIZE_ARCH=armv7 ;; \
+    *) echo "unsupported TARGETARCH ${TARGETARCH}"; exit 1 ;; \
+    esac; \
+    wget -O - "https://github.com/jwilder/dockerize/releases/download/${DOCKERIZE_VERSION}/dockerize-alpine-linux-${DOCKERIZE_ARCH}-${DOCKERIZE_VERSION}.tar.gz" | tar xzf - -C /usr/local/bin \
+    && chmod +x /usr/local/bin/dockerize \
+    && apk del wget
 
 # Setup temporal user and directories
 RUN addgroup -g 1000 temporal && \

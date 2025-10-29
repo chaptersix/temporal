@@ -15,8 +15,7 @@ LABEL org.opencontainers.image.title="temporal-admin-tools" \
     org.opencontainers.image.version="${TEMPORAL_VERSION}"
 
 # Install runtime dependencies (tini is pinned to alpine package version)
-RUN apk upgrade --no-cache && \
-    apk add --no-cache \
+RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     tini

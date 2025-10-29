@@ -89,11 +89,24 @@ jobs:
           echo "BUILD_ADMIN_TOOLS=${BUILD_ADMIN_TOOLS}" >> "$GITHUB_ENV"
           echo "Build admin-tools: ${BUILD_ADMIN_TOOLS}"
 
+          # Dockerize version (can be overridden by CI or local build-arg)
+          echo "DOCKERIZE_VERSION=${DOCKERIZE_VERSION:-v0.9.2}" >> "$GITHUB_ENV"
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: "go.mod"
           cache: true
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            $HOME/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Install goreleaser
         uses: goreleaser/goreleaser-action@v6
@@ -221,6 +234,7 @@ jobs:
           docker buildx bake \
             -f .docker/docker-bake.hcl \
             --set "*.platform=${NATIVE_PLATFORM}" \
+            --set "*.args.DOCKERIZE_VERSION=${{ env.DOCKERIZE_VERSION }}" \
             --load \
             "${BAKE_TARGET}"
         env:
@@ -258,6 +272,7 @@ jobs:
 
           docker buildx bake \
             -f .docker/docker-bake.hcl \
+            --set "*.args.DOCKERIZE_VERSION=${{ env.DOCKERIZE_VERSION }}" \
             --push \
             "${BAKE_TARGET}"
         env:
