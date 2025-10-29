@@ -7,19 +7,19 @@ ARG TEMPORAL_SHA=unknown
 ARG TEMPORAL_VERSION=dev
 
 LABEL org.opencontainers.image.title="temporal-admin-tools" \
-      org.opencontainers.image.description="Temporal Admin Tools" \
-      org.opencontainers.image.url="https://github.com/temporalio/temporal" \
-      org.opencontainers.image.source="https://github.com/temporalio/temporal" \
-      org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.revision="${TEMPORAL_SHA}" \
-      org.opencontainers.image.version="${TEMPORAL_VERSION}"
+    org.opencontainers.image.description="Temporal Admin Tools" \
+    org.opencontainers.image.url="https://github.com/temporalio/temporal" \
+    org.opencontainers.image.source="https://github.com/temporalio/temporal" \
+    org.opencontainers.image.licenses="MIT" \
+    org.opencontainers.image.revision="${TEMPORAL_SHA}" \
+    org.opencontainers.image.version="${TEMPORAL_VERSION}"
 
 # Install runtime dependencies (tini is pinned to alpine package version)
 RUN apk upgrade --no-cache && \
     apk add --no-cache \
-        ca-certificates \
-        tzdata \
-        tini
+    ca-certificates \
+    tzdata \
+    tini
 
 # Setup temporal user
 RUN addgroup -g 1000 temporal && \
@@ -27,8 +27,6 @@ RUN addgroup -g 1000 temporal && \
 
 # Copy binaries
 COPY --chmod=755 ./.docker/dist/${TARGETARCH}/temporal /usr/local/bin/
-COPY --chmod=755 ./.docker/dist/${TARGETARCH}/tctl /usr/local/bin/
-COPY --chmod=755 ./.docker/dist/${TARGETARCH}/tctl-authorization-plugin /usr/local/bin/
 COPY --chmod=755 ./.docker/dist/${TARGETARCH}/tdbg /usr/local/bin/
 COPY --chmod=755 ./.docker/dist/${TARGETARCH}/temporal-cassandra-tool /usr/local/bin/
 COPY --chmod=755 ./.docker/dist/${TARGETARCH}/temporal-sql-tool /usr/local/bin/

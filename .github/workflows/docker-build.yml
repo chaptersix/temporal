@@ -32,8 +32,6 @@ on:
         default: false
         type: boolean
 
-
-
 jobs:
   build-push-images:
     runs-on: ubuntu-latest
@@ -69,7 +67,7 @@ jobs:
             TAG_LATEST=${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 'true' || 'false' }}
             echo "TAG_LATEST=${TAG_LATEST}"
           } >> "$GITHUB_ENV"
-          
+
           # Set build method (default to goreleaser)
           BUILD_METHOD="${{ github.event.inputs.build_method }}"
           if [ -z "$BUILD_METHOD" ]; then
@@ -77,14 +75,12 @@ jobs:
           fi
           echo "BUILD_METHOD=${BUILD_METHOD}" >> "$GITHUB_ENV"
           echo "Build method: ${BUILD_METHOD}"
-          
-          # Admin tools flag (default to true for PRs and main, false for release branches)
+
+          # Admin tools flag (default: true for PRs and main, false for release branches)
           BUILD_ADMIN_TOOLS="${{ github.event.inputs.build_admin_tools }}"
           if [ -z "$BUILD_ADMIN_TOOLS" ]; then
             branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-            if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.ref }}" = "refs/heads/main" ]; then
-              BUILD_ADMIN_TOOLS="true"
-            elif [[ "${branch_name}" == release/* ]]; then
+            if [[ "${branch_name}" == release/* ]]; then
               BUILD_ADMIN_TOOLS="false"
             else
               BUILD_ADMIN_TOOLS="true"
@@ -96,14 +92,14 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
           cache: true
 
       - name: Install goreleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           install-only: true
-          version: '~> v2'
+          version: "~> v2"
 
       - name: Build binaries with goreleaser
         run: |
@@ -161,17 +157,17 @@ jobs:
         run: |
           echo "=== Organizing binaries ==="
           mkdir -p .docker/dist/amd64 .docker/dist/arm64
-          
+
           # Copy amd64 binaries
           for binary in temporal-server temporal-cassandra-tool temporal-sql-tool temporal-elasticsearch-tool tdbg; do
             find dist -type f -name "$binary" | grep linux_amd64 | xargs -I {} cp {} .docker/dist/amd64/
           done
-          
+
           # Copy arm64 binaries
           for binary in temporal-server temporal-cassandra-tool temporal-sql-tool temporal-elasticsearch-tool tdbg; do
             find dist -type f -name "$binary" | grep linux_arm64 | xargs -I {} cp {} .docker/dist/arm64/
           done
-          
+
           echo "=== Verifying binaries ==="
           echo "AMD64 binaries:"
           ls -lh .docker/dist/amd64/
@@ -202,7 +198,7 @@ jobs:
           NATIVE_PLATFORM="linux/$(go env GOARCH)"
           echo "Building for platform: ${NATIVE_PLATFORM}"
           echo "Build method: ${{ env.BUILD_METHOD }}"
-          
+
           # Determine which bake target group to build based on build method
           if [ "${{ env.BUILD_METHOD }}" = "legacy" ]; then
             if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
@@ -221,7 +217,7 @@ jobs:
               echo "Building server image only"
             fi
           fi
-          
+
           docker buildx bake \
             -f .docker/docker-bake.hcl \
             --set "*.platform=${NATIVE_PLATFORM}" \
@@ -240,7 +236,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           echo "Build method: ${{ env.BUILD_METHOD }}"
-          
+
           # Determine which bake target group to build based on build method
           if [ "${{ env.BUILD_METHOD }}" = "legacy" ]; then
             if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
@@ -259,7 +255,7 @@ jobs:
               echo "Building and pushing server image only"
             fi
           fi
-          
+
           docker buildx bake \
             -f .docker/docker-bake.hcl \
             --push \
@@ -278,22 +274,22 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ghcr.io/chaptersix/server:${{ env.IMAGE_SHA_TAG }}
-          format: 'sarif'
-          output: 'trivy-server.sarif'
+          format: "sarif"
+          output: "trivy-server.sarif"
 
       - name: Run Trivy on Admin Tools image
         if: github.event_name == 'push' && env.BUILD_ADMIN_TOOLS == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ghcr.io/chaptersix/admin-tools:${{ env.IMAGE_SHA_TAG }}
-          format: 'sarif'
-          output: 'trivy-admin-tools.sarif'
+          format: "sarif"
+          output: "trivy-admin-tools.sarif"
 
       - name: Upload Trivy results to GitHub Security
         if: github.event_name == 'push'
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: '.'
+          sarif_file: "."
 
       - name: Image summary
         if: github.event_name == 'push'
