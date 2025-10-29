@@ -26,14 +26,9 @@ on:
         options:
           - goreleaser
           - legacy
-      build_admin_tools:
-        description: "Build admin-tools image"
-        required: false
-        default: false
-        type: boolean
 
 jobs:
-  build-push-images:
+  build-push-server:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -76,19 +71,6 @@ jobs:
           echo "BUILD_METHOD=${BUILD_METHOD}" >> "$GITHUB_ENV"
           echo "Build method: ${BUILD_METHOD}"
 
-          # Admin tools flag (default: true for PRs and main, false for release branches)
-          BUILD_ADMIN_TOOLS="${{ github.event.inputs.build_admin_tools }}"
-          if [ -z "$BUILD_ADMIN_TOOLS" ]; then
-            branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-            if [[ "${branch_name}" == release/* ]]; then
-              BUILD_ADMIN_TOOLS="false"
-            else
-              BUILD_ADMIN_TOOLS="true"
-            fi
-          fi
-          echo "BUILD_ADMIN_TOOLS=${BUILD_ADMIN_TOOLS}" >> "$GITHUB_ENV"
-          echo "Build admin-tools: ${BUILD_ADMIN_TOOLS}"
-
           # Dockerize version (can be overridden by CI or local build-arg)
           echo "DOCKERIZE_VERSION=${DOCKERIZE_VERSION:-v0.9.2}" >> "$GITHUB_ENV"
 
@@ -114,19 +96,14 @@ jobs:
           install-only: true
           version: "~> v2"
 
-      - name: Build binaries with goreleaser
+      - name: Build server binary with goreleaser
         run: |
-          goreleaser build --snapshot --clean \
-            --id temporal-server \
-            --id temporal-cassandra-tool \
-            --id temporal-sql-tool \
-            --id temporal-elasticsearch-tool \
-            --id tdbg
+          goreleaser build --snapshot --clean --id temporal-server
 
       - name: Show goreleaser output structure
         run: |
           echo "=== Goreleaser dist structure ==="
-          find dist -type f -name "temporal-server" -o -name "tdbg" -o -name "temporal-*-tool" | sort
+          find dist -type f -name "temporal-server" | sort
 
       - name: Download temporal CLI (legacy build only)
         if: env.BUILD_METHOD == 'legacy'
@@ -166,31 +143,27 @@ jobs:
           done
           rm -rf .docker/dist/tmp
 
-      - name: Organize binaries
+      - name: Organize server binary
         run: |
-          echo "=== Organizing binaries ==="
+          echo "=== Organizing server binary ==="
           mkdir -p .docker/dist/amd64 .docker/dist/arm64
 
-          # Copy amd64 binaries
-          for binary in temporal-server temporal-cassandra-tool temporal-sql-tool temporal-elasticsearch-tool tdbg; do
-            find dist -type f -name "$binary" | grep linux_amd64 | xargs -I {} cp {} .docker/dist/amd64/
-          done
+          # Copy amd64 binary
+          find dist -type f -name "temporal-server" | grep linux_amd64 | xargs -I {} cp {} .docker/dist/amd64/
 
-          # Copy arm64 binaries
-          for binary in temporal-server temporal-cassandra-tool temporal-sql-tool temporal-elasticsearch-tool tdbg; do
-            find dist -type f -name "$binary" | grep linux_arm64 | xargs -I {} cp {} .docker/dist/arm64/
-          done
+          # Copy arm64 binary
+          find dist -type f -name "temporal-server" | grep linux_arm64 | xargs -I {} cp {} .docker/dist/arm64/
 
-          echo "=== Verifying binaries ==="
-          echo "AMD64 binaries:"
+          echo "=== Verifying server binaries ==="
+          echo "AMD64 binary:"
           ls -lh .docker/dist/amd64/
-          echo "ARM64 binaries:"
+          echo "ARM64 binary:"
           ls -lh .docker/dist/arm64/
 
-      - name: Upload binaries as artifacts
+      - name: Upload server binary as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: temporal-binaries
+          name: temporal-server-binaries
           path: dist/
           retention-days: 3
           if-no-files-found: error
@@ -200,35 +173,35 @@ jobs:
         run: |
           echo "=== Copying binaries to build/ for legacy Dockerfiles ==="
           mkdir -p build/amd64 build/arm64
-          cp -r .docker/dist/amd64/* build/amd64/
-          cp -r .docker/dist/arm64/* build/arm64/
-          echo "Binaries ready in build/ directory"
+          cp .docker/dist/amd64/temporal-server build/amd64/
+          cp .docker/dist/arm64/temporal-server build/arm64/
+          cp .docker/dist/amd64/temporal build/amd64/
+          cp .docker/dist/arm64/temporal build/arm64/
+          cp .docker/dist/amd64/tctl build/amd64/
+          cp .docker/dist/arm64/tctl build/arm64/
+          if [ -f .docker/dist/amd64/tctl-authorization-plugin ]; then
+            cp .docker/dist/amd64/tctl-authorization-plugin build/amd64/
+          fi
+          if [ -f .docker/dist/arm64/tctl-authorization-plugin ]; then
+            cp .docker/dist/arm64/tctl-authorization-plugin build/arm64/
+          fi
+          echo "Server binaries ready in build/ directory"
           ls -lh build/amd64/
           ls -lh build/arm64/
 
-      - name: Build native images for testing
+      - name: Build native server image for testing
         run: |
           NATIVE_PLATFORM="linux/$(go env GOARCH)"
-          echo "Building for platform: ${NATIVE_PLATFORM}"
+          echo "Building server for platform: ${NATIVE_PLATFORM}"
           echo "Build method: ${{ env.BUILD_METHOD }}"
 
-          # Determine which bake target group to build based on build method
+          # Determine which bake target to build based on build method
           if [ "${{ env.BUILD_METHOD }}" = "legacy" ]; then
-            if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
-              BAKE_TARGET="legacy"
-              echo "Building legacy server and admin-tools images"
-            else
-              BAKE_TARGET="server-legacy"
-              echo "Building legacy server image only"
-            fi
+            BAKE_TARGET="server-legacy"
+            echo "Building legacy server image"
           else
-            if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
-              BAKE_TARGET="default"
-              echo "Building server and admin-tools images"
-            else
-              BAKE_TARGET="server"
-              echo "Building server image only"
-            fi
+            BAKE_TARGET="server"
+            echo "Building server image"
           fi
 
           docker buildx bake \
@@ -243,31 +216,20 @@ jobs:
           IMAGE_BRANCH_TAG: ${{ env.IMAGE_BRANCH_TAG }}
           TEMPORAL_SHA: ${{ env.TEMPORAL_SHA }}
           TEMPORAL_VERSION: ${{ env.TEMPORAL_VERSION }}
-          TEMPORAL_CLI_VERSION: ${{ env.TEMPORAL_CLI_VERSION }}
           TAG_LATEST: ${{ env.TAG_LATEST }}
 
-      - name: Build and push multiarch images
+      - name: Build and push multiarch server image
         if: github.event_name == 'push'
         run: |
           echo "Build method: ${{ env.BUILD_METHOD }}"
 
-          # Determine which bake target group to build based on build method
+          # Determine which bake target to build based on build method
           if [ "${{ env.BUILD_METHOD }}" = "legacy" ]; then
-            if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
-              BAKE_TARGET="legacy"
-              echo "Building and pushing legacy server and admin-tools images"
-            else
-              BAKE_TARGET="server-legacy"
-              echo "Building and pushing legacy server image only"
-            fi
+            BAKE_TARGET="server-legacy"
+            echo "Building and pushing legacy server image"
           else
-            if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
-              BAKE_TARGET="default"
-              echo "Building and pushing server and admin-tools images"
-            else
-              BAKE_TARGET="server"
-              echo "Building and pushing server image only"
-            fi
+            BAKE_TARGET="server"
+            echo "Building and pushing server image"
           fi
 
           docker buildx bake \
@@ -281,7 +243,6 @@ jobs:
           IMAGE_BRANCH_TAG: ${{ env.IMAGE_BRANCH_TAG }}
           TEMPORAL_SHA: ${{ env.TEMPORAL_SHA }}
           TEMPORAL_VERSION: ${{ env.TEMPORAL_VERSION }}
-          TEMPORAL_CLI_VERSION: ${{ env.TEMPORAL_CLI_VERSION }}
           TAG_LATEST: ${{ env.TAG_LATEST }}
 
       - name: Run Trivy on Server image
@@ -292,8 +253,243 @@ jobs:
           format: "sarif"
           output: "trivy-server.sarif"
 
+      - name: Upload Trivy results to GitHub Security
+        if: github.event_name == 'push'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-server.sarif"
+
+      - name: Server image summary
+        if: github.event_name == 'push'
+        run: |
+          {
+            echo "### 🐳 Published Server Image"
+            echo ""
+            echo "- \`ghcr.io/chaptersix/server:${{ env.IMAGE_SHA_TAG }}\`"
+            echo ""
+            echo "Pull with:"
+            echo "\`\`\`bash"
+            echo "docker pull ghcr.io/chaptersix/server:${{ env.IMAGE_SHA_TAG }}"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build-push-admin-tools:
+    # Skip on release/* branches (unless workflow_dispatch)
+    if: |
+      !startsWith(github.ref, 'refs/heads/release/') || 
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set environment variables
+        run: |
+          {
+            echo "IMAGE_SHA_TAG=sha-${GITHUB_SHA:0:7}"
+            branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+            echo "IMAGE_BRANCH_TAG=branch-${branch_name}"
+            echo "TEMPORAL_SHA=${GITHUB_SHA}"
+            echo "TEMPORAL_VERSION=$(git describe --tags --always)"
+            TAG_LATEST=${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 'true' || 'false' }}
+            echo "TAG_LATEST=${TAG_LATEST}"
+          } >> "$GITHUB_ENV"
+
+          # Set build method (default to goreleaser)
+          BUILD_METHOD="${{ github.event.inputs.build_method }}"
+          if [ -z "$BUILD_METHOD" ]; then
+            BUILD_METHOD="goreleaser"
+          fi
+          echo "BUILD_METHOD=${BUILD_METHOD}" >> "$GITHUB_ENV"
+          echo "Build method: ${BUILD_METHOD}"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            $HOME/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          install-only: true
+          version: "~> v2"
+
+      - name: Build admin tool binaries with goreleaser
+        run: |
+          goreleaser build --snapshot --clean \
+            --id temporal-cassandra-tool \
+            --id temporal-sql-tool \
+            --id temporal-elasticsearch-tool \
+            --id tdbg
+
+      - name: Show goreleaser output structure
+        run: |
+          echo "=== Goreleaser dist structure ==="
+          find dist -type f -name "tdbg" -o -name "temporal-*-tool" | sort
+
+      - name: Download temporal CLI
+        run: |
+          CLI_VERSION="${TEMPORAL_CLI_VERSION:-$(grep -A1 'variable "TEMPORAL_CLI_VERSION"' .docker/docker-bake.hcl | grep 'default =' | cut -d'"' -f2)}"
+          echo "Downloading temporal CLI ${CLI_VERSION}..."
+          echo "TEMPORAL_CLI_VERSION=${CLI_VERSION}" >> "$GITHUB_ENV"
+          mkdir -p .docker/dist/tmp
+          for arch in amd64 arm64; do
+            echo "Downloading for linux/${arch}..."
+            CLI_VERSION_NO_V="${CLI_VERSION#v}"
+            curl -fsSL "https://github.com/temporalio/cli/releases/download/${CLI_VERSION}/temporal_cli_${CLI_VERSION_NO_V}_linux_${arch}.tar.gz" | \
+              tar -xzf - -C .docker/dist/tmp
+            mkdir -p ".docker/dist/${arch}"
+            mv .docker/dist/tmp/temporal ".docker/dist/${arch}/temporal"
+          done
+          rm -rf .docker/dist/tmp
+
+      - name: Download tctl (legacy build only)
+        if: env.BUILD_METHOD == 'legacy'
+        run: |
+          TCTL_VERSION="${TCTL_VERSION:-$(grep -A1 'variable "TCTL_VERSION"' .docker/docker-bake.hcl | grep 'default =' | cut -d'"' -f2)}"
+          echo "Downloading tctl ${TCTL_VERSION}..."
+          echo "TCTL_VERSION=${TCTL_VERSION}" >> "$GITHUB_ENV"
+          mkdir -p .docker/dist/tmp
+          for arch in amd64 arm64; do
+            echo "Downloading for linux/${arch}..."
+            TCTL_VERSION_NO_V="${TCTL_VERSION#v}"
+            curl -fsSL "https://github.com/temporalio/tctl/releases/download/${TCTL_VERSION}/tctl_${TCTL_VERSION_NO_V}_linux_${arch}.tar.gz" | \
+              tar -xzf - -C .docker/dist/tmp
+            mkdir -p ".docker/dist/${arch}"
+            mv .docker/dist/tmp/tctl ".docker/dist/${arch}/tctl"
+            # Note: tctl-authorization-plugin comes with tctl in the same archive
+            if [ -f .docker/dist/tmp/tctl-authorization-plugin ]; then
+              mv .docker/dist/tmp/tctl-authorization-plugin ".docker/dist/${arch}/tctl-authorization-plugin"
+            fi
+          done
+          rm -rf .docker/dist/tmp
+
+      - name: Organize admin tool binaries
+        run: |
+          echo "=== Organizing admin tool binaries ==="
+          mkdir -p .docker/dist/amd64 .docker/dist/arm64
+
+          # Copy amd64 binaries
+          for binary in temporal-cassandra-tool temporal-sql-tool temporal-elasticsearch-tool tdbg; do
+            find dist -type f -name "$binary" | grep linux_amd64 | xargs -I {} cp {} .docker/dist/amd64/
+          done
+
+          # Copy arm64 binaries
+          for binary in temporal-cassandra-tool temporal-sql-tool temporal-elasticsearch-tool tdbg; do
+            find dist -type f -name "$binary" | grep linux_arm64 | xargs -I {} cp {} .docker/dist/arm64/
+          done
+
+          echo "=== Verifying admin tool binaries ==="
+          echo "AMD64 binaries:"
+          ls -lh .docker/dist/amd64/
+          echo "ARM64 binaries:"
+          ls -lh .docker/dist/arm64/
+
+      - name: Upload admin tool binaries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: temporal-admin-tool-binaries
+          path: dist/
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Prepare binaries for legacy Dockerfile
+        if: env.BUILD_METHOD == 'legacy'
+        run: |
+          echo "=== Copying binaries to build/ for legacy Dockerfiles ==="
+          mkdir -p build/amd64 build/arm64
+          cp -r .docker/dist/amd64/* build/amd64/
+          cp -r .docker/dist/arm64/* build/arm64/
+          echo "Admin tool binaries ready in build/ directory"
+          ls -lh build/amd64/
+          ls -lh build/arm64/
+
+      - name: Build native admin-tools image for testing
+        run: |
+          NATIVE_PLATFORM="linux/$(go env GOARCH)"
+          echo "Building admin-tools for platform: ${NATIVE_PLATFORM}"
+          echo "Build method: ${{ env.BUILD_METHOD }}"
+
+          # Determine which bake target to build based on build method
+          if [ "${{ env.BUILD_METHOD }}" = "legacy" ]; then
+            BAKE_TARGET="admin-tools-legacy"
+            echo "Building legacy admin-tools image"
+          else
+            BAKE_TARGET="admin-tools"
+            echo "Building admin-tools image"
+          fi
+
+          docker buildx bake \
+            -f .docker/docker-bake.hcl \
+            --set "*.platform=${NATIVE_PLATFORM}" \
+            --load \
+            "${BAKE_TARGET}"
+        env:
+          IMAGE_REPO: ghcr.io/chaptersix
+          IMAGE_SHA_TAG: ${{ env.IMAGE_SHA_TAG }}
+          IMAGE_BRANCH_TAG: ${{ env.IMAGE_BRANCH_TAG }}
+          TEMPORAL_SHA: ${{ env.TEMPORAL_SHA }}
+          TEMPORAL_VERSION: ${{ env.TEMPORAL_VERSION }}
+          TEMPORAL_CLI_VERSION: ${{ env.TEMPORAL_CLI_VERSION }}
+          TAG_LATEST: ${{ env.TAG_LATEST }}
+
+      - name: Build and push multiarch admin-tools image
+        if: github.event_name == 'push'
+        run: |
+          echo "Build method: ${{ env.BUILD_METHOD }}"
+
+          # Determine which bake target to build based on build method
+          if [ "${{ env.BUILD_METHOD }}" = "legacy" ]; then
+            BAKE_TARGET="admin-tools-legacy"
+            echo "Building and pushing legacy admin-tools image"
+          else
+            BAKE_TARGET="admin-tools"
+            echo "Building and pushing admin-tools image"
+          fi
+
+          docker buildx bake \
+            -f .docker/docker-bake.hcl \
+            --push \
+            "${BAKE_TARGET}"
+        env:
+          IMAGE_REPO: ghcr.io/chaptersix
+          IMAGE_SHA_TAG: ${{ env.IMAGE_SHA_TAG }}
+          IMAGE_BRANCH_TAG: ${{ env.IMAGE_BRANCH_TAG }}
+          TEMPORAL_SHA: ${{ env.TEMPORAL_SHA }}
+          TEMPORAL_VERSION: ${{ env.TEMPORAL_VERSION }}
+          TEMPORAL_CLI_VERSION: ${{ env.TEMPORAL_CLI_VERSION }}
+          TAG_LATEST: ${{ env.TAG_LATEST }}
+
       - name: Run Trivy on Admin Tools image
-        if: github.event_name == 'push' && env.BUILD_ADMIN_TOOLS == 'true'
+        if: github.event_name == 'push'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ghcr.io/chaptersix/admin-tools:${{ env.IMAGE_SHA_TAG }}
@@ -304,26 +500,18 @@ jobs:
         if: github.event_name == 'push'
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: "."
+          sarif_file: "trivy-admin-tools.sarif"
 
-      - name: Image summary
+      - name: Admin tools image summary
         if: github.event_name == 'push'
         run: |
           {
-            echo "### 🐳 Published Images"
+            echo "### 🐳 Published Admin Tools Image"
             echo ""
-            echo "- \`ghcr.io/chaptersix/server:${{ env.IMAGE_SHA_TAG }}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
-            echo "- \`ghcr.io/chaptersix/admin-tools:${{ env.IMAGE_SHA_TAG }}\`" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          {
+            echo "- \`ghcr.io/chaptersix/admin-tools:${{ env.IMAGE_SHA_TAG }}\`"
             echo ""
             echo "Pull with:"
             echo "\`\`\`bash"
-            echo "docker pull ghcr.io/chaptersix/server:${{ env.IMAGE_SHA_TAG }}"
+            echo "docker pull ghcr.io/chaptersix/admin-tools:${{ env.IMAGE_SHA_TAG }}"
+            echo "\`\`\`"
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ env.BUILD_ADMIN_TOOLS }}" = "true" ]; then
-            echo "docker pull ghcr.io/chaptersix/admin-tools:${{ env.IMAGE_SHA_TAG }}" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
