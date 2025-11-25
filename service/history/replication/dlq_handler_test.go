@@ -6,7 +6,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/server/api/adminservice/v1"
 	"go.temporal.io/server/api/adminservicemock/v1"
@@ -18,7 +17,6 @@ import (
 	"go.temporal.io/server/common/cluster"
 	"go.temporal.io/server/common/definition"
 	"go.temporal.io/server/common/persistence"
-	"go.temporal.io/server/common/resourcetest"
 	"go.temporal.io/server/service/history/configs"
 	deletemanager "go.temporal.io/server/service/history/deletemanager"
 	"go.temporal.io/server/service/history/shard"
@@ -28,47 +26,11 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	dlqHandlerSuite struct {
-		suite.Suite
-		*require.Assertions
-		controller *gomock.Controller
+func setupDLQHandler(t *testing.T) (*gomock.Controller, *shard.ContextTest, *configs.Config, *client.MockBean, *adminservicemock.MockAdminServiceClient, *cluster.MockMetadata, *persistence.MockExecutionManager, *persistence.MockShardManager, *MockTaskExecutor, map[string]TaskExecutor, string, *dlqHandlerImpl) {
+	controller := gomock.NewController(t)
 
-		mockResource     *resourcetest.Test
-		mockShard        *shard.ContextTest
-		config           *configs.Config
-		mockClientBean   *client.MockBean
-		adminClient      *adminservicemock.MockAdminServiceClient
-		clusterMetadata  *cluster.MockMetadata
-		executionManager *persistence.MockExecutionManager
-		shardManager     *persistence.MockShardManager
-		taskExecutor     *MockTaskExecutor
-		taskExecutors    map[string]TaskExecutor
-		sourceCluster    string
-
-		replicationMessageHandler *dlqHandlerImpl
-	}
-)
-
-func TestDLQHandlerSuite(t *testing.T) {
-	s := new(dlqHandlerSuite)
-	suite.Run(t, s)
-}
-
-func (s *dlqHandlerSuite) SetupSuite() {
-
-}
-
-func (s *dlqHandlerSuite) TearDownSuite() {
-
-}
-
-func (s *dlqHandlerSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-	s.controller = gomock.NewController(s.T())
-
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{
 			ShardId:                0,
 			RangeId:                1,
@@ -76,26 +38,26 @@ func (s *dlqHandlerSuite) SetupTest() {
 		},
 		tests.NewDynamicConfig(),
 	)
-	s.mockResource = s.mockShard.Resource
-	s.mockClientBean = s.mockResource.ClientBean
-	s.adminClient = s.mockResource.RemoteAdminClient
-	s.clusterMetadata = s.mockResource.ClusterMetadata
-	s.executionManager = s.mockResource.ExecutionMgr
-	s.shardManager = s.mockResource.ShardMgr
-	s.config = tests.NewDynamicConfig()
-	s.clusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.clusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
-	s.taskExecutors = make(map[string]TaskExecutor)
-	s.taskExecutor = NewMockTaskExecutor(s.controller)
-	s.sourceCluster = cluster.TestAlternativeClusterName
-	s.taskExecutors[s.sourceCluster] = s.taskExecutor
+	mockResource := mockShard.Resource
+	mockClientBean := mockResource.ClientBean
+	adminClient := mockResource.RemoteAdminClient
+	clusterMetadata := mockResource.ClusterMetadata
+	executionManager := mockResource.ExecutionMgr
+	shardManager := mockResource.ShardMgr
+	config := tests.NewDynamicConfig()
+	clusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	clusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
+	taskExecutors := make(map[string]TaskExecutor)
+	taskExecutor := NewMockTaskExecutor(controller)
+	sourceCluster := cluster.TestAlternativeClusterName
+	taskExecutors[sourceCluster] = taskExecutor
 
-	s.replicationMessageHandler = newDLQHandler(
-		s.mockShard,
-		deletemanager.NewMockDeleteManager(s.controller),
-		wcache.NewMockCache(s.controller),
-		s.mockClientBean,
-		s.taskExecutors,
+	replicationMessageHandler := newDLQHandler(
+		mockShard,
+		deletemanager.NewMockDeleteManager(controller),
+		wcache.NewMockCache(controller),
+		mockClientBean,
+		taskExecutors,
 		func(params TaskExecutorParams) TaskExecutor {
 			return NewTaskExecutor(
 				params.RemoteCluster,
@@ -106,14 +68,14 @@ func (s *dlqHandlerSuite) SetupTest() {
 			)
 		},
 	)
+
+	return controller, mockShard, config, mockClientBean, adminClient, clusterMetadata, executionManager, shardManager, taskExecutor, taskExecutors, sourceCluster, replicationMessageHandler
 }
 
-func (s *dlqHandlerSuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.StopForTest()
-}
-
-func (s *dlqHandlerSuite) TestReadMessages_OK() {
+func TestReadMessages_OK(t *testing.T) {
+	controller, mockShard, _, mockClientBean, adminClient, _, executionManager, _, _, _, sourceCluster, replicationMessageHandler := setupDLQHandler(t)
+	defer controller.Finish()
+	defer mockShard.StopForTest()
 	ctx := context.Background()
 
 	namespaceID := uuid.New()
@@ -159,55 +121,62 @@ func (s *dlqHandlerSuite) TestReadMessages_OK() {
 		},
 	}
 
-	s.executionManager.EXPECT().GetReplicationTasksFromDLQ(gomock.Any(), &persistence.GetReplicationTasksFromDLQRequest{
+	executionManager.EXPECT().GetReplicationTasksFromDLQ(gomock.Any(), &persistence.GetReplicationTasksFromDLQRequest{
 		GetHistoryTasksRequest: persistence.GetHistoryTasksRequest{
-			ShardID:             s.mockShard.GetShardID(),
+			ShardID:             mockShard.GetShardID(),
 			TaskCategory:        tasks.CategoryReplication,
 			InclusiveMinTaskKey: tasks.NewImmediateKey(persistence.EmptyQueueMessageID + 1),
 			ExclusiveMaxTaskKey: tasks.NewImmediateKey(lastMessageID + 1),
 			BatchSize:           pageSize,
 			NextPageToken:       pageToken,
 		},
-		SourceClusterName: s.sourceCluster,
+		SourceClusterName: sourceCluster,
 	}).Return(dbResp, nil)
 
-	s.mockClientBean.EXPECT().GetRemoteAdminClient(s.sourceCluster).Return(s.adminClient, nil).AnyTimes()
-	s.adminClient.EXPECT().GetDLQReplicationMessages(ctx, gomock.Any()).
+	mockClientBean.EXPECT().GetRemoteAdminClient(sourceCluster).Return(adminClient, nil).AnyTimes()
+	adminClient.EXPECT().GetDLQReplicationMessages(ctx, gomock.Any()).
 		Return(&adminservice.GetDLQReplicationMessagesResponse{
 			ReplicationTasks: []*replicationspb.ReplicationTask{remoteTask},
 		}, nil)
-	taskList, tasksInfo, token, err := s.replicationMessageHandler.GetMessages(ctx, s.sourceCluster, lastMessageID, pageSize, pageToken)
-	s.NoError(err)
-	s.Equal(pageToken, token)
-	s.Equal([]*replicationspb.ReplicationTask{remoteTask}, taskList)
-	s.Equal(namespaceID, tasksInfo[0].GetNamespaceId())
-	s.Equal(workflowID, tasksInfo[0].GetWorkflowId())
-	s.Equal(taskID, tasksInfo[0].GetTaskId())
-	s.Equal(version, tasksInfo[0].GetVersion())
-	s.Equal(firstEventID, tasksInfo[0].GetFirstEventId())
-	s.Equal(nextEventID, tasksInfo[0].GetNextEventId())
+	taskList, tasksInfo, token, err := replicationMessageHandler.GetMessages(ctx, sourceCluster, lastMessageID, pageSize, pageToken)
+	require.NoError(t, err)
+	require.Equal(t, pageToken, token)
+	require.Equal(t, []*replicationspb.ReplicationTask{remoteTask}, taskList)
+	require.Equal(t, namespaceID, tasksInfo[0].GetNamespaceId())
+	require.Equal(t, workflowID, tasksInfo[0].GetWorkflowId())
+	require.Equal(t, taskID, tasksInfo[0].GetTaskId())
+	require.Equal(t, version, tasksInfo[0].GetVersion())
+	require.Equal(t, firstEventID, tasksInfo[0].GetFirstEventId())
+	require.Equal(t, nextEventID, tasksInfo[0].GetNextEventId())
 }
 
-func (s *dlqHandlerSuite) TestPurgeMessages() {
+func TestPurgeMessages(t *testing.T) {
+	controller, mockShard, _, _, _, _, executionManager, shardManager, _, _, sourceCluster, replicationMessageHandler := setupDLQHandler(t)
+	defer controller.Finish()
+	defer mockShard.StopForTest()
+
 	lastMessageID := int64(1)
 
-	s.executionManager.EXPECT().RangeDeleteReplicationTaskFromDLQ(
+	executionManager.EXPECT().RangeDeleteReplicationTaskFromDLQ(
 		gomock.Any(),
 		&persistence.RangeDeleteReplicationTaskFromDLQRequest{
 			RangeCompleteHistoryTasksRequest: persistence.RangeCompleteHistoryTasksRequest{
-				ShardID:             s.mockShard.GetShardID(),
+				ShardID:             mockShard.GetShardID(),
 				TaskCategory:        tasks.CategoryReplication,
 				InclusiveMinTaskKey: tasks.NewImmediateKey(persistence.EmptyQueueMessageID + 1),
 				ExclusiveMaxTaskKey: tasks.NewImmediateKey(lastMessageID + 1),
 			},
-			SourceClusterName: s.sourceCluster,
+			SourceClusterName: sourceCluster,
 		}).Return(nil)
 
-	s.shardManager.EXPECT().UpdateShard(gomock.Any(), gomock.Any()).Return(nil)
-	err := s.replicationMessageHandler.PurgeMessages(context.Background(), s.sourceCluster, lastMessageID)
-	s.NoError(err)
+	shardManager.EXPECT().UpdateShard(gomock.Any(), gomock.Any()).Return(nil)
+	err := replicationMessageHandler.PurgeMessages(context.Background(), sourceCluster, lastMessageID)
+	require.NoError(t, err)
 }
-func (s *dlqHandlerSuite) TestMergeMessages() {
+func TestMergeMessages(t *testing.T) {
+	controller, mockShard, _, mockClientBean, adminClient, _, executionManager, shardManager, taskExecutor, _, sourceCluster, replicationMessageHandler := setupDLQHandler(t)
+	defer controller.Finish()
+	defer mockShard.StopForTest()
 	ctx := context.Background()
 
 	namespaceID := uuid.New()
@@ -254,37 +223,37 @@ func (s *dlqHandlerSuite) TestMergeMessages() {
 		},
 	}
 
-	s.executionManager.EXPECT().GetReplicationTasksFromDLQ(gomock.Any(), &persistence.GetReplicationTasksFromDLQRequest{
+	executionManager.EXPECT().GetReplicationTasksFromDLQ(gomock.Any(), &persistence.GetReplicationTasksFromDLQRequest{
 		GetHistoryTasksRequest: persistence.GetHistoryTasksRequest{
-			ShardID:             s.mockShard.GetShardID(),
+			ShardID:             mockShard.GetShardID(),
 			TaskCategory:        tasks.CategoryReplication,
 			InclusiveMinTaskKey: tasks.NewImmediateKey(persistence.EmptyQueueMessageID + 1),
 			ExclusiveMaxTaskKey: tasks.NewImmediateKey(lastMessageID + 1),
 			BatchSize:           pageSize,
 			NextPageToken:       pageToken,
 		},
-		SourceClusterName: s.sourceCluster,
+		SourceClusterName: sourceCluster,
 	}).Return(dbResp, nil)
 
-	s.mockClientBean.EXPECT().GetRemoteAdminClient(s.sourceCluster).Return(s.adminClient, nil).AnyTimes()
-	s.adminClient.EXPECT().GetDLQReplicationMessages(ctx, gomock.Any()).
+	mockClientBean.EXPECT().GetRemoteAdminClient(sourceCluster).Return(adminClient, nil).AnyTimes()
+	adminClient.EXPECT().GetDLQReplicationMessages(ctx, gomock.Any()).
 		Return(&adminservice.GetDLQReplicationMessagesResponse{
 			ReplicationTasks: []*replicationspb.ReplicationTask{remoteTask},
 		}, nil)
-	s.taskExecutor.EXPECT().Execute(gomock.Any(), remoteTask, true).Return(nil)
-	s.executionManager.EXPECT().RangeDeleteReplicationTaskFromDLQ(gomock.Any(), &persistence.RangeDeleteReplicationTaskFromDLQRequest{
+	taskExecutor.EXPECT().Execute(gomock.Any(), remoteTask, true).Return(nil)
+	executionManager.EXPECT().RangeDeleteReplicationTaskFromDLQ(gomock.Any(), &persistence.RangeDeleteReplicationTaskFromDLQRequest{
 		RangeCompleteHistoryTasksRequest: persistence.RangeCompleteHistoryTasksRequest{
-			ShardID:             s.mockShard.GetShardID(),
+			ShardID:             mockShard.GetShardID(),
 			TaskCategory:        tasks.CategoryReplication,
 			InclusiveMinTaskKey: tasks.NewImmediateKey(persistence.EmptyQueueMessageID + 1),
 			ExclusiveMaxTaskKey: tasks.NewImmediateKey(lastMessageID + 1),
 		},
-		SourceClusterName: s.sourceCluster,
+		SourceClusterName: sourceCluster,
 	}).Return(nil)
 
-	s.shardManager.EXPECT().UpdateShard(gomock.Any(), gomock.Any()).Return(nil)
+	shardManager.EXPECT().UpdateShard(gomock.Any(), gomock.Any()).Return(nil)
 
-	token, err := s.replicationMessageHandler.MergeMessages(ctx, s.sourceCluster, lastMessageID, pageSize, pageToken)
-	s.NoError(err)
-	s.Equal(pageToken, token)
+	token, err := replicationMessageHandler.MergeMessages(ctx, sourceCluster, lastMessageID, pageSize, pageToken)
+	require.NoError(t, err)
+	require.Equal(t, pageToken, token)
 }

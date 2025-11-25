@@ -5,35 +5,23 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	batchedTaskSuite struct {
-		suite.Suite
-		*require.Assertions
-		controller     *gomock.Controller
-		logger         log.Logger
-		metricsHandler metrics.Handler
-	}
-)
-
-func (s *batchedTaskSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-	s.controller = gomock.NewController(s.T())
-	s.logger = log.NewTestLogger()
-	s.metricsHandler = metrics.NoopMetricsHandler
+func setupBatchedTask(t *testing.T) (*gomock.Controller, log.Logger, metrics.Handler) {
+	controller := gomock.NewController(t)
+	logger := log.NewTestLogger()
+	metricsHandler := metrics.NoopMetricsHandler
+	return controller, logger, metricsHandler
 }
 
-func TestBatchedTaskSuite(t *testing.T) {
-	suite.Run(t, new(batchedTaskSuite))
-}
+func TestAddTask_batchStateClose_DoNotBatch_ReturnFalse(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
 
-func (s *batchedTaskSuite) TestAddTask_batchStateClose_DoNotBatch_ReturnFalse() {
-	incomingTask := NewMockTrackableExecutableTask(s.controller)
+	incomingTask := NewMockTrackableExecutableTask(controller)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
 		batchedTask:     incomingTask,
@@ -43,12 +31,15 @@ func (s *batchedTaskSuite) TestAddTask_batchStateClose_DoNotBatch_ReturnFalse() 
 			handlerCallCount++
 		},
 	}
-	result := batchedTestTask.AddTask(NewMockTrackableExecutableTask(s.controller))
-	s.False(result)
+	result := batchedTestTask.AddTask(NewMockTrackableExecutableTask(controller))
+	require.False(t, result)
 }
 
-func (s *batchedTaskSuite) TestAddTask_ExistingTaskIsNotBatchable_DoNotBatch_ReturnFalse() {
-	existing := NewMockTrackableExecutableTask(s.controller)
+func TestAddTask_ExistingTaskIsNotBatchable_DoNotBatch_ReturnFalse(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockTrackableExecutableTask(controller)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
@@ -58,13 +49,16 @@ func (s *batchedTaskSuite) TestAddTask_ExistingTaskIsNotBatchable_DoNotBatch_Ret
 			handlerCallCount++
 		},
 	}
-	incoming := NewMockTrackableExecutableTask(s.controller)
+	incoming := NewMockTrackableExecutableTask(controller)
 	result := batchedTestTask.AddTask(incoming)
-	s.False(result)
+	require.False(t, result)
 }
 
-func (s *batchedTaskSuite) TestAddTask_IncomingTaskIsNotBatchable_DoNotBatch_ReturnFalse() {
-	existing := NewMockTrackableExecutableTask(s.controller)
+func TestAddTask_IncomingTaskIsNotBatchable_DoNotBatch_ReturnFalse(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockTrackableExecutableTask(controller)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
@@ -74,13 +68,16 @@ func (s *batchedTaskSuite) TestAddTask_IncomingTaskIsNotBatchable_DoNotBatch_Ret
 			handlerCallCount++
 		},
 	}
-	incoming := NewMockBatchableTask(s.controller)
+	incoming := NewMockBatchableTask(controller)
 	result := batchedTestTask.AddTask(incoming)
-	s.False(result)
+	require.False(t, result)
 }
 
-func (s *batchedTaskSuite) TestAddTask_ExistingTaskDoesNotWantToBatch_DoNotBatch_ReturnFalse() {
-	existing := NewMockBatchableTask(s.controller)
+func TestAddTask_ExistingTaskDoesNotWantToBatch_DoNotBatch_ReturnFalse(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
 	existing.EXPECT().CanBatch().Return(false).Times(1)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
@@ -91,15 +88,18 @@ func (s *batchedTaskSuite) TestAddTask_ExistingTaskDoesNotWantToBatch_DoNotBatch
 			handlerCallCount++
 		},
 	}
-	incoming := NewMockBatchableTask(s.controller)
+	incoming := NewMockBatchableTask(controller)
 	incoming.EXPECT().CanBatch().Return(true).Times(1)
 
 	result := batchedTestTask.AddTask(incoming)
-	s.False(result)
+	require.False(t, result)
 }
 
-func (s *batchedTaskSuite) TestAddTask_IncomingTaskDoesNotWantToBatch_DoNotBatch_ReturnFalse() {
-	existing := NewMockBatchableTask(s.controller)
+func TestAddTask_IncomingTaskDoesNotWantToBatch_DoNotBatch_ReturnFalse(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
@@ -109,15 +109,18 @@ func (s *batchedTaskSuite) TestAddTask_IncomingTaskDoesNotWantToBatch_DoNotBatch
 			handlerCallCount++
 		},
 	}
-	incoming := NewMockBatchableTask(s.controller)
+	incoming := NewMockBatchableTask(controller)
 	incoming.EXPECT().CanBatch().Return(false).Times(1)
 
 	result := batchedTestTask.AddTask(incoming)
-	s.False(result)
+	require.False(t, result)
 }
 
-func (s *batchedTaskSuite) TestAddTask_TasksAreBatchableAndCanBatch_ReturnTrue() {
-	existing := NewMockBatchableTask(s.controller)
+func TestAddTask_TasksAreBatchableAndCanBatch_ReturnTrue(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
 	existing.EXPECT().CanBatch().Return(true).Times(1)
 
 	handlerCallCount := 0
@@ -129,24 +132,27 @@ func (s *batchedTaskSuite) TestAddTask_TasksAreBatchableAndCanBatch_ReturnTrue()
 			handlerCallCount++
 		},
 	}
-	incoming := NewMockBatchableTask(s.controller)
+	incoming := NewMockBatchableTask(controller)
 	incoming.EXPECT().CanBatch().Return(true).Times(1)
 
-	batchResult := NewMockTrackableExecutableTask(s.controller)
+	batchResult := NewMockTrackableExecutableTask(controller)
 	existing.EXPECT().BatchWith(incoming).Return(batchResult, true).Times(1)
 	result := batchedTestTask.AddTask(incoming)
 
-	s.True(result)
+	require.True(t, result)
 
 	// verify individual tasks
-	s.True(batchResult == batchedTestTask.batchedTask)
-	s.Len(batchedTestTask.individualTasks, 2)
-	s.True(existing == batchedTestTask.individualTasks[0])
-	s.True(incoming == batchedTestTask.individualTasks[1])
+	require.True(t, batchResult == batchedTestTask.batchedTask)
+	require.Len(t, batchedTestTask.individualTasks, 2)
+	require.True(t, existing == batchedTestTask.individualTasks[0])
+	require.True(t, incoming == batchedTestTask.individualTasks[1])
 }
 
-func (s *batchedTaskSuite) TestExecute_SetBatchStateToClose_ReturnResult() {
-	existing := NewMockBatchableTask(s.controller)
+func TestExecute_SetBatchStateToClose_ReturnResult(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
@@ -160,14 +166,17 @@ func (s *batchedTaskSuite) TestExecute_SetBatchStateToClose_ReturnResult() {
 	existing.EXPECT().Execute().Return(err).Times(1)
 	result := batchedTestTask.Execute()
 
-	s.Equal(batchState(batchStateClose), batchedTestTask.state)
-	s.Equal(err, result)
+	require.Equal(t, batchState(batchStateClose), batchedTestTask.state)
+	require.Equal(t, err, result)
 }
 
-func (s *batchedTaskSuite) TestAck_AckIndividualTasks() {
-	existing := NewMockBatchableTask(s.controller)
-	add1 := NewMockBatchableTask(s.controller)
-	add2 := NewMockBatchableTask(s.controller)
+func TestAck_AckIndividualTasks(t *testing.T) {
+	controller, _, metricsHandler := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
+	add1 := NewMockBatchableTask(controller)
+	add2 := NewMockBatchableTask(controller)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
@@ -176,7 +185,7 @@ func (s *batchedTaskSuite) TestAck_AckIndividualTasks() {
 		individualTaskHandler: func(task TrackableExecutableTask) {
 			handlerCallCount++
 		},
-		metricsHandler: s.metricsHandler,
+		metricsHandler: metricsHandler,
 	}
 	existing.EXPECT().Ack().Times(1)
 	add1.EXPECT().Ack().Times(1)
@@ -185,10 +194,13 @@ func (s *batchedTaskSuite) TestAck_AckIndividualTasks() {
 	batchedTestTask.Ack()
 }
 
-func (s *batchedTaskSuite) TestAbort_AbortIndividualTasks() {
-	existing := NewMockBatchableTask(s.controller)
-	add1 := NewMockBatchableTask(s.controller)
-	add2 := NewMockBatchableTask(s.controller)
+func TestAbort_AbortIndividualTasks(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
+	add1 := NewMockBatchableTask(controller)
+	add2 := NewMockBatchableTask(controller)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
@@ -205,10 +217,13 @@ func (s *batchedTaskSuite) TestAbort_AbortIndividualTasks() {
 	batchedTestTask.Abort()
 }
 
-func (s *batchedTaskSuite) TestCancel_CancelIndividualTasks() {
-	existing := NewMockBatchableTask(s.controller)
-	add1 := NewMockBatchableTask(s.controller)
-	add2 := NewMockBatchableTask(s.controller)
+func TestCancel_CancelIndividualTasks(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
+	add1 := NewMockBatchableTask(controller)
+	add2 := NewMockBatchableTask(controller)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
@@ -225,8 +240,11 @@ func (s *batchedTaskSuite) TestCancel_CancelIndividualTasks() {
 	batchedTestTask.Cancel()
 }
 
-func (s *batchedTaskSuite) TestNack_SingleItem_NackTheTask() {
-	existing := NewMockBatchableTask(s.controller)
+func TestNack_SingleItem_NackTheTask(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
@@ -241,10 +259,13 @@ func (s *batchedTaskSuite) TestNack_SingleItem_NackTheTask() {
 	batchedTestTask.Nack(nil)
 }
 
-func (s *batchedTaskSuite) TestNack_MultipleItems_CallIndividualHandler() {
-	existing := NewMockBatchableTask(s.controller)
-	add1 := NewMockBatchableTask(s.controller)
-	add2 := NewMockBatchableTask(s.controller)
+func TestNack_MultipleItems_CallIndividualHandler(t *testing.T) {
+	controller, logger, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
+	add1 := NewMockBatchableTask(controller)
+	add2 := NewMockBatchableTask(controller)
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
 		individualTasks: append([]TrackableExecutableTask{}, existing, add1, add2),
@@ -254,7 +275,7 @@ func (s *batchedTaskSuite) TestNack_MultipleItems_CallIndividualHandler() {
 			task.Abort()
 			task.Reschedule()
 		},
-		logger: s.logger,
+		logger: logger,
 	}
 	existing.EXPECT().Cancel().Times(1)
 	existing.EXPECT().MarkUnbatchable().Times(1)
@@ -273,8 +294,11 @@ func (s *batchedTaskSuite) TestNack_MultipleItems_CallIndividualHandler() {
 	batchedTestTask.Nack(nil)
 }
 
-func (s *batchedTaskSuite) TestMarkPoisonPill_SingleItem_MarkTheTask() {
-	existing := NewMockBatchableTask(s.controller)
+func TestMarkPoisonPill_SingleItem_MarkTheTask(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
@@ -287,11 +311,14 @@ func (s *batchedTaskSuite) TestMarkPoisonPill_SingleItem_MarkTheTask() {
 	existing.EXPECT().MarkPoisonPill().Return(nil).Times(1)
 
 	result := batchedTestTask.MarkPoisonPill()
-	s.Nil(result)
+	require.Nil(t, result)
 }
 
-func (s *batchedTaskSuite) TestReschedule_SingleItem_RescheduleTheTask() {
-	existing := NewMockBatchableTask(s.controller)
+func TestReschedule_SingleItem_RescheduleTheTask(t *testing.T) {
+	controller, _, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
 	handlerCallCount := 0
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
@@ -304,13 +331,16 @@ func (s *batchedTaskSuite) TestReschedule_SingleItem_RescheduleTheTask() {
 	existing.EXPECT().Reschedule().Times(1)
 
 	batchedTestTask.Reschedule()
-	s.Equal(0, handlerCallCount)
+	require.Equal(t, 0, handlerCallCount)
 }
 
-func (s *batchedTaskSuite) TestMarkPoisonPill_MultipleItems_CallIndividualHandler() {
-	existing := NewMockBatchableTask(s.controller)
-	add1 := NewMockBatchableTask(s.controller)
-	add2 := NewMockBatchableTask(s.controller)
+func TestMarkPoisonPill_MultipleItems_CallIndividualHandler(t *testing.T) {
+	controller, logger, _ := setupBatchedTask(t)
+	defer controller.Finish()
+
+	existing := NewMockBatchableTask(controller)
+	add1 := NewMockBatchableTask(controller)
+	add2 := NewMockBatchableTask(controller)
 	batchedTestTask := &batchedTask{
 		batchedTask:     existing,
 		individualTasks: append([]TrackableExecutableTask{}, existing, add1, add2),
@@ -320,7 +350,7 @@ func (s *batchedTaskSuite) TestMarkPoisonPill_MultipleItems_CallIndividualHandle
 			task.Abort()
 			task.Reschedule()
 		},
-		logger: s.logger,
+		logger: logger,
 	}
 	existing.EXPECT().Cancel().Times(1)
 	existing.EXPECT().MarkUnbatchable().Times(1)
@@ -337,5 +367,5 @@ func (s *batchedTaskSuite) TestMarkPoisonPill_MultipleItems_CallIndividualHandle
 	add2.EXPECT().MarkUnbatchable().Times(1)
 
 	result := batchedTestTask.MarkPoisonPill()
-	s.Nil(result)
+	require.Nil(t, result)
 }

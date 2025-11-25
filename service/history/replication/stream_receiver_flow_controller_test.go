@@ -3,24 +3,12 @@ package replication
 import (
 	"testing"
 
-	"github.com/stretchr/testify/suite"
+	"github.com/stretchr/testify/require"
 	enumsspb "go.temporal.io/server/api/enums/v1"
-	"go.temporal.io/server/service/history/configs"
 	"go.temporal.io/server/service/history/tests"
-	"go.uber.org/mock/gomock"
 )
 
-type (
-	flowControlTestSuite struct {
-		suite.Suite
-		ctrl                *gomock.Controller
-		controller          *streamReceiverFlowControllerImpl
-		config              *configs.Config
-		maxOutStandingTasks int
-	}
-)
-
-func (f *flowControlTestSuite) SetupTest() {
+func TestLowPriorityWithinLimit(t *testing.T) {
 	lowPrioritySignal := func() *FlowControlSignal {
 		return &FlowControlSignal{taskTrackingCount: 5}
 	}
@@ -34,63 +22,100 @@ func (f *flowControlTestSuite) SetupTest() {
 		enumsspb.TASK_PRIORITY_HIGH: highPrioritySignal,
 	}
 
-	f.config = tests.NewDynamicConfig()
-	f.config.ReplicationReceiverMaxOutstandingTaskCount = func() int {
+	config := tests.NewDynamicConfig()
+	config.ReplicationReceiverMaxOutstandingTaskCount = func() int {
 		return 50
 	}
-	f.controller = NewReceiverFlowControl(signals, f.config)
-	f.maxOutStandingTasks = f.config.ReplicationReceiverMaxOutstandingTaskCount()
-}
+	controller := NewReceiverFlowControl(signals, config)
 
-func TestFlowControlTestSuite(t *testing.T) {
-	suite.Run(t, new(flowControlTestSuite))
-}
-
-func (f *flowControlTestSuite) TestLowPriorityWithinLimit() {
-	actual := f.controller.GetFlowControlInfo(enumsspb.TASK_PRIORITY_LOW)
+	actual := controller.GetFlowControlInfo(enumsspb.TASK_PRIORITY_LOW)
 	expected := enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_RESUME
-	f.Equal(expected, actual)
+	require.Equal(t, expected, actual)
 }
 
-func (f *flowControlTestSuite) TestHighPriorityExceedsLimit() {
-	actual := f.controller.GetFlowControlInfo(enumsspb.TASK_PRIORITY_HIGH)
+func TestHighPriorityExceedsLimit(t *testing.T) {
+	lowPrioritySignal := func() *FlowControlSignal {
+		return &FlowControlSignal{taskTrackingCount: 5}
+	}
+
+	highPrioritySignal := func() *FlowControlSignal {
+		return &FlowControlSignal{taskTrackingCount: 150}
+	}
+
+	signals := map[enumsspb.TaskPriority]FlowControlSignalProvider{
+		enumsspb.TASK_PRIORITY_LOW:  lowPrioritySignal,
+		enumsspb.TASK_PRIORITY_HIGH: highPrioritySignal,
+	}
+
+	config := tests.NewDynamicConfig()
+	config.ReplicationReceiverMaxOutstandingTaskCount = func() int {
+		return 50
+	}
+	controller := NewReceiverFlowControl(signals, config)
+
+	actual := controller.GetFlowControlInfo(enumsspb.TASK_PRIORITY_HIGH)
 	expected := enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_PAUSE
-	f.Equal(expected, actual)
+	require.Equal(t, expected, actual)
 }
 
-func (f *flowControlTestSuite) TestUnknownPriority() {
+func TestUnknownPriority(t *testing.T) {
+	lowPrioritySignal := func() *FlowControlSignal {
+		return &FlowControlSignal{taskTrackingCount: 5}
+	}
+
+	highPrioritySignal := func() *FlowControlSignal {
+		return &FlowControlSignal{taskTrackingCount: 150}
+	}
+
+	signals := map[enumsspb.TaskPriority]FlowControlSignalProvider{
+		enumsspb.TASK_PRIORITY_LOW:  lowPrioritySignal,
+		enumsspb.TASK_PRIORITY_HIGH: highPrioritySignal,
+	}
+
+	config := tests.NewDynamicConfig()
+	config.ReplicationReceiverMaxOutstandingTaskCount = func() int {
+		return 50
+	}
+	controller := NewReceiverFlowControl(signals, config)
+
 	unknownPriority := enumsspb.TaskPriority(999) // Assuming 999 is an unknown priority
-	actual := f.controller.GetFlowControlInfo(unknownPriority)
+	actual := controller.GetFlowControlInfo(unknownPriority)
 	expected := enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_RESUME
-	f.Equal(expected, actual)
+	require.Equal(t, expected, actual)
 }
 
-func (f *flowControlTestSuite) TestBoundaryCondition() {
+func TestBoundaryCondition(t *testing.T) {
+	config := tests.NewDynamicConfig()
+	config.ReplicationReceiverMaxOutstandingTaskCount = func() int {
+		return 50
+	}
+	maxOutStandingTasks := config.ReplicationReceiverMaxOutstandingTaskCount()
+
 	boundarySignal := func() *FlowControlSignal {
-		return &FlowControlSignal{taskTrackingCount: f.maxOutStandingTasks}
+		return &FlowControlSignal{taskTrackingCount: maxOutStandingTasks}
 	}
 
 	signals := map[enumsspb.TaskPriority]FlowControlSignalProvider{
 		enumsspb.TASK_PRIORITY_LOW: boundarySignal,
 	}
 
-	f.controller = NewReceiverFlowControl(signals, f.config)
+	controller := NewReceiverFlowControl(signals, config)
 
-	actual := f.controller.GetFlowControlInfo(enumsspb.TASK_PRIORITY_LOW)
+	actual := controller.GetFlowControlInfo(enumsspb.TASK_PRIORITY_LOW)
 	expected := enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_RESUME
-	f.Equal(expected, actual)
+	require.Equal(t, expected, actual)
 
 	boundarySignal = func() *FlowControlSignal {
-		return &FlowControlSignal{taskTrackingCount: f.maxOutStandingTasks + 1}
+		return &FlowControlSignal{taskTrackingCount: maxOutStandingTasks + 1}
 	}
 
 	signals = map[enumsspb.TaskPriority]FlowControlSignalProvider{
 		enumsspb.TASK_PRIORITY_LOW: boundarySignal,
 	}
 
-	f.controller = NewReceiverFlowControl(signals, f.config)
+	controller = NewReceiverFlowControl(signals, config)
 
-	actual = f.controller.GetFlowControlInfo(enumsspb.TASK_PRIORITY_LOW)
+	actual = controller.GetFlowControlInfo(enumsspb.TASK_PRIORITY_LOW)
 	expected = enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_PAUSE
-	f.Equal(expected, actual)
+	require.Equal(t, expected, actual)
 }

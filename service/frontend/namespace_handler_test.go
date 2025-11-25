@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
+	"github.com/stretchr/testify/require"
 	enumspb "go.temporal.io/api/enums/v1"
 	namespacepb "go.temporal.io/api/namespace/v1"
 	replicationpb "go.temporal.io/api/replication/v1"
@@ -32,9 +31,7 @@ import (
 )
 
 type (
-	namespaceHandlerCommonSuite struct {
-		suite.Suite
-
+	namespaceHandlerTest struct {
 		controller *gomock.Controller
 
 		maxBadBinaryCount       int
@@ -53,21 +50,11 @@ type (
 
 var now = time.Date(2020, 8, 22, 1, 2, 3, 4, time.UTC)
 
-func TestNamespaceHandlerCommonSuite(t *testing.T) {
-	s := new(namespaceHandlerCommonSuite)
-	suite.Run(t, s)
-}
-
-func (s *namespaceHandlerCommonSuite) SetupSuite() {
-}
-
-func (s *namespaceHandlerCommonSuite) TearDownSuite() {
-}
-
-func (s *namespaceHandlerCommonSuite) SetupTest() {
+func setupNamespaceHandlerTest(t *testing.T) *namespaceHandlerTest {
+	s := &namespaceHandlerTest{}
 	logger := log.NewNoopLogger()
 	dcCollection := dc.NewNoopCollection()
-	s.controller = gomock.NewController(s.T())
+	s.controller = gomock.NewController(t)
 	s.maxBadBinaryCount = 10
 	s.mockMetadataMgr = persistence.NewMockMetadataManager(s.controller)
 	s.mockClusterMetadata = cluster.NewMockMetadata(s.controller)
@@ -94,13 +81,15 @@ func (s *namespaceHandlerCommonSuite) SetupTest() {
 		s.fakeClock,
 		s.config,
 	)
+	return s
 }
 
-func (s *namespaceHandlerCommonSuite) TearDownTest() {
-	s.controller.Finish()
+func (s *namespaceHandlerTest) getRandomNamespace() string {
+	return "namespace" + uuid.New()
 }
 
-func (s *namespaceHandlerCommonSuite) TestMergeNamespaceData_Overriding() {
+func TestMergeNamespaceData_Overriding(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	out := s.handler.mergeNamespaceData(
 		map[string]string{
 			"k0": "v0",
@@ -110,12 +99,13 @@ func (s *namespaceHandlerCommonSuite) TestMergeNamespaceData_Overriding() {
 		},
 	)
 
-	assert.Equal(s.T(), map[string]string{
+	require.Equal(t, map[string]string{
 		"k0": "v2",
 	}, out)
 }
 
-func (s *namespaceHandlerCommonSuite) TestMergeNamespaceData_Adding() {
+func TestMergeNamespaceData_Adding(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	out := s.handler.mergeNamespaceData(
 		map[string]string{
 			"k0": "v0",
@@ -125,13 +115,14 @@ func (s *namespaceHandlerCommonSuite) TestMergeNamespaceData_Adding() {
 		},
 	)
 
-	assert.Equal(s.T(), map[string]string{
+	require.Equal(t, map[string]string{
 		"k0": "v0",
 		"k1": "v2",
 	}, out)
 }
 
-func (s *namespaceHandlerCommonSuite) TestMergeNamespaceData_Merging() {
+func TestMergeNamespaceData_Merging(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	out := s.handler.mergeNamespaceData(
 		map[string]string{
 			"k0": "v0",
@@ -142,13 +133,14 @@ func (s *namespaceHandlerCommonSuite) TestMergeNamespaceData_Merging() {
 		},
 	)
 
-	assert.Equal(s.T(), map[string]string{
+	require.Equal(t, map[string]string{
 		"k0": "v1",
 		"k1": "v2",
 	}, out)
 }
 
-func (s *namespaceHandlerCommonSuite) TestMergeNamespaceData_Nil() {
+func TestMergeNamespaceData_Nil(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	out := s.handler.mergeNamespaceData(
 		nil,
 		map[string]string{
@@ -157,14 +149,15 @@ func (s *namespaceHandlerCommonSuite) TestMergeNamespaceData_Nil() {
 		},
 	)
 
-	assert.Equal(s.T(), map[string]string{
+	require.Equal(t, map[string]string{
 		"k0": "v1",
 		"k1": "v2",
 	}, out)
 }
 
 // test merging bad binaries
-func (s *namespaceHandlerCommonSuite) TestMergeBadBinaries_Overriding() {
+func TestMergeBadBinaries_Overriding(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	out := s.handler.mergeBadBinaries(
 		map[string]*namespacepb.BadBinaryInfo{
 			"k0": {Reason: "reason0"},
@@ -174,14 +167,15 @@ func (s *namespaceHandlerCommonSuite) TestMergeBadBinaries_Overriding() {
 		}, now,
 	)
 
-	protoassert.ProtoEqual(s.T(), &out, &namespacepb.BadBinaries{
+	protoassert.ProtoEqual(t, &out, &namespacepb.BadBinaries{
 		Binaries: map[string]*namespacepb.BadBinaryInfo{
 			"k0": {Reason: "reason2", CreateTime: timestamppb.New(now)},
 		},
 	})
 }
 
-func (s *namespaceHandlerCommonSuite) TestMergeBadBinaries_Adding() {
+func TestMergeBadBinaries_Adding(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	out := s.handler.mergeBadBinaries(
 		map[string]*namespacepb.BadBinaryInfo{
 			"k0": {Reason: "reason0"},
@@ -197,10 +191,11 @@ func (s *namespaceHandlerCommonSuite) TestMergeBadBinaries_Adding() {
 			"k1": {Reason: "reason2", CreateTime: timestamppb.New(now)},
 		},
 	}
-	assert.Equal(s.T(), out.String(), expected.String())
+	require.Equal(t, out.String(), expected.String())
 }
 
-func (s *namespaceHandlerCommonSuite) TestMergeBadBinaries_Merging() {
+func TestMergeBadBinaries_Merging(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	out := s.handler.mergeBadBinaries(
 		map[string]*namespacepb.BadBinaryInfo{
 			"k0": {Reason: "reason0"},
@@ -211,7 +206,7 @@ func (s *namespaceHandlerCommonSuite) TestMergeBadBinaries_Merging() {
 		}, now,
 	)
 
-	protoassert.ProtoEqual(s.T(), &out, &namespacepb.BadBinaries{
+	protoassert.ProtoEqual(t, &out, &namespacepb.BadBinaries{
 		Binaries: map[string]*namespacepb.BadBinaryInfo{
 			"k0": {Reason: "reason1", CreateTime: timestamppb.New(now)},
 			"k1": {Reason: "reason2", CreateTime: timestamppb.New(now)},
@@ -219,7 +214,8 @@ func (s *namespaceHandlerCommonSuite) TestMergeBadBinaries_Merging() {
 	})
 }
 
-func (s *namespaceHandlerCommonSuite) TestMergeBadBinaries_Nil() {
+func TestMergeBadBinaries_Nil(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	out := s.handler.mergeBadBinaries(
 		nil,
 		map[string]*namespacepb.BadBinaryInfo{
@@ -228,7 +224,7 @@ func (s *namespaceHandlerCommonSuite) TestMergeBadBinaries_Nil() {
 		}, now,
 	)
 
-	protoassert.ProtoEqual(s.T(), &out, &namespacepb.BadBinaries{
+	protoassert.ProtoEqual(t, &out, &namespacepb.BadBinaries{
 		Binaries: map[string]*namespacepb.BadBinaryInfo{
 			"k0": {Reason: "reason1", CreateTime: timestamppb.New(now)},
 			"k1": {Reason: "reason2", CreateTime: timestamppb.New(now)},
@@ -236,7 +232,8 @@ func (s *namespaceHandlerCommonSuite) TestMergeBadBinaries_Nil() {
 	})
 }
 
-func (s *namespaceHandlerCommonSuite) TestListNamespace() {
+func TestListNamespace(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	description1 := "some random description 1"
 	email1 := "some random email 1"
 	retention1 := 1 * time.Hour * 24
@@ -327,9 +324,9 @@ func (s *namespaceHandlerCommonSuite) TestListNamespace() {
 			PageSize:      pagesize,
 			NextPageToken: token,
 		})
-		s.NoError(err)
+		require.NoError(t, err)
 		token = resp.NextPageToken
-		s.True(len(resp.Namespaces) <= int(pagesize))
+		require.True(t, len(resp.Namespaces) <= int(pagesize))
 		if len(resp.Namespaces) > 0 {
 			namespaces[resp.Namespaces[0].NamespaceInfo.GetName()] = resp.Namespaces[0]
 		}
@@ -339,26 +336,27 @@ func (s *namespaceHandlerCommonSuite) TestListNamespace() {
 		namespace2.GetInfo().GetName(): namespace2,
 	}
 	for name, ns := range namespaces {
-		s.Equal(expectedResult[name].GetInfo().GetName(), ns.GetNamespaceInfo().GetName())
-		s.Equal(expectedResult[name].GetInfo().GetState(), ns.GetNamespaceInfo().GetState())
-		s.Equal(expectedResult[name].GetInfo().GetDescription(), ns.GetNamespaceInfo().GetDescription())
-		s.Equal(expectedResult[name].GetInfo().GetOwner(), ns.GetNamespaceInfo().GetOwnerEmail())
-		s.Equal(expectedResult[name].GetInfo().GetData(), ns.GetNamespaceInfo().GetData())
-		s.Equal(expectedResult[name].GetInfo().GetId(), ns.GetNamespaceInfo().GetId())
-		s.Equal(expectedResult[name].GetConfig().GetRetention(), ns.GetConfig().GetWorkflowExecutionRetentionTtl())
-		s.Equal(expectedResult[name].GetConfig().GetHistoryArchivalState(), ns.GetConfig().GetHistoryArchivalState())
-		s.Equal(expectedResult[name].GetConfig().GetHistoryArchivalUri(), ns.GetConfig().GetHistoryArchivalUri())
-		s.Equal(expectedResult[name].GetConfig().GetVisibilityArchivalState(), ns.GetConfig().GetVisibilityArchivalState())
-		s.Equal(expectedResult[name].GetConfig().GetVisibilityArchivalUri(), ns.GetConfig().GetVisibilityArchivalUri())
-		s.Equal(expectedResult[name].GetConfig().GetBadBinaries(), ns.GetConfig().GetBadBinaries())
-		s.Equal(expectedResult[name].GetReplicationConfig().GetActiveClusterName(), ns.GetReplicationConfig().GetActiveClusterName())
-		s.Equal(expectedResult[name].GetReplicationConfig().GetClusters(), nsreplication.ConvertClusterReplicationConfigFromProto(ns.GetReplicationConfig().GetClusters()))
-		s.Equal(expectedResult[name].GetReplicationConfig().GetState(), ns.GetReplicationConfig().GetState())
-		s.Equal(expectedResult[name].GetFailoverVersion(), ns.GetFailoverVersion())
+		require.Equal(t, expectedResult[name].GetInfo().GetName(), ns.GetNamespaceInfo().GetName())
+		require.Equal(t, expectedResult[name].GetInfo().GetState(), ns.GetNamespaceInfo().GetState())
+		require.Equal(t, expectedResult[name].GetInfo().GetDescription(), ns.GetNamespaceInfo().GetDescription())
+		require.Equal(t, expectedResult[name].GetInfo().GetOwner(), ns.GetNamespaceInfo().GetOwnerEmail())
+		require.Equal(t, expectedResult[name].GetInfo().GetData(), ns.GetNamespaceInfo().GetData())
+		require.Equal(t, expectedResult[name].GetInfo().GetId(), ns.GetNamespaceInfo().GetId())
+		require.Equal(t, expectedResult[name].GetConfig().GetRetention(), ns.GetConfig().GetWorkflowExecutionRetentionTtl())
+		require.Equal(t, expectedResult[name].GetConfig().GetHistoryArchivalState(), ns.GetConfig().GetHistoryArchivalState())
+		require.Equal(t, expectedResult[name].GetConfig().GetHistoryArchivalUri(), ns.GetConfig().GetHistoryArchivalUri())
+		require.Equal(t, expectedResult[name].GetConfig().GetVisibilityArchivalState(), ns.GetConfig().GetVisibilityArchivalState())
+		require.Equal(t, expectedResult[name].GetConfig().GetVisibilityArchivalUri(), ns.GetConfig().GetVisibilityArchivalUri())
+		require.Equal(t, expectedResult[name].GetConfig().GetBadBinaries(), ns.GetConfig().GetBadBinaries())
+		require.Equal(t, expectedResult[name].GetReplicationConfig().GetActiveClusterName(), ns.GetReplicationConfig().GetActiveClusterName())
+		require.Equal(t, expectedResult[name].GetReplicationConfig().GetClusters(), nsreplication.ConvertClusterReplicationConfigFromProto(ns.GetReplicationConfig().GetClusters()))
+		require.Equal(t, expectedResult[name].GetReplicationConfig().GetState(), ns.GetReplicationConfig().GetState())
+		require.Equal(t, expectedResult[name].GetFailoverVersion(), ns.GetFailoverVersion())
 	}
 }
 
-func (s *namespaceHandlerCommonSuite) TestCapabilities() {
+func TestCapabilities(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	s.mockMetadataMgr.EXPECT().GetNamespace(gomock.Any(), &persistence.GetNamespaceRequest{
 		Name: "ns",
 	}).Return(
@@ -377,13 +375,13 @@ func (s *namespaceHandlerCommonSuite) TestCapabilities() {
 	resp, err := s.handler.DescribeNamespace(context.Background(), &workflowservice.DescribeNamespaceRequest{
 		Namespace: "ns",
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
-	s.True(resp.NamespaceInfo.Capabilities.EagerWorkflowStart)
-	s.True(resp.NamespaceInfo.Capabilities.SyncUpdate)
-	s.True(resp.NamespaceInfo.Capabilities.AsyncUpdate)
-	s.True(resp.NamespaceInfo.Capabilities.ReportedProblemsSearchAttribute)
-	s.True(resp.NamespaceInfo.Capabilities.WorkerHeartbeats)
+	require.True(t, resp.NamespaceInfo.Capabilities.EagerWorkflowStart)
+	require.True(t, resp.NamespaceInfo.Capabilities.SyncUpdate)
+	require.True(t, resp.NamespaceInfo.Capabilities.AsyncUpdate)
+	require.True(t, resp.NamespaceInfo.Capabilities.ReportedProblemsSearchAttribute)
+	require.True(t, resp.NamespaceInfo.Capabilities.WorkerHeartbeats)
 
 	// Second call: Override the default value of dynamic configs.
 	s.config.EnableEagerWorkflowStart = dc.GetBoolPropertyFnFilteredByNamespace(false)
@@ -395,15 +393,16 @@ func (s *namespaceHandlerCommonSuite) TestCapabilities() {
 	resp, err = s.handler.DescribeNamespace(context.Background(), &workflowservice.DescribeNamespaceRequest{
 		Namespace: "ns",
 	})
-	s.NoError(err)
-	s.False(resp.NamespaceInfo.Capabilities.EagerWorkflowStart)
-	s.False(resp.NamespaceInfo.Capabilities.SyncUpdate)
-	s.False(resp.NamespaceInfo.Capabilities.AsyncUpdate)
-	s.True(resp.NamespaceInfo.Capabilities.ReportedProblemsSearchAttribute)
-	s.False(resp.NamespaceInfo.Capabilities.WorkerHeartbeats)
+	require.NoError(t, err)
+	require.False(t, resp.NamespaceInfo.Capabilities.EagerWorkflowStart)
+	require.False(t, resp.NamespaceInfo.Capabilities.SyncUpdate)
+	require.False(t, resp.NamespaceInfo.Capabilities.AsyncUpdate)
+	require.True(t, resp.NamespaceInfo.Capabilities.ReportedProblemsSearchAttribute)
+	require.False(t, resp.NamespaceInfo.Capabilities.WorkerHeartbeats)
 }
 
-func (s *namespaceHandlerCommonSuite) TestRegisterNamespace_WithOneCluster() {
+func TestRegisterNamespace_WithOneCluster(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	const namespace = "namespace-to-register"
 	clusterName := "cluster1"
 	retention := durationpb.New(10 * 24 * time.Hour)
@@ -426,21 +425,22 @@ func (s *namespaceHandlerCommonSuite) TestRegisterNamespace_WithOneCluster() {
 	s.mockMetadataMgr.EXPECT().GetNamespace(gomock.Any(), gomock.Any()).Return(nil, &serviceerror.NamespaceNotFound{})
 	s.mockMetadataMgr.EXPECT().CreateNamespace(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, request *persistence.CreateNamespaceRequest) (*persistence.CreateNamespaceResponse, error) {
-			s.Equal(enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
-			s.Equal(namespace, request.Namespace.GetInfo().GetName())
-			s.Equal(namespace, request.Namespace.GetInfo().GetDescription())
-			s.Equal(registerRequest.IsGlobalNamespace, request.IsGlobalNamespace)
-			s.Equal(retention, request.Namespace.GetConfig().GetRetention())
-			s.Equal(clusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
-			s.Equal(int64(1), request.Namespace.GetFailoverVersion())
+			require.Equal(t, enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
+			require.Equal(t, namespace, request.Namespace.GetInfo().GetName())
+			require.Equal(t, namespace, request.Namespace.GetInfo().GetDescription())
+			require.Equal(t, registerRequest.IsGlobalNamespace, request.IsGlobalNamespace)
+			require.Equal(t, retention, request.Namespace.GetConfig().GetRetention())
+			require.Equal(t, clusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
+			require.Equal(t, int64(1), request.Namespace.GetFailoverVersion())
 			return &persistence.CreateNamespaceResponse{}, nil
 		})
 	s.mockProducer.EXPECT().Publish(gomock.Any(), gomock.Any()).Return(nil).Times(0)
 	_, err := s.handler.RegisterNamespace(context.Background(), registerRequest)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestRegisterNamespace_WithTwoCluster() {
+func TestRegisterNamespace_WithTwoCluster(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	const namespace = "namespace-to-register"
 	clusterName := "cluster1"
 	clusterName2 := "cluster2"
@@ -477,21 +477,22 @@ func (s *namespaceHandlerCommonSuite) TestRegisterNamespace_WithTwoCluster() {
 	s.mockMetadataMgr.EXPECT().GetNamespace(gomock.Any(), gomock.Any()).Return(nil, &serviceerror.NamespaceNotFound{})
 	s.mockMetadataMgr.EXPECT().CreateNamespace(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, request *persistence.CreateNamespaceRequest) (*persistence.CreateNamespaceResponse, error) {
-			s.Equal(enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
-			s.Equal(namespace, request.Namespace.GetInfo().GetName())
-			s.Equal(namespace, request.Namespace.GetInfo().GetDescription())
-			s.Equal(registerRequest.IsGlobalNamespace, request.IsGlobalNamespace)
-			s.Equal(retention, request.Namespace.GetConfig().GetRetention())
-			s.Equal(clusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
-			s.Equal(int64(1), request.Namespace.GetFailoverVersion())
+			require.Equal(t, enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
+			require.Equal(t, namespace, request.Namespace.GetInfo().GetName())
+			require.Equal(t, namespace, request.Namespace.GetInfo().GetDescription())
+			require.Equal(t, registerRequest.IsGlobalNamespace, request.IsGlobalNamespace)
+			require.Equal(t, retention, request.Namespace.GetConfig().GetRetention())
+			require.Equal(t, clusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
+			require.Equal(t, int64(1), request.Namespace.GetFailoverVersion())
 			return &persistence.CreateNamespaceResponse{}, nil
 		})
 	s.mockProducer.EXPECT().Publish(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	_, err := s.handler.RegisterNamespace(context.Background(), registerRequest)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestRegisterNamespace_InvalidRetentionPeriod() {
+func TestRegisterNamespace_InvalidRetentionPeriod(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	clusterName := "cluster1"
 	s.mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
 	s.mockClusterMetadata.EXPECT().IsMasterCluster().Return(true).AnyTimes()
@@ -517,8 +518,8 @@ func (s *namespaceHandlerCommonSuite) TestRegisterNamespace_InvalidRetentionPeri
 			IsGlobalNamespace:                false,
 		}
 		resp, err := s.handler.RegisterNamespace(context.Background(), registerRequest)
-		s.Equal(errInvalidRetentionPeriod, err)
-		s.Nil(resp)
+		require.Equal(t, errInvalidRetentionPeriod, err)
+		require.Nil(t, resp)
 	}
 
 	// global
@@ -530,12 +531,13 @@ func (s *namespaceHandlerCommonSuite) TestRegisterNamespace_InvalidRetentionPeri
 			IsGlobalNamespace:                true,
 		}
 		resp, err := s.handler.RegisterNamespace(context.Background(), registerRequest)
-		s.Equal(errInvalidRetentionPeriod, err)
-		s.Nil(resp)
+		require.Equal(t, errInvalidRetentionPeriod, err)
+		require.Nil(t, resp)
 	}
 }
 
-func (s *namespaceHandlerCommonSuite) TestUpdateNamespace_InvalidRetentionPeriod() {
+func TestUpdateNamespace_InvalidRetentionPeriod(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := uuid.New()
 	version := int64(1)
 	s.mockMetadataMgr.EXPECT().GetMetadata(gomock.Any()).Return(&persistence.GetMetadataResponse{
@@ -564,12 +566,13 @@ func (s *namespaceHandlerCommonSuite) TestUpdateNamespace_InvalidRetentionPeriod
 			},
 		}
 		resp, err := s.handler.UpdateNamespace(context.Background(), updateRequest)
-		s.Equal(errInvalidRetentionPeriod, err)
-		s.Nil(resp)
+		require.Equal(t, errInvalidRetentionPeriod, err)
+		require.Nil(t, resp)
 	}
 }
 
-func (s *namespaceHandlerCommonSuite) TestUpdateNamespace_PromoteLocalNamespace() {
+func TestUpdateNamespace_PromoteLocalNamespace(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := "local-ns-to-be-promoted"
 	clusterName := "cluster1"
 	version := int64(1)
@@ -624,10 +627,11 @@ func (s *namespaceHandlerCommonSuite) TestUpdateNamespace_PromoteLocalNamespace(
 		PromoteNamespace: true,
 	}
 	_, err := s.handler.UpdateNamespace(context.Background(), updateRequest)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestUpdateNamespace_UpdateActiveClusterWithHandoverState() {
+func TestUpdateNamespace_UpdateActiveClusterWithHandoverState(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	s.mockProducer.EXPECT().Publish(gomock.Any(), gomock.Any()).AnyTimes()
 	update1Time := time.Date(2011, 12, 27, 23, 44, 55, 999999, time.UTC)
 	namespace := "global-ns-to-be-migrated"
@@ -703,10 +707,11 @@ func (s *namespaceHandlerCommonSuite) TestUpdateNamespace_UpdateActiveClusterWit
 		PromoteNamespace: true,
 	}
 	_, err := s.handler.UpdateNamespace(context.Background(), updateRequest)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestUpdateNamespace_ChangeActiveClusterWithoutUpdatingReplicationState() {
+func TestUpdateNamespace_ChangeActiveClusterWithoutUpdatingReplicationState(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	s.mockProducer.EXPECT().Publish(gomock.Any(), gomock.Any()).AnyTimes()
 	update1Time := time.Date(2011, 12, 27, 23, 44, 55, 999999, time.UTC)
 	namespace := "global-ns-to-be-migrated"
@@ -778,11 +783,12 @@ func (s *namespaceHandlerCommonSuite) TestUpdateNamespace_ChangeActiveClusterWit
 		PromoteNamespace: true,
 	}
 	_, err := s.handler.UpdateNamespace(context.Background(), updateRequest)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
 // Test that the number of replication statuses is limited
-func (s *namespaceHandlerCommonSuite) TestUpdateNamespace_UpdateActiveCluster_LimitRecordHistory() {
+func TestUpdateNamespace_UpdateActiveCluster_LimitRecordHistory(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	s.mockProducer.EXPECT().Publish(gomock.Any(), gomock.Any()).AnyTimes()
 	update1Time := time.Date(2011, 12, 27, 23, 44, 55, 999999, time.UTC)
 	namespace := "global-ns-to-be-migrated"
@@ -878,10 +884,11 @@ func (s *namespaceHandlerCommonSuite) TestUpdateNamespace_UpdateActiveCluster_Li
 	})
 	s.fakeClock.Update(update1Time)
 	_, err := s.handler.UpdateNamespace(context.Background(), updateRequest)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_InvalidGlobalNamespace() {
+func TestRegisterLocalNamespace_InvalidGlobalNamespace(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	description := "some random description"
 	email := "some random email"
@@ -914,12 +921,13 @@ func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_InvalidGlobalNa
 		Data:                             data,
 		IsGlobalNamespace:                isGlobalNamespace,
 	})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
-	s.Nil(resp)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
+	require.Nil(t, resp)
 }
 
-func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_InvalidCluster() {
+func TestRegisterLocalNamespace_InvalidCluster(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	description := "some random description"
 	email := "some random email"
@@ -953,12 +961,13 @@ func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_InvalidCluster(
 		Data:                             data,
 		IsGlobalNamespace:                isGlobalNamespace,
 	})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
-	s.Nil(resp)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
+	require.Nil(t, resp)
 }
 
-func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_AllDefault() {
+func TestRegisterLocalNamespace_AllDefault(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	retention := durationpb.New(time.Hour)
 	s.mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(false).AnyTimes()
@@ -973,15 +982,15 @@ func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_AllDefault() {
 	s.mockMetadataMgr.EXPECT().GetNamespace(gomock.Any(), gomock.Any()).Return(nil, &serviceerror.NamespaceNotFound{})
 	s.mockMetadataMgr.EXPECT().CreateNamespace(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, request *persistence.CreateNamespaceRequest) (*persistence.CreateNamespaceResponse, error) {
-			s.NotEmpty(request.Namespace.GetInfo().GetId())
-			s.Equal(enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
-			s.Equal(namespace, request.Namespace.GetInfo().GetName())
-			s.Equal(false, request.IsGlobalNamespace)
-			s.Equal(retention, request.Namespace.GetConfig().GetRetention())
-			s.Equal(cluster.TestCurrentClusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
-			s.Equal([]string{cluster.TestCurrentClusterName}, request.Namespace.GetReplicationConfig().GetClusters())
-			s.Equal(enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetHistoryArchivalState())
-			s.Equal(enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetVisibilityArchivalState())
+			require.NotEmpty(t, request.Namespace.GetInfo().GetId())
+			require.Equal(t, enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
+			require.Equal(t, namespace, request.Namespace.GetInfo().GetName())
+			require.Equal(t, false, request.IsGlobalNamespace)
+			require.Equal(t, retention, request.Namespace.GetConfig().GetRetention())
+			require.Equal(t, cluster.TestCurrentClusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
+			require.Equal(t, []string{cluster.TestCurrentClusterName}, request.Namespace.GetReplicationConfig().GetClusters())
+			require.Equal(t, enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetHistoryArchivalState())
+			require.Equal(t, enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetVisibilityArchivalState())
 			return &persistence.CreateNamespaceResponse{}, nil
 		},
 	)
@@ -990,11 +999,12 @@ func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_AllDefault() {
 		Namespace:                        namespace,
 		WorkflowExecutionRetentionPeriod: retention,
 	})
-	s.NoError(err)
-	s.Equal(&workflowservice.RegisterNamespaceResponse{}, registerResp)
+	require.NoError(t, err)
+	require.Equal(t, &workflowservice.RegisterNamespaceResponse{}, registerResp)
 }
 
-func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_NoDefault() {
+func TestRegisterLocalNamespace_NoDefault(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	description := "some random description"
 	email := "some random email"
@@ -1020,18 +1030,18 @@ func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_NoDefault() {
 	s.mockMetadataMgr.EXPECT().GetNamespace(gomock.Any(), gomock.Any()).Return(nil, &serviceerror.NamespaceNotFound{})
 	s.mockMetadataMgr.EXPECT().CreateNamespace(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, request *persistence.CreateNamespaceRequest) (*persistence.CreateNamespaceResponse, error) {
-			s.NotEmpty(request.Namespace.GetInfo().GetId())
-			s.Equal(enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
-			s.Equal(namespace, request.Namespace.GetInfo().GetName())
-			s.Equal(description, request.Namespace.GetInfo().GetDescription())
-			s.Equal(email, request.Namespace.GetInfo().GetOwner())
-			s.Equal(data, request.Namespace.GetInfo().GetData())
-			s.Equal(false, request.IsGlobalNamespace)
-			s.Equal(retention, request.Namespace.GetConfig().GetRetention())
-			s.Equal(activeClusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
-			s.Equal([]string{activeClusterName}, request.Namespace.GetReplicationConfig().GetClusters())
-			s.Equal(enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetHistoryArchivalState())
-			s.Equal(enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetVisibilityArchivalState())
+			require.NotEmpty(t, request.Namespace.GetInfo().GetId())
+			require.Equal(t, enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
+			require.Equal(t, namespace, request.Namespace.GetInfo().GetName())
+			require.Equal(t, description, request.Namespace.GetInfo().GetDescription())
+			require.Equal(t, email, request.Namespace.GetInfo().GetOwner())
+			require.Equal(t, data, request.Namespace.GetInfo().GetData())
+			require.Equal(t, false, request.IsGlobalNamespace)
+			require.Equal(t, retention, request.Namespace.GetConfig().GetRetention())
+			require.Equal(t, activeClusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
+			require.Equal(t, []string{activeClusterName}, request.Namespace.GetReplicationConfig().GetClusters())
+			require.Equal(t, enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetHistoryArchivalState())
+			require.Equal(t, enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetVisibilityArchivalState())
 			return &persistence.CreateNamespaceResponse{}, nil
 		},
 	)
@@ -1046,11 +1056,12 @@ func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_NoDefault() {
 		Data:                             data,
 		IsGlobalNamespace:                isGlobalNamespace,
 	})
-	s.NoError(err)
-	s.Equal(&workflowservice.RegisterNamespaceResponse{}, registerResp)
+	require.NoError(t, err)
+	require.Equal(t, &workflowservice.RegisterNamespaceResponse{}, registerResp)
 }
 
-func (s *namespaceHandlerCommonSuite) TestUpdateLocalNamespace_NoAttrSet() {
+func TestUpdateLocalNamespace_NoAttrSet(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	description := "some random description"
 	email := "some random email"
@@ -1093,10 +1104,11 @@ func (s *namespaceHandlerCommonSuite) TestUpdateLocalNamespace_NoAttrSet() {
 	_, err := s.handler.UpdateNamespace(context.Background(), &workflowservice.UpdateNamespaceRequest{
 		Namespace: namespace,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestUpdateLocalNamespace_AllAttrSet() {
+func TestUpdateLocalNamespace_AllAttrSet(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	description := "some random description"
 	email := "some random email"
@@ -1180,10 +1192,11 @@ func (s *namespaceHandlerCommonSuite) TestUpdateLocalNamespace_AllAttrSet() {
 			},
 		},
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestRegisterGlobalNamespace_AllDefault() {
+func TestRegisterGlobalNamespace_AllDefault(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	retention := durationpb.New(24 * time.Hour)
 	s.mockProducer.EXPECT().Publish(gomock.Any(), gomock.Any()).Return(nil).Times(0)
@@ -1200,15 +1213,15 @@ func (s *namespaceHandlerCommonSuite) TestRegisterGlobalNamespace_AllDefault() {
 	s.mockMetadataMgr.EXPECT().GetNamespace(gomock.Any(), gomock.Any()).Return(nil, &serviceerror.NamespaceNotFound{})
 	s.mockMetadataMgr.EXPECT().CreateNamespace(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, request *persistence.CreateNamespaceRequest) (*persistence.CreateNamespaceResponse, error) {
-			s.NotEmpty(request.Namespace.GetInfo().GetId())
-			s.Equal(enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
-			s.Equal(namespace, request.Namespace.GetInfo().GetName())
-			s.Equal(true, request.IsGlobalNamespace)
-			s.Equal(retention, request.Namespace.GetConfig().GetRetention())
-			s.Equal(cluster.TestCurrentClusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
-			s.Equal([]string{cluster.TestCurrentClusterName}, request.Namespace.GetReplicationConfig().GetClusters())
-			s.Equal(enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetHistoryArchivalState())
-			s.Equal(enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetVisibilityArchivalState())
+			require.NotEmpty(t, request.Namespace.GetInfo().GetId())
+			require.Equal(t, enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
+			require.Equal(t, namespace, request.Namespace.GetInfo().GetName())
+			require.Equal(t, true, request.IsGlobalNamespace)
+			require.Equal(t, retention, request.Namespace.GetConfig().GetRetention())
+			require.Equal(t, cluster.TestCurrentClusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
+			require.Equal(t, []string{cluster.TestCurrentClusterName}, request.Namespace.GetReplicationConfig().GetClusters())
+			require.Equal(t, enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetHistoryArchivalState())
+			require.Equal(t, enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetVisibilityArchivalState())
 			return &persistence.CreateNamespaceResponse{}, nil
 		},
 	)
@@ -1218,11 +1231,12 @@ func (s *namespaceHandlerCommonSuite) TestRegisterGlobalNamespace_AllDefault() {
 		WorkflowExecutionRetentionPeriod: retention,
 		IsGlobalNamespace:                true,
 	})
-	s.NoError(err)
-	s.Equal(&workflowservice.RegisterNamespaceResponse{}, registerResp)
+	require.NoError(t, err)
+	require.Equal(t, &workflowservice.RegisterNamespaceResponse{}, registerResp)
 }
 
-func (s *namespaceHandlerCommonSuite) TestRegisterGlobalNamespace_NoDefault() {
+func TestRegisterGlobalNamespace_NoDefault(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	retention := durationpb.New(24 * time.Hour)
 	description := "description"
@@ -1254,15 +1268,15 @@ func (s *namespaceHandlerCommonSuite) TestRegisterGlobalNamespace_NoDefault() {
 	s.mockMetadataMgr.EXPECT().GetNamespace(gomock.Any(), gomock.Any()).Return(nil, &serviceerror.NamespaceNotFound{})
 	s.mockMetadataMgr.EXPECT().CreateNamespace(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, request *persistence.CreateNamespaceRequest) (*persistence.CreateNamespaceResponse, error) {
-			s.NotEmpty(request.Namespace.GetInfo().GetId())
-			s.Equal(enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
-			s.Equal(namespace, request.Namespace.GetInfo().GetName())
-			s.Equal(true, request.IsGlobalNamespace)
-			s.Equal(retention, request.Namespace.GetConfig().GetRetention())
-			s.Equal(cluster.TestCurrentClusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
-			s.Equal([]string{cluster.TestCurrentClusterName, cluster.TestAlternativeClusterName}, request.Namespace.GetReplicationConfig().GetClusters())
-			s.Equal(enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetHistoryArchivalState())
-			s.Equal(enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetVisibilityArchivalState())
+			require.NotEmpty(t, request.Namespace.GetInfo().GetId())
+			require.Equal(t, enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
+			require.Equal(t, namespace, request.Namespace.GetInfo().GetName())
+			require.Equal(t, true, request.IsGlobalNamespace)
+			require.Equal(t, retention, request.Namespace.GetConfig().GetRetention())
+			require.Equal(t, cluster.TestCurrentClusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
+			require.Equal(t, []string{cluster.TestCurrentClusterName, cluster.TestAlternativeClusterName}, request.Namespace.GetReplicationConfig().GetClusters())
+			require.Equal(t, enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetHistoryArchivalState())
+			require.Equal(t, enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetVisibilityArchivalState())
 			return &persistence.CreateNamespaceResponse{}, nil
 		},
 	)
@@ -1277,11 +1291,12 @@ func (s *namespaceHandlerCommonSuite) TestRegisterGlobalNamespace_NoDefault() {
 		Data:                             data,
 		IsGlobalNamespace:                true,
 	})
-	s.NoError(err)
-	s.Equal(&workflowservice.RegisterNamespaceResponse{}, registerResp)
+	require.NoError(t, err)
+	require.Equal(t, &workflowservice.RegisterNamespaceResponse{}, registerResp)
 }
 
-func (s *namespaceHandlerCommonSuite) TestUpdateGlobalNamespace_NoAttrSet() {
+func TestUpdateGlobalNamespace_NoAttrSet(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	description := "some random description"
 	email := "some random email"
@@ -1329,10 +1344,11 @@ func (s *namespaceHandlerCommonSuite) TestUpdateGlobalNamespace_NoAttrSet() {
 	_, err := s.handler.UpdateNamespace(context.Background(), &workflowservice.UpdateNamespaceRequest{
 		Namespace: namespace,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestUpdateGlobalNamespace_AllAttrSet() {
+func TestUpdateGlobalNamespace_AllAttrSet(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	description := "some random description"
 	email := "some random email"
@@ -1408,10 +1424,11 @@ func (s *namespaceHandlerCommonSuite) TestUpdateGlobalNamespace_AllAttrSet() {
 			BadBinaries:                   &namespacepb.BadBinaries{Binaries: map[string]*namespacepb.BadBinaryInfo{}},
 		},
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_NotMaster() {
+func TestRegisterLocalNamespace_NotMaster(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	retention := durationpb.New(time.Hour)
 	s.mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(false).AnyTimes()
@@ -1426,15 +1443,15 @@ func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_NotMaster() {
 	s.mockMetadataMgr.EXPECT().GetNamespace(gomock.Any(), gomock.Any()).Return(nil, &serviceerror.NamespaceNotFound{})
 	s.mockMetadataMgr.EXPECT().CreateNamespace(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, request *persistence.CreateNamespaceRequest) (*persistence.CreateNamespaceResponse, error) {
-			s.NotEmpty(request.Namespace.GetInfo().GetId())
-			s.Equal(enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
-			s.Equal(namespace, request.Namespace.GetInfo().GetName())
-			s.Equal(false, request.IsGlobalNamespace)
-			s.Equal(retention, request.Namespace.GetConfig().GetRetention())
-			s.Equal(cluster.TestCurrentClusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
-			s.Equal([]string{cluster.TestCurrentClusterName}, request.Namespace.GetReplicationConfig().GetClusters())
-			s.Equal(enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetHistoryArchivalState())
-			s.Equal(enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetVisibilityArchivalState())
+			require.NotEmpty(t, request.Namespace.GetInfo().GetId())
+			require.Equal(t, enumspb.NAMESPACE_STATE_REGISTERED, request.Namespace.Info.GetState())
+			require.Equal(t, namespace, request.Namespace.GetInfo().GetName())
+			require.Equal(t, false, request.IsGlobalNamespace)
+			require.Equal(t, retention, request.Namespace.GetConfig().GetRetention())
+			require.Equal(t, cluster.TestCurrentClusterName, request.Namespace.GetReplicationConfig().ActiveClusterName)
+			require.Equal(t, []string{cluster.TestCurrentClusterName}, request.Namespace.GetReplicationConfig().GetClusters())
+			require.Equal(t, enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetHistoryArchivalState())
+			require.Equal(t, enumspb.ARCHIVAL_STATE_DISABLED, request.Namespace.GetConfig().GetVisibilityArchivalState())
 			return &persistence.CreateNamespaceResponse{}, nil
 		},
 	)
@@ -1443,11 +1460,12 @@ func (s *namespaceHandlerCommonSuite) TestRegisterLocalNamespace_NotMaster() {
 		Namespace:                        namespace,
 		WorkflowExecutionRetentionPeriod: retention,
 	})
-	s.NoError(err)
-	s.Equal(&workflowservice.RegisterNamespaceResponse{}, registerResp)
+	require.NoError(t, err)
+	require.Equal(t, &workflowservice.RegisterNamespaceResponse{}, registerResp)
 }
 
-func (s *namespaceHandlerCommonSuite) TestUpdateLocalNamespace_NotMaster() {
+func TestUpdateLocalNamespace_NotMaster(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	description := "some random description"
 	email := "some random email"
@@ -1524,10 +1542,11 @@ func (s *namespaceHandlerCommonSuite) TestUpdateLocalNamespace_NotMaster() {
 			BadBinaries:                   &namespacepb.BadBinaries{Binaries: map[string]*namespacepb.BadBinaryInfo{}},
 		},
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestRegisterGlobalNamespace_NotMaster() {
+func TestRegisterGlobalNamespace_NotMaster(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	retention := durationpb.New(24 * time.Hour)
 	s.mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
@@ -1538,11 +1557,12 @@ func (s *namespaceHandlerCommonSuite) TestRegisterGlobalNamespace_NotMaster() {
 		WorkflowExecutionRetentionPeriod: retention,
 		IsGlobalNamespace:                true,
 	})
-	s.Error(err)
-	s.Equal(errNotMasterCluster, err)
+	require.Error(t, err)
+	require.Equal(t, errNotMasterCluster, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestUpdateGlobalNamespace_NotMaster() {
+func TestUpdateGlobalNamespace_NotMaster(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespace := s.getRandomNamespace()
 	description := "some random description"
 	email := "some random email"
@@ -1618,85 +1638,11 @@ func (s *namespaceHandlerCommonSuite) TestUpdateGlobalNamespace_NotMaster() {
 			BadBinaries:                   &namespacepb.BadBinaries{Binaries: map[string]*namespacepb.BadBinaryInfo{}},
 		},
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *namespaceHandlerCommonSuite) TestFailoverGlobalNamespace_NotMaster() {
-	s.mockProducer.EXPECT().Publish(gomock.Any(), gomock.Any()).AnyTimes()
-	update1Time := time.Date(2011, 12, 27, 23, 44, 55, 999999, time.UTC)
-	namespace := "global-ns-to-be-migrated"
-	nid := uuid.New()
-	version := int64(100)
-	clusterName1 := "cluster1"
-	clusterName2 := "cluster2"
-	s.mockMetadataMgr.EXPECT().GetMetadata(gomock.Any()).Return(&persistence.GetMetadataResponse{
-		NotificationVersion: version,
-	}, nil)
-	s.mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
-	s.mockClusterMetadata.EXPECT().IsMasterCluster().Return(false).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetAllClusterInfo().Return(map[string]cluster.ClusterInformation{
-		clusterName1: {
-			Enabled:                true,
-			InitialFailoverVersion: 1,
-		},
-		clusterName2: {
-			Enabled:                true,
-			InitialFailoverVersion: 2,
-		},
-	}).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(clusterName1).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetNextFailoverVersion(clusterName2, int64(0)).Return(int64(2))
-	s.mockMetadataMgr.EXPECT().GetNamespace(gomock.Any(), gomock.Any()).Return(&persistence.GetNamespaceResponse{
-		Namespace: &persistencespb.NamespaceDetail{
-			Info: &persistencespb.NamespaceInfo{
-				Id:   nid,
-				Name: namespace,
-			},
-			Config: &persistencespb.NamespaceConfig{},
-			ReplicationConfig: &persistencespb.NamespaceReplicationConfig{
-				ActiveClusterName: clusterName1,
-				Clusters:          []string{clusterName1, clusterName2},
-			},
-		},
-	}, nil)
-	s.mockMetadataMgr.EXPECT().UpdateNamespace(gomock.Any(), &persistence.UpdateNamespaceRequest{
-		Namespace: &persistencespb.NamespaceDetail{
-			Info: &persistencespb.NamespaceInfo{
-				Id:   nid,
-				Name: namespace,
-			},
-			Config: &persistencespb.NamespaceConfig{},
-			ReplicationConfig: &persistencespb.NamespaceReplicationConfig{
-				ActiveClusterName: clusterName2,
-				Clusters:          []string{clusterName1, clusterName2},
-				State:             enumspb.REPLICATION_STATE_NORMAL,
-				FailoverHistory: []*persistencespb.FailoverStatus{
-					{
-						FailoverTime:    timestamppb.New(update1Time),
-						FailoverVersion: 2,
-					},
-				},
-			},
-			ConfigVersion:               0,
-			FailoverNotificationVersion: version,
-			FailoverVersion:             2,
-		},
-		IsGlobalNamespace:   true,
-		NotificationVersion: version,
-	})
-	s.fakeClock.Update(update1Time)
-	updateRequest := &workflowservice.UpdateNamespaceRequest{
-		Namespace: namespace,
-		ReplicationConfig: &replicationpb.NamespaceReplicationConfig{
-			ActiveClusterName: clusterName2,
-		},
-		PromoteNamespace: true,
-	}
-	_, err := s.handler.UpdateNamespace(context.Background(), updateRequest)
-	s.NoError(err)
-}
-
-func (s *namespaceHandlerCommonSuite) TestCreateWorkflowRule_Acceptance() {
+func TestCreateWorkflowRule_Acceptance(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespaceName := "test-namespace"
 	identity := "identity"
 	description := "description"
@@ -1707,7 +1653,7 @@ func (s *namespaceHandlerCommonSuite) TestCreateWorkflowRule_Acceptance() {
 
 	// first call returns error, because ID is not set
 	_, err := s.handler.CreateWorkflowRule(context.Background(), spec, identity, description, namespaceName)
-	s.Error(err)
+	require.Error(t, err)
 
 	s.mockMetadataMgr.EXPECT().GetMetadata(gomock.Any()).Return(&persistence.GetMetadataResponse{
 		NotificationVersion: version,
@@ -1726,15 +1672,16 @@ func (s *namespaceHandlerCommonSuite) TestCreateWorkflowRule_Acceptance() {
 
 	spec.Id = "test-id"
 	rule, err := s.handler.CreateWorkflowRule(context.Background(), spec, identity, description, namespaceName)
-	s.NoError(err)
-	s.NotNil(rule)
-	s.NotNil(rule.Spec)
-	s.NotNil(rule.CreateTime)
-	s.Equal(identity, rule.CreatedByIdentity)
-	s.Equal(description, rule.Description)
+	require.NoError(t, err)
+	require.NotNil(t, rule)
+	require.NotNil(t, rule.Spec)
+	require.NotNil(t, rule.CreateTime)
+	require.Equal(t, identity, rule.CreatedByIdentity)
+	require.Equal(t, description, rule.Description)
 }
 
-func (s *namespaceHandlerCommonSuite) TestCreateWorkflowRule_Duplicate() {
+func TestCreateWorkflowRule_Duplicate(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespaceName := "test-namespace"
 	identity := "identity"
 	description := "description"
@@ -1765,12 +1712,13 @@ func (s *namespaceHandlerCommonSuite) TestCreateWorkflowRule_Duplicate() {
 	}, nil)
 
 	_, err := s.handler.CreateWorkflowRule(context.Background(), spec, identity, description, namespaceName)
-	s.Error(err)
+	require.Error(t, err)
 	var invalidArgument *serviceerror.InvalidArgument
-	s.ErrorAs(err, &invalidArgument)
+	require.ErrorAs(t, err, &invalidArgument)
 }
 
-func (s *namespaceHandlerCommonSuite) TestDeleteWorkflowRule() {
+func TestDeleteWorkflowRule(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespaceName := "test-namespace"
 	ruleId := "test-id"
 	nsConfig := &persistencespb.NamespaceConfig{
@@ -1799,23 +1747,24 @@ func (s *namespaceHandlerCommonSuite) TestDeleteWorkflowRule() {
 
 	// happy path
 	err := s.handler.DeleteWorkflowRule(context.Background(), ruleId, namespaceName)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	var invalidArgument *serviceerror.InvalidArgument
 
 	// rule with such id doesn't exist
 	err = s.handler.DeleteWorkflowRule(context.Background(), "not existing rule id", namespaceName)
-	s.Error(err)
-	s.ErrorAs(err, &invalidArgument)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &invalidArgument)
 
 	// config is nil
 	nsConfig.WorkflowRules = nil
 	err = s.handler.DeleteWorkflowRule(context.Background(), "not existing rule id", namespaceName)
-	s.Error(err)
-	s.ErrorAs(err, &invalidArgument)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &invalidArgument)
 }
 
-func (s *namespaceHandlerCommonSuite) TestDescribeWorkflowRule() {
+func TestDescribeWorkflowRule(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespaceName := "test-namespace"
 	ruleId := "test-id"
 	nsConfig := &persistencespb.NamespaceConfig{
@@ -1839,26 +1788,27 @@ func (s *namespaceHandlerCommonSuite) TestDescribeWorkflowRule() {
 
 	// happy path
 	rule, err := s.handler.DescribeWorkflowRule(context.Background(), ruleId, namespaceName)
-	s.NoError(err)
-	s.NotNil(rule)
+	require.NoError(t, err)
+	require.NotNil(t, rule)
 
 	var invalidArgument *serviceerror.InvalidArgument
 
 	// rule with such id doesn't exist
 	rule, err = s.handler.DescribeWorkflowRule(context.Background(), "not existing rule id", namespaceName)
-	s.Error(err)
-	s.ErrorAs(err, &invalidArgument)
-	s.Nil(rule)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &invalidArgument)
+	require.Nil(t, rule)
 
 	// config is nil
 	nsConfig.WorkflowRules = nil
 	rule, err = s.handler.DescribeWorkflowRule(context.Background(), "not existing rule id", namespaceName)
-	s.Error(err)
-	s.ErrorAs(err, &invalidArgument)
-	s.Nil(rule)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &invalidArgument)
+	require.Nil(t, rule)
 }
 
-func (s *namespaceHandlerCommonSuite) TestListWorkflowRules() {
+func TestListWorkflowRules(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	namespaceName := "test-namespace"
 	nsConfig := &persistencespb.NamespaceConfig{
 		WorkflowRules: map[string]*rulespb.WorkflowRule{
@@ -1880,19 +1830,20 @@ func (s *namespaceHandlerCommonSuite) TestListWorkflowRules() {
 
 	// happy path
 	rules, err := s.handler.ListWorkflowRules(context.Background(), namespaceName)
-	s.NoError(err)
-	s.NotNil(rules)
-	s.Equal(2, len(rules))
+	require.NoError(t, err)
+	require.NotNil(t, rules)
+	require.Equal(t, 2, len(rules))
 
 	// config is nil
 	nsConfig.WorkflowRules = nil
 	rules, err = s.handler.ListWorkflowRules(context.Background(), namespaceName)
-	s.NoError(err)
-	s.NotNil(rules)
-	s.Equal(0, len(rules))
+	require.NoError(t, err)
+	require.NotNil(t, rules)
+	require.Equal(t, 0, len(rules))
 }
 
-func (s *namespaceHandlerCommonSuite) TestWorkflowRuleEviction() {
+func TestWorkflowRuleEviction(t *testing.T) {
+	s := setupNamespaceHandlerTest(t)
 	s.fakeClock.Update(time.Now())
 	expiredTime1 := s.fakeClock.Now().Add(-1 * time.Hour)
 	expiredTime2 := s.fakeClock.Now().Add(-2 * time.Hour)
@@ -1927,15 +1878,11 @@ func (s *namespaceHandlerCommonSuite) TestWorkflowRuleEviction() {
 		oldLens := len(tt.rules)
 		s.handler.removeOldestExpiredWorkflowRule("", tt.rules)
 		if len(tt.deletedRule) == 0 {
-			s.Equal(oldLens, len(tt.rules))
+			require.Equal(t, oldLens, len(tt.rules))
 		} else {
 			if _, exists := tt.rules[tt.deletedRule]; exists {
-				s.True(false, "Rule was not deleted")
+				require.True(t, false, "Rule was not deleted")
 			}
 		}
 	}
-}
-
-func (s *namespaceHandlerCommonSuite) getRandomNamespace() string {
-	return "namespace" + uuid.New()
 }

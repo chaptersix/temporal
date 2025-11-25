@@ -10,9 +10,7 @@ import (
 	"testing"
 
 	"github.com/pborman/uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
@@ -51,7 +49,7 @@ import (
 	test "go.temporal.io/server/common/testing"
 	"go.temporal.io/server/common/testing/historyrequire"
 	"go.temporal.io/server/common/testing/mocksdk"
-	"go.temporal.io/server/common/testing/protorequire"
+	"go.temporal.io/server/common/testing/protoassert"
 	"go.temporal.io/server/common/testing/testvars"
 	"go.temporal.io/server/service/history/tasks"
 	"go.temporal.io/server/service/worker/dlq"
@@ -63,11 +61,8 @@ import (
 )
 
 type (
-	adminHandlerSuite struct {
-		suite.Suite
-		*require.Assertions
+	adminHandlerTest struct {
 		historyrequire.HistoryRequire
-		protorequire.ProtoAssertions
 
 		controller         *gomock.Controller
 		mockResource       *resourcetest.Test
@@ -92,15 +87,9 @@ type (
 	}
 )
 
-func TestAdminHandlerSuite(t *testing.T) {
-	s := new(adminHandlerSuite)
-	suite.Run(t, s)
-}
-
-func (s *adminHandlerSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-	s.ProtoAssertions = protorequire.New(s.T())
-	s.HistoryRequire = historyrequire.New(s.T())
+func setupAdminHandlerTest(t *testing.T) *adminHandlerTest {
+	s := &adminHandlerTest{}
+	s.HistoryRequire = historyrequire.New(t)
 
 	s.namespace = "some random namespace name"
 	s.namespaceID = "deadd0d0-c001-face-d00d-000000000000"
@@ -115,7 +104,7 @@ func (s *adminHandlerSuite) SetupTest() {
 		int64(100),
 	)
 
-	s.controller = gomock.NewController(s.T())
+	s.controller = gomock.NewController(t)
 	s.mockResource = resourcetest.NewTest(s.controller, primitives.FrontendService)
 	s.mockNamespaceCache = s.mockResource.NamespaceCache
 	s.mockHistoryClient = s.mockResource.HistoryClient
@@ -180,14 +169,12 @@ func (s *adminHandlerSuite) SetupTest() {
 	s.mockVisibilityMgr.EXPECT().GetStoreNames().Return([]string{"mock-vis-store"})
 	s.handler = NewAdminHandler(args)
 	s.handler.Start()
+	t.Cleanup(func() { s.controller.Finish(); s.handler.Stop() })
+	return s
 }
 
-func (s *adminHandlerSuite) TearDownTest() {
-	s.controller.Finish()
-	s.handler.Stop()
-}
-
-func (s *adminHandlerSuite) Test_AddSearchAttributes() {
+func TestAdmin_AddSearchAttributes(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	handler := s.handler
 	ctx := context.Background()
 
@@ -210,10 +197,10 @@ func (s *adminHandlerSuite) Test_AddSearchAttributes() {
 		},
 	}
 	for _, testCase := range testCases1 {
-		s.T().Run(testCase.Name, func(t *testing.T) {
+		t.Run(testCase.Name, func(t *testing.T) {
 			resp, err := handler.AddSearchAttributes(ctx, testCase.Request)
-			s.Equal(testCase.Expected, err)
-			s.Nil(resp)
+			require.Equal(t, testCase.Expected, err)
+			require.Nil(t, resp)
 		})
 	}
 
@@ -241,10 +228,10 @@ func (s *adminHandlerSuite) Test_AddSearchAttributes() {
 		},
 	}
 	for _, testCase := range testCases3 {
-		s.T().Run(testCase.Name, func(t *testing.T) {
+		t.Run(testCase.Name, func(t *testing.T) {
 			resp, err := handler.AddSearchAttributes(ctx, testCase.Request)
-			s.Equal(testCase.Expected, err)
-			s.Nil(resp)
+			require.Equal(t, testCase.Expected, err)
+			require.Nil(t, resp)
 		})
 	}
 
@@ -272,10 +259,10 @@ func (s *adminHandlerSuite) Test_AddSearchAttributes() {
 		},
 	}
 	for _, testCase := range testCases2 {
-		s.T().Run(testCase.Name, func(t *testing.T) {
+		t.Run(testCase.Name, func(t *testing.T) {
 			resp, err := handler.AddSearchAttributes(ctx, testCase.Request)
-			s.Equal(testCase.Expected, err)
-			s.Nil(resp)
+			require.Equal(t, testCase.Expected, err)
+			require.Nil(t, resp)
 		})
 	}
 
@@ -290,9 +277,9 @@ func (s *adminHandlerSuite) Test_AddSearchAttributes() {
 			"CustomAttr": enumspb.INDEXED_VALUE_TYPE_KEYWORD,
 		},
 	})
-	s.Error(err)
-	s.Equal("Unable to start temporal-sys-add-search-attributes-workflow workflow: start failed.", err.Error())
-	s.Nil(resp)
+	require.Error(t, err)
+	require.Equal(t, "Unable to start temporal-sys-add-search-attributes-workflow workflow: start failed.", err.Error())
+	require.Nil(t, resp)
 
 	// Workflow failed.
 	mockRun := mocksdk.NewMockWorkflowRun(s.controller)
@@ -303,9 +290,9 @@ func (s *adminHandlerSuite) Test_AddSearchAttributes() {
 			"CustomAttr": enumspb.INDEXED_VALUE_TYPE_KEYWORD,
 		},
 	})
-	s.Error(err)
-	s.Equal("Workflow temporal-sys-add-search-attributes-workflow returned an error: workflow failed.", err.Error())
-	s.Nil(resp)
+	require.Error(t, err)
+	require.Equal(t, "Workflow temporal-sys-add-search-attributes-workflow returned an error: workflow failed.", err.Error())
+	require.Nil(t, resp)
 
 	// Success case.
 	mockRun.EXPECT().Get(gomock.Any(), nil).Return(nil)
@@ -316,18 +303,19 @@ func (s *adminHandlerSuite) Test_AddSearchAttributes() {
 			"CustomAttr": enumspb.INDEXED_VALUE_TYPE_KEYWORD,
 		},
 	})
-	s.NoError(err)
-	s.NotNil(resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }
 
-func (s *adminHandlerSuite) Test_GetSearchAttributes_EmptyIndexName() {
+func TestAdmin_GetSearchAttributes_EmptyIndexName(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	handler := s.handler
 	ctx := context.Background()
 
 	resp, err := handler.GetSearchAttributes(ctx, nil)
-	s.Error(err)
-	s.Equal(&serviceerror.InvalidArgument{Message: "Request is nil."}, err)
-	s.Nil(resp)
+	require.Error(t, err)
+	require.Equal(t, &serviceerror.InvalidArgument{Message: "Request is nil."}, err)
+	require.Nil(t, resp)
 
 	mockSdkClient := mocksdk.NewMockClient(s.controller)
 	s.mockResource.SDKClientFactory.EXPECT().GetSystemClient().Return(mockSdkClient).AnyTimes()
@@ -341,11 +329,12 @@ func (s *adminHandlerSuite) Test_GetSearchAttributes_EmptyIndexName() {
 	s.mockResource.SearchAttributesProvider.EXPECT().GetSearchAttributes("", true).Return(searchattribute.TestEsNameTypeMap(), nil).AnyTimes()
 
 	resp, err = handler.GetSearchAttributes(ctx, &adminservice.GetSearchAttributesRequest{Namespace: s.namespace.String()})
-	s.NoError(err)
-	s.NotNil(resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }
 
-func (s *adminHandlerSuite) Test_GetSearchAttributes_NonEmptyIndexName() {
+func TestAdmin_GetSearchAttributes_NonEmptyIndexName(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	handler := s.handler
 	ctx := context.Background()
 
@@ -360,25 +349,26 @@ func (s *adminHandlerSuite) Test_GetSearchAttributes_NonEmptyIndexName() {
 		&workflowservice.DescribeWorkflowExecutionResponse{}, nil)
 	s.mockResource.SearchAttributesProvider.EXPECT().GetSearchAttributes("random-index-name", true).Return(searchattribute.TestEsNameTypeMap(), nil).AnyTimes()
 	resp, err := handler.GetSearchAttributes(ctx, &adminservice.GetSearchAttributesRequest{})
-	s.NoError(err)
-	s.NotNil(resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 
 	mockSdkClient.EXPECT().DescribeWorkflowExecution(gomock.Any(), "temporal-sys-add-search-attributes-workflow", "").Return(
 		&workflowservice.DescribeWorkflowExecutionResponse{}, nil)
 	s.mockResource.SearchAttributesProvider.EXPECT().GetSearchAttributes("another-index-name", true).Return(searchattribute.TestEsNameTypeMap(), nil).AnyTimes()
 	resp, err = handler.GetSearchAttributes(ctx, &adminservice.GetSearchAttributesRequest{IndexName: "another-index-name"})
-	s.NoError(err)
-	s.NotNil(resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 
 	mockSdkClient.EXPECT().DescribeWorkflowExecution(gomock.Any(), "temporal-sys-add-search-attributes-workflow", "").Return(
 		nil, errors.New("random error"))
 	s.mockResource.SearchAttributesProvider.EXPECT().GetSearchAttributes("random-index-name", true).Return(searchattribute.TestEsNameTypeMap(), nil).AnyTimes()
 	resp, err = handler.GetSearchAttributes(ctx, &adminservice.GetSearchAttributesRequest{Namespace: s.namespace.String()})
-	s.Error(err)
-	s.Nil(resp)
+	require.Error(t, err)
+	require.Nil(t, resp)
 }
 
-func (s *adminHandlerSuite) Test_RemoveSearchAttributes_EmptyIndexName() {
+func TestAdmin_RemoveSearchAttributes_EmptyIndexName(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	handler := s.handler
 	ctx := context.Background()
 
@@ -401,10 +391,10 @@ func (s *adminHandlerSuite) Test_RemoveSearchAttributes_EmptyIndexName() {
 		},
 	}
 	for _, testCase := range testCases1 {
-		s.T().Run(testCase.Name, func(t *testing.T) {
+		t.Run(testCase.Name, func(t *testing.T) {
 			resp, err := handler.RemoveSearchAttributes(ctx, testCase.Request)
-			s.Equal(testCase.Expected, err)
-			s.Nil(resp)
+			require.Equal(t, testCase.Expected, err)
+			require.Nil(t, resp)
 		})
 	}
 
@@ -433,15 +423,16 @@ func (s *adminHandlerSuite) Test_RemoveSearchAttributes_EmptyIndexName() {
 		},
 	}
 	for _, testCase := range testCases2 {
-		s.T().Run(testCase.Name, func(t *testing.T) {
+		t.Run(testCase.Name, func(t *testing.T) {
 			resp, err := handler.RemoveSearchAttributes(ctx, testCase.Request)
-			s.Equal(testCase.Expected, err)
-			s.Nil(resp)
+			require.Equal(t, testCase.Expected, err)
+			require.Nil(t, resp)
 		})
 	}
 }
 
-func (s *adminHandlerSuite) Test_RemoveSearchAttributes_NonEmptyIndexName() {
+func TestAdmin_RemoveSearchAttributes_NonEmptyIndexName(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	handler := s.handler
 	ctx := context.Background()
 
@@ -476,10 +467,10 @@ func (s *adminHandlerSuite) Test_RemoveSearchAttributes_NonEmptyIndexName() {
 	s.mockVisibilityMgr.EXPECT().GetIndexName().Return("random-index-name").AnyTimes()
 	s.mockResource.SearchAttributesProvider.EXPECT().GetSearchAttributes("random-index-name", true).Return(searchattribute.TestEsNameTypeMap(), nil).AnyTimes()
 	for _, testCase := range testCases {
-		s.T().Run(testCase.Name, func(t *testing.T) {
+		t.Run(testCase.Name, func(t *testing.T) {
 			resp, err := handler.RemoveSearchAttributes(ctx, testCase.Request)
-			s.Equal(testCase.Expected, err)
-			s.Nil(resp)
+			require.Equal(t, testCase.Expected, err)
+			require.Nil(t, resp)
 		})
 	}
 
@@ -491,11 +482,12 @@ func (s *adminHandlerSuite) Test_RemoveSearchAttributes_NonEmptyIndexName() {
 			"CustomKeywordField",
 		},
 	})
-	s.NoError(err)
-	s.NotNil(resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }
 
-func (s *adminHandlerSuite) Test_RemoveRemoteCluster_Success() {
+func TestAdmin_RemoveRemoteCluster_Success(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var clusterName = "cluster"
 	s.mockClusterMetadataManager.EXPECT().DeleteClusterMetadata(
 		gomock.Any(),
@@ -503,10 +495,11 @@ func (s *adminHandlerSuite) Test_RemoveRemoteCluster_Success() {
 	).Return(nil)
 
 	_, err := s.handler.RemoveRemoteCluster(context.Background(), &adminservice.RemoveRemoteClusterRequest{ClusterName: clusterName})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *adminHandlerSuite) Test_RemoveRemoteCluster_Error() {
+func TestAdmin_RemoveRemoteCluster_Error(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var clusterName = "cluster"
 	s.mockClusterMetadataManager.EXPECT().DeleteClusterMetadata(
 		gomock.Any(),
@@ -514,10 +507,11 @@ func (s *adminHandlerSuite) Test_RemoveRemoteCluster_Error() {
 	).Return(fmt.Errorf("test error"))
 
 	_, err := s.handler.RemoveRemoteCluster(context.Background(), &adminservice.RemoveRemoteClusterRequest{ClusterName: clusterName})
-	s.Error(err)
+	require.Error(t, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_RecordFound_Success() {
+func TestAdmin_AddOrUpdateRemoteCluster_RecordFound_Success(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var FrontendHttpAddress = uuid.New()
 	var clusterName = uuid.New()
@@ -559,10 +553,11 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_RecordFound_Success() 
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{
 		FrontendAddress: rpcAddress,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_RecordNotFound_Success() {
+func TestAdmin_AddOrUpdateRemoteCluster_RecordNotFound_Success(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var FrontendHttpAddress = uuid.New()
 	var clusterName = uuid.New()
@@ -603,10 +598,11 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_RecordNotFound_Success
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{
 		FrontendAddress: rpcAddress,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_ClusterNameConflict() {
+func TestAdmin_AddOrUpdateRemoteCluster_ValidationError_ClusterNameConflict(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterId = uuid.New()
 
@@ -623,11 +619,12 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_Cluste
 			IsGlobalNamespaceEnabled: true,
 		}, nil)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_FailoverVersionIncrementMismatch() {
+func TestAdmin_AddOrUpdateRemoteCluster_ValidationError_FailoverVersionIncrementMismatch(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
@@ -646,11 +643,12 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_Failov
 			IsGlobalNamespaceEnabled: true,
 		}, nil)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_ShardCount_Invalid() {
+func TestAdmin_AddOrUpdateRemoteCluster_ValidationError_ShardCount_Invalid(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
@@ -669,11 +667,12 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_ShardC
 			IsGlobalNamespaceEnabled: true,
 		}, nil)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ShardCount_Multiple() {
+func TestAdmin_AddOrUpdateRemoteCluster_ShardCount_Multiple(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
@@ -712,10 +711,11 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ShardCount_Multiple() 
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{
 		FrontendAddress: rpcAddress,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_GlobalNamespaceDisabled() {
+func TestAdmin_AddOrUpdateRemoteCluster_ValidationError_GlobalNamespaceDisabled(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
@@ -734,11 +734,12 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_Global
 			IsGlobalNamespaceEnabled: false,
 		}, nil)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_InitialFailoverVersionConflict() {
+func TestAdmin_AddOrUpdateRemoteCluster_ValidationError_InitialFailoverVersionConflict(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
@@ -760,11 +761,12 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_Initia
 			IsGlobalNamespaceEnabled: true,
 		}, nil)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_DescribeCluster_Error() {
+func TestAdmin_AddOrUpdateRemoteCluster_DescribeCluster_Error(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 
 	s.mockClientFactory.EXPECT().NewRemoteAdminClientWithTimeout(rpcAddress, gomock.Any(), gomock.Any()).Return(
@@ -775,10 +777,11 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_DescribeCluster_Error(
 		fmt.Errorf("test error"),
 	)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
+	require.Error(t, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_GetClusterMetadata_Error() {
+func TestAdmin_AddOrUpdateRemoteCluster_GetClusterMetadata_Error(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
@@ -802,10 +805,11 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_GetClusterMetadata_Err
 		fmt.Errorf("test error"),
 	)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
+	require.Error(t, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_SaveClusterMetadata_Error() {
+func TestAdmin_AddOrUpdateRemoteCluster_SaveClusterMetadata_Error(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var FrontendHttpAddress = uuid.New()
 	var clusterName = uuid.New()
@@ -846,10 +850,11 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_SaveClusterMetadata_Er
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{
 		FrontendAddress: rpcAddress,
 	})
-	s.Error(err)
+	require.Error(t, err)
 }
 
-func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_SaveClusterMetadata_NotApplied_Error() {
+func TestAdmin_AddOrUpdateRemoteCluster_SaveClusterMetadata_NotApplied_Error(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var FrontendHttpAddress = uuid.New()
 	var clusterName = uuid.New()
@@ -890,11 +895,12 @@ func (s *adminHandlerSuite) Test_AddOrUpdateRemoteCluster_SaveClusterMetadata_No
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &adminservice.AddOrUpdateRemoteClusterRequest{
 		FrontendAddress: rpcAddress,
 	})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }
 
-func (s *adminHandlerSuite) Test_DescribeCluster_CurrentCluster_Success() {
+func TestAdmin_DescribeCluster_CurrentCluster_Success(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var clusterId = uuid.New()
 	clusterName := s.mockMetadata.GetCurrentClusterName()
 	s.mockResource.HostInfoProvider.EXPECT().HostInfo().Return(membership.NewHostInfoFromAddress("test"))
@@ -922,16 +928,17 @@ func (s *adminHandlerSuite) Test_DescribeCluster_CurrentCluster_Success() {
 		}, nil)
 
 	resp, err := s.handler.DescribeCluster(context.Background(), &adminservice.DescribeClusterRequest{})
-	s.NoError(err)
-	s.Equal(resp.GetClusterName(), clusterName)
-	s.Equal(resp.GetClusterId(), clusterId)
-	s.Equal(resp.GetHistoryShardCount(), int32(0))
-	s.Equal(resp.GetFailoverVersionIncrement(), int64(0))
-	s.Equal(resp.GetInitialFailoverVersion(), int64(0))
-	s.True(resp.GetIsGlobalNamespaceEnabled())
+	require.NoError(t, err)
+	require.Equal(t, resp.GetClusterName(), clusterName)
+	require.Equal(t, resp.GetClusterId(), clusterId)
+	require.Equal(t, resp.GetHistoryShardCount(), int32(0))
+	require.Equal(t, resp.GetFailoverVersionIncrement(), int64(0))
+	require.Equal(t, resp.GetInitialFailoverVersion(), int64(0))
+	require.True(t, resp.GetIsGlobalNamespaceEnabled())
 }
 
-func (s *adminHandlerSuite) Test_DescribeCluster_NonCurrentCluster_Success() {
+func TestAdmin_DescribeCluster_NonCurrentCluster_Success(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
 
@@ -960,16 +967,17 @@ func (s *adminHandlerSuite) Test_DescribeCluster_NonCurrentCluster_Success() {
 		}, nil)
 
 	resp, err := s.handler.DescribeCluster(context.Background(), &adminservice.DescribeClusterRequest{ClusterName: clusterName})
-	s.NoError(err)
-	s.Equal(resp.GetClusterName(), clusterName)
-	s.Equal(resp.GetClusterId(), clusterId)
-	s.Equal(resp.GetHistoryShardCount(), int32(0))
-	s.Equal(resp.GetFailoverVersionIncrement(), int64(0))
-	s.Equal(resp.GetInitialFailoverVersion(), int64(0))
-	s.True(resp.GetIsGlobalNamespaceEnabled())
+	require.NoError(t, err)
+	require.Equal(t, resp.GetClusterName(), clusterName)
+	require.Equal(t, resp.GetClusterId(), clusterId)
+	require.Equal(t, resp.GetHistoryShardCount(), int32(0))
+	require.Equal(t, resp.GetFailoverVersionIncrement(), int64(0))
+	require.Equal(t, resp.GetInitialFailoverVersion(), int64(0))
+	require.True(t, resp.GetIsGlobalNamespaceEnabled())
 }
 
-func (s *adminHandlerSuite) Test_ListClusters_Success() {
+func TestAdmin_ListClusters_Success(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	var pageSize int32 = 1
 
 	s.mockClusterMetadataManager.EXPECT().ListClusterMetadata(gomock.Any(), &persistence.ListClusterMetadataRequest{
@@ -985,12 +993,13 @@ func (s *adminHandlerSuite) Test_ListClusters_Success() {
 	resp, err := s.handler.ListClusters(context.Background(), &adminservice.ListClustersRequest{
 		PageSize: pageSize,
 	})
-	s.NoError(err)
-	s.Equal(1, len(resp.Clusters))
-	s.Equal(0, len(resp.GetNextPageToken()))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(resp.Clusters))
+	require.Equal(t, 0, len(resp.GetNextPageToken()))
 }
 
-func (s *adminHandlerSuite) TestStreamWorkflowReplicationMessages_ClientToServerBroken() {
+func TestStreamWorkflowReplicationMessages_ClientToServerBroken(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	clientClusterShardID := historyclient.ClusterShardID{
 		ClusterID: rand.Int31(),
 		ShardID:   rand.Int31(),
@@ -1036,7 +1045,8 @@ func (s *adminHandlerSuite) TestStreamWorkflowReplicationMessages_ClientToServer
 	waitGroupEnd.Wait()
 }
 
-func (s *adminHandlerSuite) TestStreamWorkflowReplicationMessages_ServerToClientBroken() {
+func TestStreamWorkflowReplicationMessages_ServerToClientBroken(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	clientClusterShardID := historyclient.ClusterShardID{
 		ClusterID: rand.Int31(),
 		ShardID:   rand.Int31(),
@@ -1084,7 +1094,8 @@ func (s *adminHandlerSuite) TestStreamWorkflowReplicationMessages_ServerToClient
 	waitGroupEnd.Wait()
 }
 
-func (s *adminHandlerSuite) TestGetNamespace_WithIDSuccess() {
+func TestGetNamespace_WithIDSuccess(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	namespaceID := "someId"
 	nsResponse := &persistence.GetNamespaceResponse{
 		Namespace: &persistencespb.NamespaceDetail{
@@ -1117,11 +1128,12 @@ func (s *adminHandlerSuite) TestGetNamespace_WithIDSuccess() {
 			Id: namespaceID,
 		},
 	})
-	s.NoError(err)
-	s.Equal(namespaceID, resp.GetInfo().GetId())
+	require.NoError(t, err)
+	require.Equal(t, namespaceID, resp.GetInfo().GetId())
 }
 
-func (s *adminHandlerSuite) TestGetNamespace_WithNameSuccess() {
+func TestGetNamespace_WithNameSuccess(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	namespaceName := "some name"
 	namespaceId := "some id"
 	nsResponse := &persistence.GetNamespaceResponse{
@@ -1155,19 +1167,21 @@ func (s *adminHandlerSuite) TestGetNamespace_WithNameSuccess() {
 			Namespace: namespaceName,
 		},
 	})
-	s.NoError(err)
-	s.Equal(namespaceId, resp.GetInfo().GetId())
-	s.Equal(namespaceName, resp.GetInfo().GetName())
-	s.Equal(cluster.TestAlternativeClusterName, resp.GetReplicationConfig().GetActiveClusterName())
+	require.NoError(t, err)
+	require.Equal(t, namespaceId, resp.GetInfo().GetId())
+	require.Equal(t, namespaceName, resp.GetInfo().GetName())
+	require.Equal(t, cluster.TestAlternativeClusterName, resp.GetReplicationConfig().GetActiveClusterName())
 }
 
-func (s *adminHandlerSuite) TestGetNamespace_EmptyRequest() {
+func TestGetNamespace_EmptyRequest(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	v := &adminservice.GetNamespaceRequest{}
 	_, err := s.handler.GetNamespace(context.Background(), v)
-	s.Equal(errRequestNotSet, err)
+	require.Equal(t, errRequestNotSet, err)
 }
 
-func (s *adminHandlerSuite) TestGetDLQTasks() {
+func TestGetDLQTasks(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	for _, tc := range []struct {
 		name string
 		err  error
@@ -1181,7 +1195,7 @@ func (s *adminHandlerSuite) TestGetDLQTasks() {
 			err:  serviceerror.NewNotFound("failed to get dlq tasks"),
 		},
 	} {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
 			blob := &commonpb.DataBlob{}
 			expectation := s.mockHistoryClient.EXPECT().GetDLQTasks(gomock.Any(), &historyservice.GetDLQTasksRequest{
 				DlqKey: &commonspb.HistoryDLQKey{
@@ -1220,11 +1234,11 @@ func (s *adminHandlerSuite) TestGetDLQTasks() {
 				NextPageToken: []byte{13},
 			})
 			if tc.err != nil {
-				s.ErrorIs(err, tc.err)
+				require.ErrorIs(t, err, tc.err)
 				return
 			}
-			s.NoError(err)
-			s.Equal(&adminservice.GetDLQTasksResponse{
+			require.NoError(t, err)
+			require.Equal(t, &adminservice.GetDLQTasksResponse{
 				DlqTasks: []*commonspb.HistoryDLQTask{
 					{
 						Metadata: &commonspb.HistoryDLQTaskMetadata{
@@ -1242,7 +1256,8 @@ func (s *adminHandlerSuite) TestGetDLQTasks() {
 	}
 }
 
-func (s *adminHandlerSuite) TestPurgeDLQTasks() {
+func TestPurgeDLQTasks(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	for _, tc := range []struct {
 		name string
 		err  error
@@ -1256,7 +1271,7 @@ func (s *adminHandlerSuite) TestPurgeDLQTasks() {
 			err:  serviceerror.NewNotFound("example sdk workflow start failure"),
 		},
 	} {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
 			mockSdkClient := mocksdk.NewMockClient(s.controller)
 			s.mockResource.SDKClientFactory.EXPECT().GetSystemClient().Return(mockSdkClient)
 			expectation := mockSdkClient.EXPECT().ExecuteWorkflow(
@@ -1293,21 +1308,22 @@ func (s *adminHandlerSuite) TestPurgeDLQTasks() {
 				},
 			})
 			if tc.err != nil {
-				s.ErrorIs(err, tc.err)
+				require.ErrorIs(t, err, tc.err)
 				return
 			}
-			s.NoError(err)
-			s.NotNil(response)
+			require.NoError(t, err)
+			require.NotNil(t, response)
 			var token adminservice.DLQJobToken
 			err = token.Unmarshal(response.JobToken)
-			s.NoError(err)
-			s.Equal("manage-dlq-tasks-1_test-source-cluster_test-target-cluster_aG2oua8T", token.WorkflowId)
-			s.Equal("test-run-id", token.RunId)
+			require.NoError(t, err)
+			require.Equal(t, "manage-dlq-tasks-1_test-source-cluster_test-target-cluster_aG2oua8T", token.WorkflowId)
+			require.Equal(t, "test-run-id", token.RunId)
 		})
 	}
 }
 
-func (s *adminHandlerSuite) TestPurgeDLQTasks_ClusterNotSet() {
+func TestPurgeDLQTasks_ClusterNotSet(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	_, err := s.handler.PurgeDLQTasks(context.Background(), &adminservice.PurgeDLQTasksRequest{
 		DlqKey: &commonspb.HistoryDLQKey{
 			TaskCategory:  1,
@@ -1318,12 +1334,13 @@ func (s *adminHandlerSuite) TestPurgeDLQTasks_ClusterNotSet() {
 			MessageId: 42,
 		},
 	})
-	s.Error(err)
-	s.Equal(codes.InvalidArgument, serviceerror.ToStatus(err).Code())
-	s.ErrorContains(err, errSourceClusterNotSet.Error())
+	require.Error(t, err)
+	require.Equal(t, codes.InvalidArgument, serviceerror.ToStatus(err).Code())
+	require.ErrorContains(t, err, errSourceClusterNotSet.Error())
 }
 
-func (s *adminHandlerSuite) TestDescribeDLQJob() {
+func TestDescribeDLQJob(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	workflowID := "test-workflow-id"
 	runID := "test-run-id"
 	defaultMergeQueryResponse := dlq.ProgressQueryResponse{
@@ -1355,15 +1372,15 @@ func (s *adminHandlerSuite) TestDescribeDLQJob() {
 		name                  string
 		err                   error
 		progressQueryResponse dlq.ProgressQueryResponse
-		workflowExecution     workflowservice.DescribeWorkflowExecutionResponse
-		expectedResponse      adminservice.DescribeDLQJobResponse
+		workflowExecution     *workflowservice.DescribeWorkflowExecutionResponse
+		expectedResponse      *adminservice.DescribeDLQJobResponse
 	}{
 		{
 			name:                  "MergeRunning",
 			err:                   nil,
 			progressQueryResponse: defaultMergeQueryResponse,
-			workflowExecution:     defaultWorkflowExecution,
-			expectedResponse: adminservice.DescribeDLQJobResponse{
+			workflowExecution:     &defaultWorkflowExecution,
+			expectedResponse: &adminservice.DescribeDLQJobResponse{
 				DlqKey: &commonspb.HistoryDLQKey{
 					TaskCategory:  1,
 					SourceCluster: "test-source-cluster",
@@ -1379,12 +1396,12 @@ func (s *adminHandlerSuite) TestDescribeDLQJob() {
 			name:                  "MergeFinished",
 			err:                   nil,
 			progressQueryResponse: defaultMergeQueryResponse,
-			workflowExecution: workflowservice.DescribeWorkflowExecutionResponse{
+			workflowExecution: &workflowservice.DescribeWorkflowExecutionResponse{
 				WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
 					Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
 				},
 			},
-			expectedResponse: adminservice.DescribeDLQJobResponse{
+			expectedResponse: &adminservice.DescribeDLQJobResponse{
 				DlqKey: &commonspb.HistoryDLQKey{
 					TaskCategory:  1,
 					SourceCluster: "test-source-cluster",
@@ -1400,12 +1417,12 @@ func (s *adminHandlerSuite) TestDescribeDLQJob() {
 			name:                  "MergeFailed",
 			err:                   nil,
 			progressQueryResponse: defaultMergeQueryResponse,
-			workflowExecution: workflowservice.DescribeWorkflowExecutionResponse{
+			workflowExecution: &workflowservice.DescribeWorkflowExecutionResponse{
 				WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
 					Status: enumspb.WORKFLOW_EXECUTION_STATUS_FAILED,
 				},
 			},
-			expectedResponse: adminservice.DescribeDLQJobResponse{
+			expectedResponse: &adminservice.DescribeDLQJobResponse{
 				DlqKey: &commonspb.HistoryDLQKey{
 					TaskCategory:  1,
 					SourceCluster: "test-source-cluster",
@@ -1421,8 +1438,8 @@ func (s *adminHandlerSuite) TestDescribeDLQJob() {
 			name:                  "DeleteRunning",
 			err:                   nil,
 			progressQueryResponse: defaultPurgeQueryResponse,
-			workflowExecution:     defaultWorkflowExecution,
-			expectedResponse: adminservice.DescribeDLQJobResponse{
+			workflowExecution:     &defaultWorkflowExecution,
+			expectedResponse: &adminservice.DescribeDLQJobResponse{
 				DlqKey: &commonspb.HistoryDLQKey{
 					TaskCategory:  1,
 					SourceCluster: "test-source-cluster",
@@ -1435,7 +1452,7 @@ func (s *adminHandlerSuite) TestDescribeDLQJob() {
 			},
 		},
 	} {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
 			jobToken := adminservice.DLQJobToken{
 				WorkflowId: workflowID,
 				RunId:      runID,
@@ -1461,36 +1478,38 @@ func (s *adminHandlerSuite) TestDescribeDLQJob() {
 			if tc.err != nil {
 				describeExpectation.Return(nil, tc.err)
 			} else {
-				describeExpectation.Return(&tc.workflowExecution, nil)
+				describeExpectation.Return(tc.workflowExecution, nil)
 			}
 			jobTokenBytes, _ := jobToken.Marshal()
 			response, err := s.handler.DescribeDLQJob(context.Background(), &adminservice.DescribeDLQJobRequest{
 				JobToken: jobTokenBytes,
 			})
 			if tc.err != nil {
-				s.ErrorIs(err, tc.err)
+				require.ErrorIs(t, err, tc.err)
 				return
 			}
-			s.NoError(err)
-			s.NotNil(response)
-			s.EqualValues(tc.expectedResponse, *response)
+			require.NoError(t, err)
+			require.NotNil(t, response)
+			protoassert.ProtoEqual(t, tc.expectedResponse, response)
 		})
 	}
 }
 
-func (s *adminHandlerSuite) TestDescribeDLQJob_InvalidJobToken() {
+func TestDescribeDLQJob_InvalidJobToken(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	_, err := s.handler.DescribeDLQJob(context.Background(), &adminservice.DescribeDLQJobRequest{JobToken: []byte("invalid_token")})
-	s.Error(err)
-	s.ErrorContains(err, "Invalid DLQ job token")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Invalid DLQ job token")
 
 }
 
-func (s *adminHandlerSuite) TestCancelDLQJob() {
+func TestCancelDLQJob(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	for _, tc := range []struct {
 		name              string
 		terminateErr      error
 		describeErr       error
-		workflowExecution workflowservice.DescribeWorkflowExecutionResponse
+		workflowExecution *workflowservice.DescribeWorkflowExecutionResponse
 		terminateCalls    int
 		expectedCancelled bool
 	}{
@@ -1498,7 +1517,7 @@ func (s *adminHandlerSuite) TestCancelDLQJob() {
 			name:         "SuccessForRunningWorkflow",
 			terminateErr: nil,
 			describeErr:  nil,
-			workflowExecution: workflowservice.DescribeWorkflowExecutionResponse{
+			workflowExecution: &workflowservice.DescribeWorkflowExecutionResponse{
 				WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
 					Status: enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING,
 				},
@@ -1510,7 +1529,7 @@ func (s *adminHandlerSuite) TestCancelDLQJob() {
 			name:         "SuccessForCompletedWorkflow",
 			terminateErr: nil,
 			describeErr:  nil,
-			workflowExecution: workflowservice.DescribeWorkflowExecutionResponse{
+			workflowExecution: &workflowservice.DescribeWorkflowExecutionResponse{
 				WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
 					Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
 				},
@@ -1522,7 +1541,7 @@ func (s *adminHandlerSuite) TestCancelDLQJob() {
 			name:         "TerminateWorkflowFailed",
 			terminateErr: serviceerror.NewNotFound("example sdk terminate workflow failure"),
 			describeErr:  nil,
-			workflowExecution: workflowservice.DescribeWorkflowExecutionResponse{
+			workflowExecution: &workflowservice.DescribeWorkflowExecutionResponse{
 				WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
 					Status: enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING,
 				},
@@ -1534,7 +1553,7 @@ func (s *adminHandlerSuite) TestCancelDLQJob() {
 			name:         "DescribeWorkflowFailed",
 			terminateErr: nil,
 			describeErr:  serviceerror.NewNotFound("example sdk describe workflow failure"),
-			workflowExecution: workflowservice.DescribeWorkflowExecutionResponse{
+			workflowExecution: &workflowservice.DescribeWorkflowExecutionResponse{
 				WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
 					Status: enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING,
 				},
@@ -1543,7 +1562,7 @@ func (s *adminHandlerSuite) TestCancelDLQJob() {
 			expectedCancelled: false,
 		},
 	} {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
 			workflowID := "test-workflow-id"
 			runID := "test-run-id"
 			jobToken := adminservice.DLQJobToken{
@@ -1567,7 +1586,7 @@ func (s *adminHandlerSuite) TestCancelDLQJob() {
 			if tc.describeErr != nil {
 				describeExpectation.Return(nil, tc.describeErr)
 			} else {
-				describeExpectation.Return(&tc.workflowExecution, nil)
+				describeExpectation.Return(tc.workflowExecution, nil)
 			}
 			jobTokenBytes, _ := jobToken.Marshal()
 			response, err := s.handler.CancelDLQJob(context.Background(), &adminservice.CancelDLQJobRequest{
@@ -1575,27 +1594,29 @@ func (s *adminHandlerSuite) TestCancelDLQJob() {
 				Reason:   "test-reason",
 			})
 			if tc.describeErr != nil {
-				s.ErrorIs(err, tc.describeErr)
+				require.ErrorIs(t, err, tc.describeErr)
 				return
 			}
 			if tc.terminateErr != nil {
-				s.ErrorIs(err, tc.terminateErr)
+				require.ErrorIs(t, err, tc.terminateErr)
 				return
 			}
-			s.NoError(err)
-			s.NotNil(response)
-			s.Equal(tc.expectedCancelled, response.Canceled)
+			require.NoError(t, err)
+			require.NotNil(t, response)
+			require.Equal(t, tc.expectedCancelled, response.Canceled)
 		})
 	}
 }
 
-func (s *adminHandlerSuite) TestCancelDLQJob_InvalidJobToken() {
+func TestCancelDLQJob_InvalidJobToken(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	_, err := s.handler.CancelDLQJob(context.Background(), &adminservice.CancelDLQJobRequest{JobToken: []byte("invalid_token"), Reason: "test-reason"})
-	s.Error(err)
-	s.ErrorContains(err, "Invalid DLQ job token")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Invalid DLQ job token")
 }
 
-func (s *adminHandlerSuite) TestAddDLQTasks_Ok() {
+func TestAddDLQTasks_Ok(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	s.mockHistoryClient.EXPECT().AddTasks(gomock.Any(), &historyservice.AddTasksRequest{
 		ShardId: 13,
 		Tasks: []*historyservice.AddTasksRequest_Task{
@@ -1620,16 +1641,19 @@ func (s *adminHandlerSuite) TestAddDLQTasks_Ok() {
 			},
 		},
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *adminHandlerSuite) TestAddDLQTasks_Err() {
-	s.mockHistoryClient.EXPECT().AddTasks(gomock.Any(), gomock.Any()).Return(nil, assert.AnError)
+func TestAddDLQTasks_Err(t *testing.T) {
+	s := setupAdminHandlerTest(t)
+	errTest := errors.New("some error")
+	s.mockHistoryClient.EXPECT().AddTasks(gomock.Any(), gomock.Any()).Return(nil, errTest)
 	_, err := s.handler.AddTasks(context.Background(), &adminservice.AddTasksRequest{})
-	s.ErrorIs(err, assert.AnError)
+	require.ErrorIs(t, err, errTest)
 }
 
-func (s *adminHandlerSuite) TestListQueues_Ok() {
+func TestListQueues_Ok(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	s.mockHistoryClient.EXPECT().ListQueues(gomock.Any(), &historyservice.ListQueuesRequest{
 		QueueType:     int32(persistence.QueueTypeHistoryDLQ),
 		PageSize:      0,
@@ -1647,19 +1671,22 @@ func (s *adminHandlerSuite) TestListQueues_Ok() {
 		PageSize:      0,
 		NextPageToken: nil,
 	})
-	s.NoError(err)
-	s.Equal("testQueue", resp.Queues[0].QueueName)
-	s.Equal(int64(100), resp.Queues[0].MessageCount)
+	require.NoError(t, err)
+	require.Equal(t, "testQueue", resp.Queues[0].QueueName)
+	require.Equal(t, int64(100), resp.Queues[0].MessageCount)
 
 }
 
-func (s *adminHandlerSuite) TestListQueues_Err() {
-	s.mockHistoryClient.EXPECT().ListQueues(gomock.Any(), gomock.Any()).Return(nil, assert.AnError)
+func TestListQueues_Err(t *testing.T) {
+	s := setupAdminHandlerTest(t)
+	errTest := errors.New("some error")
+	s.mockHistoryClient.EXPECT().ListQueues(gomock.Any(), gomock.Any()).Return(nil, errTest)
 	_, err := s.handler.ListQueues(context.Background(), &adminservice.ListQueuesRequest{})
-	s.ErrorIs(err, assert.AnError)
+	require.ErrorIs(t, err, errTest)
 }
 
-func (s *adminHandlerSuite) TestForceUnloadTaskQueuePartition() {
+func TestForceUnloadTaskQueuePartition(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	handler := s.handler
 	ctx := context.Background()
 	s.mockNamespaceCache.EXPECT().GetNamespaceID(gomock.Any()).Return(s.namespaceID, nil).AnyTimes()
@@ -1683,10 +1710,10 @@ func (s *adminHandlerSuite) TestForceUnloadTaskQueuePartition() {
 		},
 	}
 	for _, test := range errorCases {
-		s.T().Run(test.Name, func(t *testing.T) {
+		t.Run(test.Name, func(t *testing.T) {
 			resp, err := handler.ForceUnloadTaskQueuePartition(ctx, test.Request)
-			s.Equal(test.Expected, err)
-			s.Nil(resp)
+			require.Equal(t, test.Expected, err)
+			require.Nil(t, resp)
 		})
 	}
 
@@ -1712,12 +1739,13 @@ func (s *adminHandlerSuite) TestForceUnloadTaskQueuePartition() {
 		TaskQueuePartition: tqPartitionRequest,
 	})
 
-	s.NoError(err)
-	s.NotNil(resp)
-	s.True(resp.WasLoaded)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.True(t, resp.WasLoaded)
 }
 
-func (s *adminHandlerSuite) TestDescribeTaskQueuePartition() {
+func TestDescribeTaskQueuePartition(t *testing.T) {
+	s := setupAdminHandlerTest(t)
 	handler := s.handler
 	ctx := context.Background()
 	unversioned := " "
@@ -1744,10 +1772,10 @@ func (s *adminHandlerSuite) TestDescribeTaskQueuePartition() {
 		},
 	}
 	for _, test := range errorCases {
-		s.T().Run(test.Name, func(t *testing.T) {
+		t.Run(test.Name, func(t *testing.T) {
 			resp, err := handler.DescribeTaskQueuePartition(ctx, test.Request)
-			s.Equal(test.Expected, err)
-			s.Nil(resp)
+			require.Equal(t, test.Expected, err)
+			require.Nil(t, resp)
 		})
 	}
 
@@ -1826,16 +1854,17 @@ func (s *adminHandlerSuite) TestDescribeTaskQueuePartition() {
 		TaskQueuePartition: tqPartitionRequest,
 		BuildIds:           buildIdRequest,
 	})
-	s.NoError(err)
-	s.NotNil(resp)
-	s.Equal(2, len(resp.VersionsInfoInternal))
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, 2, len(resp.VersionsInfoInternal))
 
-	s.validatePhysicalTaskQueueInfo(unversionedPhysicalTaskQueueInfo, resp.VersionsInfoInternal[unversioned].GetPhysicalTaskQueueInfo())
-	s.validatePhysicalTaskQueueInfo(versionedPhysicalTaskQueueInfo, resp.VersionsInfoInternal[buildID].GetPhysicalTaskQueueInfo())
+	s.validatePhysicalTaskQueueInfo(t, unversionedPhysicalTaskQueueInfo, resp.VersionsInfoInternal[unversioned].GetPhysicalTaskQueueInfo())
+	s.validatePhysicalTaskQueueInfo(t, versionedPhysicalTaskQueueInfo, resp.VersionsInfoInternal[buildID].GetPhysicalTaskQueueInfo())
 }
 
-func (s *adminHandlerSuite) TestImportWorkflowExecution_NoSearchAttributes() {
-	tv := testvars.New(s.T()).WithNamespaceName(s.namespace).WithNamespaceID(s.namespaceID)
+func TestImportWorkflowExecution_NoSearchAttributes(t *testing.T) {
+	s := setupAdminHandlerTest(t)
+	tv := testvars.New(t).WithNamespaceName(s.namespace).WithNamespaceID(s.namespaceID)
 
 	serializer := serialization.NewSerializer()
 	generator := test.InitializeHistoryEventGenerator(tv.NamespaceName(), tv.NamespaceID(), tv.Any().Int64())
@@ -1850,15 +1879,15 @@ func (s *adminHandlerSuite) TestImportWorkflowExecution_NoSearchAttributes() {
 			historyEvents = append(historyEvents, historyEvent)
 		}
 		historyBatch, err := serializer.SerializeEvents(historyEvents)
-		s.NoError(err)
+		require.NoError(t, err)
 		historyBatches = append(historyBatches, historyBatch)
 	}
 
 	s.mockNamespaceCache.EXPECT().GetNamespaceID(tv.NamespaceName()).Return(tv.NamespaceID(), nil)
 
 	s.mockHistoryClient.EXPECT().ImportWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, request *historyservice.ImportWorkflowExecutionRequest, opts ...grpc.CallOption) (*historyservice.ImportWorkflowExecutionResponse, error) {
-		s.Equal(tv.NamespaceID().String(), request.NamespaceId)
-		s.Equal(historyBatches, request.HistoryBatches, "history batches shouldn't be reserialized because there is no search attributes")
+		require.Equal(t, tv.NamespaceID().String(), request.NamespaceId)
+		require.Equal(t, historyBatches, request.HistoryBatches, "history batches shouldn't be reserialized because there is no search attributes")
 		return &historyservice.ImportWorkflowExecutionResponse{}, nil
 	})
 	_, err := s.handler.ImportWorkflowExecution(context.Background(), &adminservice.ImportWorkflowExecutionRequest{
@@ -1868,11 +1897,12 @@ func (s *adminHandlerSuite) TestImportWorkflowExecution_NoSearchAttributes() {
 		VersionHistory: nil,
 		Token:          nil,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *adminHandlerSuite) TestImportWorkflowExecution_WithAliasedSearchAttributes() {
-	tv := testvars.New(s.T()).WithNamespaceName(s.namespace).WithNamespaceID(s.namespaceID)
+func TestImportWorkflowExecution_WithAliasedSearchAttributes(t *testing.T) {
+	s := setupAdminHandlerTest(t)
+	tv := testvars.New(t).WithNamespaceName(s.namespace).WithNamespaceID(s.namespaceID)
 
 	serializer := serialization.NewSerializer()
 
@@ -1898,7 +1928,7 @@ func (s *adminHandlerSuite) TestImportWorkflowExecution_WithAliasedSearchAttribu
 		},
 	}
 	for _, subTest := range subTests {
-		s.T().Run(subTest.Name, func(t *testing.T) {
+		t.Run(subTest.Name, func(t *testing.T) {
 			generator := test.InitializeHistoryEventGenerator(tv.NamespaceName(), tv.NamespaceID(), tv.Any().Int64())
 			saValue := tv.Any().Payload()
 			aliasedSas := &commonpb.SearchAttributes{IndexedFields: map[string]*commonpb.Payload{
@@ -1920,7 +1950,7 @@ func (s *adminHandlerSuite) TestImportWorkflowExecution_WithAliasedSearchAttribu
 					historyEvents = append(historyEvents, historyEvent)
 				}
 				historyBatch, err := serializer.SerializeEvents(historyEvents)
-				s.NoError(err)
+				require.NoError(t, err)
 				historyBatches = append(historyBatches, historyBatch)
 			}
 			if subTest.ExpectedErr != nil {
@@ -1946,16 +1976,16 @@ func (s *adminHandlerSuite) TestImportWorkflowExecution_WithAliasedSearchAttribu
 			} else {
 				s.mockVisibilityMgr.EXPECT().ValidateCustomSearchAttributes(gomock.Any()).Return(nil, nil).Times(eventsWithSasCount)
 				s.mockHistoryClient.EXPECT().ImportWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, request *historyservice.ImportWorkflowExecutionRequest, opts ...grpc.CallOption) (*historyservice.ImportWorkflowExecutionResponse, error) {
-					s.Equal(tv.NamespaceID().String(), request.NamespaceId)
+					require.Equal(t, tv.NamespaceID().String(), request.NamespaceId)
 					for _, historyBatch := range request.HistoryBatches {
 						events, err := serializer.DeserializeEvents(historyBatch)
-						s.NoError(err)
+						require.NoError(t, err)
 						for _, event := range events {
 							unaliasedSas, eventHasSas := searchattribute.GetFromEvent(event)
 							if eventHasSas {
-								s.NotNil(unaliasedSas, "search attributes must be set on every event with search_attributes field")
-								s.Len(unaliasedSas.GetIndexedFields(), 1, "only 1 search attribute must be set")
-								s.ProtoEqual(saValue, unaliasedSas.GetIndexedFields()["Keyword01"])
+								require.NotNil(t, unaliasedSas, "search attributes must be set on every event with search_attributes field")
+								require.Len(t, unaliasedSas.GetIndexedFields(), 1, "only 1 search attribute must be set")
+								protoassert.ProtoEqual(t, saValue, unaliasedSas.GetIndexedFields()["Keyword01"])
 							}
 						}
 					}
@@ -1970,17 +2000,18 @@ func (s *adminHandlerSuite) TestImportWorkflowExecution_WithAliasedSearchAttribu
 				Token:          nil,
 			})
 			if subTest.ExpectedErr == nil {
-				s.NoError(err)
+				require.NoError(t, err)
 			} else {
-				s.Error(err)
-				s.ErrorAs(err, &subTest.ExpectedErr)
+				require.Error(t, err)
+				require.ErrorAs(t, err, &subTest.ExpectedErr)
 			}
 		})
 	}
 }
 
-func (s *adminHandlerSuite) TestImportWorkflowExecution_WithNonAliasedSearchAttributes() {
-	tv := testvars.New(s.T()).WithNamespaceName(s.namespace).WithNamespaceID(s.namespaceID)
+func TestImportWorkflowExecution_WithNonAliasedSearchAttributes(t *testing.T) {
+	s := setupAdminHandlerTest(t)
+	tv := testvars.New(t).WithNamespaceName(s.namespace).WithNamespaceID(s.namespaceID)
 
 	serializer := serialization.NewSerializer()
 	subTests := []struct {
@@ -2000,7 +2031,7 @@ func (s *adminHandlerSuite) TestImportWorkflowExecution_WithNonAliasedSearchAttr
 		},
 	}
 	for _, subTest := range subTests {
-		s.T().Run(subTest.Name, func(t *testing.T) {
+		t.Run(subTest.Name, func(t *testing.T) {
 			generator := test.InitializeHistoryEventGenerator(tv.NamespaceName(), tv.NamespaceID(), tv.Any().Int64())
 			saValue := tv.Any().Payload()
 			aliasedSas := &commonpb.SearchAttributes{IndexedFields: map[string]*commonpb.Payload{
@@ -2022,7 +2053,7 @@ func (s *adminHandlerSuite) TestImportWorkflowExecution_WithNonAliasedSearchAttr
 					historyEvents = append(historyEvents, historyEvent)
 				}
 				historyBatch, err := serializer.SerializeEvents(historyEvents)
-				s.NoError(err)
+				require.NoError(t, err)
 				historyBatches = append(historyBatches, historyBatch)
 			}
 			if subTest.ExpectedErr != nil {
@@ -2045,16 +2076,16 @@ func (s *adminHandlerSuite) TestImportWorkflowExecution_WithNonAliasedSearchAttr
 			} else {
 				s.mockVisibilityMgr.EXPECT().ValidateCustomSearchAttributes(gomock.Any()).Return(nil, nil).Times(eventsWithSasCount)
 				s.mockHistoryClient.EXPECT().ImportWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, request *historyservice.ImportWorkflowExecutionRequest, opts ...grpc.CallOption) (*historyservice.ImportWorkflowExecutionResponse, error) {
-					s.Equal(tv.NamespaceID().String(), request.NamespaceId)
+					require.Equal(t, tv.NamespaceID().String(), request.NamespaceId)
 					for _, historyBatch := range request.HistoryBatches {
 						events, err := serializer.DeserializeEvents(historyBatch)
-						s.NoError(err)
+						require.NoError(t, err)
 						for _, event := range events {
 							unaliasedSas, eventHasSas := searchattribute.GetFromEvent(event)
 							if eventHasSas {
-								s.NotNil(unaliasedSas, "search attributes must be set on every event with search_attributes field")
-								s.Len(unaliasedSas.GetIndexedFields(), 1, "only 1 search attribute must be set")
-								s.ProtoEqual(saValue, unaliasedSas.GetIndexedFields()["CustomKeywordField"])
+								require.NotNil(t, unaliasedSas, "search attributes must be set on every event with search_attributes field")
+								require.Len(t, unaliasedSas.GetIndexedFields(), 1, "only 1 search attribute must be set")
+								protoassert.ProtoEqual(t, saValue, unaliasedSas.GetIndexedFields()["CustomKeywordField"])
 							}
 						}
 					}
@@ -2070,19 +2101,19 @@ func (s *adminHandlerSuite) TestImportWorkflowExecution_WithNonAliasedSearchAttr
 				Token:          nil,
 			})
 			if subTest.ExpectedErr == nil {
-				s.NoError(err)
+				require.NoError(t, err)
 			} else {
-				s.Error(err)
-				s.ErrorAs(err, &subTest.ExpectedErr)
+				require.Error(t, err)
+				require.ErrorAs(t, err, &subTest.ExpectedErr)
 			}
 		})
 	}
 }
 
-func (s *adminHandlerSuite) validatePhysicalTaskQueueInfo(expectedPhysicalTaskQueueInfo *taskqueuespb.PhysicalTaskQueueInfo,
+func (s *adminHandlerTest) validatePhysicalTaskQueueInfo(t *testing.T, expectedPhysicalTaskQueueInfo *taskqueuespb.PhysicalTaskQueueInfo,
 	responsePhysicalTaskQueueInfo *taskqueuespb.PhysicalTaskQueueInfo) {
 
-	s.Equal(expectedPhysicalTaskQueueInfo.GetPollers(), responsePhysicalTaskQueueInfo.GetPollers())
-	s.Equal(expectedPhysicalTaskQueueInfo.GetTaskQueueStats(), responsePhysicalTaskQueueInfo.GetTaskQueueStats())
-	s.Equal(expectedPhysicalTaskQueueInfo.GetInternalTaskQueueStatus(), responsePhysicalTaskQueueInfo.GetInternalTaskQueueStatus())
+	require.Equal(t, expectedPhysicalTaskQueueInfo.GetPollers(), responsePhysicalTaskQueueInfo.GetPollers())
+	require.Equal(t, expectedPhysicalTaskQueueInfo.GetTaskQueueStats(), responsePhysicalTaskQueueInfo.GetTaskQueueStats())
+	require.Equal(t, expectedPhysicalTaskQueueInfo.GetInternalTaskQueueStatus(), responsePhysicalTaskQueueInfo.GetInternalTaskQueueStatus())
 }

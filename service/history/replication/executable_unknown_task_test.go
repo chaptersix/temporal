@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/server/client"
 	"go.temporal.io/server/common/cluster"
@@ -18,84 +17,58 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	executableUnknownTaskSuite struct {
-		suite.Suite
-		*require.Assertions
+func setupExecutableUnknownTask(t *testing.T) (*gomock.Controller, *ExecutableUnknownTask) {
+	controller := gomock.NewController(t)
+	clusterMetadata := cluster.NewMockMetadata(controller)
+	clientBean := client.NewMockBean(controller)
+	shardController := shard.NewMockController(controller)
+	namespaceCache := namespace.NewMockRegistry(controller)
+	metricsHandler := metrics.NoopMetricsHandler
+	logger := log.NewNoopLogger()
+	eagerNamespaceRefresher := NewMockEagerNamespaceRefresher(controller)
 
-		controller              *gomock.Controller
-		clusterMetadata         *cluster.MockMetadata
-		clientBean              *client.MockBean
-		shardController         *shard.MockController
-		namespaceCache          *namespace.MockRegistry
-		metricsHandler          metrics.Handler
-		logger                  log.Logger
-		eagerNamespaceRefresher *MockEagerNamespaceRefresher
-
-		taskID int64
-		task   *ExecutableUnknownTask
-	}
-)
-
-func TestExecutableUnknownTaskSuite(t *testing.T) {
-	s := new(executableUnknownTaskSuite)
-	suite.Run(t, s)
-}
-
-func (s *executableUnknownTaskSuite) SetupSuite() {
-	s.Assertions = require.New(s.T())
-}
-
-func (s *executableUnknownTaskSuite) TearDownSuite() {
-
-}
-
-func (s *executableUnknownTaskSuite) SetupTest() {
-	s.controller = gomock.NewController(s.T())
-	s.clusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.clientBean = client.NewMockBean(s.controller)
-	s.shardController = shard.NewMockController(s.controller)
-	s.namespaceCache = namespace.NewMockRegistry(s.controller)
-	s.metricsHandler = metrics.NoopMetricsHandler
-	s.logger = log.NewNoopLogger()
-	s.eagerNamespaceRefresher = NewMockEagerNamespaceRefresher(s.controller)
-
-	s.taskID = rand.Int63()
-	s.task = NewExecutableUnknownTask(
+	taskID := rand.Int63()
+	task := NewExecutableUnknownTask(
 		ProcessToolBox{
-			ClusterMetadata:         s.clusterMetadata,
-			ClientBean:              s.clientBean,
-			ShardController:         s.shardController,
-			NamespaceCache:          s.namespaceCache,
-			MetricsHandler:          s.metricsHandler,
-			Logger:                  s.logger,
-			EagerNamespaceRefresher: s.eagerNamespaceRefresher,
+			ClusterMetadata:         clusterMetadata,
+			ClientBean:              clientBean,
+			ShardController:         shardController,
+			NamespaceCache:          namespaceCache,
+			MetricsHandler:          metricsHandler,
+			Logger:                  logger,
+			EagerNamespaceRefresher: eagerNamespaceRefresher,
 			DLQWriter:               NoopDLQWriter{},
 		},
-		s.taskID,
+		taskID,
 		time.Unix(0, rand.Int63()),
 		nil,
 	)
+	return controller, task
 }
 
-func (s *executableUnknownTaskSuite) TearDownTest() {
-	s.controller.Finish()
+func TestExecutableUnknownTask_Execute(t *testing.T) {
+	controller, task := setupExecutableUnknownTask(t)
+	defer controller.Finish()
+
+	err := task.Execute()
+	require.IsType(t, serviceerror.NewInvalidArgument(""), err)
 }
 
-func (s *executableUnknownTaskSuite) TestExecute() {
-	err := s.task.Execute()
-	s.IsType(serviceerror.NewInvalidArgument(""), err)
-}
+func TestExecutableUnknownTask_HandleErr(t *testing.T) {
+	controller, task := setupExecutableUnknownTask(t)
+	defer controller.Finish()
 
-func (s *executableUnknownTaskSuite) TestHandleErr() {
 	err := errors.New("OwO")
-	s.Equal(err, s.task.HandleErr(err))
+	require.Equal(t, err, task.HandleErr(err))
 
 	err = serviceerror.NewUnavailable("")
-	s.Equal(err, s.task.HandleErr(err))
+	require.Equal(t, err, task.HandleErr(err))
 }
 
-func (s *executableUnknownTaskSuite) TestMarkPoisonPill() {
-	err := s.task.MarkPoisonPill()
-	s.NoError(err)
+func TestExecutableUnknownTask_MarkPoisonPill(t *testing.T) {
+	controller, task := setupExecutableUnknownTask(t)
+	defer controller.Finish()
+
+	err := task.MarkPoisonPill()
+	require.NoError(t, err)
 }

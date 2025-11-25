@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
@@ -15,133 +14,113 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	executableTaskTrackerSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller *gomock.Controller
-		logger     log.Logger
-
-		taskTracker *ExecutableTaskTrackerImpl
-	}
-)
-
-func TestExecutableTaskTrackerSuite(t *testing.T) {
-	s := new(executableTaskTrackerSuite)
-	suite.Run(t, s)
+func setupExecutableTaskTracker(t *testing.T) (*gomock.Controller, *ExecutableTaskTrackerImpl) {
+	controller := gomock.NewController(t)
+	taskTracker := NewExecutableTaskTracker(log.NewTestLogger(), metrics.NoopMetricsHandler)
+	return controller, taskTracker
 }
 
-func (s *executableTaskTrackerSuite) SetupSuite() {
-	s.Assertions = require.New(s.T())
-}
+func TestTrackTasks(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
 
-func (s *executableTaskTrackerSuite) TearDownSuite() {
-
-}
-
-func (s *executableTaskTrackerSuite) SetupTest() {
-	s.controller = gomock.NewController(s.T())
-
-	s.taskTracker = NewExecutableTaskTracker(log.NewTestLogger(), metrics.NoopMetricsHandler)
-}
-
-func (s *executableTaskTrackerSuite) TearDownTest() {
-	s.controller.Finish()
-}
-
-func (s *executableTaskTrackerSuite) TestTrackTasks() {
-	task0 := NewMockTrackableExecutableTask(s.controller)
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(rand.Int63()).AnyTimes()
 	highWatermark0 := WatermarkInfo{
 		Watermark: task0.TaskID() + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
 
-	tasks := s.taskTracker.TrackTasks(highWatermark0, task0)
-	s.Equal([]TrackableExecutableTask{task0}, tasks)
+	tasks := taskTracker.TrackTasks(highWatermark0, task0)
+	require.Equal(t, []TrackableExecutableTask{task0}, tasks)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0.TaskID()}, taskIDs)
-	s.Equal(highWatermark0, *s.taskTracker.exclusiveHighWatermarkInfo)
+	require.Equal(t, []int64{task0.TaskID()}, taskIDs)
+	require.Equal(t, highWatermark0, *taskTracker.exclusiveHighWatermarkInfo)
 
-	task1 := NewMockTrackableExecutableTask(s.controller)
+	task1 := NewMockTrackableExecutableTask(controller)
 	task1.EXPECT().TaskID().Return(task0.TaskID() + 1).AnyTimes()
-	task2 := NewMockTrackableExecutableTask(s.controller)
+	task2 := NewMockTrackableExecutableTask(controller)
 	task2.EXPECT().TaskID().Return(task1.TaskID() + 1).AnyTimes()
 	highWatermark2 := WatermarkInfo{
 		Watermark: task2.TaskID() + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
 
-	tasks = s.taskTracker.TrackTasks(highWatermark2, task1, task2)
-	s.Equal([]TrackableExecutableTask{task1, task2}, tasks)
+	tasks = taskTracker.TrackTasks(highWatermark2, task1, task2)
+	require.Equal(t, []TrackableExecutableTask{task1, task2}, tasks)
 
 	taskIDs = []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0.TaskID(), task1.TaskID(), task2.TaskID()}, taskIDs)
-	s.Equal(highWatermark2, *s.taskTracker.exclusiveHighWatermarkInfo)
+	require.Equal(t, []int64{task0.TaskID(), task1.TaskID(), task2.TaskID()}, taskIDs)
+	require.Equal(t, highWatermark2, *taskTracker.exclusiveHighWatermarkInfo)
 }
 
-func (s *executableTaskTrackerSuite) TestTrackTasks_Duplication() {
-	task0 := NewMockTrackableExecutableTask(s.controller)
+func TestTrackTasks_Duplication(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
+
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(rand.Int63()).AnyTimes()
 	highWatermark0 := WatermarkInfo{
 		Watermark: task0.TaskID() + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
-	tasks := s.taskTracker.TrackTasks(highWatermark0, task0)
-	s.Equal([]TrackableExecutableTask{task0}, tasks)
-	tasks = s.taskTracker.TrackTasks(highWatermark0, task0)
-	s.Equal([]TrackableExecutableTask{}, tasks)
+	tasks := taskTracker.TrackTasks(highWatermark0, task0)
+	require.Equal(t, []TrackableExecutableTask{task0}, tasks)
+	tasks = taskTracker.TrackTasks(highWatermark0, task0)
+	require.Equal(t, []TrackableExecutableTask{}, tasks)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0.TaskID()}, taskIDs)
-	s.Equal(highWatermark0, *s.taskTracker.exclusiveHighWatermarkInfo)
+	require.Equal(t, []int64{task0.TaskID()}, taskIDs)
+	require.Equal(t, highWatermark0, *taskTracker.exclusiveHighWatermarkInfo)
 
-	task1 := NewMockTrackableExecutableTask(s.controller)
+	task1 := NewMockTrackableExecutableTask(controller)
 	task1.EXPECT().TaskID().Return(task0.TaskID() + 1).AnyTimes()
 	highWatermark1 := WatermarkInfo{
 		Watermark: task1.TaskID() + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
-	tasks = s.taskTracker.TrackTasks(highWatermark1, task1)
-	s.Equal([]TrackableExecutableTask{task1}, tasks)
+	tasks = taskTracker.TrackTasks(highWatermark1, task1)
+	require.Equal(t, []TrackableExecutableTask{task1}, tasks)
 
 	taskIDs = []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0.TaskID(), task1.TaskID()}, taskIDs)
-	s.Equal(highWatermark1, *s.taskTracker.exclusiveHighWatermarkInfo)
+	require.Equal(t, []int64{task0.TaskID(), task1.TaskID()}, taskIDs)
+	require.Equal(t, highWatermark1, *taskTracker.exclusiveHighWatermarkInfo)
 
-	task2 := NewMockTrackableExecutableTask(s.controller)
+	task2 := NewMockTrackableExecutableTask(controller)
 	task2.EXPECT().TaskID().Return(task1.TaskID() + 1).AnyTimes()
 	highWatermark2 := WatermarkInfo{
 		Watermark: task2.TaskID() + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
-	tasks = s.taskTracker.TrackTasks(highWatermark2, task1, task2)
-	s.Equal([]TrackableExecutableTask{task2}, tasks)
+	tasks = taskTracker.TrackTasks(highWatermark2, task1, task2)
+	require.Equal(t, []TrackableExecutableTask{task2}, tasks)
 
 	taskIDs = []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0.TaskID(), task1.TaskID(), task2.TaskID()}, taskIDs)
-	s.Equal(highWatermark2, *s.taskTracker.exclusiveHighWatermarkInfo)
+	require.Equal(t, []int64{task0.TaskID(), task1.TaskID(), task2.TaskID()}, taskIDs)
+	require.Equal(t, highWatermark2, *taskTracker.exclusiveHighWatermarkInfo)
 }
 
-func (s *executableTaskTrackerSuite) TestTrackTasks_Cancellation() {
-	task0 := NewMockTrackableExecutableTask(s.controller)
+func TestTrackTasks_Cancellation(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
+
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(rand.Int63()).AnyTimes()
 	task0.EXPECT().Cancel()
 	highWatermark0 := WatermarkInfo{
@@ -149,37 +128,43 @@ func (s *executableTaskTrackerSuite) TestTrackTasks_Cancellation() {
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
 
-	s.taskTracker.Cancel()
-	tasks := s.taskTracker.TrackTasks(highWatermark0, task0)
-	s.Equal([]TrackableExecutableTask{task0}, tasks)
+	taskTracker.Cancel()
+	tasks := taskTracker.TrackTasks(highWatermark0, task0)
+	require.Equal(t, []TrackableExecutableTask{task0}, tasks)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0.TaskID()}, taskIDs)
-	s.Equal(highWatermark0, *s.taskTracker.exclusiveHighWatermarkInfo)
+	require.Equal(t, []int64{task0.TaskID()}, taskIDs)
+	require.Equal(t, highWatermark0, *taskTracker.exclusiveHighWatermarkInfo)
 }
 
-func (s *executableTaskTrackerSuite) TestLowWatermark_Empty() {
+func TestLowWatermark_Empty(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
+
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{}, taskIDs)
+	require.Equal(t, []int64{}, taskIDs)
 
-	lowWatermark := s.taskTracker.LowWatermark()
-	s.Nil(lowWatermark)
+	lowWatermark := taskTracker.LowWatermark()
+	require.Nil(t, lowWatermark)
 }
 
-func (s *executableTaskTrackerSuite) TestLowWatermark_AckedTask_Case0() {
+func TestLowWatermark_AckedTask_Case0(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
+
 	task0ID := rand.Int63()
-	task0 := NewMockTrackableExecutableTask(s.controller)
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(task0ID).AnyTimes()
 	task0.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task0.EXPECT().State().Return(ctasks.TaskStateAcked).AnyTimes()
 	task1ID := task0ID + 1
-	task1 := NewMockTrackableExecutableTask(s.controller)
+	task1 := NewMockTrackableExecutableTask(controller)
 	task1.EXPECT().TaskID().Return(task1ID).AnyTimes()
 	task1.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task1.EXPECT().State().Return(ctasks.TaskStatePending).AnyTimes()
@@ -187,30 +172,32 @@ func (s *executableTaskTrackerSuite) TestLowWatermark_AckedTask_Case0() {
 		Watermark: task1ID + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
-	tasks := s.taskTracker.TrackTasks(highWatermark0, task0, task1)
-	s.Equal([]TrackableExecutableTask{task0, task1}, tasks)
+	tasks := taskTracker.TrackTasks(highWatermark0, task0, task1)
+	require.Equal(t, []TrackableExecutableTask{task0, task1}, tasks)
 
-	lowWatermark := s.taskTracker.LowWatermark()
-	s.Equal(WatermarkInfo{
+	lowWatermark := taskTracker.LowWatermark()
+	require.Equal(t, WatermarkInfo{
 		Watermark: task1ID,
 		Timestamp: task1.TaskCreationTime(),
 	}, *lowWatermark)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task1ID}, taskIDs)
+	require.Equal(t, []int64{task1ID}, taskIDs)
 }
 
-func (s *executableTaskTrackerSuite) TestLowWatermark_AckedTask_Case1() {
+func TestLowWatermark_AckedTask_Case1(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
 	task0ID := rand.Int63()
-	task0 := NewMockTrackableExecutableTask(s.controller)
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(task0ID).AnyTimes()
 	task0.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task0.EXPECT().State().Return(ctasks.TaskStateAcked).AnyTimes()
 	task1ID := task0ID + 1
-	task1 := NewMockTrackableExecutableTask(s.controller)
+	task1 := NewMockTrackableExecutableTask(controller)
 	task1.EXPECT().TaskID().Return(task1ID).AnyTimes()
 	task1.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task1.EXPECT().State().Return(ctasks.TaskStateAcked).AnyTimes()
@@ -218,28 +205,30 @@ func (s *executableTaskTrackerSuite) TestLowWatermark_AckedTask_Case1() {
 		Watermark: task1ID + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
-	tasks := s.taskTracker.TrackTasks(highWatermark0, task0, task1)
-	s.Equal([]TrackableExecutableTask{task0, task1}, tasks)
+	tasks := taskTracker.TrackTasks(highWatermark0, task0, task1)
+	require.Equal(t, []TrackableExecutableTask{task0, task1}, tasks)
 
-	lowWatermark := s.taskTracker.LowWatermark()
-	s.Equal(highWatermark0, *lowWatermark)
+	lowWatermark := taskTracker.LowWatermark()
+	require.Equal(t, highWatermark0, *lowWatermark)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{}, taskIDs)
+	require.Equal(t, []int64{}, taskIDs)
 }
 
-func (s *executableTaskTrackerSuite) TestLowWatermark_NackedTask_Success_Case0() {
+func TestLowWatermark_NackedTask_Success_Case0(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
 	task0ID := rand.Int63()
-	task0 := NewMockTrackableExecutableTask(s.controller)
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(task0ID).AnyTimes()
 	task0.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task0.EXPECT().State().Return(ctasks.TaskStateNacked).AnyTimes()
 	task0.EXPECT().MarkPoisonPill().Return(nil)
 	task1ID := task0ID + 1
-	task1 := NewMockTrackableExecutableTask(s.controller)
+	task1 := NewMockTrackableExecutableTask(controller)
 	task1.EXPECT().TaskID().Return(task1ID).AnyTimes()
 	task1.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task1.EXPECT().State().Return(ctasks.TaskStatePending).AnyTimes()
@@ -248,31 +237,34 @@ func (s *executableTaskTrackerSuite) TestLowWatermark_NackedTask_Success_Case0()
 		Watermark: task1ID + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
-	tasks := s.taskTracker.TrackTasks(highWatermark0, task0, task1)
-	s.Equal([]TrackableExecutableTask{task0, task1}, tasks)
+	tasks := taskTracker.TrackTasks(highWatermark0, task0, task1)
+	require.Equal(t, []TrackableExecutableTask{task0, task1}, tasks)
 
-	lowWatermark := s.taskTracker.LowWatermark()
-	s.Equal(WatermarkInfo{
+	lowWatermark := taskTracker.LowWatermark()
+	require.Equal(t, WatermarkInfo{
 		Watermark: task1ID,
 		Timestamp: task1.TaskCreationTime(),
 	}, *lowWatermark)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task1ID}, taskIDs)
+	require.Equal(t, []int64{task1ID}, taskIDs)
 }
 
-func (s *executableTaskTrackerSuite) TestLowWatermark_NackedTask_Success_Case1() {
+func TestLowWatermark_NackedTask_Success_Case1(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
+
 	task0ID := rand.Int63()
-	task0 := NewMockTrackableExecutableTask(s.controller)
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(task0ID).AnyTimes()
 	task0.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task0.EXPECT().State().Return(ctasks.TaskStateNacked).AnyTimes()
 	task0.EXPECT().MarkPoisonPill().Return(nil)
 	task1ID := task0ID + 1
-	task1 := NewMockTrackableExecutableTask(s.controller)
+	task1 := NewMockTrackableExecutableTask(controller)
 	task1.EXPECT().TaskID().Return(task1ID).AnyTimes()
 	task1.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task1.EXPECT().State().Return(ctasks.TaskStateNacked).AnyTimes()
@@ -282,161 +274,179 @@ func (s *executableTaskTrackerSuite) TestLowWatermark_NackedTask_Success_Case1()
 		Watermark: task1ID + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
-	tasks := s.taskTracker.TrackTasks(highWatermark0, task0, task1)
-	s.Equal([]TrackableExecutableTask{task0, task1}, tasks)
+	tasks := taskTracker.TrackTasks(highWatermark0, task0, task1)
+	require.Equal(t, []TrackableExecutableTask{task0, task1}, tasks)
 
-	lowWatermark := s.taskTracker.LowWatermark()
-	s.Equal(highWatermark0, *lowWatermark)
+	lowWatermark := taskTracker.LowWatermark()
+	require.Equal(t, highWatermark0, *lowWatermark)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{}, taskIDs)
+	require.Equal(t, []int64{}, taskIDs)
 }
 
-func (s *executableTaskTrackerSuite) TestLowWatermark_NackedTask_Error_Case0() {
+func TestLowWatermark_NackedTask_Error_Case0(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
+
 	task0ID := rand.Int63()
-	task0 := NewMockTrackableExecutableTask(s.controller)
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(task0ID).AnyTimes()
 	task0.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task0.EXPECT().State().Return(ctasks.TaskStateNacked).AnyTimes()
 	task0.EXPECT().MarkPoisonPill().Return(errors.New("random error"))
 	task1ID := task0ID + 1
-	task1 := NewMockTrackableExecutableTask(s.controller)
+	task1 := NewMockTrackableExecutableTask(controller)
 	task1.EXPECT().TaskID().Return(task1ID).AnyTimes()
 	task1.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task1.EXPECT().State().Return(ctasks.TaskStatePending).AnyTimes()
 
-	tasks := s.taskTracker.TrackTasks(WatermarkInfo{
+	tasks := taskTracker.TrackTasks(WatermarkInfo{
 		Watermark: task1ID + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}, task0, task1)
-	s.Equal([]TrackableExecutableTask{task0, task1}, tasks)
+	require.Equal(t, []TrackableExecutableTask{task0, task1}, tasks)
 
-	lowWatermark := s.taskTracker.LowWatermark()
-	s.Equal(WatermarkInfo{
+	lowWatermark := taskTracker.LowWatermark()
+	require.Equal(t, WatermarkInfo{
 		Watermark: task0.TaskID(),
 		Timestamp: task0.TaskCreationTime(),
 	}, *lowWatermark)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0ID, task1ID}, taskIDs)
+	require.Equal(t, []int64{task0ID, task1ID}, taskIDs)
 }
 
-func (s *executableTaskTrackerSuite) TestLowWatermark_NackedTask_Error_Case1() {
+func TestLowWatermark_NackedTask_Error_Case1(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
+
 	task0ID := rand.Int63()
-	task0 := NewMockTrackableExecutableTask(s.controller)
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(task0ID).AnyTimes()
 	task0.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task0.EXPECT().State().Return(ctasks.TaskStateNacked).AnyTimes()
 	task0.EXPECT().MarkPoisonPill().Return(serviceerror.NewInternal("random error"))
 	task1ID := task0ID + 1
-	task1 := NewMockTrackableExecutableTask(s.controller)
+	task1 := NewMockTrackableExecutableTask(controller)
 	task1.EXPECT().TaskID().Return(task1ID).AnyTimes()
 	task1.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task1.EXPECT().State().Return(ctasks.TaskStateNacked).AnyTimes()
 	task1.EXPECT().MarkPoisonPill().Return(serviceerror.NewInternal("random error"))
 
-	tasks := s.taskTracker.TrackTasks(WatermarkInfo{
+	tasks := taskTracker.TrackTasks(WatermarkInfo{
 		Watermark: task1ID + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}, task0, task1)
-	s.Equal([]TrackableExecutableTask{task0, task1}, tasks)
+	require.Equal(t, []TrackableExecutableTask{task0, task1}, tasks)
 
-	lowWatermark := s.taskTracker.LowWatermark()
-	s.Equal(WatermarkInfo{
+	lowWatermark := taskTracker.LowWatermark()
+	require.Equal(t, WatermarkInfo{
 		Watermark: task0.TaskID(),
 		Timestamp: task0.TaskCreationTime(),
 	}, *lowWatermark)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0ID, task1ID}, taskIDs)
+	require.Equal(t, []int64{task0ID, task1ID}, taskIDs)
 }
 
-func (s *executableTaskTrackerSuite) TestLowWatermark_AbortedTask() {
-	task0 := NewMockTrackableExecutableTask(s.controller)
+func TestLowWatermark_AbortedTask(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
+
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(rand.Int63()).AnyTimes()
 	task0.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task0.EXPECT().State().Return(ctasks.TaskStateAborted).AnyTimes()
 
-	tasks := s.taskTracker.TrackTasks(WatermarkInfo{
+	tasks := taskTracker.TrackTasks(WatermarkInfo{
 		Watermark: task0.TaskID() + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}, task0)
-	s.Equal([]TrackableExecutableTask{task0}, tasks)
+	require.Equal(t, []TrackableExecutableTask{task0}, tasks)
 
-	lowWatermark := s.taskTracker.LowWatermark()
-	s.Equal(WatermarkInfo{
+	lowWatermark := taskTracker.LowWatermark()
+	require.Equal(t, WatermarkInfo{
 		Watermark: task0.TaskID(),
 		Timestamp: task0.TaskCreationTime(),
 	}, *lowWatermark)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0.TaskID()}, taskIDs)
+	require.Equal(t, []int64{task0.TaskID()}, taskIDs)
 }
 
-func (s *executableTaskTrackerSuite) TestLowWatermark_CancelledTask() {
-	task0 := NewMockTrackableExecutableTask(s.controller)
+func TestLowWatermark_CancelledTask(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
+
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(rand.Int63()).AnyTimes()
 	task0.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task0.EXPECT().State().Return(ctasks.TaskStateCancelled).AnyTimes()
 
-	tasks := s.taskTracker.TrackTasks(WatermarkInfo{
+	tasks := taskTracker.TrackTasks(WatermarkInfo{
 		Watermark: task0.TaskID() + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}, task0)
-	s.Equal([]TrackableExecutableTask{task0}, tasks)
+	require.Equal(t, []TrackableExecutableTask{task0}, tasks)
 
-	lowWatermark := s.taskTracker.LowWatermark()
-	s.Equal(WatermarkInfo{
+	lowWatermark := taskTracker.LowWatermark()
+	require.Equal(t, WatermarkInfo{
 		Watermark: task0.TaskID(),
 		Timestamp: task0.TaskCreationTime(),
 	}, *lowWatermark)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0.TaskID()}, taskIDs)
+	require.Equal(t, []int64{task0.TaskID()}, taskIDs)
 }
 
-func (s *executableTaskTrackerSuite) TestLowWatermark_PendingTask() {
-	task0 := NewMockTrackableExecutableTask(s.controller)
+func TestLowWatermark_PendingTask(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
+
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(rand.Int63()).AnyTimes()
 	task0.EXPECT().TaskCreationTime().Return(time.Unix(0, rand.Int63())).AnyTimes()
 	task0.EXPECT().State().Return(ctasks.TaskStatePending).AnyTimes()
 
-	tasks := s.taskTracker.TrackTasks(WatermarkInfo{
+	tasks := taskTracker.TrackTasks(WatermarkInfo{
 		Watermark: task0.TaskID() + 1,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}, task0)
-	s.Equal([]TrackableExecutableTask{task0}, tasks)
+	require.Equal(t, []TrackableExecutableTask{task0}, tasks)
 
-	lowWatermark := s.taskTracker.LowWatermark()
-	s.Equal(WatermarkInfo{
+	lowWatermark := taskTracker.LowWatermark()
+	require.Equal(t, WatermarkInfo{
 		Watermark: task0.TaskID(),
 		Timestamp: task0.TaskCreationTime(),
 	}, *lowWatermark)
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0.TaskID()}, taskIDs)
+	require.Equal(t, []int64{task0.TaskID()}, taskIDs)
 }
 
-func (s *executableTaskTrackerSuite) TestCancellation() {
-	task0 := NewMockTrackableExecutableTask(s.controller)
+func TestCancellation(t *testing.T) {
+	controller, taskTracker := setupExecutableTaskTracker(t)
+	defer controller.Finish()
+
+	task0 := NewMockTrackableExecutableTask(controller)
 	task0.EXPECT().TaskID().Return(rand.Int63()).AnyTimes()
 	task0.EXPECT().Cancel()
 	highWatermark0 := WatermarkInfo{
@@ -444,14 +454,14 @@ func (s *executableTaskTrackerSuite) TestCancellation() {
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
 
-	tasks := s.taskTracker.TrackTasks(highWatermark0, task0)
-	s.Equal([]TrackableExecutableTask{task0}, tasks)
-	s.taskTracker.Cancel()
+	tasks := taskTracker.TrackTasks(highWatermark0, task0)
+	require.Equal(t, []TrackableExecutableTask{task0}, tasks)
+	taskTracker.Cancel()
 
 	taskIDs := []int64{}
-	for element := s.taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
+	for element := taskTracker.taskQueue.Front(); element != nil; element = element.Next() {
 		taskIDs = append(taskIDs, element.Value.(TrackableExecutableTask).TaskID())
 	}
-	s.Equal([]int64{task0.TaskID()}, taskIDs)
-	s.Equal(highWatermark0, *s.taskTracker.exclusiveHighWatermarkInfo)
+	require.Equal(t, []int64{task0.TaskID()}, taskIDs)
+	require.Equal(t, highWatermark0, *taskTracker.exclusiveHighWatermarkInfo)
 }
