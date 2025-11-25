@@ -4,55 +4,38 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/dynamicconfig"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
 )
 
-type (
-	mitigatorSuite struct {
-		suite.Suite
-		*require.Assertions
+type testMonitor struct {
+	Monitor
 
-		mockTimeSource *clock.EventTimeSource
-
-		monitor   *testMonitor
-		mitigator *mitigatorImpl
-	}
-
-	testMonitor struct {
-		Monitor
-
-		resolvedAlertType AlertType
-	}
-)
-
-func TestMitigatorSuite(t *testing.T) {
-	s := new(mitigatorSuite)
-	suite.Run(t, s)
+	resolvedAlertType AlertType
 }
 
-func (s *mitigatorSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
+func (m *testMonitor) ResolveAlert(alertType AlertType) {
+	m.resolvedAlertType = alertType
+}
 
-	s.mockTimeSource = clock.NewEventTimeSource()
-	s.monitor = &testMonitor{}
+func TestMitigate_ActionMatchAlert(t *testing.T) {
+	t.Parallel()
+	mockTimeSource := clock.NewEventTimeSource()
+	monitor := &testMonitor{}
 
 	// we use a different actionRunner implementation,
 	// which doesn't require readerGroup
-	s.mitigator = newMitigator(
+	mitigator := newMitigator(
 		nil,
-		s.monitor,
+		monitor,
 		log.NewTestLogger(),
 		metrics.NoopMetricsHandler,
 		dynamicconfig.GetIntPropertyFn(3),
 		GrouperNamespaceID{},
 	)
-}
 
-func (s *mitigatorSuite) TestMitigate_ActionMatchAlert() {
 	testCases := []struct {
 		alert          Alert
 		expectedAction Action
@@ -90,7 +73,7 @@ func (s *mitigatorSuite) TestMitigate_ActionMatchAlert() {
 	}
 
 	var actualAction Action
-	s.mitigator.actionRunner = func(
+	mitigator.actionRunner = func(
 		action Action,
 		_ *ReaderGroup,
 		_ metrics.Handler,
@@ -99,13 +82,28 @@ func (s *mitigatorSuite) TestMitigate_ActionMatchAlert() {
 	}
 
 	for _, tc := range testCases {
-		s.mitigator.Mitigate(tc.alert)
-		s.IsType(tc.expectedAction, actualAction)
+		mitigator.Mitigate(tc.alert)
+		require.IsType(t, tc.expectedAction, actualAction)
 	}
+
+	_ = mockTimeSource
 }
 
-func (s *mitigatorSuite) TestMitigate_ResolveAlert() {
-	s.mitigator.actionRunner = func(
+func TestMitigate_ResolveAlert(t *testing.T) {
+	t.Parallel()
+	mockTimeSource := clock.NewEventTimeSource()
+	monitor := &testMonitor{}
+
+	mitigator := newMitigator(
+		nil,
+		monitor,
+		log.NewTestLogger(),
+		metrics.NoopMetricsHandler,
+		dynamicconfig.GetIntPropertyFn(3),
+		GrouperNamespaceID{},
+	)
+
+	mitigator.actionRunner = func(
 		_ Action,
 		_ *ReaderGroup,
 		_ metrics.Handler,
@@ -119,11 +117,9 @@ func (s *mitigatorSuite) TestMitigate_ResolveAlert() {
 			CiriticalPendingTaskCount: 500,
 		},
 	}
-	s.mitigator.Mitigate(alert)
+	mitigator.Mitigate(alert)
 
-	s.Equal(alert.AlertType, s.monitor.resolvedAlertType)
-}
+	require.Equal(t, alert.AlertType, monitor.resolvedAlertType)
 
-func (m *testMonitor) ResolveAlert(alertType AlertType) {
-	m.resolvedAlertType = alertType
+	_ = mockTimeSource
 }

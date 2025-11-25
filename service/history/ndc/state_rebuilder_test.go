@@ -7,7 +7,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
@@ -37,46 +36,31 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-type (
-	stateRebuilderSuite struct {
-		suite.Suite
-		*require.Assertions
-		protorequire.ProtoAssertions
-
-		controller          *gomock.Controller
-		mockShard           *shard.ContextTest
-		mockEventsCache     *events.MockCache
-		mockTaskRefresher   *workflow.MockTaskRefresher
-		mockNamespaceCache  *namespace.MockRegistry
-		mockClusterMetadata *cluster.MockMetadata
-
-		mockExecutionManager *persistence.MockExecutionManager
-		logger               log.Logger
-
-		namespaceID namespace.ID
-		workflowID  string
-		runID       string
-		now         time.Time
-
-		nDCStateRebuilder *StateRebuilderImpl
-	}
-)
-
-func TestStateRebuilderSuite(t *testing.T) {
-	s := new(stateRebuilderSuite)
-	suite.Run(t, s)
+type stateRebuilderTestDeps struct {
+	controller           *gomock.Controller
+	mockShard            *shard.ContextTest
+	mockEventsCache      *events.MockCache
+	mockTaskRefresher    *workflow.MockTaskRefresher
+	mockNamespaceCache   *namespace.MockRegistry
+	mockClusterMetadata  *cluster.MockMetadata
+	mockExecutionManager *persistence.MockExecutionManager
+	logger               log.Logger
+	namespaceID          namespace.ID
+	workflowID           string
+	runID                string
+	now                  time.Time
+	nDCStateRebuilder    *StateRebuilderImpl
 }
 
-func (s *stateRebuilderSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-	s.ProtoAssertions = protorequire.New(s.T())
+func setupStateRebuilderTest(t *testing.T) *stateRebuilderTestDeps {
+	t.Helper()
 
-	s.controller = gomock.NewController(s.T())
-	s.mockTaskRefresher = workflow.NewMockTaskRefresher(s.controller)
+	controller := gomock.NewController(t)
+	mockTaskRefresher := workflow.NewMockTaskRefresher(controller)
 	config := tests.NewDynamicConfig()
 	config.EnableTransitionHistory = dynamicconfig.GetBoolPropertyFn(true)
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{
 			ShardId: 10,
 			RangeId: 1,
@@ -86,41 +70,61 @@ func (s *stateRebuilderSuite) SetupTest() {
 
 	reg := hsm.NewRegistry()
 	err := workflow.RegisterStateMachine(reg)
-	s.NoError(err)
-	s.mockShard.SetStateMachineRegistry(reg)
+	require.NoError(t, err)
+	mockShard.SetStateMachineRegistry(reg)
 
-	s.mockExecutionManager = s.mockShard.Resource.ExecutionMgr
-	s.mockNamespaceCache = s.mockShard.Resource.NamespaceCache
-	s.mockClusterMetadata = s.mockShard.Resource.ClusterMetadata
-	s.mockEventsCache = s.mockShard.MockEventsCache
-	s.mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
-	s.mockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
+	mockExecutionManager := mockShard.Resource.ExecutionMgr
+	mockNamespaceCache := mockShard.Resource.NamespaceCache
+	mockClusterMetadata := mockShard.Resource.ClusterMetadata
+	mockEventsCache := mockShard.MockEventsCache
+	mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
+	mockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
 
-	s.logger = s.mockShard.GetLogger()
+	logger := mockShard.GetLogger()
 
-	s.workflowID = "some random workflow ID"
-	s.runID = uuid.New()
-	s.now = time.Now().UTC()
-	s.nDCStateRebuilder = NewStateRebuilder(
-		s.mockShard, s.logger,
+	workflowID := "some random workflow ID"
+	runID := uuid.New()
+	now := time.Now().UTC()
+	nDCStateRebuilder := NewStateRebuilder(
+		mockShard, logger,
 	)
-	s.nDCStateRebuilder.taskRefresher = s.mockTaskRefresher
+	nDCStateRebuilder.taskRefresher = mockTaskRefresher
+
+	t.Cleanup(func() {
+		controller.Finish()
+		mockShard.StopForTest()
+	})
+
+	return &stateRebuilderTestDeps{
+		controller:           controller,
+		mockShard:            mockShard,
+		mockEventsCache:      mockEventsCache,
+		mockTaskRefresher:    mockTaskRefresher,
+		mockNamespaceCache:   mockNamespaceCache,
+		mockClusterMetadata:  mockClusterMetadata,
+		mockExecutionManager: mockExecutionManager,
+		logger:               logger,
+		workflowID:           workflowID,
+		runID:                runID,
+		now:                  now,
+		nDCStateRebuilder:    nDCStateRebuilder,
+	}
 }
 
-func (s *stateRebuilderSuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.StopForTest()
+func TestInitializeBuilders(t *testing.T) {
+	t.Parallel()
+	deps := setupStateRebuilderTest(t)
+
+	mutableState, stateBuilder := deps.nDCStateRebuilder.initializeBuilders(tests.GlobalNamespaceEntry, tests.WorkflowKey, deps.now)
+	require.NotNil(t, mutableState)
+	require.NotNil(t, stateBuilder)
+	require.NotNil(t, mutableState.GetExecutionInfo().GetVersionHistories())
 }
 
-func (s *stateRebuilderSuite) TestInitializeBuilders() {
-	mutableState, stateBuilder := s.nDCStateRebuilder.initializeBuilders(tests.GlobalNamespaceEntry, tests.WorkflowKey, s.now)
-	s.NotNil(mutableState)
-	s.NotNil(stateBuilder)
-	s.NotNil(mutableState.GetExecutionInfo().GetVersionHistories())
-}
-
-func (s *stateRebuilderSuite) TestApplyEvents() {
+func TestApplyEvents(t *testing.T) {
+	t.Parallel()
+	deps := setupStateRebuilderTest(t)
 
 	requestID := uuid.New()
 	events := []*historypb.HistoryEvent{
@@ -136,27 +140,30 @@ func (s *stateRebuilderSuite) TestApplyEvents() {
 		},
 	}
 
-	workflowKey := definition.NewWorkflowKey(s.namespaceID.String(), s.workflowID, s.runID)
+	workflowKey := definition.NewWorkflowKey(deps.namespaceID.String(), deps.workflowID, deps.runID)
 
-	mockStateRebuilder := workflow.NewMockMutableStateRebuilder(s.controller)
+	mockStateRebuilder := workflow.NewMockMutableStateRebuilder(deps.controller)
 	mockStateRebuilder.EXPECT().ApplyEvents(
 		gomock.Any(),
-		s.namespaceID,
+		deps.namespaceID,
 		requestID,
 		protomock.Eq(&commonpb.WorkflowExecution{
-			WorkflowId: s.workflowID,
-			RunId:      s.runID,
+			WorkflowId: deps.workflowID,
+			RunId:      deps.runID,
 		}),
 		[][]*historypb.HistoryEvent{events},
 		[]*historypb.HistoryEvent(nil),
 		"",
 	).Return(nil, nil)
 
-	err := s.nDCStateRebuilder.applyEvents(context.Background(), workflowKey, mockStateRebuilder, events, requestID)
-	s.NoError(err)
+	err := deps.nDCStateRebuilder.applyEvents(context.Background(), workflowKey, mockStateRebuilder, events, requestID)
+	require.NoError(t, err)
 }
 
-func (s *stateRebuilderSuite) TestPagination() {
+func TestPagination(t *testing.T) {
+	t.Parallel()
+	deps := setupStateRebuilderTest(t)
+
 	firstEventID := common.FirstEventID
 	nextEventID := int64(101)
 	branchToken := []byte("some random branch token")
@@ -194,8 +201,8 @@ func (s *stateRebuilderSuite) TestPagination() {
 	expectedTransactionIDs := []int64{transactionID1, transactionID2}
 	pageToken := []byte("some random token")
 
-	shardID := s.mockShard.GetShardID()
-	s.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	shardID := deps.mockShard.GetShardID()
+	deps.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   branchToken,
 		MinEventID:    firstEventID,
 		MaxEventID:    nextEventID,
@@ -208,7 +215,7 @@ func (s *stateRebuilderSuite) TestPagination() {
 		NextPageToken:  pageToken,
 		Size:           12345,
 	}, nil)
-	s.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	deps.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   branchToken,
 		MinEventID:    firstEventID,
 		MaxEventID:    nextEventID,
@@ -222,13 +229,13 @@ func (s *stateRebuilderSuite) TestPagination() {
 		Size:           67890,
 	}, nil)
 
-	paginationFn := s.nDCStateRebuilder.getPaginationFn(context.Background(), firstEventID, nextEventID, branchToken)
+	paginationFn := deps.nDCStateRebuilder.getPaginationFn(context.Background(), firstEventID, nextEventID, branchToken)
 	iter := collection.NewPagingIterator(paginationFn)
 
 	var result []HistoryBlobsPaginationItem
 	for iter.HasNext() {
 		item, err := iter.Next()
-		s.NoError(err)
+		require.NoError(t, err)
 		result = append(result, item)
 	}
 	var historyResult []*historypb.History
@@ -238,11 +245,14 @@ func (s *stateRebuilderSuite) TestPagination() {
 		transactionIDsResult = append(transactionIDsResult, item.TransactionID)
 	}
 
-	s.Equal(expectedHistory, historyResult)
-	s.Equal(expectedTransactionIDs, transactionIDsResult)
+	require.Equal(t, expectedHistory, historyResult)
+	require.Equal(t, expectedTransactionIDs, transactionIDsResult)
 }
 
-func (s *stateRebuilderSuite) TestRebuild() {
+func TestRebuild(t *testing.T) {
+	t.Parallel()
+	deps := setupStateRebuilderTest(t)
+
 	requestID := uuid.New()
 	version := int64(12)
 	lastEventID := int64(2)
@@ -286,8 +296,8 @@ func (s *stateRebuilderSuite) TestRebuild() {
 
 	historySize1 := 12345
 	historySize2 := 67890
-	shardID := s.mockShard.GetShardID()
-	s.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	shardID := deps.mockShard.GetShardID()
+	deps.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   branchToken,
 		MinEventID:    firstEventID,
 		MaxEventID:    nextEventID,
@@ -301,7 +311,7 @@ func (s *stateRebuilderSuite) TestRebuild() {
 		Size:           historySize1,
 	}, nil)
 	expectedLastFirstTransactionID := int64(20)
-	s.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	deps.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   branchToken,
 		MinEventID:    firstEventID,
 		MaxEventID:    nextEventID,
@@ -315,7 +325,7 @@ func (s *stateRebuilderSuite) TestRebuild() {
 		Size:           historySize2,
 	}, nil)
 
-	s.mockNamespaceCache.EXPECT().GetNamespaceByID(targetNamespaceID).Return(namespace.NewGlobalNamespaceForTest(
+	deps.mockNamespaceCache.EXPECT().GetNamespaceByID(targetNamespaceID).Return(namespace.NewGlobalNamespaceForTest(
 		&persistencespb.NamespaceInfo{Id: targetNamespaceID.String(), Name: targetNamespace.String()},
 		&persistencespb.NamespaceConfig{},
 		&persistencespb.NamespaceReplicationConfig{
@@ -327,12 +337,12 @@ func (s *stateRebuilderSuite) TestRebuild() {
 		},
 		1234,
 	), nil).AnyTimes()
-	s.mockTaskRefresher.EXPECT().Refresh(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	deps.mockTaskRefresher.EXPECT().Refresh(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 
-	rebuildMutableState, rebuiltHistorySize, err := s.nDCStateRebuilder.Rebuild(
+	rebuildMutableState, rebuiltHistorySize, err := deps.nDCStateRebuilder.Rebuild(
 		context.Background(),
-		s.now,
-		definition.NewWorkflowKey(s.namespaceID.String(), s.workflowID, s.runID),
+		deps.now,
+		definition.NewWorkflowKey(deps.namespaceID.String(), deps.workflowID, deps.runID),
 		branchToken,
 		lastEventID,
 		util.Ptr(version),
@@ -340,24 +350,27 @@ func (s *stateRebuilderSuite) TestRebuild() {
 		targetBranchToken,
 		requestID,
 	)
-	s.NoError(err)
-	s.NotNil(rebuildMutableState)
+	require.NoError(t, err)
+	require.NotNil(t, rebuildMutableState)
 	rebuildExecutionInfo := rebuildMutableState.GetExecutionInfo()
-	s.Equal(targetNamespaceID, namespace.ID(rebuildExecutionInfo.NamespaceId))
-	s.Equal(targetWorkflowID, rebuildExecutionInfo.WorkflowId)
-	s.Equal(targetRunID, rebuildMutableState.GetExecutionState().RunId)
-	s.Equal(int64(historySize1+historySize2), rebuiltHistorySize)
-	s.ProtoEqual(versionhistory.NewVersionHistories(
+	require.Equal(t, targetNamespaceID, namespace.ID(rebuildExecutionInfo.NamespaceId))
+	require.Equal(t, targetWorkflowID, rebuildExecutionInfo.WorkflowId)
+	require.Equal(t, targetRunID, rebuildMutableState.GetExecutionState().RunId)
+	require.Equal(t, int64(historySize1+historySize2), rebuiltHistorySize)
+	protorequire.ProtoEqual(t, versionhistory.NewVersionHistories(
 		versionhistory.NewVersionHistory(
 			targetBranchToken,
 			[]*historyspb.VersionHistoryItem{versionhistory.NewVersionHistoryItem(lastEventID, version)},
 		),
 	), rebuildMutableState.GetExecutionInfo().GetVersionHistories())
-	s.Equal(timestamp.TimeValue(rebuildMutableState.GetExecutionState().StartTime), s.now)
-	s.Equal(expectedLastFirstTransactionID, rebuildExecutionInfo.LastFirstEventTxnId)
+	require.Equal(t, timestamp.TimeValue(rebuildMutableState.GetExecutionState().StartTime), deps.now)
+	require.Equal(t, expectedLastFirstTransactionID, rebuildExecutionInfo.LastFirstEventTxnId)
 }
 
-func (s *stateRebuilderSuite) TestRebuildWithCurrentMutableState() {
+func TestRebuildWithCurrentMutableState(t *testing.T) {
+	t.Parallel()
+	deps := setupStateRebuilderTest(t)
+
 	requestID := uuid.New()
 	version := int64(12)
 	lastEventID := int64(2)
@@ -401,8 +414,8 @@ func (s *stateRebuilderSuite) TestRebuildWithCurrentMutableState() {
 
 	historySize1 := 12345
 	historySize2 := 67890
-	shardID := s.mockShard.GetShardID()
-	s.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	shardID := deps.mockShard.GetShardID()
+	deps.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   branchToken,
 		MinEventID:    firstEventID,
 		MaxEventID:    nextEventID,
@@ -416,7 +429,7 @@ func (s *stateRebuilderSuite) TestRebuildWithCurrentMutableState() {
 		Size:           historySize1,
 	}, nil)
 	expectedLastFirstTransactionID := int64(20)
-	s.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	deps.mockExecutionManager.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   branchToken,
 		MinEventID:    firstEventID,
 		MaxEventID:    nextEventID,
@@ -430,7 +443,7 @@ func (s *stateRebuilderSuite) TestRebuildWithCurrentMutableState() {
 		Size:           historySize2,
 	}, nil)
 
-	s.mockNamespaceCache.EXPECT().GetNamespaceByID(targetNamespaceID).Return(namespace.NewGlobalNamespaceForTest(
+	deps.mockNamespaceCache.EXPECT().GetNamespaceByID(targetNamespaceID).Return(namespace.NewGlobalNamespaceForTest(
 		&persistencespb.NamespaceInfo{Id: targetNamespaceID.String(), Name: targetNamespace.String()},
 		&persistencespb.NamespaceConfig{},
 		&persistencespb.NamespaceReplicationConfig{
@@ -443,7 +456,7 @@ func (s *stateRebuilderSuite) TestRebuildWithCurrentMutableState() {
 		1234,
 	), nil).AnyTimes()
 
-	s.mockTaskRefresher.EXPECT().Refresh(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	deps.mockTaskRefresher.EXPECT().Refresh(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 	currentMutableState := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
 			TransitionHistory: []*persistencespb.VersionedTransition{
@@ -454,11 +467,11 @@ func (s *stateRebuilderSuite) TestRebuildWithCurrentMutableState() {
 			},
 		},
 	}
-	s.mockClusterMetadata.EXPECT().ClusterNameForFailoverVersion(true, int64(12)).Return(cluster.TestCurrentClusterName).AnyTimes()
-	rebuildMutableState, rebuiltHistorySize, err := s.nDCStateRebuilder.RebuildWithCurrentMutableState(
+	deps.mockClusterMetadata.EXPECT().ClusterNameForFailoverVersion(true, int64(12)).Return(cluster.TestCurrentClusterName).AnyTimes()
+	rebuildMutableState, rebuiltHistorySize, err := deps.nDCStateRebuilder.RebuildWithCurrentMutableState(
 		context.Background(),
-		s.now,
-		definition.NewWorkflowKey(s.namespaceID.String(), s.workflowID, s.runID),
+		deps.now,
+		definition.NewWorkflowKey(deps.namespaceID.String(), deps.workflowID, deps.runID),
 		branchToken,
 		lastEventID,
 		util.Ptr(version),
@@ -467,20 +480,20 @@ func (s *stateRebuilderSuite) TestRebuildWithCurrentMutableState() {
 		requestID,
 		currentMutableState,
 	)
-	s.NoError(err)
-	s.NotNil(rebuildMutableState)
+	require.NoError(t, err)
+	require.NotNil(t, rebuildMutableState)
 	rebuildExecutionInfo := rebuildMutableState.GetExecutionInfo()
-	s.Equal(targetNamespaceID, namespace.ID(rebuildExecutionInfo.NamespaceId))
-	s.Equal(targetWorkflowID, rebuildExecutionInfo.WorkflowId)
-	s.Equal(targetRunID, rebuildMutableState.GetExecutionState().RunId)
-	s.Equal(int64(historySize1+historySize2), rebuiltHistorySize)
-	s.ProtoEqual(versionhistory.NewVersionHistories(
+	require.Equal(t, targetNamespaceID, namespace.ID(rebuildExecutionInfo.NamespaceId))
+	require.Equal(t, targetWorkflowID, rebuildExecutionInfo.WorkflowId)
+	require.Equal(t, targetRunID, rebuildMutableState.GetExecutionState().RunId)
+	require.Equal(t, int64(historySize1+historySize2), rebuiltHistorySize)
+	protorequire.ProtoEqual(t, versionhistory.NewVersionHistories(
 		versionhistory.NewVersionHistory(
 			targetBranchToken,
 			[]*historyspb.VersionHistoryItem{versionhistory.NewVersionHistoryItem(lastEventID, version)},
 		),
 	), rebuildMutableState.GetExecutionInfo().GetVersionHistories())
-	s.Equal(timestamp.TimeValue(rebuildMutableState.GetExecutionState().StartTime), s.now)
-	s.Equal(expectedLastFirstTransactionID, rebuildExecutionInfo.LastFirstEventTxnId)
-	s.Equal(int64(11), rebuildExecutionInfo.TransitionHistory[0].TransitionCount)
+	require.Equal(t, timestamp.TimeValue(rebuildMutableState.GetExecutionState().StartTime), deps.now)
+	require.Equal(t, expectedLastFirstTransactionID, rebuildExecutionInfo.LastFirstEventTxnId)
+	require.Equal(t, int64(11), rebuildExecutionInfo.TransitionHistory[0].TransitionCount)
 }

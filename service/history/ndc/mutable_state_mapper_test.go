@@ -6,7 +6,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	historypb "go.temporal.io/api/history/v1"
 	"go.temporal.io/server/common/cluster"
 	"go.temporal.io/server/common/definition"
@@ -15,52 +14,54 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	mutableStateMapperSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller         *gomock.Controller
-		logger             log.Logger
-		shardContext       historyi.MockShardContext
-		branchMgrProvider  branchMgrProvider
-		mockBranchMgr      *MockBranchMgr
-		mutableStateMapper *MutableStateMapperImpl
-		clusterMetadata    *cluster.MockMetadata
-	}
-)
-
-func TestMutableStateMapperSuite(t *testing.T) {
-	s := new(mutableStateMapperSuite)
-	suite.Run(t, s)
+type mutableStateMapperTestDeps struct {
+	controller         *gomock.Controller
+	logger             log.Logger
+	shardContext       historyi.MockShardContext
+	branchMgrProvider  branchMgrProvider
+	mockBranchMgr      *MockBranchMgr
+	mutableStateMapper *MutableStateMapperImpl
+	clusterMetadata    *cluster.MockMetadata
 }
 
-func (s *mutableStateMapperSuite) SetupSuite() {
-	s.Assertions = require.New(s.T())
-	s.controller = gomock.NewController(s.T())
+func setupMutableStateMapperTest(t *testing.T) *mutableStateMapperTestDeps {
+	t.Helper()
 
-	s.mockBranchMgr = NewMockBranchMgr(s.controller)
-	s.branchMgrProvider = func(
+	controller := gomock.NewController(t)
+
+	mockBranchMgr := NewMockBranchMgr(controller)
+	branchMgrProvider := func(
 		wfContext historyi.WorkflowContext,
 		mutableState historyi.MutableState,
 		logger log.Logger) BranchMgr {
-		return s.mockBranchMgr
+		return mockBranchMgr
 	}
-	s.clusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.clusterMetadata.EXPECT().ClusterNameForFailoverVersion(gomock.Any(), gomock.Any()).Return("some random cluster name").AnyTimes()
-	s.mutableStateMapper = NewMutableStateMapping(
+	clusterMetadata := cluster.NewMockMetadata(controller)
+	clusterMetadata.EXPECT().ClusterNameForFailoverVersion(gomock.Any(), gomock.Any()).Return("some random cluster name").AnyTimes()
+	mutableStateMapper := NewMutableStateMapping(
 		nil,
 		nil,
-		s.branchMgrProvider,
+		branchMgrProvider,
 		nil,
 		nil)
+
+	t.Cleanup(func() {
+		controller.Finish()
+	})
+
+	return &mutableStateMapperTestDeps{
+		controller:         controller,
+		mockBranchMgr:      mockBranchMgr,
+		branchMgrProvider:  branchMgrProvider,
+		clusterMetadata:    clusterMetadata,
+		mutableStateMapper: mutableStateMapper,
+	}
 }
 
-func (s *mutableStateMapperSuite) TearDownSuite() {
+func TestGetOrCreateHistoryBranch_ValidEventBatch_NoDedupe(t *testing.T) {
+	t.Parallel()
+	deps := setupMutableStateMapperTest(t)
 
-}
-
-func (s *mutableStateMapperSuite) TestGetOrCreateHistoryBranch_ValidEventBatch_NoDedupe() {
 	workflowKey := definition.WorkflowKey{
 		WorkflowID: uuid.New(),
 		RunID:      uuid.New(),
@@ -84,7 +85,7 @@ func (s *mutableStateMapperSuite) TestGetOrCreateHistoryBranch_ValidEventBatch_N
 		},
 	}
 	task, _ := newReplicationTask(
-		s.clusterMetadata,
+		deps.clusterMetadata,
 		nil,
 		workflowKey,
 		nil,
@@ -95,17 +96,20 @@ func (s *mutableStateMapperSuite) TestGetOrCreateHistoryBranch_ValidEventBatch_N
 		nil,
 		false,
 	)
-	s.mockBranchMgr.EXPECT().
+	deps.mockBranchMgr.EXPECT().
 		GetOrCreate(gomock.Any(), gomock.Any(), int64(11), gomock.Any()).Return(true, int32(0), nil).Times(1)
 
-	_, out, err := s.mutableStateMapper.GetOrCreateHistoryBranch(context.Background(), nil, nil, task)
-	s.NoError(err)
-	s.Equal(int32(0), out.BranchIndex)
-	s.Equal(0, out.EventsApplyIndex)
-	s.True(out.DoContinue)
+	_, out, err := deps.mutableStateMapper.GetOrCreateHistoryBranch(context.Background(), nil, nil, task)
+	require.NoError(t, err)
+	require.Equal(t, int32(0), out.BranchIndex)
+	require.Equal(t, 0, out.EventsApplyIndex)
+	require.True(t, out.DoContinue)
 }
 
-func (s *mutableStateMapperSuite) TestGetOrCreateHistoryBranch_ValidEventBatch_FirstBatchDedupe() {
+func TestGetOrCreateHistoryBranch_ValidEventBatch_FirstBatchDedupe(t *testing.T) {
+	t.Parallel()
+	deps := setupMutableStateMapperTest(t)
+
 	workflowKey := definition.WorkflowKey{
 		WorkflowID: uuid.New(),
 		RunID:      uuid.New(),
@@ -129,7 +133,7 @@ func (s *mutableStateMapperSuite) TestGetOrCreateHistoryBranch_ValidEventBatch_F
 		},
 	}
 	task, _ := newReplicationTask(
-		s.clusterMetadata,
+		deps.clusterMetadata,
 		nil,
 		workflowKey,
 		nil,
@@ -140,18 +144,21 @@ func (s *mutableStateMapperSuite) TestGetOrCreateHistoryBranch_ValidEventBatch_F
 		nil,
 		false,
 	)
-	s.mockBranchMgr.EXPECT().
+	deps.mockBranchMgr.EXPECT().
 		GetOrCreate(gomock.Any(), gomock.Any(), int64(11), gomock.Any()).Return(false, int32(0), nil).Times(1)
-	s.mockBranchMgr.EXPECT().
+	deps.mockBranchMgr.EXPECT().
 		GetOrCreate(gomock.Any(), gomock.Any(), int64(13), gomock.Any()).Return(true, int32(0), nil).Times(1)
-	_, out, err := s.mutableStateMapper.GetOrCreateHistoryBranch(context.Background(), nil, nil, task)
-	s.NoError(err)
-	s.Equal(int32(0), out.BranchIndex)
-	s.Equal(1, out.EventsApplyIndex)
-	s.True(out.DoContinue)
+	_, out, err := deps.mutableStateMapper.GetOrCreateHistoryBranch(context.Background(), nil, nil, task)
+	require.NoError(t, err)
+	require.Equal(t, int32(0), out.BranchIndex)
+	require.Equal(t, 1, out.EventsApplyIndex)
+	require.True(t, out.DoContinue)
 }
 
-func (s *mutableStateMapperSuite) TestGetOrCreateHistoryBranch_ValidEventBatch_AllBatchDedupe() {
+func TestGetOrCreateHistoryBranch_ValidEventBatch_AllBatchDedupe(t *testing.T) {
+	t.Parallel()
+	deps := setupMutableStateMapperTest(t)
+
 	workflowKey := definition.WorkflowKey{
 		WorkflowID: uuid.New(),
 		RunID:      uuid.New(),
@@ -175,7 +182,7 @@ func (s *mutableStateMapperSuite) TestGetOrCreateHistoryBranch_ValidEventBatch_A
 		},
 	}
 	task, _ := newReplicationTask(
-		s.clusterMetadata,
+		deps.clusterMetadata,
 		nil,
 		workflowKey,
 		nil,
@@ -186,13 +193,13 @@ func (s *mutableStateMapperSuite) TestGetOrCreateHistoryBranch_ValidEventBatch_A
 		nil,
 		false,
 	)
-	s.mockBranchMgr.EXPECT().
+	deps.mockBranchMgr.EXPECT().
 		GetOrCreate(gomock.Any(), gomock.Any(), int64(11), gomock.Any()).Return(false, int32(0), nil).Times(1)
-	s.mockBranchMgr.EXPECT().
+	deps.mockBranchMgr.EXPECT().
 		GetOrCreate(gomock.Any(), gomock.Any(), int64(13), gomock.Any()).Return(false, int32(0), nil).Times(1)
-	_, out, err := s.mutableStateMapper.GetOrCreateHistoryBranch(context.Background(), nil, nil, task)
-	s.NoError(err)
-	s.Equal(int32(0), out.BranchIndex)
-	s.Equal(0, out.EventsApplyIndex)
-	s.False(out.DoContinue)
+	_, out, err := deps.mutableStateMapper.GetOrCreateHistoryBranch(context.Background(), nil, nil, task)
+	require.NoError(t, err)
+	require.Equal(t, int32(0), out.BranchIndex)
+	require.Equal(t, 0, out.EventsApplyIndex)
+	require.False(t, out.DoContinue)
 }

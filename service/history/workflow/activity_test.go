@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
@@ -25,64 +24,58 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type (
-	activitySuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller            *gomock.Controller
-		mockShard             *shard.ContextTest
-		mockNamespaceRegistry *namespace.MockRegistry
-
-		mockMutableState *historyi.MockMutableState
-		mutableState     *MutableStateImpl
-	}
-)
-
-func TestActivitySuite(t *testing.T) {
-	s := new(activitySuite)
-	suite.Run(t, s)
+type activityTestDeps struct {
+	controller            *gomock.Controller
+	mockShard             *shard.ContextTest
+	mockNamespaceRegistry *namespace.MockRegistry
+	mockMutableState      *historyi.MockMutableState
+	mutableState          *MutableStateImpl
 }
 
-func (s *activitySuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
+func setupActivityTest(t *testing.T) *activityTestDeps {
 	config := tests.NewDynamicConfig()
-	s.controller = gomock.NewController(s.T())
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+	controller := gomock.NewController(t)
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{ShardId: 1},
 		config,
 	)
 
-	s.mockMutableState = historyi.NewMockMutableState(s.controller)
+	mockMutableState := historyi.NewMockMutableState(controller)
+	mockNamespaceRegistry := mockShard.Resource.NamespaceCache
 
-	s.mockNamespaceRegistry = s.mockShard.Resource.NamespaceCache
+	mockNamespaceRegistry.EXPECT().GetNamespaceByID(tests.NamespaceID).Return(tests.GlobalNamespaceEntry, nil).AnyTimes()
+	mockNamespaceRegistry.EXPECT().GetNamespace(tests.Namespace).Return(tests.GlobalNamespaceEntry, nil).AnyTimes()
 
-	s.mockNamespaceRegistry.EXPECT().GetNamespaceByID(tests.NamespaceID).Return(tests.GlobalNamespaceEntry, nil).AnyTimes()
-	s.mockNamespaceRegistry.EXPECT().GetNamespace(tests.Namespace).Return(tests.GlobalNamespaceEntry, nil).AnyTimes()
-
-	s.mockShard.Resource.ClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
-	s.mockShard.Resource.ClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockShard.Resource.ClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
-	s.mockShard.Resource.ClusterMetadata.EXPECT().ClusterNameForFailoverVersion(true, tests.GlobalNamespaceEntry.FailoverVersion()).Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockShard.Resource.ClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
+	mockShard.Resource.ClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockShard.Resource.ClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
+	mockShard.Resource.ClusterMetadata.EXPECT().ClusterNameForFailoverVersion(true, tests.GlobalNamespaceEntry.FailoverVersion()).Return(cluster.TestCurrentClusterName).AnyTimes()
 
 	reg := hsm.NewRegistry()
 	err := RegisterStateMachine(reg)
-	s.NoError(err)
-	s.mockShard.SetStateMachineRegistry(reg)
+	require.NoError(t, err)
+	mockShard.SetStateMachineRegistry(reg)
 
-	s.mutableState = NewMutableState(
-		s.mockShard, s.mockShard.MockEventsCache, s.mockShard.GetLogger(), tests.GlobalNamespaceEntry, tests.WorkflowID, tests.RunID, time.Now().UTC(),
+	mutableState := NewMutableState(
+		mockShard, mockShard.MockEventsCache, mockShard.GetLogger(), tests.GlobalNamespaceEntry, tests.WorkflowID, tests.RunID, time.Now().UTC(),
 	)
+
+	t.Cleanup(func() {
+		controller.Finish()
+		mockShard.StopForTest()
+	})
+
+	return &activityTestDeps{
+		controller:            controller,
+		mockShard:             mockShard,
+		mockNamespaceRegistry: mockNamespaceRegistry,
+		mockMutableState:      mockMutableState,
+		mutableState:          mutableState,
+	}
 }
 
-func (s *activitySuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.StopForTest()
-}
-
-func (s *activitySuite) TestGetActivityState() {
+func TestGetActivityState(t *testing.T) {
 	testCases := []struct {
 		ai    *persistencespb.ActivityInfo
 		state enumspb.PendingActivityState
@@ -119,12 +112,14 @@ func (s *activitySuite) TestGetActivityState() {
 
 	for _, tc := range testCases {
 		state := GetActivityState(tc.ai)
-		s.Equal(tc.state, state)
+		require.Equal(t, tc.state, state)
 	}
 }
 
-func (s *activitySuite) TestGetPendingActivityInfoAcceptance() {
-	now := s.mockShard.GetTimeSource().Now().UTC().Round(time.Hour)
+func TestGetPendingActivityInfoAcceptance(t *testing.T) {
+	deps := setupActivityTest(t)
+
+	now := deps.mockShard.GetTimeSource().Now().UTC().Round(time.Hour)
 	activityType := commonpb.ActivityType{
 		Name: "activityType",
 	}
@@ -139,13 +134,15 @@ func (s *activitySuite) TestGetPendingActivityInfoAcceptance() {
 		HasRetryPolicy:          false,
 	}
 
-	s.mockMutableState.EXPECT().GetActivityType(gomock.Any(), gomock.Any()).Return(&activityType, nil).Times(1)
-	pi, err := GetPendingActivityInfo(context.Background(), s.mockShard, s.mockMutableState, ai)
-	s.NoError(err)
-	s.NotNil(pi)
+	deps.mockMutableState.EXPECT().GetActivityType(gomock.Any(), gomock.Any()).Return(&activityType, nil).Times(1)
+	pi, err := GetPendingActivityInfo(context.Background(), deps.mockShard, deps.mockMutableState, ai)
+	require.NoError(t, err)
+	require.NotNil(t, pi)
 }
 
-func (s *activitySuite) TestGetPendingActivityInfo_ActivityState() {
+func TestGetPendingActivityInfo_ActivityState(t *testing.T) {
+	deps := setupActivityTest(t)
+
 	testCases := []struct {
 		paused          bool
 		cancelRequested bool
@@ -190,7 +187,7 @@ func (s *activitySuite) TestGetPendingActivityInfo_ActivityState() {
 		},
 	}
 
-	now := s.mockShard.GetTimeSource().Now().UTC().Round(time.Hour)
+	now := deps.mockShard.GetTimeSource().Now().UTC().Round(time.Hour)
 	activityType := commonpb.ActivityType{
 		Name: "activityType",
 	}
@@ -210,17 +207,19 @@ func (s *activitySuite) TestGetPendingActivityInfo_ActivityState() {
 		ai.CancelRequested = tc.cancelRequested
 		ai.StartedEventId = tc.startedEventId
 
-		s.mockMutableState.EXPECT().GetActivityType(gomock.Any(), gomock.Any()).Return(&activityType, nil).Times(1)
-		pi, err := GetPendingActivityInfo(context.Background(), s.mockShard, s.mockMutableState, ai)
-		s.NoError(err)
-		s.NotNil(pi)
+		deps.mockMutableState.EXPECT().GetActivityType(gomock.Any(), gomock.Any()).Return(&activityType, nil).Times(1)
+		pi, err := GetPendingActivityInfo(context.Background(), deps.mockShard, deps.mockMutableState, ai)
+		require.NoError(t, err)
+		require.NotNil(t, pi)
 
-		s.Equal(tc.expectedState, pi.State, fmt.Sprintf("failed for paused: %v, cancelRequested: %v, startedEventId: %v", tc.paused, tc.cancelRequested, tc.startedEventId))
+		require.Equal(t, tc.expectedState, pi.State, fmt.Sprintf("failed for paused: %v, cancelRequested: %v, startedEventId: %v", tc.paused, tc.cancelRequested, tc.startedEventId))
 	}
 }
 
-func (s *activitySuite) TestGetPendingActivityInfoNoRetryPolicy() {
-	now := s.mockShard.GetTimeSource().Now().UTC().Round(time.Hour)
+func TestGetPendingActivityInfoNoRetryPolicy(t *testing.T) {
+	deps := setupActivityTest(t)
+
+	now := deps.mockShard.GetTimeSource().Now().UTC().Round(time.Hour)
 	activityType := commonpb.ActivityType{
 		Name: "activityType",
 	}
@@ -235,18 +234,20 @@ func (s *activitySuite) TestGetPendingActivityInfoNoRetryPolicy() {
 		HasRetryPolicy:          false,
 	}
 
-	s.mockMutableState.EXPECT().GetActivityType(gomock.Any(), gomock.Any()).Return(&activityType, nil).Times(1)
-	pi, err := GetPendingActivityInfo(context.Background(), s.mockShard, s.mockMutableState, ai)
-	s.NoError(err)
-	s.NotNil(pi)
-	s.Equal(enumspb.PENDING_ACTIVITY_STATE_STARTED, pi.State)
-	s.Equal(int32(1), pi.Attempt)
-	s.Nil(pi.NextAttemptScheduleTime)
-	s.Nil(pi.CurrentRetryInterval)
+	deps.mockMutableState.EXPECT().GetActivityType(gomock.Any(), gomock.Any()).Return(&activityType, nil).Times(1)
+	pi, err := GetPendingActivityInfo(context.Background(), deps.mockShard, deps.mockMutableState, ai)
+	require.NoError(t, err)
+	require.NotNil(t, pi)
+	require.Equal(t, enumspb.PENDING_ACTIVITY_STATE_STARTED, pi.State)
+	require.Equal(t, int32(1), pi.Attempt)
+	require.Nil(t, pi.NextAttemptScheduleTime)
+	require.Nil(t, pi.CurrentRetryInterval)
 }
 
-func (s *activitySuite) TestGetPendingActivityInfoHasRetryPolicy() {
-	now := s.mockShard.GetTimeSource().Now().UTC()
+func TestGetPendingActivityInfoHasRetryPolicy(t *testing.T) {
+	deps := setupActivityTest(t)
+
+	now := deps.mockShard.GetTimeSource().Now().UTC()
 	activityType := commonpb.ActivityType{
 		Name: "activityType",
 	}
@@ -266,36 +267,36 @@ func (s *activitySuite) TestGetPendingActivityInfoHasRetryPolicy() {
 		TaskQueue:               "task-queue",
 	}
 
-	s.mockMutableState.EXPECT().GetActivityType(gomock.Any(), gomock.Any()).Return(&activityType, nil).Times(1)
-	pi, err := GetPendingActivityInfo(context.Background(), s.mockShard, s.mockMutableState, ai)
-	s.NoError(err)
-	s.NotNil(pi)
-	s.Equal(enumspb.PENDING_ACTIVITY_STATE_SCHEDULED, pi.State)
-	s.Equal(int32(2), pi.Attempt)
-	s.Equal(ai.ActivityId, pi.ActivityId)
-	s.Nil(pi.HeartbeatDetails)
-	s.Nil(pi.LastHeartbeatTime)
-	s.Nil(pi.LastStartedTime)
-	s.NotNil(pi.NextAttemptScheduleTime) // activity is waiting for retry
-	s.Equal(ai.RetryMaximumAttempts, pi.MaximumAttempts)
-	s.Nil(pi.AssignedBuildId)
-	s.Equal(durationpb.New(2*time.Minute), pi.CurrentRetryInterval)
-	s.Equal(ai.ScheduledTime, pi.ScheduledTime)
-	s.Equal(ai.LastAttemptCompleteTime, pi.LastAttemptCompleteTime)
-	s.NotNil(pi.ActivityOptions)
-	s.NotNil(pi.ActivityOptions.RetryPolicy)
-	s.Equal(ai.TaskQueue, pi.ActivityOptions.TaskQueue.Name)
-	s.Equal(ai.ScheduleToCloseTimeout, pi.ActivityOptions.ScheduleToCloseTimeout)
-	s.Equal(ai.ScheduleToStartTimeout, pi.ActivityOptions.ScheduleToStartTimeout)
-	s.Equal(ai.StartToCloseTimeout, pi.ActivityOptions.StartToCloseTimeout)
-	s.Equal(ai.HeartbeatTimeout, pi.ActivityOptions.HeartbeatTimeout)
-	s.Equal(ai.RetryMaximumInterval, pi.ActivityOptions.RetryPolicy.MaximumInterval)
-	s.Equal(ai.RetryInitialInterval, pi.ActivityOptions.RetryPolicy.InitialInterval)
-	s.Equal(ai.RetryBackoffCoefficient, pi.ActivityOptions.RetryPolicy.BackoffCoefficient)
-	s.Equal(ai.RetryMaximumAttempts, pi.ActivityOptions.RetryPolicy.MaximumAttempts)
+	deps.mockMutableState.EXPECT().GetActivityType(gomock.Any(), gomock.Any()).Return(&activityType, nil).Times(1)
+	pi, err := GetPendingActivityInfo(context.Background(), deps.mockShard, deps.mockMutableState, ai)
+	require.NoError(t, err)
+	require.NotNil(t, pi)
+	require.Equal(t, enumspb.PENDING_ACTIVITY_STATE_SCHEDULED, pi.State)
+	require.Equal(t, int32(2), pi.Attempt)
+	require.Equal(t, ai.ActivityId, pi.ActivityId)
+	require.Nil(t, pi.HeartbeatDetails)
+	require.Nil(t, pi.LastHeartbeatTime)
+	require.Nil(t, pi.LastStartedTime)
+	require.NotNil(t, pi.NextAttemptScheduleTime) // activity is waiting for retry
+	require.Equal(t, ai.RetryMaximumAttempts, pi.MaximumAttempts)
+	require.Nil(t, pi.AssignedBuildId)
+	require.Equal(t, durationpb.New(2*time.Minute), pi.CurrentRetryInterval)
+	require.Equal(t, ai.ScheduledTime, pi.ScheduledTime)
+	require.Equal(t, ai.LastAttemptCompleteTime, pi.LastAttemptCompleteTime)
+	require.NotNil(t, pi.ActivityOptions)
+	require.NotNil(t, pi.ActivityOptions.RetryPolicy)
+	require.Equal(t, ai.TaskQueue, pi.ActivityOptions.TaskQueue.Name)
+	require.Equal(t, ai.ScheduleToCloseTimeout, pi.ActivityOptions.ScheduleToCloseTimeout)
+	require.Equal(t, ai.ScheduleToStartTimeout, pi.ActivityOptions.ScheduleToStartTimeout)
+	require.Equal(t, ai.StartToCloseTimeout, pi.ActivityOptions.StartToCloseTimeout)
+	require.Equal(t, ai.HeartbeatTimeout, pi.ActivityOptions.HeartbeatTimeout)
+	require.Equal(t, ai.RetryMaximumInterval, pi.ActivityOptions.RetryPolicy.MaximumInterval)
+	require.Equal(t, ai.RetryInitialInterval, pi.ActivityOptions.RetryPolicy.InitialInterval)
+	require.Equal(t, ai.RetryBackoffCoefficient, pi.ActivityOptions.RetryPolicy.BackoffCoefficient)
+	require.Equal(t, ai.RetryMaximumAttempts, pi.ActivityOptions.RetryPolicy.MaximumAttempts)
 }
 
-func (s *activitySuite) AddActivityInfo() *persistencespb.ActivityInfo {
+func addActivityInfo(t *testing.T, deps *activityTestDeps) *persistencespb.ActivityInfo {
 	activityId := "activity-id"
 	activityScheduledEvent := &historypb.HistoryEvent{
 		EventId:   1,
@@ -314,15 +315,16 @@ func (s *activitySuite) AddActivityInfo() *persistencespb.ActivityInfo {
 			}},
 	}
 
-	s.mockShard.MockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
+	deps.mockShard.MockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
 
-	ai, err := s.mutableState.ApplyActivityTaskScheduledEvent(0, activityScheduledEvent)
-	s.NoError(err)
+	ai, err := deps.mutableState.ApplyActivityTaskScheduledEvent(0, activityScheduledEvent)
+	require.NoError(t, err)
 	return ai
 }
 
-func (s *activitySuite) TestResetPausedActivityAcceptance() {
-	ai := s.AddActivityInfo()
+func TestResetPausedActivityAcceptance(t *testing.T) {
+	deps := setupActivityTest(t)
+	ai := addActivityInfo(t, deps)
 
 	prevStamp := ai.Stamp
 	pauseInfo := &persistencespb.ActivityInfo_PauseInfo{
@@ -335,24 +337,25 @@ func (s *activitySuite) TestResetPausedActivityAcceptance() {
 		},
 	}
 
-	err := PauseActivity(s.mutableState, ai.ActivityId, pauseInfo)
-	s.NoError(err)
-	s.NotEqual(prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
-	s.NotNil(ai.PauseInfo)
-	s.Equal(ai.PauseInfo.GetManual().Identity, "test_identity")
-	s.Equal(ai.PauseInfo.GetManual().Reason, "test_reason")
+	err := PauseActivity(deps.mutableState, ai.ActivityId, pauseInfo)
+	require.NoError(t, err)
+	require.NotEqual(t, prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
+	require.NotNil(t, ai.PauseInfo)
+	require.Equal(t, ai.PauseInfo.GetManual().Identity, "test_identity")
+	require.Equal(t, ai.PauseInfo.GetManual().Reason, "test_reason")
 
 	prevStamp = ai.Stamp
-	err = ResetActivity(context.Background(), s.mockShard, s.mutableState, ai.ActivityId,
+	err = ResetActivity(context.Background(), deps.mockShard, deps.mutableState, ai.ActivityId,
 		false, true, false, 0)
-	s.NoError(err)
-	s.Equal(int32(1), ai.Attempt, "ActivityInfo.Attempt is not reset")
-	s.Equal(prevStamp, ai.Stamp, "ActivityInfo.Stamp should not change")
-	s.True(ai.Paused, "ActivityInfo.Paused shouldn't change by reset")
+	require.NoError(t, err)
+	require.Equal(t, int32(1), ai.Attempt, "ActivityInfo.Attempt is not reset")
+	require.Equal(t, prevStamp, ai.Stamp, "ActivityInfo.Stamp should not change")
+	require.True(t, ai.Paused, "ActivityInfo.Paused shouldn't change by reset")
 }
 
-func (s *activitySuite) TestResetAndUnPauseActivityAcceptance() {
-	ai := s.AddActivityInfo()
+func TestResetAndUnPauseActivityAcceptance(t *testing.T) {
+	deps := setupActivityTest(t)
+	ai := addActivityInfo(t, deps)
 
 	prevStamp := ai.Stamp
 	pauseInfo := &persistencespb.ActivityInfo_PauseInfo{
@@ -365,67 +368,70 @@ func (s *activitySuite) TestResetAndUnPauseActivityAcceptance() {
 		},
 	}
 
-	err := PauseActivity(s.mutableState, ai.ActivityId, pauseInfo)
-	s.NoError(err)
-	s.NotEqual(prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
-	s.NotNil(ai.PauseInfo)
-	s.Equal(ai.PauseInfo.GetManual().Identity, "test_identity")
-	s.Equal(ai.PauseInfo.GetManual().Reason, "test_reason")
+	err := PauseActivity(deps.mutableState, ai.ActivityId, pauseInfo)
+	require.NoError(t, err)
+	require.NotEqual(t, prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
+	require.NotNil(t, ai.PauseInfo)
+	require.Equal(t, ai.PauseInfo.GetManual().Identity, "test_identity")
+	require.Equal(t, ai.PauseInfo.GetManual().Reason, "test_reason")
 
 	prevStamp = ai.Stamp
-	err = ResetActivity(context.Background(), s.mockShard, s.mutableState, ai.ActivityId,
+	err = ResetActivity(context.Background(), deps.mockShard, deps.mutableState, ai.ActivityId,
 		false, false, false, 0)
-	s.NoError(err)
-	s.Equal(int32(1), ai.Attempt, "ActivityInfo.Attempt is not reset")
-	s.NotEqual(prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
-	s.False(ai.Paused, "ActivityInfo.Paused shouldn't change by reset")
+	require.NoError(t, err)
+	require.Equal(t, int32(1), ai.Attempt, "ActivityInfo.Attempt is not reset")
+	require.NotEqual(t, prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
+	require.False(t, ai.Paused, "ActivityInfo.Paused shouldn't change by reset")
 }
 
-func (s *activitySuite) TestUnpauseActivityWithResumeAcceptance() {
-	ai := s.AddActivityInfo()
+func TestUnpauseActivityWithResumeAcceptance(t *testing.T) {
+	deps := setupActivityTest(t)
+	ai := addActivityInfo(t, deps)
 
 	prevStamp := ai.Stamp
-	err := PauseActivity(s.mutableState, ai.ActivityId, nil)
-	s.NoError(err)
-	s.Nil(ai.PauseInfo)
+	err := PauseActivity(deps.mutableState, ai.ActivityId, nil)
+	require.NoError(t, err)
+	require.Nil(t, ai.PauseInfo)
 
-	s.Equal(int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
-	s.NotEqual(prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
-	s.Equal(true, ai.Paused, "ActivityInfo.Paused was not unpaused")
+	require.Equal(t, int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
+	require.NotEqual(t, prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
+	require.Equal(t, true, ai.Paused, "ActivityInfo.Paused was not unpaused")
 	prevStamp = ai.Stamp
-	_, err = UnpauseActivityWithResume(s.mockShard, s.mutableState, ai, false, 0)
-	s.NoError(err)
+	_, err = UnpauseActivityWithResume(deps.mockShard, deps.mutableState, ai, false, 0)
+	require.NoError(t, err)
 
-	s.Equal(int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
-	s.NotEqual(prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
-	s.Equal(false, ai.Paused, "ActivityInfo.Paused was not unpaused")
+	require.Equal(t, int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
+	require.NotEqual(t, prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
+	require.Equal(t, false, ai.Paused, "ActivityInfo.Paused was not unpaused")
 }
 
-func (s *activitySuite) TestUnpauseActivityWithNewRun() {
-	ai := s.AddActivityInfo()
+func TestUnpauseActivityWithNewRun(t *testing.T) {
+	deps := setupActivityTest(t)
+	ai := addActivityInfo(t, deps)
 
 	prevStamp := ai.Stamp
-	err := PauseActivity(s.mutableState, ai.ActivityId, nil)
-	s.NoError(err)
+	err := PauseActivity(deps.mutableState, ai.ActivityId, nil)
+	require.NoError(t, err)
 
-	s.Equal(int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
-	s.NotEqual(prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
-	s.Equal(true, ai.Paused, "ActivityInfo.Paused was not unpaused")
+	require.Equal(t, int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
+	require.NotEqual(t, prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
+	require.Equal(t, true, ai.Paused, "ActivityInfo.Paused was not unpaused")
 	prevStamp = ai.Stamp
 	fakeScheduledTime := time.Now().UTC().Add(5 * time.Minute)
 	ai.ScheduledTime = timestamppb.New(fakeScheduledTime)
-	_, err = UnpauseActivityWithResume(s.mockShard, s.mutableState, ai, true, 0)
-	s.NoError(err)
+	_, err = UnpauseActivityWithResume(deps.mockShard, deps.mutableState, ai, true, 0)
+	require.NoError(t, err)
 
 	// scheduled time should be reset to
-	s.NotEqual(fakeScheduledTime, ai.ScheduledTime.AsTime())
-	s.Equal(int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
-	s.NotEqual(prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
-	s.Equal(false, ai.Paused, "ActivityInfo.Paused was not unpaused")
+	require.NotEqual(t, fakeScheduledTime, ai.ScheduledTime.AsTime())
+	require.Equal(t, int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
+	require.NotEqual(t, prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
+	require.Equal(t, false, ai.Paused, "ActivityInfo.Paused was not unpaused")
 }
 
-func (s *activitySuite) TestUnpauseActivityWithResetAcceptance() {
-	ai := s.AddActivityInfo()
+func TestUnpauseActivityWithResetAcceptance(t *testing.T) {
+	deps := setupActivityTest(t)
+	ai := addActivityInfo(t, deps)
 
 	prevStamp := ai.Stamp
 	pauseInfo := &persistencespb.ActivityInfo_PauseInfo{
@@ -435,21 +441,21 @@ func (s *activitySuite) TestUnpauseActivityWithResetAcceptance() {
 		},
 	}
 
-	err := PauseActivity(s.mutableState, ai.ActivityId, pauseInfo)
-	s.NoError(err)
-	s.NotNil(ai.PauseInfo)
-	s.Equal(ai.PauseInfo.GetRuleId(), "rule_id")
+	err := PauseActivity(deps.mutableState, ai.ActivityId, pauseInfo)
+	require.NoError(t, err)
+	require.NotNil(t, ai.PauseInfo)
+	require.Equal(t, ai.PauseInfo.GetRuleId(), "rule_id")
 
-	s.Equal(int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
-	s.NotEqual(prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
-	s.Equal(true, ai.Paused, "ActivityInfo.Paused was not unpaused")
+	require.Equal(t, int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
+	require.NotEqual(t, prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
+	require.Equal(t, true, ai.Paused, "ActivityInfo.Paused was not unpaused")
 
 	prevStamp = ai.Stamp
-	_, err = UnpauseActivityWithReset(s.mockShard, s.mutableState, ai, false, true, 0)
-	s.NoError(err)
-	s.Equal(int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
-	s.Equal(false, ai.Paused, "ActivityInfo.Paused was not unpaused")
-	s.NotEqual(prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
-	s.Nil(ai.LastHeartbeatUpdateTime)
-	s.Nil(ai.LastHeartbeatDetails)
+	_, err = UnpauseActivityWithReset(deps.mockShard, deps.mutableState, ai, false, true, 0)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), ai.Attempt, "ActivityInfo.Attempt is shouldn't change")
+	require.Equal(t, false, ai.Paused, "ActivityInfo.Paused was not unpaused")
+	require.NotEqual(t, prevStamp, ai.Stamp, "ActivityInfo.Stamp should change")
+	require.Nil(t, ai.LastHeartbeatUpdateTime)
+	require.Nil(t, ai.LastHeartbeatDetails)
 }

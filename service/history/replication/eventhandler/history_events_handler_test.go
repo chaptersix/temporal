@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	historypb "go.temporal.io/api/history/v1"
 	"go.temporal.io/api/serviceerror"
@@ -21,53 +20,46 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	historyEventHandlerSuite struct {
-		suite.Suite
-		*require.Assertions
-		controller      *gomock.Controller
-		clusterMetadata *cluster.MockMetadata
-
-		historyEventHandler *historyEventsHandlerImpl
-		shardController     *shard.MockController
-		eventImporter       *MockEventImporter
-	}
-)
-
-func TestHistoryEventHandlerSuite(t *testing.T) {
-	s := new(historyEventHandlerSuite)
-	suite.Run(t, s)
+type historyEventHandlerTestDeps struct {
+	controller          *gomock.Controller
+	clusterMetadata     *cluster.MockMetadata
+	historyEventHandler *historyEventsHandlerImpl
+	shardController     *shard.MockController
+	eventImporter       *MockEventImporter
 }
 
-func (s *historyEventHandlerSuite) SetupSuite() {
-	s.Assertions = require.New(s.T())
-}
-
-func (s *historyEventHandlerSuite) TearDownSuite() {
-
-}
-
-func (s *historyEventHandlerSuite) SetupTest() {
-	s.controller = gomock.NewController(s.T())
-	s.clusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.shardController = shard.NewMockController(s.controller)
-	s.eventImporter = NewMockEventImporter(s.controller)
-	s.historyEventHandler = &historyEventsHandlerImpl{
-		s.clusterMetadata,
-		s.eventImporter,
-		s.shardController,
+func setupHistoryEventHandlerTest(t *testing.T) *historyEventHandlerTestDeps {
+	controller := gomock.NewController(t)
+	clusterMetadata := cluster.NewMockMetadata(controller)
+	shardController := shard.NewMockController(controller)
+	eventImporter := NewMockEventImporter(controller)
+	historyEventHandler := &historyEventsHandlerImpl{
+		clusterMetadata,
+		eventImporter,
+		shardController,
 		log.NewNoopLogger(),
 	}
+
+	return &historyEventHandlerTestDeps{
+		controller:          controller,
+		clusterMetadata:     clusterMetadata,
+		historyEventHandler: historyEventHandler,
+		shardController:     shardController,
+		eventImporter:       eventImporter,
+	}
 }
 
-func (s *historyEventHandlerSuite) TestHandleHistoryEvents_RemoteOnly() {
+func TestHandleHistoryEvents_RemoteOnly(t *testing.T) {
+	deps := setupHistoryEventHandlerTest(t)
+	defer deps.controller.Finish()
+
 	remoteCluster := cluster.TestAlternativeClusterName
 	namespaceId := uuid.NewString()
 	workflowId := uuid.NewString()
 	runId := uuid.NewString()
 
-	s.clusterMetadata.EXPECT().GetClusterID().Return(int64(1))
-	s.clusterMetadata.EXPECT().GetFailoverVersionIncrement().Return(int64(1000))
+	deps.clusterMetadata.EXPECT().GetClusterID().Return(int64(1))
+	deps.clusterMetadata.EXPECT().GetFailoverVersionIncrement().Return(int64(1000))
 
 	versionHistory := &historyspb.VersionHistory{
 		BranchToken: []byte{1, 0, 1},
@@ -98,9 +90,9 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_RemoteOnly() {
 		WorkflowID:  workflowId,
 		RunID:       runId,
 	}
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
+	shardContext := historyi.NewMockShardContext(deps.controller)
+	engine := historyi.NewMockEngine(deps.controller)
+	deps.shardController.EXPECT().GetShardByNamespaceWorkflow(
 		namespace.ID(namespaceId),
 		workflowId,
 	).Return(shardContext, nil).Times(1)
@@ -115,7 +107,7 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_RemoteOnly() {
 		"",
 	).Times(1)
 
-	err := s.historyEventHandler.HandleHistoryEvents(
+	err := deps.historyEventHandler.HandleHistoryEvents(
 		context.Background(),
 		remoteCluster,
 		workflowKey,
@@ -125,17 +117,20 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_RemoteOnly() {
 		nil,
 		"",
 	)
-	s.Nil(err)
+	require.Nil(t, err)
 }
 
-func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalAndRemote_HandleLocalThenRemote() {
+func TestHandleHistoryEvents_LocalAndRemote_HandleLocalThenRemote(t *testing.T) {
+	deps := setupHistoryEventHandlerTest(t)
+	defer deps.controller.Finish()
+
 	remoteCluster := cluster.TestAlternativeClusterName
 	namespaceId := uuid.NewString()
 	workflowId := uuid.NewString()
 	runId := uuid.NewString()
 
-	s.clusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes() // current cluster ID is 1
-	s.clusterMetadata.EXPECT().GetFailoverVersionIncrement().Return(int64(1000)).AnyTimes()
+	deps.clusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes() // current cluster ID is 1
+	deps.clusterMetadata.EXPECT().GetFailoverVersionIncrement().Return(int64(1000)).AnyTimes()
 
 	versionHistory := &historyspb.VersionHistory{
 		Items: []*historyspb.VersionHistoryItem{
@@ -176,9 +171,9 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalAndRemote_Handle
 		WorkflowID:  workflowId,
 		RunID:       runId,
 	}
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
+	shardContext := historyi.NewMockShardContext(deps.controller)
+	engine := historyi.NewMockEngine(deps.controller)
+	deps.shardController.EXPECT().GetShardByNamespaceWorkflow(
 		namespace.ID(namespaceId),
 		workflowId,
 	).Return(shardContext, nil).Times(2)
@@ -190,7 +185,7 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalAndRemote_Handle
 			RunId:      runId,
 		},
 	}).Return(nil, serviceerror.NewNotFound("Mutable state not found")).Times(1)
-	s.eventImporter.EXPECT().ImportHistoryEventsFromBeginning(
+	deps.eventImporter.EXPECT().ImportHistoryEventsFromBeginning(
 		gomock.Any(),
 		remoteCluster,
 		workflowKey,
@@ -207,7 +202,7 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalAndRemote_Handle
 		"",
 	).Times(1)
 
-	err := s.historyEventHandler.HandleHistoryEvents(
+	err := deps.historyEventHandler.HandleHistoryEvents(
 		context.Background(),
 		remoteCluster,
 		workflowKey,
@@ -217,16 +212,19 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalAndRemote_Handle
 		nil,
 		"",
 	)
-	s.Nil(err)
+	require.Nil(t, err)
 }
 
-func (s *historyEventHandlerSuite) TestHandleLocalHistoryEvents_AlreadyExist() {
+func TestHandleLocalHistoryEvents_AlreadyExist(t *testing.T) {
+	deps := setupHistoryEventHandlerTest(t)
+	defer deps.controller.Finish()
+
 	remoteCluster := cluster.TestAlternativeClusterName
 	namespaceId := uuid.NewString()
 	workflowId := uuid.NewString()
 	runId := uuid.NewString()
-	s.clusterMetadata.EXPECT().GetClusterID().Return(int64(1))
-	s.clusterMetadata.EXPECT().GetFailoverVersionIncrement().Return(int64(1000))
+	deps.clusterMetadata.EXPECT().GetClusterID().Return(int64(1))
+	deps.clusterMetadata.EXPECT().GetFailoverVersionIncrement().Return(int64(1000))
 
 	versionHistory := &historyspb.VersionHistory{
 		Items: []*historyspb.VersionHistoryItem{
@@ -239,9 +237,9 @@ func (s *historyEventHandlerSuite) TestHandleLocalHistoryEvents_AlreadyExist() {
 		WorkflowID:  workflowId,
 		RunID:       runId,
 	}
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
+	shardContext := historyi.NewMockShardContext(deps.controller)
+	engine := historyi.NewMockEngine(deps.controller)
+	deps.shardController.EXPECT().GetShardByNamespaceWorkflow(
 		namespace.ID(namespaceId),
 		workflowId,
 	).Return(shardContext, nil).Times(1)
@@ -262,23 +260,26 @@ func (s *historyEventHandlerSuite) TestHandleLocalHistoryEvents_AlreadyExist() {
 		},
 	}).Return(mutableState, nil).Times(1)
 
-	err := s.historyEventHandler.handleLocalGeneratedEvent(
+	err := deps.historyEventHandler.handleLocalGeneratedEvent(
 		context.Background(),
 		remoteCluster,
 		workflowKey,
 		versionHistory.Items,
 	)
-	s.Nil(err)
+	require.Nil(t, err)
 }
 
-func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalOnly_ImportAllLocalAndCommit() {
+func TestHandleHistoryEvents_LocalOnly_ImportAllLocalAndCommit(t *testing.T) {
+	deps := setupHistoryEventHandlerTest(t)
+	defer deps.controller.Finish()
+
 	remoteCluster := cluster.TestAlternativeClusterName
 	namespaceId := uuid.NewString()
 	workflowId := uuid.NewString()
 	runId := uuid.NewString()
 
-	s.clusterMetadata.EXPECT().GetClusterID().Return(int64(1))
-	s.clusterMetadata.EXPECT().GetFailoverVersionIncrement().Return(int64(1000))
+	deps.clusterMetadata.EXPECT().GetClusterID().Return(int64(1))
+	deps.clusterMetadata.EXPECT().GetFailoverVersionIncrement().Return(int64(1000))
 
 	versionHistory := &historyspb.VersionHistory{
 		Items: []*historyspb.VersionHistoryItem{
@@ -294,9 +295,9 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalOnly_ImportAllLo
 		RunID:       runId,
 	}
 
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
+	shardContext := historyi.NewMockShardContext(deps.controller)
+	engine := historyi.NewMockEngine(deps.controller)
+	deps.shardController.EXPECT().GetShardByNamespaceWorkflow(
 		namespace.ID(namespaceId),
 		workflowId,
 	).Return(shardContext, nil).Times(1)
@@ -310,7 +311,7 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalOnly_ImportAllLo
 				RunId:      runId,
 			},
 		}).Return(nil, serviceerror.NewNotFound("Mutable state not found")).Times(1),
-		s.eventImporter.EXPECT().ImportHistoryEventsFromBeginning(
+		deps.eventImporter.EXPECT().ImportHistoryEventsFromBeginning(
 			gomock.Any(),
 			remoteCluster,
 			workflowKey,
@@ -319,23 +320,26 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalOnly_ImportAllLo
 		).Return(nil).Times(1),
 	)
 
-	err := s.historyEventHandler.handleLocalGeneratedEvent(
+	err := deps.historyEventHandler.handleLocalGeneratedEvent(
 		context.Background(),
 		remoteCluster,
 		workflowKey,
 		versionHistory.Items,
 	)
-	s.Nil(err)
+	require.Nil(t, err)
 }
 
-func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalOnly_ExistButNotEnoughEvents_DataLose() {
+func TestHandleHistoryEvents_LocalOnly_ExistButNotEnoughEvents_DataLose(t *testing.T) {
+	deps := setupHistoryEventHandlerTest(t)
+	defer deps.controller.Finish()
+
 	remoteCluster := cluster.TestAlternativeClusterName
 	namespaceId := uuid.NewString()
 	workflowId := uuid.NewString()
 	runId := uuid.NewString()
 
-	s.clusterMetadata.EXPECT().GetClusterID().Return(int64(1))
-	s.clusterMetadata.EXPECT().GetFailoverVersionIncrement().Return(int64(1000))
+	deps.clusterMetadata.EXPECT().GetClusterID().Return(int64(1))
+	deps.clusterMetadata.EXPECT().GetFailoverVersionIncrement().Return(int64(1000))
 
 	versionHistory := &historyspb.VersionHistory{
 		Items: []*historyspb.VersionHistoryItem{
@@ -351,9 +355,9 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalOnly_ExistButNot
 		RunID:       runId,
 	}
 
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
+	shardContext := historyi.NewMockShardContext(deps.controller)
+	engine := historyi.NewMockEngine(deps.controller)
+	deps.shardController.EXPECT().GetShardByNamespaceWorkflow(
 		namespace.ID(namespaceId),
 		workflowId,
 	).Return(shardContext, nil).Times(1)
@@ -375,11 +379,11 @@ func (s *historyEventHandlerSuite) TestHandleHistoryEvents_LocalOnly_ExistButNot
 		}, nil).Times(1),
 	)
 
-	err := s.historyEventHandler.handleLocalGeneratedEvent(
+	err := deps.historyEventHandler.handleLocalGeneratedEvent(
 		context.Background(),
 		remoteCluster,
 		workflowKey,
 		versionHistory.Items,
 	)
-	s.NotNil(err)
+	require.NotNil(t, err)
 }

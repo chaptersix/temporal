@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commandpb "go.temporal.io/api/command/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
@@ -49,41 +48,27 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	WorkflowTaskCompletedHandlerSuite struct {
-		suite.Suite
-		*require.Assertions
-		protorequire.ProtoAssertions
-		historyrequire.HistoryRequire
-		updateutils.UpdateUtils
-
-		controller         *gomock.Controller
-		mockShard          *shard.ContextTest
-		mockEventsCache    *events.MockCache
-		mockExecutionMgr   *persistence.MockExecutionManager
-		workflowCache      wcache.Cache
-		mockNamespaceCache *namespace.MockRegistry
-
-		logger log.Logger
-
-		workflowTaskCompletedHandler *WorkflowTaskCompletedHandler
-	}
-)
-
-func TestWorkflowTaskCompletedHandlerSuite(t *testing.T) {
-	suite.Run(t, new(WorkflowTaskCompletedHandlerSuite))
+type testDeps struct {
+	controller                       *gomock.Controller
+	mockShard                        *shard.ContextTest
+	mockEventsCache                  *events.MockCache
+	mockExecutionMgr                 *persistence.MockExecutionManager
+	workflowCache                    wcache.Cache
+	mockNamespaceCache               *namespace.MockRegistry
+	logger                           log.Logger
+	workflowTaskCompletedHandler     *WorkflowTaskCompletedHandler
+	protoAssertions                  protorequire.ProtoAssertions
+	historyRequire                   historyrequire.HistoryRequire
+	updateUtils                      updateutils.UpdateUtils
 }
 
-func (s *WorkflowTaskCompletedHandlerSuite) SetupSubTest() {
-	s.Assertions = require.New(s.T())
-	s.ProtoAssertions = protorequire.New(s.T())
-	s.HistoryRequire = historyrequire.New(s.T())
-	s.UpdateUtils = updateutils.New(s.T())
+func setupSubTest(t *testing.T) *testDeps {
+	t.Helper()
 
-	s.controller = gomock.NewController(s.T())
+	controller := gomock.NewController(t)
 	config := tests.NewDynamicConfig()
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{
 			ShardId: 1,
 			RangeId: 1,
@@ -93,51 +78,66 @@ func (s *WorkflowTaskCompletedHandlerSuite) SetupSubTest() {
 
 	reg := hsm.NewRegistry()
 	err := workflow.RegisterStateMachine(reg)
-	s.NoError(err)
-	s.mockShard.SetStateMachineRegistry(reg)
+	require.NoError(t, err)
+	mockShard.SetStateMachineRegistry(reg)
 
-	mockEngine := historyi.NewMockEngine(s.controller)
+	mockEngine := historyi.NewMockEngine(controller)
 	mockEngine.EXPECT().NotifyNewHistoryEvent(gomock.Any()).AnyTimes()
 	mockEngine.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
-	s.mockShard.SetEngineForTesting(mockEngine)
+	mockShard.SetEngineForTesting(mockEngine)
 
-	s.mockNamespaceCache = s.mockShard.Resource.NamespaceCache
-	s.mockExecutionMgr = s.mockShard.Resource.ExecutionMgr
+	mockNamespaceCache := mockShard.Resource.NamespaceCache
+	mockExecutionMgr := mockShard.Resource.ExecutionMgr
 
-	s.mockShard.Resource.ShardMgr.EXPECT().UpdateShard(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockShard.Resource.ShardMgr.EXPECT().UpdateShard(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-	mockClusterMetadata := s.mockShard.Resource.ClusterMetadata
+	mockClusterMetadata := mockShard.Resource.ClusterMetadata
 	mockClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
 	mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
 	mockClusterMetadata.EXPECT().ClusterNameForFailoverVersion(false, common.EmptyVersion).Return(cluster.TestCurrentClusterName).AnyTimes()
 	mockClusterMetadata.EXPECT().ClusterNameForFailoverVersion(true, tests.Version).Return(cluster.TestCurrentClusterName).AnyTimes()
 	mockClusterMetadata.EXPECT().GetAllClusterInfo().Return(nil).AnyTimes()
 
-	s.mockEventsCache = s.mockShard.MockEventsCache
-	s.mockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
-	s.logger = s.mockShard.GetLogger()
+	mockEventsCache := mockShard.MockEventsCache
+	mockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
+	logger := mockShard.GetLogger()
 
-	s.workflowCache = wcache.NewHostLevelCache(s.mockShard.GetConfig(), s.mockShard.GetLogger(), metrics.NoopMetricsHandler)
-	s.workflowTaskCompletedHandler = NewWorkflowTaskCompletedHandler(
-		s.mockShard,
+	workflowCache := wcache.NewHostLevelCache(mockShard.GetConfig(), mockShard.GetLogger(), metrics.NoopMetricsHandler)
+	workflowTaskCompletedHandler := NewWorkflowTaskCompletedHandler(
+		mockShard,
 		tasktoken.NewSerializer(),
 		events.NewNotifier(clock.NewRealTimeSource(), metrics.NoopMetricsHandler, func(namespace.ID, string) int32 { return 1 }),
 		nil,
 		nil,
 		nil,
-		api.NewWorkflowConsistencyChecker(s.mockShard, s.workflowCache),
+		api.NewWorkflowConsistencyChecker(mockShard, workflowCache),
 		nil)
+
+	t.Cleanup(func() {
+		controller.Finish()
+	})
+
+	return &testDeps{
+		controller:                   controller,
+		mockShard:                    mockShard,
+		mockEventsCache:              mockEventsCache,
+		mockExecutionMgr:             mockExecutionMgr,
+		workflowCache:                workflowCache,
+		mockNamespaceCache:           mockNamespaceCache,
+		logger:                       logger,
+		workflowTaskCompletedHandler: workflowTaskCompletedHandler,
+		protoAssertions:              protorequire.New(t),
+		historyRequire:               historyrequire.New(t),
+		updateUtils:                  updateutils.New(t),
+	}
 }
 
-func (s *WorkflowTaskCompletedHandlerSuite) TearDownTest() {
-	s.controller.Finish()
-}
+func TestUpdateWorkflow(t *testing.T) {
+	t.Parallel()
 
-func (s *WorkflowTaskCompletedHandlerSuite) TestUpdateWorkflow() {
-
-	createWrittenHistoryCh := func(expectedUpdateWorkflowExecutionCalls int) <-chan []*historypb.HistoryEvent {
+	createWrittenHistoryCh := func(t *testing.T, deps *testDeps, expectedUpdateWorkflowExecutionCalls int) <-chan []*historypb.HistoryEvent {
 		writtenHistoryCh := make(chan []*historypb.HistoryEvent, expectedUpdateWorkflowExecutionCalls)
-		s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, request *persistence.UpdateWorkflowExecutionRequest) (*persistence.UpdateWorkflowExecutionResponse, error) {
+		deps.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, request *persistence.UpdateWorkflowExecutionRequest) (*persistence.UpdateWorkflowExecutionResponse, error) {
 			var wfEvents []*persistence.WorkflowEvents
 			if len(request.UpdateWorkflowEvents) > 0 {
 				wfEvents = request.UpdateWorkflowEvents
@@ -158,36 +158,37 @@ func (s *WorkflowTaskCompletedHandlerSuite) TestUpdateWorkflow() {
 		return writtenHistoryCh
 	}
 
-	s.Run("Accept Complete", func() {
-		tv := testvars.New(s.T())
+	t.Run("Accept Complete", func(t *testing.T) {
+		deps := setupSubTest(t)
+		tv := testvars.New(t)
 		tv = tv.WithRunID(tv.Any().RunID())
-		s.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
-		wfContext := s.createStartedWorkflow(tv)
-		writtenHistoryCh := createWrittenHistoryCh(1)
+		deps.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
+		wfContext := createStartedWorkflow(t, deps, tv)
+		writtenHistoryCh := createWrittenHistoryCh(t, deps, 1)
 
-		_, err := wfContext.LoadMutableState(context.Background(), s.workflowTaskCompletedHandler.shardContext)
-		s.NoError(err)
+		_, err := wfContext.LoadMutableState(context.Background(), deps.workflowTaskCompletedHandler.shardContext)
+		require.NoError(t, err)
 
-		updRequestMsg, upd, serializedTaskToken := s.createSentUpdate(tv, wfContext)
-		s.NotNil(upd)
+		updRequestMsg, upd, serializedTaskToken := createSentUpdate(t, deps, tv, wfContext)
+		require.NotNil(t, upd)
 
-		_, err = s.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
+		_, err = deps.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
 			NamespaceId: tv.NamespaceID().String(),
 			CompleteRequest: &workflowservice.RespondWorkflowTaskCompletedRequest{
 				TaskToken: serializedTaskToken,
-				Commands:  s.UpdateAcceptCompleteCommands(tv),
-				Messages:  s.UpdateAcceptCompleteMessages(tv, updRequestMsg),
+				Commands:  deps.updateUtils.UpdateAcceptCompleteCommands(tv),
+				Messages:  deps.updateUtils.UpdateAcceptCompleteMessages(tv, updRequestMsg),
 				Identity:  tv.Any().String(),
 			},
 		})
-		s.NoError(err)
+		require.NoError(t, err)
 
 		updStatus, err := upd.WaitLifecycleStage(context.Background(), enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_UNSPECIFIED, time.Duration(0))
-		s.NoError(err)
-		s.Equal(enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED.String(), updStatus.Stage.String())
-		s.ProtoEqual(payloads.EncodeString("success-result-of-"+tv.UpdateID()), updStatus.Outcome.GetSuccess())
+		require.NoError(t, err)
+		require.Equal(t, enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED.String(), updStatus.Stage.String())
+		deps.protoAssertions.ProtoEqual(payloads.EncodeString("success-result-of-"+tv.UpdateID()), updStatus.Outcome.GetSuccess())
 
-		s.EqualHistoryEvents(`
+		deps.historyRequire.EqualHistoryEvents(`
   2 WorkflowTaskScheduled // Speculative WFT events are persisted on WFT completion.
   3 WorkflowTaskStarted // Speculative WFT events are persisted on WFT completion.
   4 WorkflowTaskCompleted
@@ -195,120 +196,124 @@ func (s *WorkflowTaskCompletedHandlerSuite) TestUpdateWorkflow() {
   6 WorkflowExecutionUpdateCompleted`, <-writtenHistoryCh)
 	})
 
-	s.Run("Reject", func() {
-		tv := testvars.New(s.T())
+	t.Run("Reject", func(t *testing.T) {
+		deps := setupSubTest(t)
+		tv := testvars.New(t)
 		tv = tv.WithRunID(tv.Any().RunID())
-		s.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
-		wfContext := s.createStartedWorkflow(tv)
+		deps.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
+		wfContext := createStartedWorkflow(t, deps, tv)
 
-		updRequestMsg, upd, serializedTaskToken := s.createSentUpdate(tv, wfContext)
-		s.NotNil(upd)
+		updRequestMsg, upd, serializedTaskToken := createSentUpdate(t, deps, tv, wfContext)
+		require.NotNil(t, upd)
 
-		_, err := s.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
+		_, err := deps.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
 			NamespaceId: tv.NamespaceID().String(),
 			CompleteRequest: &workflowservice.RespondWorkflowTaskCompletedRequest{
 				TaskToken: serializedTaskToken,
-				Messages:  s.UpdateRejectMessages(tv, updRequestMsg),
+				Messages:  deps.updateUtils.UpdateRejectMessages(tv, updRequestMsg),
 				Identity:  tv.Any().String(),
 			},
 		})
-		s.NoError(err)
+		require.NoError(t, err)
 
 		updStatus, err := upd.WaitLifecycleStage(context.Background(), enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_UNSPECIFIED, time.Duration(0))
-		s.NoError(err)
-		s.Equal(enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED.String(), updStatus.Stage.String())
-		s.Equal("rejection-of-"+tv.UpdateID(), updStatus.Outcome.GetFailure().GetMessage())
+		require.NoError(t, err)
+		require.Equal(t, enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED.String(), updStatus.Stage.String())
+		require.Equal(t, "rejection-of-"+tv.UpdateID(), updStatus.Outcome.GetFailure().GetMessage())
 	})
 
-	s.Run("Write failed on normal task queue", func() {
-		tv := testvars.New(s.T())
+	t.Run("Write failed on normal task queue", func(t *testing.T) {
+		deps := setupSubTest(t)
+		tv := testvars.New(t)
 		tv = tv.WithRunID(tv.Any().RunID())
-		s.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
-		wfContext := s.createStartedWorkflow(tv)
+		deps.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
+		wfContext := createStartedWorkflow(t, deps, tv)
 
 		writeErr := errors.New("write failed")
-		s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, writeErr)
+		deps.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, writeErr)
 
-		updRequestMsg, upd, serializedTaskToken := s.createSentUpdate(tv, wfContext)
-		s.NotNil(upd)
+		updRequestMsg, upd, serializedTaskToken := createSentUpdate(t, deps, tv, wfContext)
+		require.NotNil(t, upd)
 
-		_, err := s.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
+		_, err := deps.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
 			NamespaceId: tv.NamespaceID().String(),
 			CompleteRequest: &workflowservice.RespondWorkflowTaskCompletedRequest{
 				TaskToken: serializedTaskToken,
-				Commands:  s.UpdateAcceptCompleteCommands(tv),
-				Messages:  s.UpdateAcceptCompleteMessages(tv, updRequestMsg),
+				Commands:  deps.updateUtils.UpdateAcceptCompleteCommands(tv),
+				Messages:  deps.updateUtils.UpdateAcceptCompleteMessages(tv, updRequestMsg),
 				Identity:  tv.Any().String(),
 			},
 		})
-		s.ErrorIs(err, writeErr)
+		require.ErrorIs(t, err, writeErr)
 
-		s.Nil(wfContext.(*workflow.ContextImpl).MutableState, "mutable state must be cleared")
+		require.Nil(t, wfContext.(*workflow.ContextImpl).MutableState, "mutable state must be cleared")
 	})
 
-	s.Run("Write failed on sticky task queue", func() {
-		tv := testvars.New(s.T())
+	t.Run("Write failed on sticky task queue", func(t *testing.T) {
+		deps := setupSubTest(t)
+		tv := testvars.New(t)
 		tv = tv.WithRunID(tv.Any().RunID())
-		s.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
-		wfContext := s.createStartedWorkflow(tv)
+		deps.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
+		wfContext := createStartedWorkflow(t, deps, tv)
 
 		writeErr := serviceerror.NewResourceExhausted(enumspb.RESOURCE_EXHAUSTED_CAUSE_PERSISTENCE_STORAGE_LIMIT, "write failed")
 		// First write of MS
-		s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, writeErr)
+		deps.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, writeErr)
 		// Second write of MS to clear stickiness
-		s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+		deps.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
-		updRequestMsg, upd, serializedTaskToken := s.createSentUpdate(tv, wfContext)
-		s.NotNil(upd)
+		updRequestMsg, upd, serializedTaskToken := createSentUpdate(t, deps, tv, wfContext)
+		require.NotNil(t, upd)
 
-		_, err := s.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
+		_, err := deps.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
 			NamespaceId: tv.NamespaceID().String(),
 			CompleteRequest: &workflowservice.RespondWorkflowTaskCompletedRequest{
 				TaskToken:        serializedTaskToken,
-				Commands:         s.UpdateAcceptCompleteCommands(tv),
-				Messages:         s.UpdateAcceptCompleteMessages(tv, updRequestMsg),
+				Commands:         deps.updateUtils.UpdateAcceptCompleteCommands(tv),
+				Messages:         deps.updateUtils.UpdateAcceptCompleteMessages(tv, updRequestMsg),
 				Identity:         tv.Any().String(),
 				StickyAttributes: tv.StickyExecutionAttributes(tv.Any().InfiniteTimeout().AsDuration()),
 			},
 		})
-		s.ErrorIs(err, writeErr)
+		require.ErrorIs(t, err, writeErr)
 
-		s.Nil(wfContext.(*workflow.ContextImpl).MutableState, "mutable state must be cleared")
+		require.Nil(t, wfContext.(*workflow.ContextImpl).MutableState, "mutable state must be cleared")
 	})
 
-	s.Run("GetHistory failed", func() {
-		tv := testvars.New(s.T())
+	t.Run("GetHistory failed", func(t *testing.T) {
+		deps := setupSubTest(t)
+		tv := testvars.New(t)
 		tv = tv.WithRunID(tv.Any().RunID())
-		s.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
-		s.mockNamespaceCache.EXPECT().GetNamespaceName(tv.NamespaceID()).Return(tv.NamespaceName(), nil).AnyTimes()
-		wfContext := s.createStartedWorkflow(tv)
-		writtenHistoryCh := createWrittenHistoryCh(1)
+		deps.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
+		deps.mockNamespaceCache.EXPECT().GetNamespaceName(tv.NamespaceID()).Return(tv.NamespaceName(), nil).AnyTimes()
+		wfContext := createStartedWorkflow(t, deps, tv)
+		writtenHistoryCh := createWrittenHistoryCh(t, deps, 1)
 
-		updRequestMsg, upd, serializedTaskToken := s.createSentUpdate(tv, wfContext)
-		s.NotNil(upd)
+		updRequestMsg, upd, serializedTaskToken := createSentUpdate(t, deps, tv, wfContext)
+		require.NotNil(t, upd)
 
 		readHistoryErr := errors.New("get history failed")
-		s.mockExecutionMgr.EXPECT().ReadHistoryBranch(gomock.Any(), gomock.Any()).Return(nil, readHistoryErr)
+		deps.mockExecutionMgr.EXPECT().ReadHistoryBranch(gomock.Any(), gomock.Any()).Return(nil, readHistoryErr)
 
-		_, err := s.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
+		_, err := deps.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
 			NamespaceId: tv.NamespaceID().String(),
 			CompleteRequest: &workflowservice.RespondWorkflowTaskCompletedRequest{
 				TaskToken:                  serializedTaskToken,
-				Commands:                   s.UpdateAcceptCompleteCommands(tv),
-				Messages:                   s.UpdateAcceptCompleteMessages(tv, updRequestMsg),
+				Commands:                   deps.updateUtils.UpdateAcceptCompleteCommands(tv),
+				Messages:                   deps.updateUtils.UpdateAcceptCompleteMessages(tv, updRequestMsg),
 				Identity:                   tv.Any().String(),
 				ReturnNewWorkflowTask:      true,
 				ForceCreateNewWorkflowTask: true,
 			},
 		})
-		s.ErrorIs(err, readHistoryErr)
+		require.ErrorIs(t, err, readHistoryErr)
 
 		updStatus, err := upd.WaitLifecycleStage(context.Background(), enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_UNSPECIFIED, time.Duration(0))
-		s.NoError(err)
-		s.Equal(enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED.String(), updStatus.Stage.String())
-		s.ProtoEqual(payloads.EncodeString("success-result-of-"+tv.UpdateID()), updStatus.Outcome.GetSuccess())
+		require.NoError(t, err)
+		require.Equal(t, enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED.String(), updStatus.Stage.String())
+		deps.protoAssertions.ProtoEqual(payloads.EncodeString("success-result-of-"+tv.UpdateID()), updStatus.Outcome.GetSuccess())
 
-		s.EqualHistoryEvents(`
+		deps.historyRequire.EqualHistoryEvents(`
   2 WorkflowTaskScheduled // Speculative WFT events are persisted on WFT completion.
   3 WorkflowTaskStarted // Speculative WFT events are persisted on WFT completion.
   4 WorkflowTaskCompleted
@@ -318,15 +323,16 @@ func (s *WorkflowTaskCompletedHandlerSuite) TestUpdateWorkflow() {
   8 WorkflowTaskStarted`, <-writtenHistoryCh)
 	})
 
-	s.Run("Discard speculative WFT with events", func() {
-		tv := testvars.New(s.T())
+	t.Run("Discard speculative WFT with events", func(t *testing.T) {
+		deps := setupSubTest(t)
+		tv := testvars.New(t)
 		tv = tv.WithRunID(tv.Any().RunID())
-		s.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
-		wfContext := s.createStartedWorkflow(tv)
+		deps.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
+		wfContext := createStartedWorkflow(t, deps, tv)
 		// Expect only 2 calls to UpdateWorkflowExecution: for timer started and timer fired events but not Update or WFT events.
-		writtenHistoryCh := createWrittenHistoryCh(2)
-		ms, err := wfContext.LoadMutableState(context.Background(), s.workflowTaskCompletedHandler.shardContext)
-		s.NoError(err)
+		writtenHistoryCh := createWrittenHistoryCh(t, deps, 2)
+		ms, err := wfContext.LoadMutableState(context.Background(), deps.workflowTaskCompletedHandler.shardContext)
+		require.NoError(t, err)
 
 		_, _, err = ms.AddTimerStartedEvent(
 			1,
@@ -335,56 +341,57 @@ func (s *WorkflowTaskCompletedHandlerSuite) TestUpdateWorkflow() {
 				StartToFireTimeout: tv.Any().InfiniteTimeout(),
 			},
 		)
-		s.NoError(err)
-		err = wfContext.UpdateWorkflowExecutionAsActive(context.Background(), s.workflowTaskCompletedHandler.shardContext)
-		s.NoError(err)
+		require.NoError(t, err)
+		err = wfContext.UpdateWorkflowExecutionAsActive(context.Background(), deps.workflowTaskCompletedHandler.shardContext)
+		require.NoError(t, err)
 
-		s.EqualHistoryEvents(`
+		deps.historyRequire.EqualHistoryEvents(`
   2 TimerStarted
 `, <-writtenHistoryCh)
 
-		updRequestMsg, upd, serializedTaskToken := s.createSentUpdate(tv, wfContext)
-		s.NotNil(upd)
+		updRequestMsg, upd, serializedTaskToken := createSentUpdate(t, deps, tv, wfContext)
+		require.NotNil(t, upd)
 
-		_, err = s.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
+		_, err = deps.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
 			NamespaceId: tv.NamespaceID().String(),
 			CompleteRequest: &workflowservice.RespondWorkflowTaskCompletedRequest{
 				TaskToken: serializedTaskToken,
-				Messages:  s.UpdateRejectMessages(tv, updRequestMsg),
+				Messages:  deps.updateUtils.UpdateRejectMessages(tv, updRequestMsg),
 				Identity:  tv.Any().String(),
 				Capabilities: &workflowservice.RespondWorkflowTaskCompletedRequest_Capabilities{
 					DiscardSpeculativeWorkflowTaskWithEvents: true,
 				},
 			},
 		})
-		s.NoError(err)
+		require.NoError(t, err)
 
 		updStatus, err := upd.WaitLifecycleStage(context.Background(), enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_UNSPECIFIED, time.Duration(0))
-		s.NoError(err)
-		s.Equal(enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED.String(), updStatus.Stage.String())
-		s.Equal("rejection-of-"+tv.UpdateID(), updStatus.Outcome.GetFailure().GetMessage())
+		require.NoError(t, err)
+		require.Equal(t, enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED.String(), updStatus.Stage.String())
+		require.Equal(t, "rejection-of-"+tv.UpdateID(), updStatus.Outcome.GetFailure().GetMessage())
 
-		ms, err = wfContext.LoadMutableState(context.Background(), s.workflowTaskCompletedHandler.shardContext)
-		s.NoError(err)
+		ms, err = wfContext.LoadMutableState(context.Background(), deps.workflowTaskCompletedHandler.shardContext)
+		require.NoError(t, err)
 		_, err = ms.AddTimerFiredEvent(tv.TimerID())
-		s.NoError(err)
-		err = wfContext.UpdateWorkflowExecutionAsActive(context.Background(), s.workflowTaskCompletedHandler.shardContext)
-		s.NoError(err)
+		require.NoError(t, err)
+		err = wfContext.UpdateWorkflowExecutionAsActive(context.Background(), deps.workflowTaskCompletedHandler.shardContext)
+		require.NoError(t, err)
 
-		s.EqualHistoryEvents(`
+		deps.historyRequire.EqualHistoryEvents(`
   3 TimerFired // No WFT events in between 2 and 3.
 `, <-writtenHistoryCh)
 	})
 
-	s.Run("Do not discard speculative WFT with more than 10 events", func() {
-		tv := testvars.New(s.T())
+	t.Run("Do not discard speculative WFT with more than 10 events", func(t *testing.T) {
+		deps := setupSubTest(t)
+		tv := testvars.New(t)
 		tv = tv.WithRunID(tv.Any().RunID())
-		s.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
-		wfContext := s.createStartedWorkflow(tv)
+		deps.mockNamespaceCache.EXPECT().GetNamespaceByID(tv.NamespaceID()).Return(tv.Namespace(), nil).AnyTimes()
+		wfContext := createStartedWorkflow(t, deps, tv)
 		// Expect 2 calls to UpdateWorkflowExecution: for timer started and WFT events.
-		writtenHistoryCh := createWrittenHistoryCh(2)
-		ms, err := wfContext.LoadMutableState(context.Background(), s.workflowTaskCompletedHandler.shardContext)
-		s.NoError(err)
+		writtenHistoryCh := createWrittenHistoryCh(t, deps, 2)
+		ms, err := wfContext.LoadMutableState(context.Background(), deps.workflowTaskCompletedHandler.shardContext)
+		require.NoError(t, err)
 
 		for i := 0; i < 11; i++ {
 			_, _, err = ms.AddTimerStartedEvent(
@@ -394,12 +401,12 @@ func (s *WorkflowTaskCompletedHandlerSuite) TestUpdateWorkflow() {
 					StartToFireTimeout: tv.Any().InfiniteTimeout(),
 				},
 			)
-			s.NoError(err)
+			require.NoError(t, err)
 		}
-		err = wfContext.UpdateWorkflowExecutionAsActive(context.Background(), s.workflowTaskCompletedHandler.shardContext)
-		s.NoError(err)
+		err = wfContext.UpdateWorkflowExecutionAsActive(context.Background(), deps.workflowTaskCompletedHandler.shardContext)
+		require.NoError(t, err)
 
-		s.EqualHistoryEvents(`
+		deps.historyRequire.EqualHistoryEvents(`
   2 TimerStarted
   3 TimerStarted
   4 TimerStarted
@@ -413,36 +420,38 @@ func (s *WorkflowTaskCompletedHandlerSuite) TestUpdateWorkflow() {
  12 TimerStarted
 `, <-writtenHistoryCh)
 
-		updRequestMsg, upd, serializedTaskToken := s.createSentUpdate(tv, wfContext)
-		s.NotNil(upd)
+		updRequestMsg, upd, serializedTaskToken := createSentUpdate(t, deps, tv, wfContext)
+		require.NotNil(t, upd)
 
-		_, err = s.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
+		_, err = deps.workflowTaskCompletedHandler.Invoke(context.Background(), &historyservice.RespondWorkflowTaskCompletedRequest{
 			NamespaceId: tv.NamespaceID().String(),
 			CompleteRequest: &workflowservice.RespondWorkflowTaskCompletedRequest{
 				TaskToken: serializedTaskToken,
-				Messages:  s.UpdateRejectMessages(tv, updRequestMsg),
+				Messages:  deps.updateUtils.UpdateRejectMessages(tv, updRequestMsg),
 				Identity:  tv.Any().String(),
 				Capabilities: &workflowservice.RespondWorkflowTaskCompletedRequest_Capabilities{
 					DiscardSpeculativeWorkflowTaskWithEvents: true,
 				},
 			},
 		})
-		s.NoError(err)
+		require.NoError(t, err)
 
 		updStatus, err := upd.WaitLifecycleStage(context.Background(), enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_UNSPECIFIED, time.Duration(0))
-		s.NoError(err)
-		s.Equal(enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED.String(), updStatus.Stage.String())
-		s.Equal("rejection-of-"+tv.UpdateID(), updStatus.Outcome.GetFailure().GetMessage())
+		require.NoError(t, err)
+		require.Equal(t, enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED.String(), updStatus.Stage.String())
+		require.Equal(t, "rejection-of-"+tv.UpdateID(), updStatus.Outcome.GetFailure().GetMessage())
 
-		s.EqualHistoryEvents(`
- 13 WorkflowTaskScheduled // WFT events were created even if it was a rejection (because number of events > 10). 
+		deps.historyRequire.EqualHistoryEvents(`
+ 13 WorkflowTaskScheduled // WFT events were created even if it was a rejection (because number of events > 10).
  14 WorkflowTaskStarted
  15 WorkflowTaskCompleted
 `, <-writtenHistoryCh)
 	})
 }
 
-func (s *WorkflowTaskCompletedHandlerSuite) TestHandleBufferedQueries() {
+func TestHandleBufferedQueries(t *testing.T) {
+	t.Parallel()
+
 	constructQueryResults := func(ids []string, resultSize int) map[string]*querypb.WorkflowQueryResult {
 		results := make(map[string]*querypb.WorkflowQueryResult)
 		for _, id := range ids {
@@ -462,16 +471,16 @@ func (s *WorkflowTaskCompletedHandlerSuite) TestHandleBufferedQueries() {
 		return queryRegistry
 	}
 
-	assertQueryCounts := func(queryRegistry historyi.QueryRegistry, buffered, completed, unblocked, failed int) {
-		s.Len(queryRegistry.GetBufferedIDs(), buffered)
-		s.Len(queryRegistry.GetCompletedIDs(), completed)
-		s.Len(queryRegistry.GetUnblockedIDs(), unblocked)
-		s.Len(queryRegistry.GetFailedIDs(), failed)
+	assertQueryCounts := func(t *testing.T, queryRegistry historyi.QueryRegistry, buffered, completed, unblocked, failed int) {
+		require.Len(t, queryRegistry.GetBufferedIDs(), buffered)
+		require.Len(t, queryRegistry.GetCompletedIDs(), completed)
+		require.Len(t, queryRegistry.GetUnblockedIDs(), unblocked)
+		require.Len(t, queryRegistry.GetFailedIDs(), failed)
 	}
 
-	setupBufferedQueriesMocks := func() (historyi.QueryRegistry, *historyi.MockMutableState) {
+	setupBufferedQueriesMocks := func(t *testing.T, controller *gomock.Controller) (historyi.QueryRegistry, *historyi.MockMutableState) {
 		queryRegistry := constructQueryRegistry(10)
-		mockMutableState := historyi.NewMockMutableState(s.controller)
+		mockMutableState := historyi.NewMockMutableState(controller)
 		mockMutableState.EXPECT().GetQueryRegistry().Return(queryRegistry)
 		mockMutableState.EXPECT().GetExecutionInfo().Return(&persistencespb.WorkflowExecutionInfo{
 			WorkflowId: tests.WorkflowID,
@@ -482,36 +491,41 @@ func (s *WorkflowTaskCompletedHandlerSuite) TestHandleBufferedQueries() {
 		return queryRegistry, mockMutableState
 	}
 
-	s.Run("New WorkflowTask", func() {
-		queryRegistry, mockMutableState := setupBufferedQueriesMocks()
-		assertQueryCounts(queryRegistry, 10, 0, 0, 0)
+	t.Run("New WorkflowTask", func(t *testing.T) {
+		deps := setupSubTest(t)
+		queryRegistry, mockMutableState := setupBufferedQueriesMocks(t, deps.controller)
+		assertQueryCounts(t, queryRegistry, 10, 0, 0, 0)
 		queryResults := constructQueryResults(queryRegistry.GetBufferedIDs()[0:5], 10)
-		s.workflowTaskCompletedHandler.handleBufferedQueries(mockMutableState, queryResults, true, tests.GlobalNamespaceEntry)
-		assertQueryCounts(queryRegistry, 5, 5, 0, 0)
+		deps.workflowTaskCompletedHandler.handleBufferedQueries(mockMutableState, queryResults, true, tests.GlobalNamespaceEntry)
+		assertQueryCounts(t, queryRegistry, 5, 5, 0, 0)
 	})
 
-	s.Run("No New WorkflowTask", func() {
-		queryRegistry, mockMutableState := setupBufferedQueriesMocks()
-		assertQueryCounts(queryRegistry, 10, 0, 0, 0)
+	t.Run("No New WorkflowTask", func(t *testing.T) {
+		deps := setupSubTest(t)
+		queryRegistry, mockMutableState := setupBufferedQueriesMocks(t, deps.controller)
+		assertQueryCounts(t, queryRegistry, 10, 0, 0, 0)
 		queryResults := constructQueryResults(queryRegistry.GetBufferedIDs()[0:5], 10)
-		s.workflowTaskCompletedHandler.handleBufferedQueries(mockMutableState, queryResults, false, tests.GlobalNamespaceEntry)
-		assertQueryCounts(queryRegistry, 0, 5, 5, 0)
+		deps.workflowTaskCompletedHandler.handleBufferedQueries(mockMutableState, queryResults, false, tests.GlobalNamespaceEntry)
+		assertQueryCounts(t, queryRegistry, 0, 5, 5, 0)
 	})
 
-	s.Run("Query Too Large", func() {
-		queryRegistry, mockMutableState := setupBufferedQueriesMocks()
-		assertQueryCounts(queryRegistry, 10, 0, 0, 0)
+	t.Run("Query Too Large", func(t *testing.T) {
+		deps := setupSubTest(t)
+		queryRegistry, mockMutableState := setupBufferedQueriesMocks(t, deps.controller)
+		assertQueryCounts(t, queryRegistry, 10, 0, 0, 0)
 		bufferedIDs := queryRegistry.GetBufferedIDs()
 		queryResults := constructQueryResults(bufferedIDs[0:5], 10)
 		largeQueryResults := constructQueryResults(bufferedIDs[5:10], 10*1024*1024)
 		maps.Copy(queryResults, largeQueryResults)
-		s.workflowTaskCompletedHandler.handleBufferedQueries(mockMutableState, queryResults, false, tests.GlobalNamespaceEntry)
-		assertQueryCounts(queryRegistry, 0, 5, 0, 5)
+		deps.workflowTaskCompletedHandler.handleBufferedQueries(mockMutableState, queryResults, false, tests.GlobalNamespaceEntry)
+		assertQueryCounts(t, queryRegistry, 0, 5, 0, 5)
 	})
 }
 
-func (s *WorkflowTaskCompletedHandlerSuite) createStartedWorkflow(tv *testvars.TestVars) historyi.WorkflowContext {
-	ms := workflow.TestLocalMutableState(s.workflowTaskCompletedHandler.shardContext, s.mockEventsCache, tv.Namespace(),
+func createStartedWorkflow(t *testing.T, deps *testDeps, tv *testvars.TestVars) historyi.WorkflowContext {
+	t.Helper()
+
+	ms := workflow.TestLocalMutableState(deps.workflowTaskCompletedHandler.shardContext, deps.mockEventsCache, tv.Namespace(),
 		tv.WorkflowID(), tv.RunID(), log.NewTestLogger())
 
 	startRequest := &workflowservice.StartWorkflowExecutionRequest{
@@ -535,35 +549,37 @@ func (s *WorkflowTaskCompletedHandlerSuite) createStartedWorkflow(tv *testvars.T
 		},
 	)
 
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
+	deps.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(ctx context.Context, request *persistence.GetWorkflowExecutionRequest) (*persistence.GetWorkflowExecutionResponse, error) {
 			return &persistence.GetWorkflowExecutionResponse{State: workflow.TestCloneToProto(ms)}, nil
 		}).AnyTimes()
 
 	// Create WF context in the cache and load MS for it.
-	wfContext, release, err := s.workflowCache.GetOrCreateWorkflowExecution(
+	wfContext, release, err := deps.workflowCache.GetOrCreateWorkflowExecution(
 		metrics.AddMetricsContext(context.Background()),
-		s.mockShard,
+		deps.mockShard,
 		tv.NamespaceID(),
 		tv.WorkflowExecution(),
 		locks.PriorityHigh,
 	)
-	s.NoError(err)
-	s.NotNil(wfContext)
+	require.NoError(t, err)
+	require.NotNil(t, wfContext)
 
-	loadedMS, err := wfContext.LoadMutableState(context.Background(), s.mockShard)
-	s.NoError(err)
-	s.NotNil(loadedMS)
+	loadedMS, err := wfContext.LoadMutableState(context.Background(), deps.mockShard)
+	require.NoError(t, err)
+	require.NotNil(t, loadedMS)
 	release(nil)
 
 	return wfContext
 }
 
-func (s *WorkflowTaskCompletedHandlerSuite) createSentUpdate(tv *testvars.TestVars, wfContext historyi.WorkflowContext) (*protocolpb.Message, *update.Update, []byte) {
+func createSentUpdate(t *testing.T, deps *testDeps, tv *testvars.TestVars, wfContext historyi.WorkflowContext) (*protocolpb.Message, *update.Update, []byte) {
+	t.Helper()
+
 	ctx := context.Background()
 
-	ms, err := wfContext.LoadMutableState(ctx, s.workflowTaskCompletedHandler.shardContext)
-	s.NoError(err)
+	ms, err := wfContext.LoadMutableState(ctx, deps.workflowTaskCompletedHandler.shardContext)
+	require.NoError(t, err)
 
 	// 1. Create speculative WFT for update.
 	wt, _ := ms.AddWorkflowTaskScheduledEvent(false, enumsspb.WORKFLOW_TASK_TYPE_SPECULATIVE)
@@ -585,12 +601,12 @@ func (s *WorkflowTaskCompletedHandlerSuite) createSentUpdate(tv *testvars.TestVa
 		ScheduledEventId: wt.ScheduledEventID,
 	}
 	serializedTaskToken, err := taskToken.Marshal()
-	s.NoError(err)
+	require.NoError(t, err)
 
 	// 2. Create update.
 	upd, alreadyExisted, err := wfContext.UpdateRegistry(ctx).FindOrCreate(ctx, tv.UpdateID())
-	s.False(alreadyExisted)
-	s.NoError(err)
+	require.False(t, alreadyExisted)
+	require.NoError(t, err)
 
 	updReq := &updatepb.Request{
 		Meta: &updatepb.Meta{UpdateId: tv.UpdateID()},
@@ -602,17 +618,17 @@ func (s *WorkflowTaskCompletedHandlerSuite) createSentUpdate(tv *testvars.TestVa
 	eventStore := workflow.WithEffects(effect.Immediate(ctx), ms)
 
 	err = upd.Admit(updReq, eventStore)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	seqID := &protocolpb.Message_EventId{EventId: tv.Any().EventID()}
 	msg := upd.Send(false, seqID)
-	s.NotNil(msg)
+	require.NotNil(t, msg)
 
 	updRequestMsg := &protocolpb.Message{
 		Id:                 tv.Any().String(),
 		ProtocolInstanceId: tv.UpdateID(),
 		SequencingId:       seqID,
-		Body:               protoutils.MarshalAny(s.T(), updReq),
+		Body:               protoutils.MarshalAny(t, updReq),
 	}
 
 	return updRequestMsg, upd, serializedTaskToken

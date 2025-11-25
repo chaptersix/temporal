@@ -7,7 +7,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
 	enumsspb "go.temporal.io/server/api/enums/v1"
@@ -29,67 +28,67 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type (
-	taskRefresherSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller            *gomock.Controller
-		mockShard             *shard.ContextTest
-		mockNamespaceRegistry *namespace.MockRegistry
-		mockTaskGenerator     *MockTaskGenerator
-
-		namespaceEntry       *namespace.Namespace
-		mutableState         historyi.MutableState
-		stateMachineRegistry *hsm.Registry
-
-		taskRefresher *TaskRefresherImpl
-	}
-)
-
-func TestTaskRefresherSuite(t *testing.T) {
-	s := new(taskRefresherSuite)
-	suite.Run(t, s)
+type taskRefresherTestDeps struct {
+	controller            *gomock.Controller
+	mockShard             *shard.ContextTest
+	mockNamespaceRegistry *namespace.MockRegistry
+	mockTaskGenerator     *MockTaskGenerator
+	namespaceEntry        *namespace.Namespace
+	mutableState          historyi.MutableState
+	stateMachineRegistry  *hsm.Registry
+	taskRefresher         *TaskRefresherImpl
 }
 
-func (s *taskRefresherSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
+func setupTaskRefresherTest(t *testing.T) *taskRefresherTestDeps {
 	config := tests.NewDynamicConfig()
-	s.controller = gomock.NewController(s.T())
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+	controller := gomock.NewController(t)
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{ShardId: 1},
 		config,
 	)
-	s.mockNamespaceRegistry = s.mockShard.Resource.NamespaceCache
+	mockNamespaceRegistry := mockShard.Resource.NamespaceCache
 
-	s.stateMachineRegistry = hsm.NewRegistry()
-	s.mockShard.SetStateMachineRegistry(s.stateMachineRegistry)
-	s.NoError(RegisterStateMachine(s.stateMachineRegistry))
+	stateMachineRegistry := hsm.NewRegistry()
+	mockShard.SetStateMachineRegistry(stateMachineRegistry)
+	require.NoError(t, RegisterStateMachine(stateMachineRegistry))
 
-	s.namespaceEntry = tests.GlobalNamespaceEntry
-	s.mockNamespaceRegistry.EXPECT().GetNamespaceByID(tests.NamespaceID).Return(s.namespaceEntry, nil).AnyTimes()
-	s.mockNamespaceRegistry.EXPECT().GetNamespace(tests.Namespace).Return(s.namespaceEntry, nil).AnyTimes()
-	s.mockTaskGenerator = NewMockTaskGenerator(s.controller)
-	s.mockShard.Resource.ClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
-	s.mockShard.Resource.ClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockShard.Resource.ClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
-	s.mockShard.Resource.ClusterMetadata.EXPECT().ClusterNameForFailoverVersion(true, s.namespaceEntry.FailoverVersion()).Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mutableState = TestGlobalMutableState(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
-		s.mockShard.GetLogger(),
-		s.namespaceEntry.FailoverVersion(),
+	namespaceEntry := tests.GlobalNamespaceEntry
+	mockNamespaceRegistry.EXPECT().GetNamespaceByID(tests.NamespaceID).Return(namespaceEntry, nil).AnyTimes()
+	mockNamespaceRegistry.EXPECT().GetNamespace(tests.Namespace).Return(namespaceEntry, nil).AnyTimes()
+	mockTaskGenerator := NewMockTaskGenerator(controller)
+	mockShard.Resource.ClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
+	mockShard.Resource.ClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockShard.Resource.ClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
+	mockShard.Resource.ClusterMetadata.EXPECT().ClusterNameForFailoverVersion(true, namespaceEntry.FailoverVersion()).Return(cluster.TestCurrentClusterName).AnyTimes()
+	mutableState := TestGlobalMutableState(
+		mockShard,
+		mockShard.GetEventsCache(),
+		mockShard.GetLogger(),
+		namespaceEntry.FailoverVersion(),
 		tests.WorkflowID,
 		tests.RunID,
 	)
 
-	s.taskRefresher = NewTaskRefresher(s.mockShard)
-	s.taskRefresher.taskGeneratorProvider = newMockTaskGeneratorProvider(s.mockTaskGenerator)
+	taskRefresher := NewTaskRefresher(mockShard)
+	taskRefresher.taskGeneratorProvider = newMockTaskGeneratorProvider(mockTaskGenerator)
+
+	return &taskRefresherTestDeps{
+		controller:            controller,
+		mockShard:             mockShard,
+		mockNamespaceRegistry: mockNamespaceRegistry,
+		mockTaskGenerator:     mockTaskGenerator,
+		namespaceEntry:        namespaceEntry,
+		mutableState:          mutableState,
+		stateMachineRegistry:  stateMachineRegistry,
+		taskRefresher:         taskRefresher,
+	}
 }
 
-func (s *taskRefresherSuite) TestRefreshWorkflowStartTasks() {
+func TestRefreshWorkflowStartTasks(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	branchToken := []byte("branchToken")
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
@@ -119,14 +118,14 @@ func (s *taskRefresherSuite) TestRefreshWorkflowStartTasks() {
 		NextEventId: int64(3),
 	}
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		2,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	startEvent := &historypb.HistoryEvent{
 		EventId:   common.FirstEventID,
@@ -138,9 +137,9 @@ func (s *taskRefresherSuite) TestRefreshWorkflowStartTasks() {
 			},
 		},
 	}
-	s.mockShard.MockEventsCache.EXPECT().GetEvent(
+	deps.mockShard.MockEventsCache.EXPECT().GetEvent(
 		gomock.Any(),
-		s.mockShard.GetShardID(),
+		deps.mockShard.GetShardID(),
 		events.EventKey{
 			NamespaceID: tests.NamespaceID,
 			WorkflowID:  tests.WorkflowID,
@@ -151,28 +150,31 @@ func (s *taskRefresherSuite) TestRefreshWorkflowStartTasks() {
 		common.FirstEventID,
 		branchToken,
 	).Return(startEvent, nil).Times(1)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowStartTasks(startEvent).DoAndReturn(
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowStartTasks(startEvent).DoAndReturn(
 		func(_ *historypb.HistoryEvent) (int32, error) {
-			s.Equal(int32(TimerTaskStatusNone), mutableState.GetExecutionInfo().WorkflowExecutionTimerTaskStatus)
+			require.Equal(t, int32(TimerTaskStatusNone), mutableState.GetExecutionInfo().WorkflowExecutionTimerTaskStatus)
 			return int32(TimerTaskStatusCreated), nil
 		},
 	)
-	s.mockTaskGenerator.EXPECT().GenerateDelayedWorkflowTasks(startEvent).Return(nil).Times(1)
+	deps.mockTaskGenerator.EXPECT().GenerateDelayedWorkflowTasks(startEvent).Return(nil).Times(1)
 
-	err = RefreshTasksForWorkflowStart(context.Background(), mutableState, s.mockTaskGenerator, EmptyVersionedTransition)
-	s.NoError(err)
-	s.Equal(int32(TimerTaskStatusCreated), mutableState.GetExecutionInfo().WorkflowExecutionTimerTaskStatus)
+	err = RefreshTasksForWorkflowStart(context.Background(), mutableState, deps.mockTaskGenerator, EmptyVersionedTransition)
+	require.NoError(t, err)
+	require.Equal(t, int32(TimerTaskStatusCreated), mutableState.GetExecutionInfo().WorkflowExecutionTimerTaskStatus)
 
-	err = RefreshTasksForWorkflowStart(context.Background(), mutableState, s.mockTaskGenerator, &persistencespb.VersionedTransition{
+	err = RefreshTasksForWorkflowStart(context.Background(), mutableState, deps.mockTaskGenerator, &persistencespb.VersionedTransition{
 		// TransitionCount is higher than workflow state's last update versioned transition,
 		// no task should be generated and no call to task generator should be made.
 		TransitionCount:          2,
 		NamespaceFailoverVersion: common.EmptyVersion,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskRefresherSuite) TestRefreshRecordWorkflowStartedTasks() {
+func TestRefreshRecordWorkflowStartedTasks(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	branchToken := []byte("branchToken")
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
@@ -201,14 +203,14 @@ func (s *taskRefresherSuite) TestRefreshRecordWorkflowStartedTasks() {
 		NextEventId: int64(3),
 	}
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		2,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	startEvent := &historypb.HistoryEvent{
 		EventId:    common.FirstEventID,
@@ -216,9 +218,9 @@ func (s *taskRefresherSuite) TestRefreshRecordWorkflowStartedTasks() {
 		EventType:  enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{},
 	}
-	s.mockShard.MockEventsCache.EXPECT().GetEvent(
+	deps.mockShard.MockEventsCache.EXPECT().GetEvent(
 		gomock.Any(),
-		s.mockShard.GetShardID(),
+		deps.mockShard.GetShardID(),
 		events.EventKey{
 			NamespaceID: tests.NamespaceID,
 			WorkflowID:  tests.WorkflowID,
@@ -229,21 +231,24 @@ func (s *taskRefresherSuite) TestRefreshRecordWorkflowStartedTasks() {
 		common.FirstEventID,
 		branchToken,
 	).Return(startEvent, nil).Times(1)
-	s.mockTaskGenerator.EXPECT().GenerateRecordWorkflowStartedTasks(startEvent).Return(nil).Times(1)
+	deps.mockTaskGenerator.EXPECT().GenerateRecordWorkflowStartedTasks(startEvent).Return(nil).Times(1)
 
-	err = s.taskRefresher.refreshTasksForRecordWorkflowStarted(context.Background(), mutableState, s.mockTaskGenerator, EmptyVersionedTransition)
-	s.NoError(err)
+	err = deps.taskRefresher.refreshTasksForRecordWorkflowStarted(context.Background(), mutableState, deps.mockTaskGenerator, EmptyVersionedTransition)
+	require.NoError(t, err)
 
-	err = s.taskRefresher.refreshTasksForRecordWorkflowStarted(context.Background(), mutableState, s.mockTaskGenerator, &persistencespb.VersionedTransition{
+	err = deps.taskRefresher.refreshTasksForRecordWorkflowStarted(context.Background(), mutableState, deps.mockTaskGenerator, &persistencespb.VersionedTransition{
 		// TransitionCount is higher than workflow visibility's last update versioned transition,
 		// no task should be generated and no call to task generator should be made.
 		TransitionCount:          2,
 		NamespaceFailoverVersion: common.EmptyVersion,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskRefresherSuite) TestRefreshWorkflowCloseTasks() {
+func TestRefreshWorkflowCloseTasks(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	closeTime := timestamppb.Now()
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
@@ -263,29 +268,32 @@ func (s *taskRefresherSuite) TestRefreshWorkflowCloseTasks() {
 		NextEventId: int64(3),
 	}
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		2,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(closeTime.AsTime(), false, false).Return(nil).Times(1)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(closeTime.AsTime(), false, false).Return(nil).Times(1)
 
-	err = s.taskRefresher.refreshTasksForWorkflowClose(context.Background(), mutableState, s.mockTaskGenerator, EmptyVersionedTransition, false)
-	s.NoError(err)
+	err = deps.taskRefresher.refreshTasksForWorkflowClose(context.Background(), mutableState, deps.mockTaskGenerator, EmptyVersionedTransition, false)
+	require.NoError(t, err)
 
-	err = s.taskRefresher.refreshTasksForWorkflowClose(context.Background(), mutableState, s.mockTaskGenerator, &persistencespb.VersionedTransition{
+	err = deps.taskRefresher.refreshTasksForWorkflowClose(context.Background(), mutableState, deps.mockTaskGenerator, &persistencespb.VersionedTransition{
 		// TransitionCount is higher than workflow state's last update versioned transition,
 		TransitionCount:          3,
 		NamespaceFailoverVersion: common.EmptyVersion,
 	}, false)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskRefresherSuite) TestRefreshWorkflowTaskTasks() {
+func TestRefreshWorkflowTaskTasks(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	baseMutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
 			NamespaceId: tests.NamespaceID.String(),
@@ -349,7 +357,7 @@ func (s *taskRefresherSuite) TestRefreshWorkflowTaskTasks() {
 				return record
 			},
 			setupMock: func() {
-				s.mockTaskGenerator.EXPECT().GenerateScheduleWorkflowTaskTasks(int64(2)).Return(nil).Times(1)
+				deps.mockTaskGenerator.EXPECT().GenerateScheduleWorkflowTaskTasks(int64(2)).Return(nil).Times(1)
 			},
 			minVersionedTransition: EmptyVersionedTransition,
 		},
@@ -368,7 +376,7 @@ func (s *taskRefresherSuite) TestRefreshWorkflowTaskTasks() {
 				return record
 			},
 			setupMock: func() {
-				s.mockTaskGenerator.EXPECT().GenerateStartWorkflowTaskTasks(int64(2)).Return(nil).Times(1)
+				deps.mockTaskGenerator.EXPECT().GenerateStartWorkflowTaskTasks(int64(2)).Return(nil).Times(1)
 			},
 			minVersionedTransition: EmptyVersionedTransition,
 		},
@@ -409,7 +417,7 @@ func (s *taskRefresherSuite) TestRefreshWorkflowTaskTasks() {
 				return record
 			},
 			setupMock: func() {
-				s.mockTaskGenerator.EXPECT().GenerateScheduleWorkflowTaskTasks(int64(2)).Return(nil).Times(1)
+				deps.mockTaskGenerator.EXPECT().GenerateScheduleWorkflowTaskTasks(int64(2)).Return(nil).Times(1)
 			},
 			minVersionedTransition: &persistencespb.VersionedTransition{
 				TransitionCount:          1,
@@ -442,25 +450,28 @@ func (s *taskRefresherSuite) TestRefreshWorkflowTaskTasks() {
 	}
 
 	for _, tc := range testCase {
-		s.T().Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			mutableState, err := NewMutableStateFromDB(
-				s.mockShard,
-				s.mockShard.GetEventsCache(),
+				deps.mockShard,
+				deps.mockShard.GetEventsCache(),
 				log.NewTestLogger(),
 				tests.LocalNamespaceEntry,
 				tc.msRecordProvider(),
 				101,
 			)
-			s.NoError(err)
+			require.NoError(t, err)
 
 			tc.setupMock()
-			err = s.taskRefresher.refreshWorkflowTaskTasks(mutableState, s.mockTaskGenerator, tc.minVersionedTransition)
-			s.NoError(err)
+			err = deps.taskRefresher.refreshWorkflowTaskTasks(mutableState, deps.mockTaskGenerator, tc.minVersionedTransition)
+			require.NoError(t, err)
 		})
 	}
 }
 
-func (s *taskRefresherSuite) TestRefreshActivityTasks() {
+func TestRefreshActivityTasks(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	branchToken := []byte("branchToken")
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
@@ -568,7 +579,7 @@ func (s *taskRefresherSuite) TestRefreshActivityTasks() {
 			},
 			expectedRefreshedTasks: []tasks.Task{
 				&tasks.ActivityTimeoutTask{
-					WorkflowKey:         s.mutableState.GetWorkflowKey(),
+					WorkflowKey:         deps.mutableState.GetWorkflowKey(),
 					VisibilityTimestamp: mutableStateRecord.ActivityInfos[7].ScheduledTime.AsTime().Add(mutableStateRecord.ActivityInfos[7].ScheduleToStartTimeout.AsDuration()),
 					EventID:             7,
 					TimeoutType:         enumspb.TIMEOUT_TYPE_SCHEDULE_TO_START,
@@ -579,34 +590,34 @@ func (s *taskRefresherSuite) TestRefreshActivityTasks() {
 	}
 
 	for _, tc := range testCase {
-		s.T().Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			mutableState, err := NewMutableStateFromDB(
-				s.mockShard,
-				s.mockShard.GetEventsCache(),
+				deps.mockShard,
+				deps.mockShard.GetEventsCache(),
 				log.NewTestLogger(),
 				tests.LocalNamespaceEntry,
 				mutableStateRecord,
 				10,
 			)
-			s.NoError(err)
+			require.NoError(t, err)
 			for _, eventID := range tc.generateActivityTaskIDs {
-				s.mockTaskGenerator.EXPECT().GenerateActivityTasks(int64(eventID)).Return(nil).Times(1)
+				deps.mockTaskGenerator.EXPECT().GenerateActivityTasks(int64(eventID)).Return(nil).Times(1)
 			}
 
-			err = s.taskRefresher.refreshTasksForActivity(context.Background(), mutableState, s.mockTaskGenerator, tc.minVersionedTransition)
-			s.NoError(err)
+			err = deps.taskRefresher.refreshTasksForActivity(context.Background(), mutableState, deps.mockTaskGenerator, tc.minVersionedTransition)
+			require.NoError(t, err)
 
 			pendingActivityInfos := mutableState.GetPendingActivityInfos()
-			s.Len(pendingActivityInfos, 3)
-			s.Equal(tc.expectedTimerTaskStatus[5], pendingActivityInfos[5].TimerTaskStatus)
-			s.Equal(tc.expectedTimerTaskStatus[6], pendingActivityInfos[6].TimerTaskStatus)
-			s.Equal(tc.expectedTimerTaskStatus[7], pendingActivityInfos[7].TimerTaskStatus)
+			require.Len(t, pendingActivityInfos, 3)
+			require.Equal(t, tc.expectedTimerTaskStatus[5], pendingActivityInfos[5].TimerTaskStatus)
+			require.Equal(t, tc.expectedTimerTaskStatus[6], pendingActivityInfos[6].TimerTaskStatus)
+			require.Equal(t, tc.expectedTimerTaskStatus[7], pendingActivityInfos[7].TimerTaskStatus)
 
 			refreshedTasks := mutableState.PopTasks()
-			s.Len(refreshedTasks[tasks.CategoryTimer], len(tc.expectedRefreshedTasks))
+			require.Len(t, refreshedTasks[tasks.CategoryTimer], len(tc.expectedRefreshedTasks))
 			for idx, task := range refreshedTasks[tasks.CategoryTimer] {
 				if activityTimeoutTask, ok := task.(*tasks.ActivityTimeoutTask); ok {
-					s.Equal(tc.expectedRefreshedTasks[idx], activityTimeoutTask)
+					require.Equal(t, tc.expectedRefreshedTasks[idx], activityTimeoutTask)
 				}
 			}
 		})
@@ -614,7 +625,10 @@ func (s *taskRefresherSuite) TestRefreshActivityTasks() {
 
 }
 
-func (s *taskRefresherSuite) TestRefreshUserTimer() {
+func TestRefreshUserTimer(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
 			NamespaceId: tests.NamespaceID.String(),
@@ -652,31 +666,34 @@ func (s *taskRefresherSuite) TestRefreshUserTimer() {
 		},
 	}
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		10,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
-	err = s.taskRefresher.refreshTasksForTimer(mutableState, &persistencespb.VersionedTransition{
+	err = deps.taskRefresher.refreshTasksForTimer(mutableState, &persistencespb.VersionedTransition{
 		TransitionCount:          4,
 		NamespaceFailoverVersion: common.EmptyVersion,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
 	pendingTimerInfos := mutableState.GetPendingTimerInfos()
-	s.Len(pendingTimerInfos, 2)
-	s.Equal(int64(TimerTaskStatusCreated), pendingTimerInfos["5"].TaskStatus)
-	s.Equal(int64(TimerTaskStatusCreated), pendingTimerInfos["6"].TaskStatus)
+	require.Len(t, pendingTimerInfos, 2)
+	require.Equal(t, int64(TimerTaskStatusCreated), pendingTimerInfos["5"].TaskStatus)
+	require.Equal(t, int64(TimerTaskStatusCreated), pendingTimerInfos["6"].TaskStatus)
 
 	refreshedTasks := mutableState.PopTasks()
-	s.Len(refreshedTasks[tasks.CategoryTimer], 1)
+	require.Len(t, refreshedTasks[tasks.CategoryTimer], 1)
 }
 
-func (s *taskRefresherSuite) TestRefreshUserTimer_Partial_NoUpdatedTimers_MaskNone_GeneratesEarliest() {
+func TestRefreshUserTimer_Partial_NoUpdatedTimers_MaskNone_GeneratesEarliest(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	now := time.Now().UTC()
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
@@ -718,32 +735,35 @@ func (s *taskRefresherSuite) TestRefreshUserTimer_Partial_NoUpdatedTimers_MaskNo
 	}
 
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		10,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	// minVersion is higher than both timers' lastUpdate; loop clears none, but CreateNextUserTimer should still create earliest
-	err = s.taskRefresher.refreshTasksForTimer(mutableState, &persistencespb.VersionedTransition{
+	err = deps.taskRefresher.refreshTasksForTimer(mutableState, &persistencespb.VersionedTransition{
 		TransitionCount:          2,
 		NamespaceFailoverVersion: common.EmptyVersion,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
 	// Earliest timer should now be marked Created and one task enqueued
 	pendingTimerInfos := mutableState.GetPendingTimerInfos()
-	s.Equal(int64(TimerTaskStatusCreated), pendingTimerInfos["10"].TaskStatus)
-	s.Equal(int64(TimerTaskStatusCreated), pendingTimerInfos["15"].TaskStatus)
+	require.Equal(t, int64(TimerTaskStatusCreated), pendingTimerInfos["10"].TaskStatus)
+	require.Equal(t, int64(TimerTaskStatusCreated), pendingTimerInfos["15"].TaskStatus)
 
 	refreshedTasks := mutableState.PopTasks()
-	s.Len(refreshedTasks[tasks.CategoryTimer], 1)
+	require.Len(t, refreshedTasks[tasks.CategoryTimer], 1)
 }
 
-func (s *taskRefresherSuite) TestRefreshUserTimer_Partial_NoUpdatedTimers_MaskCreated_NoTask() {
+func TestRefreshUserTimer_Partial_NoUpdatedTimers_MaskCreated_NoTask(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	now := time.Now().UTC()
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
@@ -784,27 +804,30 @@ func (s *taskRefresherSuite) TestRefreshUserTimer_Partial_NoUpdatedTimers_MaskCr
 	}
 
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		10,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
-	err = s.taskRefresher.refreshTasksForTimer(mutableState, &persistencespb.VersionedTransition{
+	err = deps.taskRefresher.refreshTasksForTimer(mutableState, &persistencespb.VersionedTransition{
 		TransitionCount:          2,
 		NamespaceFailoverVersion: common.EmptyVersion,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
 	// No new tasks since earliest already Created
 	refreshedTasks := mutableState.PopTasks()
-	s.Empty(refreshedTasks[tasks.CategoryTimer])
+	require.Empty(t, refreshedTasks[tasks.CategoryTimer])
 }
 
-func (s *taskRefresherSuite) TestRefreshUserTimer_FullRefresh_ClearsMasks_EnqueuesEarliest() {
+func TestRefreshUserTimer_FullRefresh_ClearsMasks_EnqueuesEarliest(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	now := time.Now().UTC()
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
@@ -844,29 +867,32 @@ func (s *taskRefresherSuite) TestRefreshUserTimer_FullRefresh_ClearsMasks_Enqueu
 	}
 
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		10,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	// Full refresh
-	err = s.taskRefresher.refreshTasksForTimer(mutableState, EmptyVersionedTransition)
-	s.NoError(err)
+	err = deps.taskRefresher.refreshTasksForTimer(mutableState, EmptyVersionedTransition)
+	require.NoError(t, err)
 
 	pendingTimerInfos := mutableState.GetPendingTimerInfos()
 	// Earliest should be Created again, later should be left as None
-	s.Equal(int64(TimerTaskStatusCreated), pendingTimerInfos["10"].TaskStatus)
-	s.Equal(int64(TimerTaskStatusNone), pendingTimerInfos["15"].TaskStatus)
+	require.Equal(t, int64(TimerTaskStatusCreated), pendingTimerInfos["10"].TaskStatus)
+	require.Equal(t, int64(TimerTaskStatusNone), pendingTimerInfos["15"].TaskStatus)
 
 	refreshedTasks := mutableState.PopTasks()
-	s.Len(refreshedTasks[tasks.CategoryTimer], 1)
+	require.Len(t, refreshedTasks[tasks.CategoryTimer], 1)
 }
 
-func (s *taskRefresherSuite) TestRefreshUserTimer_RunExpiration_SkipsTask() {
+func TestRefreshUserTimer_RunExpiration_SkipsTask(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	now := time.Now().UTC()
 	runExpiration := now.Add(3 * time.Minute)
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
@@ -898,27 +924,30 @@ func (s *taskRefresherSuite) TestRefreshUserTimer_RunExpiration_SkipsTask() {
 	}
 
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		10,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
-	err = s.taskRefresher.refreshTasksForTimer(mutableState, &persistencespb.VersionedTransition{
+	err = deps.taskRefresher.refreshTasksForTimer(mutableState, &persistencespb.VersionedTransition{
 		TransitionCount:          2,
 		NamespaceFailoverVersion: common.EmptyVersion,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
 	// No task generated due to run-expiration guard
 	refreshedTasks := mutableState.PopTasks()
-	s.Empty(refreshedTasks[tasks.CategoryTimer])
+	require.Empty(t, refreshedTasks[tasks.CategoryTimer])
 }
 
-func (s *taskRefresherSuite) TestRefreshChildWorkflowTasks() {
+func TestRefreshChildWorkflowTasks(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	branchToken := []byte("branchToken")
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
@@ -976,14 +1005,14 @@ func (s *taskRefresherSuite) TestRefreshChildWorkflowTasks() {
 		},
 	}
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		10,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	testcases := []struct {
 		name                   string
@@ -1002,31 +1031,34 @@ func (s *taskRefresherSuite) TestRefreshChildWorkflowTasks() {
 		},
 	}
 	for _, tc := range testcases {
-		s.T().Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			for _, eventID := range tc.expectedRefreshedTasks {
 				// only the second child workflow will refresh the child workflow task
-				s.mockTaskGenerator.EXPECT().GenerateChildWorkflowTasks(eventID).Return(nil).Times(1)
+				deps.mockTaskGenerator.EXPECT().GenerateChildWorkflowTasks(eventID).Return(nil).Times(1)
 			}
 
 			var previousPendingChildIds map[int64]struct{}
 			if tc.hasPendingChildIds {
 				previousPendingChildIds = mutableState.GetPendingChildIds()
 			}
-			err = s.taskRefresher.refreshTasksForChildWorkflow(
+			err = deps.taskRefresher.refreshTasksForChildWorkflow(
 				mutableState,
-				s.mockTaskGenerator,
+				deps.mockTaskGenerator,
 				&persistencespb.VersionedTransition{
 					TransitionCount:          4,
 					NamespaceFailoverVersion: common.EmptyVersion,
 				},
 				previousPendingChildIds,
 			)
-			s.NoError(err)
+			require.NoError(t, err)
 		})
 	}
 }
 
-func (s *taskRefresherSuite) TestRefreshRequestCancelExternalTasks() {
+func TestRefreshRequestCancelExternalTasks(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	branchToken := []byte("branchToken")
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
@@ -1071,14 +1103,14 @@ func (s *taskRefresherSuite) TestRefreshRequestCancelExternalTasks() {
 		},
 	}
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		10,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	// only the second request cancel external will refresh tasks
 	initEvent := &historypb.HistoryEvent{
@@ -1089,9 +1121,9 @@ func (s *taskRefresherSuite) TestRefreshRequestCancelExternalTasks() {
 			RequestCancelExternalWorkflowExecutionInitiatedEventAttributes: &historypb.RequestCancelExternalWorkflowExecutionInitiatedEventAttributes{},
 		},
 	}
-	s.mockShard.MockEventsCache.EXPECT().GetEvent(
+	deps.mockShard.MockEventsCache.EXPECT().GetEvent(
 		gomock.Any(),
-		s.mockShard.GetShardID(),
+		deps.mockShard.GetShardID(),
 		events.EventKey{
 			NamespaceID: tests.NamespaceID,
 			WorkflowID:  tests.WorkflowID,
@@ -1103,16 +1135,19 @@ func (s *taskRefresherSuite) TestRefreshRequestCancelExternalTasks() {
 		branchToken,
 	).Return(initEvent, nil).Times(1)
 
-	s.mockTaskGenerator.EXPECT().GenerateRequestCancelExternalTasks(initEvent).Return(nil).Times(1)
+	deps.mockTaskGenerator.EXPECT().GenerateRequestCancelExternalTasks(initEvent).Return(nil).Times(1)
 
-	err = s.taskRefresher.refreshTasksForRequestCancelExternalWorkflow(context.Background(), mutableState, s.mockTaskGenerator, &persistencespb.VersionedTransition{
+	err = deps.taskRefresher.refreshTasksForRequestCancelExternalWorkflow(context.Background(), mutableState, deps.mockTaskGenerator, &persistencespb.VersionedTransition{
 		TransitionCount:          4,
 		NamespaceFailoverVersion: common.EmptyVersion,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskRefresherSuite) TestRefreshSignalExternalTasks() {
+func TestRefreshSignalExternalTasks(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	branchToken := []byte("branchToken")
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
@@ -1157,14 +1192,14 @@ func (s *taskRefresherSuite) TestRefreshSignalExternalTasks() {
 		},
 	}
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		10,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	// only the second signal external will refresh tasks
 	initEvent := &historypb.HistoryEvent{
@@ -1175,9 +1210,9 @@ func (s *taskRefresherSuite) TestRefreshSignalExternalTasks() {
 			SignalExternalWorkflowExecutionInitiatedEventAttributes: &historypb.SignalExternalWorkflowExecutionInitiatedEventAttributes{},
 		},
 	}
-	s.mockShard.MockEventsCache.EXPECT().GetEvent(
+	deps.mockShard.MockEventsCache.EXPECT().GetEvent(
 		gomock.Any(),
-		s.mockShard.GetShardID(),
+		deps.mockShard.GetShardID(),
 		events.EventKey{
 			NamespaceID: tests.NamespaceID,
 			WorkflowID:  tests.WorkflowID,
@@ -1189,16 +1224,19 @@ func (s *taskRefresherSuite) TestRefreshSignalExternalTasks() {
 		branchToken,
 	).Return(initEvent, nil).Times(1)
 
-	s.mockTaskGenerator.EXPECT().GenerateSignalExternalTasks(initEvent).Return(nil).Times(1)
+	deps.mockTaskGenerator.EXPECT().GenerateSignalExternalTasks(initEvent).Return(nil).Times(1)
 
-	err = s.taskRefresher.refreshTasksForSignalExternalWorkflow(context.Background(), mutableState, s.mockTaskGenerator, &persistencespb.VersionedTransition{
+	err = deps.taskRefresher.refreshTasksForSignalExternalWorkflow(context.Background(), mutableState, deps.mockTaskGenerator, &persistencespb.VersionedTransition{
 		TransitionCount:          4,
 		NamespaceFailoverVersion: common.EmptyVersion,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskRefresherSuite) TestRefreshWorkflowSearchAttributesTasks() {
+func TestRefreshWorkflowSearchAttributesTasks(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
+
 	mutableStateRecord := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
 			NamespaceId: tests.NamespaceID.String(),
@@ -1216,53 +1254,55 @@ func (s *taskRefresherSuite) TestRefreshWorkflowSearchAttributesTasks() {
 		NextEventId: int64(3),
 	}
 	mutableState, err := NewMutableStateFromDB(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
+		deps.mockShard,
+		deps.mockShard.GetEventsCache(),
 		log.NewTestLogger(),
 		tests.LocalNamespaceEntry,
 		mutableStateRecord,
 		2,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
-	s.mockTaskGenerator.EXPECT().GenerateUpsertVisibilityTask().Return(nil).Times(1)
+	deps.mockTaskGenerator.EXPECT().GenerateUpsertVisibilityTask().Return(nil).Times(1)
 
-	err = s.taskRefresher.refreshTasksForWorkflowSearchAttr(mutableState, s.mockTaskGenerator, &persistencespb.VersionedTransition{
+	err = deps.taskRefresher.refreshTasksForWorkflowSearchAttr(mutableState, deps.mockTaskGenerator, &persistencespb.VersionedTransition{
 		TransitionCount:          2,
 		NamespaceFailoverVersion: common.EmptyVersion,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
-	err = s.taskRefresher.refreshTasksForWorkflowSearchAttr(mutableState, s.mockTaskGenerator, &persistencespb.VersionedTransition{
+	err = deps.taskRefresher.refreshTasksForWorkflowSearchAttr(mutableState, deps.mockTaskGenerator, &persistencespb.VersionedTransition{
 		TransitionCount:          5,
 		NamespaceFailoverVersion: common.EmptyVersion,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskRefresherSuite) TestRefreshSubStateMachineTasks() {
+func TestRefreshSubStateMachineTasks(t *testing.T) {
+	deps := setupTaskRefresherTest(t)
+	defer deps.controller.Finish()
 
 	stateMachineDef := hsmtest.NewDefinition("test")
-	err := s.stateMachineRegistry.RegisterTaskSerializer(hsmtest.TaskType, hsmtest.TaskSerializer{})
-	s.NoError(err)
-	err = s.stateMachineRegistry.RegisterMachine(stateMachineDef)
-	s.NoError(err)
+	err := deps.stateMachineRegistry.RegisterTaskSerializer(hsmtest.TaskType, hsmtest.TaskSerializer{})
+	require.NoError(t, err)
+	err = deps.stateMachineRegistry.RegisterMachine(stateMachineDef)
+	require.NoError(t, err)
 
 	versionedTransition := &persistencespb.VersionedTransition{
-		NamespaceFailoverVersion: s.namespaceEntry.FailoverVersion(),
+		NamespaceFailoverVersion: deps.namespaceEntry.FailoverVersion(),
 		TransitionCount:          3,
 	}
-	s.mutableState.GetExecutionInfo().TransitionHistory = []*persistencespb.VersionedTransition{
+	deps.mutableState.GetExecutionInfo().TransitionHistory = []*persistencespb.VersionedTransition{
 		versionedTransition,
 	}
 
-	hsmRoot := s.mutableState.HSM()
+	hsmRoot := deps.mutableState.HSM()
 	child1, err := hsmRoot.AddChild(hsm.Key{Type: stateMachineDef.Type(), ID: "child_1"}, hsmtest.NewData(hsmtest.State1))
-	s.NoError(err)
+	require.NoError(t, err)
 	_, err = child1.AddChild(hsm.Key{Type: stateMachineDef.Type(), ID: "child_1_1"}, hsmtest.NewData(hsmtest.State2))
-	s.NoError(err)
+	require.NoError(t, err)
 	_, err = hsmRoot.AddChild(hsm.Key{Type: stateMachineDef.Type(), ID: "child_2"}, hsmtest.NewData(hsmtest.State3))
-	s.NoError(err)
+	require.NoError(t, err)
 	// Clear the dirty flag so we can test it later.
 	hsmRoot.ClearTransactionState()
 
@@ -1277,42 +1317,42 @@ func (s *taskRefresherSuite) TestRefreshSubStateMachineTasks() {
 			return hsm.TransitionOutput{}, nil
 		})
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 	hsmRoot.ClearTransactionState()
 
-	err = s.taskRefresher.refreshTasksForSubStateMachines(s.mutableState, nil)
-	s.NoError(err)
-	refreshedTasks := s.mutableState.PopTasks()
-	s.Len(refreshedTasks[tasks.CategoryOutbound], 3)
-	s.Len(s.mutableState.GetExecutionInfo().StateMachineTimers, 3)
-	s.Len(refreshedTasks[tasks.CategoryTimer], 1)
-	s.False(hsmRoot.Dirty())
+	err = deps.taskRefresher.refreshTasksForSubStateMachines(deps.mutableState, nil)
+	require.NoError(t, err)
+	refreshedTasks := deps.mutableState.PopTasks()
+	require.Len(t, refreshedTasks[tasks.CategoryOutbound], 3)
+	require.Len(t, deps.mutableState.GetExecutionInfo().StateMachineTimers, 3)
+	require.Len(t, refreshedTasks[tasks.CategoryTimer], 1)
+	require.False(t, hsmRoot.Dirty())
 
-	err = s.taskRefresher.refreshTasksForSubStateMachines(
-		s.mutableState,
+	err = deps.taskRefresher.refreshTasksForSubStateMachines(
+		deps.mutableState,
 		&persistencespb.VersionedTransition{
-			NamespaceFailoverVersion: s.namespaceEntry.FailoverVersion(),
+			NamespaceFailoverVersion: deps.namespaceEntry.FailoverVersion(),
 			TransitionCount:          4,
 		},
 	)
-	s.NoError(err)
-	refreshedTasks = s.mutableState.PopTasks()
-	s.Len(refreshedTasks[tasks.CategoryOutbound], 3)
-	s.Len(s.mutableState.GetExecutionInfo().StateMachineTimers, 3)
-	s.Len(refreshedTasks[tasks.CategoryTimer], 1)
-	s.False(hsmRoot.Dirty())
+	require.NoError(t, err)
+	refreshedTasks = deps.mutableState.PopTasks()
+	require.Len(t, refreshedTasks[tasks.CategoryOutbound], 3)
+	require.Len(t, deps.mutableState.GetExecutionInfo().StateMachineTimers, 3)
+	require.Len(t, refreshedTasks[tasks.CategoryTimer], 1)
+	require.False(t, hsmRoot.Dirty())
 
-	err = s.taskRefresher.refreshTasksForSubStateMachines(
-		s.mutableState,
+	err = deps.taskRefresher.refreshTasksForSubStateMachines(
+		deps.mutableState,
 		&persistencespb.VersionedTransition{
-			NamespaceFailoverVersion: s.namespaceEntry.FailoverVersion(),
+			NamespaceFailoverVersion: deps.namespaceEntry.FailoverVersion(),
 			TransitionCount:          5,
 		},
 	)
-	s.NoError(err)
-	refreshedTasks = s.mutableState.PopTasks()
-	s.Empty(refreshedTasks)
-	s.False(hsmRoot.Dirty())
+	require.NoError(t, err)
+	refreshedTasks = deps.mutableState.PopTasks()
+	require.Empty(t, refreshedTasks)
+	require.False(t, hsmRoot.Dirty())
 }
 
 type mockTaskGeneratorProvider struct {

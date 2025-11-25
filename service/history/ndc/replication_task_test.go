@@ -5,7 +5,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
 	"go.temporal.io/server/common/cluster"
@@ -13,33 +12,31 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	replicationTaskSuite struct {
-		suite.Suite
-		*require.Assertions
+type replicationTaskTestDeps struct {
+	controller      *gomock.Controller
+	clusterMetadata *cluster.MockMetadata
+}
 
-		controller      *gomock.Controller
-		clusterMetadata *cluster.MockMetadata
+func setupReplicationTaskTest(t *testing.T) *replicationTaskTestDeps {
+	t.Helper()
+
+	controller := gomock.NewController(t)
+	clusterMetadata := cluster.NewMockMetadata(controller)
+	clusterMetadata.EXPECT().ClusterNameForFailoverVersion(gomock.Any(), gomock.Any()).Return("some random cluster name").AnyTimes()
+
+	t.Cleanup(func() {
+		controller.Finish()
+	})
+
+	return &replicationTaskTestDeps{
+		controller:      controller,
+		clusterMetadata: clusterMetadata,
 	}
-)
-
-func TestReplicationTaskSuite(t *testing.T) {
-	s := new(replicationTaskSuite)
-	suite.Run(t, s)
 }
 
-func (s *replicationTaskSuite) SetupSuite() {
-	s.Assertions = require.New(s.T())
-	s.controller = gomock.NewController(s.T())
-	s.clusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.clusterMetadata.EXPECT().ClusterNameForFailoverVersion(gomock.Any(), gomock.Any()).Return("some random cluster name").AnyTimes()
-}
+func TestValidateEventsSlice(t *testing.T) {
+	t.Parallel()
 
-func (s *replicationTaskSuite) TearDownSuite() {
-
-}
-
-func (s *replicationTaskSuite) TestValidateEventsSlice() {
 	eS1 := []*historypb.HistoryEvent{
 		{
 			EventId: 1,
@@ -65,19 +62,21 @@ func (s *replicationTaskSuite) TestValidateEventsSlice() {
 	}
 
 	v, err := validateEventsSlice(eS1, eS2)
-	s.Equal(int64(2), v)
-	s.Nil(err)
+	require.Equal(t, int64(2), v)
+	require.Nil(t, err)
 
 	v, err = validateEventsSlice(eS1, eS3)
-	s.Equal(int64(0), v)
-	s.IsType(ErrEventSlicesNotConsecutive, err)
+	require.Equal(t, int64(0), v)
+	require.IsType(t, ErrEventSlicesNotConsecutive, err)
 
 	v, err = validateEventsSlice(eS1, nil)
-	s.Equal(int64(0), v)
-	s.IsType(ErrEmptyEventSlice, err)
+	require.Equal(t, int64(0), v)
+	require.IsType(t, ErrEmptyEventSlice, err)
 }
 
-func (s *replicationTaskSuite) TestValidateEvents() {
+func TestValidateEvents(t *testing.T) {
+	t.Parallel()
+
 	eS1 := []*historypb.HistoryEvent{
 		{
 			EventId: 1,
@@ -112,19 +111,22 @@ func (s *replicationTaskSuite) TestValidateEvents() {
 	}
 
 	v, err := validateEvents(eS1)
-	s.Nil(err)
-	s.Equal(int64(2), v)
+	require.Nil(t, err)
+	require.Equal(t, int64(2), v)
 
 	v, err = validateEvents(eS2)
-	s.Equal(int64(0), v)
-	s.IsType(ErrEventIDMismatch, err)
+	require.Equal(t, int64(0), v)
+	require.IsType(t, ErrEventIDMismatch, err)
 
 	v, err = validateEvents(eS3)
-	s.Equal(int64(0), v)
-	s.IsType(ErrEventVersionMismatch, err)
+	require.Equal(t, int64(0), v)
+	require.IsType(t, ErrEventVersionMismatch, err)
 }
 
-func (s *replicationTaskSuite) TestSkipDuplicatedEvents_ValidInput_SkipEvents() {
+func TestSkipDuplicatedEvents_ValidInput_SkipEvents(t *testing.T) {
+	t.Parallel()
+	deps := setupReplicationTaskTest(t)
+
 	workflowKey := definition.WorkflowKey{
 		WorkflowID: uuid.New(),
 		RunID:      uuid.New(),
@@ -147,7 +149,7 @@ func (s *replicationTaskSuite) TestSkipDuplicatedEvents_ValidInput_SkipEvents() 
 	}
 
 	task, _ := newReplicationTask(
-		s.clusterMetadata,
+		deps.clusterMetadata,
 		nil,
 		workflowKey,
 		nil,
@@ -159,14 +161,17 @@ func (s *replicationTaskSuite) TestSkipDuplicatedEvents_ValidInput_SkipEvents() 
 		false,
 	)
 	err := task.skipDuplicatedEvents(1)
-	s.NoError(err)
-	s.Equal(1, len(task.getEvents()))
-	s.Equal(slice2, task.getEvents()[0])
-	s.Equal(int64(13), task.getFirstEvent().EventId)
-	s.Equal(int64(14), task.getLastEvent().EventId)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(task.getEvents()))
+	require.Equal(t, slice2, task.getEvents()[0])
+	require.Equal(t, int64(13), task.getFirstEvent().EventId)
+	require.Equal(t, int64(14), task.getLastEvent().EventId)
 }
 
-func (s *replicationTaskSuite) TestSkipDuplicatedEvents_InvalidInput_ErrorOut() {
+func TestSkipDuplicatedEvents_InvalidInput_ErrorOut(t *testing.T) {
+	t.Parallel()
+	deps := setupReplicationTaskTest(t)
+
 	workflowKey := definition.WorkflowKey{
 		WorkflowID: uuid.New(),
 		RunID:      uuid.New(),
@@ -189,7 +194,7 @@ func (s *replicationTaskSuite) TestSkipDuplicatedEvents_InvalidInput_ErrorOut() 
 	}
 
 	task, _ := newReplicationTask(
-		s.clusterMetadata,
+		deps.clusterMetadata,
 		nil,
 		workflowKey,
 		nil,
@@ -201,10 +206,13 @@ func (s *replicationTaskSuite) TestSkipDuplicatedEvents_InvalidInput_ErrorOut() 
 		false,
 	)
 	err := task.skipDuplicatedEvents(2)
-	s.Error(err)
+	require.Error(t, err)
 }
 
-func (s *replicationTaskSuite) TestSkipDuplicatedEvents_ZeroInput_DoNothing() {
+func TestSkipDuplicatedEvents_ZeroInput_DoNothing(t *testing.T) {
+	t.Parallel()
+	deps := setupReplicationTaskTest(t)
+
 	workflowKey := definition.WorkflowKey{
 		WorkflowID: uuid.New(),
 		RunID:      uuid.New(),
@@ -227,7 +235,7 @@ func (s *replicationTaskSuite) TestSkipDuplicatedEvents_ZeroInput_DoNothing() {
 	}
 
 	task, _ := newReplicationTask(
-		s.clusterMetadata,
+		deps.clusterMetadata,
 		nil,
 		workflowKey,
 		nil,
@@ -239,13 +247,16 @@ func (s *replicationTaskSuite) TestSkipDuplicatedEvents_ZeroInput_DoNothing() {
 		false,
 	)
 	err := task.skipDuplicatedEvents(0)
-	s.NoError(err)
-	s.Equal(2, len(task.getEvents()))
-	s.Equal(slice1, task.getEvents()[0])
-	s.Equal(slice2, task.getEvents()[1])
+	require.NoError(t, err)
+	require.Equal(t, 2, len(task.getEvents()))
+	require.Equal(t, slice1, task.getEvents()[0])
+	require.Equal(t, slice2, task.getEvents()[1])
 }
 
-func (s *replicationTaskSuite) TestResetInfo() {
+func TestResetInfo(t *testing.T) {
+	t.Parallel()
+	deps := setupReplicationTaskTest(t)
+
 	workflowKey := definition.WorkflowKey{
 		WorkflowID: uuid.New(),
 		RunID:      uuid.New(),
@@ -261,7 +272,7 @@ func (s *replicationTaskSuite) TestResetInfo() {
 	}
 
 	task, _ := newReplicationTask(
-		s.clusterMetadata,
+		deps.clusterMetadata,
 		nil,
 		workflowKey,
 		nil,
@@ -273,6 +284,6 @@ func (s *replicationTaskSuite) TestResetInfo() {
 		false,
 	)
 	info := task.getBaseWorkflowInfo()
-	s.Nil(info)
-	s.False(task.isWorkflowReset())
+	require.Nil(t, info)
+	require.False(t, task.isWorkflowReset())
 }

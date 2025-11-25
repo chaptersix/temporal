@@ -8,7 +8,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	failurepb "go.temporal.io/api/failure/v1"
@@ -46,94 +45,81 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type (
-	workflowResetterSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller         *gomock.Controller
-		mockShard          *shard.ContextTest
-		mockStateRebuilder *MockStateRebuilder
-
-		mockExecutionMgr *persistence.MockExecutionManager
-		mockTransaction  *workflow.MockTransaction
-
-		logger       log.Logger
-		namespaceID  namespace.ID
-		workflowID   string
-		baseRunID    string
-		currentRunID string
-		resetRunID   string
-
-		workflowResetter *workflowResetterImpl
-	}
-)
-
-var (
-	testIdentity      = "test identity"
-	testRequestReason = "test request reason"
-)
-
-func TestWorkflowResetterSuite(t *testing.T) {
-	s := new(workflowResetterSuite)
-	suite.Run(t, s)
+type workflowResetterTestDeps struct {
+	controller         *gomock.Controller
+	mockShard          *shard.ContextTest
+	mockStateRebuilder *MockStateRebuilder
+	mockExecutionMgr   *persistence.MockExecutionManager
+	mockTransaction    *workflow.MockTransaction
+	logger             log.Logger
+	namespaceID        namespace.ID
+	workflowID         string
+	baseRunID          string
+	currentRunID       string
+	resetRunID         string
+	workflowResetter   *workflowResetterImpl
 }
 
-func (s *workflowResetterSuite) SetupSuite() {
-}
+func setupWorkflowResetterTest(t *testing.T) *workflowResetterTestDeps {
+	controller := gomock.NewController(t)
+	logger := log.NewTestLogger()
+	mockStateRebuilder := NewMockStateRebuilder(controller)
 
-func (s *workflowResetterSuite) TearDownSuite() {
-}
-
-func (s *workflowResetterSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.logger = log.NewTestLogger()
-	s.controller = gomock.NewController(s.T())
-	s.mockStateRebuilder = NewMockStateRebuilder(s.controller)
-
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{
 			ShardId: 0,
 			RangeId: 1,
 		},
 		tests.NewDynamicConfig(),
 	)
-	s.mockExecutionMgr = s.mockShard.Resource.ExecutionMgr
-	s.mockTransaction = workflow.NewMockTransaction(s.controller)
+	mockExecutionMgr := mockShard.Resource.ExecutionMgr
+	mockTransaction := workflow.NewMockTransaction(controller)
 
-	s.workflowResetter = NewWorkflowResetter(
-		s.mockShard,
-		wcache.NewHostLevelCache(s.mockShard.GetConfig(), s.mockShard.GetLogger(), metrics.NoopMetricsHandler),
-		s.logger,
+	workflowResetter := NewWorkflowResetter(
+		mockShard,
+		wcache.NewHostLevelCache(mockShard.GetConfig(), mockShard.GetLogger(), metrics.NoopMetricsHandler),
+		logger,
 	)
-	s.workflowResetter.stateRebuilder = s.mockStateRebuilder
-	s.workflowResetter.transaction = s.mockTransaction
+	workflowResetter.stateRebuilder = mockStateRebuilder
+	workflowResetter.transaction = mockTransaction
 
-	s.namespaceID = tests.NamespaceID
-	s.workflowID = "some random workflow ID"
-	s.baseRunID = uuid.New()
-	s.currentRunID = uuid.New()
-	s.resetRunID = uuid.New()
+	return &workflowResetterTestDeps{
+		controller:         controller,
+		mockShard:          mockShard,
+		mockStateRebuilder: mockStateRebuilder,
+		mockExecutionMgr:   mockExecutionMgr,
+		mockTransaction:    mockTransaction,
+		logger:             logger,
+		namespaceID:        tests.NamespaceID,
+		workflowID:         "some random workflow ID",
+		baseRunID:          uuid.New(),
+		currentRunID:       uuid.New(),
+		resetRunID:         uuid.New(),
+		workflowResetter:   workflowResetter,
+	}
 }
 
-func (s *workflowResetterSuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.StopForTest()
-}
+var (
+	testIdentity      = "test identity"
+	testRequestReason = "test request reason"
+)
 
-func (s *workflowResetterSuite) TestPersistToDB_CurrentTerminated() {
-	currentWorkflow := NewMockWorkflow(s.controller)
+func TestPersistToDB_CurrentTerminated(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
+	currentWorkflow := NewMockWorkflow(deps.controller)
 	currentReleaseCalled := false
-	currentContext := historyi.NewMockWorkflowContext(s.controller)
-	currentMutableState := historyi.NewMockMutableState(s.controller)
+	currentContext := historyi.NewMockWorkflowContext(deps.controller)
+	currentMutableState := historyi.NewMockMutableState(deps.controller)
 	var currentReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { currentReleaseCalled = true }
 	currentWorkflow.EXPECT().GetContext().Return(currentContext).AnyTimes()
 	currentWorkflow.EXPECT().GetMutableState().Return(currentMutableState).AnyTimes()
 	currentWorkflow.EXPECT().GetReleaseFn().Return(currentReleaseFn).AnyTimes()
 	currentMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
-		RunId: s.currentRunID,
+		RunId: deps.currentRunID,
 	}).AnyTimes()
 
 	currentMutableState.EXPECT().GetCurrentVersion().Return(int64(0)).AnyTimes()
@@ -150,19 +136,19 @@ func (s *workflowResetterSuite) TestPersistToDB_CurrentTerminated() {
 		},
 	}
 	currentEventsSeq := []*persistence.WorkflowEvents{{
-		NamespaceID: s.namespaceID.String(),
-		WorkflowID:  s.workflowID,
-		RunID:       s.currentRunID,
+		NamespaceID: deps.namespaceID.String(),
+		WorkflowID:  deps.workflowID,
+		RunID:       deps.currentRunID,
 		BranchToken: []byte("some random current branch token"),
 		Events: []*historypb.HistoryEvent{{
 			EventId: 234,
 		}},
 	}}
 
-	resetWorkflow := NewMockWorkflow(s.controller)
+	resetWorkflow := NewMockWorkflow(deps.controller)
 	resetReleaseCalled := false
-	resetContext := historyi.NewMockWorkflowContext(s.controller)
-	resetMutableState := historyi.NewMockMutableState(s.controller)
+	resetContext := historyi.NewMockWorkflowContext(deps.controller)
+	resetMutableState := historyi.NewMockMutableState(deps.controller)
 	var tarGetReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { resetReleaseCalled = true }
 	resetWorkflow.EXPECT().GetContext().Return(resetContext).AnyTimes()
 	resetWorkflow.EXPECT().GetMutableState().Return(resetMutableState).AnyTimes()
@@ -181,9 +167,9 @@ func (s *workflowResetterSuite) TestPersistToDB_CurrentTerminated() {
 		},
 	}
 	resetEventsSeq := []*persistence.WorkflowEvents{{
-		NamespaceID: s.namespaceID.String(),
-		WorkflowID:  s.workflowID,
-		RunID:       s.resetRunID,
+		NamespaceID: deps.namespaceID.String(),
+		WorkflowID:  deps.workflowID,
+		RunID:       deps.resetRunID,
 		BranchToken: []byte("some random reset branch token"),
 		Events: []*historypb.HistoryEvent{{
 			EventId: 123,
@@ -193,7 +179,7 @@ func (s *workflowResetterSuite) TestPersistToDB_CurrentTerminated() {
 		historyi.TransactionPolicyActive,
 	).Return(resetSnapshot, resetEventsSeq, nil)
 
-	s.mockTransaction.EXPECT().UpdateWorkflowExecution(
+	deps.mockTransaction.EXPECT().UpdateWorkflowExecution(
 		gomock.Any(),
 		persistence.UpdateWorkflowModeUpdateCurrent,
 		int64(0),
@@ -205,24 +191,28 @@ func (s *workflowResetterSuite) TestPersistToDB_CurrentTerminated() {
 		true, // isWorkflow
 	).Return(currentNewEventsSize, resetNewEventsSize, nil)
 
-	err := s.workflowResetter.persistToDB(context.Background(), currentWorkflow, currentWorkflow, currentMutation, currentEventsSeq, resetWorkflow)
-	s.NoError(err)
+	err := deps.workflowResetter.persistToDB(context.Background(), currentWorkflow, currentWorkflow, currentMutation, currentEventsSeq, resetWorkflow)
+	require.NoError(t, err)
 	// persistToDB function is not charged of releasing locks
-	s.False(currentReleaseCalled)
-	s.False(resetReleaseCalled)
+	require.False(t, currentReleaseCalled)
+	require.False(t, resetReleaseCalled)
 }
 
-func (s *workflowResetterSuite) TestPersistToDB_CurrentNotTerminated() {
-	currentWorkflow := NewMockWorkflow(s.controller)
+func TestPersistToDB_CurrentNotTerminated(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
+	currentWorkflow := NewMockWorkflow(deps.controller)
 	currentReleaseCalled := false
-	currentContext := historyi.NewMockWorkflowContext(s.controller)
-	currentMutableState := historyi.NewMockMutableState(s.controller)
+	currentContext := historyi.NewMockWorkflowContext(deps.controller)
+	currentMutableState := historyi.NewMockMutableState(deps.controller)
 	var currentReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { currentReleaseCalled = true }
 	currentWorkflow.EXPECT().GetContext().Return(currentContext).AnyTimes()
 	currentWorkflow.EXPECT().GetMutableState().Return(currentMutableState).AnyTimes()
 	currentWorkflow.EXPECT().GetReleaseFn().Return(currentReleaseFn).AnyTimes()
 	currentMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
-		RunId: s.currentRunID,
+		RunId: deps.currentRunID,
 	}).AnyTimes()
 
 	currentMutation := &persistence.WorkflowMutation{}
@@ -231,10 +221,10 @@ func (s *workflowResetterSuite) TestPersistToDB_CurrentNotTerminated() {
 	currentMutableState.EXPECT().IsWorkflow().Return(true).AnyTimes()
 	currentMutableState.EXPECT().CloseTransactionAsMutation(historyi.TransactionPolicyActive).Return(currentMutation, currentEventsSeq, nil)
 
-	resetWorkflow := NewMockWorkflow(s.controller)
+	resetWorkflow := NewMockWorkflow(deps.controller)
 	resetReleaseCalled := false
-	resetContext := historyi.NewMockWorkflowContext(s.controller)
-	resetMutableState := historyi.NewMockMutableState(s.controller)
+	resetContext := historyi.NewMockWorkflowContext(deps.controller)
+	resetMutableState := historyi.NewMockMutableState(deps.controller)
 	resetMutableState.EXPECT().GetCurrentVersion().Return(int64(0)).AnyTimes()
 	var tarGetReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { resetReleaseCalled = true }
 	resetWorkflow.EXPECT().GetContext().Return(resetContext).AnyTimes()
@@ -245,9 +235,9 @@ func (s *workflowResetterSuite) TestPersistToDB_CurrentNotTerminated() {
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{},
 	}
 	resetEventsSeq := []*persistence.WorkflowEvents{{
-		NamespaceID: s.namespaceID.String(),
-		WorkflowID:  s.workflowID,
-		RunID:       s.resetRunID,
+		NamespaceID: deps.namespaceID.String(),
+		WorkflowID:  deps.workflowID,
+		RunID:       deps.resetRunID,
 		BranchToken: []byte("some random reset branch token"),
 		Events: []*historypb.HistoryEvent{{
 			EventId: 123,
@@ -257,7 +247,7 @@ func (s *workflowResetterSuite) TestPersistToDB_CurrentNotTerminated() {
 		historyi.TransactionPolicyActive,
 	).Return(resetSnapshot, resetEventsSeq, nil)
 
-	s.mockTransaction.EXPECT().UpdateWorkflowExecution(
+	deps.mockTransaction.EXPECT().UpdateWorkflowExecution(
 		gomock.Any(),
 		persistence.UpdateWorkflowModeUpdateCurrent,
 		int64(0),
@@ -269,14 +259,18 @@ func (s *workflowResetterSuite) TestPersistToDB_CurrentNotTerminated() {
 		true, // isWorkflow
 	).Return(int64(0), int64(0), nil)
 
-	err := s.workflowResetter.persistToDB(context.Background(), currentWorkflow, currentWorkflow, nil, nil, resetWorkflow)
-	s.NoError(err)
+	err := deps.workflowResetter.persistToDB(context.Background(), currentWorkflow, currentWorkflow, nil, nil, resetWorkflow)
+	require.NoError(t, err)
 	// persistToDB function is not charged of releasing locks
-	s.False(currentReleaseCalled)
-	s.False(resetReleaseCalled)
+	require.False(t, currentReleaseCalled)
+	require.False(t, resetReleaseCalled)
 }
 
-func (s *workflowResetterSuite) TestReplayResetWorkflow() {
+func TestReplayResetWorkflow(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	ctx := context.Background()
 	baseBranchToken := []byte("some random base branch token")
 	baseRebuildLastEventID := int64(1233)
@@ -285,64 +279,68 @@ func (s *workflowResetterSuite) TestReplayResetWorkflow() {
 	resetBranchToken := []byte("some random reset branch token")
 	resetRequestID := uuid.New()
 	resetHistorySize := int64(4411)
-	resetMutableState := historyi.NewMockMutableState(s.controller)
+	resetMutableState := historyi.NewMockMutableState(deps.controller)
 
-	s.mockExecutionMgr.EXPECT().ForkHistoryBranch(gomock.Any(), gomock.Any()).Return(
+	deps.mockExecutionMgr.EXPECT().ForkHistoryBranch(gomock.Any(), gomock.Any()).Return(
 		&persistence.ForkHistoryBranchResponse{NewBranchToken: resetBranchToken}, nil,
 	)
 
-	s.mockStateRebuilder.EXPECT().Rebuild(
+	deps.mockStateRebuilder.EXPECT().Rebuild(
 		ctx,
 		gomock.Any(),
 		definition.NewWorkflowKey(
-			s.namespaceID.String(),
-			s.workflowID,
-			s.baseRunID,
+			deps.namespaceID.String(),
+			deps.workflowID,
+			deps.baseRunID,
 		),
 		baseBranchToken,
 		baseRebuildLastEventID,
 		util.Ptr(baseRebuildLastEventVersion),
 		definition.NewWorkflowKey(
-			s.namespaceID.String(),
-			s.workflowID,
-			s.resetRunID,
+			deps.namespaceID.String(),
+			deps.workflowID,
+			deps.resetRunID,
 		),
 		resetBranchToken,
 		resetRequestID,
 	).Return(resetMutableState, resetHistorySize, nil)
 	resetMutableState.EXPECT().SetBaseWorkflow(
-		s.baseRunID,
+		deps.baseRunID,
 		baseRebuildLastEventID,
 		baseRebuildLastEventVersion,
 	)
 	resetMutableState.EXPECT().AddHistorySize(resetHistorySize)
 
-	resetWorkflow, err := s.workflowResetter.replayResetWorkflow(
+	resetWorkflow, err := deps.workflowResetter.replayResetWorkflow(
 		ctx,
-		s.namespaceID,
-		s.workflowID,
-		s.baseRunID,
+		deps.namespaceID,
+		deps.workflowID,
+		deps.baseRunID,
 		baseBranchToken,
 		baseRebuildLastEventID,
 		baseRebuildLastEventVersion,
-		s.resetRunID,
+		deps.resetRunID,
 		resetRequestID,
 	)
-	s.NoError(err)
-	s.Equal(resetMutableState, resetWorkflow.GetMutableState())
+	require.NoError(t, err)
+	require.Equal(t, resetMutableState, resetWorkflow.GetMutableState())
 }
 
-func (s *workflowResetterSuite) TestFailWorkflowTask_NoWorkflowTask() {
+func TestFailWorkflowTask_NoWorkflowTask(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	baseRunID := uuid.New()
 	baseRebuildLastEventID := int64(1234)
 	baseRebuildLastEventVersion := int64(5678)
 	resetRunID := uuid.New()
 	resetReason := "some random reset reason"
 
-	mutableState := historyi.NewMockMutableState(s.controller)
+	mutableState := historyi.NewMockMutableState(deps.controller)
 	mutableState.EXPECT().GetPendingWorkflowTask().Return(nil).AnyTimes()
 
-	err := s.workflowResetter.failWorkflowTask(
+	err := deps.workflowResetter.failWorkflowTask(
 		mutableState,
 		baseRunID,
 		baseRebuildLastEventID,
@@ -350,17 +348,21 @@ func (s *workflowResetterSuite) TestFailWorkflowTask_NoWorkflowTask() {
 		resetRunID,
 		resetReason,
 	)
-	s.Error(err)
+	require.Error(t, err)
 }
 
-func (s *workflowResetterSuite) TestFailWorkflowTask_WorkflowTaskScheduled() {
+func TestFailWorkflowTask_WorkflowTaskScheduled(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	baseRunID := uuid.New()
 	baseRebuildLastEventID := int64(1234)
 	baseRebuildLastEventVersion := int64(5678)
 	resetRunID := uuid.New()
 	resetReason := "some random reset reason"
 
-	mutableState := historyi.NewMockMutableState(s.controller)
+	mutableState := historyi.NewMockMutableState(deps.controller)
 	workflowTaskSchedule := &historyi.WorkflowTaskInfo{
 		ScheduledEventID: baseRebuildLastEventID - 12,
 		StartedEventID:   common.EmptyEventID,
@@ -399,7 +401,7 @@ func (s *workflowResetterSuite) TestFailWorkflowTask_WorkflowTaskScheduled() {
 		baseRebuildLastEventVersion,
 	).Return(&historypb.HistoryEvent{}, nil)
 
-	err := s.workflowResetter.failWorkflowTask(
+	err := deps.workflowResetter.failWorkflowTask(
 		mutableState,
 		baseRunID,
 		baseRebuildLastEventID,
@@ -407,17 +409,21 @@ func (s *workflowResetterSuite) TestFailWorkflowTask_WorkflowTaskScheduled() {
 		resetRunID,
 		resetReason,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *workflowResetterSuite) TestFailWorkflowTask_WorkflowTaskStarted() {
+func TestFailWorkflowTask_WorkflowTaskStarted(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	baseRunID := uuid.New()
 	baseRebuildLastEventID := int64(1234)
 	baseRebuildLastEventVersion := int64(5678)
 	resetRunID := uuid.New()
 	resetReason := "some random reset reason"
 
-	mutableState := historyi.NewMockMutableState(s.controller)
+	mutableState := historyi.NewMockMutableState(deps.controller)
 	workflowTask := &historyi.WorkflowTaskInfo{
 		ScheduledEventID: baseRebuildLastEventID - 12,
 		StartedEventID:   baseRebuildLastEventID - 10,
@@ -440,7 +446,7 @@ func (s *workflowResetterSuite) TestFailWorkflowTask_WorkflowTaskStarted() {
 		baseRebuildLastEventVersion,
 	).Return(&historypb.HistoryEvent{}, nil)
 
-	err := s.workflowResetter.failWorkflowTask(
+	err := deps.workflowResetter.failWorkflowTask(
 		mutableState,
 		baseRunID,
 		baseRebuildLastEventID,
@@ -448,14 +454,18 @@ func (s *workflowResetterSuite) TestFailWorkflowTask_WorkflowTaskStarted() {
 		resetRunID,
 		resetReason,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *workflowResetterSuite) TestFailInflightActivity() {
+func TestFailInflightActivity(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	now := time.Now().UTC()
 	terminateReason := "some random termination reason"
 
-	mutableState := historyi.NewMockMutableState(s.controller)
+	mutableState := historyi.NewMockMutableState(deps.controller)
 
 	activity1 := &persistencespb.ActivityInfo{
 		Version:              12,
@@ -489,34 +499,42 @@ func (s *workflowResetterSuite) TestFailInflightActivity() {
 
 	mutableState.EXPECT().UpdateActivity(gomock.Any(), gomock.Any()).Return(nil)
 
-	err := s.workflowResetter.failInflightActivity(now, mutableState, terminateReason)
-	s.NoError(err)
+	err := deps.workflowResetter.failInflightActivity(now, mutableState, terminateReason)
+	require.NoError(t, err)
 }
 
-func (s *workflowResetterSuite) TestGenerateBranchToken() {
+func TestGenerateBranchToken(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	baseBranchToken := []byte("some random base branch token")
 	baseNodeID := int64(1234)
 
 	resetBranchToken := []byte("some random reset branch token")
 
-	shardID := s.mockShard.GetShardID()
-	s.mockExecutionMgr.EXPECT().ForkHistoryBranch(gomock.Any(), &persistence.ForkHistoryBranchRequest{
+	shardID := deps.mockShard.GetShardID()
+	deps.mockExecutionMgr.EXPECT().ForkHistoryBranch(gomock.Any(), &persistence.ForkHistoryBranchRequest{
 		ForkBranchToken: baseBranchToken,
 		ForkNodeID:      baseNodeID,
-		Info:            persistence.BuildHistoryGarbageCleanupInfo(s.namespaceID.String(), s.workflowID, s.resetRunID),
+		Info:            persistence.BuildHistoryGarbageCleanupInfo(deps.namespaceID.String(), deps.workflowID, deps.resetRunID),
 		ShardID:         shardID,
-		NamespaceID:     s.namespaceID.String(),
-		NewRunID:        s.resetRunID,
+		NamespaceID:     deps.namespaceID.String(),
+		NewRunID:        deps.resetRunID,
 	}).Return(&persistence.ForkHistoryBranchResponse{NewBranchToken: resetBranchToken}, nil)
 
-	newBranchToken, err := s.workflowResetter.forkAndGenerateBranchToken(
-		context.Background(), s.namespaceID, s.workflowID, baseBranchToken, baseNodeID, s.resetRunID,
+	newBranchToken, err := deps.workflowResetter.forkAndGenerateBranchToken(
+		context.Background(), deps.namespaceID, deps.workflowID, baseBranchToken, baseNodeID, deps.resetRunID,
 	)
-	s.NoError(err)
-	s.Equal(resetBranchToken, newBranchToken)
+	require.NoError(t, err)
+	require.Equal(t, resetBranchToken, newBranchToken)
 }
 
-func (s *workflowResetterSuite) TestTerminateWorkflow() {
+func TestTerminateWorkflow(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	workflowTask := &historyi.WorkflowTaskInfo{
 		Version:          123,
 		ScheduledEventID: 1234,
@@ -525,7 +543,7 @@ func (s *workflowResetterSuite) TestTerminateWorkflow() {
 	wtFailedEventID := int64(666)
 	terminateReason := "some random terminate reason"
 
-	mutableState := historyi.NewMockMutableState(s.controller)
+	mutableState := historyi.NewMockMutableState(deps.controller)
 
 	randomEventID := int64(2208)
 	mutableState.EXPECT().GetNextEventID().Return(randomEventID).AnyTimes() // This doesn't matter, GetNextEventID is not used if there is started WT.
@@ -551,11 +569,15 @@ func (s *workflowResetterSuite) TestTerminateWorkflow() {
 		nil,
 	).Return(&historypb.HistoryEvent{}, nil)
 
-	err := s.workflowResetter.terminateWorkflow(mutableState, terminateReason)
-	s.NoError(err)
+	err := deps.workflowResetter.terminateWorkflow(mutableState, terminateReason)
+	require.NoError(t, err)
 }
 
-func (s *workflowResetterSuite) TestReapplyContinueAsNewWorkflowEvents_WithOutContinueAsNewChain() {
+func TestReapplyContinueAsNewWorkflowEvents_WithOutContinueAsNewChain(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	ctx := context.Background()
 	baseFirstEventID := int64(124)
 	baseNextEventID := int64(456)
@@ -583,8 +605,8 @@ func (s *workflowResetterSuite) TestReapplyContinueAsNewWorkflowEvents_WithOutCo
 	}
 
 	baseEvents := []*historypb.HistoryEvent{baseEvent1, baseEvent2, baseEvent3, baseEvent4}
-	shardID := s.mockShard.GetShardID()
-	s.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	shardID := deps.mockShard.GetShardID()
+	deps.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   baseBranchToken,
 		MinEventID:    baseFirstEventID,
 		MaxEventID:    baseNextEventID,
@@ -596,32 +618,36 @@ func (s *workflowResetterSuite) TestReapplyContinueAsNewWorkflowEvents_WithOutCo
 		NextPageToken: nil,
 	}, nil)
 
-	mutableState := historyi.NewMockMutableState(s.controller)
-	currentWorkflow := NewMockWorkflow(s.controller)
+	mutableState := historyi.NewMockMutableState(deps.controller)
+	currentWorkflow := NewMockWorkflow(deps.controller)
 	smReg := hsm.NewRegistry()
-	s.NoError(workflow.RegisterStateMachine(smReg))
+	require.NoError(t, workflow.RegisterStateMachine(smReg))
 	root, err := hsm.NewRoot(smReg, workflow.StateMachineType, nil, make(map[string]*persistencespb.StateMachineMap), nil)
-	s.NoError(err)
+	require.NoError(t, err)
 	mutableState.EXPECT().HSM().Return(root).AnyTimes()
 
-	lastVisitedRunID, err := s.workflowResetter.reapplyContinueAsNewWorkflowEvents(
+	lastVisitedRunID, err := deps.workflowResetter.reapplyContinueAsNewWorkflowEvents(
 		ctx,
 		mutableState,
 		currentWorkflow,
-		s.namespaceID,
-		s.workflowID,
-		s.baseRunID,
+		deps.namespaceID,
+		deps.workflowID,
+		deps.baseRunID,
 		baseBranchToken,
 		baseFirstEventID,
 		baseNextEventID,
 		nil,
 		false, // allowResetWithPendingChildren
 	)
-	s.NoError(err)
-	s.Equal(s.baseRunID, lastVisitedRunID)
+	require.NoError(t, err)
+	require.Equal(t, deps.baseRunID, lastVisitedRunID)
 }
 
-func (s *workflowResetterSuite) TestReapplyContinueAsNewWorkflowEvents_WithContinueAsNewChain() {
+func TestReapplyContinueAsNewWorkflowEvents_WithContinueAsNewChain(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	ctx := context.Background()
 	baseFirstEventID := int64(124)
 	baseNextEventID := int64(456)
@@ -682,8 +708,8 @@ func (s *workflowResetterSuite) TestReapplyContinueAsNewWorkflowEvents_WithConti
 	}
 
 	baseEvents := []*historypb.HistoryEvent{baseEvent1, baseEvent2, baseEvent3, baseEvent4}
-	shardID := s.mockShard.GetShardID()
-	s.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	shardID := deps.mockShard.GetShardID()
+	deps.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   baseBranchToken,
 		MinEventID:    baseFirstEventID,
 		MaxEventID:    baseNextEventID,
@@ -696,7 +722,7 @@ func (s *workflowResetterSuite) TestReapplyContinueAsNewWorkflowEvents_WithConti
 	}, nil)
 
 	newEvents := []*historypb.HistoryEvent{newEvent1, newEvent2, newEvent3, newEvent4, newEvent5}
-	s.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	deps.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   newBranchToken,
 		MinEventID:    newFirstEventID,
 		MaxEventID:    newNextEventID,
@@ -708,50 +734,54 @@ func (s *workflowResetterSuite) TestReapplyContinueAsNewWorkflowEvents_WithConti
 		NextPageToken: nil,
 	}, nil)
 
-	resetContext := historyi.NewMockWorkflowContext(s.controller)
+	resetContext := historyi.NewMockWorkflowContext(deps.controller)
 	resetContext.EXPECT().Lock(gomock.Any(), locks.PriorityHigh).Return(nil)
 	resetContext.EXPECT().Unlock()
 	resetContext.EXPECT().IsDirty().Return(false).AnyTimes()
 	resetContext.EXPECT().SetArchetype(chasm.WorkflowArchetype).Times(1)
-	resetMutableState := historyi.NewMockMutableState(s.controller)
+	resetMutableState := historyi.NewMockMutableState(deps.controller)
 	resetContextCacheKey := wcache.Key{
-		WorkflowKey: definition.NewWorkflowKey(s.namespaceID.String(), s.workflowID, newRunID),
-		ShardUUID:   s.mockShard.GetOwner(),
+		WorkflowKey: definition.NewWorkflowKey(deps.namespaceID.String(), deps.workflowID, newRunID),
+		ShardUUID:   deps.mockShard.GetOwner(),
 	}
-	resetContext.EXPECT().LoadMutableState(gomock.Any(), s.mockShard).Return(resetMutableState, nil)
+	resetContext.EXPECT().LoadMutableState(gomock.Any(), deps.mockShard).Return(resetMutableState, nil)
 	resetMutableState.EXPECT().GetNextEventID().Return(newNextEventID).AnyTimes()
 	resetMutableState.EXPECT().GetCurrentBranchToken().Return(newBranchToken, nil).AnyTimes()
-	err := wcache.PutContextIfNotExist(s.workflowResetter.workflowCache, resetContextCacheKey, resetContext)
-	s.NoError(err)
+	err := wcache.PutContextIfNotExist(deps.workflowResetter.workflowCache, resetContextCacheKey, resetContext)
+	require.NoError(t, err)
 
-	mutableState := historyi.NewMockMutableState(s.controller)
+	mutableState := historyi.NewMockMutableState(deps.controller)
 	mutableState.EXPECT().GetWorkflowKey().Return(definition.WorkflowKey{RunID: "random-run-id"})
-	currentWorkflow := NewMockWorkflow(s.controller)
+	currentWorkflow := NewMockWorkflow(deps.controller)
 	currentWorkflow.EXPECT().GetMutableState().Return(mutableState)
 	smReg := hsm.NewRegistry()
-	s.NoError(workflow.RegisterStateMachine(smReg))
+	require.NoError(t, workflow.RegisterStateMachine(smReg))
 	root, err := hsm.NewRoot(smReg, workflow.StateMachineType, nil, make(map[string]*persistencespb.StateMachineMap), nil)
-	s.NoError(err)
+	require.NoError(t, err)
 	mutableState.EXPECT().HSM().Return(root).AnyTimes()
 
-	lastVisitedRunID, err := s.workflowResetter.reapplyContinueAsNewWorkflowEvents(
+	lastVisitedRunID, err := deps.workflowResetter.reapplyContinueAsNewWorkflowEvents(
 		ctx,
 		mutableState,
 		currentWorkflow,
-		s.namespaceID,
-		s.workflowID,
-		s.baseRunID,
+		deps.namespaceID,
+		deps.workflowID,
+		deps.baseRunID,
 		baseBranchToken,
 		baseFirstEventID,
 		baseNextEventID,
 		nil,
 		false, // allowResetWithPendingChildren
 	)
-	s.NoError(err)
-	s.Equal(newRunID, lastVisitedRunID)
+	require.NoError(t, err)
+	require.Equal(t, newRunID, lastVisitedRunID)
 }
 
-func (s *workflowResetterSuite) TestReapplyWorkflowEvents() {
+func TestReapplyWorkflowEvents(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	firstEventID := common.FirstEventID
 	nextEventID := int64(6)
 	branchToken := []byte("some random branch token")
@@ -785,8 +815,8 @@ func (s *workflowResetterSuite) TestReapplyWorkflowEvents() {
 		}},
 	}
 	events := []*historypb.HistoryEvent{event1, event2, event3, event4, event5}
-	shardID := s.mockShard.GetShardID()
-	s.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	shardID := deps.mockShard.GetShardID()
+	deps.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   branchToken,
 		MinEventID:    firstEventID,
 		MaxEventID:    nextEventID,
@@ -798,14 +828,14 @@ func (s *workflowResetterSuite) TestReapplyWorkflowEvents() {
 		NextPageToken: nil,
 	}, nil)
 
-	mutableState := historyi.NewMockMutableState(s.controller)
+	mutableState := historyi.NewMockMutableState(deps.controller)
 	smReg := hsm.NewRegistry()
-	s.NoError(workflow.RegisterStateMachine(smReg))
+	require.NoError(t, workflow.RegisterStateMachine(smReg))
 	root, err := hsm.NewRoot(smReg, workflow.StateMachineType, nil, make(map[string]*persistencespb.StateMachineMap), nil)
-	s.NoError(err)
+	require.NoError(t, err)
 	mutableState.EXPECT().HSM().Return(root).AnyTimes()
 
-	nextRunID, err := s.workflowResetter.reapplyEventsFromBranch(
+	nextRunID, err := deps.workflowResetter.reapplyEventsFromBranch(
 		context.Background(),
 		mutableState,
 		firstEventID,
@@ -815,13 +845,15 @@ func (s *workflowResetterSuite) TestReapplyWorkflowEvents() {
 		false, // allowResetWithPendingChildren
 		map[string]*persistencespb.ResetChildInfo{},
 	)
-	s.NoError(err)
-	s.Equal(newRunID, nextRunID)
+	require.NoError(t, err)
+	require.Equal(t, newRunID, nextRunID)
 }
 
-// TestReapplyEvents_WithPendingChildren tests applying events related to child workflow.
-// It asserts that reapplyEvents() function checks mutableState.GetChildExecutionInfo() before applying the event.
-func (s *workflowResetterSuite) TestReapplyEvents_WithPendingChildren() {
+func TestReapplyEvents_WithPendingChildren(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	testChildClock := &clockspb.VectorClock{ShardId: 1, Clock: 10, ClusterId: 1}
 	testInitiatedEventID := int64(123)
 	testChildWFType := &commonpb.WorkflowType{Name: "TEST-CHILD-WF-TYPE"}
@@ -910,7 +942,7 @@ func (s *workflowResetterSuite) TestReapplyEvents_WithPendingChildren() {
 		{name: "no reset", isReset: false},
 	}
 	for _, tcReset := range resetcases {
-		mutableState := historyi.NewMockMutableState(s.controller)
+		mutableState := historyi.NewMockMutableState(deps.controller)
 		mutableState.EXPECT().GetChildExecutionInfo(testInitiatedEventID).
 			Times(len(testcases)). // GetChildExecutionInfo should be called exactly once for each test case.
 			Return(&persistencespb.ChildExecutionInfo{Clock: testChildClock}, true)
@@ -948,16 +980,19 @@ func (s *workflowResetterSuite) TestReapplyEvents_WithPendingChildren() {
 		).Return(nil, nil).Times(1)
 
 		for _, tc := range testcases {
-			s.Run(tc.name+" "+tcReset.name, func() {
+			t.Run(tc.name+" "+tcReset.name, func(t *testing.T) {
 				_, err := reapplyEvents(context.Background(), mutableState, nil, nil, tc.events, nil, "", tcReset.isReset)
-				s.NoError(err)
+				require.NoError(t, err)
 			})
 		}
 	}
 }
 
-// TestReapplyEvents_WithNoPendingChildren asserts that none of the child events are picked when there is no pending child correspondng to the init event ID.
-func (s *workflowResetterSuite) TestReapplyEvents_WithNoPendingChildren() {
+func TestReapplyEvents_WithNoPendingChildren(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	testInitiatedEventID := int64(123)
 	startedEvent := &historypb.HistoryEvent{
 		EventType:  enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED,
@@ -1008,22 +1043,25 @@ func (s *workflowResetterSuite) TestReapplyEvents_WithNoPendingChildren() {
 		{name: "no reset", isReset: false},
 	}
 	for _, tcReset := range resetcases {
-		mutableState := historyi.NewMockMutableState(s.controller)
+		mutableState := historyi.NewMockMutableState(deps.controller)
 		// GetChildExecutionInfo should be called exactly once for each test case and none of the Add event methods must be called.
 		mutableState.EXPECT().GetChildExecutionInfo(testInitiatedEventID).
 			Times(len(testCases)).
 			Return(nil, false)
 
 		for _, tc := range testCases {
-			s.Run(tc.name+" "+tcReset.name, func() {
+			t.Run(tc.name+" "+tcReset.name, func(t *testing.T) {
 				_, err := reapplyEvents(context.Background(), mutableState, nil, nil, tc.events, nil, "", tcReset.isReset)
-				s.NoError(err)
+				require.NoError(t, err)
 			})
 		}
 	}
 }
 
-func (s *workflowResetterSuite) TestReapplyEvents() {
+func TestReapplyEvents(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
 
 	event1 := &historypb.HistoryEvent{
 		EventId:   101,
@@ -1164,14 +1202,14 @@ func (s *workflowResetterSuite) TestReapplyEvents() {
 		},
 	}
 
-	ms := historyi.NewMockMutableState(s.controller)
+	ms := historyi.NewMockMutableState(deps.controller)
 
 	for _, tc := range testcases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
 			smReg := hsm.NewRegistry()
-			s.NoError(workflow.RegisterStateMachine(smReg))
+			require.NoError(t, workflow.RegisterStateMachine(smReg))
 			root, err := hsm.NewRoot(smReg, workflow.StateMachineType, nil, make(map[string]*persistencespb.StateMachineMap), nil)
-			s.NoError(err)
+			require.NoError(t, err)
 			ms.EXPECT().HSM().Return(root).AnyTimes()
 
 			for _, event := range events {
@@ -1247,14 +1285,18 @@ func (s *workflowResetterSuite) TestReapplyEvents() {
 			}
 
 			appliedEvents, err := reapplyEvents(context.Background(), ms, nil, smReg, events, nil, "", tc.isReset)
-			s.NoError(err)
+			require.NoError(t, err)
 
-			s.Equal(tc.expected, appliedEvents)
+			require.Equal(t, tc.expected, appliedEvents)
 		})
 	}
 }
 
-func (s *workflowResetterSuite) TestReapplyEvents_Excludes() {
+func TestReapplyEvents_Excludes(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	event1 := &historypb.HistoryEvent{
 		EventId:   101,
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
@@ -1298,7 +1340,7 @@ func (s *workflowResetterSuite) TestReapplyEvents_Excludes() {
 	}
 	events := []*historypb.HistoryEvent{event1, event2, event3, event4, event5, event6}
 
-	ms := historyi.NewMockMutableState(s.controller)
+	ms := historyi.NewMockMutableState(deps.controller)
 	// Assert that none of these following methods are invoked.
 	arg := gomock.Any()
 	ms.EXPECT().AddWorkflowExecutionSignaled(arg, arg, arg, arg, arg).Times(0)
@@ -1306,10 +1348,10 @@ func (s *workflowResetterSuite) TestReapplyEvents_Excludes() {
 	ms.EXPECT().AddHistoryEvent(arg, arg).Times(0)
 
 	smReg := hsm.NewRegistry()
-	s.NoError(smReg.RegisterEventDefinition(nexusoperations.StartedEventDefinition{}))
-	s.NoError(workflow.RegisterStateMachine(smReg))
+	require.NoError(t, smReg.RegisterEventDefinition(nexusoperations.StartedEventDefinition{}))
+	require.NoError(t, workflow.RegisterStateMachine(smReg))
 	root, err := hsm.NewRoot(smReg, workflow.StateMachineType, nil, make(map[string]*persistencespb.StateMachineMap), nil)
-	s.NoError(err)
+	require.NoError(t, err)
 	ms.EXPECT().HSM().Return(root).AnyTimes()
 
 	excludes := map[enumspb.ResetReapplyExcludeType]struct{}{
@@ -1318,8 +1360,8 @@ func (s *workflowResetterSuite) TestReapplyEvents_Excludes() {
 		enumspb.RESET_REAPPLY_EXCLUDE_TYPE_NEXUS:  {},
 	}
 	reappliedEvents, err := reapplyEvents(context.Background(), ms, nil, smReg, events, excludes, "", false)
-	s.Empty(reappliedEvents)
-	s.NoError(err)
+	require.Empty(t, reappliedEvents)
+	require.NoError(t, err)
 
 	event7 := &historypb.HistoryEvent{
 		EventId:   107,
@@ -1344,11 +1386,15 @@ func (s *workflowResetterSuite) TestReapplyEvents_Excludes() {
 	}
 	events = append(events, event7, event8)
 	reappliedEvents, err = reapplyEvents(context.Background(), ms, nil, smReg, events, excludes, "", true)
-	s.Empty(reappliedEvents)
-	s.NoError(err)
+	require.Empty(t, reappliedEvents)
+	require.NoError(t, err)
 }
 
-func (s *workflowResetterSuite) TestReapplyContinueAsNewWorkflowEvents_ExcludeAllEvents() {
+func TestReapplyContinueAsNewWorkflowEvents_ExcludeAllEvents(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	ctx := context.Background()
 	baseFirstEventID := int64(123)
 	baseNextEventID := int64(456)
@@ -1360,32 +1406,36 @@ func (s *workflowResetterSuite) TestReapplyContinueAsNewWorkflowEvents_ExcludeAl
 		enumspb.RESET_REAPPLY_EXCLUDE_TYPE_CANCEL_REQUEST: {},
 	}
 
-	mutableState := historyi.NewMockMutableState(s.controller)
-	currentWorkflow := NewMockWorkflow(s.controller)
+	mutableState := historyi.NewMockMutableState(deps.controller)
+	currentWorkflow := NewMockWorkflow(deps.controller)
 
 	// Assert that we don't read any history events when we are asked to exclude all reapply events.
-	s.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), gomock.Any()).Times(0)
+	deps.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), gomock.Any()).Times(0)
 	// Make sure that we don't access the mutable state of the current workflow since there is nothing to update in this case.
 	currentWorkflow.EXPECT().GetMutableState().Times(0)
 
-	lastVisitedRunID, err := s.workflowResetter.reapplyContinueAsNewWorkflowEvents(
+	lastVisitedRunID, err := deps.workflowResetter.reapplyContinueAsNewWorkflowEvents(
 		ctx,
 		mutableState,
 		currentWorkflow,
-		s.namespaceID,
-		s.workflowID,
-		s.baseRunID,
+		deps.namespaceID,
+		deps.workflowID,
+		deps.baseRunID,
 		baseBranchToken,
 		baseFirstEventID,
 		baseNextEventID,
 		optionExcludeAllReapplyEvents,
 		false, // allowResetWithPendingChildren
 	)
-	s.NoError(err)
-	s.Equal(s.baseRunID, lastVisitedRunID)
+	require.NoError(t, err)
+	require.Equal(t, deps.baseRunID, lastVisitedRunID)
 }
 
-func (s *workflowResetterSuite) TestPagination() {
+func TestPagination(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	firstEventID := common.FirstEventID
 	nextEventID := int64(101)
 	branchToken := []byte("some random branch token")
@@ -1420,8 +1470,8 @@ func (s *workflowResetterSuite) TestPagination() {
 	history := append(history1, history2...)
 	pageToken := []byte("some random token")
 
-	shardID := s.mockShard.GetShardID()
-	s.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	shardID := deps.mockShard.GetShardID()
+	deps.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   branchToken,
 		MinEventID:    firstEventID,
 		MaxEventID:    nextEventID,
@@ -1433,7 +1483,7 @@ func (s *workflowResetterSuite) TestPagination() {
 		NextPageToken: pageToken,
 		Size:          12345,
 	}, nil)
-	s.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
+	deps.mockExecutionMgr.EXPECT().ReadHistoryBranchByBatch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
 		BranchToken:   branchToken,
 		MinEventID:    firstEventID,
 		MaxEventID:    nextEventID,
@@ -1446,20 +1496,24 @@ func (s *workflowResetterSuite) TestPagination() {
 		Size:          67890,
 	}, nil)
 
-	paginationFn := s.workflowResetter.getPaginationFn(context.Background(), firstEventID, nextEventID, branchToken)
+	paginationFn := deps.workflowResetter.getPaginationFn(context.Background(), firstEventID, nextEventID, branchToken)
 	iter := collection.NewPagingIterator(paginationFn)
 
 	var result []*historypb.History
 	for iter.HasNext() {
 		item, err := iter.Next()
-		s.NoError(err)
+		require.NoError(t, err)
 		result = append(result, item)
 	}
 
-	s.Equal(history, result)
+	require.Equal(t, history, result)
 }
 
-func (s *workflowResetterSuite) TestWorkflowRestartAfterExecutionTimeout() {
+func TestWorkflowRestartAfterExecutionTimeout(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	ctx := context.Background()
 	baseBranchToken := []byte("some random base branch token")
 	baseRebuildLastEventID := int64(1234)
@@ -1470,7 +1524,7 @@ func (s *workflowResetterSuite) TestWorkflowRestartAfterExecutionTimeout() {
 	resetBranchToken := []byte("some random reset branch token")
 	resetRequestID := uuid.New()
 	resetHistorySize := int64(4411)
-	resetMutableState := historyi.NewMockMutableState(s.controller)
+	resetMutableState := historyi.NewMockMutableState(deps.controller)
 	executionInfos := make(map[int64]*persistencespb.ChildExecutionInfo)
 
 	workflowTaskSchedule := &historyi.WorkflowTaskInfo{
@@ -1483,23 +1537,23 @@ func (s *workflowResetterSuite) TestWorkflowRestartAfterExecutionTimeout() {
 		},
 	}
 
-	s.mockExecutionMgr.EXPECT().ForkHistoryBranch(gomock.Any(), gomock.Any()).Return(
+	deps.mockExecutionMgr.EXPECT().ForkHistoryBranch(gomock.Any(), gomock.Any()).Return(
 		&persistence.ForkHistoryBranchResponse{NewBranchToken: resetBranchToken}, nil,
 	)
 
-	s.mockStateRebuilder.EXPECT().Rebuild(
+	deps.mockStateRebuilder.EXPECT().Rebuild(
 		ctx,
 		gomock.Any(),
-		definition.NewWorkflowKey(s.namespaceID.String(), s.workflowID, s.baseRunID),
+		definition.NewWorkflowKey(deps.namespaceID.String(), deps.workflowID, deps.baseRunID),
 		baseBranchToken,
 		baseRebuildLastEventID,
 		util.Ptr(baseRebuildLastEventVersion),
-		definition.NewWorkflowKey(s.namespaceID.String(), s.workflowID, s.resetRunID),
+		definition.NewWorkflowKey(deps.namespaceID.String(), deps.workflowID, deps.resetRunID),
 		resetBranchToken,
 		resetRequestID,
 	).Return(resetMutableState, resetHistorySize, nil)
 
-	resetMutableState.EXPECT().SetBaseWorkflow(s.baseRunID, baseRebuildLastEventID, baseRebuildLastEventVersion)
+	resetMutableState.EXPECT().SetBaseWorkflow(deps.baseRunID, baseRebuildLastEventID, baseRebuildLastEventVersion)
 	resetMutableState.EXPECT().AddHistorySize(resetHistorySize)
 	resetMutableState.EXPECT().GetCurrentVersion().Return(resetWorkflowVersion).AnyTimes()
 	resetMutableState.EXPECT().UpdateCurrentVersion(resetWorkflowVersion, false).Return(nil).AnyTimes()
@@ -1513,9 +1567,9 @@ func (s *workflowResetterSuite) TestWorkflowRestartAfterExecutionTimeout() {
 	resetMutableState.EXPECT().GetPendingChildExecutionInfos().Return(executionInfos)
 	resetMutableState.EXPECT().GetPendingWorkflowTask().Return(workflowTaskSchedule).AnyTimes()
 	smReg := hsm.NewRegistry()
-	s.NoError(workflow.RegisterStateMachine(smReg))
+	require.NoError(t, workflow.RegisterStateMachine(smReg))
 	root, err := hsm.NewRoot(smReg, workflow.StateMachineType, nil, make(map[string]*persistencespb.StateMachineMap), nil)
-	s.NoError(err)
+	require.NoError(t, err)
 	resetMutableState.EXPECT().HSM().Return(root).AnyTimes()
 
 	workflowTaskStart := &historyi.WorkflowTaskInfo{
@@ -1542,30 +1596,34 @@ func (s *workflowResetterSuite) TestWorkflowRestartAfterExecutionTimeout() {
 		consts.IdentityHistoryService,
 		nil,
 		"",
-		s.baseRunID,
-		s.resetRunID,
+		deps.baseRunID,
+		deps.resetRunID,
 		baseRebuildLastEventVersion,
 	).Return(&historypb.HistoryEvent{}, nil)
 
-	resetWorkflow, err := s.workflowResetter.prepareResetWorkflow(
+	resetWorkflow, err := deps.workflowResetter.prepareResetWorkflow(
 		ctx,
-		s.namespaceID,
-		s.workflowID,
-		s.baseRunID,
+		deps.namespaceID,
+		deps.workflowID,
+		deps.baseRunID,
 		baseBranchToken,
 		baseRebuildLastEventID,
 		baseRebuildLastEventVersion,
-		s.resetRunID,
+		deps.resetRunID,
 		resetRequestID,
 		resetWorkflowVersion,
 		resetReason,
 		false, // allowResetWithPendingChildren
 	)
-	s.NoError(err)
-	s.Equal(resetMutableState, resetWorkflow.GetMutableState())
+	require.NoError(t, err)
+	require.Equal(t, resetMutableState, resetWorkflow.GetMutableState())
 }
 
-func (s *workflowResetterSuite) TestReapplyEvents_WorkflowOptionsUpdated_CompletionCallbackErrors() {
+func TestReapplyEvents_WorkflowOptionsUpdated_CompletionCallbackErrors(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	testCases := []struct {
 		name                  string
 		requestIDExists       bool
@@ -1583,12 +1641,12 @@ func (s *workflowResetterSuite) TestReapplyEvents_WorkflowOptionsUpdated_Complet
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
-			ms := historyi.NewMockMutableState(s.controller)
+		t.Run(tc.name, func(t *testing.T) {
+			ms := historyi.NewMockMutableState(deps.controller)
 			smReg := hsm.NewRegistry()
-			s.NoError(workflow.RegisterStateMachine(smReg))
+			require.NoError(t, workflow.RegisterStateMachine(smReg))
 			root, err := hsm.NewRoot(smReg, workflow.StateMachineType, nil, make(map[string]*persistencespb.StateMachineMap), nil)
-			s.NoError(err)
+			require.NoError(t, err)
 			ms.EXPECT().HSM().Return(root).AnyTimes()
 
 			// Create completion callbacks
@@ -1631,19 +1689,23 @@ func (s *workflowResetterSuite) TestReapplyEvents_WorkflowOptionsUpdated_Complet
 
 			// Call reapplyEvents and expect an error
 			appliedEvents, err := reapplyEvents(context.Background(), ms, nil, smReg, events, nil, "", true)
-			s.Error(err)
-			s.Contains(err.Error(), tc.expectedErrorContains)
-			s.Empty(appliedEvents)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.expectedErrorContains)
+			require.Empty(t, appliedEvents)
 		})
 	}
 }
 
-func (s *workflowResetterSuite) TestReapplyEvents_WorkflowOptionsUpdated_CompletionCallbacksSkip() {
-	ms := historyi.NewMockMutableState(s.controller)
+func TestReapplyEvents_WorkflowOptionsUpdated_CompletionCallbacksSkip(t *testing.T) {
+	deps := setupWorkflowResetterTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
+	ms := historyi.NewMockMutableState(deps.controller)
 	smReg := hsm.NewRegistry()
-	s.NoError(workflow.RegisterStateMachine(smReg))
+	require.NoError(t, workflow.RegisterStateMachine(smReg))
 	root, err := hsm.NewRoot(smReg, workflow.StateMachineType, nil, make(map[string]*persistencespb.StateMachineMap), nil)
-	s.NoError(err)
+	require.NoError(t, err)
 	ms.EXPECT().HSM().Return(root).AnyTimes()
 
 	// Create completion callbacks
@@ -1679,6 +1741,6 @@ func (s *workflowResetterSuite) TestReapplyEvents_WorkflowOptionsUpdated_Complet
 
 	// Call reapplyEvents - should skip the event (no error, no applied events)
 	appliedEvents, err := reapplyEvents(context.Background(), ms, nil, smReg, events, nil, "", true)
-	s.NoError(err)
-	s.Empty(appliedEvents) // Event should be skipped
+	require.NoError(t, err)
+	require.Empty(t, appliedEvents) // Event should be skipped
 }

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/api/serviceerror"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/common"
@@ -14,113 +13,120 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	apiSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller      *gomock.Controller
-		workflowLease   api.WorkflowLease
-		workflowContext *historyi.MockWorkflowContext
-		mutableState    *historyi.MockMutableState
-	}
-)
-
-func TestAPISuite(t *testing.T) {
-	s := new(apiSuite)
-	suite.Run(t, s)
+type apiTestDeps struct {
+	controller      *gomock.Controller
+	workflowLease   api.WorkflowLease
+	workflowContext *historyi.MockWorkflowContext
+	mutableState    *historyi.MockMutableState
 }
 
-func (s *apiSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.workflowContext = historyi.NewMockWorkflowContext(s.controller)
-	s.mutableState = historyi.NewMockMutableState(s.controller)
-	s.workflowLease = api.NewWorkflowLease(
-		s.workflowContext,
+func setupAPITest(t *testing.T) *apiTestDeps {
+	controller := gomock.NewController(t)
+	workflowContext := historyi.NewMockWorkflowContext(controller)
+	mutableState := historyi.NewMockMutableState(controller)
+	workflowLease := api.NewWorkflowLease(
+		workflowContext,
 		func(err error) {},
-		s.mutableState,
+		mutableState,
 	)
+
+	t.Cleanup(func() {
+		controller.Finish()
+	})
+
+	return &apiTestDeps{
+		controller:      controller,
+		workflowLease:   workflowLease,
+		workflowContext: workflowContext,
+		mutableState:    mutableState,
+	}
 }
 
-func (s *apiSuite) TeardownTest() {
-	s.controller.Finish()
+func TestWorkflowCompleted(t *testing.T) {
+	deps := setupAPITest(t)
+
+	deps.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(false)
+
+	_, err := isActivityTaskValid(deps.workflowLease, rand.Int63(), rand.Int31())
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.NotFound{}, err)
 }
 
-func (s *apiSuite) TestWorkflowCompleted() {
-	s.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(false)
+func TestWorkflowRunning_ActivityTaskNotStarted(t *testing.T) {
+	deps := setupAPITest(t)
 
-	_, err := isActivityTaskValid(s.workflowLease, rand.Int63(), rand.Int31())
-	s.Error(err)
-	s.IsType(&serviceerror.NotFound{}, err)
-}
-
-func (s *apiSuite) TestWorkflowRunning_ActivityTaskNotStarted() {
-	s.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
+	deps.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
 	activityScheduleEventID := rand.Int63()
 	stamp := rand.Int31()
-	s.mutableState.EXPECT().GetActivityInfo(activityScheduleEventID).Return(&persistencespb.ActivityInfo{
+	deps.mutableState.EXPECT().GetActivityInfo(activityScheduleEventID).Return(&persistencespb.ActivityInfo{
 		ScheduledEventId: activityScheduleEventID,
 		StartedEventId:   common.EmptyEventID,
 		Stamp:            stamp,
 	}, true)
 
-	valid, err := isActivityTaskValid(s.workflowLease, activityScheduleEventID, stamp)
-	s.NoError(err)
-	s.True(valid)
+	valid, err := isActivityTaskValid(deps.workflowLease, activityScheduleEventID, stamp)
+	require.NoError(t, err)
+	require.True(t, valid)
 }
 
-func (s *apiSuite) TestWorkflowRunning_ActivityTaskStarted() {
-	s.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
+func TestWorkflowRunning_ActivityTaskStarted(t *testing.T) {
+	deps := setupAPITest(t)
+
+	deps.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
 	activityScheduleEventID := rand.Int63()
 	stamp := rand.Int31()
-	s.mutableState.EXPECT().GetActivityInfo(activityScheduleEventID).Return(&persistencespb.ActivityInfo{
+	deps.mutableState.EXPECT().GetActivityInfo(activityScheduleEventID).Return(&persistencespb.ActivityInfo{
 		ScheduledEventId: activityScheduleEventID,
 		StartedEventId:   activityScheduleEventID + 1,
 		Stamp:            stamp,
 	}, true)
 
-	valid, err := isActivityTaskValid(s.workflowLease, activityScheduleEventID, stamp)
-	s.NoError(err)
-	s.False(valid)
+	valid, err := isActivityTaskValid(deps.workflowLease, activityScheduleEventID, stamp)
+	require.NoError(t, err)
+	require.False(t, valid)
 }
 
-func (s *apiSuite) TestWorkflowRunning_ActivityTaskStampMismatch() {
-	s.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
+func TestWorkflowRunning_ActivityTaskStampMismatch(t *testing.T) {
+	deps := setupAPITest(t)
+
+	deps.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
 	activityScheduleEventID := rand.Int63()
 	const storedStamp = int32(456)
-	s.mutableState.EXPECT().GetActivityInfo(activityScheduleEventID).Return(&persistencespb.ActivityInfo{
+	deps.mutableState.EXPECT().GetActivityInfo(activityScheduleEventID).Return(&persistencespb.ActivityInfo{
 		ScheduledEventId: activityScheduleEventID,
 		StartedEventId:   common.EmptyEventID,
 		Stamp:            storedStamp,
 	}, true)
 
-	valid, err := isActivityTaskValid(s.workflowLease, activityScheduleEventID, storedStamp+1)
-	s.NoError(err)
-	s.False(valid)
+	valid, err := isActivityTaskValid(deps.workflowLease, activityScheduleEventID, storedStamp+1)
+	require.NoError(t, err)
+	require.False(t, valid)
 }
 
-func (s *apiSuite) TestWorkflowRunning_ActivityTaskStampLegacy() {
-	s.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
+func TestWorkflowRunning_ActivityTaskStampLegacy(t *testing.T) {
+	deps := setupAPITest(t)
+
+	deps.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
 	activityScheduleEventID := rand.Int63()
-	s.mutableState.EXPECT().GetActivityInfo(activityScheduleEventID).Return(&persistencespb.ActivityInfo{
+	deps.mutableState.EXPECT().GetActivityInfo(activityScheduleEventID).Return(&persistencespb.ActivityInfo{
 		ScheduledEventId: activityScheduleEventID,
 		StartedEventId:   common.EmptyEventID,
 		Stamp:            0,
 	}, true)
 
-	valid, err := isActivityTaskValid(s.workflowLease, activityScheduleEventID, 0)
-	s.NoError(err)
-	s.True(valid)
+	valid, err := isActivityTaskValid(deps.workflowLease, activityScheduleEventID, 0)
+	require.NoError(t, err)
+	require.True(t, valid)
 }
 
-func (s *apiSuite) TestWorkflowRunning_ActivityTaskMissing() {
-	s.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
-	activityScheduleEventID := rand.Int63()
-	s.mutableState.EXPECT().GetActivityInfo(activityScheduleEventID).Return(nil, false)
+func TestWorkflowRunning_ActivityTaskMissing(t *testing.T) {
+	deps := setupAPITest(t)
 
-	valid, err := isActivityTaskValid(s.workflowLease, activityScheduleEventID, rand.Int31())
-	s.NoError(err)
-	s.False(valid)
+	deps.mutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
+	activityScheduleEventID := rand.Int63()
+	deps.mutableState.EXPECT().GetActivityInfo(activityScheduleEventID).Return(nil, false)
+
+	valid, err := isActivityTaskValid(deps.workflowLease, activityScheduleEventID, rand.Int31())
+	require.NoError(t, err)
+	require.False(t, valid)
 }

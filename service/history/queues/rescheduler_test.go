@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
@@ -16,52 +15,46 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	rescheudulerSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller    *gomock.Controller
-		mockScheduler *MockScheduler
-
-		timeSource *clock.EventTimeSource
-
-		rescheduler *reschedulerImpl
-	}
-)
-
-func TestReschdulerSuite(t *testing.T) {
-	s := new(rescheudulerSuite)
-	suite.Run(t, s)
+type reschedulerTestDeps struct {
+	controller    *gomock.Controller
+	mockScheduler *MockScheduler
+	timeSource    *clock.EventTimeSource
+	rescheduler   *reschedulerImpl
 }
 
-func (s *rescheudulerSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
+func setupReschedulerTest(t *testing.T) *reschedulerTestDeps {
+	t.Helper()
 
-	s.controller = gomock.NewController(s.T())
-	s.mockScheduler = NewMockScheduler(s.controller)
-	s.mockScheduler.EXPECT().TaskChannelKeyFn().Return(
+	controller := gomock.NewController(t)
+	mockScheduler := NewMockScheduler(controller)
+	mockScheduler.EXPECT().TaskChannelKeyFn().Return(
 		func(_ Executable) TaskChannelKey { return TaskChannelKey{} },
 	).AnyTimes()
 
-	s.timeSource = clock.NewEventTimeSource()
+	timeSource := clock.NewEventTimeSource()
 
-	s.rescheduler = NewRescheduler(
-		s.mockScheduler,
-		s.timeSource,
+	rescheduler := NewRescheduler(
+		mockScheduler,
+		timeSource,
 		log.NewTestLogger(),
 		metrics.NoopMetricsHandler,
 	)
+
+	return &reschedulerTestDeps{
+		controller:    controller,
+		mockScheduler: mockScheduler,
+		timeSource:    timeSource,
+		rescheduler:   rescheduler,
+	}
 }
 
-func (s *rescheudulerSuite) TearDownTest() {
-	s.controller.Finish()
-}
+func TestReschedulerStartStop(t *testing.T) {
+	t.Parallel()
 
-func (s *rescheudulerSuite) TestStartStop() {
+	deps := setupReschedulerTest(t)
 	timeSource := clock.NewRealTimeSource()
 	rescheduler := NewRescheduler(
-		s.mockScheduler,
+		deps.mockScheduler,
 		timeSource,
 		log.NewTestLogger(),
 		metrics.NoopMetricsHandler,
@@ -71,13 +64,13 @@ func (s *rescheudulerSuite) TestStartStop() {
 
 	numTasks := 20
 	taskCh := make(chan struct{}, numTasks)
-	s.mockScheduler.EXPECT().TrySubmit(gomock.Any()).DoAndReturn(func(_ Executable) bool {
+	deps.mockScheduler.EXPECT().TrySubmit(gomock.Any()).DoAndReturn(func(_ Executable) bool {
 		taskCh <- struct{}{}
 		return true
 	}).Times(numTasks)
 
 	for i := 0; i != numTasks; i++ {
-		mockExecutable := NewMockExecutable(s.controller)
+		mockExecutable := NewMockExecutable(deps.controller)
 		mockExecutable.EXPECT().SetScheduledTime(gomock.Any()).Times(1)
 		mockExecutable.EXPECT().State().Return(ctasks.TaskStatePending).Times(1)
 		rescheduler.Add(
@@ -91,13 +84,16 @@ func (s *rescheudulerSuite) TestStartStop() {
 	}
 	rescheduler.Stop()
 
-	s.Equal(0, rescheduler.Len())
+	require.Equal(t, 0, rescheduler.Len())
 }
 
-func (s *rescheudulerSuite) TestDrain() {
+func TestReschedulerDrain(t *testing.T) {
+	t.Parallel()
+
+	deps := setupReschedulerTest(t)
 	timeSource := clock.NewRealTimeSource()
 	rescheduler := NewRescheduler(
-		s.mockScheduler,
+		deps.mockScheduler,
 		timeSource,
 		log.NewTestLogger(),
 		metrics.NoopMetricsHandler,
@@ -108,63 +104,69 @@ func (s *rescheudulerSuite) TestDrain() {
 
 	for i := 0; i != 10; i++ {
 		rescheduler.Add(
-			NewMockExecutable(s.controller),
+			NewMockExecutable(deps.controller),
 			timeSource.Now().Add(time.Duration(rand.Int63n(300))*time.Second),
 		)
 	}
 
-	s.Equal(0, rescheduler.Len())
+	require.Equal(t, 0, rescheduler.Len())
 }
 
-func (s *rescheudulerSuite) TestReschedule_NoRescheduleLimit() {
+func TestReschedulerReschedule_NoRescheduleLimit(t *testing.T) {
+	t.Parallel()
+
+	deps := setupReschedulerTest(t)
 	now := time.Now()
-	s.timeSource.Update(now)
+	deps.timeSource.Update(now)
 	rescheduleInterval := time.Minute
 
 	numExecutable := 10
 	for i := 0; i != numExecutable/2; i++ {
-		mockTask := NewMockExecutable(s.controller)
+		mockTask := NewMockExecutable(deps.controller)
 		mockTask.EXPECT().SetScheduledTime(gomock.Any()).Times(1)
 		mockTask.EXPECT().State().Return(ctasks.TaskStatePending).Times(1)
-		s.rescheduler.Add(
+		deps.rescheduler.Add(
 			mockTask,
 			now.Add(time.Duration(rand.Int63n(rescheduleInterval.Nanoseconds()))),
 		)
 
-		s.rescheduler.Add(
-			NewMockExecutable(s.controller),
+		deps.rescheduler.Add(
+			NewMockExecutable(deps.controller),
 			now.Add(rescheduleInterval+time.Duration(rand.Int63n(time.Minute.Nanoseconds()))),
 		)
 	}
-	s.Equal(numExecutable, s.rescheduler.Len())
+	require.Equal(t, numExecutable, deps.rescheduler.Len())
 
-	s.mockScheduler.EXPECT().TrySubmit(gomock.Any()).Return(true).Times(numExecutable / 2)
+	deps.mockScheduler.EXPECT().TrySubmit(gomock.Any()).Return(true).Times(numExecutable / 2)
 
-	s.timeSource.Update(now.Add(rescheduleInterval))
-	s.rescheduler.reschedule()
-	s.Equal(numExecutable/2, s.rescheduler.Len())
+	deps.timeSource.Update(now.Add(rescheduleInterval))
+	deps.rescheduler.reschedule()
+	require.Equal(t, numExecutable/2, deps.rescheduler.Len())
 }
 
-func (s *rescheudulerSuite) TestReschedule_TaskChanFull() {
+func TestReschedulerReschedule_TaskChanFull(t *testing.T) {
+	t.Parallel()
+
+	deps := setupReschedulerTest(t)
 	now := time.Now()
-	s.timeSource.Update(now)
+	deps.timeSource.Update(now)
 	rescheduleInterval := time.Minute
 
 	numExecutable := 10
 	for i := 0; i != numExecutable; i++ {
-		mockTask := NewMockExecutable(s.controller)
+		mockTask := NewMockExecutable(deps.controller)
 		mockTask.EXPECT().SetScheduledTime(gomock.Any()).AnyTimes()
 		mockTask.EXPECT().State().Return(ctasks.TaskStatePending).MaxTimes(1)
-		s.rescheduler.Add(
+		deps.rescheduler.Add(
 			mockTask,
 			now.Add(time.Duration(rand.Int63n(rescheduleInterval.Nanoseconds()))),
 		)
 	}
-	s.Equal(numExecutable, s.rescheduler.Len())
+	require.Equal(t, numExecutable, deps.rescheduler.Len())
 
 	numSubmitted := 0
 	numAllowed := numExecutable / 2
-	s.mockScheduler.EXPECT().TrySubmit(gomock.Any()).DoAndReturn(func(_ Executable) bool {
+	deps.mockScheduler.EXPECT().TrySubmit(gomock.Any()).DoAndReturn(func(_ Executable) bool {
 		if numSubmitted < numAllowed {
 			numSubmitted++
 			return true
@@ -173,99 +175,108 @@ func (s *rescheudulerSuite) TestReschedule_TaskChanFull() {
 		return false
 	}).Times(numAllowed + 1)
 
-	s.timeSource.Update(now.Add(rescheduleInterval))
-	s.rescheduler.reschedule()
-	s.Equal(numExecutable-numSubmitted, s.rescheduler.Len())
+	deps.timeSource.Update(now.Add(rescheduleInterval))
+	deps.rescheduler.reschedule()
+	require.Equal(t, numExecutable-numSubmitted, deps.rescheduler.Len())
 }
 
-func (s *rescheudulerSuite) TestReschedule_DropCancelled() {
+func TestReschedulerReschedule_DropCancelled(t *testing.T) {
+	t.Parallel()
+
+	deps := setupReschedulerTest(t)
 	now := time.Now()
-	s.timeSource.Update(now)
+	deps.timeSource.Update(now)
 	rescheduleInterval := time.Minute
 
 	for i := 0; i != 10; i++ {
-		mockTask := NewMockExecutable(s.controller)
+		mockTask := NewMockExecutable(deps.controller)
 		mockTask.EXPECT().State().Return(ctasks.TaskStateCancelled).Times(1)
-		s.rescheduler.Add(
+		deps.rescheduler.Add(
 			mockTask,
 			now.Add(time.Duration(rand.Int63n(rescheduleInterval.Nanoseconds()))),
 		)
 	}
 
-	s.timeSource.Update(now.Add(rescheduleInterval))
-	s.rescheduler.reschedule()
-	s.Equal(0, s.rescheduler.Len())
+	deps.timeSource.Update(now.Add(rescheduleInterval))
+	deps.rescheduler.reschedule()
+	require.Equal(t, 0, deps.rescheduler.Len())
 }
 
-func (s *rescheudulerSuite) TestForceReschedule_ImmediateTask() {
-	now := time.Now()
-	s.timeSource.Update(now)
-	namespaceID := s.mockScheduler.TaskChannelKeyFn()(nil).NamespaceID
+func TestReschedulerForceReschedule_ImmediateTask(t *testing.T) {
+	t.Parallel()
 
-	s.rescheduler.Start()
-	defer s.rescheduler.Stop()
+	deps := setupReschedulerTest(t)
+	now := time.Now()
+	deps.timeSource.Update(now)
+	namespaceID := deps.mockScheduler.TaskChannelKeyFn()(nil).NamespaceID
+
+	deps.rescheduler.Start()
+	defer deps.rescheduler.Stop()
 
 	numTask := 10
 	taskWG := &sync.WaitGroup{}
 	taskWG.Add(numTask)
 	for i := 0; i != numTask; i++ {
-		mockTask := NewMockExecutable(s.controller)
+		mockTask := NewMockExecutable(deps.controller)
 		mockTask.EXPECT().State().Return(ctasks.TaskStatePending).AnyTimes()
 		mockTask.EXPECT().SetScheduledTime(gomock.Any()).AnyTimes()
 		mockTask.EXPECT().GetKey().Return(tasks.NewImmediateKey(int64(i))).AnyTimes()
-		s.rescheduler.Add(
+		deps.rescheduler.Add(
 			mockTask,
 			now.Add(time.Minute+time.Duration(rand.Int63n(time.Minute.Nanoseconds()))),
 		)
 	}
 
-	s.mockScheduler.EXPECT().TrySubmit(gomock.Any()).DoAndReturn(func(_ Executable) bool {
+	deps.mockScheduler.EXPECT().TrySubmit(gomock.Any()).DoAndReturn(func(_ Executable) bool {
 		taskWG.Done()
 		return true
 	}).Times(numTask)
 
-	s.rescheduler.Reschedule(namespaceID)
+	deps.rescheduler.Reschedule(namespaceID)
 	taskWG.Wait()
-	s.Equal(0, s.rescheduler.Len())
+	require.Equal(t, 0, deps.rescheduler.Len())
 }
 
-func (s *rescheudulerSuite) TestForceReschedule_ScheduledTask() {
-	now := time.Now()
-	s.timeSource.Update(now)
-	namespaceID := s.mockScheduler.TaskChannelKeyFn()(nil).NamespaceID
+func TestReschedulerForceReschedule_ScheduledTask(t *testing.T) {
+	t.Parallel()
 
-	s.rescheduler.Start()
-	defer s.rescheduler.Stop()
+	deps := setupReschedulerTest(t)
+	now := time.Now()
+	deps.timeSource.Update(now)
+	namespaceID := deps.mockScheduler.TaskChannelKeyFn()(nil).NamespaceID
+
+	deps.rescheduler.Start()
+	defer deps.rescheduler.Stop()
 
 	taskWG := &sync.WaitGroup{}
 	taskWG.Add(1)
 
-	retryingTask := NewMockExecutable(s.controller)
+	retryingTask := NewMockExecutable(deps.controller)
 	retryingTask.EXPECT().State().Return(ctasks.TaskStatePending).AnyTimes()
 	retryingTask.EXPECT().SetScheduledTime(gomock.Any()).AnyTimes()
 	retryingTask.EXPECT().GetKey().Return(tasks.NewKey(now.Add(-time.Minute), int64(1))).AnyTimes()
-	s.rescheduler.Add(
+	deps.rescheduler.Add(
 		retryingTask,
 		now.Add(time.Minute),
 	)
 
 	// schedule queue pre-fetches tasks
 	futureTaskTimestamp := now.Add(time.Second)
-	futureTask := NewMockExecutable(s.controller)
+	futureTask := NewMockExecutable(deps.controller)
 	futureTask.EXPECT().State().Return(ctasks.TaskStatePending).AnyTimes()
 	futureTask.EXPECT().SetScheduledTime(gomock.Any()).AnyTimes()
 	futureTask.EXPECT().GetKey().Return(tasks.NewKey(futureTaskTimestamp, int64(2))).AnyTimes()
-	s.rescheduler.Add(
+	deps.rescheduler.Add(
 		futureTask,
 		futureTaskTimestamp,
 	)
 
-	s.mockScheduler.EXPECT().TrySubmit(gomock.Any()).DoAndReturn(func(_ Executable) bool {
+	deps.mockScheduler.EXPECT().TrySubmit(gomock.Any()).DoAndReturn(func(_ Executable) bool {
 		taskWG.Done()
 		return true
 	}).Times(1)
 
-	s.rescheduler.Reschedule(namespaceID)
+	deps.rescheduler.Reschedule(namespaceID)
 	taskWG.Wait()
-	s.Equal(1, s.rescheduler.Len())
+	require.Equal(t, 1, deps.rescheduler.Len())
 }

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/server/api/adminservice/v1"
 	enumsspb "go.temporal.io/server/api/enums/v1"
@@ -21,33 +20,31 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type (
-	apiSuite struct {
-		suite.Suite
-		*require.Assertions
+type apiTestDeps struct {
+	controller           *gomock.Controller
+	mockExecutionManager *persistence.MockExecutionManager
+	taskCategoryRegistry tasks.TaskCategoryRegistry
+}
 
-		controller           *gomock.Controller
-		mockExecutionManager *persistence.MockExecutionManager
+func setupAPITest(t *testing.T) *apiTestDeps {
+	controller := gomock.NewController(t)
+	mockExecutionManager := persistence.NewMockExecutionManager(controller)
+	taskCategoryRegistry := tasks.NewDefaultTaskCategoryRegistry()
 
-		taskCategoryRegistry tasks.TaskCategoryRegistry
+	t.Cleanup(func() {
+		controller.Finish()
+	})
+
+	return &apiTestDeps{
+		controller:           controller,
+		mockExecutionManager: mockExecutionManager,
+		taskCategoryRegistry: taskCategoryRegistry,
 	}
-)
-
-func TestAPISuite(t *testing.T) {
-	s := new(apiSuite)
-	suite.Run(t, s)
 }
 
-func (s *apiSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
+func TestInvalidTaskCategory(t *testing.T) {
+	deps := setupAPITest(t)
 
-	s.controller = gomock.NewController(s.T())
-	s.mockExecutionManager = persistence.NewMockExecutionManager(s.controller)
-
-	s.taskCategoryRegistry = tasks.NewDefaultTaskCategoryRegistry()
-}
-
-func (s *apiSuite) TestInvalidTaskCategory() {
 	invalidCategoryID := int32(-1)
 	request := &historyservice.ListTasksRequest{
 		Request: &adminservice.ListHistoryTasksRequest{
@@ -68,16 +65,18 @@ func (s *apiSuite) TestInvalidTaskCategory() {
 
 	_, err := Invoke(
 		context.Background(),
-		s.taskCategoryRegistry,
-		s.mockExecutionManager,
+		deps.taskCategoryRegistry,
+		deps.mockExecutionManager,
 		request,
 	)
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
-	s.ErrorContains(err, strconv.Itoa(int(invalidCategoryID)))
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
+	require.ErrorContains(t, err, strconv.Itoa(int(invalidCategoryID)))
 }
 
-func (s *apiSuite) TestInvalidTaskRange() {
+func TestInvalidTaskRange(t *testing.T) {
+	deps := setupAPITest(t)
+
 	invalidTaskID := int64(-1)
 	request := &historyservice.ListTasksRequest{
 		Request: &adminservice.ListHistoryTasksRequest{
@@ -100,16 +99,18 @@ func (s *apiSuite) TestInvalidTaskRange() {
 
 	_, err := Invoke(
 		context.Background(),
-		s.taskCategoryRegistry,
-		s.mockExecutionManager,
+		deps.taskCategoryRegistry,
+		deps.mockExecutionManager,
 		request,
 	)
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
-	s.ErrorContains(err, strconv.Itoa(int(invalidTaskID)))
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
+	require.ErrorContains(t, err, strconv.Itoa(int(invalidTaskID)))
 }
 
-func (s *apiSuite) TestGetHistoryTasks() {
+func TestGetHistoryTasks(t *testing.T) {
+	deps := setupAPITest(t)
+
 	batchSize := 2
 	reqNextPageToken := []byte("req-next-page-token")
 	minTaskID := int64(10)
@@ -148,7 +149,7 @@ func (s *apiSuite) TestGetHistoryTasks() {
 		fakeTasks = append(fakeTasks, fakeTask)
 	}
 
-	s.mockExecutionManager.EXPECT().GetHistoryTasks(gomock.Any(), &persistence.GetHistoryTasksRequest{
+	deps.mockExecutionManager.EXPECT().GetHistoryTasks(gomock.Any(), &persistence.GetHistoryTasksRequest{
 		ShardID:             1,
 		TaskCategory:        tasks.CategoryTransfer,
 		InclusiveMinTaskKey: tasks.NewImmediateKey(minTaskID),
@@ -162,11 +163,11 @@ func (s *apiSuite) TestGetHistoryTasks() {
 
 	resp, err := Invoke(
 		context.Background(),
-		s.taskCategoryRegistry,
-		s.mockExecutionManager,
+		deps.taskCategoryRegistry,
+		deps.mockExecutionManager,
 		request,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	expectedAdminTasks := make([]*adminservice.Task, 0, batchSize)
 	for i := range fakeTasks {
@@ -182,7 +183,7 @@ func (s *apiSuite) TestGetHistoryTasks() {
 		expectedAdminTasks = append(expectedAdminTasks, adminTask)
 	}
 
-	protoassert.ProtoEqual(s.T(), &historyservice.ListTasksResponse{
+	protoassert.ProtoEqual(t, &historyservice.ListTasksResponse{
 		Response: &adminservice.ListHistoryTasksResponse{
 			Tasks:         expectedAdminTasks,
 			NextPageToken: respNextPageToken,

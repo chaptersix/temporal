@@ -3,13 +3,10 @@ package replication
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/api/serviceerror"
 	enumsspb "go.temporal.io/server/api/enums/v1"
@@ -30,50 +27,29 @@ import (
 	"go.temporal.io/server/service/history/tests"
 	wcache "go.temporal.io/server/service/history/workflow/cache"
 	"go.uber.org/mock/gomock"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type (
-	taskExecutorSuite struct {
-		suite.Suite
-		*require.Assertions
-		controller *gomock.Controller
-
-		remoteCluster      string
-		mockResource       *resourcetest.Test
-		mockShard          *shard.ContextTest
-		config             *configs.Config
-		historyClient      *historyservicemock.MockHistoryServiceClient
-		mockNamespaceCache *namespace.MockRegistry
-		clusterMetadata    *cluster.MockMetadata
-		workflowCache      *wcache.MockCache
-		nDCHistoryResender *eventhandler.MockResendHandler
-
-		replicationTaskExecutor *taskExecutorImpl
-	}
-)
-
-func TestTaskExecutorSuite(t *testing.T) {
-	s := new(taskExecutorSuite)
-	suite.Run(t, s)
+type taskExecutorTestDeps struct {
+	controller                  *gomock.Controller
+	remoteCluster               string
+	mockResource                *resourcetest.Test
+	mockShard                   *shard.ContextTest
+	config                      *configs.Config
+	historyClient               *historyservicemock.MockHistoryServiceClient
+	mockNamespaceCache          *namespace.MockRegistry
+	clusterMetadata             *cluster.MockMetadata
+	workflowCache               *wcache.MockCache
+	nDCHistoryResender          *eventhandler.MockResendHandler
+	replicationTaskExecutor     *taskExecutorImpl
 }
 
-func (s *taskExecutorSuite) SetupSuite() {
+func setupTaskExecutorTest(t *testing.T) *taskExecutorTestDeps {
+	controller := gomock.NewController(t)
+	remoteCluster := cluster.TestAlternativeClusterName
 
-}
-
-func (s *taskExecutorSuite) TearDownSuite() {
-
-}
-
-func (s *taskExecutorSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-	s.controller = gomock.NewController(s.T())
-	s.remoteCluster = cluster.TestAlternativeClusterName
-
-	s.config = tests.NewDynamicConfig()
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+	config := tests.NewDynamicConfig()
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{
 			ShardId: 0,
 			RangeId: 1,
@@ -81,33 +57,46 @@ func (s *taskExecutorSuite) SetupTest() {
 				cluster.TestAlternativeClusterName: persistence.EmptyQueueMessageID,
 			},
 		},
-		s.config,
+		config,
 	)
-	s.mockResource = s.mockShard.Resource
-	s.mockNamespaceCache = s.mockResource.NamespaceCache
-	s.clusterMetadata = s.mockResource.ClusterMetadata
-	s.nDCHistoryResender = eventhandler.NewMockResendHandler(s.controller)
-	s.historyClient = historyservicemock.NewMockHistoryServiceClient(s.controller)
-	s.workflowCache = wcache.NewMockCache(s.controller)
+	mockResource := mockShard.Resource
+	mockNamespaceCache := mockResource.NamespaceCache
+	clusterMetadata := mockResource.ClusterMetadata
+	nDCHistoryResender := eventhandler.NewMockResendHandler(controller)
+	historyClient := historyservicemock.NewMockHistoryServiceClient(controller)
+	workflowCache := wcache.NewMockCache(controller)
 
-	s.clusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockNamespaceCache.EXPECT().GetNamespaceName(gomock.Any()).Return(tests.Namespace, nil).AnyTimes()
-	s.mockShard.SetHistoryClientForTesting(s.historyClient)
-	s.replicationTaskExecutor = NewTaskExecutor(
-		s.remoteCluster,
-		s.mockShard,
-		s.nDCHistoryResender,
-		deletemanager.NewMockDeleteManager(s.controller),
-		s.workflowCache,
+	clusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockNamespaceCache.EXPECT().GetNamespaceName(gomock.Any()).Return(tests.Namespace, nil).AnyTimes()
+	mockShard.SetHistoryClientForTesting(historyClient)
+	replicationTaskExecutor := NewTaskExecutor(
+		remoteCluster,
+		mockShard,
+		nDCHistoryResender,
+		deletemanager.NewMockDeleteManager(controller),
+		workflowCache,
 	).(*taskExecutorImpl)
+
+	return &taskExecutorTestDeps{
+		controller:              controller,
+		remoteCluster:           remoteCluster,
+		mockResource:            mockResource,
+		mockShard:               mockShard,
+		config:                  config,
+		historyClient:           historyClient,
+		mockNamespaceCache:      mockNamespaceCache,
+		clusterMetadata:         clusterMetadata,
+		workflowCache:           workflowCache,
+		nDCHistoryResender:      nDCHistoryResender,
+		replicationTaskExecutor: replicationTaskExecutor,
+	}
 }
 
-func (s *taskExecutorSuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.StopForTest()
-}
+func TestFilterTask_Apply(t *testing.T) {
+	s := setupTaskExecutorTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
 
-func (s *taskExecutorSuite) TestFilterTask_Apply() {
 	namespaceID := namespace.ID(uuid.New())
 	s.mockNamespaceCache.EXPECT().
 		GetNamespaceByID(namespaceID).
@@ -121,11 +110,15 @@ func (s *taskExecutorSuite) TestFilterTask_Apply() {
 			0,
 		), nil)
 	ok, err := s.replicationTaskExecutor.filterTask(namespaceID, false)
-	s.NoError(err)
-	s.True(ok)
+	require.NoError(t, err)
+	require.True(t, ok)
 }
 
-func (s *taskExecutorSuite) TestFilterTask_NotApply() {
+func TestFilterTask_NotApply(t *testing.T) {
+	s := setupTaskExecutorTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	namespaceID := namespace.ID(uuid.New())
 	s.mockNamespaceCache.EXPECT().
 		GetNamespaceByID(namespaceID).
@@ -136,38 +129,54 @@ func (s *taskExecutorSuite) TestFilterTask_NotApply() {
 			0,
 		), nil)
 	ok, err := s.replicationTaskExecutor.filterTask(namespaceID, false)
-	s.NoError(err)
-	s.False(ok)
+	require.NoError(t, err)
+	require.False(t, ok)
 }
 
-func (s *taskExecutorSuite) TestFilterTask_Error() {
+func TestFilterTask_Error(t *testing.T) {
+	s := setupTaskExecutorTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	namespaceID := namespace.ID(uuid.New())
 	s.mockNamespaceCache.EXPECT().
 		GetNamespaceByID(namespaceID).
 		Return(nil, fmt.Errorf("random error"))
 	ok, err := s.replicationTaskExecutor.filterTask(namespaceID, false)
-	s.Error(err)
-	s.False(ok)
+	require.Error(t, err)
+	require.False(t, ok)
 }
 
-func (s *taskExecutorSuite) TestFilterTask_EnforceApply() {
+func TestFilterTask_EnforceApply(t *testing.T) {
+	s := setupTaskExecutorTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	namespaceID := namespace.ID(uuid.New())
 	ok, err := s.replicationTaskExecutor.filterTask(namespaceID, true)
-	s.NoError(err)
-	s.True(ok)
+	require.NoError(t, err)
+	require.True(t, ok)
 }
 
-func (s *taskExecutorSuite) TestFilterTask_NamespaceNotFound() {
+func TestFilterTask_NamespaceNotFound(t *testing.T) {
+	s := setupTaskExecutorTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	namespaceID := namespace.ID(uuid.New())
 	s.mockNamespaceCache.EXPECT().
 		GetNamespaceByID(namespaceID).
 		Return(nil, &serviceerror.NamespaceNotFound{})
 	ok, err := s.replicationTaskExecutor.filterTask(namespaceID, false)
-	s.NoError(err)
-	s.False(ok)
+	require.NoError(t, err)
+	require.False(t, ok)
 }
 
-func (s *taskExecutorSuite) TestProcessTaskOnce_SyncActivityReplicationTask() {
+func TestProcessTaskOnce_SyncActivityReplicationTask(t *testing.T) {
+	s := setupTaskExecutorTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	namespaceID := namespace.ID(uuid.New())
 	workflowID := uuid.New()
 	runID := uuid.New()
@@ -211,10 +220,14 @@ func (s *taskExecutorSuite) TestProcessTaskOnce_SyncActivityReplicationTask() {
 
 	s.historyClient.EXPECT().SyncActivity(gomock.Any(), request).Return(&historyservice.SyncActivityResponse{}, nil)
 	err := s.replicationTaskExecutor.Execute(context.Background(), task, true)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskExecutorSuite) TestProcessTaskOnce_SyncActivityReplicationTask_Resend() {
+func TestProcessTaskOnce_SyncActivityReplicationTask_Resend(t *testing.T) {
+	s := setupTaskExecutorTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	namespaceID := namespace.ID(uuid.New())
 	workflowID := uuid.New()
 	runID := uuid.New()
@@ -277,10 +290,14 @@ func (s *taskExecutorSuite) TestProcessTaskOnce_SyncActivityReplicationTask_Rese
 
 	s.historyClient.EXPECT().SyncActivity(gomock.Any(), request).Return(&historyservice.SyncActivityResponse{}, nil)
 	err := s.replicationTaskExecutor.Execute(context.Background(), task, true)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskExecutorSuite) TestProcess_HistoryReplicationTask() {
+func TestProcess_HistoryReplicationTask(t *testing.T) {
+	s := setupTaskExecutorTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	namespaceID := namespace.ID(uuid.New())
 	workflowID := uuid.New()
 	runID := uuid.New()
@@ -309,10 +326,14 @@ func (s *taskExecutorSuite) TestProcess_HistoryReplicationTask() {
 	}
 	s.historyClient.EXPECT().ReplicateEventsV2(gomock.Any(), request).Return(&historyservice.ReplicateEventsV2Response{}, nil)
 	err := s.replicationTaskExecutor.Execute(context.Background(), task, true)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskExecutorSuite) TestProcess_HistoryReplicationTask_Resend() {
+func TestProcess_HistoryReplicationTask_Resend(t *testing.T) {
+	s := setupTaskExecutorTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	namespaceID := namespace.ID(uuid.New())
 	workflowID := uuid.New()
 	runID := uuid.New()
@@ -365,10 +386,14 @@ func (s *taskExecutorSuite) TestProcess_HistoryReplicationTask_Resend() {
 
 	s.historyClient.EXPECT().ReplicateEventsV2(gomock.Any(), request).Return(&historyservice.ReplicateEventsV2Response{}, nil)
 	err := s.replicationTaskExecutor.Execute(context.Background(), task, true)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskExecutorSuite) TestProcessTaskOnce_SyncWorkflowStateTask() {
+func TestProcessTaskOnce_SyncWorkflowStateTask(t *testing.T) {
+	s := setupTaskExecutorTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	namespaceID := namespace.ID(uuid.New())
 	task := &replicationspb.ReplicationTask{
 		TaskType: enumsspb.REPLICATION_TASK_TYPE_SYNC_WORKFLOW_STATE_TASK,
@@ -385,16 +410,19 @@ func (s *taskExecutorSuite) TestProcessTaskOnce_SyncWorkflowStateTask() {
 	s.historyClient.EXPECT().ReplicateWorkflowState(gomock.Any(), gomock.Any()).Return(&historyservice.ReplicateWorkflowStateResponse{}, nil)
 
 	err := s.replicationTaskExecutor.Execute(context.Background(), task, true)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskExecutorSuite) TestProcessTaskOnce_SyncHSMTask() {
+func TestProcessTaskOnce_SyncHSMTask(t *testing.T) {
+	s := setupTaskExecutorTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	namespaceID := namespace.ID(uuid.New())
 	workflowID := uuid.New()
 	runID := uuid.New()
 	task := &replicationspb.ReplicationTask{
-		SourceTaskId: rand.Int63(),
-		TaskType:     enumsspb.REPLICATION_TASK_TYPE_SYNC_HSM_TASK,
+		TaskType: enumsspb.REPLICATION_TASK_TYPE_SYNC_HSM_TASK,
 		Attributes: &replicationspb.ReplicationTask_SyncHsmAttributes{SyncHsmAttributes: &replicationspb.SyncHSMAttributes{
 			NamespaceId:      namespaceID.String(),
 			WorkflowId:       workflowID,
@@ -402,10 +430,9 @@ func (s *taskExecutorSuite) TestProcessTaskOnce_SyncHSMTask() {
 			VersionHistory:   &historyspb.VersionHistory{},
 			StateMachineNode: &persistencespb.StateMachineNode{},
 		}},
-		VisibilityTime: timestamppb.New(time.Now()),
 	}
 
 	// not handling SyncHSMTask in deprecated replication task processing code path
 	err := s.replicationTaskExecutor.Execute(context.Background(), task, true)
-	s.ErrorIs(err, ErrUnknownReplicationTask)
+	require.ErrorIs(t, err, ErrUnknownReplicationTask)
 }

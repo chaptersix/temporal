@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/workflowservice/v1"
@@ -33,43 +32,15 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	workflowSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller        *gomock.Controller
-		shardContext      *historyi.MockShardContext
-		namespaceRegistry *namespace.MockRegistry
-
-		workflowCache              *wcache.MockCache
-		workflowConsistencyChecker api.WorkflowConsistencyChecker
-
-		workflowContext     *historyi.MockWorkflowContext
-		currentMutableState *historyi.MockMutableState
-
-		activityInfo *persistencespb.ActivityInfo
-	}
-)
-
-func TestWorkflowSuite(t *testing.T) {
-	s := new(workflowSuite)
-	suite.Run(t, s)
-}
-
-func (s *workflowSuite) SetupSuite() {
-}
-
-func (s *workflowSuite) TearDownSuite() {
-}
-
-func (s *workflowSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-	s.controller = gomock.NewController(s.T())
-}
-
-func (s *workflowSuite) TearDownTest() {
-	s.controller.Finish()
+type testDeps struct {
+	controller                 *gomock.Controller
+	shardContext               *historyi.MockShardContext
+	namespaceRegistry          *namespace.MockRegistry
+	workflowCache              *wcache.MockCache
+	workflowConsistencyChecker api.WorkflowConsistencyChecker
+	workflowContext            *historyi.MockWorkflowContext
+	currentMutableState        *historyi.MockMutableState
+	activityInfo               *persistencespb.ActivityInfo
 }
 
 type UsecaseConfig struct {
@@ -94,7 +65,24 @@ type UsecaseConfig struct {
 	includeHeartbeat    bool
 }
 
-func (s *workflowSuite) Test_NormalFlowShouldRescheduleActivity_UpdatesWorkflowExecutionAsActive() {
+func setupTest(t *testing.T) *testDeps {
+	t.Helper()
+
+	controller := gomock.NewController(t)
+
+	t.Cleanup(func() {
+		controller.Finish()
+	})
+
+	return &testDeps{
+		controller: controller,
+	}
+}
+
+func Test_NormalFlowShouldRescheduleActivity_UpdatesWorkflowExecutionAsActive(t *testing.T) {
+	t.Parallel()
+
+	deps := setupTest(t)
 	ctx := context.Background()
 	uc := newUseCase(UsecaseConfig{
 		attempt:             int32(1),
@@ -105,37 +93,43 @@ func (s *workflowSuite) Test_NormalFlowShouldRescheduleActivity_UpdatesWorkflowE
 		isCacheStale:        false,
 		retryActivityState:  enumspb.RETRY_STATE_IN_PROGRESS,
 	})
-	request := s.newRespondActivityTaskFailedRequest(uc)
-	s.setupStubs(uc)
+	request := newRespondActivityTaskFailedRequest(t, uc)
+	setupStubs(t, deps, uc)
 
-	s.expectTransientFailureMetricsRecorded(uc, s.shardContext)
-	s.workflowContext.EXPECT().UpdateWorkflowExecutionAsActive(ctx, s.shardContext).Return(nil)
-	s.currentMutableState.EXPECT().GetEffectiveVersioningBehavior().Return(enumspb.VERSIONING_BEHAVIOR_UNSPECIFIED)
+	expectTransientFailureMetricsRecorded(t, uc, deps.shardContext)
+	deps.workflowContext.EXPECT().UpdateWorkflowExecutionAsActive(ctx, deps.shardContext).Return(nil)
+	deps.currentMutableState.EXPECT().GetEffectiveVersioningBehavior().Return(enumspb.VERSIONING_BEHAVIOR_UNSPECIFIED)
 
-	_, err := Invoke(ctx, request, s.shardContext, s.workflowConsistencyChecker)
-	s.NoError(err)
+	_, err := Invoke(ctx, request, deps.shardContext, deps.workflowConsistencyChecker)
+	require.NoError(t, err)
 }
 
-func (s *workflowSuite) Test_WorkflowExecutionIsNotRunning_ReturnWorkflowNotRunningError() {
+func Test_WorkflowExecutionIsNotRunning_ReturnWorkflowNotRunningError(t *testing.T) {
+	t.Parallel()
+
+	deps := setupTest(t)
 	uc := newUseCase(UsecaseConfig{
 		attempt:            int32(1),
 		startedEventId:     int64(40),
 		scheduledEventId:   int64(42),
 		isExecutionRunning: false,
 	})
-	request := s.newRespondActivityTaskFailedRequest(uc)
-	s.setupStubs(uc)
+	request := newRespondActivityTaskFailedRequest(t, uc)
+	setupStubs(t, deps, uc)
 	_, err := Invoke(
 		context.Background(),
 		request,
-		s.shardContext,
-		s.workflowConsistencyChecker,
+		deps.shardContext,
+		deps.workflowConsistencyChecker,
 	)
-	s.Error(err)
-	s.EqualValues(consts.ErrWorkflowCompleted, err)
+	require.Error(t, err)
+	require.Equal(t, consts.ErrWorkflowCompleted, err)
 }
 
-func (s *workflowSuite) Test_CacheRefreshRequired_ReturnCacheStaleError() {
+func Test_CacheRefreshRequired_ReturnCacheStaleError(t *testing.T) {
+	t.Parallel()
+
+	deps := setupTest(t)
 	uc := newUseCase(UsecaseConfig{
 		attempt:            int32(1),
 		startedEventId:     int64(40),
@@ -144,21 +138,24 @@ func (s *workflowSuite) Test_CacheRefreshRequired_ReturnCacheStaleError() {
 		isExecutionRunning: true,
 		isCacheStale:       true,
 	})
-	s.setupStubs(uc)
-	request := s.newRespondActivityTaskFailedRequest(uc)
-	s.expectCounterRecorded(s.shardContext)
+	setupStubs(t, deps, uc)
+	request := newRespondActivityTaskFailedRequest(t, uc)
+	expectCounterRecorded(t, deps.shardContext)
 
 	_, err := Invoke(
 		context.Background(),
 		request,
-		s.shardContext,
-		s.workflowConsistencyChecker,
+		deps.shardContext,
+		deps.workflowConsistencyChecker,
 	)
-	s.Error(err)
-	s.EqualValues(consts.ErrStaleState, err)
+	require.Error(t, err)
+	require.Equal(t, consts.ErrStaleState, err)
 }
 
-func (s *workflowSuite) Test_ActivityTaskDoesNotExist_ActivityNotRunning() {
+func Test_ActivityTaskDoesNotExist_ActivityNotRunning(t *testing.T) {
+	t.Parallel()
+
+	deps := setupTest(t)
 	uc := newUseCase(UsecaseConfig{
 		attempt:            int32(1),
 		startedEventId:     int64(40),
@@ -166,20 +163,23 @@ func (s *workflowSuite) Test_ActivityTaskDoesNotExist_ActivityNotRunning() {
 		isActivityActive:   false,
 		isExecutionRunning: true,
 	})
-	s.setupStubs(uc)
-	request := s.newRespondActivityTaskFailedRequest(uc)
+	setupStubs(t, deps, uc)
+	request := newRespondActivityTaskFailedRequest(t, uc)
 
 	_, err := Invoke(
 		context.Background(),
 		request,
-		s.shardContext,
-		s.workflowConsistencyChecker,
+		deps.shardContext,
+		deps.workflowConsistencyChecker,
 	)
-	s.Error(err)
-	s.EqualValues(consts.ErrActivityTaskNotFound, err)
+	require.Error(t, err)
+	require.Equal(t, consts.ErrActivityTaskNotFound, err)
 }
 
-func (s *workflowSuite) Test_ActivityTaskDoesNotExist_TokenVersionDoesNotMatchActivityVersion() {
+func Test_ActivityTaskDoesNotExist_TokenVersionDoesNotMatchActivityVersion(t *testing.T) {
+	t.Parallel()
+
+	deps := setupTest(t)
 	uc := newUseCase(UsecaseConfig{
 		attempt:            int32(1),
 		startedEventId:     int64(40),
@@ -188,20 +188,23 @@ func (s *workflowSuite) Test_ActivityTaskDoesNotExist_TokenVersionDoesNotMatchAc
 		isExecutionRunning: true,
 		tokenVersion:       int64(72),
 	})
-	s.setupStubs(uc)
-	request := s.newRespondActivityTaskFailedRequest(uc)
+	setupStubs(t, deps, uc)
+	request := newRespondActivityTaskFailedRequest(t, uc)
 
 	_, err := Invoke(
 		context.Background(),
 		request,
-		s.shardContext,
-		s.workflowConsistencyChecker,
+		deps.shardContext,
+		deps.workflowConsistencyChecker,
 	)
-	s.Error(err)
-	s.EqualValues(consts.ErrActivityTaskNotFound, err)
+	require.Error(t, err)
+	require.Equal(t, consts.ErrActivityTaskNotFound, err)
 }
 
-func (s *workflowSuite) Test_ActivityTaskDoesNotExist_TokenVersionNonZeroAndAttemptDoesNotMatchActivityAttempt() {
+func Test_ActivityTaskDoesNotExist_TokenVersionNonZeroAndAttemptDoesNotMatchActivityAttempt(t *testing.T) {
+	t.Parallel()
+
+	deps := setupTest(t)
 	uc := newUseCase(UsecaseConfig{
 		attempt:            int32(1),
 		startedEventId:     int64(40),
@@ -211,20 +214,23 @@ func (s *workflowSuite) Test_ActivityTaskDoesNotExist_TokenVersionNonZeroAndAtte
 		tokenVersion:       int64(2),
 		tokenAttempt:       int32(5),
 	})
-	s.setupStubs(uc)
-	request := s.newRespondActivityTaskFailedRequest(uc)
+	setupStubs(t, deps, uc)
+	request := newRespondActivityTaskFailedRequest(t, uc)
 
 	_, err := Invoke(
 		context.Background(),
 		request,
-		s.shardContext,
-		s.workflowConsistencyChecker,
+		deps.shardContext,
+		deps.workflowConsistencyChecker,
 	)
-	s.Error(err)
-	s.EqualValues(consts.ErrActivityTaskNotFound, err)
+	require.Error(t, err)
+	require.Equal(t, consts.ErrActivityTaskNotFound, err)
 }
 
-func (s *workflowSuite) Test_LastHeartBeatDetailsExist_UpdatesMutableState() {
+func Test_LastHeartBeatDetailsExist_UpdatesMutableState(t *testing.T) {
+	t.Parallel()
+
+	deps := setupTest(t)
 	uc := newUseCase(UsecaseConfig{
 		attempt:             int32(1),
 		startedEventId:      int64(40),
@@ -235,32 +241,35 @@ func (s *workflowSuite) Test_LastHeartBeatDetailsExist_UpdatesMutableState() {
 		isCacheStale:        false,
 		includeHeartbeat:    true,
 	})
-	s.setupStubs(uc)
-	request := s.newRespondActivityTaskFailedRequest(uc)
+	setupStubs(t, deps, uc)
+	request := newRespondActivityTaskFailedRequest(t, uc)
 
 	ctx := context.Background()
-	s.workflowContext.EXPECT().UpdateWorkflowExecutionAsActive(ctx, s.shardContext).Return(nil)
-	s.currentMutableState.EXPECT().UpdateActivityProgress(s.activityInfo, &workflowservice.RecordActivityTaskHeartbeatRequest{
+	deps.workflowContext.EXPECT().UpdateWorkflowExecutionAsActive(ctx, deps.shardContext).Return(nil)
+	deps.currentMutableState.EXPECT().UpdateActivityProgress(deps.activityInfo, &workflowservice.RecordActivityTaskHeartbeatRequest{
 		TaskToken: request.FailedRequest.GetTaskToken(),
 		Details:   request.FailedRequest.GetLastHeartbeatDetails(),
 		Identity:  request.FailedRequest.GetIdentity(),
 		Namespace: request.FailedRequest.GetNamespace(),
 	})
-	s.currentMutableState.EXPECT().GetEffectiveVersioningBehavior().Return(enumspb.VERSIONING_BEHAVIOR_UNSPECIFIED)
+	deps.currentMutableState.EXPECT().GetEffectiveVersioningBehavior().Return(enumspb.VERSIONING_BEHAVIOR_UNSPECIFIED)
 
-	s.expectTransientFailureMetricsRecorded(uc, s.shardContext)
+	expectTransientFailureMetricsRecorded(t, uc, deps.shardContext)
 
 	_, err := Invoke(
 		ctx,
 		request,
-		s.shardContext,
-		s.workflowConsistencyChecker,
+		deps.shardContext,
+		deps.workflowConsistencyChecker,
 	)
 
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *workflowSuite) Test_RetryActivityFailsWithAnError_WillReturnTheError() {
+func Test_RetryActivityFailsWithAnError_WillReturnTheError(t *testing.T) {
+	t.Parallel()
+
+	deps := setupTest(t)
 	retryError := fmt.Errorf("bizzare error")
 	uc := newUseCase(UsecaseConfig{
 		attempt:             int32(1),
@@ -270,21 +279,24 @@ func (s *workflowSuite) Test_RetryActivityFailsWithAnError_WillReturnTheError() 
 		expectRetryActivity: true,
 		retryActivityError:  retryError,
 	})
-	s.setupStubs(uc)
-	request := s.newRespondActivityTaskFailedRequest(uc)
+	setupStubs(t, deps, uc)
+	request := newRespondActivityTaskFailedRequest(t, uc)
 
 	_, err := Invoke(
 		context.Background(),
 		request,
-		s.shardContext,
-		s.workflowConsistencyChecker,
+		deps.shardContext,
+		deps.workflowConsistencyChecker,
 	)
 
-	s.Error(err)
-	s.Equal(retryError, err, "error from RetryActivity was not propagated expected %v got %v", retryError, err)
+	require.Error(t, err)
+	require.Equal(t, retryError, err, "error from RetryActivity was not propagated expected %v got %v", retryError, err)
 }
 
-func (s *workflowSuite) Test_NoMoreRetriesAndMutableStateHasNoPendingTasks_WillRecordFailedEventAndAddWorkflowTaskScheduledEvent() {
+func Test_NoMoreRetriesAndMutableStateHasNoPendingTasks_WillRecordFailedEventAndAddWorkflowTaskScheduledEvent(t *testing.T) {
+	t.Parallel()
+
+	deps := setupTest(t)
 	ctx := context.Background()
 	uc := newUseCase(UsecaseConfig{
 		attempt:             int32(1),
@@ -294,10 +306,10 @@ func (s *workflowSuite) Test_NoMoreRetriesAndMutableStateHasNoPendingTasks_WillR
 		expectRetryActivity: true,
 		retryActivityState:  enumspb.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED,
 	})
-	s.setupStubs(uc)
-	request := s.newRespondActivityTaskFailedRequest(uc)
-	s.expectTerminalFailureMetricsRecorded(uc, s.shardContext)
-	s.currentMutableState.EXPECT().AddActivityTaskFailedEvent(
+	setupStubs(t, deps, uc)
+	request := newRespondActivityTaskFailedRequest(t, uc)
+	expectTerminalFailureMetricsRecorded(t, uc, deps.shardContext)
+	deps.currentMutableState.EXPECT().AddActivityTaskFailedEvent(
 		uc.scheduledEventId,
 		uc.startedEventId,
 		request.FailedRequest.GetFailure(),
@@ -305,16 +317,19 @@ func (s *workflowSuite) Test_NoMoreRetriesAndMutableStateHasNoPendingTasks_WillR
 		request.FailedRequest.GetIdentity(),
 		request.FailedRequest.WorkerVersion,
 	).Return(nil, nil)
-	s.currentMutableState.EXPECT().AddWorkflowTaskScheduledEvent(false, enumsspb.WORKFLOW_TASK_TYPE_NORMAL)
-	s.currentMutableState.EXPECT().GetEffectiveVersioningBehavior().Return(enumspb.VERSIONING_BEHAVIOR_UNSPECIFIED)
-	s.workflowContext.EXPECT().UpdateWorkflowExecutionAsActive(ctx, s.shardContext).Return(nil)
+	deps.currentMutableState.EXPECT().AddWorkflowTaskScheduledEvent(false, enumsspb.WORKFLOW_TASK_TYPE_NORMAL)
+	deps.currentMutableState.EXPECT().GetEffectiveVersioningBehavior().Return(enumspb.VERSIONING_BEHAVIOR_UNSPECIFIED)
+	deps.workflowContext.EXPECT().UpdateWorkflowExecutionAsActive(ctx, deps.shardContext).Return(nil)
 
-	_, err := Invoke(ctx, request, s.shardContext, s.workflowConsistencyChecker)
+	_, err := Invoke(ctx, request, deps.shardContext, deps.workflowConsistencyChecker)
 
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *workflowSuite) Test_AttemptToAddActivityTaskFailedEventFails_ReturnError() {
+func Test_AttemptToAddActivityTaskFailedEventFails_ReturnError(t *testing.T) {
+	t.Parallel()
+
+	deps := setupTest(t)
 	addTaskError := fmt.Errorf("can't add task")
 	uc := newUseCase(UsecaseConfig{
 		attempt:             int32(1),
@@ -324,9 +339,9 @@ func (s *workflowSuite) Test_AttemptToAddActivityTaskFailedEventFails_ReturnErro
 		expectRetryActivity: true,
 		retryActivityState:  enumspb.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED,
 	})
-	s.setupStubs(uc)
-	request := s.newRespondActivityTaskFailedRequest(uc)
-	s.currentMutableState.EXPECT().AddActivityTaskFailedEvent(
+	setupStubs(t, deps, uc)
+	request := newRespondActivityTaskFailedRequest(t, uc)
+	deps.currentMutableState.EXPECT().AddActivityTaskFailedEvent(
 		uc.scheduledEventId,
 		uc.startedEventId,
 		request.FailedRequest.GetFailure(),
@@ -338,12 +353,12 @@ func (s *workflowSuite) Test_AttemptToAddActivityTaskFailedEventFails_ReturnErro
 	_, err := Invoke(
 		context.Background(),
 		request,
-		s.shardContext,
-		s.workflowConsistencyChecker,
+		deps.shardContext,
+		deps.workflowConsistencyChecker,
 	)
 
-	s.Error(err)
-	s.Equal(addTaskError, err)
+	require.Error(t, err)
+	require.Equal(t, addTaskError, err)
 }
 
 func newUseCase(uconfig UsecaseConfig) UsecaseConfig {
@@ -366,21 +381,21 @@ func newUseCase(uconfig UsecaseConfig) UsecaseConfig {
 	return uconfig
 }
 
-func (s *workflowSuite) setupStubs(uc UsecaseConfig) {
-	s.T().Helper()
-	s.False(uc.isActivityActive && uc.isCacheStale, "either activity can be active or cache is stale not both")
-	s.activityInfo = s.setupActivityInfo(uc)
-	s.currentMutableState = s.setupMutableState(uc, s.activityInfo)
-	s.namespaceRegistry = s.setupNamespaceRegistry(uc)
-	s.shardContext = s.setupShardContext(s.namespaceRegistry)
-	s.workflowContext = s.setupWorkflowContext(s.currentMutableState)
-	s.workflowCache = s.setupCache()
+func setupStubs(t *testing.T, deps *testDeps, uc UsecaseConfig) {
+	t.Helper()
+	require.False(t, uc.isActivityActive && uc.isCacheStale, "either activity can be active or cache is stale not both")
+	deps.activityInfo = setupActivityInfo(uc)
+	deps.currentMutableState = setupMutableState(t, deps.controller, uc, deps.activityInfo)
+	deps.namespaceRegistry = setupNamespaceRegistry(deps.controller, uc)
+	deps.shardContext = setupShardContext(deps.controller, deps.namespaceRegistry)
+	deps.workflowContext = setupWorkflowContext(deps.controller, deps.shardContext, deps.currentMutableState)
+	deps.workflowCache = setupCache(deps.controller, deps.workflowContext)
 
-	s.workflowConsistencyChecker = api.NewWorkflowConsistencyChecker(s.shardContext, s.workflowCache)
+	deps.workflowConsistencyChecker = api.NewWorkflowConsistencyChecker(deps.shardContext, deps.workflowCache)
 }
 
-func (s *workflowSuite) newRespondActivityTaskFailedRequest(uc UsecaseConfig) *historyservice.RespondActivityTaskFailedRequest {
-	s.T().Helper()
+func newRespondActivityTaskFailedRequest(t *testing.T, uc UsecaseConfig) *historyservice.RespondActivityTaskFailedRequest {
+	t.Helper()
 	tt := &tokenspb.Task{
 		Attempt:          uc.tokenAttempt,
 		NamespaceId:      uc.namespaceId.String(),
@@ -391,7 +406,7 @@ func (s *workflowSuite) newRespondActivityTaskFailedRequest(uc UsecaseConfig) *h
 		Version:          uc.tokenVersion,
 	}
 	taskToken, err := tt.Marshal()
-	s.NoError(err)
+	require.NoError(t, err)
 	var hbDetails *commonpb.Payloads
 	if uc.includeHeartbeat {
 		hbDetails = &commonpb.Payloads{}
@@ -408,22 +423,22 @@ func (s *workflowSuite) newRespondActivityTaskFailedRequest(uc UsecaseConfig) *h
 	return request
 }
 
-func (s *workflowSuite) setupWorkflowContext(mutableState *historyi.MockMutableState) *historyi.MockWorkflowContext {
-	workflowContext := historyi.NewMockWorkflowContext(s.controller)
-	workflowContext.EXPECT().LoadMutableState(gomock.Any(), s.shardContext).Return(mutableState, nil).AnyTimes()
+func setupWorkflowContext(controller *gomock.Controller, shardContext *historyi.MockShardContext, mutableState *historyi.MockMutableState) *historyi.MockWorkflowContext {
+	workflowContext := historyi.NewMockWorkflowContext(controller)
+	workflowContext.EXPECT().LoadMutableState(gomock.Any(), shardContext).Return(mutableState, nil).AnyTimes()
 	return workflowContext
 }
 
-func (s *workflowSuite) setupCache() *wcache.MockCache {
-	workflowCache := wcache.NewMockCache(s.controller)
+func setupCache(controller *gomock.Controller, workflowContext *historyi.MockWorkflowContext) *wcache.MockCache {
+	workflowCache := wcache.NewMockCache(controller)
 	workflowCache.EXPECT().GetOrCreateChasmExecution(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), chasm.WorkflowArchetype, locks.PriorityHigh).
-		Return(s.workflowContext, wcache.NoopReleaseFn, nil).AnyTimes()
+		Return(workflowContext, wcache.NoopReleaseFn, nil).AnyTimes()
 	workflowCache.EXPECT().GetOrCreateCurrentWorkflowExecution(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), locks.PriorityHigh).Return(wcache.NoopReleaseFn, nil).AnyTimes()
 	return workflowCache
 }
 
-func (s *workflowSuite) setupShardContext(registry namespace.Registry) *historyi.MockShardContext {
-	shardContext := historyi.NewMockShardContext(s.controller)
+func setupShardContext(controller *gomock.Controller, registry namespace.Registry) *historyi.MockShardContext {
+	shardContext := historyi.NewMockShardContext(controller)
 	shardContext.EXPECT().GetNamespaceRegistry().Return(registry).AnyTimes()
 	shardContext.EXPECT().GetConfig().Return(tests.NewDynamicConfig()).AnyTimes()
 	shardContext.EXPECT().GetLogger().Return(log.NewTestLogger()).AnyTimes()
@@ -439,9 +454,9 @@ func (s *workflowSuite) setupShardContext(registry namespace.Registry) *historyi
 	return shardContext
 }
 
-func (s *workflowSuite) expectTransientFailureMetricsRecorded(uc UsecaseConfig, shardContext *historyi.MockShardContext) {
-	timer := metrics.NewMockTimerIface(s.controller)
-	counter := metrics.NewMockCounterIface(s.controller)
+func expectTransientFailureMetricsRecorded(t *testing.T, uc UsecaseConfig, shardContext *historyi.MockShardContext) {
+	timer := metrics.NewMockTimerIface(t)
+	counter := metrics.NewMockCounterIface(t)
 	tags := []metrics.Tag{
 		metrics.OperationTag(metrics.HistoryRespondActivityTaskFailedScope),
 		metrics.WorkflowTypeTag(uc.wfType.Name),
@@ -451,7 +466,7 @@ func (s *workflowSuite) expectTransientFailureMetricsRecorded(uc UsecaseConfig, 
 		metrics.UnsafeTaskQueueTag(uc.taskQueueId),
 	}
 
-	metricsHandler := metrics.NewMockHandler(s.controller)
+	metricsHandler := metrics.NewMockHandler(t)
 	metricsHandler.EXPECT().WithTags(tags).Return(metricsHandler)
 
 	timer.EXPECT().Record(gomock.Any()).Times(2) // ActivityE2ELatency and ActivityStartToCloseLatency
@@ -464,9 +479,9 @@ func (s *workflowSuite) expectTransientFailureMetricsRecorded(uc UsecaseConfig, 
 	shardContext.EXPECT().GetMetricsHandler().Return(metricsHandler).AnyTimes()
 }
 
-func (s *workflowSuite) expectTerminalFailureMetricsRecorded(uc UsecaseConfig, shardContext *historyi.MockShardContext) {
-	timer := metrics.NewMockTimerIface(s.controller)
-	counter := metrics.NewMockCounterIface(s.controller)
+func expectTerminalFailureMetricsRecorded(t *testing.T, uc UsecaseConfig, shardContext *historyi.MockShardContext) {
+	timer := metrics.NewMockTimerIface(t)
+	counter := metrics.NewMockCounterIface(t)
 	tags := []metrics.Tag{
 		metrics.OperationTag(metrics.HistoryRespondActivityTaskFailedScope),
 		metrics.WorkflowTypeTag(uc.wfType.Name),
@@ -476,7 +491,7 @@ func (s *workflowSuite) expectTerminalFailureMetricsRecorded(uc UsecaseConfig, s
 		metrics.UnsafeTaskQueueTag(uc.taskQueueId),
 	}
 
-	metricsHandler := metrics.NewMockHandler(s.controller)
+	metricsHandler := metrics.NewMockHandler(t)
 	metricsHandler.EXPECT().WithTags(tags).Return(metricsHandler)
 
 	timer.EXPECT().Record(gomock.Any()).Times(3) // ActivityE2ELatency, ActivityStartToCloseLatency, and ActivityScheduleToCloseLatency
@@ -490,17 +505,16 @@ func (s *workflowSuite) expectTerminalFailureMetricsRecorded(uc UsecaseConfig, s
 	shardContext.EXPECT().GetMetricsHandler().Return(metricsHandler).AnyTimes()
 }
 
-func (s *workflowSuite) expectCounterRecorded(shardContext *historyi.MockShardContext) *historyi.MockShardContext {
-	counter := metrics.NewMockCounterIface(s.controller)
+func expectCounterRecorded(t *testing.T, shardContext *historyi.MockShardContext) {
+	counter := metrics.NewMockCounterIface(t)
 	counter.EXPECT().Record(int64(1), metrics.OperationTag(metrics.HistoryRespondActivityTaskFailedScope))
 
-	counterHandler := metrics.NewMockHandler(s.controller)
+	counterHandler := metrics.NewMockHandler(t)
 	counterHandler.EXPECT().Counter(gomock.Any()).Return(counter)
 	shardContext.EXPECT().GetMetricsHandler().Return(counterHandler).AnyTimes()
-	return shardContext
 }
 
-func (s *workflowSuite) setupNamespaceRegistry(uc UsecaseConfig) *namespace.MockRegistry {
+func setupNamespaceRegistry(controller *gomock.Controller, uc UsecaseConfig) *namespace.MockRegistry {
 	namespaceEntry := namespace.NewGlobalNamespaceForTest(
 		&persistencespb.NamespaceInfo{
 			Id:   uc.namespaceId.String(),
@@ -520,13 +534,13 @@ func (s *workflowSuite) setupNamespaceRegistry(uc UsecaseConfig) *namespace.Mock
 		},
 		1234,
 	)
-	namespaceRegistry := namespace.NewMockRegistry(s.controller)
+	namespaceRegistry := namespace.NewMockRegistry(controller)
 	namespaceRegistry.EXPECT().GetNamespaceByID(uc.namespaceId).Return(namespaceEntry, nil).AnyTimes()
 	return namespaceRegistry
 }
 
-func (s *workflowSuite) setupMutableState(uc UsecaseConfig, ai *persistencespb.ActivityInfo) *historyi.MockMutableState {
-	currentMutableState := historyi.NewMockMutableState(s.controller)
+func setupMutableState(t *testing.T, controller *gomock.Controller, uc UsecaseConfig, ai *persistencespb.ActivityInfo) *historyi.MockMutableState {
+	currentMutableState := historyi.NewMockMutableState(controller)
 	currentMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
 	currentMutableState.EXPECT().GetExecutionInfo().Return(&persistencespb.WorkflowExecutionInfo{
 		WorkflowId: tests.WorkflowID,
@@ -555,7 +569,7 @@ func (s *workflowSuite) setupMutableState(uc UsecaseConfig, ai *persistencespb.A
 	return currentMutableState
 }
 
-func (s *workflowSuite) setupActivityInfo(uc UsecaseConfig) *persistencespb.ActivityInfo {
+func setupActivityInfo(uc UsecaseConfig) *persistencespb.ActivityInfo {
 	return &persistencespb.ActivityInfo{
 		ScheduledEventId: uc.scheduledEventId,
 		Attempt:          uc.attempt,

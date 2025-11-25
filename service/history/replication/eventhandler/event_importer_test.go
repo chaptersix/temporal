@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	historypb "go.temporal.io/api/history/v1"
 	historyspb "go.temporal.io/server/api/history/v1"
@@ -22,31 +21,41 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	eventImporterSuite struct {
-		suite.Suite
-		*require.Assertions
-		controller           *gomock.Controller
-		logger               log.Logger
-		eventSerializer      serialization.Serializer
-		remoteHistoryFetcher *MockHistoryPaginatedFetcher
-		engineProvider       historyEngineProvider
-		eventImporter        EventImporter
-		engine               *historyi.MockEngine
+type eventImporterTestDeps struct {
+	controller           *gomock.Controller
+	logger               log.Logger
+	eventSerializer      serialization.Serializer
+	remoteHistoryFetcher *MockHistoryPaginatedFetcher
+	engineProvider       historyEngineProvider
+	eventImporter        EventImporter
+	engine               *historyi.MockEngine
+}
+
+func setupEventImporterTest(t *testing.T) *eventImporterTestDeps {
+	controller := gomock.NewController(t)
+	logger := log.NewNoopLogger()
+	eventSerializer := serialization.NewSerializer()
+	remoteHistoryFetcher := NewMockHistoryPaginatedFetcher(controller)
+	engine := historyi.NewMockEngine(controller)
+	engineProvider := func(ctx context.Context, namespaceId namespace.ID, workflowId string) (historyi.Engine, error) {
+		return engine, nil
 	}
-)
+	eventImporter := NewEventImporter(
+		remoteHistoryFetcher,
+		engineProvider,
+		eventSerializer,
+		logger,
+	)
 
-func TestEventImporterSuite(t *testing.T) {
-	s := new(eventImporterSuite)
-	suite.Run(t, s)
-}
-
-func (s *eventImporterSuite) SetupSuite() {
-	s.Assertions = require.New(s.T())
-}
-
-func (s *eventImporterSuite) TearDownSuite() {
-
+	return &eventImporterTestDeps{
+		controller:           controller,
+		logger:               logger,
+		eventSerializer:      eventSerializer,
+		remoteHistoryFetcher: remoteHistoryFetcher,
+		engineProvider:       engineProvider,
+		eventImporter:        eventImporter,
+		engine:               engine,
+	}
 }
 
 type ImportWorkflowExecutionRequestMatcher struct {
@@ -61,24 +70,10 @@ func (m *ImportWorkflowExecutionRequestMatcher) String() string {
 	return m.ExpectedRequest.String()
 }
 
-func (s *eventImporterSuite) SetupTest() {
-	s.controller = gomock.NewController(s.T())
-	s.logger = log.NewNoopLogger()
-	s.eventSerializer = serialization.NewSerializer()
-	s.remoteHistoryFetcher = NewMockHistoryPaginatedFetcher(s.controller)
-	s.engine = historyi.NewMockEngine(s.controller)
-	s.engineProvider = func(ctx context.Context, namespaceId namespace.ID, workflowId string) (historyi.Engine, error) {
-		return s.engine, nil
-	}
-	s.eventImporter = NewEventImporter(
-		s.remoteHistoryFetcher,
-		s.engineProvider,
-		s.eventSerializer,
-		s.logger,
-	)
-}
+func TestImportHistoryEvents_ImportAllLocalAndCommit(t *testing.T) {
+	deps := setupEventImporterTest(t)
+	defer deps.controller.Finish()
 
-func (s *eventImporterSuite) TestImportHistoryEvents_ImportAllLocalAndCommit() {
 	remoteCluster := cluster.TestAlternativeClusterName
 	namespaceId := uuid.NewString()
 	workflowId := uuid.NewString()
@@ -111,7 +106,7 @@ func (s *eventImporterSuite) TestImportHistoryEvents_ImportAllLocalAndCommit() {
 		RunID:       runId,
 	}
 
-	rawBatches := serializeEvents(s.eventSerializer, [][]*historypb.HistoryEvent{historyBatch0, historyBatch1, historyBatch2})
+	rawBatches := serializeEvents(deps.eventSerializer, [][]*historypb.HistoryEvent{historyBatch0, historyBatch1, historyBatch2})
 	fetcher := collection.NewPagingIterator(func(paginationToken []byte) ([]*HistoryBatch, []byte, error) {
 		return []*HistoryBatch{
 			{RawEventBatch: rawBatches[0], VersionHistory: versionHistory},
@@ -126,7 +121,7 @@ func (s *eventImporterSuite) TestImportHistoryEvents_ImportAllLocalAndCommit() {
 
 	gomock.InOrder(
 		// fetch more events
-		s.remoteHistoryFetcher.EXPECT().GetSingleWorkflowHistoryPaginatedIteratorInclusive(
+		deps.remoteHistoryFetcher.EXPECT().GetSingleWorkflowHistoryPaginatedIteratorInclusive(
 			gomock.Any(),
 			remoteCluster,
 			namespace.ID(namespaceId),
@@ -139,7 +134,7 @@ func (s *eventImporterSuite) TestImportHistoryEvents_ImportAllLocalAndCommit() {
 		).Return(fetcher).Times(1),
 
 		// import the fetched events inside the fetch loop
-		s.engine.EXPECT().ImportWorkflowExecution(gomock.Any(), &ImportWorkflowExecutionRequestMatcher{
+		deps.engine.EXPECT().ImportWorkflowExecution(gomock.Any(), &ImportWorkflowExecutionRequestMatcher{
 			ExpectedRequest: &historyservice.ImportWorkflowExecutionRequest{
 				NamespaceId: namespaceId,
 				Execution: &commonpb.WorkflowExecution{
@@ -155,7 +150,7 @@ func (s *eventImporterSuite) TestImportHistoryEvents_ImportAllLocalAndCommit() {
 			EventsApplied: true,
 		}, nil).Times(1),
 
-		s.engine.EXPECT().ImportWorkflowExecution(gomock.Any(), &ImportWorkflowExecutionRequestMatcher{
+		deps.engine.EXPECT().ImportWorkflowExecution(gomock.Any(), &ImportWorkflowExecutionRequestMatcher{
 			ExpectedRequest: &historyservice.ImportWorkflowExecutionRequest{
 				NamespaceId: namespaceId,
 				Execution: &commonpb.WorkflowExecution{
@@ -172,7 +167,7 @@ func (s *eventImporterSuite) TestImportHistoryEvents_ImportAllLocalAndCommit() {
 		}, nil).Times(1),
 
 		// import the fetched events outside the loop
-		s.engine.EXPECT().ImportWorkflowExecution(gomock.Any(), &ImportWorkflowExecutionRequestMatcher{
+		deps.engine.EXPECT().ImportWorkflowExecution(gomock.Any(), &ImportWorkflowExecutionRequestMatcher{
 			ExpectedRequest: &historyservice.ImportWorkflowExecutionRequest{
 				NamespaceId: namespaceId,
 				Execution: &commonpb.WorkflowExecution{
@@ -189,7 +184,7 @@ func (s *eventImporterSuite) TestImportHistoryEvents_ImportAllLocalAndCommit() {
 		}, nil).Times(1),
 
 		// commit the import
-		s.engine.EXPECT().ImportWorkflowExecution(gomock.Any(), &ImportWorkflowExecutionRequestMatcher{
+		deps.engine.EXPECT().ImportWorkflowExecution(gomock.Any(), &ImportWorkflowExecutionRequestMatcher{
 			ExpectedRequest: &historyservice.ImportWorkflowExecutionRequest{
 				NamespaceId: namespaceId,
 				Execution: &commonpb.WorkflowExecution{
@@ -205,14 +200,14 @@ func (s *eventImporterSuite) TestImportHistoryEvents_ImportAllLocalAndCommit() {
 		}, nil).Times(1),
 	)
 
-	err := s.eventImporter.ImportHistoryEventsFromBeginning(
+	err := deps.eventImporter.ImportHistoryEventsFromBeginning(
 		context.Background(),
 		remoteCluster,
 		workflowKey,
 		7,
 		1001,
 	)
-	s.Nil(err)
+	require.Nil(t, err)
 }
 
 func serializeEvents(serializer serialization.Serializer, events [][]*historypb.HistoryEvent) []*commonpb.DataBlob {

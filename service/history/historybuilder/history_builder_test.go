@@ -7,7 +7,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commandpb "go.temporal.io/api/command/v1"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
@@ -31,20 +30,46 @@ import (
 
 const defaultNamespace = "default"
 
-type (
-	historyBuilderSuite struct {
-		suite.Suite
-		*require.Assertions
+type historyBuilderTestDeps struct {
+	now            time.Time
+	version        int64
+	nextEventID    int64
+	nextTaskID     int64
+	mockTimeSource *clock.EventTimeSource
+	historyBuilder *HistoryBuilder
+}
 
-		now            time.Time
-		version        int64
-		nextEventID    int64
-		nextTaskID     int64
-		mockTimeSource *clock.EventTimeSource
+func setupHistoryBuilderTest(t *testing.T) *historyBuilderTestDeps {
+	now := time.Now().UTC()
+	version := rand.Int63()
+	nextEventID := rand.Int63()
+	nextTaskID := rand.Int63()
+	mockTimeSource := clock.NewEventTimeSource()
+	mockTimeSource.Update(now)
 
-		historyBuilder *HistoryBuilder
+	deps := &historyBuilderTestDeps{
+		now:            now,
+		version:        version,
+		nextEventID:    nextEventID,
+		nextTaskID:     nextTaskID,
+		mockTimeSource: mockTimeSource,
 	}
-)
+
+	taskIDGen := func(number int) ([]int64, error) {
+		return taskIDGenerator(deps, number)
+	}
+
+	deps.historyBuilder = New(
+		mockTimeSource,
+		taskIDGen,
+		version,
+		nextEventID,
+		nil,
+		metrics.NoopMetricsHandler,
+	)
+
+	return deps
+}
 
 var (
 	testNamespaceID   = namespace.ID(uuid.New())
@@ -123,43 +148,10 @@ var (
 	testRequestReason = "test request reason"
 )
 
-func TestHistoryBuilderSuite(t *testing.T) {
-	s := new(historyBuilderSuite)
-	suite.Run(t, s)
-}
-
-func (s *historyBuilderSuite) SetupSuite() {
-}
-
-func (s *historyBuilderSuite) TearDownSuite() {
-}
-
-func (s *historyBuilderSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.now = time.Now().UTC()
-	s.version = rand.Int63()
-	s.nextEventID = rand.Int63()
-	s.nextTaskID = rand.Int63()
-	s.mockTimeSource = clock.NewEventTimeSource()
-	s.mockTimeSource.Update(s.now)
-
-	s.historyBuilder = New(
-		s.mockTimeSource,
-		s.taskIDGenerator,
-		s.version,
-		s.nextEventID,
-		nil,
-		metrics.NoopMetricsHandler,
-	)
-}
-
-func (s *historyBuilderSuite) TearDownTest() {
-
-}
-
 /* workflow */
-func (s *historyBuilderSuite) TestWorkflowExecutionStarted() {
+func TestWorkflowExecutionStarted(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	attempt := rand.Int31()
 	workflowExecutionExpirationTime := timestamppb.New(time.Unix(0, rand.Int63()))
 	continueAsNewInitiator := enumspb.ContinueAsNewInitiator(rand.Int31n(int32(len(enumspb.ContinueAsNewInitiator_name))))
@@ -220,23 +212,23 @@ func (s *historyBuilderSuite) TestWorkflowExecutionStarted() {
 		},
 	}
 
-	event := s.historyBuilder.AddWorkflowExecutionStartedEvent(
-		s.now,
+	event := deps.historyBuilder.AddWorkflowExecutionStartedEvent(
+		deps.now,
 		request,
 		resetPoints,
 		prevRunID,
 		firstRunID,
 		originalRunID,
 	)
-	s.Equal(event, s.flush())
+	require.Equal(t, event, flush(t, deps))
 	protorequire.ProtoEqual(
-		s.T(),
+		t,
 		&historypb.HistoryEvent{
-			EventId:   s.nextEventID,
-			TaskId:    s.nextTaskID,
-			EventTime: timestamppb.New(s.now),
+			EventId:   deps.nextEventID,
+			TaskId:    deps.nextTaskID,
+			EventTime: timestamppb.New(deps.now),
 			EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
-			Version:   s.version,
+			Version:   deps.version,
 			Links:     []*commonpb.Link{testLink},
 			Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{
 				WorkflowExecutionStartedEventAttributes: &historypb.WorkflowExecutionStartedEventAttributes{
@@ -284,7 +276,9 @@ func (s *historyBuilderSuite) TestWorkflowExecutionStarted() {
 	)
 }
 
-func (s *historyBuilderSuite) TestWorkflowExecutionCancelRequested() {
+func TestWorkflowExecutionCancelRequested(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	initiatedEventID := rand.Int63()
 	request := &historyservice.RequestCancelWorkflowExecutionRequest{
 		NamespaceId: tests.NamespaceID.String(),
@@ -304,16 +298,16 @@ func (s *historyBuilderSuite) TestWorkflowExecutionCancelRequested() {
 		// ChildWorkflowOnly: not used for test
 	}
 
-	event := s.historyBuilder.AddWorkflowExecutionCancelRequestedEvent(
+	event := deps.historyBuilder.AddWorkflowExecutionCancelRequestedEvent(
 		request,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionCancelRequestedEventAttributes{
 			WorkflowExecutionCancelRequestedEventAttributes: &historypb.WorkflowExecutionCancelRequestedEventAttributes{
 				Cause:                    testRequestReason,
@@ -328,18 +322,20 @@ func (s *historyBuilderSuite) TestWorkflowExecutionCancelRequested() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowExecutionSignaled() {
+func TestWorkflowExecutionSignaled(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	signalName := "random signal name"
-	event := s.historyBuilder.AddWorkflowExecutionSignaledEvent(
+	event := deps.historyBuilder.AddWorkflowExecutionSignaledEvent(
 		signalName, testPayloads, testIdentity, testHeader, nil, nil,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionSignaledEventAttributes{
 			WorkflowExecutionSignaledEventAttributes: &historypb.WorkflowExecutionSignaledEventAttributes{
 				SignalName: signalName,
@@ -351,7 +347,9 @@ func (s *historyBuilderSuite) TestWorkflowExecutionSignaled() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowExecutionMarkerRecord() {
+func TestWorkflowExecutionMarkerRecord(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	attributes := &commandpb.RecordMarkerCommandAttributes{
 		MarkerName: "random marker name",
@@ -361,17 +359,17 @@ func (s *historyBuilderSuite) TestWorkflowExecutionMarkerRecord() {
 		Header:  testHeader,
 		Failure: testFailure,
 	}
-	event := s.historyBuilder.AddMarkerRecordedEvent(
+	event := deps.historyBuilder.AddMarkerRecordedEvent(
 		workflowTaskCompletionEventID,
 		attributes,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_MARKER_RECORDED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_MarkerRecordedEventAttributes{
 			MarkerRecordedEventAttributes: &historypb.MarkerRecordedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -384,22 +382,24 @@ func (s *historyBuilderSuite) TestWorkflowExecutionMarkerRecord() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowExecutionSearchAttribute() {
+func TestWorkflowExecutionSearchAttribute(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	attributes := &commandpb.UpsertWorkflowSearchAttributesCommandAttributes{
 		SearchAttributes: testSearchAttributes,
 	}
-	event := s.historyBuilder.AddUpsertWorkflowSearchAttributesEvent(
+	event := deps.historyBuilder.AddUpsertWorkflowSearchAttributesEvent(
 		workflowTaskCompletionEventID,
 		attributes,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_UpsertWorkflowSearchAttributesEventAttributes{
 			UpsertWorkflowSearchAttributesEventAttributes: &historypb.UpsertWorkflowSearchAttributesEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -409,22 +409,24 @@ func (s *historyBuilderSuite) TestWorkflowExecutionSearchAttribute() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowExecutionMemo() {
+func TestWorkflowExecutionMemo(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	attributes := &commandpb.ModifyWorkflowPropertiesCommandAttributes{
 		UpsertedMemo: testMemo,
 	}
-	event := s.historyBuilder.AddWorkflowPropertiesModifiedEvent(
+	event := deps.historyBuilder.AddWorkflowPropertiesModifiedEvent(
 		workflowTaskCompletionEventID,
 		attributes,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowPropertiesModifiedEventAttributes{
 			WorkflowPropertiesModifiedEventAttributes: &historypb.WorkflowPropertiesModifiedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -434,23 +436,25 @@ func (s *historyBuilderSuite) TestWorkflowExecutionMemo() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowExecutionCompleted() {
+func TestWorkflowExecutionCompleted(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	attributes := &commandpb.CompleteWorkflowExecutionCommandAttributes{
 		Result: testPayloads,
 	}
-	event := s.historyBuilder.AddCompletedWorkflowEvent(
+	event := deps.historyBuilder.AddCompletedWorkflowEvent(
 		workflowTaskCompletionEventID,
 		attributes,
 		"",
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionCompletedEventAttributes{
 			WorkflowExecutionCompletedEventAttributes: &historypb.WorkflowExecutionCompletedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -460,26 +464,28 @@ func (s *historyBuilderSuite) TestWorkflowExecutionCompleted() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowExecutionFailed() {
+func TestWorkflowExecutionFailed(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	retryState := enumspb.RetryState(rand.Int31n(int32(len(enumspb.RetryState_name))))
 	attributes := &commandpb.FailWorkflowExecutionCommandAttributes{
 		Failure: testFailure,
 	}
-	event, batchID := s.historyBuilder.AddFailWorkflowEvent(
+	event, batchID := deps.historyBuilder.AddFailWorkflowEvent(
 		workflowTaskCompletionEventID,
 		retryState,
 		attributes,
 		"",
 	)
-	s.Equal(event, s.flush())
-	s.Equal(batchID, event.EventId)
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, batchID, event.EventId)
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionFailedEventAttributes{
 			WorkflowExecutionFailedEventAttributes: &historypb.WorkflowExecutionFailedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -490,19 +496,21 @@ func (s *historyBuilderSuite) TestWorkflowExecutionFailed() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowExecutionTimeout() {
+func TestWorkflowExecutionTimeout(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	retryState := enumspb.RetryState(rand.Int31n(int32(len(enumspb.RetryState_name))))
-	event := s.historyBuilder.AddTimeoutWorkflowEvent(
+	event := deps.historyBuilder.AddTimeoutWorkflowEvent(
 		retryState,
 		"",
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionTimedOutEventAttributes{
 			WorkflowExecutionTimedOutEventAttributes: &historypb.WorkflowExecutionTimedOutEventAttributes{
 				RetryState: retryState,
@@ -511,22 +519,24 @@ func (s *historyBuilderSuite) TestWorkflowExecutionTimeout() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowExecutionCancelled() {
+func TestWorkflowExecutionCancelled(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	attributes := &commandpb.CancelWorkflowExecutionCommandAttributes{
 		Details: testPayloads,
 	}
-	event := s.historyBuilder.AddWorkflowExecutionCanceledEvent(
+	event := deps.historyBuilder.AddWorkflowExecutionCanceledEvent(
 		workflowTaskCompletionEventID,
 		attributes,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionCanceledEventAttributes{
 			WorkflowExecutionCanceledEventAttributes: &historypb.WorkflowExecutionCanceledEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -536,21 +546,23 @@ func (s *historyBuilderSuite) TestWorkflowExecutionCancelled() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowExecutionTerminated() {
+func TestWorkflowExecutionTerminated(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	reason := "random reason"
-	event := s.historyBuilder.AddWorkflowExecutionTerminatedEvent(
+	event := deps.historyBuilder.AddWorkflowExecutionTerminatedEvent(
 		reason,
 		testPayloads,
 		testIdentity,
 		nil,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionTerminatedEventAttributes{
 			WorkflowExecutionTerminatedEventAttributes: &historypb.WorkflowExecutionTerminatedEventAttributes{
 				Reason:   reason,
@@ -561,7 +573,9 @@ func (s *historyBuilderSuite) TestWorkflowExecutionTerminated() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowExecutionContinueAsNew() {
+func TestWorkflowExecutionContinueAsNew(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	initiator := enumspb.ContinueAsNewInitiator(rand.Int31n(int32(len(enumspb.ContinueAsNewInitiator_name))))
 	firstWorkflowTaskBackoff := durationpb.New(time.Duration(rand.Int63()))
@@ -584,18 +598,18 @@ func (s *historyBuilderSuite) TestWorkflowExecutionContinueAsNew() {
 		Memo:                 testMemo,
 		SearchAttributes:     testSearchAttributes,
 	}
-	event := s.historyBuilder.AddContinuedAsNewEvent(
+	event := deps.historyBuilder.AddContinuedAsNewEvent(
 		workflowTaskCompletionEventID,
 		testRunID,
 		attributes,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionContinuedAsNewEventAttributes{
 			WorkflowExecutionContinuedAsNewEventAttributes: &historypb.WorkflowExecutionContinuedAsNewEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -620,22 +634,24 @@ func (s *historyBuilderSuite) TestWorkflowExecutionContinueAsNew() {
 /* workflow */
 
 /* workflow tasks */
-func (s *historyBuilderSuite) TestWorkflowTaskScheduled() {
+func TestWorkflowTaskScheduled(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	startToCloseTimeout := time.Duration(rand.Int31()) * time.Second
 	attempt := rand.Int31()
-	event := s.historyBuilder.AddWorkflowTaskScheduledEvent(
+	event := deps.historyBuilder.AddWorkflowTaskScheduledEvent(
 		testTaskQueue,
 		durationpb.New(startToCloseTimeout),
 		attempt,
-		s.now,
+		deps.now,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_TASK_SCHEDULED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowTaskScheduledEventAttributes{
 			WorkflowTaskScheduledEventAttributes: &historypb.WorkflowTaskScheduledEventAttributes{
 				TaskQueue:           testTaskQueue,
@@ -646,25 +662,27 @@ func (s *historyBuilderSuite) TestWorkflowTaskScheduled() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowTaskStarted() {
+func TestWorkflowTaskStarted(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
-	event := s.historyBuilder.AddWorkflowTaskStartedEvent(
+	event := deps.historyBuilder.AddWorkflowTaskStartedEvent(
 		scheduledEventID,
 		testRequestID,
 		testIdentity,
-		s.now,
+		deps.now,
 		false,
 		123678,
 		nil,
 		int64(0),
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_TASK_STARTED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowTaskStartedEventAttributes{
 			WorkflowTaskStartedEventAttributes: &historypb.WorkflowTaskStartedEventAttributes{
 				ScheduledEventId:     scheduledEventID,
@@ -677,13 +695,15 @@ func (s *historyBuilderSuite) TestWorkflowTaskStarted() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowTaskCompleted() {
+func TestWorkflowTaskCompleted(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
 	checksum := "random checksum"
 	sdkMetadata := &sdkpb.WorkflowTaskCompletedMetadata{CoreUsedFlags: []uint32{1, 2, 3}, LangUsedFlags: []uint32{4, 5, 6}}
 	meteringMeta := &commonpb.MeteringMetadata{NonfirstLocalActivityExecutionAttempts: 42}
-	event := s.historyBuilder.AddWorkflowTaskCompletedEvent(
+	event := deps.historyBuilder.AddWorkflowTaskCompletedEvent(
 		scheduledEventID,
 		startedEventID,
 		testIdentity,
@@ -695,13 +715,13 @@ func (s *historyBuilderSuite) TestWorkflowTaskCompleted() {
 		nil,
 		enumspb.VERSIONING_BEHAVIOR_UNSPECIFIED,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_TASK_COMPLETED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowTaskCompletedEventAttributes{
 			WorkflowTaskCompletedEventAttributes: &historypb.WorkflowTaskCompletedEventAttributes{
 				ScheduledEventId: scheduledEventID,
@@ -716,7 +736,9 @@ func (s *historyBuilderSuite) TestWorkflowTaskCompleted() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowTaskFailed() {
+func TestWorkflowTaskFailed(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
 	cause := enumspb.WorkflowTaskFailedCause(rand.Int31n(int32(len(enumspb.WorkflowTaskFailedCause_name))))
@@ -724,7 +746,7 @@ func (s *historyBuilderSuite) TestWorkflowTaskFailed() {
 	newRunID := uuid.New()
 	forkEventVersion := rand.Int63()
 	checksum := "random checksum"
-	event := s.historyBuilder.AddWorkflowTaskFailedEvent(
+	event := deps.historyBuilder.AddWorkflowTaskFailedEvent(
 		scheduledEventID,
 		startedEventID,
 		cause,
@@ -735,13 +757,13 @@ func (s *historyBuilderSuite) TestWorkflowTaskFailed() {
 		forkEventVersion,
 		checksum,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_TASK_FAILED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowTaskFailedEventAttributes{
 			WorkflowTaskFailedEventAttributes: &historypb.WorkflowTaskFailedEventAttributes{
 				ScheduledEventId: scheduledEventID,
@@ -758,22 +780,24 @@ func (s *historyBuilderSuite) TestWorkflowTaskFailed() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestWorkflowTaskTimeout() {
+func TestWorkflowTaskTimeout(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
 	timeoutType := enumspb.TimeoutType(rand.Int31n(int32(len(enumspb.TimeoutType_name))))
-	event := s.historyBuilder.AddWorkflowTaskTimedOutEvent(
+	event := deps.historyBuilder.AddWorkflowTaskTimedOutEvent(
 		scheduledEventID,
 		startedEventID,
 		timeoutType,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_WorkflowTaskTimedOutEventAttributes{
 			WorkflowTaskTimedOutEventAttributes: &historypb.WorkflowTaskTimedOutEventAttributes{
 				ScheduledEventId: scheduledEventID,
@@ -787,7 +811,9 @@ func (s *historyBuilderSuite) TestWorkflowTaskTimeout() {
 /* workflow tasks */
 
 /* activity tasks */
-func (s *historyBuilderSuite) TestActivityTaskScheduled() {
+func TestActivityTaskScheduled(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	activityID := "random activity ID"
 	scheduleToCloseTimeout := durationpb.New(time.Duration(rand.Int63()))
@@ -806,18 +832,18 @@ func (s *historyBuilderSuite) TestActivityTaskScheduled() {
 		StartToCloseTimeout:    startToCloseTimeout,
 		HeartbeatTimeout:       heartbeatTimeout,
 	}
-	event := s.historyBuilder.AddActivityTaskScheduledEvent(
+	event := deps.historyBuilder.AddActivityTaskScheduledEvent(
 		workflowTaskCompletionEventID,
 		attributes,
 		defaultNamespace,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ActivityTaskScheduledEventAttributes{
 			ActivityTaskScheduledEventAttributes: &historypb.ActivityTaskScheduledEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -836,11 +862,13 @@ func (s *historyBuilderSuite) TestActivityTaskScheduled() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestActivityTaskStarted() {
+func TestActivityTaskStarted(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	attempt := rand.Int31()
 	stamp := &commonpb.WorkerVersionStamp{BuildId: "bld", UseVersioning: false}
-	event := s.historyBuilder.AddActivityTaskStartedEvent(
+	event := deps.historyBuilder.AddActivityTaskStartedEvent(
 		scheduledEventID,
 		attempt,
 		testRequestID,
@@ -849,13 +877,13 @@ func (s *historyBuilderSuite) TestActivityTaskStarted() {
 		stamp,
 		int64(0),
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_ACTIVITY_TASK_STARTED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ActivityTaskStartedEventAttributes{
 			ActivityTaskStartedEventAttributes: &historypb.ActivityTaskStartedEventAttributes{
 				ScheduledEventId: scheduledEventID,
@@ -869,20 +897,22 @@ func (s *historyBuilderSuite) TestActivityTaskStarted() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestActivityTaskCancelRequested() {
+func TestActivityTaskCancelRequested(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	scheduledEventID := rand.Int63()
-	event := s.historyBuilder.AddActivityTaskCancelRequestedEvent(
+	event := deps.historyBuilder.AddActivityTaskCancelRequestedEvent(
 		workflowTaskCompletionEventID,
 		scheduledEventID,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ActivityTaskCancelRequestedEventAttributes{
 			ActivityTaskCancelRequestedEventAttributes: &historypb.ActivityTaskCancelRequestedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -892,23 +922,25 @@ func (s *historyBuilderSuite) TestActivityTaskCancelRequested() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestActivityTaskCompleted() {
+func TestActivityTaskCompleted(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
-	event := s.historyBuilder.AddActivityTaskCompletedEvent(
+	event := deps.historyBuilder.AddActivityTaskCompletedEvent(
 		scheduledEventID,
 		startedEventID,
 		testIdentity,
 		testPayloads,
 		defaultNamespace,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ActivityTaskCompletedEventAttributes{
 			ActivityTaskCompletedEventAttributes: &historypb.ActivityTaskCompletedEventAttributes{
 				ScheduledEventId: scheduledEventID,
@@ -920,11 +952,13 @@ func (s *historyBuilderSuite) TestActivityTaskCompleted() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestActivityTaskFailed() {
+func TestActivityTaskFailed(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
 	retryState := enumspb.RetryState(rand.Int31n(int32(len(enumspb.RetryState_name))))
-	event := s.historyBuilder.AddActivityTaskFailedEvent(
+	event := deps.historyBuilder.AddActivityTaskFailedEvent(
 		scheduledEventID,
 		startedEventID,
 		testFailure,
@@ -932,13 +966,13 @@ func (s *historyBuilderSuite) TestActivityTaskFailed() {
 		testIdentity,
 		defaultNamespace,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_ACTIVITY_TASK_FAILED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ActivityTaskFailedEventAttributes{
 			ActivityTaskFailedEventAttributes: &historypb.ActivityTaskFailedEventAttributes{
 				ScheduledEventId: scheduledEventID,
@@ -951,23 +985,25 @@ func (s *historyBuilderSuite) TestActivityTaskFailed() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestActivityTaskTimeout() {
+func TestActivityTaskTimeout(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
 	retryState := enumspb.RetryState(rand.Int31n(int32(len(enumspb.RetryState_name))))
-	event := s.historyBuilder.AddActivityTaskTimedOutEvent(
+	event := deps.historyBuilder.AddActivityTaskTimedOutEvent(
 		scheduledEventID,
 		startedEventID,
 		testFailure,
 		retryState,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ActivityTaskTimedOutEventAttributes{
 			ActivityTaskTimedOutEventAttributes: &historypb.ActivityTaskTimedOutEventAttributes{
 				ScheduledEventId: scheduledEventID,
@@ -979,24 +1015,26 @@ func (s *historyBuilderSuite) TestActivityTaskTimeout() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestActivityTaskCancelled() {
+func TestActivityTaskCancelled(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
 	cancelRequestedEventID := rand.Int63()
-	event := s.historyBuilder.AddActivityTaskCanceledEvent(
+	event := deps.historyBuilder.AddActivityTaskCanceledEvent(
 		scheduledEventID,
 		startedEventID,
 		cancelRequestedEventID,
 		testPayloads,
 		testIdentity,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_ACTIVITY_TASK_CANCELED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ActivityTaskCanceledEventAttributes{
 			ActivityTaskCanceledEventAttributes: &historypb.ActivityTaskCanceledEventAttributes{
 				ScheduledEventId:             scheduledEventID,
@@ -1012,7 +1050,9 @@ func (s *historyBuilderSuite) TestActivityTaskCancelled() {
 /* activity tasks */
 
 /* timer */
-func (s *historyBuilderSuite) TestTimerStarted() {
+func TestTimerStarted(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	timerID := "random timer ID"
 	startToFireTimeout := durationpb.New(time.Duration(rand.Int63()))
@@ -1020,17 +1060,17 @@ func (s *historyBuilderSuite) TestTimerStarted() {
 		TimerId:            timerID,
 		StartToFireTimeout: startToFireTimeout,
 	}
-	event := s.historyBuilder.AddTimerStartedEvent(
+	event := deps.historyBuilder.AddTimerStartedEvent(
 		workflowTaskCompletionEventID,
 		attributes,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_TIMER_STARTED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_TimerStartedEventAttributes{
 			TimerStartedEventAttributes: &historypb.TimerStartedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -1041,20 +1081,22 @@ func (s *historyBuilderSuite) TestTimerStarted() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestTimerFired() {
+func TestTimerFired(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	startedEventID := rand.Int63()
 	timerID := "random timer ID"
-	event := s.historyBuilder.AddTimerFiredEvent(
+	event := deps.historyBuilder.AddTimerFiredEvent(
 		startedEventID,
 		timerID,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_TIMER_FIRED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_TimerFiredEventAttributes{
 			TimerFiredEventAttributes: &historypb.TimerFiredEventAttributes{
 				TimerId:        timerID,
@@ -1064,23 +1106,25 @@ func (s *historyBuilderSuite) TestTimerFired() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestTimerCancelled() {
+func TestTimerCancelled(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	startedEventID := rand.Int63()
 	timerID := "random timer ID"
-	event := s.historyBuilder.AddTimerCanceledEvent(
+	event := deps.historyBuilder.AddTimerCanceledEvent(
 		workflowTaskCompletionEventID,
 		startedEventID,
 		timerID,
 		testIdentity,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_TIMER_CANCELED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_TimerCanceledEventAttributes{
 			TimerCanceledEventAttributes: &historypb.TimerCanceledEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -1095,7 +1139,9 @@ func (s *historyBuilderSuite) TestTimerCancelled() {
 /* timer */
 
 /* cancellation of external workflow */
-func (s *historyBuilderSuite) TestRequestCancelExternalWorkflowExecutionInitiated() {
+func TestRequestCancelExternalWorkflowExecutionInitiated(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	control := "random control"
 	childWorkflowOnly := rand.Int31()%2 == 0
@@ -1106,18 +1152,18 @@ func (s *historyBuilderSuite) TestRequestCancelExternalWorkflowExecutionInitiate
 		Control:           control,
 		ChildWorkflowOnly: childWorkflowOnly,
 	}
-	event := s.historyBuilder.AddRequestCancelExternalWorkflowExecutionInitiatedEvent(
+	event := deps.historyBuilder.AddRequestCancelExternalWorkflowExecutionInitiatedEvent(
 		workflowTaskCompletionEventID,
 		attributes,
 		testNamespaceID,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_RequestCancelExternalWorkflowExecutionInitiatedEventAttributes{
 			RequestCancelExternalWorkflowExecutionInitiatedEventAttributes: &historypb.RequestCancelExternalWorkflowExecutionInitiatedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -1134,22 +1180,24 @@ func (s *historyBuilderSuite) TestRequestCancelExternalWorkflowExecutionInitiate
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestRequestCancelExternalWorkflowExecutionSuccess() {
+func TestRequestCancelExternalWorkflowExecutionSuccess(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
-	event := s.historyBuilder.AddExternalWorkflowExecutionCancelRequested(
+	event := deps.historyBuilder.AddExternalWorkflowExecutionCancelRequested(
 		scheduledEventID,
 		testNamespaceName,
 		testNamespaceID,
 		testWorkflowID,
 		testRunID,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ExternalWorkflowExecutionCancelRequestedEventAttributes{
 			ExternalWorkflowExecutionCancelRequestedEventAttributes: &historypb.ExternalWorkflowExecutionCancelRequestedEventAttributes{
 				InitiatedEventId: scheduledEventID,
@@ -1164,11 +1212,13 @@ func (s *historyBuilderSuite) TestRequestCancelExternalWorkflowExecutionSuccess(
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestRequestCancelExternalWorkflowExecutionFailed() {
+func TestRequestCancelExternalWorkflowExecutionFailed(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	scheduledEventID := rand.Int63()
 	cause := enumspb.CancelExternalWorkflowExecutionFailedCause(rand.Int31n(int32(len(enumspb.CancelExternalWorkflowExecutionFailedCause_name))))
-	event := s.historyBuilder.AddRequestCancelExternalWorkflowExecutionFailedEvent(
+	event := deps.historyBuilder.AddRequestCancelExternalWorkflowExecutionFailedEvent(
 		workflowTaskCompletionEventID,
 		scheduledEventID,
 		testNamespaceName,
@@ -1177,13 +1227,13 @@ func (s *historyBuilderSuite) TestRequestCancelExternalWorkflowExecutionFailed()
 		testRunID,
 		cause,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_RequestCancelExternalWorkflowExecutionFailedEventAttributes{
 			RequestCancelExternalWorkflowExecutionFailedEventAttributes: &historypb.RequestCancelExternalWorkflowExecutionFailedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -1203,7 +1253,9 @@ func (s *historyBuilderSuite) TestRequestCancelExternalWorkflowExecutionFailed()
 /* cancellation of external workflow */
 
 /* signal to external workflow */
-func (s *historyBuilderSuite) TestSignalExternalWorkflowExecutionInitiated() {
+func TestSignalExternalWorkflowExecutionInitiated(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	signalName := "random signal name"
 	control := "random control"
@@ -1220,18 +1272,18 @@ func (s *historyBuilderSuite) TestSignalExternalWorkflowExecutionInitiated() {
 		ChildWorkflowOnly: childWorkflowOnly,
 		Header:            testHeader,
 	}
-	event := s.historyBuilder.AddSignalExternalWorkflowExecutionInitiatedEvent(
+	event := deps.historyBuilder.AddSignalExternalWorkflowExecutionInitiatedEvent(
 		workflowTaskCompletionEventID,
 		attributes,
 		testNamespaceID,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_SignalExternalWorkflowExecutionInitiatedEventAttributes{
 			SignalExternalWorkflowExecutionInitiatedEventAttributes: &historypb.SignalExternalWorkflowExecutionInitiatedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -1251,10 +1303,12 @@ func (s *historyBuilderSuite) TestSignalExternalWorkflowExecutionInitiated() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestSignalExternalWorkflowExecutionSuccess() {
+func TestSignalExternalWorkflowExecutionSuccess(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	control := "random control"
-	event := s.historyBuilder.AddExternalWorkflowExecutionSignaled(
+	event := deps.historyBuilder.AddExternalWorkflowExecutionSignaled(
 		scheduledEventID,
 		testNamespaceName,
 		testNamespaceID,
@@ -1262,13 +1316,13 @@ func (s *historyBuilderSuite) TestSignalExternalWorkflowExecutionSuccess() {
 		testRunID,
 		control,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_SIGNALED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ExternalWorkflowExecutionSignaledEventAttributes{
 			ExternalWorkflowExecutionSignaledEventAttributes: &historypb.ExternalWorkflowExecutionSignaledEventAttributes{
 				InitiatedEventId: scheduledEventID,
@@ -1284,12 +1338,14 @@ func (s *historyBuilderSuite) TestSignalExternalWorkflowExecutionSuccess() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestSignalExternalWorkflowExecutionFailed() {
+func TestSignalExternalWorkflowExecutionFailed(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	scheduledEventID := rand.Int63()
 	control := "random control"
 	cause := enumspb.SignalExternalWorkflowExecutionFailedCause(rand.Int31n(int32(len(enumspb.SignalExternalWorkflowExecutionFailedCause_name))))
-	event := s.historyBuilder.AddSignalExternalWorkflowExecutionFailedEvent(
+	event := deps.historyBuilder.AddSignalExternalWorkflowExecutionFailedEvent(
 		workflowTaskCompletionEventID,
 		scheduledEventID,
 		testNamespaceName,
@@ -1299,13 +1355,13 @@ func (s *historyBuilderSuite) TestSignalExternalWorkflowExecutionFailed() {
 		control,
 		cause,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_SignalExternalWorkflowExecutionFailedEventAttributes{
 			SignalExternalWorkflowExecutionFailedEventAttributes: &historypb.SignalExternalWorkflowExecutionFailedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -1326,7 +1382,9 @@ func (s *historyBuilderSuite) TestSignalExternalWorkflowExecutionFailed() {
 /* signal to external workflow */
 
 /* child workflow */
-func (s *historyBuilderSuite) TestStartChildWorkflowExecutionInitiated() {
+func TestStartChildWorkflowExecutionInitiated(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	workflowExecutionTimeout := durationpb.New(time.Duration(rand.Int63()))
 	workflowRunTimeout := durationpb.New(time.Duration(rand.Int63()))
@@ -1353,18 +1411,18 @@ func (s *historyBuilderSuite) TestStartChildWorkflowExecutionInitiated() {
 		SearchAttributes:         testSearchAttributes,
 		Header:                   testHeader,
 	}
-	event := s.historyBuilder.AddStartChildWorkflowExecutionInitiatedEvent(
+	event := deps.historyBuilder.AddStartChildWorkflowExecutionInitiatedEvent(
 		workflowTaskCompletionEventID,
 		attributes,
 		testNamespaceID,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
-		EventId:   s.nextEventID,
-		TaskId:    s.nextTaskID,
-		EventTime: timestamppb.New(s.now),
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
+		EventId:   deps.nextEventID,
+		TaskId:    deps.nextTaskID,
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_StartChildWorkflowExecutionInitiatedEventAttributes{
 			StartChildWorkflowExecutionInitiatedEventAttributes: &historypb.StartChildWorkflowExecutionInitiatedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -1390,9 +1448,11 @@ func (s *historyBuilderSuite) TestStartChildWorkflowExecutionInitiated() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestStartChildWorkflowExecutionSuccess() {
+func TestStartChildWorkflowExecutionSuccess(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
-	event := s.historyBuilder.AddChildWorkflowExecutionStartedEvent(
+	event := deps.historyBuilder.AddChildWorkflowExecutionStartedEvent(
 		scheduledEventID,
 		testNamespaceName,
 		testNamespaceID,
@@ -1403,13 +1463,13 @@ func (s *historyBuilderSuite) TestStartChildWorkflowExecutionSuccess() {
 		testWorkflowType,
 		testHeader,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionStartedEventAttributes{
 			ChildWorkflowExecutionStartedEventAttributes: &historypb.ChildWorkflowExecutionStartedEventAttributes{
 				Namespace:   testNamespaceName.String(),
@@ -1426,12 +1486,14 @@ func (s *historyBuilderSuite) TestStartChildWorkflowExecutionSuccess() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestStartChildWorkflowExecutionFailed() {
+func TestStartChildWorkflowExecutionFailed(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	workflowTaskCompletionEventID := rand.Int63()
 	scheduledEventID := rand.Int63()
 	control := "random control"
 	cause := enumspb.StartChildWorkflowExecutionFailedCause(rand.Int31n(int32(len(enumspb.StartChildWorkflowExecutionFailedCause_name))))
-	event := s.historyBuilder.AddStartChildWorkflowExecutionFailedEvent(
+	event := deps.historyBuilder.AddStartChildWorkflowExecutionFailedEvent(
 		workflowTaskCompletionEventID,
 		scheduledEventID,
 		cause,
@@ -1441,13 +1503,13 @@ func (s *historyBuilderSuite) TestStartChildWorkflowExecutionFailed() {
 		testWorkflowType,
 		control,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_StartChildWorkflowExecutionFailedEventAttributes{
 			StartChildWorkflowExecutionFailedEventAttributes: &historypb.StartChildWorkflowExecutionFailedEventAttributes{
 				WorkflowTaskCompletedEventId: workflowTaskCompletionEventID,
@@ -1463,11 +1525,13 @@ func (s *historyBuilderSuite) TestStartChildWorkflowExecutionFailed() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestChildWorkflowExecutionCompleted() {
+func TestChildWorkflowExecutionCompleted(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
 
-	event := s.historyBuilder.AddChildWorkflowExecutionCompletedEvent(
+	event := deps.historyBuilder.AddChildWorkflowExecutionCompletedEvent(
 		scheduledEventID,
 		startedEventID,
 		testNamespaceName,
@@ -1479,13 +1543,13 @@ func (s *historyBuilderSuite) TestChildWorkflowExecutionCompleted() {
 		testWorkflowType,
 		testPayloads,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionCompletedEventAttributes{
 			ChildWorkflowExecutionCompletedEventAttributes: &historypb.ChildWorkflowExecutionCompletedEventAttributes{
 				InitiatedEventId: scheduledEventID,
@@ -1503,11 +1567,13 @@ func (s *historyBuilderSuite) TestChildWorkflowExecutionCompleted() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestChildWorkflowExecutionFailed() {
+func TestChildWorkflowExecutionFailed(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
 	retryState := enumspb.RetryState(rand.Int31n(int32(len(enumspb.RetryState_name))))
-	event := s.historyBuilder.AddChildWorkflowExecutionFailedEvent(
+	event := deps.historyBuilder.AddChildWorkflowExecutionFailedEvent(
 		scheduledEventID,
 		startedEventID,
 		testNamespaceName,
@@ -1520,13 +1586,13 @@ func (s *historyBuilderSuite) TestChildWorkflowExecutionFailed() {
 		testFailure,
 		retryState,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionFailedEventAttributes{
 			ChildWorkflowExecutionFailedEventAttributes: &historypb.ChildWorkflowExecutionFailedEventAttributes{
 				InitiatedEventId: scheduledEventID,
@@ -1545,11 +1611,13 @@ func (s *historyBuilderSuite) TestChildWorkflowExecutionFailed() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestChildWorkflowExecutionTimeout() {
+func TestChildWorkflowExecutionTimeout(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
 	retryState := enumspb.RetryState(rand.Int31n(int32(len(enumspb.RetryState_name))))
-	event := s.historyBuilder.AddChildWorkflowExecutionTimedOutEvent(
+	event := deps.historyBuilder.AddChildWorkflowExecutionTimedOutEvent(
 		scheduledEventID,
 		startedEventID,
 		testNamespaceName,
@@ -1561,13 +1629,13 @@ func (s *historyBuilderSuite) TestChildWorkflowExecutionTimeout() {
 		testWorkflowType,
 		retryState,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionTimedOutEventAttributes{
 			ChildWorkflowExecutionTimedOutEventAttributes: &historypb.ChildWorkflowExecutionTimedOutEventAttributes{
 				InitiatedEventId: scheduledEventID,
@@ -1585,10 +1653,12 @@ func (s *historyBuilderSuite) TestChildWorkflowExecutionTimeout() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestChildWorkflowExecutionCancelled() {
+func TestChildWorkflowExecutionCancelled(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
-	event := s.historyBuilder.AddChildWorkflowExecutionCanceledEvent(
+	event := deps.historyBuilder.AddChildWorkflowExecutionCanceledEvent(
 		scheduledEventID,
 		startedEventID,
 		testNamespaceName,
@@ -1600,13 +1670,13 @@ func (s *historyBuilderSuite) TestChildWorkflowExecutionCancelled() {
 		testWorkflowType,
 		testPayloads,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionCanceledEventAttributes{
 			ChildWorkflowExecutionCanceledEventAttributes: &historypb.ChildWorkflowExecutionCanceledEventAttributes{
 				InitiatedEventId: scheduledEventID,
@@ -1624,10 +1694,12 @@ func (s *historyBuilderSuite) TestChildWorkflowExecutionCancelled() {
 	}, event)
 }
 
-func (s *historyBuilderSuite) TestChildWorkflowExecutionTerminated() {
+func TestChildWorkflowExecutionTerminated(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startedEventID := rand.Int63()
-	event := s.historyBuilder.AddChildWorkflowExecutionTerminatedEvent(
+	event := deps.historyBuilder.AddChildWorkflowExecutionTerminatedEvent(
 		scheduledEventID,
 		startedEventID,
 		testNamespaceName,
@@ -1638,13 +1710,13 @@ func (s *historyBuilderSuite) TestChildWorkflowExecutionTerminated() {
 		},
 		testWorkflowType,
 	)
-	s.Equal(event, s.flush())
-	s.Equal(&historypb.HistoryEvent{
+	require.Equal(t, event, flush(t, deps))
+	require.Equal(t, &historypb.HistoryEvent{
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
-		EventTime: timestamppb.New(s.now),
+		EventTime: timestamppb.New(deps.now),
 		EventType: enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED,
-		Version:   s.version,
+		Version:   deps.version,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionTerminatedEventAttributes{
 			ChildWorkflowExecutionTerminatedEventAttributes: &historypb.ChildWorkflowExecutionTerminatedEventAttributes{
 				InitiatedEventId: scheduledEventID,
@@ -1663,21 +1735,23 @@ func (s *historyBuilderSuite) TestChildWorkflowExecutionTerminated() {
 
 /* child workflow */
 
-func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithoutBuffer_SingleBatch_WithoutFlushBuffer() {
-	s.testAppendFlushFinishEventWithoutBufferSingleBatch(false)
+func TestAppendFlushFinishEvent_WithoutBuffer_SingleBatch_WithoutFlushBuffer(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
+	testAppendFlushFinishEventWithoutBufferSingleBatch(t, deps, false)
 }
 
-func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithoutBuffer_SingleBatch_WithFlushBuffer() {
-	s.testAppendFlushFinishEventWithoutBufferSingleBatch(true)
+func TestAppendFlushFinishEvent_WithoutBuffer_SingleBatch_WithFlushBuffer(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
+	testAppendFlushFinishEventWithoutBufferSingleBatch(t, deps, true)
 }
 
-func (s *historyBuilderSuite) testAppendFlushFinishEventWithoutBufferSingleBatch(
-	flushBuffer bool,
-) {
-	s.historyBuilder.dbBufferBatch = nil
-	s.historyBuilder.memEventsBatches = nil
-	s.historyBuilder.memLatestBatch = nil
-	s.historyBuilder.memBufferBatch = nil
+func testAppendFlushFinishEventWithoutBufferSingleBatch(t *testing.T, deps *historyBuilderTestDeps, flushBuffer bool) {
+	deps.historyBuilder.dbBufferBatch = nil
+	deps.historyBuilder.memEventsBatches = nil
+	deps.historyBuilder.memLatestBatch = nil
+	deps.historyBuilder.memBufferBatch = nil
 
 	event1 := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
@@ -1690,13 +1764,13 @@ func (s *historyBuilderSuite) testAppendFlushFinishEventWithoutBufferSingleBatch
 		TaskId:    common.EmptyEventTaskID,
 	}
 
-	s.historyBuilder.add(event1)
-	s.historyBuilder.add(event2)
-	historyMutation, err := s.historyBuilder.Finish(flushBuffer)
-	s.NoError(err)
-	s.assertEventIDTaskID(historyMutation)
+	deps.historyBuilder.add(event1)
+	deps.historyBuilder.add(event2)
+	historyMutation, err := deps.historyBuilder.Finish(flushBuffer)
+	require.NoError(t, err)
+	assertEventIDTaskID(t, historyMutation)
 
-	s.Equal(&HistoryMutation{
+	require.Equal(t, &HistoryMutation{
 		DBEventsBatches:        [][]*historypb.HistoryEvent{{event1, event2}},
 		DBClearBuffer:          false,
 		DBBufferBatch:          nil,
@@ -1706,21 +1780,23 @@ func (s *historyBuilderSuite) testAppendFlushFinishEventWithoutBufferSingleBatch
 	}, historyMutation)
 }
 
-func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithoutBuffer_MultiBatch_WithoutFlushBuffer() {
-	s.testAppendFlushFinishEventWithoutBufferMultiBatch(false)
+func TestAppendFlushFinishEvent_WithoutBuffer_MultiBatch_WithoutFlushBuffer(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
+	testAppendFlushFinishEventWithoutBufferMultiBatch(t, deps, false)
 }
 
-func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithoutBuffer_MultiBatch_WithFlushBuffer() {
-	s.testAppendFlushFinishEventWithoutBufferMultiBatch(true)
+func TestAppendFlushFinishEvent_WithoutBuffer_MultiBatch_WithFlushBuffer(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
+	testAppendFlushFinishEventWithoutBufferMultiBatch(t, deps, true)
 }
 
-func (s *historyBuilderSuite) testAppendFlushFinishEventWithoutBufferMultiBatch(
-	flushBuffer bool,
-) {
-	s.historyBuilder.dbBufferBatch = nil
-	s.historyBuilder.memEventsBatches = nil
-	s.historyBuilder.memLatestBatch = nil
-	s.historyBuilder.memBufferBatch = nil
+func testAppendFlushFinishEventWithoutBufferMultiBatch(t *testing.T, deps *historyBuilderTestDeps, flushBuffer bool) {
+	deps.historyBuilder.dbBufferBatch = nil
+	deps.historyBuilder.memEventsBatches = nil
+	deps.historyBuilder.memLatestBatch = nil
+	deps.historyBuilder.memBufferBatch = nil
 
 	event11 := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
@@ -1754,25 +1830,25 @@ func (s *historyBuilderSuite) testAppendFlushFinishEventWithoutBufferMultiBatch(
 	}
 
 	// 1st batch
-	s.historyBuilder.add(event11)
-	s.historyBuilder.add(event12)
-	s.historyBuilder.FlushAndCreateNewBatch()
+	deps.historyBuilder.add(event11)
+	deps.historyBuilder.add(event12)
+	deps.historyBuilder.FlushAndCreateNewBatch()
 
 	// 2nd batch
-	s.historyBuilder.add(event21)
-	s.historyBuilder.add(event22)
-	s.historyBuilder.FlushAndCreateNewBatch()
+	deps.historyBuilder.add(event21)
+	deps.historyBuilder.add(event22)
+	deps.historyBuilder.FlushAndCreateNewBatch()
 
 	// 3rd batch
-	s.historyBuilder.add(event31)
-	s.historyBuilder.add(event32)
-	s.historyBuilder.FlushAndCreateNewBatch()
+	deps.historyBuilder.add(event31)
+	deps.historyBuilder.add(event32)
+	deps.historyBuilder.FlushAndCreateNewBatch()
 
-	historyMutation, err := s.historyBuilder.Finish(flushBuffer)
-	s.NoError(err)
-	s.assertEventIDTaskID(historyMutation)
+	historyMutation, err := deps.historyBuilder.Finish(flushBuffer)
+	require.NoError(t, err)
+	assertEventIDTaskID(t, historyMutation)
 
-	s.Equal(&HistoryMutation{
+	require.Equal(t, &HistoryMutation{
 		DBEventsBatches: [][]*historypb.HistoryEvent{
 			{event11, event12},
 			{event21, event22},
@@ -1786,11 +1862,13 @@ func (s *historyBuilderSuite) testAppendFlushFinishEventWithoutBufferMultiBatch(
 	}, historyMutation)
 }
 
-func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithoutDBBuffer_WithoutFlushBuffer() {
-	s.historyBuilder.dbBufferBatch = nil
-	s.historyBuilder.memEventsBatches = nil
-	s.historyBuilder.memLatestBatch = nil
-	s.historyBuilder.memBufferBatch = nil
+func TestAppendFlushFinishEvent_WithBuffer_WithoutDBBuffer_WithoutFlushBuffer(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
+	deps.historyBuilder.dbBufferBatch = nil
+	deps.historyBuilder.memEventsBatches = nil
+	deps.historyBuilder.memLatestBatch = nil
+	deps.historyBuilder.memBufferBatch = nil
 
 	event1 := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
@@ -1803,13 +1881,13 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithoutDBBuf
 		TaskId:    common.EmptyEventTaskID,
 	}
 
-	s.historyBuilder.add(event1)
-	s.historyBuilder.add(event2)
-	historyMutation, err := s.historyBuilder.Finish(false)
-	s.NoError(err)
-	s.assertEventIDTaskID(historyMutation)
+	deps.historyBuilder.add(event1)
+	deps.historyBuilder.add(event2)
+	historyMutation, err := deps.historyBuilder.Finish(false)
+	require.NoError(t, err)
+	assertEventIDTaskID(t, historyMutation)
 
-	s.Equal(&HistoryMutation{
+	require.Equal(t, &HistoryMutation{
 		DBEventsBatches:        nil,
 		DBClearBuffer:          false,
 		DBBufferBatch:          []*historypb.HistoryEvent{event1, event2},
@@ -1819,11 +1897,13 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithoutDBBuf
 	}, historyMutation)
 }
 
-func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithoutDBBuffer_WithFlushBuffer() {
-	s.historyBuilder.dbBufferBatch = nil
-	s.historyBuilder.memEventsBatches = nil
-	s.historyBuilder.memLatestBatch = nil
-	s.historyBuilder.memBufferBatch = nil
+func TestAppendFlushFinishEvent_WithBuffer_WithoutDBBuffer_WithFlushBuffer(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
+	deps.historyBuilder.dbBufferBatch = nil
+	deps.historyBuilder.memEventsBatches = nil
+	deps.historyBuilder.memLatestBatch = nil
+	deps.historyBuilder.memBufferBatch = nil
 
 	event1 := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
@@ -1836,13 +1916,13 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithoutDBBuf
 		TaskId:    common.EmptyEventTaskID,
 	}
 
-	s.historyBuilder.add(event1)
-	s.historyBuilder.add(event2)
-	historyMutation, err := s.historyBuilder.Finish(true)
-	s.NoError(err)
-	s.assertEventIDTaskID(historyMutation)
+	deps.historyBuilder.add(event1)
+	deps.historyBuilder.add(event2)
+	historyMutation, err := deps.historyBuilder.Finish(true)
+	require.NoError(t, err)
+	assertEventIDTaskID(t, historyMutation)
 
-	s.Equal(&HistoryMutation{
+	require.Equal(t, &HistoryMutation{
 		DBEventsBatches:        [][]*historypb.HistoryEvent{{event1, event2}},
 		DBClearBuffer:          false,
 		DBBufferBatch:          nil,
@@ -1852,7 +1932,9 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithoutDBBuf
 	}, historyMutation)
 }
 
-func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithoutBuffer_WithDBBuffer_WithoutFlushBuffer() {
+func TestAppendFlushFinishEvent_WithoutBuffer_WithDBBuffer_WithoutFlushBuffer(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	event1 := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
 		EventId:   common.BufferedEventID,
@@ -1864,16 +1946,16 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithoutBuffer_WithDBBuf
 		TaskId:    common.EmptyEventTaskID,
 	}
 
-	s.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{event1, event2}
-	s.historyBuilder.memEventsBatches = nil
-	s.historyBuilder.memLatestBatch = nil
-	s.historyBuilder.memBufferBatch = nil
+	deps.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{event1, event2}
+	deps.historyBuilder.memEventsBatches = nil
+	deps.historyBuilder.memLatestBatch = nil
+	deps.historyBuilder.memBufferBatch = nil
 
-	historyMutation, err := s.historyBuilder.Finish(false)
-	s.NoError(err)
-	s.assertEventIDTaskID(historyMutation)
+	historyMutation, err := deps.historyBuilder.Finish(false)
+	require.NoError(t, err)
+	assertEventIDTaskID(t, historyMutation)
 
-	s.Equal(&HistoryMutation{
+	require.Equal(t, &HistoryMutation{
 		DBEventsBatches:        nil,
 		DBClearBuffer:          false,
 		DBBufferBatch:          nil,
@@ -1883,7 +1965,9 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithoutBuffer_WithDBBuf
 	}, historyMutation)
 }
 
-func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithoutBuffer_WithDBBuffer_WithFlushBuffer() {
+func TestAppendFlushFinishEvent_WithoutBuffer_WithDBBuffer_WithFlushBuffer(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	event1 := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
 		EventId:   common.BufferedEventID,
@@ -1895,16 +1979,16 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithoutBuffer_WithDBBuf
 		TaskId:    common.EmptyEventTaskID,
 	}
 
-	s.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{event1, event2}
-	s.historyBuilder.memEventsBatches = nil
-	s.historyBuilder.memLatestBatch = nil
-	s.historyBuilder.memBufferBatch = nil
+	deps.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{event1, event2}
+	deps.historyBuilder.memEventsBatches = nil
+	deps.historyBuilder.memLatestBatch = nil
+	deps.historyBuilder.memBufferBatch = nil
 
-	historyMutation, err := s.historyBuilder.Finish(true)
-	s.NoError(err)
-	s.assertEventIDTaskID(historyMutation)
+	historyMutation, err := deps.historyBuilder.Finish(true)
+	require.NoError(t, err)
+	assertEventIDTaskID(t, historyMutation)
 
-	s.Equal(&HistoryMutation{
+	require.Equal(t, &HistoryMutation{
 		DBEventsBatches:        [][]*historypb.HistoryEvent{{event1, event2}},
 		DBClearBuffer:          true,
 		DBBufferBatch:          nil,
@@ -1914,16 +1998,18 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithoutBuffer_WithDBBuf
 	}, historyMutation)
 }
 
-func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithDBBuffer_WithoutFlushBuffer() {
+func TestAppendFlushFinishEvent_WithBuffer_WithDBBuffer_WithoutFlushBuffer(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	event0 := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_TIMER_FIRED,
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
 	}
-	s.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{event0}
-	s.historyBuilder.memEventsBatches = nil
-	s.historyBuilder.memLatestBatch = nil
-	s.historyBuilder.memBufferBatch = nil
+	deps.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{event0}
+	deps.historyBuilder.memEventsBatches = nil
+	deps.historyBuilder.memLatestBatch = nil
+	deps.historyBuilder.memBufferBatch = nil
 
 	event1 := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
@@ -1936,13 +2022,13 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithDBBuffer
 		TaskId:    common.EmptyEventTaskID,
 	}
 
-	s.historyBuilder.add(event1)
-	s.historyBuilder.add(event2)
-	historyMutation, err := s.historyBuilder.Finish(false)
-	s.NoError(err)
-	s.assertEventIDTaskID(historyMutation)
+	deps.historyBuilder.add(event1)
+	deps.historyBuilder.add(event2)
+	historyMutation, err := deps.historyBuilder.Finish(false)
+	require.NoError(t, err)
+	assertEventIDTaskID(t, historyMutation)
 
-	s.Equal(&HistoryMutation{
+	require.Equal(t, &HistoryMutation{
 		DBEventsBatches:        nil,
 		DBClearBuffer:          false,
 		DBBufferBatch:          []*historypb.HistoryEvent{event1, event2},
@@ -1952,16 +2038,18 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithDBBuffer
 	}, historyMutation)
 }
 
-func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithDBBuffer_WithFlushBuffer() {
+func TestAppendFlushFinishEvent_WithBuffer_WithDBBuffer_WithFlushBuffer(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	event0 := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_TIMER_FIRED,
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
 	}
-	s.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{event0}
-	s.historyBuilder.memEventsBatches = nil
-	s.historyBuilder.memLatestBatch = nil
-	s.historyBuilder.memBufferBatch = nil
+	deps.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{event0}
+	deps.historyBuilder.memEventsBatches = nil
+	deps.historyBuilder.memLatestBatch = nil
+	deps.historyBuilder.memBufferBatch = nil
 
 	event1 := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
@@ -1974,13 +2062,13 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithDBBuffer
 		TaskId:    common.EmptyEventTaskID,
 	}
 
-	s.historyBuilder.add(event1)
-	s.historyBuilder.add(event2)
-	historyMutation, err := s.historyBuilder.Finish(true)
-	s.NoError(err)
-	s.assertEventIDTaskID(historyMutation)
+	deps.historyBuilder.add(event1)
+	deps.historyBuilder.add(event2)
+	historyMutation, err := deps.historyBuilder.Finish(true)
+	require.NoError(t, err)
+	assertEventIDTaskID(t, historyMutation)
 
-	s.Equal(&HistoryMutation{
+	require.Equal(t, &HistoryMutation{
 		DBEventsBatches:        [][]*historypb.HistoryEvent{{event0, event1, event2}},
 		DBClearBuffer:          true,
 		DBBufferBatch:          nil,
@@ -1990,7 +2078,9 @@ func (s *historyBuilderSuite) TestAppendFlushFinishEvent_WithBuffer_WithDBBuffer
 	}, historyMutation)
 }
 
-func (s *historyBuilderSuite) TestWireEventIDs_Activity() {
+func TestWireEventIDs_Activity(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	scheduledEventID := rand.Int63()
 	startEvent := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_ACTIVITY_TASK_STARTED,
@@ -2043,13 +2133,15 @@ func (s *historyBuilderSuite) TestWireEventIDs_Activity() {
 		},
 	}
 
-	s.testWireEventIDs(scheduledEventID, startEvent, completeEvent)
-	s.testWireEventIDs(scheduledEventID, startEvent, failedEvent)
-	s.testWireEventIDs(scheduledEventID, startEvent, timeoutEvent)
-	s.testWireEventIDs(scheduledEventID, startEvent, cancelEvent)
+	testWireEventIDs(t, deps, scheduledEventID, startEvent, completeEvent)
+	testWireEventIDs(t, deps, scheduledEventID, startEvent, failedEvent)
+	testWireEventIDs(t, deps, scheduledEventID, startEvent, timeoutEvent)
+	testWireEventIDs(t, deps, scheduledEventID, startEvent, cancelEvent)
 }
 
-func (s *historyBuilderSuite) TestWireEventIDs_ChildWorkflow() {
+func TestWireEventIDs_ChildWorkflow(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	initiatedEventID := rand.Int63()
 	startEvent := &historypb.HistoryEvent{
 		EventType: enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED,
@@ -2112,70 +2204,68 @@ func (s *historyBuilderSuite) TestWireEventIDs_ChildWorkflow() {
 		},
 	}
 
-	s.testWireEventIDs(initiatedEventID, startEvent, completeEvent)
-	s.testWireEventIDs(initiatedEventID, startEvent, failedEvent)
-	s.testWireEventIDs(initiatedEventID, startEvent, timeoutEvent)
-	s.testWireEventIDs(initiatedEventID, startEvent, cancelEvent)
-	s.testWireEventIDs(initiatedEventID, startEvent, terminatedEvent)
+	testWireEventIDs(t, deps, initiatedEventID, startEvent, completeEvent)
+	testWireEventIDs(t, deps, initiatedEventID, startEvent, failedEvent)
+	testWireEventIDs(t, deps, initiatedEventID, startEvent, timeoutEvent)
+	testWireEventIDs(t, deps, initiatedEventID, startEvent, cancelEvent)
+	testWireEventIDs(t, deps, initiatedEventID, startEvent, terminatedEvent)
 }
 
-func (s *historyBuilderSuite) testWireEventIDs(
-	scheduledEventID int64,
-	startEvent *historypb.HistoryEvent,
-	finishEvent *historypb.HistoryEvent,
-) {
-	s.historyBuilder = New(
-		s.mockTimeSource,
+func testWireEventIDs(t *testing.T, deps *historyBuilderTestDeps, scheduledEventID int64, startEvent *historypb.HistoryEvent, finishEvent *historypb.HistoryEvent) {
+	deps.historyBuilder = New(
+		deps.mockTimeSource,
 		s.taskIDGenerator,
-		s.version,
-		s.nextEventID,
+		deps.version,
+		deps.nextEventID,
 		nil,
 		metrics.NoopMetricsHandler,
 	)
-	s.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{startEvent}
-	s.historyBuilder.memEventsBatches = nil
-	s.historyBuilder.memLatestBatch = nil
-	s.historyBuilder.memBufferBatch = []*historypb.HistoryEvent{finishEvent}
-	s.historyBuilder.FlushBufferToCurrentBatch()
+	deps.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{startEvent}
+	deps.historyBuilder.memEventsBatches = nil
+	deps.historyBuilder.memLatestBatch = nil
+	deps.historyBuilder.memBufferBatch = []*historypb.HistoryEvent{finishEvent}
+	deps.historyBuilder.FlushBufferToCurrentBatch()
 
-	s.Empty(s.historyBuilder.dbBufferBatch)
-	s.Empty(s.historyBuilder.memEventsBatches)
-	s.Equal([]*historypb.HistoryEvent{startEvent, finishEvent}, s.historyBuilder.memLatestBatch)
-	s.Empty(s.historyBuilder.memBufferBatch)
+	require.Empty(t, deps.historyBuilder.dbBufferBatch)
+	require.Empty(t, deps.historyBuilder.memEventsBatches)
+	require.Equal(t, []*historypb.HistoryEvent{startEvent, finishEvent}, deps.historyBuilder.memLatestBatch)
+	require.Empty(t, deps.historyBuilder.memBufferBatch)
 
-	s.Equal(map[int64]int64{
+	require.Equal(t, map[int64]int64{
 		scheduledEventID: startEvent.GetEventId(),
-	}, s.historyBuilder.scheduledIDToStartedID)
+	}, deps.historyBuilder.scheduledIDToStartedID)
 
 	switch finishEvent.GetEventType() {
 	case enumspb.EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
-		s.Equal(startEvent.GetEventId(), finishEvent.GetActivityTaskCompletedEventAttributes().GetStartedEventId())
+		require.Equal(t, startEvent.GetEventId(), finishEvent.GetActivityTaskCompletedEventAttributes().GetStartedEventId())
 	case enumspb.EVENT_TYPE_ACTIVITY_TASK_FAILED:
-		s.Equal(startEvent.GetEventId(), finishEvent.GetActivityTaskFailedEventAttributes().GetStartedEventId())
+		require.Equal(t, startEvent.GetEventId(), finishEvent.GetActivityTaskFailedEventAttributes().GetStartedEventId())
 	case enumspb.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
-		s.Equal(startEvent.GetEventId(), finishEvent.GetActivityTaskTimedOutEventAttributes().GetStartedEventId())
+		require.Equal(t, startEvent.GetEventId(), finishEvent.GetActivityTaskTimedOutEventAttributes().GetStartedEventId())
 	case enumspb.EVENT_TYPE_ACTIVITY_TASK_CANCELED:
-		s.Equal(startEvent.GetEventId(), finishEvent.GetActivityTaskCanceledEventAttributes().GetStartedEventId())
+		require.Equal(t, startEvent.GetEventId(), finishEvent.GetActivityTaskCanceledEventAttributes().GetStartedEventId())
 
 	case enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED:
-		s.Equal(startEvent.GetEventId(), finishEvent.GetChildWorkflowExecutionCompletedEventAttributes().GetStartedEventId())
+		require.Equal(t, startEvent.GetEventId(), finishEvent.GetChildWorkflowExecutionCompletedEventAttributes().GetStartedEventId())
 	case enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED:
-		s.Equal(startEvent.GetEventId(), finishEvent.GetChildWorkflowExecutionFailedEventAttributes().GetStartedEventId())
+		require.Equal(t, startEvent.GetEventId(), finishEvent.GetChildWorkflowExecutionFailedEventAttributes().GetStartedEventId())
 	case enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT:
-		s.Equal(startEvent.GetEventId(), finishEvent.GetChildWorkflowExecutionTimedOutEventAttributes().GetStartedEventId())
+		require.Equal(t, startEvent.GetEventId(), finishEvent.GetChildWorkflowExecutionTimedOutEventAttributes().GetStartedEventId())
 	case enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED:
-		s.Equal(startEvent.GetEventId(), finishEvent.GetChildWorkflowExecutionCanceledEventAttributes().GetStartedEventId())
+		require.Equal(t, startEvent.GetEventId(), finishEvent.GetChildWorkflowExecutionCanceledEventAttributes().GetStartedEventId())
 	case enumspb.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED:
-		s.Equal(startEvent.GetEventId(), finishEvent.GetChildWorkflowExecutionTerminatedEventAttributes().GetStartedEventId())
+		require.Equal(t, startEvent.GetEventId(), finishEvent.GetChildWorkflowExecutionTerminatedEventAttributes().GetStartedEventId())
 	}
 }
 
-func (s *historyBuilderSuite) TestHasBufferEvent() {
+func TestHasBufferEvent(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	historyBuilder := New(
-		s.mockTimeSource,
+		deps.mockTimeSource,
 		s.taskIDGenerator,
-		s.version,
-		s.nextEventID,
+		deps.version,
+		deps.nextEventID,
 		nil,
 		metrics.NoopMetricsHandler,
 	)
@@ -2183,7 +2273,7 @@ func (s *historyBuilderSuite) TestHasBufferEvent() {
 	historyBuilder.memEventsBatches = nil
 	historyBuilder.memLatestBatch = nil
 	historyBuilder.memBufferBatch = nil
-	s.False(historyBuilder.HasBufferEvents())
+	require.False(t, historyBuilder.HasBufferEvents())
 
 	historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{{
 		EventType: enumspb.EVENT_TYPE_TIMER_FIRED,
@@ -2191,7 +2281,7 @@ func (s *historyBuilderSuite) TestHasBufferEvent() {
 	historyBuilder.memEventsBatches = nil
 	historyBuilder.memLatestBatch = nil
 	historyBuilder.memBufferBatch = nil
-	s.True(historyBuilder.HasBufferEvents())
+	require.True(t, historyBuilder.HasBufferEvents())
 
 	historyBuilder.dbBufferBatch = nil
 	historyBuilder.memEventsBatches = nil
@@ -2199,7 +2289,7 @@ func (s *historyBuilderSuite) TestHasBufferEvent() {
 	historyBuilder.memBufferBatch = []*historypb.HistoryEvent{{
 		EventType: enumspb.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
 	}}
-	s.True(historyBuilder.HasBufferEvents())
+	require.True(t, historyBuilder.HasBufferEvents())
 
 	historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{{
 		EventType: enumspb.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
@@ -2209,10 +2299,12 @@ func (s *historyBuilderSuite) TestHasBufferEvent() {
 	historyBuilder.memBufferBatch = []*historypb.HistoryEvent{{
 		EventType: enumspb.EVENT_TYPE_TIMER_FIRED,
 	}}
-	s.True(historyBuilder.HasBufferEvents())
+	require.True(t, historyBuilder.HasBufferEvents())
 }
 
-func (s *historyBuilderSuite) TestBufferEvent() {
+func TestBufferEvent(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	// workflow status events will be assign event ID immediately
 	workflowEvents := map[enumspb.EventType]bool{
 		enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:          true,
@@ -2279,20 +2371,20 @@ func (s *historyBuilderSuite) TestBufferEvent() {
 
 	// test workflowEvents, workflowTaskEvents, commandEvents will return true
 	for eventType := range workflowEvents {
-		s.False(s.historyBuilder.bufferEvent(eventType))
+		require.False(t, deps.historyBuilder.bufferEvent(eventType))
 	}
 	for eventType := range workflowTaskEvents {
-		s.False(s.historyBuilder.bufferEvent(eventType))
+		require.False(t, deps.historyBuilder.bufferEvent(eventType))
 	}
 	for eventType := range commandEvents {
-		s.False(s.historyBuilder.bufferEvent(eventType))
+		require.False(t, deps.historyBuilder.bufferEvent(eventType))
 	}
 	for eventType := range messageEvents {
-		s.False(s.historyBuilder.bufferEvent(eventType))
+		require.False(t, deps.historyBuilder.bufferEvent(eventType))
 	}
 	// other events will return false
 	for eventType := range otherEvents {
-		s.True(s.historyBuilder.bufferEvent(eventType))
+		require.True(t, deps.historyBuilder.bufferEvent(eventType))
 	}
 
 	commandsWithEventsCount := 0
@@ -2305,14 +2397,16 @@ func (s *historyBuilderSuite) TestBufferEvent() {
 		}
 		commandsWithEventsCount++
 	}
-	s.Equal(
+	require.Equal(t, 
 		commandsWithEventsCount,
 		len(commandEvents),
 		"This assertion is broken when a new command is added and no corresponding logic for corresponding command event is added to HistoryBuilder.bufferEvent",
 	)
 }
 
-func (s *historyBuilderSuite) TestReorder() {
+func TestReorder(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
 	// Only completion events are reordered.
 	reorderEventTypes := map[enumspb.EventType]struct{}{
 		enumspb.EVENT_TYPE_ACTIVITY_TASK_COMPLETED:             {},
@@ -2348,16 +2442,18 @@ func (s *historyBuilderSuite) TestReorder() {
 		})
 	}
 
-	s.Equal(
+	require.Equal(t, 
 		append(nonReorderEvents, reorderEvents...),
-		s.historyBuilder.reorderBuffer(append(reorderEvents, nonReorderEvents...)),
+		deps.historyBuilder.reorderBuffer(append(reorderEvents, nonReorderEvents...)),
 	)
 }
 
-func (s *historyBuilderSuite) TestBufferSize_Memory() {
-	s.Assert().Zero(s.historyBuilder.NumBufferedEvents())
-	s.Assert().Zero(s.historyBuilder.SizeInBytesOfBufferedEvents())
-	s.historyBuilder.AddWorkflowExecutionSignaledEvent(
+func TestBufferSize_Memory(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
+	require.Zero(t, deps.historyBuilder.NumBufferedEvents())
+	require.Zero(t, deps.historyBuilder.SizeInBytesOfBufferedEvents())
+	deps.historyBuilder.AddWorkflowExecutionSignaledEvent(
 		"signal-name",
 		&commonpb.Payloads{},
 		"identity",
@@ -2365,37 +2461,41 @@ func (s *historyBuilderSuite) TestBufferSize_Memory() {
 		nil,
 		nil,
 	)
-	s.Assert().Equal(1, s.historyBuilder.NumBufferedEvents())
+	require.Equal(t, 1, deps.historyBuilder.NumBufferedEvents())
 	// the size of the proto  is non-deterministic, so just assert that it's non-zero, and it isn't really high
-	s.Assert().Greater(s.historyBuilder.SizeInBytesOfBufferedEvents(), 0)
-	s.Assert().Less(s.historyBuilder.SizeInBytesOfBufferedEvents(), 100)
-	s.flush()
-	s.Assert().Zero(s.historyBuilder.NumBufferedEvents())
-	s.Assert().Zero(s.historyBuilder.SizeInBytesOfBufferedEvents())
+	require.Greater(t, deps.historyBuilder.SizeInBytesOfBufferedEvents(), 0)
+	require.Less(t, deps.historyBuilder.SizeInBytesOfBufferedEvents(), 100)
+	flush(t, deps)
+	require.Zero(t, deps.historyBuilder.NumBufferedEvents())
+	require.Zero(t, deps.historyBuilder.SizeInBytesOfBufferedEvents())
 }
 
-func (s *historyBuilderSuite) TestBufferSize_DB() {
-	s.Assert().Zero(s.historyBuilder.NumBufferedEvents())
-	s.Assert().Zero(s.historyBuilder.SizeInBytesOfBufferedEvents())
-	s.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{{
+func TestBufferSize_DB(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
+
+	require.Zero(t, deps.historyBuilder.NumBufferedEvents())
+	require.Zero(t, deps.historyBuilder.SizeInBytesOfBufferedEvents())
+	deps.historyBuilder.dbBufferBatch = []*historypb.HistoryEvent{{
 		EventType: enumspb.EVENT_TYPE_TIMER_FIRED,
 		EventId:   common.BufferedEventID,
 		TaskId:    common.EmptyEventTaskID,
 	}}
-	s.Assert().Equal(1, s.historyBuilder.NumBufferedEvents())
+	require.Equal(t, 1, deps.historyBuilder.NumBufferedEvents())
 	// the size of the proto  is non-deterministic, so just assert that it's non-zero, and it isn't really high
-	s.Assert().Greater(s.historyBuilder.SizeInBytesOfBufferedEvents(), 0)
-	s.Assert().Less(s.historyBuilder.SizeInBytesOfBufferedEvents(), 100)
-	s.flush()
-	s.Assert().Zero(s.historyBuilder.NumBufferedEvents())
-	s.Assert().Zero(s.historyBuilder.SizeInBytesOfBufferedEvents())
+	require.Greater(t, deps.historyBuilder.SizeInBytesOfBufferedEvents(), 0)
+	require.Less(t, deps.historyBuilder.SizeInBytesOfBufferedEvents(), 100)
+	flush(t, deps)
+	require.Zero(t, deps.historyBuilder.NumBufferedEvents())
+	require.Zero(t, deps.historyBuilder.SizeInBytesOfBufferedEvents())
 }
 
-func (s *historyBuilderSuite) TestLastEventVersion() {
-	_, ok := s.historyBuilder.LastEventVersion()
-	s.False(ok)
+func TestLastEventVersion(t *testing.T) {
+	deps := setupHistoryBuilderTest(t)
 
-	s.historyBuilder.AddWorkflowExecutionStartedEvent(
+	_, ok := deps.historyBuilder.LastEventVersion()
+	require.False(t, ok)
+
+	deps.historyBuilder.AddWorkflowExecutionStartedEvent(
 		time.Now(),
 		&historyservice.StartWorkflowExecutionRequest{
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{},
@@ -2405,68 +2505,66 @@ func (s *historyBuilderSuite) TestLastEventVersion() {
 		"",
 		"",
 	)
-	version, ok := s.historyBuilder.LastEventVersion()
-	s.True(ok)
-	s.Equal(s.version, version)
+	version, ok := deps.historyBuilder.LastEventVersion()
+	require.True(t, ok)
+	require.Equal(t, deps.version, version)
 
-	s.historyBuilder.FlushAndCreateNewBatch()
-	version, ok = s.historyBuilder.LastEventVersion()
-	s.True(ok)
-	s.Equal(s.version, version)
+	deps.historyBuilder.FlushAndCreateNewBatch()
+	version, ok = deps.historyBuilder.LastEventVersion()
+	require.True(t, ok)
+	require.Equal(t, deps.version, version)
 
-	_, err := s.historyBuilder.Finish(true)
-	s.NoError(err)
-	_, ok = s.historyBuilder.LastEventVersion()
-	s.False(ok)
+	_, err := deps.historyBuilder.Finish(true)
+	require.NoError(t, err)
+	_, ok = deps.historyBuilder.LastEventVersion()
+	require.False(t, ok)
 
 }
 
-func (s *historyBuilderSuite) assertEventIDTaskID(
-	historyMutation *HistoryMutation,
-) {
+func assertEventIDTaskID(t *testing.T, historyMutation *HistoryMutation) {
 
 	for _, event := range historyMutation.DBBufferBatch {
-		s.Equal(common.BufferedEventID, event.EventId)
-		s.Equal(common.EmptyEventTaskID, event.TaskId)
+		require.Equal(t, common.BufferedEventID, event.EventId)
+		require.Equal(t, common.EmptyEventTaskID, event.TaskId)
 	}
 
 	for _, event := range historyMutation.MemBufferBatch {
-		s.Equal(common.BufferedEventID, event.EventId)
-		s.Equal(common.EmptyEventTaskID, event.TaskId)
+		require.Equal(t, common.BufferedEventID, event.EventId)
+		require.Equal(t, common.EmptyEventTaskID, event.TaskId)
 	}
 
 	for _, eventBatch := range historyMutation.DBEventsBatches {
 		for _, event := range eventBatch {
-			s.NotEqual(common.BufferedEventID, event.EventId)
-			s.NotEqual(common.EmptyEventTaskID, event.TaskId)
+			require.NotEqual(t, common.BufferedEventID, event.EventId)
+			require.NotEqual(t, common.EmptyEventTaskID, event.TaskId)
 		}
 	}
 }
 
-func (s *historyBuilderSuite) flush() *historypb.HistoryEvent {
-	hasBufferEvents := s.historyBuilder.HasBufferEvents()
-	historyMutation, err := s.historyBuilder.Finish(false)
-	s.NoError(err)
-	s.assertEventIDTaskID(historyMutation)
-	s.Equal(make(map[int64]int64), historyMutation.ScheduledIDToStartedID)
+func flush(t *testing.T, deps *historyBuilderTestDeps) *historypb.HistoryEvent {
+	hasBufferEvents := deps.historyBuilder.HasBufferEvents()
+	historyMutation, err := deps.historyBuilder.Finish(false)
+	require.NoError(t, err)
+	assertEventIDTaskID(t, historyMutation)
+	require.Equal(t, make(map[int64]int64), historyMutation.ScheduledIDToStartedID)
 
 	if !hasBufferEvents {
-		s.Equal(1, len(historyMutation.DBEventsBatches))
-		s.Equal(1, len(historyMutation.DBEventsBatches[0]))
+		require.Equal(t, 1, len(historyMutation.DBEventsBatches))
+		require.Equal(t, 1, len(historyMutation.DBEventsBatches[0]))
 		return historyMutation.DBEventsBatches[0][0]
 	}
 
 	if len(historyMutation.MemBufferBatch) > 0 {
-		s.Equal(1, len(historyMutation.MemBufferBatch))
+		require.Equal(t, 1, len(historyMutation.MemBufferBatch))
 		return historyMutation.MemBufferBatch[0]
 	}
 
-	s.Fail("expect one and only event")
+	require.Fail(t, "expect one and only event")
 	return nil
 }
 
-func (s *historyBuilderSuite) taskIDGenerator(number int) ([]int64, error) {
-	nextTaskID := s.nextTaskID
+func taskIDGenerator(deps *historyBuilderTestDeps, number int) ([]int64, error) {
+	nextTaskID := deps.nextTaskID
 	result := make([]int64, number)
 	for i := 0; i < number; i++ {
 		result[i] = nextTaskID
@@ -2474,3 +2572,4 @@ func (s *historyBuilderSuite) taskIDGenerator(number int) ([]int64, error) {
 	}
 	return result, nil
 }
+

@@ -7,9 +7,7 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	activitypb "go.temporal.io/api/activity/v1"
 	commonpb "go.temporal.io/api/common/v1"
 	historypb "go.temporal.io/api/history/v1"
@@ -37,7 +35,6 @@ import (
 )
 
 func TestApplyActivityOptionsAcceptance(t *testing.T) {
-
 	options := &activitypb.ActivityOptions{
 		TaskQueue:              &taskqueuepb.TaskQueue{Name: "task_queue_name"},
 		ScheduleToCloseTimeout: durationpb.New(time.Second),
@@ -129,23 +126,22 @@ func TestApplyActivityOptionsAcceptance(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		updateFields := util.ParseFieldMask(tc.mask)
+		t.Run(tc.name, func(t *testing.T) {
+			updateFields := util.ParseFieldMask(tc.mask)
+			err := mergeActivityOptions(tc.mergeInto, tc.mergeFrom, updateFields)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected.RetryPolicy.InitialInterval, tc.mergeInto.RetryPolicy.InitialInterval, "RetryInitialInterval")
+			require.Equal(t, tc.expected.RetryPolicy.MaximumInterval, tc.mergeInto.RetryPolicy.MaximumInterval, "RetryMaximumInterval")
+			require.Equal(t, tc.expected.RetryPolicy.BackoffCoefficient, tc.mergeInto.RetryPolicy.BackoffCoefficient, "RetryBackoffCoefficient")
+			require.Equal(t, tc.expected.RetryPolicy.MaximumAttempts, tc.mergeInto.RetryPolicy.MaximumAttempts, "RetryMaximumAttempts")
 
-		t.Run(tc.name, func(t *testing.T) {})
-		err := mergeActivityOptions(tc.mergeInto, tc.mergeFrom, updateFields)
-		assert.NoError(t, err)
-		assert.Equal(t, tc.mergeInto.RetryPolicy.InitialInterval, tc.expected.RetryPolicy.InitialInterval, "RetryInitialInterval")
-		assert.Equal(t, tc.mergeInto.RetryPolicy.MaximumInterval, tc.expected.RetryPolicy.MaximumInterval, "RetryMaximumInterval")
-		assert.Equal(t, tc.mergeInto.RetryPolicy.BackoffCoefficient, tc.expected.RetryPolicy.BackoffCoefficient, "RetryBackoffCoefficient")
-		assert.Equal(t, tc.mergeInto.RetryPolicy.MaximumAttempts, tc.expected.RetryPolicy.MaximumAttempts, "RetryMaximumAttempts")
+			require.Equal(t, tc.expected.TaskQueue, tc.mergeInto.TaskQueue, "TaskQueue")
 
-		assert.Equal(t, tc.mergeInto.TaskQueue, tc.expected.TaskQueue, "TaskQueue")
-
-		assert.Equal(t, tc.mergeInto.ScheduleToCloseTimeout, tc.expected.ScheduleToCloseTimeout, "ScheduleToCloseTimeout")
-		assert.Equal(t, tc.mergeInto.ScheduleToStartTimeout, tc.expected.ScheduleToStartTimeout, "ScheduleToStartTimeout")
-		assert.Equal(t, tc.mergeInto.StartToCloseTimeout, tc.expected.StartToCloseTimeout, "StartToCloseTimeout")
-		assert.Equal(t, tc.mergeInto.HeartbeatTimeout, tc.expected.HeartbeatTimeout, "HeartbeatTimeout")
-
+			require.Equal(t, tc.expected.ScheduleToCloseTimeout, tc.mergeInto.ScheduleToCloseTimeout, "ScheduleToCloseTimeout")
+			require.Equal(t, tc.expected.ScheduleToStartTimeout, tc.mergeInto.ScheduleToStartTimeout, "ScheduleToStartTimeout")
+			require.Equal(t, tc.expected.StartToCloseTimeout, tc.mergeInto.StartToCloseTimeout, "StartToCloseTimeout")
+			require.Equal(t, tc.expected.HeartbeatTimeout, tc.mergeInto.HeartbeatTimeout, "HeartbeatTimeout")
+		})
 	}
 }
 
@@ -153,24 +149,23 @@ func TestApplyActivityOptionsErrors(t *testing.T) {
 	var err error
 	err = mergeActivityOptions(&activitypb.ActivityOptions{}, &activitypb.ActivityOptions{},
 		util.ParseFieldMask(&fieldmaskpb.FieldMask{Paths: []string{"retry_policy.maximum_interval"}}))
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	err = mergeActivityOptions(&activitypb.ActivityOptions{}, &activitypb.ActivityOptions{},
 		util.ParseFieldMask(&fieldmaskpb.FieldMask{Paths: []string{"retry_policy.maximum_attempts"}}))
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	err = mergeActivityOptions(&activitypb.ActivityOptions{}, &activitypb.ActivityOptions{},
 		util.ParseFieldMask(&fieldmaskpb.FieldMask{Paths: []string{"retry_policy.backoff_coefficient"}}))
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	err = mergeActivityOptions(&activitypb.ActivityOptions{}, &activitypb.ActivityOptions{},
 		util.ParseFieldMask(&fieldmaskpb.FieldMask{Paths: []string{"retry_policy.initial_interval"}}))
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	err = mergeActivityOptions(&activitypb.ActivityOptions{}, &activitypb.ActivityOptions{},
 		util.ParseFieldMask(&fieldmaskpb.FieldMask{Paths: []string{"taskQueue.name"}}))
-	assert.Error(t, err)
-
+	require.Error(t, err)
 }
 
 func TestApplyActivityOptionsReset(t *testing.T) {
@@ -211,60 +206,39 @@ func TestApplyActivityOptionsReset(t *testing.T) {
 			},
 		},
 		updateFields)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Nil(t, options.ScheduleToCloseTimeout)
-	assert.Nil(t, options.ScheduleToStartTimeout)
-	assert.Nil(t, options.StartToCloseTimeout)
-	assert.Nil(t, options.HeartbeatTimeout)
+	require.Nil(t, options.ScheduleToCloseTimeout)
+	require.Nil(t, options.ScheduleToStartTimeout)
+	require.Nil(t, options.StartToCloseTimeout)
+	require.Nil(t, options.HeartbeatTimeout)
 
-	assert.Nil(t, options.RetryPolicy.InitialInterval)
-	assert.Nil(t, options.RetryPolicy.MaximumInterval)
+	require.Nil(t, options.RetryPolicy.InitialInterval)
+	require.Nil(t, options.RetryPolicy.MaximumInterval)
 }
 
-type (
-	activityOptionsSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller          *gomock.Controller
-		mockShard           *shard.ContextTest
-		mockEventsCache     *events.MockCache
-		mockNamespaceCache  *namespace.MockRegistry
-		mockTaskGenerator   *workflow.MockTaskGenerator
-		mockMutableState    *historyi.MockMutableState
-		mockClusterMetadata *cluster.MockMetadata
-
-		executionInfo *persistencespb.WorkflowExecutionInfo
-
-		validator                  *api.CommandAttrValidator
-		workflowCache              *wcache.MockCache
-		workflowConsistencyChecker api.WorkflowConsistencyChecker
-
-		logger log.Logger
-	}
-)
-
-func TestActivityOptionsSuite(t *testing.T) {
-	s := new(activityOptionsSuite)
-	suite.Run(t, s)
+type activityOptionsTestDeps struct {
+	controller                 *gomock.Controller
+	mockShard                  *shard.ContextTest
+	mockEventsCache            *events.MockCache
+	mockNamespaceCache         *namespace.MockRegistry
+	mockTaskGenerator          *workflow.MockTaskGenerator
+	mockMutableState           *historyi.MockMutableState
+	mockClusterMetadata        *cluster.MockMetadata
+	executionInfo              *persistencespb.WorkflowExecutionInfo
+	validator                  *api.CommandAttrValidator
+	workflowCache              *wcache.MockCache
+	workflowConsistencyChecker api.WorkflowConsistencyChecker
+	logger                     log.Logger
 }
 
-func (s *activityOptionsSuite) SetupSuite() {
-}
+func setupActivityOptionsTest(t *testing.T) *activityOptionsTestDeps {
+	controller := gomock.NewController(t)
+	mockTaskGenerator := workflow.NewMockTaskGenerator(controller)
+	mockMutableState := historyi.NewMockMutableState(controller)
 
-func (s *activityOptionsSuite) TearDownSuite() {
-}
-
-func (s *activityOptionsSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.mockTaskGenerator = workflow.NewMockTaskGenerator(s.controller)
-	s.mockMutableState = historyi.NewMockMutableState(s.controller)
-
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{
 			ShardId: 0,
 			RangeId: 1,
@@ -272,52 +246,70 @@ func (s *activityOptionsSuite) SetupTest() {
 		tests.NewDynamicConfig(),
 	)
 
-	s.mockNamespaceCache = s.mockShard.Resource.NamespaceCache
-	s.mockClusterMetadata = s.mockShard.Resource.ClusterMetadata
-	s.mockEventsCache = s.mockShard.MockEventsCache
-	s.mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
-	s.mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
-	s.mockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
+	mockNamespaceCache := mockShard.Resource.NamespaceCache
+	mockClusterMetadata := mockShard.Resource.ClusterMetadata
+	mockEventsCache := mockShard.MockEventsCache
+	mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
+	mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
+	mockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
 
-	s.logger = s.mockShard.GetLogger()
-	s.executionInfo = &persistencespb.WorkflowExecutionInfo{
+	logger := mockShard.GetLogger()
+	executionInfo := &persistencespb.WorkflowExecutionInfo{
 		VersionHistories:                 versionhistory.NewVersionHistories(&historyspb.VersionHistory{}),
 		FirstExecutionRunId:              uuid.New(),
 		WorkflowExecutionTimerTaskStatus: workflow.TimerTaskStatusCreated,
 	}
-	s.mockMutableState.EXPECT().GetExecutionInfo().Return(s.executionInfo).AnyTimes()
-	s.mockMutableState.EXPECT().GetCurrentVersion().Return(int64(1)).AnyTimes()
+	mockMutableState.EXPECT().GetExecutionInfo().Return(executionInfo).AnyTimes()
+	mockMutableState.EXPECT().GetCurrentVersion().Return(int64(1)).AnyTimes()
 
-	s.validator = api.NewCommandAttrValidator(
-		s.mockShard.GetNamespaceRegistry(),
-		s.mockShard.GetConfig(),
+	validator := api.NewCommandAttrValidator(
+		mockShard.GetNamespaceRegistry(),
+		mockShard.GetConfig(),
 		nil,
 	)
 
-	s.workflowCache = wcache.NewMockCache(s.controller)
-	s.workflowConsistencyChecker = api.NewWorkflowConsistencyChecker(
-		s.mockShard,
-		s.workflowCache,
+	workflowCache := wcache.NewMockCache(controller)
+	workflowConsistencyChecker := api.NewWorkflowConsistencyChecker(
+		mockShard,
+		workflowCache,
 	)
+
+	return &activityOptionsTestDeps{
+		controller:                 controller,
+		mockShard:                  mockShard,
+		mockEventsCache:            mockEventsCache,
+		mockNamespaceCache:         mockNamespaceCache,
+		mockTaskGenerator:          mockTaskGenerator,
+		mockMutableState:           mockMutableState,
+		mockClusterMetadata:        mockClusterMetadata,
+		executionInfo:              executionInfo,
+		validator:                  validator,
+		workflowCache:              workflowCache,
+		workflowConsistencyChecker: workflowConsistencyChecker,
+		logger:                     logger,
+	}
 }
 
-func (s *activityOptionsSuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.StopForTest()
-}
+func Test_updateActivityOptionsWfNotRunning(t *testing.T) {
+	deps := setupActivityOptionsTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
 
-func (s *activityOptionsSuite) Test_updateActivityOptionsWfNotRunning() {
 	request := &historyservice.UpdateActivityOptionsRequest{}
 
-	s.mockMutableState.EXPECT().IsWorkflowExecutionRunning().Return(false)
+	deps.mockMutableState.EXPECT().IsWorkflowExecutionRunning().Return(false)
 
-	_, err := processActivityOptionsRequest(s.validator, s.mockMutableState, request.GetUpdateRequest(), request.GetNamespaceId())
-	s.Error(err)
-	s.ErrorAs(err, &consts.ErrWorkflowCompleted)
+	_, err := processActivityOptionsRequest(deps.validator, deps.mockMutableState, request.GetUpdateRequest(), request.GetNamespaceId())
+	require.Error(t, err)
+	require.ErrorAs(t, err, &consts.ErrWorkflowCompleted)
 }
 
-func (s *activityOptionsSuite) Test_updateActivityOptionsWfNoActivity() {
+func Test_updateActivityOptionsWfNoActivity(t *testing.T) {
+	deps := setupActivityOptionsTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	request := &historyservice.UpdateActivityOptionsRequest{
 		UpdateRequest: &workflowservice.UpdateActivityOptionsRequest{
 			ActivityOptions: &activitypb.ActivityOptions{
@@ -332,14 +324,18 @@ func (s *activityOptionsSuite) Test_updateActivityOptionsWfNoActivity() {
 		},
 	}
 
-	s.mockMutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
-	s.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(nil, false)
-	_, err := processActivityOptionsRequest(s.validator, s.mockMutableState, request.GetUpdateRequest(), request.GetNamespaceId())
-	s.Error(err)
-	s.ErrorAs(err, &consts.ErrActivityNotFound)
+	deps.mockMutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
+	deps.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(nil, false)
+	_, err := processActivityOptionsRequest(deps.validator, deps.mockMutableState, request.GetUpdateRequest(), request.GetNamespaceId())
+	require.Error(t, err)
+	require.ErrorAs(t, err, &consts.ErrActivityNotFound)
 }
 
-func (s *activityOptionsSuite) Test_updateActivityOptionsAcceptance() {
+func Test_updateActivityOptionsAcceptance(t *testing.T) {
+	deps := setupActivityOptionsTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	fullActivityInfo := &persistencespb.ActivityInfo{
 		TaskQueue:               "task_queue_name",
 		ScheduleToCloseTimeout:  durationpb.New(time.Second),
@@ -384,10 +380,10 @@ func (s *activityOptionsSuite) Test_updateActivityOptionsAcceptance() {
 		},
 	}
 
-	s.mockMutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
-	s.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(fullActivityInfo, true)
-	s.mockMutableState.EXPECT().RegenerateActivityRetryTask(gomock.Any(), gomock.Any()).Return(nil)
-	s.mockMutableState.EXPECT().UpdateActivity(gomock.Any(), gomock.Any()).Return(nil)
+	deps.mockMutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
+	deps.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(fullActivityInfo, true)
+	deps.mockMutableState.EXPECT().RegenerateActivityRetryTask(gomock.Any(), gomock.Any()).Return(nil)
+	deps.mockMutableState.EXPECT().UpdateActivity(gomock.Any(), gomock.Any()).Return(nil)
 
 	request := &historyservice.UpdateActivityOptionsRequest{
 		UpdateRequest: &workflowservice.UpdateActivityOptionsRequest{
@@ -398,13 +394,17 @@ func (s *activityOptionsSuite) Test_updateActivityOptionsAcceptance() {
 	}
 
 	response, err := processActivityOptionsRequest(
-		s.validator, s.mockMutableState, request.GetUpdateRequest(), request.GetNamespaceId())
+		deps.validator, deps.mockMutableState, request.GetUpdateRequest(), request.GetNamespaceId())
 
-	s.NoError(err)
-	s.NotNil(response)
+	require.NoError(t, err)
+	require.NotNil(t, response)
 }
 
-func (s *activityOptionsSuite) Test_updateActivityOptions_RestoreDefaultFail() {
+func Test_updateActivityOptions_RestoreDefaultFail(t *testing.T) {
+	deps := setupActivityOptionsTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	updateMask := &fieldmaskpb.FieldMask{
 		Paths: []string{
 			"task_queue.name",
@@ -444,25 +444,25 @@ func (s *activityOptionsSuite) Test_updateActivityOptions_RestoreDefaultFail() {
 	ctx := context.Background()
 
 	// both restore flag and update mask are set
-	_, err := Invoke(ctx, request, s.mockShard, s.workflowConsistencyChecker)
-	s.Error(err)
+	_, err := Invoke(ctx, request, deps.mockShard, deps.workflowConsistencyChecker)
+	require.Error(t, err)
 
 	// not pending activity with such type
 	request.UpdateRequest.ActivityOptions = nil
 	request.UpdateRequest.UpdateMask = nil
 	request.UpdateRequest.Activity = &workflowservice.UpdateActivityOptionsRequest_Type{Type: "activity_type"}
 	activityInfos := map[int64]*persistencespb.ActivityInfo{}
-	s.mockMutableState.EXPECT().GetPendingActivityInfos().Return(activityInfos)
-	_, err = restoreOriginalOptions(ctx, s.mockMutableState, request.GetUpdateRequest())
-	s.Error(err)
+	deps.mockMutableState.EXPECT().GetPendingActivityInfos().Return(activityInfos)
+	_, err = restoreOriginalOptions(ctx, deps.mockMutableState, request.GetUpdateRequest())
+	require.Error(t, err)
 
 	// not pending activity with such id
 	request.UpdateRequest.ActivityOptions = nil
 	request.UpdateRequest.UpdateMask = nil
 	request.UpdateRequest.Activity = &workflowservice.UpdateActivityOptionsRequest_Id{Id: "activity_id"}
-	s.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(nil, false)
-	_, err = restoreOriginalOptions(ctx, s.mockMutableState, request.GetUpdateRequest())
-	s.Error(err)
+	deps.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(nil, false)
+	_, err = restoreOriginalOptions(ctx, deps.mockMutableState, request.GetUpdateRequest())
+	require.Error(t, err)
 
 	ai := &persistencespb.ActivityInfo{
 		ActivityId: "activity_id",
@@ -475,13 +475,17 @@ func (s *activityOptionsSuite) Test_updateActivityOptions_RestoreDefaultFail() {
 
 	// event not found
 	err = errors.New("some error")
-	s.mockMutableState.EXPECT().GetActivityScheduledEvent(gomock.Any(), gomock.Any()).Return(nil, err)
-	s.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(ai, true)
-	_, err = restoreOriginalOptions(ctx, s.mockMutableState, request.GetUpdateRequest())
-	s.Error(err)
+	deps.mockMutableState.EXPECT().GetActivityScheduledEvent(gomock.Any(), gomock.Any()).Return(nil, err)
+	deps.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(ai, true)
+	_, err = restoreOriginalOptions(ctx, deps.mockMutableState, request.GetUpdateRequest())
+	require.Error(t, err)
 }
 
-func (s *activityOptionsSuite) Test_updateActivityOptions_RestoreDefaultSuccess() {
+func Test_updateActivityOptions_RestoreDefaultSuccess(t *testing.T) {
+	deps := setupActivityOptionsTest(t)
+	defer deps.controller.Finish()
+	defer deps.mockShard.StopForTest()
+
 	request := &historyservice.UpdateActivityOptionsRequest{
 		UpdateRequest: &workflowservice.UpdateActivityOptionsRequest{
 			Activity:        &workflowservice.UpdateActivityOptionsRequest_Id{Id: "activity_id"},
@@ -527,10 +531,10 @@ func (s *activityOptionsSuite) Test_updateActivityOptions_RestoreDefaultSuccess(
 	}
 
 	// event not found
-	s.mockMutableState.EXPECT().GetActivityScheduledEvent(gomock.Any(), gomock.Any()).Return(he, nil)
-	s.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(ai, true)
-	s.mockMutableState.EXPECT().UpdateActivity(gomock.Any(), gomock.Any()).Return(nil)
-	response, err := restoreOriginalOptions(ctx, s.mockMutableState, request.GetUpdateRequest())
-	s.NotNil(response)
-	s.NoError(err)
+	deps.mockMutableState.EXPECT().GetActivityScheduledEvent(gomock.Any(), gomock.Any()).Return(he, nil)
+	deps.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(ai, true)
+	deps.mockMutableState.EXPECT().UpdateActivity(gomock.Any(), gomock.Any()).Return(nil)
+	response, err := restoreOriginalOptions(ctx, deps.mockMutableState, request.GetUpdateRequest())
+	require.NotNil(t, response)
+	require.NoError(t, err)
 }

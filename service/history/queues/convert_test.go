@@ -7,40 +7,26 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/api/temporalproto"
 	enumsspb "go.temporal.io/server/api/enums/v1"
 	"go.temporal.io/server/common/predicates"
 	"go.temporal.io/server/service/history/tasks"
 )
 
-type (
-	convertSuite struct {
-		suite.Suite
-		*require.Assertions
-	}
-)
-
-func TestConvertSuite(t *testing.T) {
-	s := new(convertSuite)
-	suite.Run(t, s)
-}
-
-func (s *convertSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-}
-
-func (s *convertSuite) TestConvertPredicate_All() {
+func TestConvertPredicate_All(t *testing.T) {
+	t.Parallel()
 	predicate := predicates.Universal[tasks.Task]()
-	s.Equal(predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
+	require.Equal(t, predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
 }
 
-func (s *convertSuite) TestConvertPredicate_Empty() {
+func TestConvertPredicate_Empty(t *testing.T) {
+	t.Parallel()
 	predicate := predicates.Empty[tasks.Task]()
-	s.Equal(predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
+	require.Equal(t, predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
 }
 
-func (s *convertSuite) TestConvertPredicate_And() {
+func TestConvertPredicate_And(t *testing.T) {
+	t.Parallel()
 	testCases := []tasks.Predicate{
 		predicates.And(
 			predicates.Universal[tasks.Task](),
@@ -79,11 +65,12 @@ func (s *convertSuite) TestConvertPredicate_And() {
 	}
 
 	for _, predicate := range testCases {
-		s.Equal(predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
+		require.Equal(t, predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
 	}
 }
 
-func (s *convertSuite) TestConvertPredicate_Or() {
+func TestConvertPredicate_Or(t *testing.T) {
+	t.Parallel()
 	testCases := []tasks.Predicate{
 		predicates.Or(
 			predicates.Universal[tasks.Task](),
@@ -122,11 +109,12 @@ func (s *convertSuite) TestConvertPredicate_Or() {
 	}
 
 	for _, predicate := range testCases {
-		s.Equal(predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
+		require.Equal(t, predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
 	}
 }
 
-func (s *convertSuite) TestConvertPredicate_Not() {
+func TestConvertPredicate_Not(t *testing.T) {
+	t.Parallel()
 	testCases := []tasks.Predicate{
 		predicates.Not(predicates.Universal[tasks.Task]()),
 		predicates.Not(predicates.Empty[tasks.Task]()),
@@ -146,11 +134,12 @@ func (s *convertSuite) TestConvertPredicate_Not() {
 	}
 
 	for _, predicate := range testCases {
-		s.Equal(predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
+		require.Equal(t, predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
 	}
 }
 
-func (s *convertSuite) TestConvertPredicate_NamespaceID() {
+func TestConvertPredicate_NamespaceID(t *testing.T) {
+	t.Parallel()
 	testCases := []tasks.Predicate{
 		tasks.NewNamespacePredicate(nil),
 		tasks.NewNamespacePredicate([]string{}),
@@ -158,11 +147,12 @@ func (s *convertSuite) TestConvertPredicate_NamespaceID() {
 	}
 
 	for _, predicate := range testCases {
-		s.Equal(predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
+		require.Equal(t, predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
 	}
 }
 
-func (s *convertSuite) TestConvertPredicate_TaskType() {
+func TestConvertPredicate_TaskType(t *testing.T) {
+	t.Parallel()
 	testCases := []tasks.Predicate{
 		tasks.NewTypePredicate(nil),
 		tasks.NewTypePredicate([]enumsspb.TaskType{}),
@@ -174,36 +164,40 @@ func (s *convertSuite) TestConvertPredicate_TaskType() {
 	}
 
 	for _, predicate := range testCases {
-		s.Equal(predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
+		require.Equal(t, predicate, FromPersistencePredicate(ToPersistencePredicate(predicate)))
 	}
 }
 
-func (s *convertSuite) TestConvertTaskKey() {
+func TestConvertTaskKey(t *testing.T) {
+	t.Parallel()
 	key := NewRandomKey()
-	s.Equal(key, FromPersistenceTaskKey(
+	require.Equal(t, key, FromPersistenceTaskKey(
 		ToPersistenceTaskKey(key),
 	))
 }
 
-func (s *convertSuite) TestConvertTaskRange() {
+func TestConvertTaskRange(t *testing.T) {
+	t.Parallel()
 	r := NewRandomRange()
-	s.Equal(r, FromPersistenceRange(
+	require.Equal(t, r, FromPersistenceRange(
 		ToPersistenceRange(r),
 	))
 }
 
-func (s *convertSuite) TestConvertScope() {
+func TestConvertScope(t *testing.T) {
+	t.Parallel()
 	scope := NewScope(
 		NewRandomRange(),
 		tasks.NewNamespacePredicate([]string{uuid.New(), uuid.New()}),
 	)
 
-	s.True(temporalproto.DeepEqual(scope, FromPersistenceScope(
+	require.True(t, temporalproto.DeepEqual(scope, FromPersistenceScope(
 		ToPersistenceScope(scope),
 	)))
 }
 
-func (s *convertSuite) TestConvertQueueState() {
+func TestConvertQueueState(t *testing.T) {
+	t.Parallel()
 	readerScopes := map[int64][]Scope{
 		0: {},
 		1: {
@@ -232,7 +226,7 @@ func (s *convertSuite) TestConvertQueueState() {
 		exclusiveReaderHighWatermark: tasks.NewKey(time.Unix(0, rand.Int63()).UTC(), 0),
 	}
 
-	s.True(temporalproto.DeepEqual(queueState, FromPersistenceQueueState(
+	require.True(t, temporalproto.DeepEqual(queueState, FromPersistenceQueueState(
 		ToPersistenceQueueState(queueState),
 	)))
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/api/serviceerror"
 	clockspb "go.temporal.io/server/api/clock/v1"
@@ -24,148 +23,146 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	workflowConsistencyCheckerSuite struct {
-		suite.Suite
-		*require.Assertions
+type workflowConsistencyCheckerTestDeps struct {
+	controller    *gomock.Controller
+	shardContext  *historyi.MockShardContext
+	workflowCache *wcache.MockCache
+	config        *configs.Config
+	shardID       int32
+	namespaceID   string
+	workflowID    string
+	currentRunID  string
+	checker       *WorkflowConsistencyCheckerImpl
+}
 
-		controller    *gomock.Controller
-		shardContext  *historyi.MockShardContext
-		workflowCache *wcache.MockCache
-		config        *configs.Config
+func setupWorkflowConsistencyCheckerTest(t *testing.T) *workflowConsistencyCheckerTestDeps {
+	controller := gomock.NewController(t)
+	shardContext := historyi.NewMockShardContext(controller)
+	workflowCache := wcache.NewMockCache(controller)
+	config := tests.NewDynamicConfig()
 
-		shardID      int32
-		namespaceID  string
-		workflowID   string
-		currentRunID string
+	shardID := rand.Int31()
+	namespaceID := uuid.New().String()
+	workflowID := uuid.New().String()
+	currentRunID := uuid.New().String()
 
-		checker *WorkflowConsistencyCheckerImpl
+	shardContext.EXPECT().GetShardID().Return(shardID).AnyTimes()
+	shardContext.EXPECT().GetConfig().Return(config).AnyTimes()
+
+	checker := NewWorkflowConsistencyChecker(shardContext, workflowCache)
+
+	t.Cleanup(func() {
+		controller.Finish()
+	})
+
+	return &workflowConsistencyCheckerTestDeps{
+		controller:    controller,
+		shardContext:  shardContext,
+		workflowCache: workflowCache,
+		config:        config,
+		shardID:       shardID,
+		namespaceID:   namespaceID,
+		workflowID:    workflowID,
+		currentRunID:  currentRunID,
+		checker:       checker,
 	}
-)
-
-func TestWorkflowConsistencyCheckerSuite(t *testing.T) {
-	s := new(workflowConsistencyCheckerSuite)
-	suite.Run(t, s)
 }
 
-func (s *workflowConsistencyCheckerSuite) SetupSuite() {
-}
-
-func (s *workflowConsistencyCheckerSuite) TearDownSuite() {
-}
-
-func (s *workflowConsistencyCheckerSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.shardContext = historyi.NewMockShardContext(s.controller)
-	s.workflowCache = wcache.NewMockCache(s.controller)
-	s.config = tests.NewDynamicConfig()
-
-	s.shardID = rand.Int31()
-	s.namespaceID = uuid.New().String()
-	s.workflowID = uuid.New().String()
-	s.currentRunID = uuid.New().String()
-
-	s.shardContext.EXPECT().GetShardID().Return(s.shardID).AnyTimes()
-	s.shardContext.EXPECT().GetConfig().Return(s.config).AnyTimes()
-
-	s.checker = NewWorkflowConsistencyChecker(s.shardContext, s.workflowCache)
-}
-
-func (s *workflowConsistencyCheckerSuite) TearDownTest() {
-	s.controller.Finish()
-}
-
-func (s *workflowConsistencyCheckerSuite) TestGetWorkflowContextValidatedByCheck_Success_PassCheck() {
+func TestGetWorkflowContextValidatedByCheck_Success_PassCheck(t *testing.T) {
+	deps := setupWorkflowConsistencyCheckerTest(t)
 	ctx := context.Background()
 
-	wfContext := historyi.NewMockWorkflowContext(s.controller)
-	mutableState := historyi.NewMockMutableState(s.controller)
+	wfContext := historyi.NewMockWorkflowContext(deps.controller)
+	mutableState := historyi.NewMockMutableState(deps.controller)
 	released := false
 	releaseFn := func(err error) { released = true }
 
-	s.workflowCache.EXPECT().GetOrCreateChasmExecution(
+	deps.workflowCache.EXPECT().GetOrCreateChasmExecution(
 		ctx,
-		s.shardContext,
-		namespace.ID(s.namespaceID),
+		deps.shardContext,
+		namespace.ID(deps.namespaceID),
 		protomock.Eq(&commonpb.WorkflowExecution{
-			WorkflowId: s.workflowID,
-			RunId:      s.currentRunID,
+			WorkflowId: deps.workflowID,
+			RunId:      deps.currentRunID,
 		}),
 		chasm.WorkflowArchetype,
 		locks.PriorityHigh,
 	).Return(wfContext, releaseFn, nil)
-	wfContext.EXPECT().LoadMutableState(ctx, s.shardContext).Return(mutableState, nil)
+	wfContext.EXPECT().LoadMutableState(ctx, deps.shardContext).Return(mutableState, nil)
 
-	workflowLease, err := s.checker.GetWorkflowLease(
+	workflowLease, err := deps.checker.GetWorkflowLease(
 		ctx, nil,
-		definition.NewWorkflowKey(s.namespaceID, s.workflowID, s.currentRunID),
+		definition.NewWorkflowKey(deps.namespaceID, deps.workflowID, deps.currentRunID),
 		locks.PriorityHigh,
 	)
-	s.NoError(err)
-	s.Equal(mutableState, workflowLease.GetMutableState())
-	s.False(released)
+	require.NoError(t, err)
+	require.Equal(t, mutableState, workflowLease.GetMutableState())
+	require.False(t, released)
 }
-func (s *workflowConsistencyCheckerSuite) TestGetCurrentRunID_Success() {
+
+func TestGetCurrentRunID_Success(t *testing.T) {
+	deps := setupWorkflowConsistencyCheckerTest(t)
 	ctx := context.Background()
 
 	released := false
 	releaseFn := func(err error) { released = true }
 
-	s.workflowCache.EXPECT().GetOrCreateCurrentWorkflowExecution(
+	deps.workflowCache.EXPECT().GetOrCreateCurrentWorkflowExecution(
 		ctx,
-		s.shardContext,
-		namespace.ID(s.namespaceID),
-		s.workflowID,
+		deps.shardContext,
+		namespace.ID(deps.namespaceID),
+		deps.workflowID,
 		locks.PriorityHigh,
 	).Return(releaseFn, nil)
-	s.shardContext.EXPECT().GetCurrentExecution(
+	deps.shardContext.EXPECT().GetCurrentExecution(
 		ctx,
 		&persistence.GetCurrentExecutionRequest{
-			ShardID:     s.shardContext.GetShardID(),
-			NamespaceID: s.namespaceID,
-			WorkflowID:  s.workflowID,
+			ShardID:     deps.shardContext.GetShardID(),
+			NamespaceID: deps.namespaceID,
+			WorkflowID:  deps.workflowID,
 		},
-	).Return(&persistence.GetCurrentExecutionResponse{RunID: s.currentRunID}, nil)
+	).Return(&persistence.GetCurrentExecutionResponse{RunID: deps.currentRunID}, nil)
 
-	runID, err := s.checker.GetCurrentRunID(ctx, s.namespaceID, s.workflowID, locks.PriorityHigh)
-	s.NoError(err)
-	s.Equal(s.currentRunID, runID)
-	s.True(released)
+	runID, err := deps.checker.GetCurrentRunID(ctx, deps.namespaceID, deps.workflowID, locks.PriorityHigh)
+	require.NoError(t, err)
+	require.Equal(t, deps.currentRunID, runID)
+	require.True(t, released)
 }
 
-func (s *workflowConsistencyCheckerSuite) TestGetCurrentRunID_Error() {
+func TestGetCurrentRunID_Error(t *testing.T) {
+	deps := setupWorkflowConsistencyCheckerTest(t)
 	ctx := context.Background()
 
 	released := false
 	releaseFn := func(err error) { released = true }
 
-	s.workflowCache.EXPECT().GetOrCreateCurrentWorkflowExecution(
+	deps.workflowCache.EXPECT().GetOrCreateCurrentWorkflowExecution(
 		ctx,
-		s.shardContext,
-		namespace.ID(s.namespaceID),
-		s.workflowID,
+		deps.shardContext,
+		namespace.ID(deps.namespaceID),
+		deps.workflowID,
 		locks.PriorityHigh,
 	).Return(releaseFn, nil)
-	s.shardContext.EXPECT().GetCurrentExecution(
+	deps.shardContext.EXPECT().GetCurrentExecution(
 		ctx,
 		&persistence.GetCurrentExecutionRequest{
-			ShardID:     s.shardContext.GetShardID(),
-			NamespaceID: s.namespaceID,
-			WorkflowID:  s.workflowID,
+			ShardID:     deps.shardContext.GetShardID(),
+			NamespaceID: deps.namespaceID,
+			WorkflowID:  deps.workflowID,
 		},
 	).Return(nil, serviceerror.NewUnavailable(""))
 
-	runID, err := s.checker.GetCurrentRunID(ctx, s.namespaceID, s.workflowID, locks.PriorityHigh)
-	s.IsType(&serviceerror.Unavailable{}, err)
-	s.Empty(runID)
-	s.True(released)
+	runID, err := deps.checker.GetCurrentRunID(ctx, deps.namespaceID, deps.workflowID, locks.PriorityHigh)
+	require.IsType(t, &serviceerror.Unavailable{}, err)
+	require.Empty(t, runID)
+	require.True(t, released)
 }
 
-func (s *workflowConsistencyCheckerSuite) Test_clockConsistencyCheck() {
-	err := s.checker.clockConsistencyCheck(nil)
-	s.NoError(err)
+func Test_clockConsistencyCheck(t *testing.T) {
+	deps := setupWorkflowConsistencyCheckerTest(t)
+
+	err := deps.checker.clockConsistencyCheck(nil)
+	require.NoError(t, err)
 
 	reqClock := &clockspb.VectorClock{
 		ShardId:   1,
@@ -179,9 +176,9 @@ func (s *workflowConsistencyCheckerSuite) Test_clockConsistencyCheck() {
 		Clock:     1,
 		ClusterId: 1,
 	}
-	s.shardContext.EXPECT().CurrentVectorClock().Return(differentShardClock)
-	err = s.checker.clockConsistencyCheck(reqClock)
-	s.NoError(err)
+	deps.shardContext.EXPECT().CurrentVectorClock().Return(differentShardClock)
+	err = deps.checker.clockConsistencyCheck(reqClock)
+	require.NoError(t, err)
 
 	// not compatible - different cluster id
 	differentClusterClock := &clockspb.VectorClock{
@@ -189,14 +186,14 @@ func (s *workflowConsistencyCheckerSuite) Test_clockConsistencyCheck() {
 		Clock:     1,
 		ClusterId: 2,
 	}
-	s.shardContext.EXPECT().CurrentVectorClock().Return(differentClusterClock)
-	err = s.checker.clockConsistencyCheck(reqClock)
-	s.NoError(err)
+	deps.shardContext.EXPECT().CurrentVectorClock().Return(differentClusterClock)
+	err = deps.checker.clockConsistencyCheck(reqClock)
+	require.NoError(t, err)
 
 	// not compatible - shard context clock is missing
-	s.shardContext.EXPECT().CurrentVectorClock().Return(nil)
-	err = s.checker.clockConsistencyCheck(reqClock)
-	s.NoError(err)
+	deps.shardContext.EXPECT().CurrentVectorClock().Return(nil)
+	err = deps.checker.clockConsistencyCheck(reqClock)
+	require.NoError(t, err)
 
 	// shard clock ahead
 	shardClock := &clockspb.VectorClock{
@@ -204,9 +201,9 @@ func (s *workflowConsistencyCheckerSuite) Test_clockConsistencyCheck() {
 		Clock:     20,
 		ClusterId: 1,
 	}
-	s.shardContext.EXPECT().CurrentVectorClock().Return(shardClock)
-	err = s.checker.clockConsistencyCheck(reqClock)
-	s.NoError(err)
+	deps.shardContext.EXPECT().CurrentVectorClock().Return(shardClock)
+	err = deps.checker.clockConsistencyCheck(reqClock)
+	require.NoError(t, err)
 
 	// shard clock behind
 	shardClock = &clockspb.VectorClock{
@@ -214,8 +211,8 @@ func (s *workflowConsistencyCheckerSuite) Test_clockConsistencyCheck() {
 		Clock:     1,
 		ClusterId: 1,
 	}
-	s.shardContext.EXPECT().CurrentVectorClock().Return(shardClock)
-	s.shardContext.EXPECT().UnloadForOwnershipLost()
-	err = s.checker.clockConsistencyCheck(reqClock)
-	s.Error(err)
+	deps.shardContext.EXPECT().CurrentVectorClock().Return(shardClock)
+	deps.shardContext.EXPECT().UnloadForOwnershipLost()
+	err = deps.checker.clockConsistencyCheck(reqClock)
+	require.Error(t, err)
 }
