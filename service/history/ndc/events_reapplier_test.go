@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
@@ -27,49 +26,44 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	nDCEventReapplicationSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller *gomock.Controller
-
-		nDCReapplication EventsReapplier
-
-		hsmNode *hsm.Node
-	}
-)
-
-func TestNDCEventReapplicationSuite(t *testing.T) {
-	s := new(nDCEventReapplicationSuite)
-	suite.Run(t, s)
+type eventsReapplierTestDeps struct {
+	controller       *gomock.Controller
+	nDCReapplication EventsReapplier
+	hsmNode          *hsm.Node
 }
 
-func (s *nDCEventReapplicationSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
+func setupEventsReapplierTest(t *testing.T) *eventsReapplierTestDeps {
+	controller := gomock.NewController(t)
 
 	logger := log.NewTestLogger()
 	metricsHandler := metrics.NoopMetricsHandler
-	s.nDCReapplication = NewEventsReapplier(
+	nDCReapplication := NewEventsReapplier(
 		hsm.NewRegistry(),
 		metricsHandler,
 		logger,
 	)
 
 	smReg := hsm.NewRegistry()
-	s.NoError(workflow.RegisterStateMachine(smReg))
+	err := workflow.RegisterStateMachine(smReg)
+	require.NoError(t, err)
 	root, err := hsm.NewRoot(smReg, workflow.StateMachineType, nil, make(map[string]*persistencespb.StateMachineMap), &hsmtest.NodeBackend{})
-	s.NoError(err)
-	s.hsmNode = root
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		controller.Finish()
+	})
+
+	return &eventsReapplierTestDeps{
+		controller:       controller,
+		nDCReapplication: nDCReapplication,
+		hsmNode:          root,
+	}
 }
 
-func (s *nDCEventReapplicationSuite) TearDownTest() {
-	s.controller.Finish()
-}
+func TestReapplyEvents_AppliedEvent_WorkflowExecutionOptionsUpdated(t *testing.T) {
+	t.Parallel()
+	deps := setupEventsReapplierTest(t)
 
-func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_WorkflowExecutionOptionsUpdated() {
 	runID := uuid.NewString()
 	execution := &persistencespb.WorkflowExecutionInfo{
 		NamespaceId: uuid.NewString(),
@@ -99,7 +93,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_WorkflowExec
 	}
 	attr := event.GetWorkflowExecutionOptionsUpdatedEventAttributes()
 
-	msCurrent := historyi.NewMockMutableState(s.controller)
+	msCurrent := historyi.NewMockMutableState(deps.controller)
 	msCurrent.EXPECT().VisitUpdates(gomock.Any()).Return()
 	msCurrent.EXPECT().GetCurrentVersion().Return(int64(0))
 	updateRegistry := update.NewRegistry(msCurrent)
@@ -113,7 +107,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_WorkflowExec
 		event.Links,
 		event.GetWorkflowExecutionOptionsUpdatedEventAttributes().GetIdentity(),
 	).Return(event, nil)
-	msCurrent.EXPECT().HSM().Return(s.hsmNode).AnyTimes()
+	msCurrent.EXPECT().HSM().Return(deps.hsmNode).AnyTimes()
 	msCurrent.EXPECT().IsWorkflowPendingOnWorkflowTaskBackoff().Return(true)
 	dedupResource := definition.NewEventReappliedID(runID, event.GetEventId(), event.GetVersion())
 	msCurrent.EXPECT().IsResourceDuplicated(dedupResource).Return(false)
@@ -122,12 +116,15 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_WorkflowExec
 		{EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED},
 		event,
 	}
-	appliedEvent, err := s.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
-	s.NoError(err)
-	s.Equal(1, len(appliedEvent))
+	appliedEvent, err := deps.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(appliedEvent))
 }
 
-func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Signal() {
+func TestReapplyEvents_AppliedEvent_Signal(t *testing.T) {
+	t.Parallel()
+	deps := setupEventsReapplierTest(t)
+
 	runID := uuid.NewString()
 	execution := &persistencespb.WorkflowExecutionInfo{
 		NamespaceId: uuid.NewString(),
@@ -155,7 +152,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Signal() {
 	}
 	attr := event.GetWorkflowExecutionSignaledEventAttributes()
 
-	msCurrent := historyi.NewMockMutableState(s.controller)
+	msCurrent := historyi.NewMockMutableState(deps.controller)
 	msCurrent.EXPECT().VisitUpdates(gomock.Any()).Return()
 	msCurrent.EXPECT().GetCurrentVersion().Return(int64(0))
 	updateRegistry := update.NewRegistry(msCurrent)
@@ -168,7 +165,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Signal() {
 		attr.GetHeader(),
 		event.Links,
 	).Return(event, nil)
-	msCurrent.EXPECT().HSM().Return(s.hsmNode).AnyTimes()
+	msCurrent.EXPECT().HSM().Return(deps.hsmNode).AnyTimes()
 	msCurrent.EXPECT().IsWorkflowPendingOnWorkflowTaskBackoff().Return(true)
 	dedupResource := definition.NewEventReappliedID(runID, event.GetEventId(), event.GetVersion())
 	msCurrent.EXPECT().IsResourceDuplicated(dedupResource).Return(false)
@@ -177,12 +174,15 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Signal() {
 		{EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED},
 		event,
 	}
-	appliedEvent, err := s.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
-	s.NoError(err)
-	s.Equal(1, len(appliedEvent))
+	appliedEvent, err := deps.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(appliedEvent))
 }
 
-func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Update() {
+func TestReapplyEvents_AppliedEvent_Update(t *testing.T) {
+	t.Parallel()
+	deps := setupEventsReapplierTest(t)
+
 	runID := uuid.NewString()
 	execution := &persistencespb.WorkflowExecutionInfo{
 		NamespaceId: uuid.NewString(),
@@ -206,7 +206,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Update() {
 		},
 	} {
 
-		msCurrent := historyi.NewMockMutableState(s.controller)
+		msCurrent := historyi.NewMockMutableState(deps.controller)
 		msCurrent.EXPECT().VisitUpdates(gomock.Any()).Return()
 		msCurrent.EXPECT().GetCurrentVersion().Return(int64(0))
 		updateRegistry := update.NewRegistry(msCurrent)
@@ -228,7 +228,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Update() {
 			).Return(event, nil)
 			msCurrent.EXPECT().GetUpdateOutcome(gomock.Any(), attr.GetProtocolInstanceId()).Return(nil, serviceerror.NewNotFound(""))
 		}
-		msCurrent.EXPECT().HSM().Return(s.hsmNode).AnyTimes()
+		msCurrent.EXPECT().HSM().Return(deps.hsmNode).AnyTimes()
 		msCurrent.EXPECT().IsWorkflowPendingOnWorkflowTaskBackoff().Return(true)
 		dedupResource := definition.NewEventReappliedID(runID, event.GetEventId(), event.GetVersion())
 		msCurrent.EXPECT().IsResourceDuplicated(dedupResource).Return(false)
@@ -237,13 +237,16 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Update() {
 			{EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED},
 			event,
 		}
-		appliedEvent, err := s.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
-		s.NoError(err)
-		s.Equal(1, len(appliedEvent))
+		appliedEvent, err := deps.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(appliedEvent))
 	}
 }
 
-func (s *nDCEventReapplicationSuite) TestReapplyEvents_Noop() {
+func TestReapplyEvents_Noop(t *testing.T) {
+	t.Parallel()
+	deps := setupEventsReapplierTest(t)
+
 	runID := uuid.NewString()
 	event := &historypb.HistoryEvent{
 		EventId:   1,
@@ -255,24 +258,27 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_Noop() {
 		}},
 	}
 
-	msCurrent := historyi.NewMockMutableState(s.controller)
+	msCurrent := historyi.NewMockMutableState(deps.controller)
 	msCurrent.EXPECT().VisitUpdates(gomock.Any()).Return()
 	msCurrent.EXPECT().GetCurrentVersion().Return(int64(0))
 	updateRegistry := update.NewRegistry(msCurrent)
 	dedupResource := definition.NewEventReappliedID(runID, event.GetEventId(), event.GetVersion())
 	msCurrent.EXPECT().IsResourceDuplicated(dedupResource).Return(true)
 	msCurrent.EXPECT().IsWorkflowExecutionRunning().Return(true)
-	msCurrent.EXPECT().HSM().Return(s.hsmNode).AnyTimes()
+	msCurrent.EXPECT().HSM().Return(deps.hsmNode).AnyTimes()
 	events := []*historypb.HistoryEvent{
 		{EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED},
 		event,
 	}
-	appliedEvent, err := s.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
-	s.NoError(err)
-	s.Equal(0, len(appliedEvent))
+	appliedEvent, err := deps.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(appliedEvent))
 }
 
-func (s *nDCEventReapplicationSuite) TestReapplyEvents_PartialAppliedEvent() {
+func TestReapplyEvents_PartialAppliedEvent(t *testing.T) {
+	t.Parallel()
+	deps := setupEventsReapplierTest(t)
+
 	runID := uuid.NewString()
 	execution := &persistencespb.WorkflowExecutionInfo{
 		NamespaceId: uuid.NewString(),
@@ -299,7 +305,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_PartialAppliedEvent() {
 	}
 	attr1 := event1.GetWorkflowExecutionSignaledEventAttributes()
 
-	msCurrent := historyi.NewMockMutableState(s.controller)
+	msCurrent := historyi.NewMockMutableState(deps.controller)
 	msCurrent.EXPECT().VisitUpdates(gomock.Any()).Return()
 	msCurrent.EXPECT().GetCurrentVersion().Return(int64(0))
 	updateRegistry := update.NewRegistry(msCurrent)
@@ -318,18 +324,21 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_PartialAppliedEvent() {
 	dedupResource2 := definition.NewEventReappliedID(runID, event2.GetEventId(), event2.GetVersion())
 	msCurrent.EXPECT().IsResourceDuplicated(dedupResource2).Return(true)
 	msCurrent.EXPECT().UpdateDuplicatedResource(dedupResource1)
-	msCurrent.EXPECT().HSM().Return(s.hsmNode).AnyTimes()
+	msCurrent.EXPECT().HSM().Return(deps.hsmNode).AnyTimes()
 	events := []*historypb.HistoryEvent{
 		{EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED},
 		event1,
 		event2,
 	}
-	appliedEvent, err := s.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
-	s.NoError(err)
-	s.Equal(1, len(appliedEvent))
+	appliedEvent, err := deps.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(appliedEvent))
 }
 
-func (s *nDCEventReapplicationSuite) TestReapplyEvents_Error() {
+func TestReapplyEvents_Error(t *testing.T) {
+	t.Parallel()
+	deps := setupEventsReapplierTest(t)
+
 	runID := uuid.NewString()
 	execution := &persistencespb.WorkflowExecutionInfo{
 		NamespaceId: uuid.NewString(),
@@ -346,7 +355,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_Error() {
 	}
 	attr := event.GetWorkflowExecutionSignaledEventAttributes()
 
-	msCurrent := historyi.NewMockMutableState(s.controller)
+	msCurrent := historyi.NewMockMutableState(deps.controller)
 	msCurrent.EXPECT().VisitUpdates(gomock.Any()).Return()
 	msCurrent.EXPECT().GetCurrentVersion().Return(int64(0))
 	updateRegistry := update.NewRegistry(msCurrent)
@@ -361,17 +370,20 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_Error() {
 	).Return(nil, fmt.Errorf("test"))
 	dedupResource := definition.NewEventReappliedID(runID, event.GetEventId(), event.GetVersion())
 	msCurrent.EXPECT().IsResourceDuplicated(dedupResource).Return(false)
-	msCurrent.EXPECT().HSM().Return(s.hsmNode).AnyTimes()
+	msCurrent.EXPECT().HSM().Return(deps.hsmNode).AnyTimes()
 	events := []*historypb.HistoryEvent{
 		{EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED},
 		event,
 	}
-	appliedEvent, err := s.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
-	s.Error(err)
-	s.Equal(0, len(appliedEvent))
+	appliedEvent, err := deps.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
+	require.Error(t, err)
+	require.Equal(t, 0, len(appliedEvent))
 }
 
-func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Termination() {
+func TestReapplyEvents_AppliedEvent_Termination(t *testing.T) {
+	t.Parallel()
+	deps := setupEventsReapplierTest(t)
+
 	runID := uuid.NewString()
 	execution := &persistencespb.WorkflowExecutionInfo{
 		NamespaceId: uuid.NewString(),
@@ -385,7 +397,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Termination(
 			Identity: "test",
 		}},
 	}
-	msCurrent := historyi.NewMockMutableState(s.controller)
+	msCurrent := historyi.NewMockMutableState(deps.controller)
 	msCurrent.EXPECT().VisitUpdates(gomock.Any()).Return()
 	msCurrent.EXPECT().GetCurrentVersion().Return(int64(0))
 	updateRegistry := update.NewRegistry(msCurrent)
@@ -394,7 +406,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Termination(
 		msCurrent.EXPECT().IsWorkflowExecutionRunning().Return(false),
 	)
 	msCurrent.EXPECT().GetExecutionInfo().Return(execution).AnyTimes()
-	msCurrent.EXPECT().HSM().Return(s.hsmNode).AnyTimes()
+	msCurrent.EXPECT().HSM().Return(deps.hsmNode).AnyTimes()
 	dedupResource := definition.NewEventReappliedID(runID, event.GetEventId(), event.GetVersion())
 	msCurrent.EXPECT().IsResourceDuplicated(dedupResource).Return(false)
 	msCurrent.EXPECT().UpdateDuplicatedResource(dedupResource)
@@ -412,12 +424,15 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_Termination(
 		{EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED},
 		event,
 	}
-	appliedEvent, err := s.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
-	s.NoError(err)
-	s.Equal(1, len(appliedEvent))
+	appliedEvent, err := deps.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(appliedEvent))
 }
 
-func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_NoPendingWorkflowTask() {
+func TestReapplyEvents_AppliedEvent_NoPendingWorkflowTask(t *testing.T) {
+	t.Parallel()
+	deps := setupEventsReapplierTest(t)
+
 	runID := uuid.NewString()
 	execution := &persistencespb.WorkflowExecutionInfo{
 		NamespaceId: uuid.NewString(),
@@ -445,7 +460,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_NoPendingWor
 	}
 	attr := event.GetWorkflowExecutionSignaledEventAttributes()
 
-	msCurrent := historyi.NewMockMutableState(s.controller)
+	msCurrent := historyi.NewMockMutableState(deps.controller)
 	msCurrent.EXPECT().VisitUpdates(gomock.Any()).Return()
 	msCurrent.EXPECT().GetCurrentVersion().Return(int64(0))
 	updateRegistry := update.NewRegistry(msCurrent)
@@ -458,7 +473,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_NoPendingWor
 		attr.GetHeader(),
 		event.Links,
 	).Return(event, nil)
-	msCurrent.EXPECT().HSM().Return(s.hsmNode).AnyTimes()
+	msCurrent.EXPECT().HSM().Return(deps.hsmNode).AnyTimes()
 	msCurrent.EXPECT().IsWorkflowPendingOnWorkflowTaskBackoff().Return(false)
 	dedupResource := definition.NewEventReappliedID(runID, event.GetEventId(), event.GetVersion())
 	msCurrent.EXPECT().IsResourceDuplicated(dedupResource).Return(false)
@@ -472,7 +487,7 @@ func (s *nDCEventReapplicationSuite) TestReapplyEvents_AppliedEvent_NoPendingWor
 		{EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED},
 		event,
 	}
-	appliedEvent, err := s.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
-	s.NoError(err)
-	s.Equal(1, len(appliedEvent))
+	appliedEvent, err := deps.nDCReapplication.ReapplyEvents(context.Background(), msCurrent, updateRegistry, events, runID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(appliedEvent))
 }

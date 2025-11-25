@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/common/namespace"
@@ -16,44 +15,37 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	transactionMgrForExistingWorkflowSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller         *gomock.Controller
-		mockTransactionMgr *MockTransactionManager
-		mockShard          *historyi.MockShardContext
-
-		updateMgr *nDCTransactionMgrForExistingWorkflowImpl
-	}
-)
-
-func TestTransactionMgrForExistingWorkflowSuite(t *testing.T) {
-	s := new(transactionMgrForExistingWorkflowSuite)
-	suite.Run(t, s)
+type transactionMgrForExistingWorkflowTestDeps struct {
+	controller         *gomock.Controller
+	mockTransactionMgr *MockTransactionManager
+	mockShard          *historyi.MockShardContext
+	updateMgr          *nDCTransactionMgrForExistingWorkflowImpl
 }
 
-func (s *transactionMgrForExistingWorkflowSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.mockTransactionMgr = NewMockTransactionManager(s.controller)
-	s.mockShard = historyi.NewMockShardContext(s.controller)
+func setupTransactionMgrForExistingWorkflowTest(t *testing.T) *transactionMgrForExistingWorkflowTestDeps {
+	t.Helper()
+	controller := gomock.NewController(t)
+	mockTransactionMgr := NewMockTransactionManager(controller)
+	mockShard := historyi.NewMockShardContext(controller)
 
 	reg := hsm.NewRegistry()
 	err := workflow.RegisterStateMachine(reg)
-	s.NoError(err)
-	s.mockShard.EXPECT().StateMachineRegistry().Return(reg).AnyTimes()
+	require.NoError(t, err)
+	mockShard.EXPECT().StateMachineRegistry().Return(reg).AnyTimes()
 
-	s.updateMgr = newNDCTransactionMgrForExistingWorkflow(s.mockShard, s.mockTransactionMgr, false)
+	updateMgr := newNDCTransactionMgrForExistingWorkflow(mockShard, mockTransactionMgr, false)
+
+	return &transactionMgrForExistingWorkflowTestDeps{
+		controller:         controller,
+		mockTransactionMgr: mockTransactionMgr,
+		mockShard:          mockShard,
+		updateMgr:          updateMgr,
+	}
 }
 
-func (s *transactionMgrForExistingWorkflowSuite) TearDownTest() {
-	s.controller.Finish()
-}
-
-func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow_NoRebuild_CurrentWorkflowGuaranteed() {
+func TestDispatchForExistingWorkflow_NoRebuild_CurrentWorkflowGuaranteed(t *testing.T) {
+	t.Parallel()
+	deps := setupTransactionMgrForExistingWorkflowTest(t)
 	ctx := context.Background()
 
 	isWorkflowRebuilt := false
@@ -61,17 +53,17 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	targetReleaseCalled := false
 	newReleaseCalled := false
 
-	targetWorkflow := NewMockWorkflow(s.controller)
-	targetContext := historyi.NewMockWorkflowContext(s.controller)
-	targetMutableState := historyi.NewMockMutableState(s.controller)
+	targetWorkflow := NewMockWorkflow(deps.controller)
+	targetContext := historyi.NewMockWorkflowContext(deps.controller)
+	targetMutableState := historyi.NewMockMutableState(deps.controller)
 	var targetReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { targetReleaseCalled = true }
 	targetWorkflow.EXPECT().GetContext().Return(targetContext).AnyTimes()
 	targetWorkflow.EXPECT().GetMutableState().Return(targetMutableState).AnyTimes()
 	targetWorkflow.EXPECT().GetReleaseFn().Return(targetReleaseFn).AnyTimes()
 
-	newWorkflow := NewMockWorkflow(s.controller)
-	newContext := historyi.NewMockWorkflowContext(s.controller)
-	newMutableState := historyi.NewMockMutableState(s.controller)
+	newWorkflow := NewMockWorkflow(deps.controller)
+	newContext := historyi.NewMockWorkflowContext(deps.controller)
+	newMutableState := historyi.NewMockMutableState(deps.controller)
 	var newReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { newReleaseCalled = true }
 	newWorkflow.EXPECT().GetContext().Return(newContext).AnyTimes()
 	newWorkflow.EXPECT().GetMutableState().Return(newMutableState).AnyTimes()
@@ -81,18 +73,20 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 
 	targetContext.EXPECT().UpdateWorkflowExecutionWithNewAsPassive(
 		gomock.Any(),
-		s.mockShard,
+		deps.mockShard,
 		newContext,
 		newMutableState,
 	).Return(nil)
 
-	err := s.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
-	s.NoError(err)
-	s.True(targetReleaseCalled)
-	s.True(newReleaseCalled)
+	err := deps.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
+	require.NoError(t, err)
+	require.True(t, targetReleaseCalled)
+	require.True(t, newReleaseCalled)
 }
 
-func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow_NoRebuild_CurrentWorkflowNotGuaranteed_NotCurrent_CurrentRunning_UpdateAsCurrent() {
+func TestDispatchForExistingWorkflow_NoRebuild_CurrentWorkflowNotGuaranteed_NotCurrent_CurrentRunning_UpdateAsCurrent(t *testing.T) {
+	t.Parallel()
+	deps := setupTransactionMgrForExistingWorkflowTest(t)
 	ctx := context.Background()
 
 	namespaceID := namespace.ID("some random namespace ID")
@@ -106,26 +100,26 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	newReleaseCalled := false
 	currentReleaseCalled := false
 
-	targetWorkflow := NewMockWorkflow(s.controller)
-	targetContext := historyi.NewMockWorkflowContext(s.controller)
-	targetMutableState := historyi.NewMockMutableState(s.controller)
+	targetWorkflow := NewMockWorkflow(deps.controller)
+	targetContext := historyi.NewMockWorkflowContext(deps.controller)
+	targetMutableState := historyi.NewMockMutableState(deps.controller)
 	var targetReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { targetReleaseCalled = true }
 	targetWorkflow.EXPECT().GetContext().Return(targetContext).AnyTimes()
 	targetWorkflow.EXPECT().GetMutableState().Return(targetMutableState).AnyTimes()
 	targetWorkflow.EXPECT().GetReleaseFn().Return(targetReleaseFn).AnyTimes()
 
-	newWorkflow := NewMockWorkflow(s.controller)
-	newContext := historyi.NewMockWorkflowContext(s.controller)
-	newMutableState := historyi.NewMockMutableState(s.controller)
+	newWorkflow := NewMockWorkflow(deps.controller)
+	newContext := historyi.NewMockWorkflowContext(deps.controller)
+	newMutableState := historyi.NewMockMutableState(deps.controller)
 	var newReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { newReleaseCalled = true }
 	newWorkflow.EXPECT().GetContext().Return(newContext).AnyTimes()
 	newWorkflow.EXPECT().GetMutableState().Return(newMutableState).AnyTimes()
 	newWorkflow.EXPECT().GetReleaseFn().Return(newReleaseFn).AnyTimes()
 	newWorkflow.EXPECT().Revive().Return(nil)
 
-	currentWorkflow := NewMockWorkflow(s.controller)
-	currentContext := historyi.NewMockWorkflowContext(s.controller)
-	currentMutableState := historyi.NewMockMutableState(s.controller)
+	currentWorkflow := NewMockWorkflow(deps.controller)
+	currentContext := historyi.NewMockWorkflowContext(deps.controller)
+	currentMutableState := historyi.NewMockMutableState(deps.controller)
 	var currentReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { currentReleaseCalled = true }
 	currentWorkflow.EXPECT().GetContext().Return(currentContext).AnyTimes()
 	currentWorkflow.EXPECT().GetMutableState().Return(currentMutableState).AnyTimes()
@@ -139,8 +133,8 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	targetMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		RunId: targetRunID,
 	}).AnyTimes()
-	s.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
-	s.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
+	deps.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
+	deps.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
 
 	targetWorkflow.EXPECT().HappensAfter(currentWorkflow).Return(true, nil)
 	currentMutableState.EXPECT().IsWorkflowExecutionRunning().Return(true).AnyTimes()
@@ -149,7 +143,7 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 
 	targetContext.EXPECT().ConflictResolveWorkflowExecution(
 		gomock.Any(),
-		s.mockShard,
+		deps.mockShard,
 		persistence.ConflictResolveWorkflowModeUpdateCurrent,
 		targetMutableState,
 		newContext,
@@ -161,14 +155,16 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 		historyi.TransactionPolicyPassive.Ptr(),
 	).Return(nil)
 
-	err := s.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
-	s.NoError(err)
-	s.True(targetReleaseCalled)
-	s.True(newReleaseCalled)
-	s.True(currentReleaseCalled)
+	err := deps.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
+	require.NoError(t, err)
+	require.True(t, targetReleaseCalled)
+	require.True(t, newReleaseCalled)
+	require.True(t, currentReleaseCalled)
 }
 
-func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow_NoRebuild_CurrentWorkflowNotGuaranteed_NotCurrent_CurrentComplete_UpdateAsCurrent() {
+func TestDispatchForExistingWorkflow_NoRebuild_CurrentWorkflowNotGuaranteed_NotCurrent_CurrentComplete_UpdateAsCurrent(t *testing.T) {
+	t.Parallel()
+	deps := setupTransactionMgrForExistingWorkflowTest(t)
 	ctx := context.Background()
 
 	namespaceID := namespace.ID("some random namespace ID")
@@ -182,26 +178,26 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	newReleaseCalled := false
 	currentReleaseCalled := false
 
-	targetWorkflow := NewMockWorkflow(s.controller)
-	targetContext := historyi.NewMockWorkflowContext(s.controller)
-	targetMutableState := historyi.NewMockMutableState(s.controller)
+	targetWorkflow := NewMockWorkflow(deps.controller)
+	targetContext := historyi.NewMockWorkflowContext(deps.controller)
+	targetMutableState := historyi.NewMockMutableState(deps.controller)
 	var targetReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { targetReleaseCalled = true }
 	targetWorkflow.EXPECT().GetContext().Return(targetContext).AnyTimes()
 	targetWorkflow.EXPECT().GetMutableState().Return(targetMutableState).AnyTimes()
 	targetWorkflow.EXPECT().GetReleaseFn().Return(targetReleaseFn).AnyTimes()
 
-	newWorkflow := NewMockWorkflow(s.controller)
-	newContext := historyi.NewMockWorkflowContext(s.controller)
-	newMutableState := historyi.NewMockMutableState(s.controller)
+	newWorkflow := NewMockWorkflow(deps.controller)
+	newContext := historyi.NewMockWorkflowContext(deps.controller)
+	newMutableState := historyi.NewMockMutableState(deps.controller)
 	var newReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { newReleaseCalled = true }
 	newWorkflow.EXPECT().GetContext().Return(newContext).AnyTimes()
 	newWorkflow.EXPECT().GetMutableState().Return(newMutableState).AnyTimes()
 	newWorkflow.EXPECT().GetReleaseFn().Return(newReleaseFn).AnyTimes()
 	newWorkflow.EXPECT().Revive().Return(nil)
 
-	currentWorkflow := NewMockWorkflow(s.controller)
-	currentContext := historyi.NewMockWorkflowContext(s.controller)
-	currentMutableState := historyi.NewMockMutableState(s.controller)
+	currentWorkflow := NewMockWorkflow(deps.controller)
+	currentContext := historyi.NewMockWorkflowContext(deps.controller)
+	currentMutableState := historyi.NewMockMutableState(deps.controller)
 	var currentReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { currentReleaseCalled = true }
 	currentWorkflow.EXPECT().GetContext().Return(currentContext).AnyTimes()
 	currentWorkflow.EXPECT().GetMutableState().Return(currentMutableState).AnyTimes()
@@ -215,8 +211,8 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	targetMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		RunId: targetRunID,
 	}).AnyTimes()
-	s.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
-	s.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
+	deps.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
+	deps.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
 
 	targetWorkflow.EXPECT().HappensAfter(currentWorkflow).Return(true, nil)
 	currentMutableState.EXPECT().IsWorkflowExecutionRunning().Return(false).AnyTimes()
@@ -225,7 +221,7 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 
 	targetContext.EXPECT().ConflictResolveWorkflowExecution(
 		gomock.Any(),
-		s.mockShard,
+		deps.mockShard,
 		persistence.ConflictResolveWorkflowModeUpdateCurrent,
 		targetMutableState,
 		newContext,
@@ -237,14 +233,16 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 		historyi.TransactionPolicyPassive.Ptr(),
 	).Return(nil)
 
-	err := s.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
-	s.NoError(err)
-	s.True(targetReleaseCalled)
-	s.True(newReleaseCalled)
-	s.True(currentReleaseCalled)
+	err := deps.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
+	require.NoError(t, err)
+	require.True(t, targetReleaseCalled)
+	require.True(t, newReleaseCalled)
+	require.True(t, currentReleaseCalled)
 }
 
-func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow_NoRebuild_CurrentWorkflowNotGuaranteed_NotCurrent_UpdateAsZombie_NewRunDoesNotExists() {
+func TestDispatchForExistingWorkflow_NoRebuild_CurrentWorkflowNotGuaranteed_NotCurrent_UpdateAsZombie_NewRunDoesNotExists(t *testing.T) {
+	t.Parallel()
+	deps := setupTransactionMgrForExistingWorkflowTest(t)
 	ctx := context.Background()
 
 	namespaceID := namespace.ID("some random namespace ID")
@@ -259,23 +257,23 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	newReleaseCalled := false
 	currentReleaseCalled := false
 
-	targetWorkflow := NewMockWorkflow(s.controller)
-	targetContext := historyi.NewMockWorkflowContext(s.controller)
-	targetMutableState := historyi.NewMockMutableState(s.controller)
+	targetWorkflow := NewMockWorkflow(deps.controller)
+	targetContext := historyi.NewMockWorkflowContext(deps.controller)
+	targetMutableState := historyi.NewMockMutableState(deps.controller)
 	var targetReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { targetReleaseCalled = true }
 	targetWorkflow.EXPECT().GetContext().Return(targetContext).AnyTimes()
 	targetWorkflow.EXPECT().GetMutableState().Return(targetMutableState).AnyTimes()
 	targetWorkflow.EXPECT().GetReleaseFn().Return(targetReleaseFn).AnyTimes()
 
-	newWorkflow := NewMockWorkflow(s.controller)
-	newContext := historyi.NewMockWorkflowContext(s.controller)
-	newMutableState := historyi.NewMockMutableState(s.controller)
+	newWorkflow := NewMockWorkflow(deps.controller)
+	newContext := historyi.NewMockWorkflowContext(deps.controller)
+	newMutableState := historyi.NewMockMutableState(deps.controller)
 	var newReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { newReleaseCalled = true }
 	newWorkflow.EXPECT().GetContext().Return(newContext).AnyTimes()
 	newWorkflow.EXPECT().GetMutableState().Return(newMutableState).AnyTimes()
 	newWorkflow.EXPECT().GetReleaseFn().Return(newReleaseFn).AnyTimes()
 
-	currentWorkflow := NewMockWorkflow(s.controller)
+	currentWorkflow := NewMockWorkflow(deps.controller)
 	var currentReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { currentReleaseCalled = true }
 	currentWorkflow.EXPECT().GetReleaseFn().Return(currentReleaseFn).AnyTimes()
 
@@ -294,9 +292,9 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	newMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		RunId: newRunID,
 	}).AnyTimes()
-	s.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
-	s.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
-	s.mockTransactionMgr.EXPECT().CheckWorkflowExists(ctx, namespaceID, workflowID, newRunID).Return(false, nil)
+	deps.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
+	deps.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
+	deps.mockTransactionMgr.EXPECT().CheckWorkflowExists(ctx, namespaceID, workflowID, newRunID).Return(false, nil)
 
 	targetWorkflow.EXPECT().HappensAfter(currentWorkflow).Return(false, nil)
 	targetWorkflow.EXPECT().SuppressBy(currentWorkflow).Return(historyi.TransactionPolicyPassive, nil)
@@ -304,7 +302,7 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 
 	targetContext.EXPECT().UpdateWorkflowExecutionWithNew(
 		gomock.Any(),
-		s.mockShard,
+		deps.mockShard,
 		persistence.UpdateWorkflowModeBypassCurrent,
 		newContext,
 		newMutableState,
@@ -312,14 +310,16 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 		historyi.TransactionPolicyPassive.Ptr(),
 	).Return(nil)
 
-	err := s.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
-	s.NoError(err)
-	s.True(targetReleaseCalled)
-	s.True(newReleaseCalled)
-	s.True(currentReleaseCalled)
+	err := deps.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
+	require.NoError(t, err)
+	require.True(t, targetReleaseCalled)
+	require.True(t, newReleaseCalled)
+	require.True(t, currentReleaseCalled)
 }
 
-func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow_NoRebuild_CurrentWorkflowNotGuaranteed_NotCurrent_UpdateAsZombie_NewRunDoesExists() {
+func TestDispatchForExistingWorkflow_NoRebuild_CurrentWorkflowNotGuaranteed_NotCurrent_UpdateAsZombie_NewRunDoesExists(t *testing.T) {
+	t.Parallel()
+	deps := setupTransactionMgrForExistingWorkflowTest(t)
 	ctx := context.Background()
 
 	namespaceID := namespace.ID("some random namespace ID")
@@ -334,23 +334,23 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	newReleaseCalled := false
 	currentReleaseCalled := false
 
-	targetWorkflow := NewMockWorkflow(s.controller)
-	targetContext := historyi.NewMockWorkflowContext(s.controller)
-	targetMutableState := historyi.NewMockMutableState(s.controller)
+	targetWorkflow := NewMockWorkflow(deps.controller)
+	targetContext := historyi.NewMockWorkflowContext(deps.controller)
+	targetMutableState := historyi.NewMockMutableState(deps.controller)
 	var targetReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { targetReleaseCalled = true }
 	targetWorkflow.EXPECT().GetContext().Return(targetContext).AnyTimes()
 	targetWorkflow.EXPECT().GetMutableState().Return(targetMutableState).AnyTimes()
 	targetWorkflow.EXPECT().GetReleaseFn().Return(targetReleaseFn).AnyTimes()
 
-	newWorkflow := NewMockWorkflow(s.controller)
-	newContext := historyi.NewMockWorkflowContext(s.controller)
-	newMutableState := historyi.NewMockMutableState(s.controller)
+	newWorkflow := NewMockWorkflow(deps.controller)
+	newContext := historyi.NewMockWorkflowContext(deps.controller)
+	newMutableState := historyi.NewMockMutableState(deps.controller)
 	var newReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { newReleaseCalled = true }
 	newWorkflow.EXPECT().GetContext().Return(newContext).AnyTimes()
 	newWorkflow.EXPECT().GetMutableState().Return(newMutableState).AnyTimes()
 	newWorkflow.EXPECT().GetReleaseFn().Return(newReleaseFn).AnyTimes()
 
-	currentWorkflow := NewMockWorkflow(s.controller)
+	currentWorkflow := NewMockWorkflow(deps.controller)
 	var currentReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { currentReleaseCalled = true }
 	currentWorkflow.EXPECT().GetReleaseFn().Return(currentReleaseFn).AnyTimes()
 
@@ -369,9 +369,9 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	newMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		RunId: newRunID,
 	}).AnyTimes()
-	s.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
-	s.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
-	s.mockTransactionMgr.EXPECT().CheckWorkflowExists(ctx, namespaceID, workflowID, newRunID).Return(true, nil)
+	deps.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
+	deps.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
+	deps.mockTransactionMgr.EXPECT().CheckWorkflowExists(ctx, namespaceID, workflowID, newRunID).Return(true, nil)
 
 	targetWorkflow.EXPECT().HappensAfter(currentWorkflow).Return(false, nil)
 	targetWorkflow.EXPECT().SuppressBy(currentWorkflow).Return(historyi.TransactionPolicyPassive, nil)
@@ -379,7 +379,7 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 
 	targetContext.EXPECT().UpdateWorkflowExecutionWithNew(
 		gomock.Any(),
-		s.mockShard,
+		deps.mockShard,
 		persistence.UpdateWorkflowModeBypassCurrent,
 		(historyi.WorkflowContext)(nil),
 		(historyi.MutableState)(nil),
@@ -387,14 +387,16 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 		(*historyi.TransactionPolicy)(nil),
 	).Return(nil)
 
-	err := s.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
-	s.NoError(err)
-	s.True(targetReleaseCalled)
-	s.True(newReleaseCalled)
-	s.True(currentReleaseCalled)
+	err := deps.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
+	require.NoError(t, err)
+	require.True(t, targetReleaseCalled)
+	require.True(t, newReleaseCalled)
+	require.True(t, currentReleaseCalled)
 }
 
-func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow_Rebuild_IsCurrent() {
+func TestDispatchForExistingWorkflow_Rebuild_IsCurrent(t *testing.T) {
+	t.Parallel()
+	deps := setupTransactionMgrForExistingWorkflowTest(t)
 	ctx := context.Background()
 
 	namespaceID := namespace.ID("some random namespace ID")
@@ -406,17 +408,17 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	targetReleaseCalled := false
 	newReleaseCalled := false
 
-	targetWorkflow := NewMockWorkflow(s.controller)
-	targetContext := historyi.NewMockWorkflowContext(s.controller)
-	targetMutableState := historyi.NewMockMutableState(s.controller)
+	targetWorkflow := NewMockWorkflow(deps.controller)
+	targetContext := historyi.NewMockWorkflowContext(deps.controller)
+	targetMutableState := historyi.NewMockMutableState(deps.controller)
 	var targetReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { targetReleaseCalled = true }
 	targetWorkflow.EXPECT().GetContext().Return(targetContext).AnyTimes()
 	targetWorkflow.EXPECT().GetMutableState().Return(targetMutableState).AnyTimes()
 	targetWorkflow.EXPECT().GetReleaseFn().Return(targetReleaseFn).AnyTimes()
 
-	newWorkflow := NewMockWorkflow(s.controller)
-	newContext := historyi.NewMockWorkflowContext(s.controller)
-	newMutableState := historyi.NewMockMutableState(s.controller)
+	newWorkflow := NewMockWorkflow(deps.controller)
+	newContext := historyi.NewMockWorkflowContext(deps.controller)
+	newMutableState := historyi.NewMockMutableState(deps.controller)
 	var newReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { newReleaseCalled = true }
 	newWorkflow.EXPECT().GetContext().Return(newContext).AnyTimes()
 	newWorkflow.EXPECT().GetMutableState().Return(newMutableState).AnyTimes()
@@ -429,11 +431,11 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	targetMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		RunId: targetRunID,
 	}).AnyTimes()
-	s.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(targetRunID, nil)
+	deps.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(targetRunID, nil)
 
 	targetContext.EXPECT().ConflictResolveWorkflowExecution(
 		gomock.Any(),
-		s.mockShard,
+		deps.mockShard,
 		persistence.ConflictResolveWorkflowModeUpdateCurrent,
 		targetMutableState,
 		newContext,
@@ -445,13 +447,15 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 		(*historyi.TransactionPolicy)(nil),
 	).Return(nil)
 
-	err := s.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
-	s.NoError(err)
-	s.True(targetReleaseCalled)
-	s.True(newReleaseCalled)
+	err := deps.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
+	require.NoError(t, err)
+	require.True(t, targetReleaseCalled)
+	require.True(t, newReleaseCalled)
 }
 
-func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow_Rebuild_NotCurrent_UpdateAsCurrent() {
+func TestDispatchForExistingWorkflow_Rebuild_NotCurrent_UpdateAsCurrent(t *testing.T) {
+	t.Parallel()
+	deps := setupTransactionMgrForExistingWorkflowTest(t)
 	ctx := context.Background()
 
 	namespaceID := namespace.ID("some random namespace ID")
@@ -465,26 +469,26 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	newReleaseCalled := false
 	currentReleaseCalled := false
 
-	targetWorkflow := NewMockWorkflow(s.controller)
-	targetContext := historyi.NewMockWorkflowContext(s.controller)
-	targetMutableState := historyi.NewMockMutableState(s.controller)
+	targetWorkflow := NewMockWorkflow(deps.controller)
+	targetContext := historyi.NewMockWorkflowContext(deps.controller)
+	targetMutableState := historyi.NewMockMutableState(deps.controller)
 	var targetReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { targetReleaseCalled = true }
 	targetWorkflow.EXPECT().GetContext().Return(targetContext).AnyTimes()
 	targetWorkflow.EXPECT().GetMutableState().Return(targetMutableState).AnyTimes()
 	targetWorkflow.EXPECT().GetReleaseFn().Return(targetReleaseFn).AnyTimes()
 
-	newWorkflow := NewMockWorkflow(s.controller)
-	newContext := historyi.NewMockWorkflowContext(s.controller)
-	newMutableState := historyi.NewMockMutableState(s.controller)
+	newWorkflow := NewMockWorkflow(deps.controller)
+	newContext := historyi.NewMockWorkflowContext(deps.controller)
+	newMutableState := historyi.NewMockMutableState(deps.controller)
 	var newReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { newReleaseCalled = true }
 	newWorkflow.EXPECT().GetContext().Return(newContext).AnyTimes()
 	newWorkflow.EXPECT().GetMutableState().Return(newMutableState).AnyTimes()
 	newWorkflow.EXPECT().GetReleaseFn().Return(newReleaseFn).AnyTimes()
 	newWorkflow.EXPECT().Revive().Return(nil)
 
-	currentWorkflow := NewMockWorkflow(s.controller)
-	currentContext := historyi.NewMockWorkflowContext(s.controller)
-	currentMutableState := historyi.NewMockMutableState(s.controller)
+	currentWorkflow := NewMockWorkflow(deps.controller)
+	currentContext := historyi.NewMockWorkflowContext(deps.controller)
+	currentMutableState := historyi.NewMockMutableState(deps.controller)
 	var currentReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { currentReleaseCalled = true }
 	currentWorkflow.EXPECT().GetContext().Return(currentContext).AnyTimes()
 	currentWorkflow.EXPECT().GetMutableState().Return(currentMutableState).AnyTimes()
@@ -497,8 +501,8 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	targetMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		RunId: targetRunID,
 	}).AnyTimes()
-	s.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
-	s.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
+	deps.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
+	deps.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
 
 	targetWorkflow.EXPECT().HappensAfter(currentWorkflow).Return(true, nil)
 	currentMutableState.EXPECT().IsWorkflowExecutionRunning().Return(true).AnyTimes()
@@ -507,7 +511,7 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 
 	targetContext.EXPECT().ConflictResolveWorkflowExecution(
 		gomock.Any(),
-		s.mockShard,
+		deps.mockShard,
 		persistence.ConflictResolveWorkflowModeUpdateCurrent,
 		targetMutableState,
 		newContext,
@@ -519,14 +523,16 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 		historyi.TransactionPolicyActive.Ptr(),
 	).Return(nil)
 
-	err := s.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
-	s.NoError(err)
-	s.True(targetReleaseCalled)
-	s.True(newReleaseCalled)
-	s.True(currentReleaseCalled)
+	err := deps.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
+	require.NoError(t, err)
+	require.True(t, targetReleaseCalled)
+	require.True(t, newReleaseCalled)
+	require.True(t, currentReleaseCalled)
 }
 
-func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow_Rebuild_NotCurrent_UpdateAsZombie_NewRunDoesNotExists() {
+func TestDispatchForExistingWorkflow_Rebuild_NotCurrent_UpdateAsZombie_NewRunDoesNotExists(t *testing.T) {
+	t.Parallel()
+	deps := setupTransactionMgrForExistingWorkflowTest(t)
 	ctx := context.Background()
 
 	namespaceID := namespace.ID("some random namespace ID")
@@ -541,23 +547,23 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	newReleaseCalled := false
 	currentReleaseCalled := false
 
-	targetWorkflow := NewMockWorkflow(s.controller)
-	targetContext := historyi.NewMockWorkflowContext(s.controller)
-	targetMutableState := historyi.NewMockMutableState(s.controller)
+	targetWorkflow := NewMockWorkflow(deps.controller)
+	targetContext := historyi.NewMockWorkflowContext(deps.controller)
+	targetMutableState := historyi.NewMockMutableState(deps.controller)
 	var targetReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { targetReleaseCalled = true }
 	targetWorkflow.EXPECT().GetContext().Return(targetContext).AnyTimes()
 	targetWorkflow.EXPECT().GetMutableState().Return(targetMutableState).AnyTimes()
 	targetWorkflow.EXPECT().GetReleaseFn().Return(targetReleaseFn).AnyTimes()
 
-	newWorkflow := NewMockWorkflow(s.controller)
-	newContext := historyi.NewMockWorkflowContext(s.controller)
-	newMutableState := historyi.NewMockMutableState(s.controller)
+	newWorkflow := NewMockWorkflow(deps.controller)
+	newContext := historyi.NewMockWorkflowContext(deps.controller)
+	newMutableState := historyi.NewMockMutableState(deps.controller)
 	var newReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { newReleaseCalled = true }
 	newWorkflow.EXPECT().GetContext().Return(newContext).AnyTimes()
 	newWorkflow.EXPECT().GetMutableState().Return(newMutableState).AnyTimes()
 	newWorkflow.EXPECT().GetReleaseFn().Return(newReleaseFn).AnyTimes()
 
-	currentWorkflow := NewMockWorkflow(s.controller)
+	currentWorkflow := NewMockWorkflow(deps.controller)
 	var currentReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { currentReleaseCalled = true }
 	currentWorkflow.EXPECT().GetReleaseFn().Return(currentReleaseFn).AnyTimes()
 
@@ -575,9 +581,9 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	newMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		RunId: newRunID,
 	}).AnyTimes()
-	s.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
-	s.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
-	s.mockTransactionMgr.EXPECT().CheckWorkflowExists(ctx, namespaceID, workflowID, newRunID).Return(false, nil)
+	deps.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
+	deps.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
+	deps.mockTransactionMgr.EXPECT().CheckWorkflowExists(ctx, namespaceID, workflowID, newRunID).Return(false, nil)
 
 	targetWorkflow.EXPECT().HappensAfter(currentWorkflow).Return(false, nil)
 	targetWorkflow.EXPECT().SuppressBy(currentWorkflow).Return(historyi.TransactionPolicyPassive, nil)
@@ -585,7 +591,7 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 
 	targetContext.EXPECT().ConflictResolveWorkflowExecution(
 		gomock.Any(),
-		s.mockShard,
+		deps.mockShard,
 		persistence.ConflictResolveWorkflowModeBypassCurrent,
 		targetMutableState,
 		newContext,
@@ -597,14 +603,16 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 		(*historyi.TransactionPolicy)(nil),
 	).Return(nil)
 
-	err := s.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
-	s.NoError(err)
-	s.True(targetReleaseCalled)
-	s.True(newReleaseCalled)
-	s.True(currentReleaseCalled)
+	err := deps.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
+	require.NoError(t, err)
+	require.True(t, targetReleaseCalled)
+	require.True(t, newReleaseCalled)
+	require.True(t, currentReleaseCalled)
 }
 
-func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow_Rebuild_NotCurrent_UpdateAsZombie_NewRunDoesExists() {
+func TestDispatchForExistingWorkflow_Rebuild_NotCurrent_UpdateAsZombie_NewRunDoesExists(t *testing.T) {
+	t.Parallel()
+	deps := setupTransactionMgrForExistingWorkflowTest(t)
 	ctx := context.Background()
 
 	namespaceID := namespace.ID("some random namespace ID")
@@ -619,23 +627,23 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	newReleaseCalled := false
 	currentReleaseCalled := false
 
-	targetWorkflow := NewMockWorkflow(s.controller)
-	targetContext := historyi.NewMockWorkflowContext(s.controller)
-	targetMutableState := historyi.NewMockMutableState(s.controller)
+	targetWorkflow := NewMockWorkflow(deps.controller)
+	targetContext := historyi.NewMockWorkflowContext(deps.controller)
+	targetMutableState := historyi.NewMockMutableState(deps.controller)
 	var targetReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { targetReleaseCalled = true }
 	targetWorkflow.EXPECT().GetContext().Return(targetContext).AnyTimes()
 	targetWorkflow.EXPECT().GetMutableState().Return(targetMutableState).AnyTimes()
 	targetWorkflow.EXPECT().GetReleaseFn().Return(targetReleaseFn).AnyTimes()
 
-	newWorkflow := NewMockWorkflow(s.controller)
-	newContext := historyi.NewMockWorkflowContext(s.controller)
-	newMutableState := historyi.NewMockMutableState(s.controller)
+	newWorkflow := NewMockWorkflow(deps.controller)
+	newContext := historyi.NewMockWorkflowContext(deps.controller)
+	newMutableState := historyi.NewMockMutableState(deps.controller)
 	var newReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { newReleaseCalled = true }
 	newWorkflow.EXPECT().GetContext().Return(newContext).AnyTimes()
 	newWorkflow.EXPECT().GetMutableState().Return(newMutableState).AnyTimes()
 	newWorkflow.EXPECT().GetReleaseFn().Return(newReleaseFn).AnyTimes()
 
-	currentWorkflow := NewMockWorkflow(s.controller)
+	currentWorkflow := NewMockWorkflow(deps.controller)
 	var currentReleaseFn historyi.ReleaseWorkflowContextFunc = func(error) { currentReleaseCalled = true }
 	currentWorkflow.EXPECT().GetReleaseFn().Return(currentReleaseFn).AnyTimes()
 
@@ -653,9 +661,9 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 	newMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		RunId: newRunID,
 	}).AnyTimes()
-	s.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
-	s.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
-	s.mockTransactionMgr.EXPECT().CheckWorkflowExists(ctx, namespaceID, workflowID, newRunID).Return(true, nil)
+	deps.mockTransactionMgr.EXPECT().GetCurrentWorkflowRunID(ctx, namespaceID, workflowID).Return(currentRunID, nil)
+	deps.mockTransactionMgr.EXPECT().LoadWorkflow(ctx, namespaceID, workflowID, currentRunID, chasm.ArchetypeAny).Return(currentWorkflow, nil)
+	deps.mockTransactionMgr.EXPECT().CheckWorkflowExists(ctx, namespaceID, workflowID, newRunID).Return(true, nil)
 
 	targetWorkflow.EXPECT().HappensAfter(currentWorkflow).Return(false, nil)
 	targetWorkflow.EXPECT().SuppressBy(currentWorkflow).Return(historyi.TransactionPolicyPassive, nil)
@@ -663,7 +671,7 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 
 	targetContext.EXPECT().ConflictResolveWorkflowExecution(
 		gomock.Any(),
-		s.mockShard,
+		deps.mockShard,
 		persistence.ConflictResolveWorkflowModeBypassCurrent,
 		targetMutableState,
 		(historyi.WorkflowContext)(nil),
@@ -675,9 +683,9 @@ func (s *transactionMgrForExistingWorkflowSuite) TestDispatchForExistingWorkflow
 		(*historyi.TransactionPolicy)(nil),
 	).Return(nil)
 
-	err := s.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
-	s.NoError(err)
-	s.True(targetReleaseCalled)
-	s.True(newReleaseCalled)
-	s.True(currentReleaseCalled)
+	err := deps.updateMgr.dispatchForExistingWorkflow(ctx, isWorkflowRebuilt, targetWorkflow, newWorkflow)
+	require.NoError(t, err)
+	require.True(t, targetReleaseCalled)
+	require.True(t, newReleaseCalled)
+	require.True(t, currentReleaseCalled)
 }

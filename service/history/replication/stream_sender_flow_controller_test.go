@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
+	"github.com/stretchr/testify/require"
 	enumsspb "go.temporal.io/server/api/enums/v1"
 	replicationspb "go.temporal.io/server/api/replication/v1"
 	"go.temporal.io/server/common/log"
@@ -16,109 +16,111 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	senderFlowControllerSuite struct {
-		suite.Suite
-		controller         *gomock.Controller
-		mockRateLimiter    *quotas.MockRateLimiter
-		senderFlowCtrlImpl *SenderFlowControllerImpl
-		logger             log.Logger
-		config             *configs.Config
-	}
-)
-
-func TestSenderFlowControllerSuite(t *testing.T) {
-	suite.Run(t, new(senderFlowControllerSuite))
-}
-
-func (s *senderFlowControllerSuite) SetupTest() {
-	s.controller = gomock.NewController(s.T())
-	s.mockRateLimiter = quotas.NewMockRateLimiter(s.controller)
-	s.logger = log.NewTestLogger()
-	s.config = &configs.Config{
+func setupSenderFlowController(t *testing.T) (*gomock.Controller, *SenderFlowControllerImpl, *quotas.MockRateLimiter) {
+	controller := gomock.NewController(t)
+	logger := log.NewTestLogger()
+	config := &configs.Config{
 		ReplicationStreamSenderHighPriorityQPS: func() int { return 10 },
 		ReplicationStreamSenderLowPriorityQPS:  func() int { return 5 },
 	}
-	s.senderFlowCtrlImpl = NewSenderFlowController(s.config, s.logger)
+	senderFlowCtrlImpl := NewSenderFlowController(config, logger)
+	mockRateLimiter := quotas.NewMockRateLimiter(controller)
+	return controller, senderFlowCtrlImpl, mockRateLimiter
 }
 
-func (s *senderFlowControllerSuite) TearDownTest() {
-	s.controller.Finish()
-}
+func TestWait_HighPriority(t *testing.T) {
+	controller, senderFlowCtrlImpl, mockRateLimiter := setupSenderFlowController(t)
+	defer controller.Finish()
 
-func (s *senderFlowControllerSuite) TestWait_HighPriority() {
-	state := s.senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_HIGH]
-	state.rateLimiter = s.mockRateLimiter
+	state := senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_HIGH]
+	state.rateLimiter = mockRateLimiter
 
-	s.mockRateLimiter.EXPECT().Wait(gomock.Any()).Return(nil)
+	mockRateLimiter.EXPECT().Wait(gomock.Any()).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		err := s.senderFlowCtrlImpl.Wait(context.Background(), enumsspb.TASK_PRIORITY_HIGH)
-		s.NoError(err)
+		err := senderFlowCtrlImpl.Wait(context.Background(), enumsspb.TASK_PRIORITY_HIGH)
+		require.NoError(t, err)
 	}()
 
 	wg.Wait()
 }
 
-func (s *senderFlowControllerSuite) TestWait_Error() {
-	state := s.senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_HIGH]
-	state.rateLimiter = s.mockRateLimiter
+func TestWait_Error(t *testing.T) {
+	controller, senderFlowCtrlImpl, mockRateLimiter := setupSenderFlowController(t)
+	defer controller.Finish()
 
-	s.mockRateLimiter.EXPECT().Wait(gomock.Any()).Return(context.Canceled)
+	state := senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_HIGH]
+	state.rateLimiter = mockRateLimiter
+
+	mockRateLimiter.EXPECT().Wait(gomock.Any()).Return(context.Canceled)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		err := s.senderFlowCtrlImpl.Wait(context.Background(), enumsspb.TASK_PRIORITY_HIGH)
-		s.Error(err)
+		err := senderFlowCtrlImpl.Wait(context.Background(), enumsspb.TASK_PRIORITY_HIGH)
+		require.Error(t, err)
 	}()
 
 	wg.Wait()
 }
 
-func (s *senderFlowControllerSuite) TestWait_LowPriority() {
-	state := s.senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_LOW]
-	state.rateLimiter = s.mockRateLimiter
+func TestWait_LowPriority(t *testing.T) {
+	controller, senderFlowCtrlImpl, mockRateLimiter := setupSenderFlowController(t)
+	defer controller.Finish()
 
-	s.mockRateLimiter.EXPECT().Wait(gomock.Any()).Return(nil)
+	state := senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_LOW]
+	state.rateLimiter = mockRateLimiter
+
+	mockRateLimiter.EXPECT().Wait(gomock.Any()).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		err := s.senderFlowCtrlImpl.Wait(context.Background(), enumsspb.TASK_PRIORITY_LOW)
-		s.NoError(err)
+		err := senderFlowCtrlImpl.Wait(context.Background(), enumsspb.TASK_PRIORITY_LOW)
+		require.NoError(t, err)
 	}()
 
 	wg.Wait()
 }
 
-func (s *senderFlowControllerSuite) TestWait_DefaultPriority() {
-	s.senderFlowCtrlImpl.defaultRateLimiter = s.mockRateLimiter
+func TestWait_DefaultPriority(t *testing.T) {
+	controller, senderFlowCtrlImpl, mockRateLimiter := setupSenderFlowController(t)
+	defer controller.Finish()
 
-	s.mockRateLimiter.EXPECT().Wait(gomock.Any()).Return(nil)
+	senderFlowCtrlImpl.defaultRateLimiter = mockRateLimiter
+
+	mockRateLimiter.EXPECT().Wait(gomock.Any()).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		err := s.senderFlowCtrlImpl.Wait(context.Background(), enumsspb.TASK_PRIORITY_UNSPECIFIED)
-		s.NoError(err)
+		err := senderFlowCtrlImpl.Wait(context.Background(), enumsspb.TASK_PRIORITY_UNSPECIFIED)
+		require.NoError(t, err)
 	}()
 
 	wg.Wait()
 }
 
-func (s *senderFlowControllerSuite) TestRefreshReceiverFlowControlInfo() {
-	senderFlowCtrlImpl := NewSenderFlowController(s.config, s.logger)
+func TestRefreshReceiverFlowControlInfo(t *testing.T) {
+	controller, _, _ := setupSenderFlowController(t)
+	defer controller.Finish()
+
+	logger := log.NewTestLogger()
+	config := &configs.Config{
+		ReplicationStreamSenderHighPriorityQPS: func() int { return 10 },
+		ReplicationStreamSenderLowPriorityQPS:  func() int { return 5 },
+	}
+	senderFlowCtrlImpl := NewSenderFlowController(config, logger)
 	state := &replicationspb.SyncReplicationState{
 		HighPriorityState: &replicationspb.ReplicationState{
 			FlowControlCommand: enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_RESUME,
@@ -130,42 +132,45 @@ func (s *senderFlowControllerSuite) TestRefreshReceiverFlowControlInfo() {
 
 	senderFlowCtrlImpl.RefreshReceiverFlowControlInfo(state)
 
-	s.True(senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_HIGH].resume)
-	s.False(senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_LOW].resume)
+	require.True(t, senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_HIGH].resume)
+	require.False(t, senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_LOW].resume)
 }
 
-func (s *senderFlowControllerSuite) TestPauseToResume() {
-	state := s.senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_HIGH]
-	state.rateLimiter = s.mockRateLimiter
+func TestPauseToResume(t *testing.T) {
+	controller, senderFlowCtrlImpl, mockRateLimiter := setupSenderFlowController(t)
+	defer controller.Finish()
+
+	state := senderFlowCtrlImpl.flowControlStates[enumsspb.TASK_PRIORITY_HIGH]
+	state.rateLimiter = mockRateLimiter
 
 	// Set initial state to paused
 	state.mu.Lock()
 	state.resume = false
 	state.mu.Unlock()
-	s.mockRateLimiter.EXPECT().Wait(gomock.Any()).Return(nil)
+	mockRateLimiter.EXPECT().Wait(gomock.Any()).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		err := s.senderFlowCtrlImpl.Wait(context.Background(), enumsspb.TASK_PRIORITY_HIGH)
-		s.NoError(err)
+		err := senderFlowCtrlImpl.Wait(context.Background(), enumsspb.TASK_PRIORITY_HIGH)
+		require.NoError(t, err)
 	}()
 
 	// Ensure the goroutine has time to start and block
-	assert.Eventually(s.T(), func() bool {
+	assert.Eventually(t, func() bool {
 		state.mu.Lock()
 		defer state.mu.Unlock()
 		return state.waiters == 1
 	}, 1*time.Second, 100*time.Millisecond)
 
-	s.Equal(1, state.waiters)
+	require.Equal(t, 1, state.waiters)
 
 	// Transition from paused to resumed
-	s.senderFlowCtrlImpl.setState(state, enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_RESUME)
+	senderFlowCtrlImpl.setState(state, enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_RESUME)
 	wg.Wait()
 
-	s.Equal(0, state.waiters)
-	s.True(state.resume)
+	require.Equal(t, 0, state.waiters)
+	require.True(t, state.resume)
 }

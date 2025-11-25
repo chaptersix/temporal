@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
@@ -44,250 +43,278 @@ import (
 	"google.golang.org/grpc"
 )
 
-type (
-	executableTaskSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller              *gomock.Controller
-		clusterMetadata         *cluster.MockMetadata
-		clientBean              *client.MockBean
-		shardController         *shard.MockController
-		namespaceCache          *namespace.MockRegistry
-		remoteHistoryFetcher    *eventhandler.MockHistoryPaginatedFetcher
-		metricsHandler          metrics.Handler
-		logger                  log.Logger
-		sourceCluster           string
-		sourceShardKey          ClusterShardKey
-		eagerNamespaceRefresher *MockEagerNamespaceRefresher
-		config                  *configs.Config
-		namespaceId             string
-		workflowId              string
-		runId                   string
-		taskId                  int64
-		mockExecutionManager    *persistence.MockExecutionManager
-		serializer              serialization.Serializer
-		resendHandler           *eventhandler.MockResendHandler
-		toolBox                 ProcessToolBox
-
-		task *ExecutableTaskImpl
-	}
-)
-
-func TestExecutableTaskSuite(t *testing.T) {
-	s := new(executableTaskSuite)
-	suite.Run(t, s)
+type executableTaskTestDeps struct {
+	controller              *gomock.Controller
+	clusterMetadata         *cluster.MockMetadata
+	clientBean              *client.MockBean
+	shardController         *shard.MockController
+	namespaceCache          *namespace.MockRegistry
+	remoteHistoryFetcher    *eventhandler.MockHistoryPaginatedFetcher
+	metricsHandler          metrics.Handler
+	logger                  log.Logger
+	sourceCluster           string
+	sourceShardKey          ClusterShardKey
+	eagerNamespaceRefresher *MockEagerNamespaceRefresher
+	config                  *configs.Config
+	namespaceId             string
+	workflowId              string
+	runId                   string
+	taskId                  int64
+	mockExecutionManager    *persistence.MockExecutionManager
+	serializer              serialization.Serializer
+	resendHandler           *eventhandler.MockResendHandler
+	toolBox                 ProcessToolBox
+	task                    *ExecutableTaskImpl
 }
 
-func (s *executableTaskSuite) SetupSuite() {
-	s.Assertions = require.New(s.T())
-}
+func setupExecutableTaskTest(t *testing.T) *executableTaskTestDeps {
+	controller := gomock.NewController(t)
+	clusterMetadata := cluster.NewMockMetadata(controller)
+	clientBean := client.NewMockBean(controller)
+	shardController := shard.NewMockController(controller)
+	namespaceCache := namespace.NewMockRegistry(controller)
+	mockExecutionManager := persistence.NewMockExecutionManager(controller)
+	eagerNamespaceRefresher := NewMockEagerNamespaceRefresher(controller)
+	remoteHistoryFetcher := eventhandler.NewMockHistoryPaginatedFetcher(controller)
+	metricsHandler := metrics.NoopMetricsHandler
+	logger := log.NewNoopLogger()
+	config := tests.NewDynamicConfig()
+	serializer := serialization.NewSerializer()
+	resendHandler := eventhandler.NewMockResendHandler(controller)
 
-func (s *executableTaskSuite) TearDownSuite() {
-
-}
-
-func (s *executableTaskSuite) SetupTest() {
-	s.controller = gomock.NewController(s.T())
-	s.clusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.clientBean = client.NewMockBean(s.controller)
-	s.shardController = shard.NewMockController(s.controller)
-	s.namespaceCache = namespace.NewMockRegistry(s.controller)
-	s.mockExecutionManager = persistence.NewMockExecutionManager(s.controller)
-	s.eagerNamespaceRefresher = NewMockEagerNamespaceRefresher(s.controller)
-	s.remoteHistoryFetcher = eventhandler.NewMockHistoryPaginatedFetcher(s.controller)
-	s.metricsHandler = metrics.NoopMetricsHandler
-	s.logger = log.NewNoopLogger()
-	s.config = tests.NewDynamicConfig()
-	s.serializer = serialization.NewSerializer()
-	s.resendHandler = eventhandler.NewMockResendHandler(s.controller)
-
-	s.clusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.clusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
+	clusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	clusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
 
 	creationTime := time.Unix(0, rand.Int63())
 	receivedTime := creationTime.Add(time.Duration(rand.Int63()))
-	s.sourceCluster = cluster.TestAlternativeClusterName
-	s.sourceShardKey = ClusterShardKey{
+	sourceCluster := cluster.TestAlternativeClusterName
+	sourceShardKey := ClusterShardKey{
 		ClusterID: int32(cluster.TestAlternativeClusterInitialFailoverVersion),
 		ShardID:   rand.Int31(),
 	}
-	s.namespaceId = uuid.NewString()
-	s.workflowId = uuid.NewString()
-	s.runId = uuid.NewString()
-	s.taskId = rand.Int63()
-	s.toolBox = ProcessToolBox{
-		Config:                  s.config,
-		ClusterMetadata:         s.clusterMetadata,
-		ClientBean:              s.clientBean,
-		ResendHandler:           s.resendHandler,
-		ShardController:         s.shardController,
-		NamespaceCache:          s.namespaceCache,
-		MetricsHandler:          s.metricsHandler,
-		Logger:                  s.logger,
-		EagerNamespaceRefresher: s.eagerNamespaceRefresher,
-		DLQWriter:               NewExecutionManagerDLQWriter(s.mockExecutionManager),
-		EventSerializer:         s.serializer,
-		RemoteHistoryFetcher:    s.remoteHistoryFetcher,
+	namespaceId := uuid.NewString()
+	workflowId := uuid.NewString()
+	runId := uuid.NewString()
+	taskId := rand.Int63()
+	toolBox := ProcessToolBox{
+		Config:                  config,
+		ClusterMetadata:         clusterMetadata,
+		ClientBean:              clientBean,
+		ResendHandler:           resendHandler,
+		ShardController:         shardController,
+		NamespaceCache:          namespaceCache,
+		MetricsHandler:          metricsHandler,
+		Logger:                  logger,
+		EagerNamespaceRefresher: eagerNamespaceRefresher,
+		DLQWriter:               NewExecutionManagerDLQWriter(mockExecutionManager),
+		EventSerializer:         serializer,
+		RemoteHistoryFetcher:    remoteHistoryFetcher,
 	}
 
-	s.task = NewExecutableTask(
-		s.toolBox,
-		s.taskId,
+	task := NewExecutableTask(
+		toolBox,
+		taskId,
 		"metrics-tag",
 		creationTime,
 		receivedTime,
-		s.sourceCluster,
-		s.sourceShardKey,
+		sourceCluster,
+		sourceShardKey,
 		&replicationspb.ReplicationTask{
 			RawTaskInfo: &persistencespb.ReplicationTaskInfo{
-				NamespaceId: s.namespaceId,
-				WorkflowId:  s.workflowId,
-				RunId:       s.runId,
-				TaskId:      s.taskId,
+				NamespaceId: namespaceId,
+				WorkflowId:  workflowId,
+				RunId:       runId,
+				TaskId:      taskId,
 				TaskEquivalents: []*persistencespb.ReplicationTaskInfo{
-					{NamespaceId: s.namespaceId, WorkflowId: s.workflowId, RunId: s.runId},
-					{NamespaceId: s.namespaceId, WorkflowId: s.workflowId, RunId: s.runId},
+					{NamespaceId: namespaceId, WorkflowId: workflowId, RunId: runId},
+					{NamespaceId: namespaceId, WorkflowId: workflowId, RunId: runId},
 				},
 			},
 		},
 	)
+
+	return &executableTaskTestDeps{
+		controller:              controller,
+		clusterMetadata:         clusterMetadata,
+		clientBean:              clientBean,
+		shardController:         shardController,
+		namespaceCache:          namespaceCache,
+		remoteHistoryFetcher:    remoteHistoryFetcher,
+		metricsHandler:          metricsHandler,
+		logger:                  logger,
+		sourceCluster:           sourceCluster,
+		sourceShardKey:          sourceShardKey,
+		eagerNamespaceRefresher: eagerNamespaceRefresher,
+		config:                  config,
+		namespaceId:             namespaceId,
+		workflowId:              workflowId,
+		runId:                   runId,
+		taskId:                  taskId,
+		mockExecutionManager:    mockExecutionManager,
+		serializer:              serializer,
+		resendHandler:           resendHandler,
+		toolBox:                 toolBox,
+		task:                    task,
+	}
 }
 
-func (s *executableTaskSuite) TearDownTest() {
-	s.controller.Finish()
+func TestTaskID(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
+	require.Equal(t, deps.task.taskID, deps.task.TaskID())
 }
 
-func (s *executableTaskSuite) TestTaskID() {
-	s.Equal(s.task.taskID, s.task.TaskID())
+func TestCreationTime(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
+	require.Equal(t, deps.task.taskCreationTime, deps.task.TaskCreationTime())
 }
 
-func (s *executableTaskSuite) TestCreationTime() {
-	s.Equal(s.task.taskCreationTime, s.task.TaskCreationTime())
+func TestAckStateAttempt(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
+	require.Equal(t, ctasks.TaskStatePending, deps.task.State())
+	require.False(t, deps.task.TerminalState())
+
+	deps.task.Ack()
+	require.Equal(t, ctasks.TaskStateAcked, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+
+	deps.task.Nack(nil)
+	require.Equal(t, ctasks.TaskStateAcked, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Abort()
+	require.Equal(t, ctasks.TaskStateAcked, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Cancel()
+	require.Equal(t, ctasks.TaskStateAcked, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Reschedule()
+	require.Equal(t, ctasks.TaskStateAcked, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+
+	require.True(t, deps.task.TerminalState())
 }
 
-func (s *executableTaskSuite) TestAckStateAttempt() {
-	s.Equal(ctasks.TaskStatePending, s.task.State())
-	s.False(s.task.TerminalState())
+func TestNackStateAttempt(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
 
-	s.task.Ack()
-	s.Equal(ctasks.TaskStateAcked, s.task.State())
-	s.Equal(1, s.task.Attempt())
+	require.Equal(t, ctasks.TaskStatePending, deps.task.State())
+	require.False(t, deps.task.TerminalState())
 
-	s.task.Nack(nil)
-	s.Equal(ctasks.TaskStateAcked, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Abort()
-	s.Equal(ctasks.TaskStateAcked, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Cancel()
-	s.Equal(ctasks.TaskStateAcked, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Reschedule()
-	s.Equal(ctasks.TaskStateAcked, s.task.State())
-	s.Equal(1, s.task.Attempt())
+	deps.task.Nack(nil)
+	require.Equal(t, ctasks.TaskStateNacked, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
 
-	s.True(s.task.TerminalState())
+	deps.task.Ack()
+	require.Equal(t, ctasks.TaskStateNacked, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Abort()
+	require.Equal(t, ctasks.TaskStateNacked, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Cancel()
+	require.Equal(t, ctasks.TaskStateNacked, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Reschedule()
+	require.Equal(t, ctasks.TaskStateNacked, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+
+	require.True(t, deps.task.TerminalState())
 }
 
-func (s *executableTaskSuite) TestNackStateAttempt() {
-	s.Equal(ctasks.TaskStatePending, s.task.State())
-	s.False(s.task.TerminalState())
+func TestAbortStateAttempt(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
 
-	s.task.Nack(nil)
-	s.Equal(ctasks.TaskStateNacked, s.task.State())
-	s.Equal(1, s.task.Attempt())
+	require.Equal(t, ctasks.TaskStatePending, deps.task.State())
+	require.False(t, deps.task.TerminalState())
 
-	s.task.Ack()
-	s.Equal(ctasks.TaskStateNacked, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Abort()
-	s.Equal(ctasks.TaskStateNacked, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Cancel()
-	s.Equal(ctasks.TaskStateNacked, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Reschedule()
-	s.Equal(ctasks.TaskStateNacked, s.task.State())
-	s.Equal(1, s.task.Attempt())
+	deps.task.Abort()
+	require.Equal(t, ctasks.TaskStateAborted, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
 
-	s.True(s.task.TerminalState())
+	deps.task.Ack()
+	require.Equal(t, ctasks.TaskStateAborted, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Nack(nil)
+	require.Equal(t, ctasks.TaskStateAborted, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Cancel()
+	require.Equal(t, ctasks.TaskStateAborted, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Reschedule()
+	require.Equal(t, ctasks.TaskStateAborted, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+
+	require.True(t, deps.task.TerminalState())
 }
 
-func (s *executableTaskSuite) TestAbortStateAttempt() {
-	s.Equal(ctasks.TaskStatePending, s.task.State())
-	s.False(s.task.TerminalState())
+func TestCancelStateAttempt(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
 
-	s.task.Abort()
-	s.Equal(ctasks.TaskStateAborted, s.task.State())
-	s.Equal(1, s.task.Attempt())
+	require.Equal(t, ctasks.TaskStatePending, deps.task.State())
+	require.False(t, deps.task.TerminalState())
 
-	s.task.Ack()
-	s.Equal(ctasks.TaskStateAborted, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Nack(nil)
-	s.Equal(ctasks.TaskStateAborted, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Cancel()
-	s.Equal(ctasks.TaskStateAborted, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Reschedule()
-	s.Equal(ctasks.TaskStateAborted, s.task.State())
-	s.Equal(1, s.task.Attempt())
+	deps.task.Cancel()
+	require.Equal(t, ctasks.TaskStateCancelled, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
 
-	s.True(s.task.TerminalState())
+	deps.task.Ack()
+	require.Equal(t, ctasks.TaskStateCancelled, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Nack(nil)
+	require.Equal(t, ctasks.TaskStateCancelled, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Abort()
+	require.Equal(t, ctasks.TaskStateCancelled, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+	deps.task.Reschedule()
+	require.Equal(t, ctasks.TaskStateCancelled, deps.task.State())
+	require.Equal(t, 1, deps.task.Attempt())
+
+	require.True(t, deps.task.TerminalState())
 }
 
-func (s *executableTaskSuite) TestCancelStateAttempt() {
-	s.Equal(ctasks.TaskStatePending, s.task.State())
-	s.False(s.task.TerminalState())
+func TestRescheduleStateAttempt(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
 
-	s.task.Cancel()
-	s.Equal(ctasks.TaskStateCancelled, s.task.State())
-	s.Equal(1, s.task.Attempt())
+	require.Equal(t, ctasks.TaskStatePending, deps.task.State())
+	require.False(t, deps.task.TerminalState())
 
-	s.task.Ack()
-	s.Equal(ctasks.TaskStateCancelled, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Nack(nil)
-	s.Equal(ctasks.TaskStateCancelled, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Abort()
-	s.Equal(ctasks.TaskStateCancelled, s.task.State())
-	s.Equal(1, s.task.Attempt())
-	s.task.Reschedule()
-	s.Equal(ctasks.TaskStateCancelled, s.task.State())
-	s.Equal(1, s.task.Attempt())
+	deps.task.Reschedule()
+	require.Equal(t, ctasks.TaskStatePending, deps.task.State())
+	require.Equal(t, 2, deps.task.Attempt())
 
-	s.True(s.task.TerminalState())
+	require.False(t, deps.task.TerminalState())
 }
 
-func (s *executableTaskSuite) TestRescheduleStateAttempt() {
-	s.Equal(ctasks.TaskStatePending, s.task.State())
-	s.False(s.task.TerminalState())
+func TestIsRetryableError(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
 
-	s.task.Reschedule()
-	s.Equal(ctasks.TaskStatePending, s.task.State())
-	s.Equal(2, s.task.Attempt())
-
-	s.False(s.task.TerminalState())
-}
-
-func (s *executableTaskSuite) TestIsRetryableError() {
 	err := errors.New("OwO")
-	s.True(s.task.IsRetryableError(err))
+	require.True(t, deps.task.IsRetryableError(err))
 
 	err = serviceerror.NewInternal("OwO")
-	s.True(s.task.IsRetryableError(err))
+	require.True(t, deps.task.IsRetryableError(err))
 
 	err = serviceerror.NewUnavailable("OwO")
-	s.True(s.task.IsRetryableError(err))
+	require.True(t, deps.task.IsRetryableError(err))
 
 	err = serviceerror.NewInvalidArgument("OwO")
-	s.False(s.task.IsRetryableError(err))
+	require.False(t, deps.task.IsRetryableError(err))
 }
 
-func (s *executableTaskSuite) TestResend_Success() {
+func TestResend_Success(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	remoteCluster := cluster.TestAlternativeClusterName
 	resendErr := &serviceerrors.RetryReplication{
 		NamespaceId:       uuid.NewString(),
@@ -299,7 +326,7 @@ func (s *executableTaskSuite) TestResend_Success() {
 		EndEventVersion:   rand.Int63(),
 	}
 
-	s.resendHandler.EXPECT().ResendHistoryEvents(
+	deps.resendHandler.EXPECT().ResendHistoryEvents(
 		gomock.Any(),
 		remoteCluster,
 		namespace.ID(resendErr.NamespaceId),
@@ -311,12 +338,15 @@ func (s *executableTaskSuite) TestResend_Success() {
 		resendErr.EndEventVersion,
 	).Return(nil)
 
-	doContinue, err := s.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
-	s.NoError(err)
-	s.True(doContinue)
+	doContinue, err := deps.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
+	require.NoError(t, err)
+	require.True(t, doContinue)
 }
 
-func (s *executableTaskSuite) TestResend_NotFound() {
+func TestResend_NotFound(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	remoteCluster := cluster.TestAlternativeClusterName
 	resendErr := &serviceerrors.RetryReplication{
 		NamespaceId:       uuid.NewString(),
@@ -328,7 +358,7 @@ func (s *executableTaskSuite) TestResend_NotFound() {
 		EndEventVersion:   rand.Int63(),
 	}
 
-	s.resendHandler.EXPECT().ResendHistoryEvents(
+	deps.resendHandler.EXPECT().ResendHistoryEvents(
 		gomock.Any(),
 		remoteCluster,
 		namespace.ID(resendErr.NamespaceId),
@@ -339,9 +369,9 @@ func (s *executableTaskSuite) TestResend_NotFound() {
 		resendErr.EndEventId,
 		resendErr.EndEventVersion,
 	).Return(serviceerror.NewNotFound(""))
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
+	shardContext := historyi.NewMockShardContext(deps.controller)
+	engine := historyi.NewMockEngine(deps.controller)
+	deps.shardController.EXPECT().GetShardByNamespaceWorkflow(
 		namespace.ID(resendErr.NamespaceId),
 		resendErr.WorkflowId,
 	).Return(shardContext, nil).AnyTimes()
@@ -355,12 +385,15 @@ func (s *executableTaskSuite) TestResend_NotFound() {
 		ClosedWorkflowOnly: false,
 	}).Return(&historyservice.DeleteWorkflowExecutionResponse{}, nil)
 
-	doContinue, err := s.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
-	s.NoError(err)
-	s.False(doContinue)
+	doContinue, err := deps.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
+	require.NoError(t, err)
+	require.False(t, doContinue)
 }
 
-func (s *executableTaskSuite) TestResend_ResendError_Success() {
+func TestResend_ResendError_Success(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	remoteCluster := cluster.TestAlternativeClusterName
 	resendErr := &serviceerrors.RetryReplication{
 		NamespaceId:       uuid.NewString(),
@@ -383,7 +416,7 @@ func (s *executableTaskSuite) TestResend_ResendError_Success() {
 	}
 
 	gomock.InOrder(
-		s.resendHandler.EXPECT().ResendHistoryEvents(
+		deps.resendHandler.EXPECT().ResendHistoryEvents(
 			gomock.Any(),
 			remoteCluster,
 			namespace.ID(resendErr.NamespaceId),
@@ -394,7 +427,7 @@ func (s *executableTaskSuite) TestResend_ResendError_Success() {
 			resendErr.EndEventId,
 			resendErr.EndEventVersion,
 		).Return(anotherResendErr),
-		s.resendHandler.EXPECT().ResendHistoryEvents(
+		deps.resendHandler.EXPECT().ResendHistoryEvents(
 			gomock.Any(),
 			remoteCluster,
 			namespace.ID(anotherResendErr.NamespaceId),
@@ -405,7 +438,7 @@ func (s *executableTaskSuite) TestResend_ResendError_Success() {
 			anotherResendErr.EndEventId,
 			anotherResendErr.EndEventVersion,
 		).Return(nil),
-		s.resendHandler.EXPECT().ResendHistoryEvents(
+		deps.resendHandler.EXPECT().ResendHistoryEvents(
 			gomock.Any(),
 			remoteCluster,
 			namespace.ID(resendErr.NamespaceId),
@@ -418,12 +451,15 @@ func (s *executableTaskSuite) TestResend_ResendError_Success() {
 		).Return(nil),
 	)
 
-	doContinue, err := s.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
-	s.NoError(err)
-	s.True(doContinue)
+	doContinue, err := deps.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
+	require.NoError(t, err)
+	require.True(t, doContinue)
 }
 
-func (s *executableTaskSuite) TestResend_ResendError_Error() {
+func TestResend_ResendError_Error(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	remoteCluster := cluster.TestAlternativeClusterName
 	resendErr := &serviceerrors.RetryReplication{
 		NamespaceId:       uuid.NewString(),
@@ -446,7 +482,7 @@ func (s *executableTaskSuite) TestResend_ResendError_Error() {
 	}
 
 	gomock.InOrder(
-		s.resendHandler.EXPECT().ResendHistoryEvents(
+		deps.resendHandler.EXPECT().ResendHistoryEvents(
 			gomock.Any(),
 			remoteCluster,
 			namespace.ID(resendErr.NamespaceId),
@@ -457,7 +493,7 @@ func (s *executableTaskSuite) TestResend_ResendError_Error() {
 			resendErr.EndEventId,
 			resendErr.EndEventVersion,
 		).Return(anotherResendErr),
-		s.resendHandler.EXPECT().ResendHistoryEvents(
+		deps.resendHandler.EXPECT().ResendHistoryEvents(
 			gomock.Any(),
 			remoteCluster,
 			namespace.ID(anotherResendErr.NamespaceId),
@@ -470,12 +506,15 @@ func (s *executableTaskSuite) TestResend_ResendError_Error() {
 		).Return(&serviceerrors.RetryReplication{}),
 	)
 
-	doContinue, err := s.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
-	s.Error(err)
-	s.False(doContinue)
+	doContinue, err := deps.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
+	require.Error(t, err)
+	require.False(t, doContinue)
 }
 
-func (s *executableTaskSuite) TestResend_SecondResendError_SameWorkflowRun() {
+func TestResend_SecondResendError_SameWorkflowRun(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	remoteCluster := cluster.TestAlternativeClusterName
 	resendErr := &serviceerrors.RetryReplication{
 		NamespaceId:       uuid.NewString(),
@@ -497,7 +536,7 @@ func (s *executableTaskSuite) TestResend_SecondResendError_SameWorkflowRun() {
 		EndEventVersion:   resendErr.EndEventVersion,
 	}
 
-	s.resendHandler.EXPECT().ResendHistoryEvents(
+	deps.resendHandler.EXPECT().ResendHistoryEvents(
 		gomock.Any(),
 		remoteCluster,
 		namespace.ID(resendErr.NamespaceId),
@@ -509,13 +548,16 @@ func (s *executableTaskSuite) TestResend_SecondResendError_SameWorkflowRun() {
 		resendErr.EndEventVersion,
 	).Return(anotherResendErr)
 
-	doContinue, err := s.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
+	doContinue, err := deps.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
 	var dataLossErr *serviceerror.DataLoss
-	s.ErrorAs(err, &dataLossErr)
-	s.False(doContinue)
+	require.ErrorAs(t, err, &dataLossErr)
+	require.False(t, doContinue)
 }
 
-func (s *executableTaskSuite) TestResend_Error() {
+func TestResend_Error(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	remoteCluster := cluster.TestAlternativeClusterName
 	resendErr := &serviceerrors.RetryReplication{
 		NamespaceId:       uuid.NewString(),
@@ -527,7 +569,7 @@ func (s *executableTaskSuite) TestResend_Error() {
 		EndEventVersion:   rand.Int63(),
 	}
 
-	s.resendHandler.EXPECT().ResendHistoryEvents(
+	deps.resendHandler.EXPECT().ResendHistoryEvents(
 		gomock.Any(),
 		remoteCluster,
 		namespace.ID(resendErr.NamespaceId),
@@ -539,12 +581,15 @@ func (s *executableTaskSuite) TestResend_Error() {
 		resendErr.EndEventVersion,
 	).Return(serviceerror.NewUnavailable(""))
 
-	doContinue, err := s.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
-	s.Error(err)
-	s.False(doContinue)
+	doContinue, err := deps.task.Resend(context.Background(), remoteCluster, resendErr, ResendAttempt)
+	require.Error(t, err)
+	require.False(t, doContinue)
 }
 
-func (s *executableTaskSuite) TestResend_TransitionHistoryDisabled() {
+func TestResend_TransitionHistoryDisabled(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	syncStateErr := &serviceerrors.SyncState{
 		NamespaceId: uuid.NewString(),
 		WorkflowId:  uuid.NewString(),
@@ -565,8 +610,8 @@ func (s *executableTaskSuite) TestResend_TransitionHistoryDisabled() {
 		},
 	}
 
-	mockRemoteAdminClient := adminservicemock.NewMockAdminServiceClient(s.controller)
-	s.clientBean.EXPECT().GetRemoteAdminClient(s.sourceCluster).Return(mockRemoteAdminClient, nil).AnyTimes()
+	mockRemoteAdminClient := adminservicemock.NewMockAdminServiceClient(deps.controller)
+	deps.clientBean.EXPECT().GetRemoteAdminClient(deps.sourceCluster).Return(mockRemoteAdminClient, nil).AnyTimes()
 
 	mockRemoteAdminClient.EXPECT().SyncWorkflowState(
 		gomock.Any(),
@@ -578,27 +623,30 @@ func (s *executableTaskSuite) TestResend_TransitionHistoryDisabled() {
 			},
 			VersionedTransition: syncStateErr.VersionedTransition,
 			VersionHistories:    syncStateErr.VersionHistories,
-			TargetClusterId:     int32(s.clusterMetadata.GetAllClusterInfo()[s.clusterMetadata.GetCurrentClusterName()].InitialFailoverVersion),
+			TargetClusterId:     int32(deps.clusterMetadata.GetAllClusterInfo()[deps.clusterMetadata.GetCurrentClusterName()].InitialFailoverVersion),
 		},
 	).Return(nil, consts.ErrTransitionHistoryDisabled).Times(1)
 
 	mockRemoteAdminClient.EXPECT().AddTasks(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, request *adminservice.AddTasksRequest, opts ...grpc.CallOption) (*adminservice.AddTasksResponse, error) {
-			s.Equal(s.sourceShardKey.ShardID, request.ShardId)
-			s.Len(request.Tasks, len(s.task.replicationTask.GetRawTaskInfo().TaskEquivalents))
+			require.Equal(t, deps.sourceShardKey.ShardID, request.ShardId)
+			require.Len(t, request.Tasks, len(deps.task.replicationTask.GetRawTaskInfo().TaskEquivalents))
 			for _, task := range request.Tasks {
-				s.Equal(tasks.CategoryIDReplication, int(task.CategoryId))
+				require.Equal(t, tasks.CategoryIDReplication, int(task.CategoryId))
 			}
 			return nil, nil
 		},
 	)
 
-	doContinue, err := s.task.SyncState(context.Background(), syncStateErr, ResendAttempt)
-	s.Nil(err)
-	s.False(doContinue)
+	doContinue, err := deps.task.SyncState(context.Background(), syncStateErr, ResendAttempt)
+	require.Nil(t, err)
+	require.False(t, doContinue)
 }
 
-func (s *executableTaskSuite) TestSyncState_SourceMutableStateHasUnFlushedBufferEvents() {
+func TestSyncState_SourceMutableStateHasUnFlushedBufferEvents(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	syncStateErr := &serviceerrors.SyncState{
 		NamespaceId: uuid.NewString(),
 		WorkflowId:  uuid.NewString(),
@@ -619,8 +667,8 @@ func (s *executableTaskSuite) TestSyncState_SourceMutableStateHasUnFlushedBuffer
 		},
 	}
 
-	mockRemoteAdminClient := adminservicemock.NewMockAdminServiceClient(s.controller)
-	s.clientBean.EXPECT().GetRemoteAdminClient(s.sourceCluster).Return(mockRemoteAdminClient, nil).AnyTimes()
+	mockRemoteAdminClient := adminservicemock.NewMockAdminServiceClient(deps.controller)
+	deps.clientBean.EXPECT().GetRemoteAdminClient(deps.sourceCluster).Return(mockRemoteAdminClient, nil).AnyTimes()
 
 	mockRemoteAdminClient.EXPECT().SyncWorkflowState(
 		gomock.Any(),
@@ -632,20 +680,23 @@ func (s *executableTaskSuite) TestSyncState_SourceMutableStateHasUnFlushedBuffer
 			},
 			VersionedTransition: syncStateErr.VersionedTransition,
 			VersionHistories:    syncStateErr.VersionHistories,
-			TargetClusterId:     int32(s.clusterMetadata.GetAllClusterInfo()[s.clusterMetadata.GetCurrentClusterName()].InitialFailoverVersion),
+			TargetClusterId:     int32(deps.clusterMetadata.GetAllClusterInfo()[deps.clusterMetadata.GetCurrentClusterName()].InitialFailoverVersion),
 		},
 	).Return(nil, serviceerror.NewWorkflowNotReady("workflow not ready")).Times(1)
 
-	doContinue, err := s.task.SyncState(context.Background(), syncStateErr, ResendAttempt)
-	s.Nil(err)
-	s.False(doContinue)
+	doContinue, err := deps.task.SyncState(context.Background(), syncStateErr, ResendAttempt)
+	require.Nil(t, err)
+	require.False(t, doContinue)
 }
 
-func (s *executableTaskSuite) TestBackFillEvents_Success() {
+func TestBackFillEvents_Success(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceId,
-		s.workflowId,
-		s.runId,
+		deps.namespaceId,
+		deps.workflowId,
+		deps.runId,
 	)
 
 	startEventId := int64(20)
@@ -660,11 +711,11 @@ func (s *executableTaskSuite) TestBackFillEvents_Success() {
 	eventBatchOriginal2 := []*historypb.HistoryEvent{
 		{EventId: 21, Version: 12},
 	}
-	blogOriginal1, err := s.serializer.SerializeEvents(eventBatchOriginal1)
-	s.NoError(err)
+	blogOriginal1, err := deps.serializer.SerializeEvents(eventBatchOriginal1)
+	require.NoError(t, err)
 
-	blogOriginal2, err := s.serializer.SerializeEvents(eventBatchOriginal2)
-	s.NoError(err)
+	blogOriginal2, err := deps.serializer.SerializeEvents(eventBatchOriginal2)
+	require.NoError(t, err)
 	versionHistory := &historyspb.VersionHistory{
 		Items: []*historyspb.VersionHistoryItem{
 			{EventId: 20, Version: 10},
@@ -681,8 +732,8 @@ func (s *executableTaskSuite) TestBackFillEvents_Success() {
 		{EventId: 1, Version: 12},
 		{EventId: 2, Version: 12},
 	}
-	blobNewRun, err := s.serializer.SerializeEvents(eventBatchNewRun)
-	s.NoError(err)
+	blobNewRun, err := deps.serializer.SerializeEvents(eventBatchNewRun)
+	require.NoError(t, err)
 	fetcherNewRun := collection.NewPagingIterator(func(paginationToken []byte) ([]*eventhandler.HistoryBatch, []byte, error) {
 		return []*eventhandler.HistoryBatch{
 			{RawEventBatch: blobNewRun, VersionHistory: &historyspb.VersionHistory{
@@ -692,7 +743,7 @@ func (s *executableTaskSuite) TestBackFillEvents_Success() {
 			}},
 		}, nil, nil
 	})
-	s.remoteHistoryFetcher.EXPECT().GetSingleWorkflowHistoryPaginatedIteratorInclusive(
+	deps.remoteHistoryFetcher.EXPECT().GetSingleWorkflowHistoryPaginatedIteratorInclusive(
 		gomock.Any(),
 		remoteCluster,
 		namespace.ID(workflowKey.NamespaceID),
@@ -703,7 +754,7 @@ func (s *executableTaskSuite) TestBackFillEvents_Success() {
 		int64(1),
 		endEventVersion,
 	).Return(fetcherNewRun)
-	s.remoteHistoryFetcher.EXPECT().GetSingleWorkflowHistoryPaginatedIteratorInclusive(
+	deps.remoteHistoryFetcher.EXPECT().GetSingleWorkflowHistoryPaginatedIteratorInclusive(
 		gomock.Any(),
 		remoteCluster,
 		namespace.ID(workflowKey.NamespaceID),
@@ -714,9 +765,9 @@ func (s *executableTaskSuite) TestBackFillEvents_Success() {
 		endEventId,
 		endEventVersion,
 	).Return(fetcher)
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
+	shardContext := historyi.NewMockShardContext(deps.controller)
+	engine := historyi.NewMockEngine(deps.controller)
+	deps.shardController.EXPECT().GetShardByNamespaceWorkflow(
 		namespace.ID(workflowKey.NamespaceID),
 		workflowKey.WorkflowID,
 	).Return(shardContext, nil).AnyTimes()
@@ -724,39 +775,39 @@ func (s *executableTaskSuite) TestBackFillEvents_Success() {
 	engine.EXPECT().BackfillHistoryEvents(
 		gomock.Any(), protomock.Eq(&historyi.BackfillHistoryEventsRequest{
 			WorkflowKey:         workflowKey,
-			SourceClusterName:   s.sourceCluster,
-			VersionedHistory:    s.task.replicationTask.VersionedTransition,
+			SourceClusterName:   deps.sourceCluster,
+			VersionedHistory:    deps.task.replicationTask.VersionedTransition,
 			VersionHistoryItems: versionHistory.Items,
 			Events:              [][]*historypb.HistoryEvent{eventBatchOriginal1},
 		})).Return(nil)
 	engine.EXPECT().BackfillHistoryEvents(
 		gomock.Any(), protomock.Eq(&historyi.BackfillHistoryEventsRequest{
 			WorkflowKey:         workflowKey,
-			SourceClusterName:   s.sourceCluster,
-			VersionedHistory:    s.task.replicationTask.VersionedTransition,
+			SourceClusterName:   deps.sourceCluster,
+			VersionedHistory:    deps.task.replicationTask.VersionedTransition,
 			VersionHistoryItems: versionHistory.Items,
 			Events:              [][]*historypb.HistoryEvent{eventBatchOriginal2},
 			NewRunID:            newRunId,
 			NewEvents:           eventBatchNewRun,
 		})).Return(nil)
 	task := NewExecutableTask(
-		s.toolBox,
-		s.taskId,
+		deps.toolBox,
+		deps.taskId,
 		"metrics-tag",
 		time.Now(),
 		time.Now(),
-		s.sourceCluster,
-		s.sourceShardKey,
+		deps.sourceCluster,
+		deps.sourceShardKey,
 		&replicationspb.ReplicationTask{
 			TaskType: enumsspb.REPLICATION_TASK_TYPE_VERIFY_VERSIONED_TRANSITION_TASK,
 			RawTaskInfo: &persistencespb.ReplicationTaskInfo{
-				NamespaceId: s.namespaceId,
-				WorkflowId:  s.workflowId,
-				RunId:       s.runId,
-				TaskId:      s.taskId,
+				NamespaceId: deps.namespaceId,
+				WorkflowId:  deps.workflowId,
+				RunId:       deps.runId,
+				TaskId:      deps.taskId,
 				TaskEquivalents: []*persistencespb.ReplicationTaskInfo{
-					{NamespaceId: s.namespaceId, WorkflowId: s.workflowId, RunId: s.runId},
-					{NamespaceId: s.namespaceId, WorkflowId: s.workflowId, RunId: s.runId},
+					{NamespaceId: deps.namespaceId, WorkflowId: deps.workflowId, RunId: deps.runId},
+					{NamespaceId: deps.namespaceId, WorkflowId: deps.workflowId, RunId: deps.runId},
 				},
 			},
 		},
@@ -771,10 +822,13 @@ func (s *executableTaskSuite) TestBackFillEvents_Success() {
 		endEventVersion,
 		newRunId,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *executableTaskSuite) TestGetNamespaceInfo_Process() {
+func TestGetNamespaceInfo_Process(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	namespaceID := uuid.NewString()
 	namespaceName := uuid.NewString()
 	namespaceEntry := namespace.FromPersistentState(&persistencespb.NamespaceDetail{
@@ -791,15 +845,18 @@ func (s *executableTaskSuite) TestGetNamespaceInfo_Process() {
 			},
 		},
 	})
-	s.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntry, nil).AnyTimes()
+	deps.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntry, nil).AnyTimes()
 
-	name, toProcess, err := s.task.GetNamespaceInfo(context.Background(), namespaceID)
-	s.NoError(err)
-	s.Equal(namespaceName, name)
-	s.True(toProcess)
+	name, toProcess, err := deps.task.GetNamespaceInfo(context.Background(), namespaceID)
+	require.NoError(t, err)
+	require.Equal(t, namespaceName, name)
+	require.True(t, toProcess)
 }
 
-func (s *executableTaskSuite) TestGetNamespaceInfo_Skip() {
+func TestGetNamespaceInfo_Skip(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	namespaceID := uuid.NewString()
 	namespaceName := uuid.NewString()
 	namespaceEntry := namespace.FromPersistentState(&persistencespb.NamespaceDetail{
@@ -815,15 +872,18 @@ func (s *executableTaskSuite) TestGetNamespaceInfo_Skip() {
 			},
 		},
 	})
-	s.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntry, nil).AnyTimes()
+	deps.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntry, nil).AnyTimes()
 
-	name, toProcess, err := s.task.GetNamespaceInfo(context.Background(), namespaceID)
-	s.NoError(err)
-	s.Equal(namespaceName, name)
-	s.False(toProcess)
+	name, toProcess, err := deps.task.GetNamespaceInfo(context.Background(), namespaceID)
+	require.NoError(t, err)
+	require.Equal(t, namespaceName, name)
+	require.False(t, toProcess)
 }
 
-func (s *executableTaskSuite) TestGetNamespaceInfo_Deleted() {
+func TestGetNamespaceInfo_Deleted(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	namespaceID := uuid.NewString()
 	namespaceName := uuid.NewString()
 	namespaceEntry := namespace.FromPersistentState(&persistencespb.NamespaceDetail{
@@ -841,23 +901,29 @@ func (s *executableTaskSuite) TestGetNamespaceInfo_Deleted() {
 			},
 		},
 	})
-	s.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntry, nil).AnyTimes()
+	deps.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntry, nil).AnyTimes()
 
-	name, toProcess, err := s.task.GetNamespaceInfo(context.Background(), namespaceID)
-	s.NoError(err)
-	s.Equal(namespaceName, name)
-	s.False(toProcess)
+	name, toProcess, err := deps.task.GetNamespaceInfo(context.Background(), namespaceID)
+	require.NoError(t, err)
+	require.Equal(t, namespaceName, name)
+	require.False(t, toProcess)
 }
 
-func (s *executableTaskSuite) TestGetNamespaceInfo_Error() {
+func TestGetNamespaceInfo_Error(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	namespaceID := uuid.NewString()
-	s.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(nil, errors.New("OwO")).AnyTimes()
+	deps.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(nil, errors.New("OwO")).AnyTimes()
 
-	_, _, err := s.task.GetNamespaceInfo(context.Background(), namespaceID)
-	s.Error(err)
+	_, _, err := deps.task.GetNamespaceInfo(context.Background(), namespaceID)
+	require.Error(t, err)
 }
 
-func (s *executableTaskSuite) TestGetNamespaceInfo_NotFoundOnCurrentCluster_SyncFromRemoteSuccess() {
+func TestGetNamespaceInfo_NotFoundOnCurrentCluster_SyncFromRemoteSuccess(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	namespaceID := uuid.NewString()
 	namespaceName := uuid.NewString()
 	namespaceEntry := namespace.FromPersistentState(
@@ -875,42 +941,44 @@ func (s *executableTaskSuite) TestGetNamespaceInfo_NotFoundOnCurrentCluster_Sync
 				},
 			},
 		})
-	// enable feature flag
 
-	s.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(nil, serviceerror.NewNamespaceNotFound("namespace not found")).Times(1)
-	s.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntry, nil).Times(1)
-	s.eagerNamespaceRefresher.EXPECT().SyncNamespaceFromSourceCluster(gomock.Any(), namespace.ID(namespaceID), gomock.Any()).Return(
+	deps.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(nil, serviceerror.NewNamespaceNotFound("namespace not found")).Times(1)
+	deps.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntry, nil).Times(1)
+	deps.eagerNamespaceRefresher.EXPECT().SyncNamespaceFromSourceCluster(gomock.Any(), namespace.ID(namespaceID), gomock.Any()).Return(
 		namespaceEntry, nil)
 
-	name, toProcess, err := s.task.GetNamespaceInfo(context.Background(), namespaceID)
-	s.NoError(err)
-	s.Equal(namespaceName, name)
-	s.True(toProcess)
+	name, toProcess, err := deps.task.GetNamespaceInfo(context.Background(), namespaceID)
+	require.NoError(t, err)
+	require.Equal(t, namespaceName, name)
+	require.True(t, toProcess)
 }
 
-func (s *executableTaskSuite) TestGetNamespaceInfo_NamespaceFailoverNotSync_SyncFromRemoteSuccess() {
+func TestGetNamespaceInfo_NamespaceFailoverNotSync_SyncFromRemoteSuccess(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	namespaceID := uuid.NewString()
 	namespaceName := uuid.NewString()
 	now := time.Now()
-	s.task = NewExecutableTask(
+	task := NewExecutableTask(
 		ProcessToolBox{
-			Config:                  s.config,
-			ClusterMetadata:         s.clusterMetadata,
-			ClientBean:              s.clientBean,
-			ShardController:         s.shardController,
-			NamespaceCache:          s.namespaceCache,
-			ResendHandler:           s.resendHandler,
-			MetricsHandler:          s.metricsHandler,
-			Logger:                  s.logger,
-			EagerNamespaceRefresher: s.eagerNamespaceRefresher,
+			Config:                  deps.config,
+			ClusterMetadata:         deps.clusterMetadata,
+			ClientBean:              deps.clientBean,
+			ShardController:         deps.shardController,
+			NamespaceCache:          deps.namespaceCache,
+			ResendHandler:           deps.resendHandler,
+			MetricsHandler:          deps.metricsHandler,
+			Logger:                  deps.logger,
+			EagerNamespaceRefresher: deps.eagerNamespaceRefresher,
 			DLQWriter:               NoopDLQWriter{},
 		},
 		rand.Int63(),
 		"metrics-tag",
 		now,
 		now,
-		s.sourceCluster,
-		s.sourceShardKey,
+		deps.sourceCluster,
+		deps.sourceShardKey,
 		&replicationspb.ReplicationTask{
 			TaskType:            enumsspb.REPLICATION_TASK_TYPE_NAMESPACE_TASK,
 			VersionedTransition: &persistencespb.VersionedTransition{NamespaceFailoverVersion: 80},
@@ -949,40 +1017,43 @@ func (s *executableTaskSuite) TestGetNamespaceInfo_NamespaceFailoverNotSync_Sync
 			FailoverVersion: 100,
 		})
 
-	s.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntryOld, nil).Times(1)
-	s.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntryNew, nil).Times(1)
-	s.eagerNamespaceRefresher.EXPECT().SyncNamespaceFromSourceCluster(gomock.Any(), namespace.ID(namespaceID), gomock.Any()).Return(
+	deps.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntryOld, nil).Times(1)
+	deps.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntryNew, nil).Times(1)
+	deps.eagerNamespaceRefresher.EXPECT().SyncNamespaceFromSourceCluster(gomock.Any(), namespace.ID(namespaceID), gomock.Any()).Return(
 		namespaceEntryNew, nil)
 
-	name, toProcess, err := s.task.GetNamespaceInfo(context.Background(), namespaceID)
-	s.NoError(err)
-	s.Equal(namespaceName, name)
-	s.True(toProcess)
+	name, toProcess, err := task.GetNamespaceInfo(context.Background(), namespaceID)
+	require.NoError(t, err)
+	require.Equal(t, namespaceName, name)
+	require.True(t, toProcess)
 }
 
-func (s *executableTaskSuite) TestGetNamespaceInfo_NamespaceFailoverBehind_StillBehandAfterSyncFromRemote() {
+func TestGetNamespaceInfo_NamespaceFailoverBehind_StillBehandAfterSyncFromRemote(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	namespaceID := uuid.NewString()
 	namespaceName := uuid.NewString()
 	now := time.Now()
-	s.task = NewExecutableTask(
+	task := NewExecutableTask(
 		ProcessToolBox{
-			Config:                  s.config,
-			ClusterMetadata:         s.clusterMetadata,
-			ClientBean:              s.clientBean,
-			ShardController:         s.shardController,
-			NamespaceCache:          s.namespaceCache,
-			ResendHandler:           s.resendHandler,
-			MetricsHandler:          s.metricsHandler,
-			Logger:                  s.logger,
-			EagerNamespaceRefresher: s.eagerNamespaceRefresher,
+			Config:                  deps.config,
+			ClusterMetadata:         deps.clusterMetadata,
+			ClientBean:              deps.clientBean,
+			ShardController:         deps.shardController,
+			NamespaceCache:          deps.namespaceCache,
+			ResendHandler:           deps.resendHandler,
+			MetricsHandler:          deps.metricsHandler,
+			Logger:                  deps.logger,
+			EagerNamespaceRefresher: deps.eagerNamespaceRefresher,
 			DLQWriter:               NoopDLQWriter{},
 		},
 		rand.Int63(),
 		"metrics-tag",
 		now,
 		now,
-		s.sourceCluster,
-		s.sourceShardKey,
+		deps.sourceCluster,
+		deps.sourceShardKey,
 		&replicationspb.ReplicationTask{
 			TaskType:            enumsspb.REPLICATION_TASK_TYPE_NAMESPACE_TASK,
 			VersionedTransition: &persistencespb.VersionedTransition{NamespaceFailoverVersion: 80},
@@ -1004,69 +1075,81 @@ func (s *executableTaskSuite) TestGetNamespaceInfo_NamespaceFailoverBehind_Still
 		FailoverVersion: 10,
 	})
 
-	s.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntryOld, nil).Times(1)
-	s.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntryOld, nil).Times(1)
-	s.eagerNamespaceRefresher.EXPECT().SyncNamespaceFromSourceCluster(gomock.Any(), namespace.ID(namespaceID), gomock.Any()).Return(
+	deps.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntryOld, nil).Times(1)
+	deps.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(namespaceEntryOld, nil).Times(1)
+	deps.eagerNamespaceRefresher.EXPECT().SyncNamespaceFromSourceCluster(gomock.Any(), namespace.ID(namespaceID), gomock.Any()).Return(
 		namespaceEntryOld, nil)
 
-	name, toProcess, err := s.task.GetNamespaceInfo(context.Background(), namespaceID)
-	s.Empty(name)
-	s.Error(err)
-	s.False(toProcess)
+	name, toProcess, err := task.GetNamespaceInfo(context.Background(), namespaceID)
+	require.Empty(t, name)
+	require.Error(t, err)
+	require.False(t, toProcess)
 }
 
-func (s *executableTaskSuite) TestGetNamespaceInfo_NotFoundOnCurrentCluster_SyncFromRemoteFailed() {
+func TestGetNamespaceInfo_NotFoundOnCurrentCluster_SyncFromRemoteFailed(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	namespaceID := uuid.NewString()
 
-	s.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(nil, serviceerror.NewNamespaceNotFound("namespace not found")).AnyTimes()
-	s.eagerNamespaceRefresher.EXPECT().SyncNamespaceFromSourceCluster(gomock.Any(), namespace.ID(namespaceID), gomock.Any()).Return(
+	deps.namespaceCache.EXPECT().GetNamespaceByID(namespace.ID(namespaceID)).Return(nil, serviceerror.NewNamespaceNotFound("namespace not found")).AnyTimes()
+	deps.eagerNamespaceRefresher.EXPECT().SyncNamespaceFromSourceCluster(gomock.Any(), namespace.ID(namespaceID), gomock.Any()).Return(
 		nil, errors.New("some error"))
 
-	_, toProcess, err := s.task.GetNamespaceInfo(context.Background(), namespaceID)
-	s.Nil(err)
-	s.False(toProcess)
+	_, toProcess, err := deps.task.GetNamespaceInfo(context.Background(), namespaceID)
+	require.Nil(t, err)
+	require.False(t, toProcess)
 }
 
-func (s *executableTaskSuite) TestMarkPoisonPill() {
+func TestMarkPoisonPill(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	shardID := rand.Int31()
-	shardContext := historyi.NewMockShardContext(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
-		namespace.ID(s.namespaceId),
-		s.workflowId,
+	shardContext := historyi.NewMockShardContext(deps.controller)
+	deps.shardController.EXPECT().GetShardByNamespaceWorkflow(
+		namespace.ID(deps.namespaceId),
+		deps.workflowId,
 	).Return(shardContext, nil).AnyTimes()
 	shardContext.EXPECT().GetShardID().Return(shardID).AnyTimes()
-	s.mockExecutionManager.EXPECT().PutReplicationTaskToDLQ(gomock.Any(), &persistence.PutReplicationTaskToDLQRequest{
+	deps.mockExecutionManager.EXPECT().PutReplicationTaskToDLQ(gomock.Any(), &persistence.PutReplicationTaskToDLQRequest{
 		ShardID:           shardID,
-		SourceClusterName: s.task.sourceClusterName,
-		TaskInfo:          s.task.replicationTask.RawTaskInfo,
+		SourceClusterName: deps.task.sourceClusterName,
+		TaskInfo:          deps.task.replicationTask.RawTaskInfo,
 	}).Return(nil)
 
-	err := s.task.MarkPoisonPill()
-	s.NoError(err)
+	err := deps.task.MarkPoisonPill()
+	require.NoError(t, err)
 }
 
-func (s *executableTaskSuite) TestMarkPoisonPill_MaxAttemptsReached() {
-	s.task.markPoisonPillAttempts = MarkPoisonPillMaxAttempts - 1
+func TestMarkPoisonPill_MaxAttemptsReached(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
+	deps.task.markPoisonPillAttempts = MarkPoisonPillMaxAttempts - 1
 	shardID := rand.Int31()
-	shardContext := historyi.NewMockShardContext(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
-		namespace.ID(s.namespaceId),
-		s.workflowId,
+	shardContext := historyi.NewMockShardContext(deps.controller)
+	deps.shardController.EXPECT().GetShardByNamespaceWorkflow(
+		namespace.ID(deps.namespaceId),
+		deps.workflowId,
 	).Return(shardContext, nil).AnyTimes()
 	shardContext.EXPECT().GetShardID().Return(shardID).AnyTimes()
-	s.mockExecutionManager.EXPECT().PutReplicationTaskToDLQ(gomock.Any(), &persistence.PutReplicationTaskToDLQRequest{
+	deps.mockExecutionManager.EXPECT().PutReplicationTaskToDLQ(gomock.Any(), &persistence.PutReplicationTaskToDLQRequest{
 		ShardID:           shardID,
-		SourceClusterName: s.task.sourceClusterName,
-		TaskInfo:          s.task.replicationTask.RawTaskInfo,
+		SourceClusterName: deps.task.sourceClusterName,
+		TaskInfo:          deps.task.replicationTask.RawTaskInfo,
 	}).Return(serviceerror.NewInternal("failed"))
 
-	err := s.task.MarkPoisonPill()
-	s.Error(err)
-	err = s.task.MarkPoisonPill()
-	s.NoError(err)
+	err := deps.task.MarkPoisonPill()
+	require.Error(t, err)
+	err = deps.task.MarkPoisonPill()
+	require.NoError(t, err)
 }
 
-func (s *executableTaskSuite) TestSyncState() {
+func TestSyncState(t *testing.T) {
+	deps := setupExecutableTaskTest(t)
+	defer deps.controller.Finish()
+
 	syncStateErr := &serviceerrors.SyncState{
 		NamespaceId: uuid.NewString(),
 		WorkflowId:  uuid.NewString(),
@@ -1099,8 +1182,8 @@ func (s *executableTaskSuite) TestSyncState() {
 		},
 	}
 
-	mockRemoteAdminClient := adminservicemock.NewMockAdminServiceClient(s.controller)
-	s.clientBean.EXPECT().GetRemoteAdminClient(s.sourceCluster).Return(mockRemoteAdminClient, nil).AnyTimes()
+	mockRemoteAdminClient := adminservicemock.NewMockAdminServiceClient(deps.controller)
+	deps.clientBean.EXPECT().GetRemoteAdminClient(deps.sourceCluster).Return(mockRemoteAdminClient, nil).AnyTimes()
 	mockRemoteAdminClient.EXPECT().SyncWorkflowState(
 		gomock.Any(),
 		&adminservice.SyncWorkflowStateRequest{
@@ -1111,22 +1194,22 @@ func (s *executableTaskSuite) TestSyncState() {
 			},
 			VersionedTransition: syncStateErr.VersionedTransition,
 			VersionHistories:    syncStateErr.VersionHistories,
-			TargetClusterId:     int32(s.clusterMetadata.GetAllClusterInfo()[s.clusterMetadata.GetCurrentClusterName()].InitialFailoverVersion),
+			TargetClusterId:     int32(deps.clusterMetadata.GetAllClusterInfo()[deps.clusterMetadata.GetCurrentClusterName()].InitialFailoverVersion),
 		},
 	).Return(&adminservice.SyncWorkflowStateResponse{
 		VersionedTransitionArtifact: versionedTransitionArtifact,
 	}, nil).Times(1)
 
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
+	shardContext := historyi.NewMockShardContext(deps.controller)
+	engine := historyi.NewMockEngine(deps.controller)
+	deps.shardController.EXPECT().GetShardByNamespaceWorkflow(
 		namespace.ID(syncStateErr.NamespaceId),
 		syncStateErr.WorkflowId,
 	).Return(shardContext, nil).AnyTimes()
 	shardContext.EXPECT().GetEngine(gomock.Any()).Return(engine, nil).AnyTimes()
-	engine.EXPECT().ReplicateVersionedTransition(gomock.Any(), versionedTransitionArtifact, s.sourceCluster).Return(nil)
+	engine.EXPECT().ReplicateVersionedTransition(gomock.Any(), versionedTransitionArtifact, deps.sourceCluster).Return(nil)
 
-	doContinue, err := s.task.SyncState(context.Background(), syncStateErr, ResendAttempt)
-	s.NoError(err)
-	s.True(doContinue)
+	doContinue, err := deps.task.SyncState(context.Background(), syncStateErr, ResendAttempt)
+	require.NoError(t, err)
+	require.True(t, doContinue)
 }

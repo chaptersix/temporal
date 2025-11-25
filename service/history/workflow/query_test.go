@@ -5,27 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	enumspb "go.temporal.io/api/enums/v1"
 	querypb "go.temporal.io/api/query/v1"
 	"go.temporal.io/server/common/payloads"
 	historyi "go.temporal.io/server/service/history/interfaces"
 )
 
-type QuerySuite struct {
-	*require.Assertions
-	suite.Suite
-}
-
-func TestQuerySuite(t *testing.T) {
-	suite.Run(t, new(QuerySuite))
-}
-
-func (s *QuerySuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-}
-
-func (s *QuerySuite) TestValidateCompletionState() {
+func TestValidateCompletionState(t *testing.T) {
 	testCases := []struct {
 		ts        *historyi.QueryCompletionState
 		expectErr bool
@@ -143,22 +129,22 @@ func (s *QuerySuite) TestValidateCompletionState() {
 	queryImpl := &queryImpl{}
 	for _, tc := range testCases {
 		if tc.expectErr {
-			s.Error(queryImpl.validateCompletionState(tc.ts))
+			require.Error(t, queryImpl.validateCompletionState(tc.ts))
 		} else {
-			s.NoError(queryImpl.validateCompletionState(tc.ts))
+			require.NoError(t, queryImpl.validateCompletionState(tc.ts))
 		}
 	}
 }
 
-func (s *QuerySuite) TestCompletionState_Failed() {
+func TestCompletionState_Failed(t *testing.T) {
 	completionStateFailed := &historyi.QueryCompletionState{
 		Type: QueryCompletionTypeFailed,
 		Err:  errors.New("err"),
 	}
-	s.testSetCompletionState(completionStateFailed)
+	testSetCompletionState(t, completionStateFailed)
 }
 
-func (s *QuerySuite) TestCompletionState_Completed() {
+func TestCompletionState_Completed(t *testing.T) {
 	answeredCompletionState := &historyi.QueryCompletionState{
 		Type: QueryCompletionTypeSucceeded,
 		Result: &querypb.WorkflowQueryResult{
@@ -166,37 +152,37 @@ func (s *QuerySuite) TestCompletionState_Completed() {
 			Answer:     payloads.EncodeBytes([]byte{1, 2, 3}),
 		},
 	}
-	s.testSetCompletionState(answeredCompletionState)
+	testSetCompletionState(t, answeredCompletionState)
 }
 
-func (s *QuerySuite) TestCompletionState_Unblocked() {
+func TestCompletionState_Unblocked(t *testing.T) {
 	unblockedCompletionState := &historyi.QueryCompletionState{
 		Type: QueryCompletionTypeUnblocked,
 	}
-	s.testSetCompletionState(unblockedCompletionState)
+	testSetCompletionState(t, unblockedCompletionState)
 }
 
-func (s *QuerySuite) testSetCompletionState(completionState *historyi.QueryCompletionState) {
+func testSetCompletionState(t *testing.T, completionState *historyi.QueryCompletionState) {
 	query := newQuery(nil)
 	ts, err := query.GetCompletionState()
-	s.Equal(errQueryNotInCompletionState, err)
-	s.Nil(ts)
-	s.False(closed(query.getCompletionCh()))
-	s.Equal(errCompletionStateInvalid, query.setCompletionState(nil))
-	s.NoError(query.setCompletionState(completionState))
-	s.True(closed(query.getCompletionCh()))
+	require.Equal(t, errQueryNotInCompletionState, err)
+	require.Nil(t, ts)
+	require.False(t, closed(query.getCompletionCh()))
+	require.Equal(t, errCompletionStateInvalid, query.setCompletionState(nil))
+	require.NoError(t, query.setCompletionState(completionState))
+	require.True(t, closed(query.getCompletionCh()))
 	actualCompletionState, err := query.GetCompletionState()
-	s.NoError(err)
-	s.assertCompletionStateEqual(completionState, actualCompletionState)
+	require.NoError(t, err)
+	assertCompletionStateEqual(t, completionState, actualCompletionState)
 }
 
-func (s *QuerySuite) assertCompletionStateEqual(expected *historyi.QueryCompletionState, actual *historyi.QueryCompletionState) {
-	s.Equal(expected.Type, actual.Type)
+func assertCompletionStateEqual(t *testing.T, expected *historyi.QueryCompletionState, actual *historyi.QueryCompletionState) {
+	require.Equal(t, expected.Type, actual.Type)
 	if expected.Err != nil {
-		s.Equal(expected.Err.Error(), actual.Err.Error())
+		require.Equal(t, expected.Err.Error(), actual.Err.Error())
 	}
 	if expected.Result != nil {
-		s.EqualValues(actual.Result, expected.Result)
+		require.EqualValues(t, actual.Result, expected.Result)
 	}
 }
 

@@ -6,36 +6,16 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/server/service/history/tasks"
 	"go.temporal.io/server/service/history/tests"
 )
 
-type (
-	taskRequestTrackerSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		tracker *taskRequestTracker
-	}
-)
-
-func TestTaskRequestTrackerSuite(t *testing.T) {
-	s := &taskRequestTrackerSuite{}
-	suite.Run(t, s)
-}
-
-func (s *taskRequestTrackerSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.tracker = newTaskRequestTracker(tasks.NewDefaultTaskCategoryRegistry())
-}
-
-func (s *taskRequestTrackerSuite) TestTrackAndMinTaskKey() {
+func TestTrackAndMinTaskKey(t *testing.T) {
+	tracker := newTaskRequestTracker(tasks.NewDefaultTaskCategoryRegistry())
 	now := time.Now()
 
-	_ = s.tracker.track(s.convertKeysToTasks(map[tasks.Category][]tasks.Key{
+	_ = tracker.track(convertKeysToTasks(t, map[tasks.Category][]tasks.Key{
 		tasks.CategoryTransfer: {
 			tasks.NewImmediateKey(123),
 			tasks.NewImmediateKey(125),
@@ -45,10 +25,10 @@ func (s *taskRequestTrackerSuite) TestTrackAndMinTaskKey() {
 			tasks.NewKey(now.Add(time.Minute), 122),
 		},
 	}))
-	s.assertMinTaskKey(tasks.CategoryTransfer, tasks.NewImmediateKey(123))
-	s.assertMinTaskKey(tasks.CategoryTimer, tasks.NewKey(now, 124))
+	assertMinTaskKey(t, tracker, tasks.CategoryTransfer, tasks.NewImmediateKey(123))
+	assertMinTaskKey(t, tracker, tasks.CategoryTimer, tasks.NewKey(now, 124))
 
-	_ = s.tracker.track(s.convertKeysToTasks(map[tasks.Category][]tasks.Key{
+	_ = tracker.track(convertKeysToTasks(t, map[tasks.Category][]tasks.Key{
 		tasks.CategoryTransfer: {
 			tasks.NewImmediateKey(130),
 		},
@@ -56,59 +36,61 @@ func (s *taskRequestTrackerSuite) TestTrackAndMinTaskKey() {
 			tasks.NewKey(now.Add(-time.Minute), 131),
 		},
 	}))
-	s.assertMinTaskKey(tasks.CategoryTransfer, tasks.NewImmediateKey(123))
-	s.assertMinTaskKey(tasks.CategoryTimer, tasks.NewKey(now.Add(-time.Minute), 131))
+	assertMinTaskKey(t, tracker, tasks.CategoryTransfer, tasks.NewImmediateKey(123))
+	assertMinTaskKey(t, tracker, tasks.CategoryTimer, tasks.NewKey(now.Add(-time.Minute), 131))
 
-	_, ok := s.tracker.minTaskKey(tasks.CategoryVisibility)
-	s.False(ok)
+	_, ok := tracker.minTaskKey(tasks.CategoryVisibility)
+	require.False(t, ok)
 }
 
-func (s *taskRequestTrackerSuite) TestRequestCompletion() {
-	completionFunc1 := s.tracker.track(s.convertKeysToTasks(map[tasks.Category][]tasks.Key{
+func TestRequestCompletion(t *testing.T) {
+	tracker := newTaskRequestTracker(tasks.NewDefaultTaskCategoryRegistry())
+	completionFunc1 := tracker.track(convertKeysToTasks(t, map[tasks.Category][]tasks.Key{
 		tasks.CategoryTransfer: {
 			tasks.NewImmediateKey(123),
 			tasks.NewImmediateKey(125),
 		},
 	}))
-	completionFunc2 := s.tracker.track(s.convertKeysToTasks(map[tasks.Category][]tasks.Key{
+	completionFunc2 := tracker.track(convertKeysToTasks(t, map[tasks.Category][]tasks.Key{
 		tasks.CategoryTransfer: {
 			tasks.NewImmediateKey(122),
 		},
 	}))
-	completionFunc3 := s.tracker.track(s.convertKeysToTasks(map[tasks.Category][]tasks.Key{
+	completionFunc3 := tracker.track(convertKeysToTasks(t, map[tasks.Category][]tasks.Key{
 		tasks.CategoryTransfer: {
 			tasks.NewImmediateKey(127),
 		},
 	}))
-	s.assertMinTaskKey(tasks.CategoryTransfer, tasks.NewImmediateKey(122))
+	assertMinTaskKey(t, tracker, tasks.CategoryTransfer, tasks.NewImmediateKey(122))
 
 	completionFunc2(nil)
-	s.assertMinTaskKey(tasks.CategoryTransfer, tasks.NewImmediateKey(123))
+	assertMinTaskKey(t, tracker, tasks.CategoryTransfer, tasks.NewImmediateKey(123))
 
 	completionFunc3(serviceerror.NewNotFound("not found error guarantees task is not inserted"))
-	s.assertMinTaskKey(tasks.CategoryTransfer, tasks.NewImmediateKey(123))
+	assertMinTaskKey(t, tracker, tasks.CategoryTransfer, tasks.NewImmediateKey(123))
 
 	completionFunc1(errors.New("random error means task may still be inserted in the future"))
-	s.assertMinTaskKey(tasks.CategoryTransfer, tasks.NewImmediateKey(123))
+	assertMinTaskKey(t, tracker, tasks.CategoryTransfer, tasks.NewImmediateKey(123))
 
-	s.tracker.drain()
+	tracker.drain()
 }
 
-func (s *taskRequestTrackerSuite) TestDrain() {
+func TestDrain(t *testing.T) {
+	tracker := newTaskRequestTracker(tasks.NewDefaultTaskCategoryRegistry())
 	// drain should not block if there is no inflight request
-	s.tracker.drain()
+	tracker.drain()
 
-	completionFunc1 := s.tracker.track(s.convertKeysToTasks(map[tasks.Category][]tasks.Key{
+	completionFunc1 := tracker.track(convertKeysToTasks(t, map[tasks.Category][]tasks.Key{
 		tasks.CategoryTransfer: {
 			tasks.NewImmediateKey(123),
 		},
 	}))
-	completionFunc2 := s.tracker.track(s.convertKeysToTasks(map[tasks.Category][]tasks.Key{
+	completionFunc2 := tracker.track(convertKeysToTasks(t, map[tasks.Category][]tasks.Key{
 		tasks.CategoryTransfer: {
 			tasks.NewImmediateKey(122),
 		},
 	}))
-	completionFunc3 := s.tracker.track(s.convertKeysToTasks(map[tasks.Category][]tasks.Key{
+	completionFunc3 := tracker.track(convertKeysToTasks(t, map[tasks.Category][]tasks.Key{
 		tasks.CategoryTransfer: {
 			tasks.NewImmediateKey(127),
 		},
@@ -124,40 +106,44 @@ func (s *taskRequestTrackerSuite) TestDrain() {
 		}(completionFn)
 	}
 
-	s.tracker.drain()
+	tracker.drain()
 }
 
-func (s *taskRequestTrackerSuite) TestClear() {
-	_ = s.tracker.track(s.convertKeysToTasks(map[tasks.Category][]tasks.Key{
+func TestClear(t *testing.T) {
+	tracker := newTaskRequestTracker(tasks.NewDefaultTaskCategoryRegistry())
+	_ = tracker.track(convertKeysToTasks(t, map[tasks.Category][]tasks.Key{
 		tasks.CategoryTransfer: {
 			tasks.NewImmediateKey(123),
 			tasks.NewImmediateKey(125),
 		},
 	}))
-	completionFn := s.tracker.track(s.convertKeysToTasks(map[tasks.Category][]tasks.Key{
+	completionFn := tracker.track(convertKeysToTasks(t, map[tasks.Category][]tasks.Key{
 		tasks.CategoryTransfer: {
 			tasks.NewImmediateKey(122),
 		},
 	}))
 	completionFn(errors.New("some random error"))
-	s.assertMinTaskKey(tasks.CategoryTransfer, tasks.NewImmediateKey(122))
+	assertMinTaskKey(t, tracker, tasks.CategoryTransfer, tasks.NewImmediateKey(122))
 
-	s.tracker.clear()
-	_, ok := s.tracker.minTaskKey(tasks.CategoryTransfer)
-	s.False(ok)
-	s.tracker.drain()
+	tracker.clear()
+	_, ok := tracker.minTaskKey(tasks.CategoryTransfer)
+	require.False(t, ok)
+	tracker.drain()
 }
 
-func (s *taskRequestTrackerSuite) assertMinTaskKey(
+func assertMinTaskKey(
+	t *testing.T,
+	tracker *taskRequestTracker,
 	category tasks.Category,
 	expectedKey tasks.Key,
 ) {
-	actualKey, ok := s.tracker.minTaskKey(category)
-	s.True(ok)
-	s.Zero(expectedKey.CompareTo(actualKey))
+	actualKey, ok := tracker.minTaskKey(category)
+	require.True(t, ok)
+	require.Zero(t, expectedKey.CompareTo(actualKey))
 }
 
-func (s *taskRequestTrackerSuite) convertKeysToTasks(
+func convertKeysToTasks(
+	t *testing.T,
 	keysByCategory map[tasks.Category][]tasks.Key,
 ) map[tasks.Category][]tasks.Task {
 	tasksByCategory := make(map[tasks.Category][]tasks.Task)

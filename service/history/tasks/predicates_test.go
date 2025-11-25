@@ -7,7 +7,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	enumsspb "go.temporal.io/server/api/enums/v1"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/common/definition"
@@ -15,71 +14,58 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	predicatesSuite struct {
-		suite.Suite
-		*require.Assertions
 
-		controller *gomock.Controller
-	}
-)
+func TestNamespacePredicate_Test(t *testing.T) {
+	controller := gomock.NewController(t)
+	defer controller.Finish()
 
-func TestPredicateSuite(t *testing.T) {
-	s := new(predicatesSuite)
-	suite.Run(t, s)
-}
-
-func (s *predicatesSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-}
-
-func (s *predicatesSuite) TestNamespacePredicate_Test() {
 	namespaceIDs := []string{uuid.New(), uuid.New()}
 
 	p := NewNamespacePredicate(namespaceIDs)
 	for _, id := range namespaceIDs {
-		mockTask := NewMockTask(s.controller)
+		mockTask := NewMockTask(controller)
 		mockTask.EXPECT().GetNamespaceID().Return(id).Times(1)
-		s.True(p.Test(mockTask))
+		require.True(t, p.Test(mockTask))
 	}
 
-	mockTask := NewMockTask(s.controller)
+	mockTask := NewMockTask(controller)
 	mockTask.EXPECT().GetNamespaceID().Return(uuid.New()).Times(1)
-	s.False(p.Test(mockTask))
+	require.False(t, p.Test(mockTask))
 }
 
-func (s *predicatesSuite) TestNamespacePredicate_Equals() {
+func TestNamespacePredicate_Equals(t *testing.T) {
 	namespaceIDs := []string{uuid.New(), uuid.New()}
 
 	p := NewNamespacePredicate(namespaceIDs)
 
-	s.True(p.Equals(p))
-	s.True(p.Equals(NewNamespacePredicate(namespaceIDs)))
+	require.True(t, p.Equals(p))
+	require.True(t, p.Equals(NewNamespacePredicate(namespaceIDs)))
 	rand.Shuffle(
 		len(namespaceIDs),
 		func(i, j int) {
 			namespaceIDs[i], namespaceIDs[j] = namespaceIDs[j], namespaceIDs[i]
 		},
 	)
-	s.True(p.Equals(NewNamespacePredicate(namespaceIDs)))
+	require.True(t, p.Equals(NewNamespacePredicate(namespaceIDs)))
 
-	s.False(p.Equals(NewNamespacePredicate([]string{uuid.New(), uuid.New()})))
-	s.False(p.Equals(NewTypePredicate([]enumsspb.TaskType{enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER})))
-	s.False(p.Equals(predicates.Universal[Task]()))
+	require.False(t, p.Equals(NewNamespacePredicate([]string{uuid.New(), uuid.New()})))
+	require.False(t, p.Equals(NewTypePredicate([]enumsspb.TaskType{enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER})))
+	require.False(t, p.Equals(predicates.Universal[Task]()))
 }
 
-func (s *predicatesSuite) TestNamespacePredicate_Size() {
+func TestNamespacePredicate_Size(t *testing.T) {
 	namespaceIDs := []string{uuid.New(), uuid.New()}
 
 	p := NewNamespacePredicate(namespaceIDs)
 
 	// UUID length is 36 and 4 bytes accounted for proto overhead.
-	s.Equal(76, p.Size())
+	require.Equal(t, 76, p.Size())
 }
 
-func (s *predicatesSuite) TestTypePredicate_Test() {
+func TestTypePredicate_Test(t *testing.T) {
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
 	types := []enumsspb.TaskType{
 		enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER,
 		enumsspb.TASK_TYPE_TRANSFER_ACTIVITY_TASK,
@@ -89,9 +75,9 @@ func (s *predicatesSuite) TestTypePredicate_Test() {
 
 	p := NewTypePredicate(types)
 	for _, taskType := range types {
-		mockTask := NewMockTask(s.controller)
+		mockTask := NewMockTask(controller)
 		mockTask.EXPECT().GetType().Return(taskType).Times(1)
-		s.True(p.Test(mockTask))
+		require.True(t, p.Test(mockTask))
 	}
 
 	for _, taskType := range enumsspb.TaskType_value {
@@ -99,13 +85,13 @@ func (s *predicatesSuite) TestTypePredicate_Test() {
 			continue
 		}
 
-		mockTask := NewMockTask(s.controller)
+		mockTask := NewMockTask(controller)
 		mockTask.EXPECT().GetType().Return(enumsspb.TaskType(taskType)).Times(1)
-		s.False(p.Test(mockTask))
+		require.False(t, p.Test(mockTask))
 	}
 }
 
-func (s *predicatesSuite) TestTypePredicate_Equals() {
+func TestTypePredicate_Equals(t *testing.T) {
 	types := []enumsspb.TaskType{
 		enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER,
 		enumsspb.TASK_TYPE_TRANSFER_ACTIVITY_TASK,
@@ -115,27 +101,27 @@ func (s *predicatesSuite) TestTypePredicate_Equals() {
 
 	p := NewTypePredicate(types)
 
-	s.True(p.Equals(p))
-	s.True(p.Equals(NewTypePredicate(types)))
+	require.True(t, p.Equals(p))
+	require.True(t, p.Equals(NewTypePredicate(types)))
 	rand.Shuffle(
 		len(types),
 		func(i, j int) {
 			types[i], types[j] = types[j], types[i]
 		},
 	)
-	s.True(p.Equals(NewTypePredicate(types)))
+	require.True(t, p.Equals(NewTypePredicate(types)))
 
-	s.False(p.Equals(NewTypePredicate([]enumsspb.TaskType{
+	require.False(t, p.Equals(NewTypePredicate([]enumsspb.TaskType{
 		enumsspb.TASK_TYPE_TRANSFER_ACTIVITY_TASK,
 		enumsspb.TASK_TYPE_VISIBILITY_CLOSE_EXECUTION,
 		enumsspb.TASK_TYPE_DELETE_HISTORY_EVENT,
 		enumsspb.TASK_TYPE_ACTIVITY_TIMEOUT,
 	})))
-	s.False(p.Equals(NewNamespacePredicate([]string{uuid.New(), uuid.New()})))
-	s.False(p.Equals(predicates.Universal[Task]()))
+	require.False(t, p.Equals(NewNamespacePredicate([]string{uuid.New(), uuid.New()})))
+	require.False(t, p.Equals(predicates.Universal[Task]()))
 }
 
-func (s *predicatesSuite) TestTypePredicate_Size() {
+func TestTypePredicate_Size(t *testing.T) {
 	types := []enumsspb.TaskType{
 		enumsspb.TASK_TYPE_TRANSFER_ACTIVITY_TASK,
 		enumsspb.TASK_TYPE_VISIBILITY_CLOSE_EXECUTION,
@@ -143,94 +129,94 @@ func (s *predicatesSuite) TestTypePredicate_Size() {
 	p := NewTypePredicate(types)
 
 	// enum size is 4 and 4 bytes accounted for proto overhead.
-	s.Equal(12, p.Size())
+	require.Equal(t, 12, p.Size())
 }
 
-func (s *predicatesSuite) TestDestinationPredicate_Test() {
+func TestDestinationPredicate_Test(t *testing.T) {
 	destinations := []string{uuid.New(), uuid.New()}
 
 	p := NewDestinationPredicate(destinations)
 	for _, dest := range destinations {
 		mockTask := &StateMachineOutboundTask{Destination: dest}
-		s.True(p.Test(mockTask))
+		require.True(t, p.Test(mockTask))
 	}
 
 	mockTask := &StateMachineOutboundTask{Destination: uuid.New()}
-	s.False(p.Test(mockTask))
+	require.False(t, p.Test(mockTask))
 }
 
-func (s *predicatesSuite) TestDestinationPredicate_Equals() {
+func TestDestinationPredicate_Equals(t *testing.T) {
 	destinations := []string{uuid.New(), uuid.New()}
 
 	p := NewDestinationPredicate(destinations)
 
-	s.True(p.Equals(p))
-	s.True(p.Equals(NewDestinationPredicate(destinations)))
+	require.True(t, p.Equals(p))
+	require.True(t, p.Equals(NewDestinationPredicate(destinations)))
 	rand.Shuffle(
 		len(destinations),
 		func(i, j int) {
 			destinations[i], destinations[j] = destinations[j], destinations[i]
 		},
 	)
-	s.True(p.Equals(NewDestinationPredicate(destinations)))
+	require.True(t, p.Equals(NewDestinationPredicate(destinations)))
 
-	s.False(p.Equals(NewDestinationPredicate([]string{uuid.New(), uuid.New()})))
-	s.False(p.Equals(NewTypePredicate([]enumsspb.TaskType{enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER})))
-	s.False(p.Equals(predicates.Universal[Task]()))
+	require.False(t, p.Equals(NewDestinationPredicate([]string{uuid.New(), uuid.New()})))
+	require.False(t, p.Equals(NewTypePredicate([]enumsspb.TaskType{enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER})))
+	require.False(t, p.Equals(predicates.Universal[Task]()))
 }
 
-func (s *predicatesSuite) TestDestinationPredicate_Size() {
+func TestDestinationPredicate_Size(t *testing.T) {
 	destinations := []string{uuid.New(), uuid.New()}
 
 	p := NewDestinationPredicate(destinations)
 
 	// UUID length is 36 and 4 bytes accounted for proto overhead.
-	s.Equal(76, p.Size())
+	require.Equal(t, 76, p.Size())
 }
 
-func (s *predicatesSuite) TestOutboundTaskGroupPredicate_Test() {
+func TestOutboundTaskGroupPredicate_Test(t *testing.T) {
 	groups := []string{"1", "2"}
 
 	p := NewOutboundTaskGroupPredicate(groups)
-	for _, t := range groups {
-		mockTask := &StateMachineOutboundTask{StateMachineTask: StateMachineTask{Info: &persistencespb.StateMachineTaskInfo{Type: t}}}
-		s.True(p.Test(mockTask))
+	for _, groupType := range groups {
+		mockTask := &StateMachineOutboundTask{StateMachineTask: StateMachineTask{Info: &persistencespb.StateMachineTaskInfo{Type: groupType}}}
+		require.True(t, p.Test(mockTask))
 	}
 
 	mockTask := &StateMachineOutboundTask{StateMachineTask: StateMachineTask{Info: &persistencespb.StateMachineTaskInfo{Type: "3"}}}
-	s.False(p.Test(mockTask))
+	require.False(t, p.Test(mockTask))
 }
 
-func (s *predicatesSuite) TestOutboundTaskGroupPredicate_Equals() {
+func TestOutboundTaskGroupPredicate_Equals(t *testing.T) {
 	groups := []string{"1", "2"}
 
 	p := NewOutboundTaskGroupPredicate(groups)
 
-	s.True(p.Equals(p))
-	s.True(p.Equals(NewOutboundTaskGroupPredicate(groups)))
+	require.True(t, p.Equals(p))
+	require.True(t, p.Equals(NewOutboundTaskGroupPredicate(groups)))
 	rand.Shuffle(
 		len(groups),
 		func(i, j int) {
 			groups[i], groups[j] = groups[j], groups[i]
 		},
 	)
-	s.True(p.Equals(NewOutboundTaskGroupPredicate(groups)))
+	require.True(t, p.Equals(NewOutboundTaskGroupPredicate(groups)))
 
-	s.False(p.Equals(NewOutboundTaskGroupPredicate([]string{"3", "4"})))
-	s.False(p.Equals(NewTypePredicate([]enumsspb.TaskType{enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER})))
-	s.False(p.Equals(predicates.Universal[Task]()))
+	require.False(t, p.Equals(NewOutboundTaskGroupPredicate([]string{"3", "4"})))
+	require.False(t, p.Equals(NewTypePredicate([]enumsspb.TaskType{enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER})))
+	require.False(t, p.Equals(predicates.Universal[Task]()))
 }
 
-func (s *predicatesSuite) TestOutboundTaskGroupPredicate_Size() {
+func TestOutboundTaskGroupPredicate_Size(t *testing.T) {
 	groups := []string{uuid.New(), uuid.New()}
 
 	p := NewOutboundTaskGroupPredicate(groups)
 
 	// UUID length is 36 and 4 bytes accounted for proto overhead.
-	s.Equal(76, p.Size())
+	require.Equal(t, 76, p.Size())
 }
 
-func (s *predicatesSuite) TestOutboundTaskPredicate_Test() {
+func TestOutboundTaskPredicate_Test(t *testing.T) {
 	groups := []TaskGroupNamespaceIDAndDestination{
 		{"g1", "n1", "d1"},
 		{"g2", "n2", "d2"},
@@ -245,7 +231,7 @@ func (s *predicatesSuite) TestOutboundTaskPredicate_Test() {
 			},
 			Destination: g.Destination,
 		}
-		s.True(p.Test(mockTask))
+		require.True(t, p.Test(mockTask))
 	}
 
 	// Verify any field mismatch fails Test().
@@ -256,7 +242,7 @@ func (s *predicatesSuite) TestOutboundTaskPredicate_Test() {
 		},
 		Destination: "d3",
 	}
-	s.False(p.Test(mockTask))
+	require.False(t, p.Test(mockTask))
 	mockTask = &StateMachineOutboundTask{
 		StateMachineTask: StateMachineTask{
 			Info:        &persistencespb.StateMachineTaskInfo{Type: "g3"},
@@ -264,7 +250,7 @@ func (s *predicatesSuite) TestOutboundTaskPredicate_Test() {
 		},
 		Destination: "d1",
 	}
-	s.False(p.Test(mockTask))
+	require.False(t, p.Test(mockTask))
 	mockTask = &StateMachineOutboundTask{
 		StateMachineTask: StateMachineTask{
 			Info:        &persistencespb.StateMachineTaskInfo{Type: "g1"},
@@ -272,10 +258,10 @@ func (s *predicatesSuite) TestOutboundTaskPredicate_Test() {
 		},
 		Destination: "d1",
 	}
-	s.False(p.Test(mockTask))
+	require.False(t, p.Test(mockTask))
 }
 
-func (s *predicatesSuite) TestOutboundTaskPredicate_Equals() {
+func TestOutboundTaskPredicate_Equals(t *testing.T) {
 	groups := []TaskGroupNamespaceIDAndDestination{
 		{"g1", "n1", "d1"},
 		{"g2", "n2", "d2"},
@@ -283,35 +269,35 @@ func (s *predicatesSuite) TestOutboundTaskPredicate_Equals() {
 
 	p := NewOutboundTaskPredicate(groups)
 
-	s.True(p.Equals(p))
-	s.True(p.Equals(NewOutboundTaskPredicate(groups)))
+	require.True(t, p.Equals(p))
+	require.True(t, p.Equals(NewOutboundTaskPredicate(groups)))
 	rand.Shuffle(
 		len(groups),
 		func(i, j int) {
 			groups[i], groups[j] = groups[j], groups[i]
 		},
 	)
-	s.True(p.Equals(NewOutboundTaskPredicate(groups)))
+	require.True(t, p.Equals(NewOutboundTaskPredicate(groups)))
 
-	s.False(p.Equals(NewOutboundTaskPredicate([]TaskGroupNamespaceIDAndDestination{
+	require.False(t, p.Equals(NewOutboundTaskPredicate([]TaskGroupNamespaceIDAndDestination{
 		{"g1", "n1", "d3"},
 		{"g2", "n2", "d4"},
 	})))
-	s.False(p.Equals(NewTypePredicate([]enumsspb.TaskType{enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER})))
-	s.False(p.Equals(predicates.Universal[Task]()))
+	require.False(t, p.Equals(NewTypePredicate([]enumsspb.TaskType{enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER})))
+	require.False(t, p.Equals(predicates.Universal[Task]()))
 }
 
-func (s *predicatesSuite) TestOutboundTaskPredicate_Size() {
+func TestOutboundTaskPredicate_Size(t *testing.T) {
 	groups := []TaskGroupNamespaceIDAndDestination{
 		{"g1", "n1", "d1"},
 		{"g2", "n2", "d2"},
 	}
 	p := NewOutboundTaskPredicate(groups)
 
-	s.Equal(16, p.Size())
+	require.Equal(t, 16, p.Size())
 }
 
-func (s *predicatesSuite) TestAndPredicates() {
+func TestAndPredicates(t *testing.T) {
 	testCases := []struct {
 		predicateA     Predicate
 		predicateB     Predicate
@@ -394,11 +380,11 @@ func (s *predicatesSuite) TestAndPredicates() {
 	}
 
 	for _, tc := range testCases {
-		s.Equal(tc.expectedResult, AndPredicates(tc.predicateA, tc.predicateB))
+		require.Equal(t, tc.expectedResult, AndPredicates(tc.predicateA, tc.predicateB))
 	}
 }
 
-func (s *predicatesSuite) TestOrPredicates() {
+func TestOrPredicates(t *testing.T) {
 	testCases := []struct {
 		predicateA     Predicate
 		predicateB     Predicate
@@ -476,6 +462,6 @@ func (s *predicatesSuite) TestOrPredicates() {
 	}
 
 	for _, tc := range testCases {
-		s.Equal(tc.expectedResult, OrPredicates(tc.predicateA, tc.predicateB))
+		require.Equal(t, tc.expectedResult, OrPredicates(tc.predicateA, tc.predicateB))
 	}
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
 	enumsspb "go.temporal.io/server/api/enums/v1"
@@ -28,28 +27,16 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type (
-	contextSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		mockShard *shard.ContextTest
-
-		workflowContext *ContextImpl
-	}
-)
-
-func TestContextSuite(t *testing.T) {
-	suite.Run(t, new(contextSuite))
+type contextTestDeps struct {
+	mockShard       *shard.ContextTest
+	workflowContext *ContextImpl
 }
 
-func (s *contextSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
+func setupContextTest(t *testing.T) *contextTestDeps {
 	configs := tests.NewDynamicConfig()
 
-	controller := gomock.NewController(s.T())
-	s.mockShard = shard.NewTestContext(
+	controller := gomock.NewController(t)
+	mockShard := shard.NewTestContext(
 		controller,
 		&persistencespb.ShardInfo{ShardId: 1},
 		configs,
@@ -57,10 +44,10 @@ func (s *contextSuite) SetupTest() {
 	mockEngine := historyi.NewMockEngine(controller)
 	mockEngine.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
 	mockEngine.EXPECT().NotifyNewHistoryEvent(gomock.Any()).AnyTimes()
-	s.mockShard.SetEngineForTesting(mockEngine)
-	s.NoError(RegisterStateMachine(s.mockShard.StateMachineRegistry()))
-	mockClusterMetadata := s.mockShard.Resource.ClusterMetadata
-	mockNamespaceCache := s.mockShard.Resource.NamespaceCache
+	mockShard.SetEngineForTesting(mockEngine)
+	require.NoError(t, RegisterStateMachine(mockShard.StateMachineRegistry()))
+	mockClusterMetadata := mockShard.Resource.ClusterMetadata
+	mockNamespaceCache := mockShard.Resource.NamespaceCache
 	mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(false).AnyTimes()
 	mockClusterMetadata.EXPECT().GetClusterID().Return(cluster.TestCurrentClusterInitialFailoverVersion).AnyTimes()
 	mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
@@ -69,31 +56,45 @@ func (s *contextSuite) SetupTest() {
 	mockNamespaceCache.EXPECT().GetNamespaceByID(tests.NamespaceID).Return(tests.LocalNamespaceEntry, nil).AnyTimes()
 	mockNamespaceCache.EXPECT().GetNamespace(tests.Namespace).Return(tests.LocalNamespaceEntry, nil).AnyTimes()
 
-	s.workflowContext = NewContext(
+	workflowContext := NewContext(
 		configs,
 		tests.WorkflowKey,
 		log.NewNoopLogger(),
 		log.NewNoopLogger(),
 		metrics.NoopMetricsHandler,
 	)
+
+	t.Cleanup(func() {
+		controller.Finish()
+		mockShard.StopForTest()
+	})
+
+	return &contextTestDeps{
+		mockShard:       mockShard,
+		workflowContext: workflowContext,
+	}
 }
 
-func (s *contextSuite) TestMergeReplicationTasks_NoNewRun() {
+func TestMergeReplicationTasks_NoNewRun(t *testing.T) {
+	deps := setupContextTest(t)
+
 	currentWorkflowMutation := &persistence.WorkflowMutation{
 		ExecutionState: &persistencespb.WorkflowExecutionState{
 			Status: enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING,
 		},
 	}
 
-	err := s.workflowContext.mergeUpdateWithNewReplicationTasks(
+	err := deps.workflowContext.mergeUpdateWithNewReplicationTasks(
 		currentWorkflowMutation,
 		nil, // no new run
 	)
-	s.NoError(err)
-	s.Empty(currentWorkflowMutation.Tasks)
+	require.NoError(t, err)
+	require.Empty(t, currentWorkflowMutation.Tasks)
 }
 
-func (s *contextSuite) TestMergeReplicationTasks_LocalNamespace() {
+func TestMergeReplicationTasks_LocalNamespace(t *testing.T) {
+	deps := setupContextTest(t)
+
 	currentWorkflowMutation := &persistence.WorkflowMutation{
 		ExecutionState: &persistencespb.WorkflowExecutionState{
 			Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
@@ -108,16 +109,18 @@ func (s *contextSuite) TestMergeReplicationTasks_LocalNamespace() {
 		},
 	}
 
-	err := s.workflowContext.mergeUpdateWithNewReplicationTasks(
+	err := deps.workflowContext.mergeUpdateWithNewReplicationTasks(
 		currentWorkflowMutation,
 		newWorkflowSnapshot,
 	)
-	s.NoError(err)
-	s.Empty(currentWorkflowMutation.Tasks) // verify no change to tasks
-	s.Empty(newWorkflowSnapshot.Tasks)     // verify no change to tasks
+	require.NoError(t, err)
+	require.Empty(t, currentWorkflowMutation.Tasks) // verify no change to tasks
+	require.Empty(t, newWorkflowSnapshot.Tasks)     // verify no change to tasks
 }
 
-func (s *contextSuite) TestMergeReplicationTasks_SingleReplicationTask() {
+func TestMergeReplicationTasks_SingleReplicationTask(t *testing.T) {
+	deps := setupContextTest(t)
+
 	currentWorkflowMutation := &persistence.WorkflowMutation{
 		ExecutionState: &persistencespb.WorkflowExecutionState{
 			Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
@@ -166,20 +169,22 @@ func (s *contextSuite) TestMergeReplicationTasks_SingleReplicationTask() {
 		},
 	}
 
-	err := s.workflowContext.mergeUpdateWithNewReplicationTasks(
+	err := deps.workflowContext.mergeUpdateWithNewReplicationTasks(
 		currentWorkflowMutation,
 		newWorkflowSnapshot,
 	)
-	s.NoError(err)
-	s.Len(currentWorkflowMutation.Tasks[tasks.CategoryReplication], 2)
-	s.Empty(newWorkflowSnapshot.Tasks[tasks.CategoryReplication]) // verify no change to tasks
+	require.NoError(t, err)
+	require.Len(t, currentWorkflowMutation.Tasks[tasks.CategoryReplication], 2)
+	require.Empty(t, newWorkflowSnapshot.Tasks[tasks.CategoryReplication]) // verify no change to tasks
 
 	mergedReplicationTasks := currentWorkflowMutation.Tasks[tasks.CategoryReplication]
-	s.Empty(mergedReplicationTasks[0].(*tasks.HistoryReplicationTask).NewRunID)
-	s.Equal(newRunID, mergedReplicationTasks[1].(*tasks.HistoryReplicationTask).NewRunID)
+	require.Empty(t, mergedReplicationTasks[0].(*tasks.HistoryReplicationTask).NewRunID)
+	require.Equal(t, newRunID, mergedReplicationTasks[1].(*tasks.HistoryReplicationTask).NewRunID)
 }
 
-func (s *contextSuite) TestMergeReplicationTasks_SyncVersionedTransitionTask_ShouldMergeTaskAndEquivalent() {
+func TestMergeReplicationTasks_SyncVersionedTransitionTask_ShouldMergeTaskAndEquivalent(t *testing.T) {
+	deps := setupContextTest(t)
+
 	currentWorkflowMutation := &persistence.WorkflowMutation{
 		ExecutionState: &persistencespb.WorkflowExecutionState{
 			Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
@@ -232,21 +237,23 @@ func (s *contextSuite) TestMergeReplicationTasks_SyncVersionedTransitionTask_Sho
 		},
 	}
 
-	err := s.workflowContext.mergeUpdateWithNewReplicationTasks(
+	err := deps.workflowContext.mergeUpdateWithNewReplicationTasks(
 		currentWorkflowMutation,
 		newWorkflowSnapshot,
 	)
-	s.NoError(err)
-	s.Len(currentWorkflowMutation.Tasks[tasks.CategoryReplication], 1)
-	s.Empty(newWorkflowSnapshot.Tasks[tasks.CategoryReplication]) // verify no change to tasks
+	require.NoError(t, err)
+	require.Len(t, currentWorkflowMutation.Tasks[tasks.CategoryReplication], 1)
+	require.Empty(t, newWorkflowSnapshot.Tasks[tasks.CategoryReplication]) // verify no change to tasks
 
 	mergedReplicationTasks := currentWorkflowMutation.Tasks[tasks.CategoryReplication]
-	s.Equal(newRunID, mergedReplicationTasks[0].(*tasks.SyncVersionedTransitionTask).NewRunID)
-	s.Equal(newRunID, mergedReplicationTasks[0].(*tasks.SyncVersionedTransitionTask).TaskEquivalents[0].(*tasks.HistoryReplicationTask).NewRunID)
+	require.Equal(t, newRunID, mergedReplicationTasks[0].(*tasks.SyncVersionedTransitionTask).NewRunID)
+	require.Equal(t, newRunID, mergedReplicationTasks[0].(*tasks.SyncVersionedTransitionTask).TaskEquivalents[0].(*tasks.HistoryReplicationTask).NewRunID)
 
 }
 
-func (s *contextSuite) TestMergeReplicationTasks_MultipleReplicationTasks() {
+func TestMergeReplicationTasks_MultipleReplicationTasks(t *testing.T) {
+	deps := setupContextTest(t)
+
 	// The case can happen when importing a workflow:
 	// current workflow will be terminated and imported workflow can contain multiple replication tasks
 	// This case is not supported right now
@@ -318,16 +325,18 @@ func (s *contextSuite) TestMergeReplicationTasks_MultipleReplicationTasks() {
 		},
 	}
 
-	err := s.workflowContext.mergeUpdateWithNewReplicationTasks(
+	err := deps.workflowContext.mergeUpdateWithNewReplicationTasks(
 		currentWorkflowMutation,
 		newWorkflowSnapshot,
 	)
-	s.NoError(err)
-	s.Len(currentWorkflowMutation.Tasks[tasks.CategoryReplication], 1) // verify no change to tasks
-	s.Len(newWorkflowSnapshot.Tasks[tasks.CategoryReplication], 3)     // verify no change to tasks
+	require.NoError(t, err)
+	require.Len(t, currentWorkflowMutation.Tasks[tasks.CategoryReplication], 1) // verify no change to tasks
+	require.Len(t, newWorkflowSnapshot.Tasks[tasks.CategoryReplication], 3)     // verify no change to tasks
 }
 
-func (s *contextSuite) TestMergeReplicationTasks_CurrentRunRunning() {
+func TestMergeReplicationTasks_CurrentRunRunning(t *testing.T) {
+	deps := setupContextTest(t)
+
 	// The case can happen when suppressing a current running workflow to be zombie
 	// and creating a new workflow at the same time
 
@@ -347,16 +356,18 @@ func (s *contextSuite) TestMergeReplicationTasks_CurrentRunRunning() {
 		Tasks: map[tasks.Category][]tasks.Task{},
 	}
 
-	err := s.workflowContext.mergeUpdateWithNewReplicationTasks(
+	err := deps.workflowContext.mergeUpdateWithNewReplicationTasks(
 		currentWorkflowMutation,
 		newWorkflowSnapshot,
 	)
-	s.NoError(err)
-	s.Empty(currentWorkflowMutation.Tasks) // verify no change to tasks
-	s.Empty(newWorkflowSnapshot.Tasks)     // verify no change to tasks
+	require.NoError(t, err)
+	require.Empty(t, currentWorkflowMutation.Tasks) // verify no change to tasks
+	require.Empty(t, newWorkflowSnapshot.Tasks)     // verify no change to tasks
 }
 
-func (s *contextSuite) TestMergeReplicationTasks_OnlyCurrentRunHasReplicationTasks() {
+func TestMergeReplicationTasks_OnlyCurrentRunHasReplicationTasks(t *testing.T) {
+	deps := setupContextTest(t)
+
 	// The case can happen when importing a workflow (via replication task)
 	// current workflow may be terminated and the imported workflow since it's received via replication task
 	// will not generate replication tasks again.
@@ -387,16 +398,18 @@ func (s *contextSuite) TestMergeReplicationTasks_OnlyCurrentRunHasReplicationTas
 		Tasks: map[tasks.Category][]tasks.Task{},
 	}
 
-	err := s.workflowContext.mergeUpdateWithNewReplicationTasks(
+	err := deps.workflowContext.mergeUpdateWithNewReplicationTasks(
 		currentWorkflowMutation,
 		newWorkflowSnapshot,
 	)
-	s.NoError(err)
-	s.Len(currentWorkflowMutation.Tasks[tasks.CategoryReplication], 1) // verify no change to tasks
-	s.Empty(newWorkflowSnapshot.Tasks)                                 // verify no change to tasks
+	require.NoError(t, err)
+	require.Len(t, currentWorkflowMutation.Tasks[tasks.CategoryReplication], 1) // verify no change to tasks
+	require.Empty(t, newWorkflowSnapshot.Tasks)                                 // verify no change to tasks
 }
 
-func (s *contextSuite) TestMergeReplicationTasks_OnlyNewRunHasReplicationTasks() {
+func TestMergeReplicationTasks_OnlyNewRunHasReplicationTasks(t *testing.T) {
+	deps := setupContextTest(t)
+
 	// TODO: check if this case can happen or not.
 
 	currentWorkflowMutation := &persistence.WorkflowMutation{
@@ -425,16 +438,18 @@ func (s *contextSuite) TestMergeReplicationTasks_OnlyNewRunHasReplicationTasks()
 		},
 	}
 
-	err := s.workflowContext.mergeUpdateWithNewReplicationTasks(
+	err := deps.workflowContext.mergeUpdateWithNewReplicationTasks(
 		currentWorkflowMutation,
 		newWorkflowSnapshot,
 	)
-	s.NoError(err)
-	s.Empty(currentWorkflowMutation.Tasks)                         // verify no change to tasks
-	s.Len(newWorkflowSnapshot.Tasks[tasks.CategoryReplication], 1) // verify no change to tasks
+	require.NoError(t, err)
+	require.Empty(t, currentWorkflowMutation.Tasks)                         // verify no change to tasks
+	require.Len(t, newWorkflowSnapshot.Tasks[tasks.CategoryReplication], 1) // verify no change to tasks
 }
 
-func (s *contextSuite) TestRefreshTask() {
+func TestRefreshTask(t *testing.T) {
+	deps := setupContextTest(t)
+
 	now := time.Now()
 
 	baseMutableState := &persistencespb.WorkflowMutableState{
@@ -475,14 +490,14 @@ func (s *contextSuite) TestRefreshTask() {
 	testCases := []struct {
 		name                  string
 		persistedMutableState func() *persistencespb.WorkflowMutableState
-		setupMock             func(mockShard *shard.ContextTest)
+		setupMock             func(t *testing.T, mockShard *shard.ContextTest)
 	}{
 		{
 			name: "open workflow",
 			persistedMutableState: func() *persistencespb.WorkflowMutableState {
 				return common.CloneProto(baseMutableState)
 			},
-			setupMock: func(mockShard *shard.ContextTest) {
+			setupMock: func(t *testing.T, mockShard *shard.ContextTest) {
 				mockShard.MockEventsCache.EXPECT().GetEvent(
 					gomock.Any(),
 					mockShard.GetShardID(),
@@ -498,9 +513,9 @@ func (s *contextSuite) TestRefreshTask() {
 				}, nil).Times(2)
 				mockShard.Resource.ExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(_ context.Context, request *persistence.UpdateWorkflowExecutionRequest) (*persistence.UpdateWorkflowExecutionResponse, error) {
-						s.Equal(persistence.UpdateWorkflowModeUpdateCurrent, request.Mode)
-						s.NotEmpty(request.UpdateWorkflowMutation.Tasks)
-						s.Empty(request.UpdateWorkflowEvents)
+						require.Equal(t, persistence.UpdateWorkflowModeUpdateCurrent, request.Mode)
+						require.NotEmpty(t, request.UpdateWorkflowMutation.Tasks)
+						require.Empty(t, request.UpdateWorkflowEvents)
 						return tests.UpdateWorkflowExecutionResponse, nil
 					}).Times(1)
 			},
@@ -517,11 +532,11 @@ func (s *contextSuite) TestRefreshTask() {
 				base.ExecutionInfo.CloseTime = timestamppb.New(now.Add(time.Second))
 				return base
 			},
-			setupMock: func(mockShard *shard.ContextTest) {
+			setupMock: func(t *testing.T, mockShard *shard.ContextTest) {
 				mockShard.Resource.ExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(_ context.Context, request *persistence.UpdateWorkflowExecutionRequest) (*persistence.UpdateWorkflowExecutionResponse, error) {
-						s.NotEmpty(request.UpdateWorkflowMutation.Tasks)
-						s.Equal(persistence.UpdateWorkflowModeIgnoreCurrent, request.Mode)
+						require.NotEmpty(t, request.UpdateWorkflowMutation.Tasks)
+						require.Equal(t, persistence.UpdateWorkflowModeIgnoreCurrent, request.Mode)
 						return tests.UpdateWorkflowExecutionResponse, nil
 					}).Times(1)
 			},
@@ -533,7 +548,7 @@ func (s *contextSuite) TestRefreshTask() {
 				base.ExecutionState.State = enumsspb.WORKFLOW_EXECUTION_STATE_ZOMBIE
 				return base
 			},
-			setupMock: func(mockShard *shard.ContextTest) {
+			setupMock: func(t *testing.T, mockShard *shard.ContextTest) {
 				mockShard.MockEventsCache.EXPECT().GetEvent(
 					gomock.Any(),
 					mockShard.GetShardID(),
@@ -549,8 +564,8 @@ func (s *contextSuite) TestRefreshTask() {
 				}, nil).Times(2)
 				mockShard.Resource.ExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(_ context.Context, request *persistence.UpdateWorkflowExecutionRequest) (*persistence.UpdateWorkflowExecutionResponse, error) {
-						s.NotEmpty(request.UpdateWorkflowMutation.Tasks)
-						s.Equal(persistence.UpdateWorkflowModeBypassCurrent, request.Mode)
+						require.NotEmpty(t, request.UpdateWorkflowMutation.Tasks)
+						require.Equal(t, persistence.UpdateWorkflowModeBypassCurrent, request.Mode)
 						return tests.UpdateWorkflowExecutionResponse, nil
 					}).Times(1)
 			},
@@ -558,22 +573,22 @@ func (s *contextSuite) TestRefreshTask() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
 			var err error
-			s.workflowContext.MutableState, err = NewMutableStateFromDB(
-				s.mockShard,
-				s.mockShard.MockEventsCache,
-				s.mockShard.GetLogger(),
+			deps.workflowContext.MutableState, err = NewMutableStateFromDB(
+				deps.mockShard,
+				deps.mockShard.MockEventsCache,
+				deps.mockShard.GetLogger(),
 				tests.LocalNamespaceEntry,
 				tc.persistedMutableState(),
 				1,
 			)
-			s.NoError(err)
+			require.NoError(t, err)
 
-			tc.setupMock(s.mockShard)
+			tc.setupMock(t, deps.mockShard)
 
-			err = s.workflowContext.RefreshTasks(context.Background(), s.mockShard)
-			s.NoError(err)
+			err = deps.workflowContext.RefreshTasks(context.Background(), deps.mockShard)
+			require.NoError(t, err)
 		})
 	}
 }

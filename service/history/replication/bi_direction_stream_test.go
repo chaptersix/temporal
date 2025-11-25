@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
@@ -15,12 +14,8 @@ import (
 )
 
 type (
-	biDirectionStreamSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller *gomock.Controller
-
+	biDirectionStreamTestDeps struct {
+		controller           *gomock.Controller
 		biDirectionStream    *BiDirectionStreamImpl[int, int]
 		streamClientProvider *mockStreamClientProvider
 		streamClient         *mockStreamClient
@@ -44,119 +39,118 @@ type (
 	}
 )
 
-func TestBiDirectionStreamSuite(t *testing.T) {
-	s := new(biDirectionStreamSuite)
-	suite.Run(t, s)
-}
+func setupBiDirectionStreamTest(t *testing.T) *biDirectionStreamTestDeps {
+	controller := gomock.NewController(t)
 
-func (s *biDirectionStreamSuite) SetupSuite() {
-
-}
-
-func (s *biDirectionStreamSuite) TearDownSuite() {
-
-}
-
-func (s *biDirectionStreamSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-
-	s.streamClient = &mockStreamClient{
+	streamClient := &mockStreamClient{
 		shutdownChan:  make(chan struct{}),
 		requests:      nil,
 		responseCount: 10,
 		responses:     nil,
 	}
-	s.streamErrClient = &mockStreamErrClient{
+	streamErrClient := &mockStreamErrClient{
 		sendErr: serviceerror.NewUnavailable("random send error"),
 		recvErr: serviceerror.NewUnavailable("random recv error"),
 	}
-	s.streamClientProvider = &mockStreamClientProvider{streamClient: s.streamClient}
-	s.biDirectionStream = NewBiDirectionStream[int, int](
-		s.streamClientProvider,
+	streamClientProvider := &mockStreamClientProvider{streamClient: streamClient}
+	biDirectionStream := NewBiDirectionStream[int, int](
+		streamClientProvider,
 		metrics.NoopMetricsHandler,
 		log.NewTestLogger(),
 	)
+
+	return &biDirectionStreamTestDeps{
+		controller:           controller,
+		biDirectionStream:    biDirectionStream,
+		streamClientProvider: streamClientProvider,
+		streamClient:         streamClient,
+		streamErrClient:      streamErrClient,
+	}
 }
 
-func (s *biDirectionStreamSuite) TearDownTest() {
-	s.controller.Finish()
+func TestLazyInit(t *testing.T) {
+	deps := setupBiDirectionStreamTest(t)
+	defer deps.controller.Finish()
+
+	require.Nil(t, deps.biDirectionStream.streamingClient)
+
+	deps.biDirectionStream.Lock()
+	err := deps.biDirectionStream.lazyInitLocked()
+	deps.biDirectionStream.Unlock()
+	require.NoError(t, err)
+	require.Equal(t, deps.streamClient, deps.biDirectionStream.streamingClient)
+	require.True(t, deps.biDirectionStream.IsValid())
+
+	deps.biDirectionStream.Lock()
+	err = deps.biDirectionStream.lazyInitLocked()
+	deps.biDirectionStream.Unlock()
+	require.NoError(t, err)
+	require.Equal(t, deps.streamClient, deps.biDirectionStream.streamingClient)
+	require.True(t, deps.biDirectionStream.IsValid())
+
+	deps.biDirectionStream.Close()
+	deps.biDirectionStream.Lock()
+	err = deps.biDirectionStream.lazyInitLocked()
+	deps.biDirectionStream.Unlock()
+	require.Error(t, err)
+	require.False(t, deps.biDirectionStream.IsValid())
 }
 
-func (s *biDirectionStreamSuite) TestLazyInit() {
-	s.Nil(s.biDirectionStream.streamingClient)
-
-	s.biDirectionStream.Lock()
-	err := s.biDirectionStream.lazyInitLocked()
-	s.biDirectionStream.Unlock()
-	s.NoError(err)
-	s.Equal(s.streamClient, s.biDirectionStream.streamingClient)
-	s.True(s.biDirectionStream.IsValid())
-
-	s.biDirectionStream.Lock()
-	err = s.biDirectionStream.lazyInitLocked()
-	s.biDirectionStream.Unlock()
-	s.NoError(err)
-	s.Equal(s.streamClient, s.biDirectionStream.streamingClient)
-	s.True(s.biDirectionStream.IsValid())
-
-	s.biDirectionStream.Close()
-	s.biDirectionStream.Lock()
-	err = s.biDirectionStream.lazyInitLocked()
-	s.biDirectionStream.Unlock()
-	s.Error(err)
-	s.False(s.biDirectionStream.IsValid())
-}
-
-func (s *biDirectionStreamSuite) TestSend() {
-	defer close(s.streamClient.shutdownChan)
+func TestSend(t *testing.T) {
+	deps := setupBiDirectionStreamTest(t)
+	defer deps.controller.Finish()
+	defer close(deps.streamClient.shutdownChan)
 
 	reqs := []int{rand.Int(), rand.Int(), rand.Int(), rand.Int()}
 	for _, req := range reqs {
-		err := s.biDirectionStream.Send(req)
-		s.NoError(err)
+		err := deps.biDirectionStream.Send(req)
+		require.NoError(t, err)
 	}
-	s.Equal(reqs, s.streamClient.requests)
-	s.True(s.biDirectionStream.IsValid())
+	require.Equal(t, reqs, deps.streamClient.requests)
+	require.True(t, deps.biDirectionStream.IsValid())
 }
 
-func (s *biDirectionStreamSuite) TestSend_Err() {
-	defer close(s.streamClient.shutdownChan)
+func TestSend_Err(t *testing.T) {
+	deps := setupBiDirectionStreamTest(t)
+	defer deps.controller.Finish()
+	defer close(deps.streamClient.shutdownChan)
 
-	s.streamClientProvider.streamClient = s.streamErrClient
+	deps.streamClientProvider.streamClient = deps.streamErrClient
 
-	err := s.biDirectionStream.Send(rand.Int())
-	s.Error(err)
-	s.False(s.biDirectionStream.IsValid())
+	err := deps.biDirectionStream.Send(rand.Int())
+	require.Error(t, err)
+	require.False(t, deps.biDirectionStream.IsValid())
 }
 
-func (s *biDirectionStreamSuite) TestRecv() {
-	close(s.streamClient.shutdownChan)
+func TestRecv(t *testing.T) {
+	deps := setupBiDirectionStreamTest(t)
+	defer deps.controller.Finish()
+	close(deps.streamClient.shutdownChan)
 
 	var resps []int
-	streamRespChan, err := s.biDirectionStream.Recv()
-	s.NoError(err)
+	streamRespChan, err := deps.biDirectionStream.Recv()
+	require.NoError(t, err)
 	for streamResp := range streamRespChan {
-		s.NoError(streamResp.Err)
+		require.NoError(t, streamResp.Err)
 		resps = append(resps, streamResp.Resp)
 	}
-	s.Equal(s.streamClient.responses, resps)
-	s.False(s.biDirectionStream.IsValid())
+	require.Equal(t, deps.streamClient.responses, resps)
+	require.False(t, deps.biDirectionStream.IsValid())
 }
 
-func (s *biDirectionStreamSuite) TestRecv_Err() {
-	close(s.streamClient.shutdownChan)
-	s.streamClientProvider.streamClient = s.streamErrClient
+func TestRecv_Err(t *testing.T) {
+	deps := setupBiDirectionStreamTest(t)
+	defer deps.controller.Finish()
+	close(deps.streamClient.shutdownChan)
+	deps.streamClientProvider.streamClient = deps.streamErrClient
 
-	streamRespChan, err := s.biDirectionStream.Recv()
-	s.NoError(err)
+	streamRespChan, err := deps.biDirectionStream.Recv()
+	require.NoError(t, err)
 	streamResp := <-streamRespChan
-	s.Error(streamResp.Err)
+	require.Error(t, streamResp.Err)
 	_, ok := <-streamRespChan
-	s.False(ok)
-	s.False(s.biDirectionStream.IsValid())
-
+	require.False(t, ok)
+	require.False(t, deps.biDirectionStream.IsValid())
 }
 
 func (p *mockStreamClientProvider) Get(

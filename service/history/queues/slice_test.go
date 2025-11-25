@@ -9,7 +9,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	enumsspb "go.temporal.io/server/api/enums/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/common/clock"
@@ -27,39 +26,28 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	sliceSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller            *gomock.Controller
-		mockClusterMetadata   *cluster.MockMetadata
-		mockNamespaceRegistry *namespace.MockRegistry
-
-		executableFactory ExecutableFactory
-		monitor           *monitorImpl
-	}
-)
+type sliceTestDeps struct {
+	controller            *gomock.Controller
+	mockClusterMetadata   *cluster.MockMetadata
+	mockNamespaceRegistry *namespace.MockRegistry
+	executableFactory     ExecutableFactory
+	monitor               *monitorImpl
+}
 
 func noPredicateSizeLimit() int {
 	return 0
 }
 
-func TestSliceSuite(t *testing.T) {
-	s := new(sliceSuite)
-	suite.Run(t, s)
-}
+func setupSliceTest(t *testing.T) *sliceTestDeps {
+	t.Helper()
 
-func (s *sliceSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
+	controller := gomock.NewController(t)
+	mockClusterMetadata := cluster.NewMockMetadata(controller)
+	mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockNamespaceRegistry := namespace.NewMockRegistry(controller)
+	mockNamespaceRegistry.EXPECT().GetNamespaceByID(gomock.Any()).Return(tests.LocalNamespaceEntry, nil).AnyTimes()
 
-	s.controller = gomock.NewController(s.T())
-	s.mockClusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockNamespaceRegistry = namespace.NewMockRegistry(s.controller)
-	s.mockNamespaceRegistry.EXPECT().GetNamespaceByID(gomock.Any()).Return(tests.LocalNamespaceEntry, nil).AnyTimes()
-
-	s.executableFactory = ExecutableFactoryFn(func(readerID int64, t tasks.Task) Executable {
+	executableFactory := ExecutableFactoryFn(func(readerID int64, t tasks.Task) Executable {
 		return NewExecutable(
 			readerID,
 			t,
@@ -68,8 +56,8 @@ func (s *sliceSuite) SetupTest() {
 			nil,
 			NewNoopPriorityAssigner(),
 			clock.NewRealTimeSource(),
-			s.mockNamespaceRegistry,
-			s.mockClusterMetadata,
+			mockNamespaceRegistry,
+			mockClusterMetadata,
 			chasm.NewRegistry(log.NewTestLogger()),
 			testTaskTagValueProvider,
 			nil,
@@ -77,166 +65,269 @@ func (s *sliceSuite) SetupTest() {
 			telemetry.NoopTracer,
 		)
 	})
-	s.monitor = newMonitor(tasks.CategoryTypeScheduled, clock.NewRealTimeSource(), &MonitorOptions{
+	monitor := newMonitor(tasks.CategoryTypeScheduled, clock.NewRealTimeSource(), &MonitorOptions{
 		PendingTasksCriticalCount:   dynamicconfig.GetIntPropertyFn(1000),
 		ReaderStuckCriticalAttempts: dynamicconfig.GetIntPropertyFn(5),
 		SliceCountCriticalThreshold: dynamicconfig.GetIntPropertyFn(50),
 	})
+
+	return &sliceTestDeps{
+		controller:            controller,
+		mockClusterMetadata:   mockClusterMetadata,
+		mockNamespaceRegistry: mockNamespaceRegistry,
+		executableFactory:     executableFactory,
+		monitor:               monitor,
+	}
 }
 
-func (s *sliceSuite) TearDownTest() {
-	s.controller.Finish()
+func (d *sliceTestDeps) newTestSlice(
+	t *testing.T,
+	r Range,
+	namespaceIDs []string,
+	taskTypes []enumsspb.TaskType,
+) *SliceImpl {
+	t.Helper()
+
+	predicate := predicates.Universal[tasks.Task]()
+	if len(namespaceIDs) != 0 {
+		predicate = predicates.And[tasks.Task](
+			predicate,
+			tasks.NewNamespacePredicate(namespaceIDs),
+		)
+	}
+	if len(taskTypes) != 0 {
+		predicate = predicates.And[tasks.Task](
+			predicate,
+			tasks.NewTypePredicate(taskTypes),
+		)
+	}
+
+	if len(namespaceIDs) == 0 {
+		namespaceIDs = []string{uuid.New()}
+	}
+
+	if len(taskTypes) == 0 {
+		taskTypes = []enumsspb.TaskType{enumsspb.TASK_TYPE_TRANSFER_CLOSE_EXECUTION}
+	}
+
+	slice := NewSlice(nil, d.executableFactory, d.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+	for _, executable := range d.randomExecutablesInRange(r, rand.Intn(20)) {
+		slice.pendingExecutables[executable.GetKey()] = executable
+
+		mockExecutable := executable.(*MockExecutable)
+		mockExecutable.EXPECT().GetNamespaceID().Return(namespaceIDs[rand.Intn(len(namespaceIDs))]).AnyTimes()
+		mockExecutable.EXPECT().GetType().Return(taskTypes[rand.Intn(len(taskTypes))]).AnyTimes()
+	}
+	slice.iterators = d.randomIteratorsInRange(r, rand.Intn(10), nil)
+
+	return slice
 }
 
-func (s *sliceSuite) TestCanSplitByRange() {
+func (d *sliceTestDeps) randomExecutablesInRange(
+	r Range,
+	numExecutables int,
+) []Executable {
+	executables := make([]Executable, 0, numExecutables)
+	for i := 0; i != numExecutables; i++ {
+		mockExecutable := NewMockExecutable(d.controller)
+		key := NewRandomKeyInRange(r)
+		mockExecutable.EXPECT().GetKey().Return(key).AnyTimes()
+		executables = append(executables, mockExecutable)
+	}
+	return executables
+}
+
+func (d *sliceTestDeps) randomIteratorsInRange(
+	r Range,
+	numIterators int,
+	paginationFnProvider PaginationFnProvider,
+) []Iterator {
+	ranges := NewRandomOrderedRangesInRange(r, numIterators)
+
+	iterators := make([]Iterator, 0, numIterators)
+	for _, r := range ranges {
+		start := NewRandomKeyInRange(r)
+		end := NewRandomKeyInRange(r)
+		if start.CompareTo(end) > 0 {
+			start, end = end, start
+		}
+		iterator := NewIterator(paginationFnProvider, NewRange(start, end))
+		iterators = append(iterators, iterator)
+	}
+
+	return iterators
+}
+
+func TestSliceCanSplitByRange(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	scope := NewScope(r, predicates.Universal[tasks.Task]())
 
-	slice := NewSlice(nil, s.executableFactory, s.monitor, scope, GrouperNamespaceID{}, noPredicateSizeLimit)
-	s.Equal(scope, slice.Scope())
+	slice := NewSlice(nil, deps.executableFactory, deps.monitor, scope, GrouperNamespaceID{}, noPredicateSizeLimit)
+	require.Equal(t, scope, slice.Scope())
 
-	s.True(slice.CanSplitByRange(r.InclusiveMin))
-	s.True(slice.CanSplitByRange(r.ExclusiveMax))
-	s.True(slice.CanSplitByRange(NewRandomKeyInRange(r)))
+	require.True(t, slice.CanSplitByRange(r.InclusiveMin))
+	require.True(t, slice.CanSplitByRange(r.ExclusiveMax))
+	require.True(t, slice.CanSplitByRange(NewRandomKeyInRange(r)))
 
-	s.False(slice.CanSplitByRange(tasks.NewKey(
+	require.False(t, slice.CanSplitByRange(tasks.NewKey(
 		r.InclusiveMin.FireTime,
 		r.InclusiveMin.TaskID-1,
 	)))
-	s.False(slice.CanSplitByRange(tasks.NewKey(
+	require.False(t, slice.CanSplitByRange(tasks.NewKey(
 		r.ExclusiveMax.FireTime.Add(time.Nanosecond),
 		r.ExclusiveMax.TaskID,
 	)))
 }
 
-func (s *sliceSuite) TestSplitByRange() {
+func TestSliceSplitByRange(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
-	slice := s.newTestSlice(r, nil, nil)
+	slice := deps.newTestSlice(t, r, nil, nil)
 
 	splitKey := NewRandomKeyInRange(r)
 	leftSlice, rightSlice := slice.SplitByRange(splitKey)
-	s.Equal(NewScope(
+	require.Equal(t, NewScope(
 		NewRange(r.InclusiveMin, splitKey),
 		slice.scope.Predicate,
 	), leftSlice.Scope())
-	s.Equal(NewScope(
+	require.Equal(t, NewScope(
 		NewRange(splitKey, r.ExclusiveMax),
 		slice.scope.Predicate,
 	), rightSlice.Scope())
 
-	s.validateSliceState(leftSlice.(*SliceImpl))
-	s.validateSliceState(rightSlice.(*SliceImpl))
+	validateSliceState(t, leftSlice.(*SliceImpl))
+	validateSliceState(t, rightSlice.(*SliceImpl))
 
-	s.Panics(func() { slice.stateSanityCheck() })
+	require.Panics(t, func() { slice.stateSanityCheck() })
 }
 
-func (s *sliceSuite) TestSplitByPredicate() {
+func TestSliceSplitByPredicate(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	namespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	slice := s.newTestSlice(r, namespaceIDs, nil)
+	slice := deps.newTestSlice(t, r, namespaceIDs, nil)
 
 	splitNamespaceIDs := append(slices.Clone(namespaceIDs[:rand.Intn(len(namespaceIDs))]), uuid.New(), uuid.New())
 	splitPredicate := tasks.NewNamespacePredicate(splitNamespaceIDs)
 	passSlice, failSlice := slice.SplitByPredicate(splitPredicate)
-	s.Equal(r, passSlice.Scope().Range)
-	s.Equal(r, failSlice.Scope().Range)
-	s.True(tasks.AndPredicates(slice.scope.Predicate, splitPredicate).Equals(passSlice.Scope().Predicate))
-	s.True(tasks.AndPredicates(slice.scope.Predicate, predicates.Not(splitPredicate)).Equals(failSlice.Scope().Predicate))
+	require.Equal(t, r, passSlice.Scope().Range)
+	require.Equal(t, r, failSlice.Scope().Range)
+	require.True(t, tasks.AndPredicates(slice.scope.Predicate, splitPredicate).Equals(passSlice.Scope().Predicate))
+	require.True(t, tasks.AndPredicates(slice.scope.Predicate, predicates.Not(splitPredicate)).Equals(failSlice.Scope().Predicate))
 
-	s.validateSliceState(passSlice.(*SliceImpl))
-	s.validateSliceState(failSlice.(*SliceImpl))
+	validateSliceState(t, passSlice.(*SliceImpl))
+	validateSliceState(t, failSlice.(*SliceImpl))
 
-	s.Panics(func() { slice.stateSanityCheck() })
+	require.Panics(t, func() { slice.stateSanityCheck() })
 }
 
-func (s *sliceSuite) TestCanMergeWithSlice() {
+func TestSliceCanMergeWithSlice(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	namespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
 	predicate := tasks.NewNamespacePredicate(namespaceIDs)
-	slice := NewSlice(nil, nil, s.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+	slice := NewSlice(nil, nil, deps.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
 
 	testPredicates := []tasks.Predicate{
 		predicate,
 		tasks.NewNamespacePredicate(namespaceIDs),
 		tasks.NewNamespacePredicate([]string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}),
 	}
-	s.True(predicate.Equals(testPredicates[0]))
-	s.True(predicate.Equals(testPredicates[1]))
-	s.False(predicate.Equals(testPredicates[2]))
+	require.True(t, predicate.Equals(testPredicates[0]))
+	require.True(t, predicate.Equals(testPredicates[1]))
+	require.False(t, predicate.Equals(testPredicates[2]))
 
 	for _, mergePredicate := range testPredicates {
-		testSlice := NewSlice(nil, nil, s.monitor, NewScope(r, mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
-		s.True(slice.CanMergeWithSlice(testSlice))
+		testSlice := NewSlice(nil, nil, deps.monitor, NewScope(r, mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+		require.True(t, slice.CanMergeWithSlice(testSlice))
 
-		testSlice = NewSlice(nil, nil, s.monitor, NewScope(NewRange(tasks.MinimumKey, r.InclusiveMin), mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
-		s.True(slice.CanMergeWithSlice(testSlice))
+		testSlice = NewSlice(nil, nil, deps.monitor, NewScope(NewRange(tasks.MinimumKey, r.InclusiveMin), mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+		require.True(t, slice.CanMergeWithSlice(testSlice))
 
-		testSlice = NewSlice(nil, nil, s.monitor, NewScope(NewRange(r.ExclusiveMax, tasks.MaximumKey), mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
-		s.True(slice.CanMergeWithSlice(testSlice))
+		testSlice = NewSlice(nil, nil, deps.monitor, NewScope(NewRange(r.ExclusiveMax, tasks.MaximumKey), mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+		require.True(t, slice.CanMergeWithSlice(testSlice))
 
-		testSlice = NewSlice(nil, nil, s.monitor, NewScope(NewRange(tasks.MinimumKey, NewRandomKeyInRange(r)), mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
-		s.True(slice.CanMergeWithSlice(testSlice))
+		testSlice = NewSlice(nil, nil, deps.monitor, NewScope(NewRange(tasks.MinimumKey, NewRandomKeyInRange(r)), mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+		require.True(t, slice.CanMergeWithSlice(testSlice))
 
-		testSlice = NewSlice(nil, nil, s.monitor, NewScope(NewRange(NewRandomKeyInRange(r), tasks.MaximumKey), mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
-		s.True(slice.CanMergeWithSlice(testSlice))
+		testSlice = NewSlice(nil, nil, deps.monitor, NewScope(NewRange(NewRandomKeyInRange(r), tasks.MaximumKey), mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+		require.True(t, slice.CanMergeWithSlice(testSlice))
 
-		testSlice = NewSlice(nil, nil, s.monitor, NewScope(NewRange(tasks.MinimumKey, tasks.MaximumKey), mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
-		s.True(slice.CanMergeWithSlice(testSlice))
+		testSlice = NewSlice(nil, nil, deps.monitor, NewScope(NewRange(tasks.MinimumKey, tasks.MaximumKey), mergePredicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+		require.True(t, slice.CanMergeWithSlice(testSlice))
 	}
 
-	s.False(slice.CanMergeWithSlice(slice))
+	require.False(t, slice.CanMergeWithSlice(slice))
 
-	testSlice := NewSlice(nil, nil, s.monitor, NewScope(NewRange(
+	testSlice := NewSlice(nil, nil, deps.monitor, NewScope(NewRange(
 		tasks.MinimumKey,
 		tasks.NewKey(r.InclusiveMin.FireTime, r.InclusiveMin.TaskID-1),
 	), predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
-	s.False(slice.CanMergeWithSlice(testSlice))
+	require.False(t, slice.CanMergeWithSlice(testSlice))
 
-	testSlice = NewSlice(nil, nil, s.monitor, NewScope(NewRange(
+	testSlice = NewSlice(nil, nil, deps.monitor, NewScope(NewRange(
 		tasks.NewKey(r.ExclusiveMax.FireTime, r.ExclusiveMax.TaskID+1),
 		tasks.MaximumKey,
 	), predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
-	s.False(slice.CanMergeWithSlice(testSlice))
+	require.False(t, slice.CanMergeWithSlice(testSlice))
 }
 
-func (s *sliceSuite) TestMergeWithSlice_SamePredicate() {
+func TestSliceMergeWithSlice_SamePredicate(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
-	slice := s.newTestSlice(r, nil, nil)
+	slice := deps.newTestSlice(t, r, nil, nil)
 	totalExecutables := len(slice.pendingExecutables)
 
 	incomingRange := NewRange(tasks.MinimumKey, NewRandomKeyInRange(r))
-	incomingSlice := s.newTestSlice(incomingRange, nil, nil)
+	incomingSlice := deps.newTestSlice(t, incomingRange, nil, nil)
 	totalExecutables += len(incomingSlice.pendingExecutables)
 
 	mergedSlices := slice.MergeWithSlice(incomingSlice)
-	s.Len(mergedSlices, 1)
+	require.Len(t, mergedSlices, 1)
 
-	s.validateMergedSlice(slice, incomingSlice, mergedSlices, totalExecutables)
+	validateMergedSlice(t, slice, incomingSlice, mergedSlices, totalExecutables)
 }
 
-func (s *sliceSuite) TestMergeWithSlice_SameRange() {
+func TestSliceMergeWithSlice_SameRange(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	namespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	slice := s.newTestSlice(r, namespaceIDs, nil)
+	slice := deps.newTestSlice(t, r, namespaceIDs, nil)
 	totalExecutables := len(slice.pendingExecutables)
 
 	taskTypes := []enumsspb.TaskType{
 		enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER,
 		enumsspb.TASK_TYPE_DELETE_HISTORY_EVENT,
 	}
-	incomingSlice := s.newTestSlice(r, nil, taskTypes)
+	incomingSlice := deps.newTestSlice(t, r, nil, taskTypes)
 	totalExecutables += len(incomingSlice.pendingExecutables)
 
 	mergedSlices := slice.MergeWithSlice(incomingSlice)
-	s.Len(mergedSlices, 1)
+	require.Len(t, mergedSlices, 1)
 
-	s.validateMergedSlice(slice, incomingSlice, mergedSlices, totalExecutables)
+	validateMergedSlice(t, slice, incomingSlice, mergedSlices, totalExecutables)
 }
 
-func (s *sliceSuite) TestMergeWithSlice_MaxPredicateSizeApplied() {
+func TestSliceMergeWithSlice_MaxPredicateSizeApplied(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	namespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	slice := s.newTestSlice(r, namespaceIDs, nil)
+	slice := deps.newTestSlice(t, r, namespaceIDs, nil)
 	slice.maxPredicateSizeFn = func() int { return 4 }
 	totalExecutables := len(slice.pendingExecutables)
 
@@ -244,19 +335,22 @@ func (s *sliceSuite) TestMergeWithSlice_MaxPredicateSizeApplied() {
 		enumsspb.TASK_TYPE_ACTIVITY_RETRY_TIMER,
 		enumsspb.TASK_TYPE_DELETE_HISTORY_EVENT,
 	}
-	incomingSlice := s.newTestSlice(r, nil, taskTypes)
+	incomingSlice := deps.newTestSlice(t, r, nil, taskTypes)
 	totalExecutables += len(incomingSlice.pendingExecutables)
 
 	mergedSlices := slice.MergeWithSlice(incomingSlice)
-	s.Len(mergedSlices, 1)
+	require.Len(t, mergedSlices, 1)
 
-	s.True(mergedSlices[0].Scope().Predicate.Equals(predicates.Universal[tasks.Task]()))
+	require.True(t, mergedSlices[0].Scope().Predicate.Equals(predicates.Universal[tasks.Task]()))
 }
 
-func (s *sliceSuite) TestMergeWithSlice_SameMinKey() {
+func TestSliceMergeWithSlice_SameMinKey(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	namespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	slice := s.newTestSlice(r, namespaceIDs, nil)
+	slice := deps.newTestSlice(t, r, namespaceIDs, nil)
 	totalExecutables := len(slice.pendingExecutables)
 
 	incomingRange := NewRange(
@@ -264,19 +358,22 @@ func (s *sliceSuite) TestMergeWithSlice_SameMinKey() {
 		NewRandomKeyInRange(NewRange(r.InclusiveMin, tasks.MaximumKey)),
 	)
 	incomingNamespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	incomingSlice := s.newTestSlice(incomingRange, incomingNamespaceIDs, nil)
+	incomingSlice := deps.newTestSlice(t, incomingRange, incomingNamespaceIDs, nil)
 	totalExecutables += len(incomingSlice.pendingExecutables)
 
 	mergedSlices := slice.MergeWithSlice(incomingSlice)
-	s.Len(mergedSlices, 2)
+	require.Len(t, mergedSlices, 2)
 
-	s.validateMergedSlice(slice, incomingSlice, mergedSlices, totalExecutables)
+	validateMergedSlice(t, slice, incomingSlice, mergedSlices, totalExecutables)
 }
 
-func (s *sliceSuite) TestMergeWithSlice_SameMaxKey() {
+func TestSliceMergeWithSlice_SameMaxKey(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	namespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	slice := s.newTestSlice(r, namespaceIDs, nil)
+	slice := deps.newTestSlice(t, r, namespaceIDs, nil)
 	totalExecutables := len(slice.pendingExecutables)
 
 	incomingRange := NewRange(
@@ -284,19 +381,22 @@ func (s *sliceSuite) TestMergeWithSlice_SameMaxKey() {
 		r.ExclusiveMax,
 	)
 	incomingNamespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	incomingSlice := s.newTestSlice(incomingRange, incomingNamespaceIDs, nil)
+	incomingSlice := deps.newTestSlice(t, incomingRange, incomingNamespaceIDs, nil)
 	totalExecutables += len(incomingSlice.pendingExecutables)
 
 	mergedSlices := slice.MergeWithSlice(incomingSlice)
-	s.Len(mergedSlices, 2)
+	require.Len(t, mergedSlices, 2)
 
-	s.validateMergedSlice(slice, incomingSlice, mergedSlices, totalExecutables)
+	validateMergedSlice(t, slice, incomingSlice, mergedSlices, totalExecutables)
 }
 
-func (s *sliceSuite) TestMergeWithSlice_DifferentMinMaxKey() {
+func TestSliceMergeWithSlice_DifferentMinMaxKey(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	namespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	slice := s.newTestSlice(r, namespaceIDs, nil)
+	slice := deps.newTestSlice(t, r, namespaceIDs, nil)
 	totalExecutables := len(slice.pendingExecutables)
 
 	incomingMinKey := NewRandomKeyInRange(NewRange(r.InclusiveMin, r.ExclusiveMax))
@@ -305,64 +405,70 @@ func (s *sliceSuite) TestMergeWithSlice_DifferentMinMaxKey() {
 		NewRandomKeyInRange(NewRange(incomingMinKey, tasks.MaximumKey)),
 	)
 	incomingNamespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	incomingSlice := s.newTestSlice(incomingRange, incomingNamespaceIDs, nil)
+	incomingSlice := deps.newTestSlice(t, incomingRange, incomingNamespaceIDs, nil)
 	totalExecutables += len(incomingSlice.pendingExecutables)
 
-	s.validateSliceState(slice)
-	s.validateSliceState(incomingSlice)
+	validateSliceState(t, slice)
+	validateSliceState(t, incomingSlice)
 
 	mergedSlices := slice.MergeWithSlice(incomingSlice)
-	s.Len(mergedSlices, 3)
+	require.Len(t, mergedSlices, 3)
 
-	s.validateMergedSlice(slice, incomingSlice, mergedSlices, totalExecutables)
+	validateMergedSlice(t, slice, incomingSlice, mergedSlices, totalExecutables)
 }
 
-func (s *sliceSuite) TestCompactWithSlice() {
+func TestSliceCompactWithSlice(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r1 := NewRandomRange()
 	namespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	slice1 := s.newTestSlice(r1, namespaceIDs, nil)
+	slice1 := deps.newTestSlice(t, r1, namespaceIDs, nil)
 	totalExecutables := len(slice1.pendingExecutables)
 
 	r2 := NewRandomRange()
 	taskTypes := []enumsspb.TaskType{enumsspb.TASK_TYPE_ACTIVITY_TIMEOUT, enumsspb.TASK_TYPE_DELETE_HISTORY_EVENT}
-	slice2 := s.newTestSlice(r2, nil, taskTypes)
+	slice2 := deps.newTestSlice(t, r2, nil, taskTypes)
 	totalExecutables += len(slice2.pendingExecutables)
 
-	s.validateSliceState(slice1)
-	s.validateSliceState(slice2)
+	validateSliceState(t, slice1)
+	validateSliceState(t, slice2)
 
 	compactedSlice := slice1.CompactWithSlice(slice2).(*SliceImpl)
 	compactedRange := compactedSlice.Scope().Range
-	s.True(compactedRange.ContainsRange(r1))
-	s.True(compactedRange.ContainsRange(r2))
-	s.Equal(
+	require.True(t, compactedRange.ContainsRange(r1))
+	require.True(t, compactedRange.ContainsRange(r2))
+	require.Equal(t,
 		tasks.MinKey(r1.InclusiveMin, r2.InclusiveMin),
 		compactedRange.InclusiveMin,
 	)
-	s.Equal(
+	require.Equal(t,
 		tasks.MaxKey(r1.ExclusiveMax, r2.ExclusiveMax),
 		compactedRange.ExclusiveMax,
 	)
-	s.True(
+	require.True(t,
 		tasks.OrPredicates(slice1.scope.Predicate, slice2.scope.Predicate).
 			Equals(compactedSlice.scope.Predicate),
 	)
 
-	s.validateSliceState(compactedSlice)
-	s.Len(compactedSlice.pendingExecutables, totalExecutables)
+	validateSliceState(t, compactedSlice)
+	require.Len(t, compactedSlice.pendingExecutables, totalExecutables)
 
-	s.Panics(func() { slice1.stateSanityCheck() })
-	s.Panics(func() { slice2.stateSanityCheck() })
+	require.Panics(t, func() { slice1.stateSanityCheck() })
+	require.Panics(t, func() { slice2.stateSanityCheck() })
 }
 
-func (s *sliceSuite) TestShrinkScope_ShrinkRange() {
+func TestSliceShrinkScope_ShrinkRange(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	predicate := predicates.Universal[tasks.Task]()
 
-	slice := NewSlice(nil, s.executableFactory, s.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
-	slice.iterators = s.randomIteratorsInRange(r, rand.Intn(2), nil)
+	slice := NewSlice(nil, deps.executableFactory, deps.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+	slice.iterators = deps.randomIteratorsInRange(r, rand.Intn(2), nil)
 
-	executables := s.randomExecutablesInRange(r, 5)
+	executables := deps.randomExecutablesInRange(r, 5)
 	slices.SortFunc(executables, func(a, b Executable) int {
 		return a.GetKey().CompareTo(b.GetKey())
 	})
@@ -388,9 +494,9 @@ func (s *sliceSuite) TestShrinkScope_ShrinkRange() {
 		slice.pendingExecutables[executable.GetKey()] = executable
 	}
 
-	s.Equal(numAcked, slice.ShrinkScope())
-	s.Len(slice.pendingExecutables, len(executables)-numAcked)
-	s.validateSliceState(slice)
+	require.Equal(t, numAcked, slice.ShrinkScope())
+	require.Len(t, slice.pendingExecutables, len(executables)-numAcked)
+	validateSliceState(t, slice)
 
 	newInclusiveMin := r.ExclusiveMax
 	if len(slice.iterators) != 0 {
@@ -401,23 +507,26 @@ func (s *sliceSuite) TestShrinkScope_ShrinkRange() {
 		newInclusiveMin = tasks.MinKey(newInclusiveMin, executables[firstPendingIdx].GetKey())
 	}
 
-	s.Equal(NewRange(newInclusiveMin, r.ExclusiveMax), slice.Scope().Range)
+	require.Equal(t, NewRange(newInclusiveMin, r.ExclusiveMax), slice.Scope().Range)
 }
 
-func (s *sliceSuite) TestShrinkScope_ShrinkPredicate() {
+func TestSliceShrinkScope_ShrinkPredicate(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	predicate := predicates.Universal[tasks.Task]()
 
-	slice := NewSlice(nil, s.executableFactory, s.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+	slice := NewSlice(nil, deps.executableFactory, deps.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
 	slice.iterators = []Iterator{} // manually set iterators to be empty to trigger predicate update
 
-	executables := s.randomExecutablesInRange(r, 100)
+	executables := deps.randomExecutablesInRange(r, 100)
 	slices.SortFunc(executables, func(a, b Executable) int {
 		return a.GetKey().CompareTo(b.GetKey())
 	})
 
 	pendingNamespaceID := []string{uuid.New(), uuid.New()}
-	s.True(len(pendingNamespaceID) <= shrinkPredicateMaxPendingKeys)
+	require.True(t, len(pendingNamespaceID) <= shrinkPredicateMaxPendingKeys)
 	for _, executable := range executables {
 		mockExecutable := executable.(*MockExecutable)
 
@@ -436,16 +545,19 @@ func (s *sliceSuite) TestShrinkScope_ShrinkPredicate() {
 	}
 
 	slice.ShrinkScope()
-	s.validateSliceState(slice)
+	validateSliceState(t, slice)
 
 	namespacePredicate, ok := slice.Scope().Predicate.(*tasks.NamespacePredicate)
-	s.True(ok)
+	require.True(t, ok)
 	for namespaceID := range namespacePredicate.NamespaceIDs {
-		s.True(slices.Index(pendingNamespaceID, namespaceID) != -1)
+		require.True(t, slices.Index(pendingNamespaceID, namespaceID) != -1)
 	}
 }
 
-func (s *sliceSuite) TestSelectTasks_NoError() {
+func TestSliceSelectTasks_NoError(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	namespaceIDs := []string{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
 	predicate := tasks.NewNamespacePredicate(namespaceIDs)
@@ -456,7 +568,7 @@ func (s *sliceSuite) TestSelectTasks_NoError() {
 
 			mockTasks := make([]tasks.Task, 0, numTasks)
 			for i := 0; i != numTasks; i++ {
-				mockTask := tasks.NewMockTask(s.controller)
+				mockTask := tasks.NewMockTask(deps.controller)
 				key := NewRandomKeyInRange(paginationRange)
 				mockTask.EXPECT().GetKey().Return(key).AnyTimes()
 				mockTask.EXPECT().GetVisibilityTime().Return(time.Now()).AnyTimes()
@@ -478,12 +590,12 @@ func (s *sliceSuite) TestSelectTasks_NoError() {
 	}
 
 	for _, batchSize := range []int{1, 2, 5, 10, 20, 100} {
-		slice := NewSlice(paginationFnProvider, s.executableFactory, s.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+		slice := NewSlice(paginationFnProvider, deps.executableFactory, deps.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
 
 		executables := make([]Executable, 0, numTasks)
 		for {
 			selectedExecutables, err := slice.SelectTasks(DefaultReaderId, batchSize)
-			s.NoError(err)
+			require.NoError(t, err)
 			if len(selectedExecutables) == 0 {
 				break
 			}
@@ -491,12 +603,15 @@ func (s *sliceSuite) TestSelectTasks_NoError() {
 			executables = append(executables, selectedExecutables...)
 		}
 
-		s.Len(executables, numTasks/2) // half of tasks should be filtered out based on its namespaceID
-		s.Empty(slice.iterators)
+		require.Len(t, executables, numTasks/2) // half of tasks should be filtered out based on its namespaceID
+		require.Empty(t, slice.iterators)
 	}
 }
 
-func (s *sliceSuite) TestSelectTasks_Error_NoLoadedTasks() {
+func TestSliceSelectTasks_Error_NoLoadedTasks(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	predicate := predicates.Universal[tasks.Task]()
 
@@ -511,7 +626,7 @@ func (s *sliceSuite) TestSelectTasks_Error_NoLoadedTasks() {
 
 			mockTasks := make([]tasks.Task, 0, numTasks)
 			for i := 0; i != numTasks; i++ {
-				mockTask := tasks.NewMockTask(s.controller)
+				mockTask := tasks.NewMockTask(deps.controller)
 				key := NewRandomKeyInRange(paginationRange)
 				mockTask.EXPECT().GetKey().Return(key).AnyTimes()
 				mockTask.EXPECT().GetNamespaceID().Return(uuid.New()).AnyTimes()
@@ -527,17 +642,20 @@ func (s *sliceSuite) TestSelectTasks_Error_NoLoadedTasks() {
 		}
 	}
 
-	slice := NewSlice(paginationFnProvider, s.executableFactory, s.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+	slice := NewSlice(paginationFnProvider, deps.executableFactory, deps.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
 	_, err := slice.SelectTasks(DefaultReaderId, 100)
-	s.Error(err)
+	require.Error(t, err)
 
 	executables, err := slice.SelectTasks(DefaultReaderId, 100)
-	s.NoError(err)
-	s.Len(executables, numTasks)
-	s.Empty(slice.iterators)
+	require.NoError(t, err)
+	require.Len(t, executables, numTasks)
+	require.Empty(t, slice.iterators)
 }
 
-func (s *sliceSuite) TestSelectTasks_Error_WithLoadedTasks() {
+func TestSliceSelectTasks_Error_WithLoadedTasks(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
 	r := NewRandomRange()
 	predicate := predicates.Universal[tasks.Task]()
 
@@ -555,7 +673,7 @@ func (s *sliceSuite) TestSelectTasks_Error_WithLoadedTasks() {
 
 			mockTasks := make([]tasks.Task, 0, numTasks)
 			for i := 0; i != numTasks; i++ {
-				mockTask := tasks.NewMockTask(s.controller)
+				mockTask := tasks.NewMockTask(deps.controller)
 				key := NewRandomKeyInRange(paginationRange)
 				mockTask.EXPECT().GetKey().Return(key).AnyTimes()
 				mockTask.EXPECT().GetNamespaceID().Return(uuid.New()).AnyTimes()
@@ -571,84 +689,53 @@ func (s *sliceSuite) TestSelectTasks_Error_WithLoadedTasks() {
 		}
 	}
 
-	slice := NewSlice(paginationFnProvider, s.executableFactory, s.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
+	slice := NewSlice(paginationFnProvider, deps.executableFactory, deps.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
 	executables, err := slice.SelectTasks(DefaultReaderId, 100)
-	s.NoError(err)
-	s.Len(executables, numTasks)
-	s.True(slice.MoreTasks())
+	require.NoError(t, err)
+	require.Len(t, executables, numTasks)
+	require.True(t, slice.MoreTasks())
 }
 
-func (s *sliceSuite) TestMoreTasks() {
-	slice := s.newTestSlice(NewRandomRange(), nil, nil)
+func TestSliceMoreTasks(t *testing.T) {
+	t.Parallel()
 
-	s.True(slice.MoreTasks())
+	deps := setupSliceTest(t)
+	slice := deps.newTestSlice(t, NewRandomRange(), nil, nil)
+
+	require.True(t, slice.MoreTasks())
 
 	slice.pendingExecutables = nil
-	s.True(slice.MoreTasks())
+	require.True(t, slice.MoreTasks())
 
 	slice.iterators = nil
-	s.False(slice.MoreTasks())
+	require.False(t, slice.MoreTasks())
 }
 
-func (s *sliceSuite) TestClear() {
-	slice := s.newTestSlice(NewRandomRange(), nil, nil)
+func TestSliceClear(t *testing.T) {
+	t.Parallel()
+
+	deps := setupSliceTest(t)
+	slice := deps.newTestSlice(t, NewRandomRange(), nil, nil)
 	for _, executable := range slice.pendingExecutables {
 		executable.(*MockExecutable).EXPECT().State().Return(ctasks.TaskStatePending).Times(1)
 		executable.(*MockExecutable).EXPECT().Cancel().Times(1)
 	}
 
 	slice.Clear()
-	s.Empty(slice.pendingExecutables)
-	s.Len(slice.iterators, 1)
-	s.Equal(slice.scope.Range, slice.iterators[0].Range())
+	require.Empty(t, slice.pendingExecutables)
+	require.Len(t, slice.iterators, 1)
+	require.Equal(t, slice.scope.Range, slice.iterators[0].Range())
 }
 
-func (s *sliceSuite) newTestSlice(
-	r Range,
-	namespaceIDs []string,
-	taskTypes []enumsspb.TaskType,
-) *SliceImpl {
-	predicate := predicates.Universal[tasks.Task]()
-	if len(namespaceIDs) != 0 {
-		predicate = predicates.And[tasks.Task](
-			predicate,
-			tasks.NewNamespacePredicate(namespaceIDs),
-		)
-	}
-	if len(taskTypes) != 0 {
-		predicate = predicates.And[tasks.Task](
-			predicate,
-			tasks.NewTypePredicate(taskTypes),
-		)
-	}
-
-	if len(namespaceIDs) == 0 {
-		namespaceIDs = []string{uuid.New()}
-	}
-
-	if len(taskTypes) == 0 {
-		taskTypes = []enumsspb.TaskType{enumsspb.TASK_TYPE_TRANSFER_CLOSE_EXECUTION}
-	}
-
-	slice := NewSlice(nil, s.executableFactory, s.monitor, NewScope(r, predicate), GrouperNamespaceID{}, noPredicateSizeLimit)
-	for _, executable := range s.randomExecutablesInRange(r, rand.Intn(20)) {
-		slice.pendingExecutables[executable.GetKey()] = executable
-
-		mockExecutable := executable.(*MockExecutable)
-		mockExecutable.EXPECT().GetNamespaceID().Return(namespaceIDs[rand.Intn(len(namespaceIDs))]).AnyTimes()
-		mockExecutable.EXPECT().GetType().Return(taskTypes[rand.Intn(len(taskTypes))]).AnyTimes()
-	}
-	slice.iterators = s.randomIteratorsInRange(r, rand.Intn(10), nil)
-
-	return slice
-}
-
-func (s *sliceSuite) validateMergedSlice(
+func validateMergedSlice(
+	t *testing.T,
 	currentSlice *SliceImpl,
 	incomingSlice *SliceImpl,
 	mergedSlices []Slice,
 	expectedTotalExecutables int,
 ) {
+	t.Helper()
+
 	expectedMergedRange := currentSlice.scope.Range.Merge(incomingSlice.scope.Range)
 	actualMergedRange := mergedSlices[0].Scope().Range
 	for _, mergedSlice := range mergedSlices {
@@ -657,89 +744,57 @@ func (s *sliceSuite) validateMergedSlice(
 		containedByCurrent := currentSlice.scope.Range.ContainsRange(mergedSlice.Scope().Range)
 		containedByIncoming := incomingSlice.scope.Range.ContainsRange(mergedSlice.Scope().Range)
 		if containedByCurrent && containedByIncoming {
-			s.True(tasks.OrPredicates(
+			require.True(t, tasks.OrPredicates(
 				currentSlice.scope.Predicate,
 				incomingSlice.scope.Predicate,
 			).Equals(mergedSlice.Scope().Predicate))
 		} else if containedByCurrent {
-			s.True(currentSlice.scope.Predicate.Equals(mergedSlice.Scope().Predicate))
+			require.True(t, currentSlice.scope.Predicate.Equals(mergedSlice.Scope().Predicate))
 		} else if containedByIncoming {
-			s.True(incomingSlice.scope.Predicate.Equals(mergedSlice.Scope().Predicate))
+			require.True(t, incomingSlice.scope.Predicate.Equals(mergedSlice.Scope().Predicate))
 		} else if currentSlice.scope.Predicate.Equals(incomingSlice.scope.Predicate) {
-			s.True(currentSlice.scope.Predicate.Equals(mergedSlice.Scope().Predicate))
+			require.True(t, currentSlice.scope.Predicate.Equals(mergedSlice.Scope().Predicate))
 		} else {
-			s.Fail("Merged slice range not contained by the merging slices")
+			require.Fail(t, "Merged slice range not contained by the merging slices")
 		}
 
 	}
-	s.True(expectedMergedRange.Equals(actualMergedRange))
+	require.True(t, expectedMergedRange.Equals(actualMergedRange))
 
 	actualTotalExecutables := 0
 	for _, mergedSlice := range mergedSlices {
 		mergedSliceImpl := mergedSlice.(*SliceImpl)
-		s.validateSliceState(mergedSliceImpl)
+		validateSliceState(t, mergedSliceImpl)
 		actualTotalExecutables += len(mergedSliceImpl.pendingExecutables)
 	}
-	s.Equal(expectedTotalExecutables, actualTotalExecutables)
+	require.Equal(t, expectedTotalExecutables, actualTotalExecutables)
 
-	s.Panics(func() { currentSlice.stateSanityCheck() })
-	s.Panics(func() { incomingSlice.stateSanityCheck() })
+	require.Panics(t, func() { currentSlice.stateSanityCheck() })
+	require.Panics(t, func() { incomingSlice.stateSanityCheck() })
 }
 
-func (s *sliceSuite) validateSliceState(
+func validateSliceState(
+	t *testing.T,
 	slice *SliceImpl,
 ) {
-	s.NotNil(slice.executableFactory)
+	t.Helper()
+
+	require.NotNil(t, slice.executableFactory)
 
 	for _, executable := range slice.pendingExecutables {
-		s.True(slice.scope.Contains(executable))
+		require.True(t, slice.scope.Contains(executable))
 	}
 
 	r := slice.Scope().Range
 	for idx, iterator := range slice.iterators {
-		s.True(r.ContainsRange(iterator.Range()))
+		require.True(t, r.ContainsRange(iterator.Range()))
 		if idx != 0 {
 			currentRange := iterator.Range()
 			previousRange := slice.iterators[idx-1].Range()
-			s.False(currentRange.CanMerge(previousRange))
-			s.True(previousRange.ExclusiveMax.CompareTo(currentRange.InclusiveMin) < 0)
+			require.False(t, currentRange.CanMerge(previousRange))
+			require.True(t, previousRange.ExclusiveMax.CompareTo(currentRange.InclusiveMin) < 0)
 		}
 	}
 
-	s.False(slice.destroyed)
-}
-
-func (s *sliceSuite) randomExecutablesInRange(
-	r Range,
-	numExecutables int,
-) []Executable {
-	executables := make([]Executable, 0, numExecutables)
-	for i := 0; i != numExecutables; i++ {
-		mockExecutable := NewMockExecutable(s.controller)
-		key := NewRandomKeyInRange(r)
-		mockExecutable.EXPECT().GetKey().Return(key).AnyTimes()
-		executables = append(executables, mockExecutable)
-	}
-	return executables
-}
-
-func (s *sliceSuite) randomIteratorsInRange(
-	r Range,
-	numIterators int,
-	paginationFnProvider PaginationFnProvider,
-) []Iterator {
-	ranges := NewRandomOrderedRangesInRange(r, numIterators)
-
-	iterators := make([]Iterator, 0, numIterators)
-	for _, r := range ranges {
-		start := NewRandomKeyInRange(r)
-		end := NewRandomKeyInRange(r)
-		if start.CompareTo(end) > 0 {
-			start, end = end, start
-		}
-		iterator := NewIterator(paginationFnProvider, NewRange(start, end))
-		iterators = append(iterators, iterator)
-	}
-
-	return iterators
+	require.False(t, slice.destroyed)
 }

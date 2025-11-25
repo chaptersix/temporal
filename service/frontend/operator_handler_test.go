@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
-	"github.com/stretchr/testify/suite"
+	"github.com/stretchr/testify/require"
 	enumspb "go.temporal.io/api/enums/v1"
 	namespacepb "go.temporal.io/api/namespace/v1"
 	"go.temporal.io/api/operatorservice/v1"
@@ -42,9 +42,7 @@ var (
 )
 
 type (
-	operatorHandlerSuite struct {
-		suite.Suite
-
+	operatorHandlerTest struct {
 		controller   *gomock.Controller
 		mockResource *resourcetest.Test
 
@@ -52,13 +50,9 @@ type (
 	}
 )
 
-func TestOperatorHandlerSuite(t *testing.T) {
-	s := new(operatorHandlerSuite)
-	suite.Run(t, s)
-}
-
-func (s *operatorHandlerSuite) SetupTest() {
-	s.controller = gomock.NewController(s.T())
+func setupOperatorHandlerTest(t *testing.T) *operatorHandlerTest {
+	s := &operatorHandlerTest{}
+	s.controller = gomock.NewController(t)
 	s.mockResource = resourcetest.NewTest(s.controller, primitives.FrontendService)
 	s.mockResource.ClusterMetadata.EXPECT().GetCurrentClusterName().Return(uuid.New()).AnyTimes()
 
@@ -87,32 +81,13 @@ func (s *operatorHandlerSuite) SetupTest() {
 	}
 	s.handler = NewOperatorHandlerImpl(args)
 	s.handler.Start()
-}
-
-func (s *operatorHandlerSuite) TearDownTest() {
-	s.controller.Finish()
-	s.handler.Stop()
-}
-
-func (s *operatorHandlerSuite) Run(name string, subtest func()) bool {
-	oldController := s.controller
-	oldMockResource := s.mockResource
-	oldHandler := s.handler
-
-	return s.Suite.Run(name, func() {
-		s.SetupTest()
-		defer func() {
-			s.TearDownTest()
-			s.controller = oldController
-			s.mockResource = oldMockResource
-			s.handler = oldHandler
-		}()
-
-		subtest()
+	t.Cleanup(func() {
+		s.handler.Stop()
 	})
+	return s
 }
 
-func (s *operatorHandlerSuite) Test_AddSearchAttributes() {
+func TestOperator_AddSearchAttributes(t *testing.T) {
 	ctx := context.Background()
 	testCases := []struct {
 		name                      string
@@ -180,7 +155,8 @@ func (s *operatorHandlerSuite) Test_AddSearchAttributes() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
+			s := setupOperatorHandlerTest(t)
 			s.mockResource.VisibilityManager.EXPECT().GetStoreNames().Return(tc.storeNames).AnyTimes()
 			s.mockResource.VisibilityManager.EXPECT().GetIndexName().Return(tc.indexName).AnyTimes()
 
@@ -213,15 +189,15 @@ func (s *operatorHandlerSuite) Test_AddSearchAttributes() {
 
 			_, err := s.handler.AddSearchAttributes(ctx, tc.request)
 			if tc.expectedErrMsg == "" {
-				s.NoError(err)
+				require.NoError(t, err)
 			} else {
-				s.ErrorContains(err, tc.expectedErrMsg)
+				require.ErrorContains(t, err, tc.expectedErrMsg)
 			}
 		})
 	}
 }
 
-func (s *operatorHandlerSuite) Test_AddSearchAttributes_DualVisibility() {
+func TestOperator_AddSearchAttributes_DualVisibility(t *testing.T) {
 	ctx := context.Background()
 	testCases := []struct {
 		name              string
@@ -271,7 +247,8 @@ func (s *operatorHandlerSuite) Test_AddSearchAttributes_DualVisibility() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
+			s := setupOperatorHandlerTest(t)
 			mockVisManager1 := manager.NewMockVisibilityManager(s.controller)
 			mockVisManager2 := manager.NewMockVisibilityManager(s.controller)
 			mockManagerSelector := visibility.NewMockmanagerSelector(s.controller)
@@ -334,15 +311,15 @@ func (s *operatorHandlerSuite) Test_AddSearchAttributes_DualVisibility() {
 
 			_, err := s.handler.AddSearchAttributes(ctx, tc.request)
 			if tc.expectedErrMsg == "" {
-				s.NoError(err)
+				require.NoError(t, err)
 			} else {
-				s.ErrorContains(err, tc.expectedErrMsg)
+				require.ErrorContains(t, err, tc.expectedErrMsg)
 			}
 		})
 	}
 }
 
-func (s *operatorHandlerSuite) Test_AddSearchAttributesInternal() {
+func TestOperator_AddSearchAttributesInternal(t *testing.T) {
 	ctx := context.Background()
 	testCases := []struct {
 		name                   string
@@ -437,7 +414,8 @@ func (s *operatorHandlerSuite) Test_AddSearchAttributesInternal() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
+			s := setupOperatorHandlerTest(t)
 			saTypeMap := searchattribute.TestNameTypeMap()
 			if tc.storeName == elasticsearch.PersistenceName {
 				saTypeMap = searchattribute.TestEsNameTypeMap()
@@ -490,15 +468,15 @@ func (s *operatorHandlerSuite) Test_AddSearchAttributesInternal() {
 
 			err := s.handler.addSearchAttributesInternal(ctx, tc.request, s.mockResource.VisibilityManager)
 			if tc.expectedErrMsg == "" {
-				s.NoError(err)
+				require.NoError(t, err)
 			} else {
-				s.ErrorContains(err, tc.expectedErrMsg)
+				require.ErrorContains(t, err, tc.expectedErrMsg)
 			}
 		})
 	}
 }
 
-func (s *operatorHandlerSuite) Test_AddSearchAttributesElasticsearch() {
+func TestOperator_AddSearchAttributesElasticsearch(t *testing.T) {
 	ctx := context.Background()
 	testCases := []struct {
 		name                  string
@@ -583,7 +561,8 @@ func (s *operatorHandlerSuite) Test_AddSearchAttributesElasticsearch() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
+			s := setupOperatorHandlerTest(t)
 			saTypeMap := searchattribute.TestEsNameTypeMap()
 			s.mockResource.VisibilityManager.EXPECT().GetIndexName().Return(testIndexName)
 			s.mockResource.SearchAttributesManager.EXPECT().
@@ -611,15 +590,15 @@ func (s *operatorHandlerSuite) Test_AddSearchAttributesElasticsearch() {
 				s.mockResource.VisibilityManager,
 			)
 			if tc.expectedErrMsg == "" {
-				s.NoError(err)
+				require.NoError(t, err)
 			} else {
-				s.ErrorContains(err, tc.expectedErrMsg)
+				require.ErrorContains(t, err, tc.expectedErrMsg)
 			}
 		})
 	}
 }
 
-func (s *operatorHandlerSuite) Test_AddSearchAttributesSQL() {
+func TestOperator_AddSearchAttributesSQL(t *testing.T) {
 	ctx := context.Background()
 	testCases := []struct {
 		name                        string
@@ -756,7 +735,8 @@ func (s *operatorHandlerSuite) Test_AddSearchAttributesSQL() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
+			s := setupOperatorHandlerTest(t)
 			saTypeMap := searchattribute.TestNameTypeMap()
 			s.mockResource.VisibilityManager.EXPECT().GetIndexName().Return(testIndexName)
 			s.mockResource.SearchAttributesManager.EXPECT().
@@ -789,10 +769,10 @@ func (s *operatorHandlerSuite) Test_AddSearchAttributesSQL() {
 						r *workflowservice.UpdateNamespaceRequest,
 						opts ...any,
 					) (*workflowservice.UpdateNamespaceResponse, error) {
-						s.Len(r.Config.CustomSearchAttributeAliases, len(tc.customSearchAttributesToAdd))
+						require.Len(t, r.Config.CustomSearchAttributeAliases, len(tc.customSearchAttributesToAdd))
 						aliases := expmaps.Values(r.Config.CustomSearchAttributeAliases)
 						for _, saName := range tc.customSearchAttributesToAdd {
-							s.Contains(aliases, saName)
+							require.Contains(t, aliases, saName)
 						}
 						return &workflowservice.UpdateNamespaceResponse{}, tc.updateNamespaceErr
 					})
@@ -804,15 +784,16 @@ func (s *operatorHandlerSuite) Test_AddSearchAttributesSQL() {
 				s.mockResource.VisibilityManager,
 			)
 			if tc.expectedErrMsg == "" {
-				s.NoError(err)
+				require.NoError(t, err)
 			} else {
-				s.ErrorContains(err, tc.expectedErrMsg)
+				require.ErrorContains(t, err, tc.expectedErrMsg)
 			}
 		})
 	}
 }
 
-func (s *operatorHandlerSuite) Test_ListSearchAttributes_Elasticsearch() {
+func TestOperator_ListSearchAttributes_Elasticsearch(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	handler := s.handler
 	ctx := context.Background()
 
@@ -821,16 +802,17 @@ func (s *operatorHandlerSuite) Test_ListSearchAttributes_Elasticsearch() {
 	s.mockResource.VisibilityManager.EXPECT().GetIndexName().Return(testIndexName).AnyTimes()
 	s.mockResource.SearchAttributesManager.EXPECT().GetSearchAttributes(testIndexName, true).Return(searchattribute.TestEsNameTypeMap(), nil)
 	resp, err := handler.ListSearchAttributes(ctx, &operatorservice.ListSearchAttributesRequest{})
-	s.NoError(err)
-	s.NotNil(resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 
 	s.mockResource.SearchAttributesManager.EXPECT().GetSearchAttributes(testIndexName, true).Return(searchattribute.NameTypeMap{}, errors.New("random error"))
 	resp, err = handler.ListSearchAttributes(ctx, &operatorservice.ListSearchAttributesRequest{})
-	s.Error(err)
-	s.Nil(resp)
+	require.Error(t, err)
+	require.Nil(t, resp)
 }
 
-func (s *operatorHandlerSuite) Test_ListSearchAttributes_SQL() {
+func TestOperator_ListSearchAttributes_SQL(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	handler := s.handler
 	ctx := context.Background()
 
@@ -857,18 +839,18 @@ func (s *operatorHandlerSuite) Test_ListSearchAttributes_SQL() {
 		ctx,
 		&operatorservice.ListSearchAttributesRequest{Namespace: testNamespace},
 	)
-	s.NoError(err)
-	s.NotNil(resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 
 	s.mockResource.SearchAttributesManager.EXPECT().
 		GetSearchAttributes(testIndexName, true).
 		Return(searchattribute.NameTypeMap{}, errors.New("random error"))
 	resp, err = handler.ListSearchAttributes(ctx, &operatorservice.ListSearchAttributesRequest{})
-	s.Error(err)
-	s.Nil(resp)
+	require.Error(t, err)
+	require.Nil(t, resp)
 }
 
-func (s *operatorHandlerSuite) Test_RemoveSearchAttributes_Elasticsearch() {
+func TestOperator_RemoveSearchAttributes_Elasticsearch(t *testing.T) {
 	ctx := context.Background()
 
 	type test struct {
@@ -907,7 +889,8 @@ func (s *operatorHandlerSuite) Test_RemoveSearchAttributes_Elasticsearch() {
 	}
 
 	for _, testCase := range testCases {
-		s.Run(testCase.Name, func() {
+		t.Run(testCase.Name, func(t *testing.T) {
+			s := setupOperatorHandlerTest(t)
 			saTypeMap := searchattribute.TestEsNameTypeMap()
 			s.mockResource.VisibilityManager.EXPECT().GetStoreNames().Return([]string{elasticsearch.PersistenceName})
 			s.mockResource.VisibilityManager.EXPECT().GetIndexName().Return(testIndexName)
@@ -926,17 +909,17 @@ func (s *operatorHandlerSuite) Test_RemoveSearchAttributes_Elasticsearch() {
 			}
 
 			resp, err := s.handler.RemoveSearchAttributes(ctx, testCase.Request)
-			s.Equal(testCase.Expected, err)
+			require.Equal(t, testCase.Expected, err)
 			if testCase.Expected != nil {
-				s.Nil(resp)
+				require.Nil(t, resp)
 			} else {
-				s.NotNil(resp)
+				require.NotNil(t, resp)
 			}
 		})
 	}
 }
 
-func (s *operatorHandlerSuite) Test_RemoveSearchAttributes_SQL() {
+func TestOperator_RemoveSearchAttributes_SQL(t *testing.T) {
 	ctx := context.Background()
 
 	type test struct {
@@ -978,7 +961,8 @@ func (s *operatorHandlerSuite) Test_RemoveSearchAttributes_SQL() {
 	}
 
 	for _, testCase := range testCases {
-		s.Run(testCase.Name, func() {
+		t.Run(testCase.Name, func(t *testing.T) {
+			s := setupOperatorHandlerTest(t)
 			s.mockResource.VisibilityManager.EXPECT().GetStoreNames().Return([]string{mysql.PluginName})
 			s.mockResource.VisibilityManager.EXPECT().GetIndexName().Return(testIndexName)
 			s.mockResource.SearchAttributesManager.EXPECT().
@@ -1018,24 +1002,25 @@ func (s *operatorHandlerSuite) Test_RemoveSearchAttributes_SQL() {
 			}
 
 			resp, err := s.handler.RemoveSearchAttributes(ctx, testCase.Request)
-			s.Equal(testCase.Expected, err)
+			require.Equal(t, testCase.Expected, err)
 			if testCase.Expected != nil {
-				s.Nil(resp)
+				require.Nil(t, resp)
 			} else {
-				s.NotNil(resp)
+				require.NotNil(t, resp)
 			}
 		})
 	}
 }
 
-func (s *operatorHandlerSuite) Test_DeleteNamespace() {
+func TestOperator_DeleteNamespace(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	handler := s.handler
 	ctx := context.Background()
 
 	// Nil request.
 	resp, err := handler.DeleteNamespace(ctx, nil)
-	s.Equal(&serviceerror.InvalidArgument{Message: "Request is nil."}, err)
-	s.Nil(resp)
+	require.Equal(t, &serviceerror.InvalidArgument{Message: "Request is nil."}, err)
+	require.Nil(t, resp)
 
 	mockSdkClient := mocksdk.NewMockClient(s.controller)
 	s.mockResource.SDKClientFactory.EXPECT().GetSystemClient().Return(mockSdkClient).AnyTimes()
@@ -1053,9 +1038,9 @@ func (s *operatorHandlerSuite) Test_DeleteNamespace() {
 	resp, err = handler.DeleteNamespace(ctx, &operatorservice.DeleteNamespaceRequest{
 		Namespace: "test-namespace",
 	})
-	s.Error(err)
-	s.Equal("Unable to start temporal-sys-delete-namespace-workflow workflow: start failed.", err.Error())
-	s.Nil(resp)
+	require.Error(t, err)
+	require.Equal(t, "Unable to start temporal-sys-delete-namespace-workflow workflow: start failed.", err.Error())
+	require.Nil(t, resp)
 
 	// Workflow failed.
 	mockRun := mocksdk.NewMockWorkflowRun(s.controller)
@@ -1067,12 +1052,12 @@ func (s *operatorHandlerSuite) Test_DeleteNamespace() {
 	resp, err = handler.DeleteNamespace(ctx, &operatorservice.DeleteNamespaceRequest{
 		Namespace: "test-namespace",
 	})
-	s.Error(err)
+	require.Error(t, err)
 	var sysWfErr *serviceerror.SystemWorkflow
-	s.ErrorAs(err, &sysWfErr)
-	s.Equal(RunId, sysWfErr.WorkflowExecution.RunId)
-	s.Equal(fmt.Sprintf("System Workflow with WorkflowId test-workflow-id and RunId %s returned an error: workflow failed", RunId), err.Error())
-	s.Nil(resp)
+	require.ErrorAs(t, err, &sysWfErr)
+	require.Equal(t, RunId, sysWfErr.WorkflowExecution.RunId)
+	require.Equal(t, fmt.Sprintf("System Workflow with WorkflowId test-workflow-id and RunId %s returned an error: workflow failed", RunId), err.Error())
+	require.Nil(t, resp)
 
 	// Workflow failed because of validation error (an attempt to delete system namespace).
 	mockRun2 := mocksdk.NewMockWorkflowRun(s.controller)
@@ -1083,11 +1068,11 @@ func (s *operatorHandlerSuite) Test_DeleteNamespace() {
 	resp, err = handler.DeleteNamespace(ctx, &operatorservice.DeleteNamespaceRequest{
 		Namespace: "temporal-system",
 	})
-	s.Error(err)
+	require.Error(t, err)
 	var failedPreconditionErr *serviceerror.FailedPrecondition
-	s.ErrorAs(err, &failedPreconditionErr)
-	s.Equal("unable to delete system namespace", failedPreconditionErr.Error())
-	s.Nil(resp)
+	require.ErrorAs(t, err, &failedPreconditionErr)
+	require.Equal(t, "unable to delete system namespace", failedPreconditionErr.Error())
+	require.Nil(t, resp)
 
 	// Workflow failed because of validation error (an attempt to delete system namespace).
 	mockRun3 := mocksdk.NewMockWorkflowRun(s.controller)
@@ -1099,11 +1084,11 @@ func (s *operatorHandlerSuite) Test_DeleteNamespace() {
 		Namespace:   "temporal-system",
 		NamespaceId: "c13c01a7-3887-4eda-ba4b-9a07a6359e7e",
 	})
-	s.Error(err)
+	require.Error(t, err)
 	var invalidArgErr *serviceerror.InvalidArgument
-	s.ErrorAs(err, &invalidArgErr)
-	s.Equal("only one of namespace or namespace ID must be set", invalidArgErr.Error())
-	s.Nil(resp)
+	require.ErrorAs(t, err, &invalidArgErr)
+	require.Equal(t, "only one of namespace or namespace ID must be set", invalidArgErr.Error())
+	require.Nil(t, resp)
 
 	// Success case.
 	mockRun.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, valuePtr interface{}) error {
@@ -1117,9 +1102,9 @@ func (s *operatorHandlerSuite) Test_DeleteNamespace() {
 	resp, err = handler.DeleteNamespace(ctx, &operatorservice.DeleteNamespaceRequest{
 		Namespace: "test-namespace",
 	})
-	s.NoError(err)
-	s.NotNil(resp)
-	s.Equal("test-namespace-deleted-ka2te", resp.DeletedNamespace)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, "test-namespace-deleted-ka2te", resp.DeletedNamespace)
 
 	// Success case with id.
 	mockRun.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, valuePtr interface{}) error {
@@ -1133,12 +1118,13 @@ func (s *operatorHandlerSuite) Test_DeleteNamespace() {
 	resp, err = handler.DeleteNamespace(ctx, &operatorservice.DeleteNamespaceRequest{
 		NamespaceId: "c13c01a7-3887-4eda-ba4b-9a07a6359e7e",
 	})
-	s.NoError(err)
-	s.NotNil(resp)
-	s.Equal("test-namespace-deleted-ka2te", resp.DeletedNamespace)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, "test-namespace-deleted-ka2te", resp.DeletedNamespace)
 }
 
-func (s *operatorHandlerSuite) Test_RemoveRemoteCluster_Success() {
+func TestOperator_RemoveRemoteCluster_Success(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var clusterName = "cluster"
 	s.mockResource.ClusterMetadata.EXPECT().GetAllClusterInfo().Return(map[string]cluster.ClusterInformation{clusterName: {}})
 	s.mockResource.ClusterMetadataMgr.EXPECT().DeleteClusterMetadata(
@@ -1147,10 +1133,11 @@ func (s *operatorHandlerSuite) Test_RemoveRemoteCluster_Success() {
 	).Return(nil)
 
 	_, err := s.handler.RemoveRemoteCluster(context.Background(), &operatorservice.RemoveRemoteClusterRequest{ClusterName: clusterName})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *operatorHandlerSuite) Test_RemoveRemoteCluster_Error() {
+func TestOperator_RemoveRemoteCluster_Error(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var clusterName = "cluster"
 	s.mockResource.ClusterMetadata.EXPECT().GetAllClusterInfo().Return(map[string]cluster.ClusterInformation{clusterName: {}})
 	s.mockResource.ClusterMetadataMgr.EXPECT().DeleteClusterMetadata(
@@ -1159,10 +1146,11 @@ func (s *operatorHandlerSuite) Test_RemoveRemoteCluster_Error() {
 	).Return(fmt.Errorf("test error"))
 
 	_, err := s.handler.RemoveRemoteCluster(context.Background(), &operatorservice.RemoveRemoteClusterRequest{ClusterName: clusterName})
-	s.Error(err)
+	require.Error(t, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_RecordFound_Success() {
+func TestOperator_AddOrUpdateRemoteCluster_RecordFound_Success(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var httpAddress = uuid.New()
 	var clusterName = uuid.New()
@@ -1204,10 +1192,11 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_RecordFound_Success
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{
 		FrontendAddress: rpcAddress,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_RecordNotFound_Success() {
+func TestOperator_AddOrUpdateRemoteCluster_RecordNotFound_Success(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var httpAddress = uuid.New()
 	var clusterName = uuid.New()
@@ -1248,10 +1237,11 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_RecordNotFound_Succ
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{
 		FrontendAddress: rpcAddress,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_ClusterNameConflict() {
+func TestOperator_AddOrUpdateRemoteCluster_ValidationError_ClusterNameConflict(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterId = uuid.New()
 
@@ -1268,11 +1258,12 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_Clu
 			IsGlobalNamespaceEnabled: true,
 		}, nil)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_FailoverVersionIncrementMismatch() {
+func TestOperator_AddOrUpdateRemoteCluster_ValidationError_FailoverVersionIncrementMismatch(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
@@ -1291,11 +1282,12 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_Fai
 			IsGlobalNamespaceEnabled: true,
 		}, nil)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_ShardCount_Invalid() {
+func TestOperator_AddOrUpdateRemoteCluster_ValidationError_ShardCount_Invalid(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
@@ -1314,11 +1306,12 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_Sha
 			IsGlobalNamespaceEnabled: true,
 		}, nil)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ShardCount_Multiple() {
+func TestOperator_AddOrUpdateRemoteCluster_ShardCount_Multiple(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var httpAddress = uuid.New()
 	var clusterName = uuid.New()
@@ -1360,10 +1353,11 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ShardCount_Multiple
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{
 		FrontendAddress: rpcAddress,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_GlobalNamespaceDisabled() {
+func TestOperator_AddOrUpdateRemoteCluster_ValidationError_GlobalNamespaceDisabled(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
@@ -1382,11 +1376,12 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_Glo
 			IsGlobalNamespaceEnabled: false,
 		}, nil)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_InitialFailoverVersionConflict() {
+func TestOperator_AddOrUpdateRemoteCluster_ValidationError_InitialFailoverVersionConflict(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
@@ -1408,11 +1403,12 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_ValidationError_Ini
 			IsGlobalNamespaceEnabled: true,
 		}, nil)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_DescribeCluster_Error() {
+func TestOperator_AddOrUpdateRemoteCluster_DescribeCluster_Error(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 
 	s.mockResource.ClientFactory.EXPECT().NewRemoteAdminClientWithTimeout(rpcAddress, gomock.Any(), gomock.Any()).Return(
@@ -1423,10 +1419,11 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_DescribeCluster_Err
 		fmt.Errorf("test error"),
 	)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
+	require.Error(t, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_GetClusterMetadata_Error() {
+func TestOperator_AddOrUpdateRemoteCluster_GetClusterMetadata_Error(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var clusterName = uuid.New()
 	var clusterId = uuid.New()
@@ -1450,10 +1447,11 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_GetClusterMetadata_
 		fmt.Errorf("test error"),
 	)
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{FrontendAddress: rpcAddress})
-	s.Error(err)
+	require.Error(t, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_SaveClusterMetadata_Error() {
+func TestOperator_AddOrUpdateRemoteCluster_SaveClusterMetadata_Error(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var httpAddress = uuid.New()
 	var clusterName = uuid.New()
@@ -1494,10 +1492,11 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_SaveClusterMetadata
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{
 		FrontendAddress: rpcAddress,
 	})
-	s.Error(err)
+	require.Error(t, err)
 }
 
-func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_SaveClusterMetadata_NotApplied_Error() {
+func TestOperator_AddOrUpdateRemoteCluster_SaveClusterMetadata_NotApplied_Error(t *testing.T) {
+	s := setupOperatorHandlerTest(t)
 	var rpcAddress = uuid.New()
 	var httpAddress = uuid.New()
 	var clusterName = uuid.New()
@@ -1538,6 +1537,6 @@ func (s *operatorHandlerSuite) Test_AddOrUpdateRemoteCluster_SaveClusterMetadata
 	_, err := s.handler.AddOrUpdateRemoteCluster(context.Background(), &operatorservice.AddOrUpdateRemoteClusterRequest{
 		FrontendAddress: rpcAddress,
 	})
-	s.Error(err)
-	s.IsType(&serviceerror.InvalidArgument{}, err)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.InvalidArgument{}, err)
 }

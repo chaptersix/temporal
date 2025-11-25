@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/server/chasm"
@@ -35,10 +34,7 @@ import (
 )
 
 type (
-	executableSuite struct {
-		suite.Suite
-		*require.Assertions
-
+	executableTestDeps struct {
 		controller            *gomock.Controller
 		mockExecutor          *queues.MockExecutor
 		mockScheduler         *queues.MockScheduler
@@ -47,10 +43,9 @@ type (
 		mockClusterMetadata   *cluster.MockMetadata
 		chasmRegistry         *chasm.Registry
 		metricsHandler        *metricstest.CaptureHandler
-
-		timeSource *clock.EventTimeSource
+		timeSource            *clock.EventTimeSource
 	}
-	params struct {
+	executableParams struct {
 		dlqWriter                  *queues.DLQWriter
 		dlqEnabled                 dynamicconfig.BoolPropertyFn
 		priorityAssigner           queues.PriorityAssigner
@@ -58,61 +53,122 @@ type (
 		dlqInternalErrors          dynamicconfig.BoolPropertyFn
 		dlqErrorPattern            dynamicconfig.StringPropertyFn
 	}
-	option func(*params)
+	executableOption func(*executableParams)
 )
 
-func TestExecutableSuite(t *testing.T) {
-	s := new(executableSuite)
-	suite.Run(t, s)
-}
+func setupExecutableTest(t *testing.T) *executableTestDeps {
+	controller := gomock.NewController(t)
+	mockExecutor := queues.NewMockExecutor(controller)
+	mockScheduler := queues.NewMockScheduler(controller)
+	mockRescheduler := queues.NewMockRescheduler(controller)
+	mockNamespaceRegistry := namespace.NewMockRegistry(controller)
+	mockClusterMetadata := cluster.NewMockMetadata(controller)
+	metricsHandler := metricstest.NewCaptureHandler()
 
-func (s *executableSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.mockExecutor = queues.NewMockExecutor(s.controller)
-	s.mockScheduler = queues.NewMockScheduler(s.controller)
-	s.mockRescheduler = queues.NewMockRescheduler(s.controller)
-	s.mockNamespaceRegistry = namespace.NewMockRegistry(s.controller)
-	s.mockClusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.metricsHandler = metricstest.NewCaptureHandler()
-
-	s.mockNamespaceRegistry.EXPECT().GetNamespaceName(gomock.Any()).Return(tests.Namespace, nil).AnyTimes()
-	s.mockNamespaceRegistry.EXPECT().GetNamespaceByID(gomock.Any()).Return(tests.GlobalNamespaceEntry, nil).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetAllClusterInfo().Return(map[string]cluster.ClusterInformation{
+	mockNamespaceRegistry.EXPECT().GetNamespaceName(gomock.Any()).Return(tests.Namespace, nil).AnyTimes()
+	mockNamespaceRegistry.EXPECT().GetNamespaceByID(gomock.Any()).Return(tests.GlobalNamespaceEntry, nil).AnyTimes()
+	mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockClusterMetadata.EXPECT().GetAllClusterInfo().Return(map[string]cluster.ClusterInformation{
 		cluster.TestCurrentClusterName: {
 			ShardCount: 1,
 		},
 	}).AnyTimes()
 
-	s.timeSource = clock.NewEventTimeSource()
-	s.chasmRegistry = chasm.NewRegistry(log.NewTestLogger())
+	timeSource := clock.NewEventTimeSource()
+	chasmRegistry := chasm.NewRegistry(log.NewTestLogger())
+
+	return &executableTestDeps{
+		controller:            controller,
+		mockExecutor:          mockExecutor,
+		mockScheduler:         mockScheduler,
+		mockRescheduler:       mockRescheduler,
+		mockNamespaceRegistry: mockNamespaceRegistry,
+		mockClusterMetadata:   mockClusterMetadata,
+		chasmRegistry:         chasmRegistry,
+		metricsHandler:        metricsHandler,
+		timeSource:            timeSource,
+	}
 }
 
-func (s *executableSuite) TearDownSuite() {
-	s.controller.Finish()
+func (d *executableTestDeps) newTestExecutable(opts ...executableOption) queues.Executable {
+	p := executableParams{
+		dlqWriter: nil,
+		dlqEnabled: func() bool {
+			return false
+		},
+		dlqInternalErrors: func() bool {
+			return false
+		},
+		priorityAssigner: queues.NewNoopPriorityAssigner(),
+		maxUnexpectedErrorAttempts: func() int {
+			return math.MaxInt
+		},
+		dlqErrorPattern: func() string {
+			return ""
+		},
+	}
+	for _, opt := range opts {
+		opt(&p)
+	}
+	return queues.NewExecutable(
+		queues.DefaultReaderId,
+		tasks.NewFakeTask(
+			definition.NewWorkflowKey(
+				tests.NamespaceID.String(),
+				tests.WorkflowID,
+				tests.RunID,
+			),
+			tasks.CategoryTransfer,
+			d.timeSource.Now(),
+		),
+		d.mockExecutor,
+		d.mockScheduler,
+		d.mockRescheduler,
+		p.priorityAssigner,
+		d.timeSource,
+		d.mockNamespaceRegistry,
+		d.mockClusterMetadata,
+		d.chasmRegistry,
+		queues.GetTaskTypeTagValue,
+		log.NewTestLogger(),
+		d.metricsHandler,
+		telemetry.NoopTracer,
+		func(params *queues.ExecutableParams) {
+			params.DLQEnabled = p.dlqEnabled
+			params.DLQWriter = p.dlqWriter
+			params.MaxUnexpectedErrorAttempts = p.maxUnexpectedErrorAttempts
+			params.DLQInternalErrors = p.dlqInternalErrors
+			params.DLQErrorPattern = p.dlqErrorPattern
+		},
+	)
 }
 
-func (s *executableSuite) TestExecute_TaskExecuted() {
-	executable := s.newTestExecutable()
+func accessInternalState(executable queues.Executable) {
+	_ = fmt.Sprintf("%v", executable)
+}
 
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+func TestExecute_TaskExecuted(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
+
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    true,
 		ExecutionErr:        errors.New("some random error"),
 	})
-	s.Error(executable.Execute())
+	require.Error(t, executable.Execute())
 
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    true,
 		ExecutionErr:        nil,
 	})
-	s.NoError(executable.Execute())
+	require.NoError(t, executable.Execute())
 }
 
-func (s *executableSuite) TestExecute_InMemoryNoUserLatency_SingleAttempt() {
+func TestExecute_InMemoryNoUserLatency_SingleAttempt(t *testing.T) {
+	t.Parallel()
 	scheduleLatency := 100 * time.Millisecond
 	userLatency := 500 * time.Millisecond
 	attemptLatency := time.Second
@@ -188,18 +244,18 @@ func (s *executableSuite) TestExecute_InMemoryNoUserLatency_SingleAttempt() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
-
-			executable := s.newTestExecutable()
+		t.Run(tc.name, func(t *testing.T) {
+			deps := setupExecutableTest(t)
+			executable := deps.newTestExecutable()
 
 			now := time.Now()
-			s.timeSource.Update(now)
+			deps.timeSource.Update(now)
 			executable.SetScheduledTime(now)
 
 			now = now.Add(scheduleLatency)
-			s.timeSource.Update(now)
+			deps.timeSource.Update(now)
 
-			s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Do(func(ctx context.Context, taskInfo interface{}) {
+			deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Do(func(ctx context.Context, taskInfo interface{}) {
 				metrics.ContextCounterAdd(
 					ctx,
 					metrics.HistoryWorkflowExecutionCacheLatency.Name(),
@@ -207,7 +263,7 @@ func (s *executableSuite) TestExecute_InMemoryNoUserLatency_SingleAttempt() {
 				)
 
 				now = now.Add(attemptLatency)
-				s.timeSource.Update(now)
+				deps.timeSource.Update(now)
 			}).Return(queues.ExecuteResponse{
 				ExecutionMetricTags: nil,
 				ExecutedAsActive:    true,
@@ -220,38 +276,41 @@ func (s *executableSuite) TestExecute_InMemoryNoUserLatency_SingleAttempt() {
 			}
 
 			if tc.expectError {
-				s.Error(err)
-				s.mockScheduler.EXPECT().TrySubmit(executable).Return(false)
-				s.mockRescheduler.EXPECT().Add(executable, gomock.Any())
+				require.Error(t, err)
+				deps.mockScheduler.EXPECT().TrySubmit(executable).Return(false)
+				deps.mockRescheduler.EXPECT().Add(executable, gomock.Any())
 				executable.Nack(err)
 				return
 			}
 
-			s.NoError(err)
-			capture := s.metricsHandler.StartCapture()
+			require.NoError(t, err)
+			capture := deps.metricsHandler.StartCapture()
 			executable.Ack()
 			snapshot := capture.Snapshot()
 			recordings := snapshot[metrics.TaskLatency.Name()]
 			if tc.expectedAttemptNoUserLatency == 0 {
 				// invalid task, no noUserLatency will be recorded.
-				s.Empty(recordings)
+				require.Empty(t, recordings)
 				return
 			}
 
-			s.Len(recordings, 1)
+			require.Len(t, recordings, 1)
 			actualAttemptNoUserLatency, ok := recordings[0].Value.(time.Duration)
-			s.True(ok)
+			require.True(t, ok)
 			if tc.expectBackoff {
 				// the backoff duration is random, so we can't compare the exact value
-				s.Less(tc.expectedAttemptNoUserLatency, actualAttemptNoUserLatency)
+				require.Less(t, tc.expectedAttemptNoUserLatency, actualAttemptNoUserLatency)
 			} else {
-				s.Equal(tc.expectedAttemptNoUserLatency, actualAttemptNoUserLatency)
+				require.Equal(t, tc.expectedAttemptNoUserLatency, actualAttemptNoUserLatency)
 			}
 		})
 	}
 }
 
-func (s *executableSuite) TestExecute_InMemoryNoUserLatency_MultipleAttempts() {
+func TestExecute_InMemoryNoUserLatency_MultipleAttempts(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+
 	numAttempts := 3
 	scheduleLatencies := []time.Duration{100 * time.Millisecond, 150 * time.Millisecond, 200 * time.Millisecond}
 	userLatencies := []time.Duration{10 * time.Millisecond, 20 * time.Millisecond, 30 * time.Millisecond}
@@ -265,17 +324,17 @@ func (s *executableSuite) TestExecute_InMemoryNoUserLatency_MultipleAttempts() {
 		scheduleLatencies[2] + attemptLatencies[2] - userLatencies[2]
 	_ = expectedInMemoryNoUserLatency
 
-	executable := s.newTestExecutable()
+	executable := deps.newTestExecutable()
 
 	now := time.Now()
-	s.timeSource.Update(now)
+	deps.timeSource.Update(now)
 	executable.SetScheduledTime(now)
 
 	for i := 0; i != numAttempts; i++ {
 		now = now.Add(scheduleLatencies[i])
-		s.timeSource.Update(now)
+		deps.timeSource.Update(now)
 
-		s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Do(func(ctx context.Context, taskInfo interface{}) {
+		deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Do(func(ctx context.Context, taskInfo interface{}) {
 			metrics.ContextCounterAdd(
 				ctx,
 				metrics.HistoryWorkflowExecutionCacheLatency.Name(),
@@ -283,7 +342,7 @@ func (s *executableSuite) TestExecute_InMemoryNoUserLatency_MultipleAttempts() {
 			)
 
 			now = now.Add(attemptLatencies[i])
-			s.timeSource.Update(now)
+			deps.timeSource.Update(now)
 		}).Return(queues.ExecuteResponse{
 			ExecutionMetricTags: nil,
 			ExecutedAsActive:    true,
@@ -296,40 +355,44 @@ func (s *executableSuite) TestExecute_InMemoryNoUserLatency_MultipleAttempts() {
 		}
 
 		if taskErrors[i] != nil {
-			s.Error(err)
-			s.mockScheduler.EXPECT().TrySubmit(executable).Return(true)
+			require.Error(t, err)
+			deps.mockScheduler.EXPECT().TrySubmit(executable).Return(true)
 			executable.Nack(err)
 		} else {
-			s.NoError(err)
-			capture := s.metricsHandler.StartCapture()
+			require.NoError(t, err)
+			capture := deps.metricsHandler.StartCapture()
 			executable.Ack()
 			snapshot := capture.Snapshot()
 			recordings := snapshot[metrics.TaskLatency.Name()]
-			s.Len(recordings, 1)
+			require.Len(t, recordings, 1)
 			actualInMemoryNoUserLatency, ok := recordings[0].Value.(time.Duration)
-			s.True(ok)
-			s.Equal(expectedInMemoryNoUserLatency, actualInMemoryNoUserLatency)
+			require.True(t, ok)
+			require.Equal(t, expectedInMemoryNoUserLatency, actualInMemoryNoUserLatency)
 		}
 	}
 }
 
-func (s *executableSuite) TestExecute_CapturePanic() {
-	executable := s.newTestExecutable()
+func TestExecute_CapturePanic(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
 		func(_ context.Context, _ queues.Executable) queues.ExecuteResponse {
 			panic("test panic during execution")
 		},
 	)
-	s.Error(executable.Execute())
+	require.Error(t, executable.Execute())
 }
 
-func (s *executableSuite) TestExecute_CallerInfo() {
-	executable := s.newTestExecutable()
+func TestExecute_CallerInfo(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
 		func(ctx context.Context, _ queues.Executable) queues.ExecuteResponse {
-			s.Equal(headers.CallerTypeBackgroundHigh, headers.GetCallerInfo(ctx).CallerType)
+			require.Equal(t, headers.CallerTypeBackgroundHigh, headers.GetCallerInfo(ctx).CallerType)
 			return queues.ExecuteResponse{
 				ExecutionMetricTags: nil,
 				ExecutedAsActive:    true,
@@ -337,14 +400,14 @@ func (s *executableSuite) TestExecute_CallerInfo() {
 			}
 		},
 	)
-	s.NoError(executable.Execute())
+	require.NoError(t, executable.Execute())
 
-	executable = s.newTestExecutable(func(p *params) {
+	executable = deps.newTestExecutable(func(p *executableParams) {
 		p.priorityAssigner = queues.NewStaticPriorityAssigner(ctasks.PriorityLow)
 	})
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
 		func(ctx context.Context, _ queues.Executable) queues.ExecuteResponse {
-			s.Equal(headers.CallerTypeBackgroundLow, headers.GetCallerInfo(ctx).CallerType)
+			require.Equal(t, headers.CallerTypeBackgroundLow, headers.GetCallerInfo(ctx).CallerType)
 			return queues.ExecuteResponse{
 				ExecutionMetricTags: nil,
 				ExecutedAsActive:    true,
@@ -352,14 +415,14 @@ func (s *executableSuite) TestExecute_CallerInfo() {
 			}
 		},
 	)
-	s.NoError(executable.Execute())
+	require.NoError(t, executable.Execute())
 
-	executable = s.newTestExecutable(func(p *params) {
+	executable = deps.newTestExecutable(func(p *executableParams) {
 		p.priorityAssigner = queues.NewStaticPriorityAssigner(ctasks.PriorityPreemptable)
 	})
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
 		func(ctx context.Context, _ queues.Executable) queues.ExecuteResponse {
-			s.Equal(headers.CallerTypePreemptable, headers.GetCallerInfo(ctx).CallerType)
+			require.Equal(t, headers.CallerTypePreemptable, headers.GetCallerInfo(ctx).CallerType)
 			return queues.ExecuteResponse{
 				ExecutionMetricTags: nil,
 				ExecutedAsActive:    true,
@@ -367,55 +430,61 @@ func (s *executableSuite) TestExecute_CallerInfo() {
 			}
 		},
 	)
-	s.NoError(executable.Execute())
+	require.NoError(t, executable.Execute())
 }
 
-func (s *executableSuite) TestExecuteHandleErr_ResetAttempt() {
-	executable := s.newTestExecutable()
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+func TestExecuteHandleErr_ResetAttempt(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    true,
 		ExecutionErr:        errors.New("some random error"),
 	})
 	err := executable.Execute()
-	s.Error(err)
-	s.Error(executable.HandleErr(err))
-	s.Equal(2, executable.Attempt())
+	require.Error(t, err)
+	require.Error(t, executable.HandleErr(err))
+	require.Equal(t, 2, executable.Attempt())
 
 	// isActive changed to false, should reset attempt
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        nil,
 	})
-	s.NoError(executable.Execute())
-	s.Equal(1, executable.Attempt())
+	require.NoError(t, executable.Execute())
+	require.Equal(t, 1, executable.Attempt())
 }
 
-func (s *executableSuite) TestExecuteHandleErr_Corrupted() {
+func TestExecuteHandleErr_Corrupted(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return false
 		}
 	})
 
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
 		func(_ context.Context, _ queues.Executable) queues.ExecuteResponse {
 			panic(serialization.NewUnknownEncodingTypeError("unknownEncoding", enumspb.ENCODING_TYPE_PROTO3))
 		},
 	).Times(2)
 	err := executable.Execute()
-	s.Error(err)
-	s.NoError(executable.HandleErr(err))
-	s.Error(executable.Execute())
+	require.Error(t, err)
+	require.NoError(t, executable.HandleErr(err))
+	require.Error(t, executable.Execute())
 }
 
-func (s *executableSuite) TestExecute_SendToDLQAfterMaxAttempts() {
+func TestExecute_SendToDLQAfterMaxAttempts(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return true
 		}
@@ -423,7 +492,7 @@ func (s *executableSuite) TestExecute_SendToDLQAfterMaxAttempts() {
 			return 2
 		}
 	})
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        errors.New("some random error"),
@@ -431,20 +500,22 @@ func (s *executableSuite) TestExecute_SendToDLQAfterMaxAttempts() {
 
 	// Attempt 1
 	err := executable.Execute()
-	s.Error(executable.HandleErr(err))
+	require.Error(t, executable.HandleErr(err))
 
 	// Attempt 2
 	err = executable.Execute()
 	err2 := executable.HandleErr(err)
-	s.ErrorIs(err2, queues.ErrTerminalTaskFailure)
-	s.NoError(executable.Execute())
-	s.Len(queueWriter.EnqueueTaskRequests, 1)
+	require.ErrorIs(t, err2, queues.ErrTerminalTaskFailure)
+	require.NoError(t, executable.Execute())
+	require.Len(t, queueWriter.EnqueueTaskRequests, 1)
 }
 
-func (s *executableSuite) TestExecute_DontSendToDLQAfterMaxAttemptsDLQDisabled() {
+func TestExecute_DontSendToDLQAfterMaxAttemptsDLQDisabled(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return false
 		}
@@ -453,7 +524,7 @@ func (s *executableSuite) TestExecute_DontSendToDLQAfterMaxAttemptsDLQDisabled()
 		}
 	})
 
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        errors.New("some random error"),
@@ -461,18 +532,20 @@ func (s *executableSuite) TestExecute_DontSendToDLQAfterMaxAttemptsDLQDisabled()
 
 	// Attempt 1
 	err := executable.Execute()
-	s.Error(executable.HandleErr(err))
+	require.Error(t, executable.HandleErr(err))
 
 	// Attempt 2
-	s.Error(executable.Execute())
-	s.Error(executable.HandleErr(err))
-	s.Empty(queueWriter.EnqueueTaskRequests)
+	require.Error(t, executable.Execute())
+	require.Error(t, executable.HandleErr(err))
+	require.Empty(t, queueWriter.EnqueueTaskRequests)
 }
 
-func (s *executableSuite) TestExecute_DontSendToDLQAfterMaxAttemptsExpectedError() {
+func TestExecute_DontSendToDLQAfterMaxAttemptsExpectedError(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return true
 		}
@@ -481,7 +554,7 @@ func (s *executableSuite) TestExecute_DontSendToDLQAfterMaxAttemptsExpectedError
 		}
 	})
 
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr: &serviceerror.ResourceExhausted{
@@ -493,19 +566,21 @@ func (s *executableSuite) TestExecute_DontSendToDLQAfterMaxAttemptsExpectedError
 
 	// Attempt 1
 	err := executable.Execute()
-	s.Error(executable.HandleErr(err))
+	require.Error(t, executable.HandleErr(err))
 
 	// Attempt 2
-	s.Error(executable.Execute())
-	s.Error(executable.HandleErr(err))
-	s.Empty(queueWriter.EnqueueTaskRequests)
+	require.Error(t, executable.Execute())
+	require.Error(t, executable.HandleErr(err))
+	require.Empty(t, queueWriter.EnqueueTaskRequests)
 }
 
-func (s *executableSuite) TestExecute_SendToDLQAfterMaxAttemptsThenDisableDropCorruption() {
+func TestExecute_SendToDLQAfterMaxAttemptsThenDisableDropCorruption(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
 	dlqEnabled := true
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return dlqEnabled
 		}
@@ -514,7 +589,7 @@ func (s *executableSuite) TestExecute_SendToDLQAfterMaxAttemptsThenDisableDropCo
 		}
 	})
 	execError := serialization.NewDeserializationError(enumspb.ENCODING_TYPE_PROTO3, errors.New("random error"))
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        execError,
@@ -523,19 +598,21 @@ func (s *executableSuite) TestExecute_SendToDLQAfterMaxAttemptsThenDisableDropCo
 	err := executable.Execute()
 	err2 := executable.HandleErr(err)
 
-	s.ErrorIs(err2, queues.ErrTerminalTaskFailure)
-	s.Contains(err2.Error(), execError.Error())
+	require.ErrorIs(t, err2, queues.ErrTerminalTaskFailure)
+	require.Contains(t, err2.Error(), execError.Error())
 
 	dlqEnabled = false
-	s.NoError(executable.Execute())
-	s.Empty(queueWriter.EnqueueTaskRequests)
+	require.NoError(t, executable.Execute())
+	require.Empty(t, queueWriter.EnqueueTaskRequests)
 }
 
-func (s *executableSuite) TestExecute_SendToDLQAfterMaxAttemptsThenDisable() {
+func TestExecute_SendToDLQAfterMaxAttemptsThenDisable(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
 	dlqEnabled := true
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return dlqEnabled
 		}
@@ -544,7 +621,7 @@ func (s *executableSuite) TestExecute_SendToDLQAfterMaxAttemptsThenDisable() {
 		}
 	})
 	execError := errors.New("some random error")
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        execError,
@@ -553,25 +630,27 @@ func (s *executableSuite) TestExecute_SendToDLQAfterMaxAttemptsThenDisable() {
 	err := executable.Execute()
 	err2 := executable.HandleErr(err)
 
-	s.ErrorIs(err2, queues.ErrTerminalTaskFailure)
+	require.ErrorIs(t, err2, queues.ErrTerminalTaskFailure)
 
 	dlqEnabled = false
 
 	// Make sure task is retried this time
 	execError2 := errors.New("some other random error")
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        execError2,
 	}).Times(1)
-	s.ErrorIs(executable.Execute(), execError2)
-	s.Empty(queueWriter.EnqueueTaskRequests)
+	require.ErrorIs(t, executable.Execute(), execError2)
+	require.Empty(t, queueWriter.EnqueueTaskRequests)
 }
 
-func (s *executableSuite) TestExecute_SendsInternalErrorsToDLQ_WhenEnabled() {
+func TestExecute_SendsInternalErrorsToDLQ_WhenEnabled(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return true
 		}
@@ -580,22 +659,24 @@ func (s *executableSuite) TestExecute_SendsInternalErrorsToDLQ_WhenEnabled() {
 		}
 	})
 
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        serviceerror.NewInternal("injected error"),
 	}).Times(1)
 
 	err := executable.HandleErr(executable.Execute())
-	s.ErrorIs(err, queues.ErrTerminalTaskFailure)
-	s.NoError(executable.Execute())
-	s.Len(queueWriter.EnqueueTaskRequests, 1)
+	require.ErrorIs(t, err, queues.ErrTerminalTaskFailure)
+	require.NoError(t, executable.Execute())
+	require.Len(t, queueWriter.EnqueueTaskRequests, 1)
 }
 
-func (s *executableSuite) TestExecute_DoesntSendInternalErrorsToDLQ_WhenDisabled() {
+func TestExecute_DoesntSendInternalErrorsToDLQ_WhenDisabled(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return true
 		}
@@ -604,7 +685,7 @@ func (s *executableSuite) TestExecute_DoesntSendInternalErrorsToDLQ_WhenDisabled
 		}
 	})
 
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        serviceerror.NewInternal("injected error"),
@@ -612,20 +693,22 @@ func (s *executableSuite) TestExecute_DoesntSendInternalErrorsToDLQ_WhenDisabled
 
 	// Attempt 1
 	err := executable.Execute()
-	s.Error(executable.HandleErr(err))
+	require.Error(t, executable.HandleErr(err))
 
 	// Attempt 2
 	err = executable.Execute()
-	s.Error(err)
-	s.Error(executable.HandleErr(err))
-	s.Empty(queueWriter.EnqueueTaskRequests)
+	require.Error(t, err)
+	require.Error(t, executable.HandleErr(err))
+	require.Empty(t, queueWriter.EnqueueTaskRequests)
 }
 
-func (s *executableSuite) TestExecute_SendInternalErrorsToDLQ_ThenDisable() {
+func TestExecute_SendInternalErrorsToDLQ_ThenDisable(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
 	dlqEnabled := true
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return dlqEnabled
 		}
@@ -635,203 +718,231 @@ func (s *executableSuite) TestExecute_SendInternalErrorsToDLQ_ThenDisable() {
 	})
 
 	injectedErr := serviceerror.NewInternal("injected error")
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        injectedErr,
 	}).Times(2)
 
-	s.ErrorIs(executable.HandleErr(executable.Execute()), queues.ErrTerminalTaskFailure)
+	require.ErrorIs(t, executable.HandleErr(executable.Execute()), queues.ErrTerminalTaskFailure)
 
 	// The task should be dropped but not sent to DLQ
 	dlqEnabled = false
-	s.ErrorIs(executable.Execute(), injectedErr)
-	s.Empty(queueWriter.EnqueueTaskRequests)
+	require.ErrorIs(t, executable.Execute(), injectedErr)
+	require.Empty(t, queueWriter.EnqueueTaskRequests)
 }
 
-func (s *executableSuite) TestExecute_DLQ() {
+func TestExecute_DLQ(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return true
 		}
 	})
 
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
 		func(_ context.Context, _ queues.Executable) queues.ExecuteResponse {
 			panic(serialization.NewUnknownEncodingTypeError("unknownEncoding", enumspb.ENCODING_TYPE_PROTO3))
 		},
 	)
 	err := executable.Execute()
-	s.Error(err)
-	s.Error(executable.HandleErr(err))
-	s.NoError(executable.Execute())
-	s.Len(queueWriter.EnqueueTaskRequests, 1)
+	require.Error(t, err)
+	require.Error(t, executable.HandleErr(err))
+	require.NoError(t, executable.Execute())
+	require.Len(t, queueWriter.EnqueueTaskRequests, 1)
 }
 
-func (s *executableSuite) TestExecute_DLQThenDisable() {
+func TestExecute_DLQThenDisable(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
 	dlqEnabled := true
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return dlqEnabled
 		}
 	})
 
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
 		func(_ context.Context, _ queues.Executable) queues.ExecuteResponse {
 			panic(serialization.NewUnknownEncodingTypeError("unknownEncoding", enumspb.ENCODING_TYPE_PROTO3))
 		},
 	)
 	err := executable.Execute()
-	s.Error(err)
-	s.Error(executable.HandleErr(err))
+	require.Error(t, err)
+	require.Error(t, executable.HandleErr(err))
 	dlqEnabled = false
-	s.NoError(executable.Execute())
-	s.Empty(queueWriter.EnqueueTaskRequests)
+	require.NoError(t, executable.Execute())
+	require.Empty(t, queueWriter.EnqueueTaskRequests)
 }
 
-func (s *executableSuite) TestExecute_DLQFailThenRetry() {
+func TestExecute_DLQFailThenRetry(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return true
 		}
 	})
 
-	capture := s.metricsHandler.StartCapture()
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
+	capture := deps.metricsHandler.StartCapture()
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).DoAndReturn(
 		func(_ context.Context, _ queues.Executable) queues.ExecuteResponse {
 			panic(serialization.NewUnknownEncodingTypeError("unknownEncoding", enumspb.ENCODING_TYPE_PROTO3))
 		},
 	)
 	err := executable.Execute()
-	s.Error(err)
-	s.Error(executable.HandleErr(err))
+	require.Error(t, err)
+	require.Error(t, executable.HandleErr(err))
 	queueWriter.EnqueueTaskErr = errors.New("some random error")
 	err = executable.Execute()
-	s.Error(err)
-	s.Error(executable.HandleErr(err))
+	require.Error(t, err)
+	require.Error(t, executable.HandleErr(err))
 	queueWriter.EnqueueTaskErr = nil
 	err = executable.Execute()
-	s.NoError(err)
+	require.NoError(t, err)
 	snapshot := capture.Snapshot()
-	s.Len(snapshot[metrics.TaskTerminalFailures.Name()], 1)
-	s.Len(snapshot[metrics.TaskDLQFailures.Name()], 1)
-	s.Len(snapshot[metrics.TaskDLQSendLatency.Name()], 2)
+	require.Len(t, snapshot[metrics.TaskTerminalFailures.Name()], 1)
+	require.Len(t, snapshot[metrics.TaskDLQFailures.Name()], 1)
+	require.Len(t, snapshot[metrics.TaskDLQSendLatency.Name()], 2)
 }
 
-func (s *executableSuite) TestHandleErr_EntityNotExists() {
-	executable := s.newTestExecutable()
+func TestHandleErr_EntityNotExists(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.NoError(executable.HandleErr(serviceerror.NewNotFound("")))
+	require.NoError(t, executable.HandleErr(serviceerror.NewNotFound("")))
 }
 
-func (s *executableSuite) TestHandleErr_ErrTaskRetry() {
-	executable := s.newTestExecutable()
+func TestHandleErr_ErrTaskRetry(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.Equal(consts.ErrTaskRetry, executable.HandleErr(consts.ErrTaskRetry))
+	require.Equal(t, consts.ErrTaskRetry, executable.HandleErr(consts.ErrTaskRetry))
 }
 
-func (s *executableSuite) TestHandleErr_ErrDeleteOpenExecution() {
-	executable := s.newTestExecutable()
+func TestHandleErr_ErrDeleteOpenExecution(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.Equal(consts.ErrDependencyTaskNotCompleted, executable.HandleErr(consts.ErrDependencyTaskNotCompleted))
+	require.Equal(t, consts.ErrDependencyTaskNotCompleted, executable.HandleErr(consts.ErrDependencyTaskNotCompleted))
 }
 
-func (s *executableSuite) TestHandleErr_ErrTaskDiscarded() {
-	executable := s.newTestExecutable()
+func TestHandleErr_ErrTaskDiscarded(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.NoError(executable.HandleErr(consts.ErrTaskDiscarded))
+	require.NoError(t, executable.HandleErr(consts.ErrTaskDiscarded))
 }
 
-func (s *executableSuite) TestHandleErr_ErrTaskVersionMismatch() {
-	executable := s.newTestExecutable()
+func TestHandleErr_ErrTaskVersionMismatch(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.NoError(executable.HandleErr(consts.ErrTaskVersionMismatch))
+	require.NoError(t, executable.HandleErr(consts.ErrTaskVersionMismatch))
 }
 
-func (s *executableSuite) TestHandleErr_NamespaceNotActiveError() {
+func TestHandleErr_NamespaceNotActiveError(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	err := serviceerror.NewNamespaceNotActive("", "", "")
 
-	s.Equal(err, s.newTestExecutable().HandleErr(err))
+	require.Equal(t, err, deps.newTestExecutable().HandleErr(err))
 }
 
-func (s *executableSuite) TestHandleErr_RandomErr() {
-	executable := s.newTestExecutable()
+func TestHandleErr_RandomErr(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.Error(executable.HandleErr(errors.New("random error")))
+	require.Error(t, executable.HandleErr(errors.New("random error")))
 }
 
-func (s *executableSuite) TestTaskAck_ValidTask_NoRetry() {
-	executable := s.newTestExecutable()
+func TestTaskAck_ValidTask_NoRetry(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.Equal(ctasks.TaskStatePending, executable.State())
+	require.Equal(t, ctasks.TaskStatePending, executable.State())
 
-	capture := s.metricsHandler.StartCapture()
+	capture := deps.metricsHandler.StartCapture()
 
 	executable.Ack()
-	s.Equal(ctasks.TaskStateAcked, executable.State())
+	require.Equal(t, ctasks.TaskStateAcked, executable.State())
 
 	snapshot := capture.Snapshot()
-	s.Len(snapshot[metrics.TaskAttempt.Name()], 1)
-	s.Len(snapshot[metrics.TaskLatency.Name()], 1)
-	s.Len(snapshot[metrics.TaskQueueLatency.Name()], 1)
+	require.Len(t, snapshot[metrics.TaskAttempt.Name()], 1)
+	require.Len(t, snapshot[metrics.TaskLatency.Name()], 1)
+	require.Len(t, snapshot[metrics.TaskQueueLatency.Name()], 1)
 }
 
-func (s *executableSuite) TestTaskAck_ValidTask_WithRetry() {
-	executable := s.newTestExecutable()
+func TestTaskAck_ValidTask_WithRetry(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.Equal(ctasks.TaskStatePending, executable.State())
+	require.Equal(t, ctasks.TaskStatePending, executable.State())
 
 	// For retried tasks, they are not considered invalid even
 	// if their last attempt completed with a invalid task error.
 	_ = executable.HandleErr(context.DeadlineExceeded)
 	_ = executable.HandleErr(consts.ErrActivityNotFound)
 
-	capture := s.metricsHandler.StartCapture()
+	capture := deps.metricsHandler.StartCapture()
 
 	executable.Ack()
-	s.Equal(ctasks.TaskStateAcked, executable.State())
+	require.Equal(t, ctasks.TaskStateAcked, executable.State())
 
 	snapshot := capture.Snapshot()
-	s.Len(snapshot[metrics.TaskAttempt.Name()], 1)
-	s.Len(snapshot[metrics.TaskLatency.Name()], 1)
-	s.Len(snapshot[metrics.TaskQueueLatency.Name()], 1)
+	require.Len(t, snapshot[metrics.TaskAttempt.Name()], 1)
+	require.Len(t, snapshot[metrics.TaskLatency.Name()], 1)
+	require.Len(t, snapshot[metrics.TaskQueueLatency.Name()], 1)
 }
 
-func (s *executableSuite) TestTaskAck_InvalidTask() {
-	executable := s.newTestExecutable()
+func TestTaskAck_InvalidTask(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.Equal(ctasks.TaskStatePending, executable.State())
+	require.Equal(t, ctasks.TaskStatePending, executable.State())
 
 	// This will mark the task as invalid
 	_ = executable.HandleErr(consts.ErrActivityNotFound)
 
-	capture := s.metricsHandler.StartCapture()
+	capture := deps.metricsHandler.StartCapture()
 
 	executable.Ack()
-	s.Equal(ctasks.TaskStateAcked, executable.State())
+	require.Equal(t, ctasks.TaskStateAcked, executable.State())
 
 	snapshot := capture.Snapshot()
-	s.Empty(snapshot[metrics.TaskAttempt.Name()])
-	s.Empty(snapshot[metrics.TaskLatency.Name()])
-	s.Empty(snapshot[metrics.TaskQueueLatency.Name()])
+	require.Empty(t, snapshot[metrics.TaskAttempt.Name()])
+	require.Empty(t, snapshot[metrics.TaskLatency.Name()])
+	require.Empty(t, snapshot[metrics.TaskQueueLatency.Name()])
 }
 
-func (s *executableSuite) TestTaskNack_Resubmit_Success() {
-	executable := s.newTestExecutable()
+func TestTaskNack_Resubmit_Success(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.mockScheduler.EXPECT().TrySubmit(executable).DoAndReturn(func(_ queues.Executable) bool {
-		s.Equal(ctasks.TaskStatePending, executable.State())
+	deps.mockScheduler.EXPECT().TrySubmit(executable).DoAndReturn(func(_ queues.Executable) bool {
+		require.Equal(t, ctasks.TaskStatePending, executable.State())
 
 		go func() {
 			// access internal state in a separate goroutine to check if there's any race condition
 			// between reschdule and nack.
-			s.accessInternalState(executable)
+			accessInternalState(executable)
 		}()
 		return true
 	})
@@ -839,24 +950,27 @@ func (s *executableSuite) TestTaskNack_Resubmit_Success() {
 	executable.Nack(errors.New("some random error"))
 }
 
-func (s *executableSuite) TestTaskNack_Resubmit_Fail() {
-	executable := s.newTestExecutable()
+func TestTaskNack_Resubmit_Fail(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
-	s.mockScheduler.EXPECT().TrySubmit(executable).Return(false)
-	s.mockRescheduler.EXPECT().Add(executable, gomock.AssignableToTypeOf(time.Now())).Do(func(_ queues.Executable, _ time.Time) {
-		s.Equal(ctasks.TaskStatePending, executable.State())
+	deps.mockScheduler.EXPECT().TrySubmit(executable).Return(false)
+	deps.mockRescheduler.EXPECT().Add(executable, gomock.AssignableToTypeOf(time.Now())).Do(func(_ queues.Executable, _ time.Time) {
+		require.Equal(t, ctasks.TaskStatePending, executable.State())
 
 		go func() {
 			// access internal state in a separate goroutine to check if there's any race condition
 			// between reschdule and nack.
-			s.accessInternalState(executable)
+			accessInternalState(executable)
 		}()
 	}).Times(1)
 
 	executable.Nack(errors.New("some random error"))
 }
 
-func (s *executableSuite) TestTaskNack_Reschedule() {
+func TestTaskNack_Reschedule(t *testing.T) {
+	t.Parallel()
 
 	testCases := []struct {
 		name    string
@@ -877,16 +991,17 @@ func (s *executableSuite) TestTaskNack_Reschedule() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
-			executable := s.newTestExecutable()
+		t.Run(tc.name, func(t *testing.T) {
+			deps := setupExecutableTest(t)
+			executable := deps.newTestExecutable()
 
-			s.mockRescheduler.EXPECT().Add(executable, gomock.AssignableToTypeOf(time.Now())).Do(func(_ queues.Executable, _ time.Time) {
-				s.Equal(ctasks.TaskStatePending, executable.State())
+			deps.mockRescheduler.EXPECT().Add(executable, gomock.AssignableToTypeOf(time.Now())).Do(func(_ queues.Executable, _ time.Time) {
+				require.Equal(t, ctasks.TaskStatePending, executable.State())
 
 				go func() {
 					// access internal state in a separate goroutine to check if there's any race condition
 					// between reschdule and nack.
-					s.accessInternalState(executable)
+					accessInternalState(executable)
 				}()
 			}).Times(1)
 
@@ -895,46 +1010,52 @@ func (s *executableSuite) TestTaskNack_Reschedule() {
 	}
 }
 
-func (s *executableSuite) TestTaskAbort() {
-	executable := s.newTestExecutable()
+func TestTaskAbort(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
 	executable.Abort()
 
-	s.NoError(executable.Execute()) // should be no-op and won't invoke executor
+	require.NoError(t, executable.Execute()) // should be no-op and won't invoke executor
 
 	executable.Ack() // should be no-op
-	s.Equal(ctasks.TaskStateAborted, executable.State())
+	require.Equal(t, ctasks.TaskStateAborted, executable.State())
 
 	executable.Nack(errors.New("some random error")) // should be no-op and won't invoke scheduler or rescheduler
 
 	executable.Reschedule() // should be no-op and won't invoke rescheduler
 
 	// all error should be treated as non-retryable to break retry loop
-	s.False(executable.IsRetryableError(errors.New("some random error")))
+	require.False(t, executable.IsRetryableError(errors.New("some random error")))
 }
 
-func (s *executableSuite) TestTaskCancellation() {
-	executable := s.newTestExecutable()
+func TestTaskCancellation(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
+	executable := deps.newTestExecutable()
 
 	executable.Cancel()
 
-	s.NoError(executable.Execute()) // should be no-op and won't invoke executor
+	require.NoError(t, executable.Execute()) // should be no-op and won't invoke executor
 
 	executable.Ack() // should be no-op
-	s.Equal(ctasks.TaskStateCancelled, executable.State())
+	require.Equal(t, ctasks.TaskStateCancelled, executable.State())
 
 	executable.Nack(errors.New("some random error")) // should be no-op and won't invoke scheduler or rescheduler
 
 	executable.Reschedule() // should be no-op and won't invoke rescheduler
 
 	// all error should be treated as non-retryable to break retry loop
-	s.False(executable.IsRetryableError(errors.New("some random error")))
+	require.False(t, executable.IsRetryableError(errors.New("some random error")))
 }
 
-func (s *executableSuite) TestExecute_SendToDLQErrPatternDoesNotMatch() {
+func TestExecute_SendToDLQErrPatternDoesNotMatch(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return true
 		}
@@ -943,7 +1064,7 @@ func (s *executableSuite) TestExecute_SendToDLQErrPatternDoesNotMatch() {
 		}
 	})
 	executionError := errors.New("some random error")
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        executionError,
@@ -952,20 +1073,22 @@ func (s *executableSuite) TestExecute_SendToDLQErrPatternDoesNotMatch() {
 	// Attempt 1
 	err := executable.Execute()
 	err2 := executable.HandleErr(err)
-	s.Error(err2)
-	s.NotErrorIs(err2, queues.ErrTerminalTaskFailure)
-	s.Contains(err2.Error(), executionError.Error())
+	require.Error(t, err2)
+	require.NotErrorIs(t, err2, queues.ErrTerminalTaskFailure)
+	require.Contains(t, err2.Error(), executionError.Error())
 
 	// Attempt 2
-	s.Error(executable.Execute())
-	s.Error(executable.HandleErr(err))
-	s.Empty(queueWriter.EnqueueTaskRequests)
+	require.Error(t, executable.Execute())
+	require.Error(t, executable.HandleErr(err))
+	require.Empty(t, queueWriter.EnqueueTaskRequests)
 }
 
-func (s *executableSuite) TestExecute_SendToDLQErrPatternEmptyString() {
+func TestExecute_SendToDLQErrPatternEmptyString(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return true
 		}
@@ -974,7 +1097,7 @@ func (s *executableSuite) TestExecute_SendToDLQErrPatternEmptyString() {
 		}
 	})
 	executionError := errors.New("some random error")
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        executionError,
@@ -983,20 +1106,22 @@ func (s *executableSuite) TestExecute_SendToDLQErrPatternEmptyString() {
 	// Attempt 1
 	err := executable.Execute()
 	err2 := executable.HandleErr(err)
-	s.Error(err2)
-	s.NotErrorIs(err2, queues.ErrTerminalTaskFailure)
-	s.Contains(err2.Error(), executionError.Error())
+	require.Error(t, err2)
+	require.NotErrorIs(t, err2, queues.ErrTerminalTaskFailure)
+	require.Contains(t, err2.Error(), executionError.Error())
 
 	// Attempt 2
-	s.Error(executable.Execute())
-	s.Error(executable.HandleErr(err))
-	s.Empty(queueWriter.EnqueueTaskRequests)
+	require.Error(t, executable.Execute())
+	require.Error(t, executable.HandleErr(err))
+	require.Empty(t, queueWriter.EnqueueTaskRequests)
 }
 
-func (s *executableSuite) TestExecute_SendToDLQErrPatternMatchesMultiple() {
+func TestExecute_SendToDLQErrPatternMatchesMultiple(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable1 := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable1 := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return true
 		}
@@ -1005,14 +1130,14 @@ func (s *executableSuite) TestExecute_SendToDLQErrPatternMatchesMultiple() {
 		}
 	})
 	executionError1 := errors.New("some random error with test substring 1")
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable1).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable1).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        executionError1,
 	}).Times(1)
 
-	executable2 := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable2 := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return true
 		}
@@ -1021,7 +1146,7 @@ func (s *executableSuite) TestExecute_SendToDLQErrPatternMatchesMultiple() {
 		}
 	})
 	executionError2 := errors.New("some random error with test substring 2")
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable2).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable2).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        executionError2,
@@ -1030,26 +1155,28 @@ func (s *executableSuite) TestExecute_SendToDLQErrPatternMatchesMultiple() {
 	// Attempt 1
 	err := executable1.Execute()
 	err2 := executable1.HandleErr(err)
-	s.Error(err2)
-	s.ErrorIs(err2, queues.ErrTerminalTaskFailure)
-	s.Contains(err2.Error(), executionError1.Error())
+	require.Error(t, err2)
+	require.ErrorIs(t, err2, queues.ErrTerminalTaskFailure)
+	require.Contains(t, err2.Error(), executionError1.Error())
 
 	err = executable2.Execute()
 	err2 = executable2.HandleErr(err)
-	s.Error(err2)
-	s.ErrorIs(err2, queues.ErrTerminalTaskFailure)
-	s.Contains(err2.Error(), executionError2.Error())
+	require.Error(t, err2)
+	require.ErrorIs(t, err2, queues.ErrTerminalTaskFailure)
+	require.Contains(t, err2.Error(), executionError2.Error())
 
 	// Attempt 2
-	s.NoError(executable1.Execute())
-	s.NoError(executable2.Execute())
-	s.Len(queueWriter.EnqueueTaskRequests, 2)
+	require.NoError(t, executable1.Execute())
+	require.NoError(t, executable2.Execute())
+	require.Len(t, queueWriter.EnqueueTaskRequests, 2)
 }
 
-func (s *executableSuite) TestExecute_ErrPatternIfDLQDisabled() {
+func TestExecute_ErrPatternIfDLQDisabled(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return false
 		}
@@ -1058,7 +1185,7 @@ func (s *executableSuite) TestExecute_ErrPatternIfDLQDisabled() {
 		}
 	})
 	executionError := errors.New("some random error with test substring")
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        executionError,
@@ -1067,21 +1194,23 @@ func (s *executableSuite) TestExecute_ErrPatternIfDLQDisabled() {
 	// Attempt 1
 	err := executable.Execute()
 	err2 := executable.HandleErr(err)
-	s.Error(err2)
-	s.ErrorIs(err2, queues.ErrTerminalTaskFailure)
-	s.Contains(err2.Error(), executionError.Error())
+	require.Error(t, err2)
+	require.ErrorIs(t, err2, queues.ErrTerminalTaskFailure)
+	require.Contains(t, err2.Error(), executionError.Error())
 
 	// Attempt 2
-	s.Error(executable.Execute())
-	s.Error(executable.HandleErr(err))
-	s.Empty(queueWriter.EnqueueTaskRequests)
+	require.Error(t, executable.Execute())
+	require.Error(t, executable.HandleErr(err))
+	require.Empty(t, queueWriter.EnqueueTaskRequests)
 }
 
-func (s *executableSuite) TestExecute_ErrorErrPatternThenDisableDLQ() {
+func TestExecute_ErrorErrPatternThenDisableDLQ(t *testing.T) {
+	t.Parallel()
+	deps := setupExecutableTest(t)
 	queueWriter := &queuestest.FakeQueueWriter{}
 	dlqEnabled := true
-	executable := s.newTestExecutable(func(p *params) {
-		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), s.mockNamespaceRegistry)
+	executable := deps.newTestExecutable(func(p *executableParams) {
+		p.dlqWriter = queues.NewDLQWriter(queueWriter, metrics.NoopMetricsHandler, log.NewTestLogger(), deps.mockNamespaceRegistry)
 		p.dlqEnabled = func() bool {
 			return dlqEnabled
 		}
@@ -1090,7 +1219,7 @@ func (s *executableSuite) TestExecute_ErrorErrPatternThenDisableDLQ() {
 		}
 	})
 	execError := errors.New("some random error with test substring")
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        execError,
@@ -1099,74 +1228,17 @@ func (s *executableSuite) TestExecute_ErrorErrPatternThenDisableDLQ() {
 	err := executable.Execute()
 	err2 := executable.HandleErr(err)
 
-	s.ErrorIs(err2, queues.ErrTerminalTaskFailure)
+	require.ErrorIs(t, err2, queues.ErrTerminalTaskFailure)
 
 	dlqEnabled = false
 
 	// Make sure task is retried this time
 	execError2 := errors.New("some other random error")
-	s.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
+	deps.mockExecutor.EXPECT().Execute(gomock.Any(), executable).Return(queues.ExecuteResponse{
 		ExecutionMetricTags: nil,
 		ExecutedAsActive:    false,
 		ExecutionErr:        execError2,
 	}).Times(1)
-	s.ErrorIs(executable.Execute(), execError2)
-	s.Empty(queueWriter.EnqueueTaskRequests)
-}
-
-func (s *executableSuite) newTestExecutable(opts ...option) queues.Executable {
-	p := params{
-		dlqWriter: nil,
-		dlqEnabled: func() bool {
-			return false
-		},
-		dlqInternalErrors: func() bool {
-			return false
-		},
-		priorityAssigner: queues.NewNoopPriorityAssigner(),
-		maxUnexpectedErrorAttempts: func() int {
-			return math.MaxInt
-		},
-		dlqErrorPattern: func() string {
-			return ""
-		},
-	}
-	for _, opt := range opts {
-		opt(&p)
-	}
-	return queues.NewExecutable(
-		queues.DefaultReaderId,
-		tasks.NewFakeTask(
-			definition.NewWorkflowKey(
-				tests.NamespaceID.String(),
-				tests.WorkflowID,
-				tests.RunID,
-			),
-			tasks.CategoryTransfer,
-			s.timeSource.Now(),
-		),
-		s.mockExecutor,
-		s.mockScheduler,
-		s.mockRescheduler,
-		p.priorityAssigner,
-		s.timeSource,
-		s.mockNamespaceRegistry,
-		s.mockClusterMetadata,
-		s.chasmRegistry,
-		queues.GetTaskTypeTagValue,
-		log.NewTestLogger(),
-		s.metricsHandler,
-		telemetry.NoopTracer,
-		func(params *queues.ExecutableParams) {
-			params.DLQEnabled = p.dlqEnabled
-			params.DLQWriter = p.dlqWriter
-			params.MaxUnexpectedErrorAttempts = p.maxUnexpectedErrorAttempts
-			params.DLQInternalErrors = p.dlqInternalErrors
-			params.DLQErrorPattern = p.dlqErrorPattern
-		},
-	)
-}
-
-func (s *executableSuite) accessInternalState(executable queues.Executable) {
-	_ = fmt.Sprintf("%v", executable)
+	require.ErrorIs(t, executable.Execute(), execError2)
+	require.Empty(t, queueWriter.EnqueueTaskRequests)
 }

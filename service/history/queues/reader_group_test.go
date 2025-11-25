@@ -5,114 +5,123 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/server/common"
 )
 
 type (
-	readerGroupSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		readerGroup *ReaderGroup
-	}
-
 	testReader struct {
 		status int32
 	}
 )
 
-func TestReaderGroupSuite(t *testing.T) {
-	s := new(readerGroupSuite)
-	suite.Run(t, s)
-}
+func TestReaderGroupStartStop(t *testing.T) {
+	t.Parallel()
 
-func (s *readerGroupSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.readerGroup = NewReaderGroup(
+	readerGroup := NewReaderGroup(
 		func(_ int64, _ []Slice) Reader {
 			return newTestReader()
 		},
 	)
-}
 
-func (s *readerGroupSuite) TestStartStop() {
 	readerID := DefaultReaderId
-	r := s.readerGroup.NewReader(readerID)
-	s.Equal(common.DaemonStatusInitialized, r.(*testReader).status)
+	r := readerGroup.NewReader(readerID)
+	require.Equal(t, common.DaemonStatusInitialized, r.(*testReader).status)
 
-	s.readerGroup.Start()
-	s.Equal(common.DaemonStatusStarted, r.(*testReader).status)
+	readerGroup.Start()
+	require.Equal(t, common.DaemonStatusStarted, r.(*testReader).status)
 
 	readerID = DefaultReaderId + 1
-	r = s.readerGroup.NewReader(readerID)
-	s.Equal(common.DaemonStatusStarted, r.(*testReader).status)
+	r = readerGroup.NewReader(readerID)
+	require.Equal(t, common.DaemonStatusStarted, r.(*testReader).status)
 
 	var readers []*testReader
-	for _, reader := range s.readerGroup.Readers() {
+	for _, reader := range readerGroup.Readers() {
 		readers = append(readers, reader.(*testReader))
 	}
-	s.readerGroup.Stop()
-	s.Len(readers, 2)
+	readerGroup.Stop()
+	require.Len(t, readers, 2)
 	for _, r := range readers {
-		s.Equal(common.DaemonStatusStopped, r.status)
+		require.Equal(t, common.DaemonStatusStopped, r.status)
 	}
 
 	readerID = DefaultReaderId + 2
-	r = s.readerGroup.NewReader(readerID)
-	s.Equal(common.DaemonStatusInitialized, r.(*testReader).status)
+	r = readerGroup.NewReader(readerID)
+	require.Equal(t, common.DaemonStatusInitialized, r.(*testReader).status)
 }
 
-func (s *readerGroupSuite) TestAddGetReader() {
-	s.Empty(s.readerGroup.Readers())
+func TestReaderGroupAddGetReader(t *testing.T) {
+	t.Parallel()
 
-	r, ok := s.readerGroup.ReaderByID(DefaultReaderId)
-	s.False(ok)
-	s.Nil(r)
+	readerGroup := NewReaderGroup(
+		func(_ int64, _ []Slice) Reader {
+			return newTestReader()
+		},
+	)
+
+	require.Empty(t, readerGroup.Readers())
+
+	r, ok := readerGroup.ReaderByID(DefaultReaderId)
+	require.False(t, ok)
+	require.Nil(t, r)
 
 	for i := int64(0); i < 3; i++ {
-		r := s.readerGroup.NewReader(i)
+		r := readerGroup.NewReader(i)
 
-		readers := s.readerGroup.Readers()
-		s.Len(readers, int(i)+1)
-		s.Equal(r, readers[i])
+		readers := readerGroup.Readers()
+		require.Len(t, readers, int(i)+1)
+		require.Equal(t, r, readers[i])
 
-		retrievedReader, ok := s.readerGroup.ReaderByID(i)
-		s.True(ok)
-		s.Equal(r, retrievedReader)
+		retrievedReader, ok := readerGroup.ReaderByID(i)
+		require.True(t, ok)
+		require.Equal(t, r, retrievedReader)
 	}
 
-	s.Panics(func() {
-		s.readerGroup.NewReader(DefaultReaderId)
+	require.Panics(t, func() {
+		readerGroup.NewReader(DefaultReaderId)
 	})
 }
 
-func (s *readerGroupSuite) TestRemoveReader() {
-	s.readerGroup.Start()
-	defer s.readerGroup.Stop()
+func TestReaderGroupRemoveReader(t *testing.T) {
+	t.Parallel()
+
+	readerGroup := NewReaderGroup(
+		func(_ int64, _ []Slice) Reader {
+			return newTestReader()
+		},
+	)
+
+	readerGroup.Start()
+	defer readerGroup.Stop()
 
 	readerID := DefaultReaderId
 
-	r := s.readerGroup.NewReader(readerID)
-	s.readerGroup.RemoveReader(readerID)
+	r := readerGroup.NewReader(readerID)
+	readerGroup.RemoveReader(readerID)
 
-	s.Equal(common.DaemonStatusStopped, r.(*testReader).status)
-	s.Len(s.readerGroup.Readers(), 0)
+	require.Equal(t, common.DaemonStatusStopped, r.(*testReader).status)
+	require.Len(t, readerGroup.Readers(), 0)
 }
 
-func (s *readerGroupSuite) TestForEach() {
+func TestReaderGroupForEach(t *testing.T) {
+	t.Parallel()
+
+	readerGroup := NewReaderGroup(
+		func(_ int64, _ []Slice) Reader {
+			return newTestReader()
+		},
+	)
+
 	readerIDs := []int64{1, 2, 3}
 	for _, readerID := range readerIDs {
-		_ = s.readerGroup.NewReader(readerID)
+		_ = readerGroup.NewReader(readerID)
 	}
 
 	forEachResult := make(map[int64]Reader)
-	s.readerGroup.ForEach(func(i int64, r Reader) {
+	readerGroup.ForEach(func(i int64, r Reader) {
 		forEachResult[i] = r
 	})
 
-	s.Equal(s.readerGroup.Readers(), forEachResult)
+	require.Equal(t, readerGroup.Readers(), forEachResult)
 }
 
 func newTestReader() Reader {

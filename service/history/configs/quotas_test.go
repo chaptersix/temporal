@@ -6,50 +6,24 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/server/common/headers"
 	"go.temporal.io/server/common/quotas"
 )
 
-type (
-	quotasSuite struct {
-		suite.Suite
-		*require.Assertions
-	}
-)
-
-func TestQuotasSuite(t *testing.T) {
-	s := new(quotasSuite)
-	suite.Run(t, s)
-}
-
-func (s *quotasSuite) SetupSuite() {
-}
-
-func (s *quotasSuite) TearDownSuite() {
-}
-
-func (s *quotasSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-}
-
-func (s *quotasSuite) TearDownTest() {
-}
-
-func (s *quotasSuite) TestCallerTypeToPriorityMapping() {
+func TestCallerTypeToPriorityMapping(t *testing.T) {
 	for _, priority := range CallerTypeToPriority {
 		index := slices.Index(APIPrioritiesOrdered, priority)
-		s.NotEqual(-1, index)
+		require.NotEqual(t, -1, index)
 	}
 }
 
-func (s *quotasSuite) TestAPIPrioritiesOrdered() {
+func TestAPIPrioritiesOrdered(t *testing.T) {
 	for idx := range APIPrioritiesOrdered[1:] {
-		s.True(APIPrioritiesOrdered[idx] < APIPrioritiesOrdered[idx+1])
+		require.True(t, APIPrioritiesOrdered[idx] < APIPrioritiesOrdered[idx+1])
 	}
 }
 
-func (s *quotasSuite) TestOperatorPrioritized() {
+func TestOperatorPrioritized(t *testing.T) {
 	rateFn := func() float64 { return 5 }
 	operatorRPSRatioFn := func() float64 { return 0.2 }
 	limiter := NewPriorityRateLimiter(rateFn, operatorRPSRatioFn)
@@ -76,8 +50,8 @@ func (s *quotasSuite) TestOperatorPrioritized() {
 	for i := 0; i < 12; i++ {
 		if !limiter.Allow(requestTime, apiRequest) {
 			limitCount++
-			s.True(limiter.Allow(requestTime, operatorRequest))
+			require.True(t, limiter.Allow(requestTime, operatorRequest))
 		}
 	}
-	s.Equal(2, limitCount)
+	require.Equal(t, 2, limitCount)
 }

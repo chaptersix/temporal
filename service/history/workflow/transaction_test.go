@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 	enumsspb "go.temporal.io/server/api/enums/v1"
@@ -25,50 +24,45 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	transactionSuite struct {
-		suite.Suite
-		*require.Assertions
+type transactionTestDeps struct {
+	controller         *gomock.Controller
+	mockShard          *historyi.MockShardContext
+	mockEngine         *historyi.MockEngine
+	mockNamespaceCache *namespace.MockRegistry
+	logger             log.Logger
+	transaction        *TransactionImpl
+}
 
-		controller         *gomock.Controller
-		mockShard          *historyi.MockShardContext
-		mockEngine         *historyi.MockEngine
-		mockNamespaceCache *namespace.MockRegistry
+func setupTransactionTest(t *testing.T) *transactionTestDeps {
+	controller := gomock.NewController(t)
+	mockShard := historyi.NewMockShardContext(controller)
+	mockEngine := historyi.NewMockEngine(controller)
+	mockNamespaceCache := namespace.NewMockRegistry(controller)
+	logger := log.NewTestLogger()
 
-		logger log.Logger
+	mockShard.EXPECT().GetShardID().Return(int32(1)).AnyTimes()
+	mockShard.EXPECT().GetEngine(gomock.Any()).Return(mockEngine, nil).AnyTimes()
+	mockShard.EXPECT().GetNamespaceRegistry().Return(mockNamespaceCache).AnyTimes()
+	mockShard.EXPECT().GetLogger().Return(logger).AnyTimes()
+	mockNamespaceCache.EXPECT().GetNamespaceByID(tests.NamespaceID).Return(tests.GlobalNamespaceEntry, nil).AnyTimes()
 
-		transaction *TransactionImpl
+	transaction := NewTransaction(mockShard)
+
+	return &transactionTestDeps{
+		controller:         controller,
+		mockShard:          mockShard,
+		mockEngine:         mockEngine,
+		mockNamespaceCache: mockNamespaceCache,
+		logger:             logger,
+		transaction:        transaction,
 	}
-)
-
-func TestTransactionSuite(t *testing.T) {
-	s := new(transactionSuite)
-	suite.Run(t, s)
 }
 
-func (s *transactionSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.mockShard = historyi.NewMockShardContext(s.controller)
-	s.mockEngine = historyi.NewMockEngine(s.controller)
-	s.mockNamespaceCache = namespace.NewMockRegistry(s.controller)
-	s.logger = log.NewTestLogger()
-
-	s.mockShard.EXPECT().GetShardID().Return(int32(1)).AnyTimes()
-	s.mockShard.EXPECT().GetEngine(gomock.Any()).Return(s.mockEngine, nil).AnyTimes()
-	s.mockShard.EXPECT().GetNamespaceRegistry().Return(s.mockNamespaceCache).AnyTimes()
-	s.mockShard.EXPECT().GetLogger().Return(s.logger).AnyTimes()
-	s.mockNamespaceCache.EXPECT().GetNamespaceByID(tests.NamespaceID).Return(tests.GlobalNamespaceEntry, nil).AnyTimes()
-
-	s.transaction = NewTransaction(s.mockShard)
+func setupMockForTaskNotification(mockEngine *historyi.MockEngine) {
+	mockEngine.EXPECT().NotifyNewTasks(gomock.Any()).Times(1)
 }
 
-func (s *transactionSuite) TearDownTest() {
-	s.controller.Finish()
-}
-
-func (s *transactionSuite) TestOperationMayApplied() {
+func TestOperationMayApplied(t *testing.T) {
 	testCases := []struct {
 		err        error
 		mayApplied bool
@@ -89,18 +83,21 @@ func (s *transactionSuite) TestOperationMayApplied() {
 	}
 
 	for _, tc := range testCases {
-		s.Equal(tc.mayApplied, persistence.OperationPossiblySucceeded(tc.err))
+		require.Equal(t, tc.mayApplied, persistence.OperationPossiblySucceeded(tc.err))
 	}
 }
 
-func (s *transactionSuite) TestCreateWorkflowExecution_NotifyTaskWhenFailed() {
+func TestCreateWorkflowExecution_NotifyTaskWhenFailed(t *testing.T) {
+	deps := setupTransactionTest(t)
+	defer deps.controller.Finish()
+
 	timeoutErr := &persistence.TimeoutError{}
-	s.True(persistence.OperationPossiblySucceeded(timeoutErr))
+	require.True(t, persistence.OperationPossiblySucceeded(timeoutErr))
 
-	s.mockShard.EXPECT().CreateWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, timeoutErr)
-	s.setupMockForTaskNotification()
+	deps.mockShard.EXPECT().CreateWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, timeoutErr)
+	setupMockForTaskNotification(deps.mockEngine)
 
-	_, err := s.transaction.CreateWorkflowExecution(
+	_, err := deps.transaction.CreateWorkflowExecution(
 		context.Background(),
 		persistence.CreateWorkflowModeBrandNew,
 		0,
@@ -116,18 +113,21 @@ func (s *transactionSuite) TestCreateWorkflowExecution_NotifyTaskWhenFailed() {
 		[]*persistence.WorkflowEvents{},
 		true, // isWorkflow
 	)
-	s.Equal(timeoutErr, err)
+	require.Equal(t, timeoutErr, err)
 }
 
-func (s *transactionSuite) TestUpdateWorkflowExecution_NotifyTaskWhenFailed() {
+func TestUpdateWorkflowExecution_NotifyTaskWhenFailed(t *testing.T) {
+	deps := setupTransactionTest(t)
+	defer deps.controller.Finish()
+
 	timeoutErr := &persistence.TimeoutError{}
-	s.True(persistence.OperationPossiblySucceeded(timeoutErr))
+	require.True(t, persistence.OperationPossiblySucceeded(timeoutErr))
 
-	s.mockShard.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, timeoutErr)
-	s.setupMockForTaskNotification() // for current workflow mutation
-	s.setupMockForTaskNotification() // for new workflow snapshot
+	deps.mockShard.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, timeoutErr)
+	setupMockForTaskNotification(deps.mockEngine) // for current workflow mutation
+	setupMockForTaskNotification(deps.mockEngine) // for new workflow snapshot
 
-	_, _, err := s.transaction.UpdateWorkflowExecution(
+	_, _, err := deps.transaction.UpdateWorkflowExecution(
 		context.Background(),
 		persistence.UpdateWorkflowModeUpdateCurrent,
 		0,
@@ -146,18 +146,21 @@ func (s *transactionSuite) TestUpdateWorkflowExecution_NotifyTaskWhenFailed() {
 		[]*persistence.WorkflowEvents{},
 		true, // isWorkflow
 	)
-	s.Equal(timeoutErr, err)
+	require.Equal(t, timeoutErr, err)
 }
 
-func (s *transactionSuite) TestUpdateWorkflowExecution_CompletionMetrics() {
-	metricsHandler := metricstest.NewCaptureHandler()
-	s.mockShard.EXPECT().GetMetricsHandler().Return(metricsHandler).AnyTimes()
-	s.mockShard.EXPECT().GetClusterMetadata().Return(clustertest.NewMetadataForTest(cluster.NewTestClusterMetadataConfig(true, true))).AnyTimes()
-	s.mockShard.EXPECT().GetConfig().Return(tests.NewDynamicConfig()).AnyTimes()
+func TestUpdateWorkflowExecution_CompletionMetrics(t *testing.T) {
+	deps := setupTransactionTest(t)
+	defer deps.controller.Finish()
 
-	s.mockShard.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil).AnyTimes()
-	s.mockEngine.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
-	s.mockEngine.EXPECT().NotifyNewHistoryEvent(gomock.Any()).AnyTimes()
+	metricsHandler := metricstest.NewCaptureHandler()
+	deps.mockShard.EXPECT().GetMetricsHandler().Return(metricsHandler).AnyTimes()
+	deps.mockShard.EXPECT().GetClusterMetadata().Return(clustertest.NewMetadataForTest(cluster.NewTestClusterMetadataConfig(true, true))).AnyTimes()
+	deps.mockShard.EXPECT().GetConfig().Return(tests.NewDynamicConfig()).AnyTimes()
+
+	deps.mockShard.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil).AnyTimes()
+	deps.mockEngine.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
+	deps.mockEngine.EXPECT().NotifyNewHistoryEvent(gomock.Any()).AnyTimes()
 
 	cases := []struct {
 		name                   string
@@ -182,11 +185,11 @@ func (s *transactionSuite) TestUpdateWorkflowExecution_CompletionMetrics() {
 	}
 
 	for _, tc := range cases {
-		s.T().Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 
 			capture := metricsHandler.StartCapture()
 
-			_, _, err := s.transaction.UpdateWorkflowExecution(
+			_, _, err := deps.transaction.UpdateWorkflowExecution(
 				context.Background(),
 				tc.updateMode,
 				0,
@@ -208,15 +211,15 @@ func (s *transactionSuite) TestUpdateWorkflowExecution_CompletionMetrics() {
 				nil,
 				true, // isWorkflow
 			)
-			s.NoError(err)
+			require.NoError(t, err)
 
 			snapshot := capture.Snapshot()
 			completionMetric := snapshot[metrics.WorkflowSuccessCount.Name()]
 
 			if tc.expectCompletionMetric {
-				s.Len(completionMetric, 1)
+				require.Len(t, completionMetric, 1)
 			} else {
-				s.Empty(completionMetric)
+				require.Empty(t, completionMetric)
 			}
 
 			metricsHandler.StopCapture(capture)
@@ -225,16 +228,19 @@ func (s *transactionSuite) TestUpdateWorkflowExecution_CompletionMetrics() {
 
 }
 
-func (s *transactionSuite) TestConflictResolveWorkflowExecution_NotifyTaskWhenFailed() {
+func TestConflictResolveWorkflowExecution_NotifyTaskWhenFailed(t *testing.T) {
+	deps := setupTransactionTest(t)
+	defer deps.controller.Finish()
+
 	timeoutErr := &persistence.TimeoutError{}
-	s.True(persistence.OperationPossiblySucceeded(timeoutErr))
+	require.True(t, persistence.OperationPossiblySucceeded(timeoutErr))
 
-	s.mockShard.EXPECT().ConflictResolveWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, timeoutErr)
-	s.setupMockForTaskNotification() // for reset workflow snapshot
-	s.setupMockForTaskNotification() // for new workflow snapshot
-	s.setupMockForTaskNotification() // for current workflow mutation
+	deps.mockShard.EXPECT().ConflictResolveWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, timeoutErr)
+	setupMockForTaskNotification(deps.mockEngine) // for reset workflow snapshot
+	setupMockForTaskNotification(deps.mockEngine) // for new workflow snapshot
+	setupMockForTaskNotification(deps.mockEngine) // for current workflow mutation
 
-	_, _, _, err := s.transaction.ConflictResolveWorkflowExecution(
+	_, _, _, err := deps.transaction.ConflictResolveWorkflowExecution(
 		context.Background(),
 		persistence.ConflictResolveWorkflowModeUpdateCurrent,
 		0,
@@ -256,9 +262,5 @@ func (s *transactionSuite) TestConflictResolveWorkflowExecution_NotifyTaskWhenFa
 		[]*persistence.WorkflowEvents{},
 		true, // isWorkflow
 	)
-	s.Equal(timeoutErr, err)
-}
-
-func (s *transactionSuite) setupMockForTaskNotification() {
-	s.mockEngine.EXPECT().NotifyNewTasks(gomock.Any()).Times(1)
+	require.Equal(t, timeoutErr, err)
 }

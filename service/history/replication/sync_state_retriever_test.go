@@ -7,7 +7,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/api/serviceerror"
 	clockspb "go.temporal.io/server/api/clock/v1"
@@ -32,81 +31,80 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	syncWorkflowStateSuite struct {
-		suite.Suite
-		*require.Assertions
-		workflowCache              *wcache.MockCache
-		eventBlobCache             persistence.XDCCache
-		logger                     log.Logger
-		mockShard                  *shard.ContextTest
-		controller                 *gomock.Controller
-		releaseFunc                func(err error)
-		workflowContext            *historyi.MockWorkflowContext
-		newRunWorkflowContext      *historyi.MockWorkflowContext
-		namespaceID                string
-		execution                  *commonpb.WorkflowExecution
-		newRunId                   string
-		workflowKey                definition.WorkflowKey
-		syncStateRetriever         *SyncStateRetrieverImpl
-		workflowConsistencyChecker *api.MockWorkflowConsistencyChecker
-	}
-)
-
-func TestSyncWorkflowState(t *testing.T) {
-	s := new(syncWorkflowStateSuite)
-	suite.Run(t, s)
+type syncWorkflowStateTestDeps struct {
+	controller                 *gomock.Controller
+	workflowCache              *wcache.MockCache
+	eventBlobCache             persistence.XDCCache
+	logger                     log.Logger
+	mockShard                  *shard.ContextTest
+	releaseFunc                func(err error)
+	workflowContext            *historyi.MockWorkflowContext
+	newRunWorkflowContext      *historyi.MockWorkflowContext
+	namespaceID                string
+	execution                  *commonpb.WorkflowExecution
+	newRunId                   string
+	workflowKey                definition.WorkflowKey
+	syncStateRetriever         *SyncStateRetrieverImpl
+	workflowConsistencyChecker *api.MockWorkflowConsistencyChecker
 }
 
-func (s *syncWorkflowStateSuite) SetupSuite() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.workflowContext = historyi.NewMockWorkflowContext(s.controller)
-	s.newRunWorkflowContext = historyi.NewMockWorkflowContext(s.controller)
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+func setupSyncWorkflowStateTest(t *testing.T) *syncWorkflowStateTestDeps {
+	controller := gomock.NewController(t)
+	workflowContext := historyi.NewMockWorkflowContext(controller)
+	newRunWorkflowContext := historyi.NewMockWorkflowContext(controller)
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{
 			ShardId: 0,
 			RangeId: 1,
 		},
 		tests.NewDynamicConfig(),
 	)
-	s.releaseFunc = func(err error) {}
-	s.workflowCache = wcache.NewMockCache(s.controller)
-	s.logger = s.mockShard.GetLogger()
-	s.namespaceID = tests.NamespaceID.String()
-	s.execution = &commonpb.WorkflowExecution{
+	releaseFunc := func(err error) {}
+	workflowCache := wcache.NewMockCache(controller)
+	logger := mockShard.GetLogger()
+	namespaceID := tests.NamespaceID.String()
+	execution := &commonpb.WorkflowExecution{
 		WorkflowId: uuid.New(),
 		RunId:      uuid.New(),
 	}
-	s.newRunId = uuid.New()
-	s.workflowKey = definition.WorkflowKey{
-		NamespaceID: s.namespaceID,
-		WorkflowID:  s.execution.WorkflowId,
-		RunID:       s.execution.RunId,
+	newRunId := uuid.New()
+	workflowKey := definition.WorkflowKey{
+		NamespaceID: namespaceID,
+		WorkflowID:  execution.WorkflowId,
+		RunID:       execution.RunId,
 	}
-	s.workflowConsistencyChecker = api.NewMockWorkflowConsistencyChecker(s.controller)
-}
-
-func (s *syncWorkflowStateSuite) TearDownSuite() {
-}
-
-func (s *syncWorkflowStateSuite) SetupTest() {
-	s.eventBlobCache = persistence.NewEventsBlobCache(
+	workflowConsistencyChecker := api.NewMockWorkflowConsistencyChecker(controller)
+	eventBlobCache := persistence.NewEventsBlobCache(
 		1024*1024,
 		20*time.Second,
-		s.logger,
+		logger,
 	)
-	s.syncStateRetriever = NewSyncStateRetriever(s.mockShard, s.workflowCache, s.workflowConsistencyChecker, s.eventBlobCache, s.logger)
+	syncStateRetriever := NewSyncStateRetriever(mockShard, workflowCache, workflowConsistencyChecker, eventBlobCache, logger)
+
+	return &syncWorkflowStateTestDeps{
+		controller:                 controller,
+		workflowCache:              workflowCache,
+		eventBlobCache:             eventBlobCache,
+		logger:                     logger,
+		mockShard:                  mockShard,
+		releaseFunc:                releaseFunc,
+		workflowContext:            workflowContext,
+		newRunWorkflowContext:      newRunWorkflowContext,
+		namespaceID:                namespaceID,
+		execution:                  execution,
+		newRunId:                   newRunId,
+		workflowKey:                workflowKey,
+		syncStateRetriever:         syncStateRetriever,
+		workflowConsistencyChecker: workflowConsistencyChecker,
+	}
 }
 
-func (s *syncWorkflowStateSuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.StopForTest()
-}
+func TestSyncWorkflowState_TransitionHistoryDisabled(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
 
-func (s *syncWorkflowStateSuite) TestSyncWorkflowState_TransitionHistoryDisabled() {
 	mu := historyi.NewMockMutableState(s.controller)
 	s.workflowConsistencyChecker.EXPECT().GetChasmLeaseWithConsistencyCheck(gomock.Any(), nil, gomock.Any(), definition.WorkflowKey{
 		NamespaceID: s.namespaceID,
@@ -127,12 +125,16 @@ func (s *syncWorkflowStateSuite) TestSyncWorkflowState_TransitionHistoryDisabled
 		nil,
 		nil,
 	)
-	s.Nil(result)
-	s.Error(err)
-	s.ErrorIs(err, consts.ErrTransitionHistoryDisabled)
+	require.Nil(t, result)
+	require.Error(t, err)
+	require.ErrorIs(t, err, consts.ErrTransitionHistoryDisabled)
 }
 
-func (s *syncWorkflowStateSuite) TestSyncWorkflowState_UnFlushedBufferedEvents() {
+func TestSyncWorkflowState_UnFlushedBufferedEvents(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	mu := historyi.NewMockMutableState(s.controller)
 	s.workflowConsistencyChecker.EXPECT().GetChasmLeaseWithConsistencyCheck(gomock.Any(), nil, gomock.Any(), definition.WorkflowKey{
 		NamespaceID: s.namespaceID,
@@ -149,12 +151,16 @@ func (s *syncWorkflowStateSuite) TestSyncWorkflowState_UnFlushedBufferedEvents()
 		nil,
 		nil,
 	)
-	s.Nil(result)
-	s.Error(err)
-	s.IsType(&serviceerror.WorkflowNotReady{}, err)
+	require.Nil(t, result)
+	require.Error(t, err)
+	require.IsType(t, &serviceerror.WorkflowNotReady{}, err)
 }
 
-func (s *syncWorkflowStateSuite) TestSyncWorkflowState_ReturnMutation() {
+func TestSyncWorkflowState_ReturnMutation(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	mu := historyi.NewMockMutableState(s.controller)
 	s.workflowConsistencyChecker.EXPECT().GetChasmLeaseWithConsistencyCheck(gomock.Any(), nil, gomock.Any(), definition.WorkflowKey{
 		NamespaceID: s.namespaceID,
@@ -233,31 +239,35 @@ func (s *syncWorkflowStateSuite) TestSyncWorkflowState_ReturnMutation() {
 			TransitionCount:          12,
 		},
 		versionHistories)
-	s.NoError(err)
-	s.NotNil(result)
+	require.NoError(t, err)
+	require.NotNil(t, result)
 	syncAttributes := result.VersionedTransitionArtifact.GetSyncWorkflowStateMutationAttributes()
-	s.NotNil(result.VersionedTransitionArtifact.GetSyncWorkflowStateMutationAttributes())
+	require.NotNil(t, result.VersionedTransitionArtifact.GetSyncWorkflowStateMutationAttributes())
 
 	mutation := syncAttributes.StateMutation
 	// ensure it's a copy by checking the pointers are pointing to different memory addresses
-	s.True(executionInfo != mutation.ExecutionInfo)
-	s.Nil(mutation.ExecutionInfo.UpdateInfos)
-	s.Nil(mutation.ExecutionInfo.SubStateMachinesByType)
-	s.Nil(mutation.ExecutionInfo.SubStateMachineTombstoneBatches)
-	s.Zero(mutation.ExecutionInfo.LastFirstEventTxnId) // field should be sanitized
-	s.Empty(mutation.UpdatedActivityInfos)
-	s.Len(mutation.UpdatedTimerInfos, 0)
-	s.Len(mutation.UpdatedChildExecutionInfos, 1)
-	s.Len(mutation.UpdatedRequestCancelInfos, 0)
-	s.Len(mutation.UpdatedSignalInfos, 1)
-	s.Len(mutation.UpdatedChasmNodes, 1)
-	s.Nil(mutation.UpdatedChildExecutionInfos[13].Clock) // field should be sanitized
+	require.True(t, executionInfo != mutation.ExecutionInfo)
+	require.Nil(t, mutation.ExecutionInfo.UpdateInfos)
+	require.Nil(t, mutation.ExecutionInfo.SubStateMachinesByType)
+	require.Nil(t, mutation.ExecutionInfo.SubStateMachineTombstoneBatches)
+	require.Zero(t, mutation.ExecutionInfo.LastFirstEventTxnId) // field should be sanitized
+	require.Empty(t, mutation.UpdatedActivityInfos)
+	require.Len(t, mutation.UpdatedTimerInfos, 0)
+	require.Len(t, mutation.UpdatedChildExecutionInfos, 1)
+	require.Len(t, mutation.UpdatedRequestCancelInfos, 0)
+	require.Len(t, mutation.UpdatedSignalInfos, 1)
+	require.Len(t, mutation.UpdatedChasmNodes, 1)
+	require.Nil(t, mutation.UpdatedChildExecutionInfos[13].Clock) // field should be sanitized
 
-	s.Nil(result.VersionedTransitionArtifact.EventBatches)
-	s.Nil(result.VersionedTransitionArtifact.NewRunInfo)
+	require.Nil(t, result.VersionedTransitionArtifact.EventBatches)
+	require.Nil(t, result.VersionedTransitionArtifact.NewRunInfo)
 }
 
-func (s *syncWorkflowStateSuite) TestGetSyncStateRetrieverForNewWorkflow_WithEvents() {
+func TestGetSyncStateRetrieverForNewWorkflow_WithEvents(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	mu := historyi.NewMockMutableState(s.controller)
 
 	versionHistories := &historyspb.VersionHistories{
@@ -332,7 +342,7 @@ func (s *syncWorkflowStateSuite) TestGetSyncStateRetrieverForNewWorkflow_WithEve
 		MaxEventID:  versionHistories.Histories[0].Items[0].GetEventId() + 1,
 		ShardID:     s.mockShard.GetShardID(),
 		PageSize:    defaultPageSize,
-	}).Return(&persistence.ReadRawHistoryBranchResponse{HistoryEventBlobs: s.getEventBlobs(1, 10)}, nil)
+	}).Return(&persistence.ReadRawHistoryBranchResponse{HistoryEventBlobs: getEventBlobs(1, 10)}, nil)
 
 	result, err := s.syncStateRetriever.GetSyncWorkflowStateArtifactFromMutableStateForNewWorkflow(
 		context.Background(),
@@ -345,32 +355,36 @@ func (s *syncWorkflowStateSuite) TestGetSyncStateRetrieverForNewWorkflow_WithEve
 			TransitionCount:          12,
 		},
 	)
-	s.NoError(err)
-	s.NotNil(result)
+	require.NoError(t, err)
+	require.NotNil(t, result)
 	syncAttributes := result.VersionedTransitionArtifact.GetSyncWorkflowStateMutationAttributes()
-	s.NotNil(result.VersionedTransitionArtifact.GetSyncWorkflowStateMutationAttributes())
+	require.NotNil(t, result.VersionedTransitionArtifact.GetSyncWorkflowStateMutationAttributes())
 
 	mutation := syncAttributes.StateMutation
 	// ensure it's a copy by checking the pointers are pointing to different memory addresses
-	s.True(executionInfo != mutation.ExecutionInfo)
-	s.Nil(mutation.ExecutionInfo.UpdateInfos)
-	s.Nil(mutation.ExecutionInfo.SubStateMachinesByType)
-	s.Nil(mutation.ExecutionInfo.SubStateMachineTombstoneBatches)
-	s.Zero(mutation.ExecutionInfo.LastFirstEventTxnId) // field should be sanitized
-	s.Empty(mutation.UpdatedActivityInfos)
-	s.Len(mutation.UpdatedTimerInfos, 1)
-	s.Len(mutation.UpdatedChildExecutionInfos, 1)
-	s.Len(mutation.UpdatedRequestCancelInfos, 1)
-	s.Len(mutation.UpdatedSignalInfos, 1)
-	s.Len(mutation.UpdatedChasmNodes, 1)
-	s.Nil(mutation.UpdatedChildExecutionInfos[13].Clock) // field should be sanitized
+	require.True(t, executionInfo != mutation.ExecutionInfo)
+	require.Nil(t, mutation.ExecutionInfo.UpdateInfos)
+	require.Nil(t, mutation.ExecutionInfo.SubStateMachinesByType)
+	require.Nil(t, mutation.ExecutionInfo.SubStateMachineTombstoneBatches)
+	require.Zero(t, mutation.ExecutionInfo.LastFirstEventTxnId) // field should be sanitized
+	require.Empty(t, mutation.UpdatedActivityInfos)
+	require.Len(t, mutation.UpdatedTimerInfos, 1)
+	require.Len(t, mutation.UpdatedChildExecutionInfos, 1)
+	require.Len(t, mutation.UpdatedRequestCancelInfos, 1)
+	require.Len(t, mutation.UpdatedSignalInfos, 1)
+	require.Len(t, mutation.UpdatedChasmNodes, 1)
+	require.Nil(t, mutation.UpdatedChildExecutionInfos[13].Clock) // field should be sanitized
 
-	s.Nil(result.VersionedTransitionArtifact.NewRunInfo)
+	require.Nil(t, result.VersionedTransitionArtifact.NewRunInfo)
 }
 
-func (s *syncWorkflowStateSuite) TestGetSyncStateRetrieverForNewWorkflow_NoEvents() {
+func TestGetSyncStateRetrieverForNewWorkflow_NoEvents(t *testing.T) {
 	// Test that sync state retriever logic handles the case where mutable state has no event at all
 	// and current version history is empty.
+
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
 
 	mu := historyi.NewMockMutableState(s.controller)
 
@@ -424,12 +438,12 @@ func (s *syncWorkflowStateSuite) TestGetSyncStateRetrieverForNewWorkflow_NoEvent
 			TransitionCount:          5,
 		},
 	)
-	s.NoError(err)
-	s.NotNil(result)
-	s.NotNil(result.VersionedTransitionArtifact.GetSyncWorkflowStateMutationAttributes())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.VersionedTransitionArtifact.GetSyncWorkflowStateMutationAttributes())
 }
 
-func (s *syncWorkflowStateSuite) TestSyncWorkflowState_ReturnSnapshot() {
+func TestSyncWorkflowState_ReturnSnapshot(t *testing.T) {
 	testCases := []struct {
 		name   string
 		infoFn func() (*historyspb.VersionHistories, []*persistencespb.VersionedTransition, []*persistencespb.StateMachineTombstoneBatch, *persistencespb.VersionedTransition)
@@ -507,7 +521,11 @@ func (s *syncWorkflowStateSuite) TestSyncWorkflowState_ReturnSnapshot() {
 		},
 	}
 	for _, tc := range testCases {
-		s.T().Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
+			s := setupSyncWorkflowStateTest(t)
+			defer s.controller.Finish()
+			defer s.mockShard.StopForTest()
+
 			mu := historyi.NewMockMutableState(s.controller)
 			s.workflowConsistencyChecker.EXPECT().GetChasmLeaseWithConsistencyCheck(gomock.Any(), nil, gomock.Any(), definition.WorkflowKey{
 				NamespaceID: s.namespaceID,
@@ -536,16 +554,20 @@ func (s *syncWorkflowStateSuite) TestSyncWorkflowState_ReturnSnapshot() {
 					TransitionCount:          13,
 				},
 				versionHistories)
-			s.NoError(err)
-			s.NotNil(result)
-			s.NotNil(result.VersionedTransitionArtifact.GetSyncWorkflowStateSnapshotAttributes())
-			s.Nil(result.VersionedTransitionArtifact.EventBatches)
-			s.Nil(result.VersionedTransitionArtifact.NewRunInfo)
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			require.NotNil(t, result.VersionedTransitionArtifact.GetSyncWorkflowStateSnapshotAttributes())
+			require.Nil(t, result.VersionedTransitionArtifact.EventBatches)
+			require.Nil(t, result.VersionedTransitionArtifact.NewRunInfo)
 		})
 	}
 }
 
-func (s *syncWorkflowStateSuite) TestSyncWorkflowState_NoVersionTransitionProvided_ReturnSnapshot() {
+func TestSyncWorkflowState_NoVersionTransitionProvided_ReturnSnapshot(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	mu := historyi.NewMockMutableState(s.controller)
 	s.workflowConsistencyChecker.EXPECT().GetChasmLeaseWithConsistencyCheck(gomock.Any(), nil, gomock.Any(), definition.WorkflowKey{
 		NamespaceID: s.namespaceID,
@@ -588,14 +610,18 @@ func (s *syncWorkflowStateSuite) TestSyncWorkflowState_NoVersionTransitionProvid
 		s.execution,
 		nil,
 		versionHistories)
-	s.NoError(err)
-	s.NotNil(result)
-	s.NotNil(result.VersionedTransitionArtifact.GetSyncWorkflowStateSnapshotAttributes())
-	s.Nil(result.VersionedTransitionArtifact.EventBatches)
-	s.Nil(result.VersionedTransitionArtifact.NewRunInfo)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.VersionedTransitionArtifact.GetSyncWorkflowStateSnapshotAttributes())
+	require.Nil(t, result.VersionedTransitionArtifact.EventBatches)
+	require.Nil(t, result.VersionedTransitionArtifact.NewRunInfo)
 }
 
-func (s *syncWorkflowStateSuite) TestGetNewRunInfo() {
+func TestGetNewRunInfo(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	mu := historyi.NewMockMutableState(s.controller)
 	versionHistories := &historyspb.VersionHistories{
 		CurrentVersionHistoryIndex: 0,
@@ -647,11 +673,15 @@ func (s *syncWorkflowStateSuite) TestGetNewRunInfo() {
 			{Data: []byte("event1")}},
 	}, nil)
 	newRunInfo, err := s.syncStateRetriever.getNewRunInfo(context.Background(), namespace.ID(s.namespaceID), s.execution, s.newRunId)
-	s.NoError(err)
-	s.NotNil(newRunInfo)
+	require.NoError(t, err)
+	require.NotNil(t, newRunInfo)
 }
 
-func (s *syncWorkflowStateSuite) TestGetNewRunInfo_NewRunFromDifferentCluster_ReturnNil() {
+func TestGetNewRunInfo_NewRunFromDifferentCluster_ReturnNil(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	mu := historyi.NewMockMutableState(s.controller)
 	versionHistories := &historyspb.VersionHistories{
 		CurrentVersionHistoryIndex: 0,
@@ -694,11 +724,15 @@ func (s *syncWorkflowStateSuite) TestGetNewRunInfo_NewRunFromDifferentCluster_Re
 		Return(mu, nil).Times(1)
 
 	newRunInfo, err := s.syncStateRetriever.getNewRunInfo(context.Background(), namespace.ID(s.namespaceID), s.execution, s.newRunId)
-	s.NoError(err)
-	s.Nil(newRunInfo)
+	require.NoError(t, err)
+	require.Nil(t, newRunInfo)
 }
 
-func (s *syncWorkflowStateSuite) TestGetNewRunInfo_NotFound() {
+func TestGetNewRunInfo_NotFound(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	mu := historyi.NewMockMutableState(s.controller)
 	versionHistories := &historyspb.VersionHistories{
 		CurrentVersionHistoryIndex: 0,
@@ -734,13 +768,13 @@ func (s *syncWorkflowStateSuite) TestGetNewRunInfo_NotFound() {
 		Return(nil, serviceerror.NewNotFound("not found")).Times(1)
 
 	newRunInfo, err := s.syncStateRetriever.getNewRunInfo(context.Background(), namespace.ID(s.namespaceID), s.execution, s.newRunId)
-	s.NoError(err)
-	s.Nil(newRunInfo)
+	require.NoError(t, err)
+	require.Nil(t, newRunInfo)
 }
 
-func (s *syncWorkflowStateSuite) addXDCCache(minEventID int64, version int64, nextEventID int64, eventBlobs []*commonpb.DataBlob, versionHistoryItems []*historyspb.VersionHistoryItem) {
-	s.eventBlobCache.Put(persistence.NewXDCCacheKey(
-		s.workflowKey,
+func addXDCCache(eventBlobCache persistence.XDCCache, workflowKey definition.WorkflowKey, minEventID int64, version int64, nextEventID int64, eventBlobs []*commonpb.DataBlob, versionHistoryItems []*historyspb.VersionHistoryItem) {
+	eventBlobCache.Put(persistence.NewXDCCacheKey(
+		workflowKey,
 		minEventID,
 		version,
 	), persistence.NewXDCCacheValue(
@@ -751,7 +785,7 @@ func (s *syncWorkflowStateSuite) addXDCCache(minEventID int64, version int64, ne
 	))
 }
 
-func (s *syncWorkflowStateSuite) getEventBlobs(firstEventID, nextEventID int64) []*commonpb.DataBlob {
+func getEventBlobs(firstEventID, nextEventID int64) []*commonpb.DataBlob {
 	eventBlob := &commonpb.DataBlob{Data: []byte("event1")}
 	eventBlobs := make([]*commonpb.DataBlob, nextEventID-firstEventID)
 	for i := 0; i < int(nextEventID-firstEventID); i++ {
@@ -760,7 +794,11 @@ func (s *syncWorkflowStateSuite) getEventBlobs(firstEventID, nextEventID int64) 
 	return eventBlobs
 }
 
-func (s *syncWorkflowStateSuite) TestGetSyncStateEvents() {
+func TestGetSyncStateEvents(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	targetVersionHistoriesItems := [][]*historyspb.VersionHistoryItem{
 		{
 			{EventId: 1, Version: 10},
@@ -791,11 +829,11 @@ func (s *syncWorkflowStateSuite) TestGetSyncStateEvents() {
 		MaxEventID:  31,
 		ShardID:     s.mockShard.GetShardID(),
 		PageSize:    defaultPageSize,
-	}).Return(&persistence.ReadRawHistoryBranchResponse{HistoryEventBlobs: s.getEventBlobs(19, 31)}, nil)
+	}).Return(&persistence.ReadRawHistoryBranchResponse{HistoryEventBlobs: getEventBlobs(19, 31)}, nil)
 
 	events, err := s.syncStateRetriever.getSyncStateEvents(context.Background(), s.workflowKey, targetVersionHistoriesItems, sourceVersionHistories, false)
-	s.NoError(err)
-	s.Len(events, 31-19)
+	require.NoError(t, err)
+	require.Len(t, events, 31-19)
 
 	// get [19,21) from cache, [21, 31) from DB
 	s.mockShard.Resource.ExecutionMgr.EXPECT().ReadRawHistoryBranch(gomock.Any(), &persistence.ReadHistoryBranchRequest{
@@ -804,21 +842,25 @@ func (s *syncWorkflowStateSuite) TestGetSyncStateEvents() {
 		MaxEventID:  31,
 		ShardID:     s.mockShard.GetShardID(),
 		PageSize:    defaultPageSize,
-	}).Return(&persistence.ReadRawHistoryBranchResponse{HistoryEventBlobs: s.getEventBlobs(21, 31)}, nil)
+	}).Return(&persistence.ReadRawHistoryBranchResponse{HistoryEventBlobs: getEventBlobs(21, 31)}, nil)
 
-	s.addXDCCache(19, 13, 21, s.getEventBlobs(19, 21), versionHistoryItems)
+	addXDCCache(s.eventBlobCache, s.workflowKey, 19, 13, 21, getEventBlobs(19, 21), versionHistoryItems)
 	events, err = s.syncStateRetriever.getSyncStateEvents(context.Background(), s.workflowKey, targetVersionHistoriesItems, sourceVersionHistories, false)
-	s.NoError(err)
-	s.Len(events, 31-19)
+	require.NoError(t, err)
+	require.Len(t, events, 31-19)
 
 	// get [19,31) from cache
-	s.addXDCCache(21, 13, 41, s.getEventBlobs(21, 41), versionHistoryItems)
+	addXDCCache(s.eventBlobCache, s.workflowKey, 21, 13, 41, getEventBlobs(21, 41), versionHistoryItems)
 	events, err = s.syncStateRetriever.getSyncStateEvents(context.Background(), s.workflowKey, targetVersionHistoriesItems, sourceVersionHistories, false)
-	s.NoError(err)
-	s.Len(events, 31-19)
+	require.NoError(t, err)
+	require.Len(t, events, 31-19)
 }
 
-func (s *syncWorkflowStateSuite) TestGetEventsBlob_NewRun() {
+func TestGetEventsBlob_NewRun(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	versionHistory := &historyspb.VersionHistory{
 		BranchToken: []byte("branchToken1"),
 		Items: []*historyspb.VersionHistoryItem{
@@ -833,19 +875,23 @@ func (s *syncWorkflowStateSuite) TestGetEventsBlob_NewRun() {
 		MaxEventID:  common.FirstEventID + 1,
 		ShardID:     s.mockShard.GetShardID(),
 		PageSize:    defaultPageSize,
-	}).Return(&persistence.ReadRawHistoryBranchResponse{HistoryEventBlobs: s.getEventBlobs(1, 4)}, nil)
+	}).Return(&persistence.ReadRawHistoryBranchResponse{HistoryEventBlobs: getEventBlobs(1, 4)}, nil)
 	events, err := s.syncStateRetriever.getEventsBlob(context.Background(), s.workflowKey, versionHistory, common.FirstEventID, common.FirstEventID+1, true)
-	s.NoError(err)
-	s.Len(events, 4-1)
+	require.NoError(t, err)
+	require.Len(t, events, 4-1)
 
 	// get [1,4) from cache
-	s.addXDCCache(1, 1, 4, s.getEventBlobs(1, 4), versionHistory.Items)
+	addXDCCache(s.eventBlobCache, s.workflowKey, 1, 1, 4, getEventBlobs(1, 4), versionHistory.Items)
 	events, err = s.syncStateRetriever.getEventsBlob(context.Background(), s.workflowKey, versionHistory, common.FirstEventID, common.FirstEventID+1, true)
-	s.NoError(err)
-	s.Len(events, 4-1)
+	require.NoError(t, err)
+	require.Len(t, events, 4-1)
 }
 
-func (s *syncWorkflowStateSuite) TestGetSyncStateEvents_EventsUpToDate_ReturnNothing() {
+func TestGetSyncStateEvents_EventsUpToDate_ReturnNothing(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	targetVersionHistoriesItems := [][]*historyspb.VersionHistoryItem{
 		{
 			{EventId: 1, Version: 10},
@@ -867,29 +913,33 @@ func (s *syncWorkflowStateSuite) TestGetSyncStateEvents_EventsUpToDate_ReturnNot
 
 	events, err := s.syncStateRetriever.getSyncStateEvents(context.Background(), s.workflowKey, targetVersionHistoriesItems, sourceVersionHistories, false)
 
-	s.NoError(err)
-	s.Nil(events)
+	require.NoError(t, err)
+	require.Nil(t, events)
 }
 
-func (s *syncWorkflowStateSuite) TestGetUpdatedSubStateMachine() {
+func TestGetUpdatedSubStateMachine(t *testing.T) {
+	s := setupSyncWorkflowStateTest(t)
+	defer s.controller.Finish()
+	defer s.mockShard.StopForTest()
+
 	reg := hsm.NewRegistry()
 	var def1 = hsmtest.NewDefinition("type1")
 	err := reg.RegisterMachine(def1)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	root, err := hsm.NewRoot(reg, def1.Type(), hsmtest.NewData(hsmtest.State1), make(map[string]*persistencespb.StateMachineMap), &hsmtest.NodeBackend{})
-	s.NoError(err)
+	require.NoError(t, err)
 	root.InternalRepr().LastUpdateVersionedTransition = &persistencespb.VersionedTransition{NamespaceFailoverVersion: 1, TransitionCount: 10}
 	child1, err := root.AddChild(hsm.Key{Type: def1.Type(), ID: "child1"}, hsmtest.NewData(hsmtest.State1))
-	s.Nil(err)
+	require.Nil(t, err)
 	child1.InternalRepr().LastUpdateVersionedTransition = &persistencespb.VersionedTransition{NamespaceFailoverVersion: 1, TransitionCount: 8}
 	child2, err := root.AddChild(hsm.Key{Type: def1.Type(), ID: "child2"}, hsmtest.NewData(hsmtest.State1))
-	s.Nil(err)
+	require.Nil(t, err)
 	child2.InternalRepr().LastUpdateVersionedTransition = &persistencespb.VersionedTransition{NamespaceFailoverVersion: 1, TransitionCount: 10}
 
 	result, err := s.syncStateRetriever.getUpdatedSubStateMachine(root, &persistencespb.VersionedTransition{NamespaceFailoverVersion: 1, TransitionCount: 9})
-	s.NoError(err)
-	s.Equal(1, len(result))
-	s.Equal(len(child2.Path()), len(result[0].Path.Path))
-	s.Equal(child2.Path()[0].ID, result[0].Path.Path[0].Id)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(result))
+	require.Equal(t, len(child2.Path()), len(result[0].Path.Path))
+	require.Equal(t, child2.Path()[0].ID, result[0].Path.Path[0].Id)
 }

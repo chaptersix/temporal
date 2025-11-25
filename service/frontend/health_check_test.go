@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/suite"
+	"github.com/stretchr/testify/require"
 	enumsspb "go.temporal.io/server/api/enums/v1"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/membership"
@@ -14,8 +14,7 @@ import (
 )
 
 type (
-	healthCheckerSuite struct {
-		suite.Suite
+	healthCheckerTest struct {
 		controller *gomock.Controller
 
 		membershipMonitor *membership.MockMonitor
@@ -25,13 +24,9 @@ type (
 	}
 )
 
-func TestHealthCheckerSuite(t *testing.T) {
-	s := new(healthCheckerSuite)
-	suite.Run(t, s)
-}
-
-func (s *healthCheckerSuite) SetupTest() {
-	s.controller = gomock.NewController(s.T())
+func setupHealthCheckerTest(t *testing.T) *healthCheckerTest {
+	s := &healthCheckerTest{}
+	s.controller = gomock.NewController(t)
 	s.membershipMonitor = membership.NewMockMonitor(s.controller)
 	s.resolver = membership.NewMockServiceResolver(s.controller)
 	s.membershipMonitor.EXPECT().GetResolver(gomock.Any()).Return(s.resolver, nil).AnyTimes()
@@ -61,16 +56,14 @@ func (s *healthCheckerSuite) SetupTest() {
 	)
 	healthChecker, ok := checker.(*healthCheckerImpl)
 	if !ok {
-		s.Fail("The constructor did not return correct type")
+		t.Fatal("The constructor did not return correct type")
 	}
 	s.checker = healthChecker
+	return s
 }
 
-func (s *healthCheckerSuite) TearDownTest() {
-	s.controller.Finish()
-}
-
-func (s *healthCheckerSuite) Test_Check_Serving() {
+func Test_Check_Serving(t *testing.T) {
+	s := setupHealthCheckerTest(t)
 	s.resolver.EXPECT().AvailableMembers().Return([]membership.HostInfo{
 		membership.NewHostInfoFromAddress("1"),
 		membership.NewHostInfoFromAddress("2"),
@@ -79,11 +72,12 @@ func (s *healthCheckerSuite) Test_Check_Serving() {
 	})
 
 	state, err := s.checker.Check(context.Background())
-	s.NoError(err)
-	s.Equal(enumsspb.HEALTH_STATE_SERVING, state)
+	require.NoError(t, err)
+	require.Equal(t, enumsspb.HEALTH_STATE_SERVING, state)
 }
 
-func (s *healthCheckerSuite) Test_Check_Not_Serving() {
+func Test_Check_Not_Serving(t *testing.T) {
+	s := setupHealthCheckerTest(t)
 	s.resolver.EXPECT().AvailableMembers().Return([]membership.HostInfo{
 		membership.NewHostInfoFromAddress("1"),
 		membership.NewHostInfoFromAddress("2"),
@@ -93,11 +87,12 @@ func (s *healthCheckerSuite) Test_Check_Not_Serving() {
 	})
 
 	state, err := s.checker.Check(context.Background())
-	s.NoError(err)
-	s.Equal(enumsspb.HEALTH_STATE_NOT_SERVING, state)
+	require.NoError(t, err)
+	require.Equal(t, enumsspb.HEALTH_STATE_NOT_SERVING, state)
 }
 
-func (s *healthCheckerSuite) Test_Check_Declined_Serving() {
+func Test_Check_Declined_Serving(t *testing.T) {
+	s := setupHealthCheckerTest(t)
 	s.resolver.EXPECT().AvailableMembers().Return([]membership.HostInfo{
 		membership.NewHostInfoFromAddress("1"),
 		membership.NewHostInfoFromAddress("2"),
@@ -109,19 +104,21 @@ func (s *healthCheckerSuite) Test_Check_Declined_Serving() {
 	})
 
 	state, err := s.checker.Check(context.Background())
-	s.NoError(err)
-	s.Equal(enumsspb.HEALTH_STATE_DECLINED_SERVING, state)
+	require.NoError(t, err)
+	require.Equal(t, enumsspb.HEALTH_STATE_DECLINED_SERVING, state)
 }
 
-func (s *healthCheckerSuite) Test_Check_No_Available_Hosts() {
+func Test_Check_No_Available_Hosts(t *testing.T) {
+	s := setupHealthCheckerTest(t)
 	s.resolver.EXPECT().AvailableMembers().Return([]membership.HostInfo{})
 
 	state, err := s.checker.Check(context.Background())
-	s.NoError(err)
-	s.Equal(enumsspb.HEALTH_STATE_NOT_SERVING, state)
+	require.NoError(t, err)
+	require.Equal(t, enumsspb.HEALTH_STATE_NOT_SERVING, state)
 }
 
-func (s *healthCheckerSuite) Test_Check_GetResolver_Error() {
+func Test_Check_GetResolver_Error(t *testing.T) {
+	s := setupHealthCheckerTest(t)
 	// Create a new checker for this test to avoid conflicting expectations
 	membershipMonitor := membership.NewMockMonitor(s.controller)
 	membershipMonitor.EXPECT().GetResolver(primitives.HistoryService).Return(nil, errors.New("resolver error"))
@@ -138,12 +135,13 @@ func (s *healthCheckerSuite) Test_Check_GetResolver_Error() {
 	)
 
 	state, err := checker.Check(context.Background())
-	s.Error(err)
-	s.Equal(enumsspb.HEALTH_STATE_UNSPECIFIED, state)
-	s.Contains(err.Error(), "resolver error")
+	require.Error(t, err)
+	require.Equal(t, enumsspb.HEALTH_STATE_UNSPECIFIED, state)
+	require.Contains(t, err.Error(), "resolver error")
 }
 
-func (s *healthCheckerSuite) Test_Check_Boundary_Failure_Percentage_Equals_Threshold() {
+func Test_Check_Boundary_Failure_Percentage_Equals_Threshold(t *testing.T) {
+	s := setupHealthCheckerTest(t)
 	// Test when failure percentage exactly equals the threshold (0.25)
 	// With 4 hosts, 1 failed = 0.25 (25%), should return SERVING since it's not > threshold
 	s.resolver.EXPECT().AvailableMembers().Return([]membership.HostInfo{
@@ -154,11 +152,11 @@ func (s *healthCheckerSuite) Test_Check_Boundary_Failure_Percentage_Equals_Thres
 	})
 
 	state, err := s.checker.Check(context.Background())
-	s.NoError(err)
-	s.Equal(enumsspb.HEALTH_STATE_SERVING, state)
+	require.NoError(t, err)
+	require.Equal(t, enumsspb.HEALTH_STATE_SERVING, state)
 }
 
-func (s *healthCheckerSuite) Test_Check_Single_Host_Scenarios() {
+func Test_Check_Single_Host_Scenarios(t *testing.T) {
 	testCases := []struct {
 		name          string
 		hostAddress   string
@@ -187,19 +185,21 @@ func (s *healthCheckerSuite) Test_Check_Single_Host_Scenarios() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
+			s := setupHealthCheckerTest(t)
 			s.resolver.EXPECT().AvailableMembers().Return([]membership.HostInfo{
 				membership.NewHostInfoFromAddress(tc.hostAddress),
 			})
 
 			state, err := s.checker.Check(context.Background())
-			s.NoError(err)
-			s.Equal(tc.expectedState, state)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedState, state)
 		})
 	}
 }
 
-func (s *healthCheckerSuite) Test_Check_Context_Cancellation() {
+func Test_Check_Context_Cancellation(t *testing.T) {
+	s := setupHealthCheckerTest(t)
 	s.resolver.EXPECT().AvailableMembers().Return([]membership.HostInfo{
 		membership.NewHostInfoFromAddress("1"),
 		membership.NewHostInfoFromAddress("2"),
@@ -227,11 +227,11 @@ func (s *healthCheckerSuite) Test_Check_Context_Cancellation() {
 	)
 
 	state, err := checker.Check(ctx)
-	s.NoError(err)                                    // Context cancellation in individual health checks should not fail the overall check
-	s.Equal(enumsspb.HEALTH_STATE_NOT_SERVING, state) // All hosts will return UNSPECIFIED due to cancellation
+	require.NoError(t, err)                                   // Context cancellation in individual health checks should not fail the overall check
+	require.Equal(t, enumsspb.HEALTH_STATE_NOT_SERVING, state) // All hosts will return UNSPECIFIED due to cancellation
 }
 
-func (s *healthCheckerSuite) Test_Check_Mixed_Host_States_Edge_Cases() {
+func Test_Check_Mixed_Host_States_Edge_Cases(t *testing.T) {
 	testCases := []struct {
 		name          string
 		hosts         []string
@@ -271,7 +271,8 @@ func (s *healthCheckerSuite) Test_Check_Mixed_Host_States_Edge_Cases() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
+			s := setupHealthCheckerTest(t)
 			hostInfos := make([]membership.HostInfo, len(tc.hosts))
 			for i, host := range tc.hosts {
 				hostInfos[i] = membership.NewHostInfoFromAddress(host)
@@ -279,13 +280,13 @@ func (s *healthCheckerSuite) Test_Check_Mixed_Host_States_Edge_Cases() {
 			s.resolver.EXPECT().AvailableMembers().Return(hostInfos)
 
 			state, err := s.checker.Check(context.Background())
-			s.NoError(err, tc.description)
-			s.Equal(tc.expectedState, state, tc.description)
+			require.NoError(t, err, tc.description)
+			require.Equal(t, tc.expectedState, state, tc.description)
 		})
 	}
 }
 
-func (s *healthCheckerSuite) Test_GetProportionOfNotReadyHosts() {
+func Test_GetProportionOfNotReadyHosts(t *testing.T) {
 	testCases := []struct {
 		name                             string
 		proportionOfDeclinedServingHosts float64
@@ -319,9 +320,9 @@ func (s *healthCheckerSuite) Test_GetProportionOfNotReadyHosts() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
 			proportion := ensureMinimumProportionOfHosts(tc.proportionOfDeclinedServingHosts, tc.totalHosts)
-			s.Equal(tc.expectedProportion, proportion)
+			require.Equal(t, tc.expectedProportion, proportion)
 		})
 	}
 }

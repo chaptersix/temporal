@@ -7,7 +7,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	taskqueuepb "go.temporal.io/api/taskqueue/v1"
@@ -52,154 +51,148 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type (
-	timerQueueActiveTaskExecutorSuite struct {
-		suite.Suite
-		*require.Assertions
+type timerQueueActiveTaskExecutorTestDeps struct {
+	controller              *gomock.Controller
+	mockShard               *shard.ContextTest
+	mockTxProcessor         *queues.MockQueue
+	mockTimerProcessor      *queues.MockQueue
+	mockVisibilityProcessor *queues.MockQueue
+	mockArchivalProcessor   *queues.MockQueue
+	mockNamespaceCache      *namespace.MockRegistry
+	mockMatchingClient      *matchingservicemock.MockMatchingServiceClient
+	mockClusterMetadata     *cluster.MockMetadata
+	mockChasmEngine         *chasm.MockEngine
 
-		controller              *gomock.Controller
-		mockShard               *shard.ContextTest
-		mockTxProcessor         *queues.MockQueue
-		mockTimerProcessor      *queues.MockQueue
-		mockVisibilityProcessor *queues.MockQueue
-		mockArchivalProcessor   *queues.MockQueue
-		mockNamespaceCache      *namespace.MockRegistry
-		mockMatchingClient      *matchingservicemock.MockMatchingServiceClient
-		mockClusterMetadata     *cluster.MockMetadata
-		mockChasmEngine         *chasm.MockEngine
+	mockHistoryEngine *historyEngineImpl
+	mockDeleteManager *deletemanager.MockDeleteManager
+	mockExecutionMgr  *persistence.MockExecutionManager
 
-		mockHistoryEngine *historyEngineImpl
-		mockDeleteManager *deletemanager.MockDeleteManager
-		mockExecutionMgr  *persistence.MockExecutionManager
-
-		config                       *configs.Config
-		workflowCache                wcache.Cache
-		logger                       log.Logger
-		namespaceID                  namespace.ID
-		namespaceEntry               *namespace.Namespace
-		version                      int64
-		now                          time.Time
-		timeSource                   *clock.EventTimeSource
-		timerQueueActiveTaskExecutor *timerQueueActiveTaskExecutor
-	}
-)
-
-func TestTimerQueueActiveTaskExecutorSuite(t *testing.T) {
-	s := new(timerQueueActiveTaskExecutorSuite)
-	suite.Run(t, s)
+	config                       *configs.Config
+	workflowCache                wcache.Cache
+	logger                       log.Logger
+	namespaceID                  namespace.ID
+	namespaceEntry               *namespace.Namespace
+	version                      int64
+	now                          time.Time
+	timeSource                   *clock.EventTimeSource
+	timerQueueActiveTaskExecutor *timerQueueActiveTaskExecutor
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) SetupSuite() {
-}
 
-func (s *timerQueueActiveTaskExecutorSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
 
-	s.namespaceID = tests.NamespaceID
-	s.namespaceEntry = tests.GlobalNamespaceEntry
-	s.version = s.namespaceEntry.FailoverVersion()
-	s.now = time.Now().UTC()
-	s.timeSource = clock.NewEventTimeSource().Update(s.now)
 
-	s.controller = gomock.NewController(s.T())
-	s.mockTxProcessor = queues.NewMockQueue(s.controller)
-	s.mockTimerProcessor = queues.NewMockQueue(s.controller)
-	s.mockVisibilityProcessor = queues.NewMockQueue(s.controller)
-	s.mockArchivalProcessor = queues.NewMockQueue(s.controller)
-	s.mockChasmEngine = chasm.NewMockEngine(s.controller)
-	s.mockTxProcessor.EXPECT().Category().Return(tasks.CategoryTransfer).AnyTimes()
-	s.mockTimerProcessor.EXPECT().Category().Return(tasks.CategoryTimer).AnyTimes()
-	s.mockVisibilityProcessor.EXPECT().Category().Return(tasks.CategoryVisibility).AnyTimes()
-	s.mockArchivalProcessor.EXPECT().Category().Return(tasks.CategoryArchival).AnyTimes()
-	s.mockTxProcessor.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
-	s.mockTimerProcessor.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
-	s.mockVisibilityProcessor.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
-	s.mockArchivalProcessor.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
 
-	s.config = tests.NewDynamicConfig()
-	s.mockShard = shard.NewTestContextWithTimeSource(
-		s.controller,
+func setupTimerQueueActiveTaskExecutorTest(t *testing.T) *timerQueueActiveTaskExecutorTestDeps {
+	d := &timerQueueActiveTaskExecutorTestDeps{}
+
+	d.namespaceID = tests.NamespaceID
+	d.namespaceEntry = tests.GlobalNamespaceEntry
+	d.version = d.namespaceEntry.FailoverVersion()
+	d.now = time.Now().UTC()
+	d.timeSource = clock.NewEventTimeSource().Update(d.now)
+
+	d.controller = gomock.NewController(t)
+	d.mockTxProcessor = queues.NewMockQueue(d.controller)
+	d.mockTimerProcessor = queues.NewMockQueue(d.controller)
+	d.mockVisibilityProcessor = queues.NewMockQueue(d.controller)
+	d.mockArchivalProcessor = queues.NewMockQueue(d.controller)
+	d.mockChasmEngine = chasm.NewMockEngine(d.controller)
+	d.mockTxProcessor.EXPECT().Category().Return(tasks.CategoryTransfer).AnyTimes()
+	d.mockTimerProcessor.EXPECT().Category().Return(tasks.CategoryTimer).AnyTimes()
+	d.mockVisibilityProcessor.EXPECT().Category().Return(tasks.CategoryVisibility).AnyTimes()
+	d.mockArchivalProcessor.EXPECT().Category().Return(tasks.CategoryArchival).AnyTimes()
+	d.mockTxProcessor.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
+	d.mockTimerProcessor.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
+	d.mockVisibilityProcessor.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
+	d.mockArchivalProcessor.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
+
+	d.config = tests.NewDynamicConfig()
+	d.mockShard = shard.NewTestContextWithTimeSource(
+		d.controller,
 		&persistencespb.ShardInfo{
 			ShardId: 1,
 			RangeId: 1,
 		},
-		s.config,
-		s.timeSource,
+		d.config,
+		d.timeSource,
 	)
 
 	reg := hsm.NewRegistry()
 	err := workflow.RegisterStateMachine(reg)
-	s.NoError(err)
-	s.mockShard.SetStateMachineRegistry(reg)
+	require.NoError(t, err)
+	d.mockShard.SetStateMachineRegistry(reg)
 
-	s.mockShard.SetEventsCacheForTesting(events.NewHostLevelEventsCache(
-		s.mockShard.GetExecutionManager(),
-		s.mockShard.GetConfig(),
-		s.mockShard.GetMetricsHandler(),
-		s.mockShard.GetLogger(),
+	d.mockShard.SetEventsCacheForTesting(events.NewHostLevelEventsCache(
+		d.mockShard.GetExecutionManager(),
+		d.mockShard.GetConfig(),
+		d.mockShard.GetMetricsHandler(),
+		d.mockShard.GetLogger(),
 		false,
 	))
 
-	s.mockNamespaceCache = s.mockShard.Resource.NamespaceCache
-	s.mockMatchingClient = s.mockShard.Resource.MatchingClient
-	s.mockExecutionMgr = s.mockShard.Resource.ExecutionMgr
-	s.mockClusterMetadata = s.mockShard.Resource.ClusterMetadata
+	d.mockNamespaceCache = d.mockShard.Resource.NamespaceCache
+	d.mockMatchingClient = d.mockShard.Resource.MatchingClient
+	d.mockExecutionMgr = d.mockShard.Resource.ExecutionMgr
+	d.mockClusterMetadata = d.mockShard.Resource.ClusterMetadata
 	// ack manager will use the namespace information
-	s.mockNamespaceCache.EXPECT().GetNamespaceByID(gomock.Any()).Return(tests.GlobalNamespaceEntry, nil).AnyTimes()
-	s.mockNamespaceCache.EXPECT().GetNamespaceName(gomock.Any()).Return(tests.Namespace, nil).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetClusterID().Return(tests.Version).AnyTimes()
-	s.mockClusterMetadata.EXPECT().IsVersionFromSameCluster(tests.Version, tests.Version).Return(true).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
-	s.mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
-	s.mockClusterMetadata.EXPECT().ClusterNameForFailoverVersion(s.namespaceEntry.IsGlobalNamespace(), s.version).Return(s.mockClusterMetadata.GetCurrentClusterName()).AnyTimes()
-	s.workflowCache = wcache.NewHostLevelCache(s.mockShard.GetConfig(), s.mockShard.GetLogger(), metrics.NoopMetricsHandler)
-	s.logger = s.mockShard.GetLogger()
+	d.mockNamespaceCache.EXPECT().GetNamespaceByID(gomock.Any()).Return(tests.GlobalNamespaceEntry, nil).AnyTimes()
+	d.mockNamespaceCache.EXPECT().GetNamespaceName(gomock.Any()).Return(tests.Namespace, nil).AnyTimes()
+	d.mockClusterMetadata.EXPECT().GetClusterID().Return(tests.Version).AnyTimes()
+	d.mockClusterMetadata.EXPECT().IsVersionFromSameCluster(tests.Version, tests.Version).Return(true).AnyTimes()
+	d.mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	d.mockClusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
+	d.mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
+	d.mockClusterMetadata.EXPECT().ClusterNameForFailoverVersion(d.namespaceEntry.IsGlobalNamespace(), d.version).Return(d.mockClusterMetadata.GetCurrentClusterName()).AnyTimes()
+	d.workflowCache = wcache.NewHostLevelCache(d.mockShard.GetConfig(), d.mockShard.GetLogger(), metrics.NoopMetricsHandler)
+	d.logger = d.mockShard.GetLogger()
 
-	s.mockDeleteManager = deletemanager.NewMockDeleteManager(s.controller)
+	d.mockDeleteManager = deletemanager.NewMockDeleteManager(d.controller)
 	h := &historyEngineImpl{
-		currentClusterName: s.mockShard.Resource.GetClusterMetadata().GetCurrentClusterName(),
-		shardContext:       s.mockShard,
-		clusterMetadata:    s.mockClusterMetadata,
-		executionManager:   s.mockExecutionMgr,
-		logger:             s.logger,
+		currentClusterName: d.mockShard.Resource.GetClusterMetadata().GetCurrentClusterName(),
+		shardContext:       d.mockShard,
+		clusterMetadata:    d.mockClusterMetadata,
+		executionManager:   d.mockExecutionMgr,
+		logger:             d.logger,
 		tokenSerializer:    tasktoken.NewSerializer(),
-		metricsHandler:     s.mockShard.GetMetricsHandler(),
+		metricsHandler:     d.mockShard.GetMetricsHandler(),
 		eventNotifier:      events.NewNotifier(clock.NewRealTimeSource(), metrics.NoopMetricsHandler, func(namespace.ID, string) int32 { return 1 }),
 		queueProcessors: map[tasks.Category]queues.Queue{
-			s.mockTxProcessor.Category():         s.mockTxProcessor,
-			s.mockTimerProcessor.Category():      s.mockTimerProcessor,
-			s.mockVisibilityProcessor.Category(): s.mockVisibilityProcessor,
-			s.mockArchivalProcessor.Category():   s.mockArchivalProcessor,
+			d.mockTxProcessor.Category():         d.mockTxProcessor,
+			d.mockTimerProcessor.Category():      d.mockTimerProcessor,
+			d.mockVisibilityProcessor.Category(): d.mockVisibilityProcessor,
+			d.mockArchivalProcessor.Category():   d.mockArchivalProcessor,
 		},
 	}
-	s.mockShard.SetEngineForTesting(h)
-	s.mockHistoryEngine = h
+	d.mockShard.SetEngineForTesting(h)
+	d.mockHistoryEngine = h
 
-	s.timerQueueActiveTaskExecutor = newTimerQueueActiveTaskExecutor(
-		s.mockShard,
-		s.workflowCache,
-		s.mockDeleteManager,
-		s.logger,
+	d.timerQueueActiveTaskExecutor = newTimerQueueActiveTaskExecutor(
+		d.mockShard,
+		d.workflowCache,
+		d.mockDeleteManager,
+		d.logger,
 		metrics.NoopMetricsHandler,
-		s.config,
-		s.mockShard.Resource.GetMatchingClient(),
-		s.mockChasmEngine,
+		d.config,
+		d.mockShard.Resource.GetMatchingClient(),
+		d.mockChasmEngine,
 	).(*timerQueueActiveTaskExecutor)
+	return d
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.StopForTest()
-}
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_Fire() {
+
+func TestProcessUserTimerTimeout_Fire(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceID.String(),
+		d.namespaceID.String(),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
@@ -207,10 +200,10 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_Fire() {
 	taskQueueName := "some random task queue"
 
 	mutableState := workflow.TestGlobalMutableState(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
-		s.logger,
-		s.version,
+		d.mockShard,
+		d.mockShard.GetEventsCache(),
+		d.logger,
+		d.version,
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
@@ -218,7 +211,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_Fire() {
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -227,12 +220,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_Fire() {
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	timerID := "timer"
 	timerTimeout := 2 * time.Second
@@ -241,39 +234,44 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_Fire() {
 	timerSequence := workflow.NewTimerSequence(mutableState)
 	mutableState.InsertTasks[tasks.CategoryTimer] = nil
 	modified, err := timerSequence.CreateNextUserTimer()
-	s.NoError(err)
-	s.True(modified)
+	require.NoError(t, err)
+	require.True(t, modified)
 	task := mutableState.InsertTasks[tasks.CategoryTimer][0]
 
 	timerTask := &tasks.UserTimerTask{
 		WorkflowKey:         workflowKey,
-		TaskID:              s.mustGenerateTaskID(),
+		TaskID:              d.mustGenerateTaskID(),
 		VisibilityTimestamp: task.(*tasks.UserTimerTask).VisibilityTimestamp,
 		EventID:             event.EventId,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
 
 	for _, currentTime := range []time.Time{
-		s.now.Add(-timerTimeout),
-		s.now.Add(2 * timerTimeout),
+		d.now.Add(-timerTimeout),
+		d.now.Add(2 * timerTimeout),
 	} {
 		getWorkflowExecutionResponse := &persistence.GetWorkflowExecutionResponse{State: common.CloneProto(persistenceMutableState)}
-		s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(getWorkflowExecutionResponse, nil)
-		s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+		d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(getWorkflowExecutionResponse, nil)
+		d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
-		s.timeSource.Update(currentTime)
-		resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-		s.NoError(resp.ExecutionErr)
+		d.timeSource.Update(currentTime)
+		resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+		require.NoError(t, resp.ExecutionErr)
 
-		_, ok := s.getMutableStateFromCache(workflowKey).GetUserTimerInfo(timerID)
-		s.False(ok)
+		_, ok := d.getMutableStateFromCache(workflowKey).GetUserTimerInfo(timerID)
+		require.False(t, ok)
 
-		s.clearMutableStateFromCache(workflowKey)
+		d.clearMutableStateFromCache(workflowKey)
 	}
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_Noop() {
+func TestProcessUserTimerTimeout_Noop(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -282,10 +280,10 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_Noop() {
 	taskQueueName := "some random task queue"
 
 	mutableState := workflow.TestGlobalMutableState(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
-		s.logger,
-		s.version,
+		d.mockShard,
+		d.mockShard.GetEventsCache(),
+		d.logger,
+		d.version,
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
@@ -293,7 +291,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_Noop() {
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -302,12 +300,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_Noop() {
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	timerID := "timer"
 	timerTimeout := 2 * time.Second
@@ -316,17 +314,17 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_Noop() {
 	timerSequence := workflow.NewTimerSequence(mutableState)
 	mutableState.InsertTasks[tasks.CategoryTimer] = nil
 	modified, err := timerSequence.CreateNextUserTimer()
-	s.NoError(err)
-	s.True(modified)
+	require.NoError(t, err)
+	require.True(t, modified)
 	task := mutableState.InsertTasks[tasks.CategoryTimer][0]
 
 	timerTask := &tasks.UserTimerTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
-		TaskID:              s.mustGenerateTaskID(),
+		TaskID:              d.mustGenerateTaskID(),
 		VisibilityTimestamp: task.(*tasks.UserTimerTask).VisibilityTimestamp,
 		EventID:             event.EventId,
 	}
@@ -335,15 +333,20 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_Noop() {
 	// Flush buffered events so real IDs get assigned
 	mutableState.FlushBufferedEvents()
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	s.timeSource.Update(s.now.Add(2 * timerTimeout))
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.ErrorIs(resp.ExecutionErr, errNoTimerFired)
+	d.timeSource.Update(d.now.Add(2 * timerTimeout))
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.ErrorIs(t, resp.ExecutionErr, errNoTimerFired)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_WfClosed() {
+func TestProcessUserTimerTimeout_WfClosed(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -352,10 +355,10 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_WfClosed
 	taskQueueName := "some random task queue"
 
 	mutableState := workflow.TestGlobalMutableState(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
-		s.logger,
-		s.version,
+		d.mockShard,
+		d.mockShard.GetEventsCache(),
+		d.logger,
+		d.version,
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
@@ -363,7 +366,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_WfClosed
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -372,12 +375,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_WfClosed
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	timerID := "timer"
 	timerTimeout := 2 * time.Second
@@ -386,31 +389,36 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_WfClosed
 	timerSequence := workflow.NewTimerSequence(mutableState)
 	mutableState.InsertTasks[tasks.CategoryTimer] = nil
 	modified, err := timerSequence.CreateNextUserTimer()
-	s.NoError(err)
-	s.True(modified)
+	require.NoError(t, err)
+	require.True(t, modified)
 	task := mutableState.InsertTasks[tasks.CategoryTimer][0]
 
 	timerTask := &tasks.UserTimerTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
-		TaskID:              s.mustGenerateTaskID(),
+		TaskID:              d.mustGenerateTaskID(),
 		VisibilityTimestamp: task.(*tasks.UserTimerTask).VisibilityTimestamp,
 		EventID:             event.EventId,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
 	persistenceMutableState.ExecutionState.State = enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	s.timeSource.Update(s.now.Add(2 * timerTimeout))
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.ErrorIs(resp.ExecutionErr, consts.ErrWorkflowCompleted)
+	d.timeSource.Update(d.now.Add(2 * timerTimeout))
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.ErrorIs(t, resp.ExecutionErr, consts.ErrWorkflowCompleted)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_NoTimerAndWfClosed() {
+func TestProcessUserTimerTimeout_NoTimerAndWfClosed(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -419,10 +427,10 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_NoTimerA
 	taskQueueName := "some random task queue"
 
 	mutableState := workflow.TestGlobalMutableState(
-		s.mockShard,
-		s.mockShard.GetEventsCache(),
-		s.logger,
-		s.version,
+		d.mockShard,
+		d.mockShard.GetEventsCache(),
+		d.logger,
+		d.version,
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
@@ -430,7 +438,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_NoTimerA
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -439,51 +447,56 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessUserTimerTimeout_NoTimerA
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	timerTask := &tasks.UserTimerTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
-		TaskID:              s.mustGenerateTaskID(),
+		TaskID:              d.mustGenerateTaskID(),
 		VisibilityTimestamp: time.Now(),
 		EventID:             event.EventId,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
 	persistenceMutableState.ExecutionState.State = enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.ErrorIs(resp.ExecutionErr, errNoTimerFired)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.ErrorIs(t, resp.ExecutionErr, errNoTimerFired)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_NoRetryPolicy_Fire() {
+func TestProcessActivityTimeout_NoRetryPolicy_Fire(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceID.String(),
+		d.namespaceID.String(),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:             &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:                &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -492,12 +505,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_NoRetryPo
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	taskqueue := "taskqueue"
 	activityID := "activity"
@@ -519,41 +532,46 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_NoRetryPo
 	timerSequence := workflow.NewTimerSequence(mutableState)
 	mutableState.InsertTasks[tasks.CategoryTimer] = nil
 	modified, err := timerSequence.CreateNextActivityTimer()
-	s.NoError(err)
-	s.True(modified)
+	require.NoError(t, err)
+	require.True(t, modified)
 	task := mutableState.InsertTasks[tasks.CategoryTimer][0]
 
 	timerTask := &tasks.ActivityTimeoutTask{
 		WorkflowKey:         workflowKey,
 		Attempt:             1,
-		TaskID:              s.mustGenerateTaskID(),
+		TaskID:              d.mustGenerateTaskID(),
 		TimeoutType:         enumspb.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
 		VisibilityTimestamp: task.(*tasks.ActivityTimeoutTask).VisibilityTimestamp,
 		EventID:             scheduledEvent.EventId,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
 
 	for _, currentTime := range []time.Time{
-		s.now.Add(-timerTimeout),
-		s.now.Add(2 * timerTimeout),
+		d.now.Add(-timerTimeout),
+		d.now.Add(2 * timerTimeout),
 	} {
 		getWorkflowExecutionResponse := &persistence.GetWorkflowExecutionResponse{State: common.CloneProto(persistenceMutableState)}
-		s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(getWorkflowExecutionResponse, nil)
-		s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+		d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(getWorkflowExecutionResponse, nil)
+		d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
-		s.timeSource.Update(currentTime)
-		resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-		s.NoError(resp.ExecutionErr)
+		d.timeSource.Update(currentTime)
+		resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+		require.NoError(t, resp.ExecutionErr)
 
-		_, ok := s.getMutableStateFromCache(workflowKey).GetActivityInfo(scheduledEvent.GetEventId())
-		s.False(ok)
+		_, ok := d.getMutableStateFromCache(workflowKey).GetActivityInfo(scheduledEvent.GetEventId())
+		require.False(t, ok)
 
-		s.clearMutableStateFromCache(workflowKey)
+		d.clearMutableStateFromCache(workflowKey)
 	}
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_NoRetryPolicy_Noop() {
+func TestProcessActivityTimeout_NoRetryPolicy_Noop(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -561,12 +579,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_NoRetryPo
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:             &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:                &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -575,12 +593,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_NoRetryPo
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	identity := "identity"
 	taskqueue := "taskqueue"
@@ -604,18 +622,18 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_NoRetryPo
 	timerSequence := workflow.NewTimerSequence(mutableState)
 	mutableState.InsertTasks[tasks.CategoryTimer] = nil
 	modified, err := timerSequence.CreateNextActivityTimer()
-	s.NoError(err)
-	s.True(modified)
+	require.NoError(t, err)
+	require.True(t, modified)
 	task := mutableState.InsertTasks[tasks.CategoryTimer][0]
 
 	timerTask := &tasks.ActivityTimeoutTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
 		Attempt:             1,
-		TaskID:              s.mustGenerateTaskID(),
+		TaskID:              d.mustGenerateTaskID(),
 		TimeoutType:         enumspb.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
 		VisibilityTimestamp: task.(*tasks.ActivityTimeoutTask).VisibilityTimestamp,
 		EventID:             wt.ScheduledEventID,
@@ -625,33 +643,38 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_NoRetryPo
 	// Flush buffered events so real IDs get assigned
 	mutableState.FlushBufferedEvents()
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, completeEvent.GetEventId(), completeEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, completeEvent.GetEventId(), completeEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	s.timeSource.Update(s.now.Add(2 * timerTimeout))
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	d.timeSource.Update(d.now.Add(2 * timerTimeout))
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPolicy_Retry() {
+func TestProcessActivityTimeout_RetryPolicy_Retry(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceID.String(),
+		d.namespaceID.String(),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -660,12 +683,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPoli
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	identity := "identity"
 	taskqueue := "taskqueue"
@@ -692,41 +715,46 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPoli
 		},
 	)
 	startedEvent := addActivityTaskStartedEvent(mutableState, scheduledEvent.GetEventId(), identity)
-	s.Nil(startedEvent)
+	require.Nil(t, startedEvent)
 
 	timerSequence := workflow.NewTimerSequence(mutableState)
 	mutableState.InsertTasks[tasks.CategoryTimer] = nil
 	modified, err := timerSequence.CreateNextActivityTimer()
-	s.NoError(err)
-	s.True(modified)
+	require.NoError(t, err)
+	require.True(t, modified)
 	task := mutableState.InsertTasks[tasks.CategoryTimer][0]
 
 	timerTask := &tasks.ActivityTimeoutTask{
 		WorkflowKey:         workflowKey,
 		Attempt:             1,
-		TaskID:              s.mustGenerateTaskID(),
+		TaskID:              d.mustGenerateTaskID(),
 		TimeoutType:         enumspb.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
 		VisibilityTimestamp: task.(*tasks.ActivityTimeoutTask).VisibilityTimestamp,
 		EventID:             scheduledEvent.EventId,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
-	s.timeSource.Update(s.now.Add(2 * timerTimeout))
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	d.timeSource.Update(d.now.Add(2 * timerTimeout))
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 
-	activityInfo, ok := s.getMutableStateFromCache(workflowKey).GetActivityInfo(scheduledEvent.GetEventId())
-	s.True(ok)
-	s.Equal(scheduledEvent.GetEventId(), activityInfo.ScheduledEventId)
-	s.Equal(common.EmptyEventID, activityInfo.StartedEventId)
+	activityInfo, ok := d.getMutableStateFromCache(workflowKey).GetActivityInfo(scheduledEvent.GetEventId())
+	require.True(t, ok)
+	require.Equal(t, scheduledEvent.GetEventId(), activityInfo.ScheduledEventId)
+	require.Equal(t, common.EmptyEventID, activityInfo.StartedEventId)
 	// only a schedule to start timer will be created, apart from the retry timer
-	s.Equal(int32(workflow.TimerTaskStatusCreatedScheduleToStart), activityInfo.TimerTaskStatus)
+	require.Equal(t, int32(workflow.TimerTaskStatusCreatedScheduleToStart), activityInfo.TimerTaskStatus)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPolicy_RetryTimeout() {
+func TestProcessActivityTimeout_RetryPolicy_RetryTimeout(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -734,12 +762,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPoli
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -748,12 +776,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPoli
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	identity := "identity"
 	taskqueue := "taskqueue"
@@ -780,72 +808,77 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPoli
 		},
 	)
 	startedEvent := addActivityTaskStartedEvent(mutableState, scheduledEvent.GetEventId(), identity)
-	s.Nil(startedEvent)
+	require.Nil(t, startedEvent)
 
 	timerSequence := workflow.NewTimerSequence(mutableState)
 	mutableState.InsertTasks[tasks.CategoryTimer] = nil
 	modified, err := timerSequence.CreateNextActivityTimer()
-	s.NoError(err)
-	s.True(modified)
+	require.NoError(t, err)
+	require.True(t, modified)
 	task := mutableState.InsertTasks[tasks.CategoryTimer][0]
 
 	timerTask := &tasks.ActivityTimeoutTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
 		Attempt:             1,
-		TaskID:              s.mustGenerateTaskID(),
+		TaskID:              d.mustGenerateTaskID(),
 		TimeoutType:         enumspb.TIMEOUT_TYPE_START_TO_CLOSE,
 		VisibilityTimestamp: task.(*tasks.ActivityTimeoutTask).VisibilityTimestamp,
 		EventID:             scheduledEvent.EventId,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(
 			ctx context.Context,
 			request *persistence.UpdateWorkflowExecutionRequest,
 		) (*persistence.UpdateWorkflowExecutionResponse, error) {
-			s.Len(request.UpdateWorkflowEvents, 1)
+			require.Len(t, request.UpdateWorkflowEvents, 1)
 			// activityStarted (since activity has retry policy), activityTimedOut, workflowTaskScheduled
-			s.Len(request.UpdateWorkflowEvents[0].Events, 3)
+			require.Len(t, request.UpdateWorkflowEvents[0].Events, 3)
 
 			timeoutEvent := request.UpdateWorkflowEvents[0].Events[1]
-			s.Equal(enumspb.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT, timeoutEvent.GetEventType())
+			require.Equal(t, enumspb.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT, timeoutEvent.GetEventType())
 			timeoutAttributes := timeoutEvent.GetActivityTaskTimedOutEventAttributes()
-			s.Equal(enumspb.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, timeoutAttributes.Failure.GetTimeoutFailureInfo().GetTimeoutType())
-			s.Contains(timeoutAttributes.Failure.Message, enumspb.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE.String())
-			s.Equal(enumspb.RETRY_STATE_TIMEOUT, timeoutAttributes.RetryState)
+			require.Equal(t, enumspb.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, timeoutAttributes.Failure.GetTimeoutFailureInfo().GetTimeoutType())
+			require.Contains(t, timeoutAttributes.Failure.Message, enumspb.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE.String())
+			require.Equal(t, enumspb.RETRY_STATE_TIMEOUT, timeoutAttributes.RetryState)
 			return tests.UpdateWorkflowExecutionResponse, nil
 		})
 
-	s.timeSource.Update(s.now.Add(2 * timerTimeout))
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	d.timeSource.Update(d.now.Add(2 * timerTimeout))
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPolicy_Fire() {
+func TestProcessActivityTimeout_RetryPolicy_Fire(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceID.String(),
+		d.namespaceID.String(),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -854,12 +887,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPoli
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	taskqueue := "taskqueue"
 	activityID := "activity"
@@ -888,32 +921,37 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPoli
 	timerSequence := workflow.NewTimerSequence(mutableState)
 	mutableState.InsertTasks[tasks.CategoryTimer] = nil
 	modified, err := timerSequence.CreateNextActivityTimer()
-	s.NoError(err)
-	s.True(modified)
+	require.NoError(t, err)
+	require.True(t, modified)
 	task := mutableState.InsertTasks[tasks.CategoryTimer][0]
 
 	timerTask := &tasks.ActivityTimeoutTask{
 		WorkflowKey:         workflowKey,
 		Attempt:             1,
-		TaskID:              s.mustGenerateTaskID(),
+		TaskID:              d.mustGenerateTaskID(),
 		TimeoutType:         enumspb.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
 		VisibilityTimestamp: task.(*tasks.ActivityTimeoutTask).VisibilityTimestamp,
 		EventID:             scheduledEvent.EventId,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
-	s.timeSource.Update(s.now.Add(2 * timerTimeout))
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	d.timeSource.Update(d.now.Add(2 * timerTimeout))
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 
-	_, ok := s.getMutableStateFromCache(workflowKey).GetActivityInfo(scheduledEvent.GetEventId())
-	s.False(ok)
+	_, ok := d.getMutableStateFromCache(workflowKey).GetActivityInfo(scheduledEvent.GetEventId())
+	require.False(t, ok)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPolicy_Noop() {
+func TestProcessActivityTimeout_RetryPolicy_Noop(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -921,12 +959,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPoli
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -935,12 +973,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPoli
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	identity := "identity"
 	taskqueue := "taskqueue"
@@ -967,23 +1005,23 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPoli
 		},
 	)
 	startedEvent := addActivityTaskStartedEvent(mutableState, scheduledEvent.GetEventId(), identity)
-	s.Nil(startedEvent)
+	require.Nil(t, startedEvent)
 
 	timerSequence := workflow.NewTimerSequence(mutableState)
 	mutableState.InsertTasks[tasks.CategoryTimer] = nil
 	modified, err := timerSequence.CreateNextActivityTimer()
-	s.NoError(err)
-	s.True(modified)
+	require.NoError(t, err)
+	require.True(t, modified)
 	task := mutableState.InsertTasks[tasks.CategoryTimer][0]
 
 	timerTask := &tasks.ActivityTimeoutTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
 		Attempt:             1,
-		TaskID:              s.mustGenerateTaskID(),
+		TaskID:              d.mustGenerateTaskID(),
 		TimeoutType:         enumspb.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
 		VisibilityTimestamp: task.(*tasks.ActivityTimeoutTask).VisibilityTimestamp,
 		EventID:             wt.ScheduledEventID,
@@ -993,15 +1031,20 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_RetryPoli
 	// Flush buffered events so real IDs get assigned
 	mutableState.FlushBufferedEvents()
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, completeEvent.GetEventId(), completeEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, completeEvent.GetEventId(), completeEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	s.timeSource.Update(s.now.Add(2 * timerTimeout))
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	d.timeSource.Update(d.now.Add(2 * timerTimeout))
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_Heartbeat_Noop() {
+func TestProcessActivityTimeout_Heartbeat_Noop(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -1009,12 +1052,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_Heartbeat
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -1023,12 +1066,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_Heartbeat
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	identity := "identity"
 	taskqueue := "taskqueue"
@@ -1056,55 +1099,60 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessActivityTimeout_Heartbeat
 		},
 	)
 	startedEvent := addActivityTaskStartedEvent(mutableState, scheduledEvent.GetEventId(), identity)
-	s.Nil(startedEvent)
+	require.Nil(t, startedEvent)
 
 	timerSequence := workflow.NewTimerSequence(mutableState)
 	mutableState.InsertTasks[tasks.CategoryTimer] = nil
 	modified, err := timerSequence.CreateNextActivityTimer()
-	s.NoError(err)
-	s.True(modified)
+	require.NoError(t, err)
+	require.True(t, modified)
 	task := mutableState.InsertTasks[tasks.CategoryTimer][0]
-	s.Equal(enumspb.TIMEOUT_TYPE_HEARTBEAT, task.(*tasks.ActivityTimeoutTask).TimeoutType)
+	require.Equal(t, enumspb.TIMEOUT_TYPE_HEARTBEAT, task.(*tasks.ActivityTimeoutTask).TimeoutType)
 
 	timerTask := &tasks.ActivityTimeoutTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
 		Attempt:             1,
-		TaskID:              s.mustGenerateTaskID(),
+		TaskID:              d.mustGenerateTaskID(),
 		TimeoutType:         enumspb.TIMEOUT_TYPE_HEARTBEAT,
 		VisibilityTimestamp: time.Time{},
 		EventID:             scheduledEvent.GetEventId(),
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowTaskTimeout_Fire() {
+func TestWorkflowTaskTimeout_Fire(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceID.String(),
+		d.namespaceID.String(),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -1113,7 +1161,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowTaskTimeout_Fire() {
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	startedEvent := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
@@ -1121,28 +1169,33 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowTaskTimeout_Fire() {
 	timerTask := &tasks.WorkflowTaskTimeoutTask{
 		WorkflowKey:         workflowKey,
 		ScheduleAttempt:     1,
-		Version:             s.version,
-		TaskID:              s.mustGenerateTaskID(),
+		Version:             d.version,
+		TaskID:              d.mustGenerateTaskID(),
 		TimeoutType:         enumspb.TIMEOUT_TYPE_START_TO_CLOSE,
-		VisibilityTimestamp: s.now,
+		VisibilityTimestamp: d.now,
 		EventID:             wt.ScheduledEventID,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 
-	workflowTask := s.getMutableStateFromCache(workflowKey).GetPendingWorkflowTask()
-	s.NotNil(workflowTask)
-	s.True(workflowTask.ScheduledEventID != common.EmptyEventID)
-	s.Equal(common.EmptyEventID, workflowTask.StartedEventID)
-	s.Equal(int32(2), workflowTask.Attempt)
+	workflowTask := d.getMutableStateFromCache(workflowKey).GetPendingWorkflowTask()
+	require.NotNil(t, workflowTask)
+	require.True(t, workflowTask.ScheduledEventID != common.EmptyEventID)
+	require.Equal(t, common.EmptyEventID, workflowTask.StartedEventID)
+	require.Equal(t, int32(2), workflowTask.Attempt)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowTaskTimeout_Noop() {
+func TestWorkflowTaskTimeout_Noop(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -1150,12 +1203,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowTaskTimeout_Noop() {
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -1164,33 +1217,38 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowTaskTimeout_Noop() {
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	startedEvent := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 
 	timerTask := &tasks.WorkflowTaskTimeoutTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
 		ScheduleAttempt:     1,
-		Version:             s.version,
-		TaskID:              s.mustGenerateTaskID(),
+		Version:             d.version,
+		TaskID:              d.mustGenerateTaskID(),
 		TimeoutType:         enumspb.TIMEOUT_TYPE_START_TO_CLOSE,
-		VisibilityTimestamp: s.now,
+		VisibilityTimestamp: d.now,
 		EventID:             wt.ScheduledEventID - 1,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowTaskTimeout_StampMismatch() {
+func TestWorkflowTaskTimeout_StampMismatch(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -1198,12 +1256,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowTaskTimeout_StampMismatc
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -1212,7 +1270,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowTaskTimeout_StampMismatc
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	startedEvent := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
@@ -1220,15 +1278,15 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowTaskTimeout_StampMismatc
 	// Create timer task with original stamp
 	timerTask := &tasks.WorkflowTaskTimeoutTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
 		ScheduleAttempt:     1,
-		Version:             s.version,
-		TaskID:              s.mustGenerateTaskID(),
+		Version:             d.version,
+		TaskID:              d.mustGenerateTaskID(),
 		TimeoutType:         enumspb.TIMEOUT_TYPE_START_TO_CLOSE,
-		VisibilityTimestamp: s.now,
+		VisibilityTimestamp: d.now,
 		EventID:             wt.ScheduledEventID,
 		Stamp:               wt.Stamp,
 	}
@@ -1236,32 +1294,37 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowTaskTimeout_StampMismatc
 	// Modify the workflow task stamp in mutable state to create mismatch
 	mutableState.GetExecutionInfo().WorkflowTaskStamp = wt.Stamp + 1
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.ErrorIs(resp.ExecutionErr, consts.ErrStaleReference)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.ErrorIs(t, resp.ExecutionErr, consts.ErrStaleReference)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowBackoffTimer_Fire() {
+func TestWorkflowBackoffTimer_Fire(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceID.String(),
+		d.namespaceID.String(),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	event, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -1270,31 +1333,36 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowBackoffTimer_Fire() {
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	timerTask := &tasks.WorkflowBackoffTimerTask{
 		WorkflowKey:         workflowKey,
-		Version:             s.version,
-		TaskID:              s.mustGenerateTaskID(),
+		Version:             d.version,
+		TaskID:              d.mustGenerateTaskID(),
 		WorkflowBackoffType: enumsspb.WORKFLOW_BACKOFF_TYPE_RETRY,
-		VisibilityTimestamp: s.now,
+		VisibilityTimestamp: d.now,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 
-	workflowTask := s.getMutableStateFromCache(workflowKey).GetPendingWorkflowTask()
-	s.NotNil(workflowTask)
-	s.True(workflowTask.ScheduledEventID != common.EmptyEventID)
-	s.Equal(common.EmptyEventID, workflowTask.StartedEventID)
-	s.Equal(int32(1), workflowTask.Attempt)
+	workflowTask := d.getMutableStateFromCache(workflowKey).GetPendingWorkflowTask()
+	require.NotNil(t, workflowTask)
+	require.True(t, workflowTask.ScheduledEventID != common.EmptyEventID)
+	require.Equal(t, common.EmptyEventID, workflowTask.StartedEventID)
+	require.Equal(t, int32(1), workflowTask.Attempt)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowBackoffTimer_Noop() {
+func TestWorkflowBackoffTimer_Noop(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -1302,12 +1370,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowBackoffTimer_Noop() {
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -1316,33 +1384,38 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowBackoffTimer_Noop() {
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	timerTask := &tasks.WorkflowBackoffTimerTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
-		Version:             s.version,
-		TaskID:              s.mustGenerateTaskID(),
+		Version:             d.version,
+		TaskID:              d.mustGenerateTaskID(),
 		WorkflowBackoffType: enumsspb.WORKFLOW_BACKOFF_TYPE_RETRY,
-		VisibilityTimestamp: s.now,
+		VisibilityTimestamp: d.now,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.ErrorIs(resp.ExecutionErr, errNoTimerFired)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.ErrorIs(t, resp.ExecutionErr, errNoTimerFired)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestActivityRetryTimer_Fire() {
+func TestActivityRetryTimer_Fire(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -1350,12 +1423,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestActivityRetryTimer_Fire() {
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType: &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue: &taskqueuepb.TaskQueue{
@@ -1367,12 +1440,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestActivityRetryTimer_Fire() {
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	activityID := "activity"
 	activityType := "activity type"
@@ -1400,23 +1473,23 @@ func (s *timerQueueActiveTaskExecutorSuite) TestActivityRetryTimer_Fire() {
 
 	timerTask := &tasks.ActivityRetryTimerTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
-		Version:             s.version,
-		TaskID:              s.mustGenerateTaskID(),
-		VisibilityTimestamp: s.now,
+		Version:             d.version,
+		TaskID:              d.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now,
 		EventID:             activityInfo.ScheduledEventId,
 		Attempt:             activityInfo.Attempt,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockMatchingClient.EXPECT().AddActivityTask(
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	d.mockMatchingClient.EXPECT().AddActivityTask(
 		gomock.Any(),
 		pm.Eq(&matchingservice.AddActivityTaskRequest{
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			Execution:   execution,
 			TaskQueue: &taskqueuepb.TaskQueue{
 				Name: activityInfo.TaskQueue,
@@ -1424,17 +1497,22 @@ func (s *timerQueueActiveTaskExecutorSuite) TestActivityRetryTimer_Fire() {
 			},
 			ScheduledEventId:       activityInfo.ScheduledEventId,
 			ScheduleToStartTimeout: activityInfo.ScheduleToStartTimeout,
-			Clock:                  vclock.NewVectorClock(s.mockClusterMetadata.GetClusterID(), s.mockShard.GetShardID(), timerTask.TaskID),
+			Clock:                  vclock.NewVectorClock(d.mockClusterMetadata.GetClusterID(), d.mockShard.GetShardID(), timerTask.TaskID),
 			VersionDirective:       worker_versioning.MakeUseAssignmentRulesDirective(),
 		}),
 		gomock.Any(),
 	).Return(&matchingservice.AddActivityTaskResponse{}, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestActivityRetryTimer_Noop() {
+func TestActivityRetryTimer_Noop(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -1442,12 +1520,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestActivityRetryTimer_Noop() {
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
@@ -1456,12 +1534,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestActivityRetryTimer_Noop() {
 			},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = event.GetEventId()
-	event = addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	event = addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	identity := "identity"
 	taskqueue := "taskqueue"
@@ -1488,35 +1566,40 @@ func (s *timerQueueActiveTaskExecutorSuite) TestActivityRetryTimer_Noop() {
 		},
 	)
 	startedEvent := addActivityTaskStartedEvent(mutableState, scheduledEvent.GetEventId(), identity)
-	s.Nil(startedEvent)
+	require.Nil(t, startedEvent)
 
 	timerTask := &tasks.ActivityRetryTimerTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
-		Version:             s.version,
-		TaskID:              s.mustGenerateTaskID(),
-		VisibilityTimestamp: s.now,
+		Version:             d.version,
+		TaskID:              d.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now,
 		EventID:             activityInfo.ScheduledEventId,
 		Attempt:             activityInfo.Attempt,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, scheduledEvent.GetEventId(), scheduledEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.ErrorIs(resp.ExecutionErr, consts.ErrActivityTaskNotFound)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.ErrorIs(t, resp.ExecutionErr, consts.ErrActivityTaskNotFound)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowRunTimeout_Fire() {
+func TestWorkflowRunTimeout_Fire(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceID.String(),
+		d.namespaceID.String(),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
@@ -1525,63 +1608,68 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowRunTimeout_Fire() {
 
 	expirationTime := 10 * time.Second
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
 				WorkflowRunTimeout:  durationpb.New(200 * time.Second),
 				WorkflowTaskTimeout: durationpb.New(1 * time.Second),
 			},
-			WorkflowExecutionExpirationTime: timestamppb.New(s.now.Add(expirationTime)),
+			WorkflowExecutionExpirationTime: timestamppb.New(d.now.Add(expirationTime)),
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	startEvent := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = startEvent.GetEventId()
-	completionEvent := addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	completionEvent := addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	timerTask := &tasks.WorkflowRunTimeoutTask{
 		WorkflowKey:         workflowKey,
-		Version:             s.version,
-		TaskID:              s.mustGenerateTaskID(),
-		VisibilityTimestamp: s.now.Add(expirationTime),
+		Version:             d.version,
+		TaskID:              d.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now.Add(expirationTime),
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, completionEvent.GetEventId(), completionEvent.GetVersion())
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, completionEvent.GetEventId(), completionEvent.GetVersion())
 
 	for _, currrentTime := range []time.Time{
-		s.now.Add(expirationTime - 1*time.Second),
-		s.now.Add(expirationTime + 1*time.Second),
+		d.now.Add(expirationTime - 1*time.Second),
+		d.now.Add(expirationTime + 1*time.Second),
 	} {
 		getWorkflowExecutionResponse := &persistence.GetWorkflowExecutionResponse{State: common.CloneProto(persistenceMutableState)}
-		s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(getWorkflowExecutionResponse, nil)
-		s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+		d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(getWorkflowExecutionResponse, nil)
+		d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
-		s.timeSource.Update(currrentTime)
-		resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-		s.NoError(resp.ExecutionErr)
+		d.timeSource.Update(currrentTime)
+		resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+		require.NoError(t, resp.ExecutionErr)
 
-		running := s.getMutableStateFromCache(workflowKey).IsWorkflowExecutionRunning()
-		s.False(running)
+		running := d.getMutableStateFromCache(workflowKey).IsWorkflowExecutionRunning()
+		require.False(t, running)
 
-		s.clearMutableStateFromCache(workflowKey)
+		d.clearMutableStateFromCache(workflowKey)
 	}
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowRunTimeout_Retry() {
+func TestWorkflowRunTimeout_Retry(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceID.String(),
+		d.namespaceID.String(),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
@@ -1591,22 +1679,22 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowRunTimeout_Retry() {
 	executionRunTimeout := time.Duration(10 * time.Second)
 	workflowRunTimeout := time.Duration(200 * time.Second)
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
 				WorkflowRunTimeout:  durationpb.New(workflowRunTimeout),
 				WorkflowTaskTimeout: durationpb.New(1 * time.Second),
 			},
-			WorkflowExecutionExpirationTime: timestamppb.New(s.now.Add(executionRunTimeout)),
+			WorkflowExecutionExpirationTime: timestamppb.New(d.now.Add(executionRunTimeout)),
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 	// need to override the workflow retry policy
 	executionInfo := mutableState.GetExecutionInfo()
 	executionInfo.HasRetryPolicy = true
@@ -1619,37 +1707,42 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowRunTimeout_Retry() {
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	startEvent := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = startEvent.GetEventId()
-	completionEvent := addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	completionEvent := addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	timerTask := &tasks.WorkflowRunTimeoutTask{
 		WorkflowKey:         workflowKey,
-		Version:             s.version,
-		TaskID:              s.mustGenerateTaskID(),
-		VisibilityTimestamp: s.now,
+		Version:             d.version,
+		TaskID:              d.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, completionEvent.GetEventId(), completionEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, completionEvent.GetEventId(), completionEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 	// one for current workflow, one for new
-	s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+	d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
 	// move
-	s.timeSource.Advance(workflowRunTimeout + 1*time.Second)
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	d.timeSource.Advance(workflowRunTimeout + 1*time.Second)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 
-	state, status := s.getMutableStateFromCache(workflowKey).GetWorkflowStateStatus()
-	s.Equal(enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED, state)
-	s.EqualValues(enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT, status)
+	state, status := d.getMutableStateFromCache(workflowKey).GetWorkflowStateStatus()
+	require.Equal(t, enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED, state)
+	d.EqualValues(enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT, status)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowRunTimeout_Cron() {
+func TestWorkflowRunTimeout_Cron(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceID.String(),
+		d.namespaceID.String(),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
@@ -1658,115 +1751,125 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowRunTimeout_Cron() {
 
 	expirationTime := time.Duration(10 * time.Second)
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
 				WorkflowRunTimeout:  durationpb.New(200 * time.Second),
 				WorkflowTaskTimeout: durationpb.New(1 * time.Second),
 			},
-			WorkflowExecutionExpirationTime: timestamppb.New(s.now.Add(expirationTime)),
+			WorkflowExecutionExpirationTime: timestamppb.New(d.now.Add(expirationTime)),
 		},
 	)
-	s.NoError(err)
-	mutableState.GetExecutionState().StartTime = timestamppb.New(s.now)
+	require.NoError(t, err)
+	mutableState.GetExecutionState().StartTime = timestamppb.New(d.now)
 	mutableState.GetExecutionInfo().CronSchedule = "* * * * *"
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	startEvent := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = startEvent.GetEventId()
-	completionEvent := addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	completionEvent := addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	timerTask := &tasks.WorkflowRunTimeoutTask{
 		WorkflowKey:         workflowKey,
-		Version:             s.version,
-		TaskID:              s.mustGenerateTaskID(),
-		VisibilityTimestamp: s.now,
+		Version:             d.version,
+		TaskID:              d.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, completionEvent.GetEventId(), completionEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, completionEvent.GetEventId(), completionEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 	// one for current workflow, one for new
-	s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+	d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
 	// advance timer past run expiration time
-	s.timeSource.Advance(expirationTime + 1*time.Second)
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	d.timeSource.Advance(expirationTime + 1*time.Second)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 
-	state, status := s.getMutableStateFromCache(workflowKey).GetWorkflowStateStatus()
-	s.Equal(enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED, state)
-	s.EqualValues(enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT, status)
+	state, status := d.getMutableStateFromCache(workflowKey).GetWorkflowStateStatus()
+	require.Equal(t, enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED, state)
+	d.EqualValues(enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT, status)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowRunTimeout_WorkflowExpired() {
+func TestWorkflowRunTimeout_WorkflowExpired(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceID.String(),
+		d.namespaceID.String(),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	_, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
 				WorkflowRunTimeout:  durationpb.New(200 * time.Second),
 				WorkflowTaskTimeout: durationpb.New(1 * time.Second),
 			},
-			WorkflowExecutionExpirationTime: timestamppb.New(s.now.Add(-1 * time.Second)),
+			WorkflowExecutionExpirationTime: timestamppb.New(d.now.Add(-1 * time.Second)),
 		},
 	)
-	s.NoError(err)
-	mutableState.GetExecutionState().StartTime = timestamppb.New(s.now)
+	require.NoError(t, err)
+	mutableState.GetExecutionState().StartTime = timestamppb.New(d.now)
 	mutableState.GetExecutionInfo().CronSchedule = "* * * * *"
 
 	wt := addWorkflowTaskScheduledEvent(mutableState)
 	startEvent := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
 	wt.StartedEventID = startEvent.GetEventId()
-	completionEvent := addWorkflowTaskCompletedEvent(&s.Suite, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
+	completionEvent := addWorkflowTaskCompletedEvent(t, mutableState, wt.ScheduledEventID, wt.StartedEventID, "some random identity")
 
 	timerTask := &tasks.WorkflowRunTimeoutTask{
 		WorkflowKey:         workflowKey,
-		Version:             s.version,
-		TaskID:              s.mustGenerateTaskID(),
-		VisibilityTimestamp: s.now,
+		Version:             d.version,
+		TaskID:              d.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now,
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, completionEvent.GetEventId(), completionEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, completionEvent.GetEventId(), completionEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 
-	state, status := s.getMutableStateFromCache(workflowKey).GetWorkflowStateStatus()
-	s.Equal(enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED, state)
-	s.EqualValues(enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT, status)
+	state, status := d.getMutableStateFromCache(workflowKey).GetWorkflowStateStatus()
+	require.Equal(t, enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED, state)
+	d.EqualValues(enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT, status)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowExecutionTimeout_Fire() {
+func TestWorkflowExecutionTimeout_Fire(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	firstRunID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 	workflowKey := definition.NewWorkflowKey(
-		s.namespaceID.String(),
+		d.namespaceID.String(),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 	)
@@ -1774,45 +1877,45 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowExecutionTimeout_Fire() 
 	taskQueueName := "some random task queue"
 
 	var mutableState historyi.MutableState
-	mutableState = workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState = workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	startedEvent, err := mutableState.AddWorkflowExecutionStartedEventWithOptions(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
 				WorkflowRunTimeout:  durationpb.New(200 * time.Second),
 				WorkflowTaskTimeout: durationpb.New(1 * time.Second),
 			},
-			WorkflowExecutionExpirationTime: timestamppb.New(s.now.Add(10 * time.Second)),
+			WorkflowExecutionExpirationTime: timestamppb.New(d.now.Add(10 * time.Second)),
 		},
 		nil,
 		uuid.New(),
 		firstRunID,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	timerTask := &tasks.WorkflowExecutionTimeoutTask{
-		NamespaceID:         s.namespaceID.String(),
+		NamespaceID:         d.namespaceID.String(),
 		WorkflowID:          execution.GetWorkflowId(),
 		FirstRunID:          firstRunID,
-		VisibilityTimestamp: s.now.Add(10 * time.Second),
-		TaskID:              s.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now.Add(10 * time.Second),
+		TaskID:              d.mustGenerateTaskID(),
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
 
 	for _, currentTime := range []time.Time{
-		s.now.Add(5 * time.Second),
-		s.now.Add(15 * time.Second),
+		d.now.Add(5 * time.Second),
+		d.now.Add(15 * time.Second),
 	} {
 		getWorkflowExecutionResponse := &persistence.GetWorkflowExecutionResponse{State: common.CloneProto(persistenceMutableState)}
 		persistenceExecutionState := getWorkflowExecutionResponse.State.ExecutionState
-		s.mockExecutionMgr.EXPECT().GetCurrentExecution(gomock.Any(), &persistence.GetCurrentExecutionRequest{
-			ShardID:     s.mockShard.GetShardID(),
-			NamespaceID: s.namespaceID.String(),
+		d.mockExecutionMgr.EXPECT().GetCurrentExecution(gomock.Any(), &persistence.GetCurrentExecutionRequest{
+			ShardID:     d.mockShard.GetShardID(),
+			NamespaceID: d.namespaceID.String(),
 			WorkflowID:  execution.GetWorkflowId(),
 		}).Return(&persistence.GetCurrentExecutionResponse{
 			StartRequestID: persistenceExecutionState.CreateRequestId,
@@ -1820,25 +1923,30 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowExecutionTimeout_Fire() 
 			State:          persistenceExecutionState.State,
 			Status:         persistenceExecutionState.Status,
 		}, nil).Times(1)
-		s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(getWorkflowExecutionResponse, nil)
-		s.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
+		d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(getWorkflowExecutionResponse, nil)
+		d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(tests.UpdateWorkflowExecutionResponse, nil)
 
-		s.timeSource.Update(currentTime)
+		d.timeSource.Update(currentTime)
 
-		resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-		s.NoError(resp.ExecutionErr)
+		resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+		require.NoError(t, resp.ExecutionErr)
 
-		mutableState = s.getMutableStateFromCache(workflowKey)
-		s.False(mutableState.IsWorkflowExecutionRunning())
+		mutableState = d.getMutableStateFromCache(workflowKey)
+		require.False(t, mutableState.IsWorkflowExecutionRunning())
 		state, status := mutableState.GetWorkflowStateStatus()
-		s.Equal(enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED, state)
-		s.EqualValues(enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT, status)
+		require.Equal(t, enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED, state)
+		d.EqualValues(enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT, status)
 
-		s.clearMutableStateFromCache(workflowKey)
+		d.clearMutableStateFromCache(workflowKey)
 	}
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowExecutionTimeout_Noop() {
+func TestWorkflowExecutionTimeout_Noop(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
@@ -1846,36 +1954,36 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowExecutionTimeout_Noop() 
 	workflowType := "some random workflow type"
 	taskQueueName := "some random task queue"
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	startedEvent, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
 			Attempt:     1,
-			NamespaceId: s.namespaceID.String(),
+			NamespaceId: d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{
 				WorkflowType:        &commonpb.WorkflowType{Name: workflowType},
 				TaskQueue:           &taskqueuepb.TaskQueue{Name: taskQueueName},
 				WorkflowRunTimeout:  durationpb.New(200 * time.Second),
 				WorkflowTaskTimeout: durationpb.New(1 * time.Second),
 			},
-			WorkflowExecutionExpirationTime: timestamppb.New(s.now.Add(10 * time.Second)),
+			WorkflowExecutionExpirationTime: timestamppb.New(d.now.Add(10 * time.Second)),
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 
 	timerTask := &tasks.WorkflowExecutionTimeoutTask{
-		NamespaceID:         s.namespaceID.String(),
+		NamespaceID:         d.namespaceID.String(),
 		WorkflowID:          execution.GetWorkflowId(),
 		FirstRunID:          uuid.New(), // does not match the firsrt runID of the execution
-		VisibilityTimestamp: s.now,
-		TaskID:              s.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now,
+		TaskID:              d.mustGenerateTaskID(),
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
 	persistenceExecutionState := persistenceMutableState.ExecutionState
-	s.mockExecutionMgr.EXPECT().GetCurrentExecution(gomock.Any(), &persistence.GetCurrentExecutionRequest{
-		ShardID:     s.mockShard.GetShardID(),
-		NamespaceID: s.namespaceID.String(),
+	d.mockExecutionMgr.EXPECT().GetCurrentExecution(gomock.Any(), &persistence.GetCurrentExecutionRequest{
+		ShardID:     d.mockShard.GetShardID(),
+		NamespaceID: d.namespaceID.String(),
 		WorkflowID:  execution.GetWorkflowId(),
 	}).Return(&persistence.GetCurrentExecutionResponse{
 		StartRequestID: persistenceExecutionState.CreateRequestId,
@@ -1883,91 +1991,106 @@ func (s *timerQueueActiveTaskExecutorSuite) TestWorkflowExecutionTimeout_Noop() 
 		State:          persistenceExecutionState.State,
 		Status:         persistenceExecutionState.Status,
 	}, nil).Times(1)
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NoError(resp.ExecutionErr)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NoError(t, resp.ExecutionErr)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestExecuteChasmPureTimerTask_ZombieWorkflow() {
+func TestExecuteChasmPureTimerTask_ZombieWorkflow(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: uuid.New(),
 		RunId:      uuid.New(),
 	}
 
 	// Start the workflow with an event, and then push it into zombie state.
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	startedEvent, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
-			NamespaceId:  s.namespaceID.String(),
+			NamespaceId:  d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 	mutableState.GetExecutionState().State = enumsspb.WORKFLOW_EXECUTION_STATE_ZOMBIE
 
 	// Add a valid timer task.
 	timerTask := &tasks.ChasmTaskPure{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
-		VisibilityTimestamp: s.now,
-		TaskID:              s.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now,
+		TaskID:              d.mustGenerateTaskID(),
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
 	// Execution should fail due to zombie.
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.ErrorIs(resp.ExecutionErr, consts.ErrWorkflowZombie)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.ErrorIs(t, resp.ExecutionErr, consts.ErrWorkflowZombie)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestExecuteStateMachineTimerTask_ZombieWorkflow() {
+func TestExecuteStateMachineTimerTask_ZombieWorkflow(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: "some random workflow ID",
 		RunId:      uuid.New(),
 	}
 
-	mutableState := workflow.TestGlobalMutableState(s.mockShard, s.mockShard.GetEventsCache(), s.logger, s.version, execution.GetWorkflowId(), execution.GetRunId())
+	mutableState := workflow.TestGlobalMutableState(d.mockShard, d.mockShard.GetEventsCache(), d.logger, d.version, execution.GetWorkflowId(), execution.GetRunId())
 	startedEvent, err := mutableState.AddWorkflowExecutionStartedEvent(
 		execution,
 		&historyservice.StartWorkflowExecutionRequest{
-			NamespaceId:  s.namespaceID.String(),
+			NamespaceId:  d.namespaceID.String(),
 			StartRequest: &workflowservice.StartWorkflowExecutionRequest{},
 		},
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 	mutableState.GetExecutionState().State = enumsspb.WORKFLOW_EXECUTION_STATE_ZOMBIE
 
 	timerTask := &tasks.StateMachineTimerTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
-		VisibilityTimestamp: s.now,
-		TaskID:              s.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now,
+		TaskID:              d.mustGenerateTaskID(),
 	}
 
-	persistenceMutableState := s.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
+	persistenceMutableState := d.createPersistenceMutableState(mutableState, startedEvent.GetEventId(), startedEvent.GetVersion())
+	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
-	resp := s.timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.ErrorIs(resp.ExecutionErr, consts.ErrWorkflowZombie)
+	resp := d.timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.ErrorIs(t, resp.ExecutionErr, consts.ErrWorkflowZombie)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestExecuteChasmSideEffectTimerTask_ExecutesTask() {
+func TestExecuteChasmSideEffectTimerTask_ExecutesTask(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: tests.WorkflowKey.WorkflowID,
 		RunId:      tests.WorkflowKey.RunID,
 	}
 
 	// Mock the CHASM tree.
-	chasmTree := historyi.NewMockChasmTree(s.controller)
+	chasmTree := historyi.NewMockChasmTree(d.controller)
 	chasmTree.EXPECT().ExecuteSideEffectTask(
 		gomock.Any(),
 		gomock.Any(),
@@ -1977,7 +2100,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestExecuteChasmSideEffectTimerTask_
 	).Times(1).Return(nil)
 
 	// Mock mutable state.
-	ms := historyi.NewMockMutableState(s.controller)
+	ms := historyi.NewMockMutableState(d.controller)
 	info := &persistencespb.WorkflowExecutionInfo{}
 	ms.EXPECT().GetCurrentVersion().Return(int64(2)).AnyTimes()
 	ms.EXPECT().NextTransitionCount().Return(int64(0)).AnyTimes() // emulate transition history disabled.
@@ -1992,12 +2115,12 @@ func (s *timerQueueActiveTaskExecutorSuite) TestExecuteChasmSideEffectTimerTask_
 	// Add a valid timer task.
 	timerTask := &tasks.ChasmTask{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
-		VisibilityTimestamp: s.now,
-		TaskID:              s.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now,
+		TaskID:              d.mustGenerateTaskID(),
 		Info: &persistencespb.ChasmTaskInfo{
 			ComponentInitialVersionedTransition:    &persistencespb.VersionedTransition{},
 			ComponentLastUpdateVersionedTransition: &persistencespb.VersionedTransition{},
@@ -2009,33 +2132,38 @@ func (s *timerQueueActiveTaskExecutorSuite) TestExecuteChasmSideEffectTimerTask_
 		},
 	}
 
-	wfCtx := historyi.NewMockWorkflowContext(s.controller)
-	wfCtx.EXPECT().LoadMutableState(gomock.Any(), s.mockShard).Return(ms, nil)
+	wfCtx := historyi.NewMockWorkflowContext(d.controller)
+	wfCtx.EXPECT().LoadMutableState(gomock.Any(), d.mockShard).Return(ms, nil)
 
-	mockCache := wcache.NewMockCache(s.controller)
+	mockCache := wcache.NewMockCache(d.controller)
 	mockCache.EXPECT().GetOrCreateChasmExecution(
-		gomock.Any(), s.mockShard, gomock.Any(), execution, chasm.ArchetypeAny, locks.PriorityLow,
+		gomock.Any(), d.mockShard, gomock.Any(), execution, chasm.ArchetypeAny, locks.PriorityLow,
 	).Return(wfCtx, wcache.NoopReleaseFn, nil)
 
 	//nolint:revive // unchecked-type-assertion
 	timerQueueActiveTaskExecutor := newTimerQueueActiveTaskExecutor(
-		s.mockShard,
+		d.mockShard,
 		mockCache,
-		s.mockDeleteManager,
-		s.mockShard.GetLogger(),
+		d.mockDeleteManager,
+		d.mockShard.GetLogger(),
 		metrics.NoopMetricsHandler,
-		s.config,
-		s.mockShard.Resource.GetMatchingClient(),
-		s.mockChasmEngine,
+		d.config,
+		d.mockShard.Resource.GetMatchingClient(),
+		d.mockChasmEngine,
 	).(*timerQueueActiveTaskExecutor)
 
 	// Execution should succeed.
-	resp := timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NotNil(resp)
-	s.Nil(resp.ExecutionErr)
+	resp := timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NotNil(t, resp)
+	require.Nil(t, resp.ExecutionErr)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestExecuteChasmPureTimerTask_ExecutesAllPureTimers() {
+func TestExecuteChasmPureTimerTask_ExecutesAllPureTimers(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	execution := &commonpb.WorkflowExecution{
 		WorkflowId: tests.WorkflowKey.WorkflowID,
 		RunId:      tests.WorkflowKey.RunID,
@@ -2043,7 +2171,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestExecuteChasmPureTimerTask_Execut
 
 	// Mock the CHASM tree and execute interface.
 	mockEach := &chasm.MockNodePureTask{}
-	chasmTree := historyi.NewMockChasmTree(s.controller)
+	chasmTree := historyi.NewMockChasmTree(d.controller)
 	chasmTree.EXPECT().EachPureTask(gomock.Any(), gomock.Any()).
 		Times(1).Do(
 		func(_ time.Time, callback func(executor chasm.NodePureTask, taskAttributes chasm.TaskAttributes, task any) (bool, error)) error {
@@ -2052,7 +2180,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestExecuteChasmPureTimerTask_Execut
 		})
 
 	// Mock mutable state.
-	ms := historyi.NewMockMutableState(s.controller)
+	ms := historyi.NewMockMutableState(d.controller)
 	info := &persistencespb.WorkflowExecutionInfo{}
 	ms.EXPECT().GetCurrentVersion().Return(int64(2)).AnyTimes()
 	ms.EXPECT().NextTransitionCount().Return(int64(0)).AnyTimes() // emulate transition history disabled.
@@ -2067,48 +2195,53 @@ func (s *timerQueueActiveTaskExecutorSuite) TestExecuteChasmPureTimerTask_Execut
 	// Add a valid timer task.
 	timerTask := &tasks.ChasmTaskPure{
 		WorkflowKey: definition.NewWorkflowKey(
-			s.namespaceID.String(),
+			d.namespaceID.String(),
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
-		VisibilityTimestamp: s.now,
-		TaskID:              s.mustGenerateTaskID(),
+		VisibilityTimestamp: d.now,
+		TaskID:              d.mustGenerateTaskID(),
 	}
 
-	wfCtx := historyi.NewMockWorkflowContext(s.controller)
-	wfCtx.EXPECT().LoadMutableState(gomock.Any(), s.mockShard).Return(ms, nil)
+	wfCtx := historyi.NewMockWorkflowContext(d.controller)
+	wfCtx.EXPECT().LoadMutableState(gomock.Any(), d.mockShard).Return(ms, nil)
 	wfCtx.EXPECT().UpdateWorkflowExecutionAsActive(gomock.Any(), gomock.Any())
 
-	mockCache := wcache.NewMockCache(s.controller)
+	mockCache := wcache.NewMockCache(d.controller)
 	mockCache.EXPECT().GetOrCreateChasmExecution(
-		gomock.Any(), s.mockShard, gomock.Any(), execution, chasm.ArchetypeAny, locks.PriorityLow,
+		gomock.Any(), d.mockShard, gomock.Any(), execution, chasm.ArchetypeAny, locks.PriorityLow,
 	).Return(wfCtx, wcache.NoopReleaseFn, nil)
 
 	//nolint:revive // unchecked-type-assertion
 	timerQueueActiveTaskExecutor := newTimerQueueActiveTaskExecutor(
-		s.mockShard,
+		d.mockShard,
 		mockCache,
-		s.mockDeleteManager,
-		s.mockShard.GetLogger(),
+		d.mockDeleteManager,
+		d.mockShard.GetLogger(),
 		metrics.NoopMetricsHandler,
-		s.config,
-		s.mockShard.Resource.GetMatchingClient(),
-		s.mockChasmEngine,
+		d.config,
+		d.mockShard.Resource.GetMatchingClient(),
+		d.mockChasmEngine,
 	).(*timerQueueActiveTaskExecutor)
 
 	// Execution should succeed.
-	resp := timerQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(timerTask))
-	s.NotNil(resp)
-	s.Nil(resp.ExecutionErr)
+	resp := timerQueueActiveTaskExecutor.Execute(context.Background(), d.newTaskExecutable(timerTask))
+	require.NotNil(t, resp)
+	require.Nil(t, resp.ExecutionErr)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestExecuteStateMachineTimerTask_ExecutesAllAvailableTimers() {
+func TestExecuteStateMachineTimerTask_ExecutesAllAvailableTimers(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
 	numInvocations := 0
 
-	reg := s.mockShard.StateMachineRegistry()
-	s.NoError(dummy.RegisterStateMachine(reg))
-	s.NoError(dummy.RegisterTaskSerializers(reg))
-	s.NoError(dummy.RegisterExecutor(
+	reg := d.mockShard.StateMachineRegistry()
+	require.NoError(t, dummy.RegisterStateMachine(reg))
+	require.NoError(t, dummy.RegisterTaskSerializers(reg))
+	require.NoError(t, dummy.RegisterExecutor(
 		reg,
 		dummy.TaskExecutorOptions{
 			ImmediateExecutor: nil,
@@ -2124,7 +2257,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestExecuteStateMachineTimerTask_Exe
 		RunId:      tests.RunID,
 	}
 
-	ms := historyi.NewMockMutableState(s.controller)
+	ms := historyi.NewMockMutableState(d.controller)
 	info := &persistencespb.WorkflowExecutionInfo{}
 	root, err := hsm.NewRoot(
 		reg,
@@ -2133,7 +2266,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestExecuteStateMachineTimerTask_Exe
 		make(map[string]*persistencespb.StateMachineMap),
 		ms,
 	)
-	s.NoError(err)
+	require.NoError(t, err)
 	ms.EXPECT().GetCurrentVersion().Return(int64(2)).AnyTimes()
 	ms.EXPECT().NextTransitionCount().Return(int64(0)).AnyTimes() // emulate transition history disabled.
 	ms.EXPECT().GetNextEventID().Return(int64(2)).AnyTimes()
@@ -2145,7 +2278,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestExecuteStateMachineTimerTask_Exe
 	ms.EXPECT().HSM().Return(root).AnyTimes()
 
 	_, err = dummy.MachineCollection(root).Add("dummy", dummy.NewDummy())
-	s.NoError(err)
+	require.NoError(t, err)
 
 	// Track some tasks.
 
@@ -2177,97 +2310,101 @@ func (s *timerQueueActiveTaskExecutorSuite) TestExecuteStateMachineTimerTask_Exe
 	}
 
 	// Past deadline, should get executed.
-	workflow.TrackStateMachineTimer(ms, s.now.Add(-time.Hour), invalidTask)
-	workflow.TrackStateMachineTimer(ms, s.now.Add(-time.Hour), validTask)
-	workflow.TrackStateMachineTimer(ms, s.now.Add(-time.Minute), validTask)
+	workflow.TrackStateMachineTimer(ms, d.now.Add(-time.Hour), invalidTask)
+	workflow.TrackStateMachineTimer(ms, d.now.Add(-time.Hour), validTask)
+	workflow.TrackStateMachineTimer(ms, d.now.Add(-time.Minute), validTask)
 	// Future deadline, new task should be scheduled.
-	futureDeadline := s.now.Add(time.Hour)
+	futureDeadline := d.now.Add(time.Hour)
 	workflow.TrackStateMachineTimer(ms, futureDeadline, validTask)
 
-	wfCtx := historyi.NewMockWorkflowContext(s.controller)
-	wfCtx.EXPECT().LoadMutableState(gomock.Any(), s.mockShard).Return(ms, nil)
+	wfCtx := historyi.NewMockWorkflowContext(d.controller)
+	wfCtx.EXPECT().LoadMutableState(gomock.Any(), d.mockShard).Return(ms, nil)
 	wfCtx.EXPECT().UpdateWorkflowExecutionAsActive(gomock.Any(), gomock.Any())
 
-	mockCache := wcache.NewMockCache(s.controller)
+	mockCache := wcache.NewMockCache(d.controller)
 	mockCache.EXPECT().GetOrCreateChasmExecution(
-		gomock.Any(), s.mockShard, tests.NamespaceID, we, chasm.WorkflowArchetype, locks.PriorityLow,
+		gomock.Any(), d.mockShard, tests.NamespaceID, we, chasm.WorkflowArchetype, locks.PriorityLow,
 	).Return(wfCtx, wcache.NoopReleaseFn, nil)
 
 	task := &tasks.StateMachineTimerTask{
 		WorkflowKey:         tests.WorkflowKey,
-		VisibilityTimestamp: s.now,
+		VisibilityTimestamp: d.now,
 		Version:             2,
 	}
 
 	// change now to a value earilier than task's visibility timestamp to test the case where system wall clock go backwards.
-	s.timeSource.Update(s.now.Add(-30 * time.Minute))
+	d.timeSource.Update(d.now.Add(-30 * time.Minute))
 
 	//nolint:revive // unchecked-type-assertion
 	timerQueueActiveTaskExecutor := newTimerQueueActiveTaskExecutor(
-		s.mockShard,
+		d.mockShard,
 		mockCache,
-		s.mockDeleteManager,
-		s.mockShard.GetLogger(),
+		d.mockDeleteManager,
+		d.mockShard.GetLogger(),
 		metrics.NoopMetricsHandler,
-		s.config,
-		s.mockShard.Resource.GetMatchingClient(),
-		s.mockChasmEngine,
+		d.config,
+		d.mockShard.Resource.GetMatchingClient(),
+		d.mockChasmEngine,
 	).(*timerQueueActiveTaskExecutor)
 
 	err = timerQueueActiveTaskExecutor.executeStateMachineTimerTask(context.Background(), task)
-	s.NoError(err)
-	s.Equal(2, numInvocations) // two valid tasks within the deadline.
-	s.Equal(1, len(info.StateMachineTimers))
-	s.Equal(futureDeadline, info.StateMachineTimers[0].Deadline.AsTime())
+	require.NoError(t, err)
+	require.Equal(t, 2, numInvocations) // two valid tasks within the deadline.
+	require.Equal(t, 1, len(info.StateMachineTimers))
+	require.Equal(t, futureDeadline, info.StateMachineTimers[0].Deadline.AsTime())
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) createPersistenceMutableState(
+func (d *timerQueueActiveTaskExecutorTestDeps) createPersistenceMutableState(
 	ms historyi.MutableState,
 	lastEventID int64,
 	lastEventVersion int64,
 ) *persistencespb.WorkflowMutableState {
 	currentVersionHistory, err := versionhistory.GetCurrentVersionHistory(ms.GetExecutionInfo().GetVersionHistories())
-	s.NoError(err)
+	if err != nil {
+		panic(err)
+	}
 	err = versionhistory.AddOrUpdateVersionHistoryItem(currentVersionHistory, versionhistory.NewVersionHistoryItem(
 		lastEventID, lastEventVersion,
 	))
-	s.NoError(err)
+	if err != nil {
+		panic(err)
+	}
 	return workflow.TestCloneToProto(ms)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) getMutableStateFromCache(
+func (d *timerQueueActiveTaskExecutorTestDeps) getMutableStateFromCache(
 	workflowKey definition.WorkflowKey,
 ) historyi.MutableState {
 	key := wcache.Key{
 		WorkflowKey: workflowKey,
-		ShardUUID:   s.mockShard.GetOwner(),
+		ShardUUID:   d.mockShard.GetOwner(),
 	}
-	return wcache.GetMutableState(s.workflowCache, key)
+	return wcache.GetMutableState(d.workflowCache, key)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) clearMutableStateFromCache(
+func (d *timerQueueActiveTaskExecutorTestDeps) clearMutableStateFromCache(
 	workflowKey definition.WorkflowKey,
 ) {
-	wcache.ClearMutableState(s.workflowCache, wcache.Key{
+	wcache.ClearMutableState(d.workflowCache, wcache.Key{
 		WorkflowKey: workflowKey,
-		ShardUUID:   s.mockShard.GetOwner(),
+		ShardUUID:   d.mockShard.GetOwner(),
 	})
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) newTaskExecutable(
+func (d *timerQueueActiveTaskExecutorTestDeps) newTaskExecutable(
 	task tasks.Task,
 ) queues.Executable {
 	return queues.NewExecutable(
 		queues.DefaultReaderId,
 		task,
-		s.timerQueueActiveTaskExecutor,
+		d.timerQueueActiveTaskExecutor,
 		nil,
 		nil,
 		queues.NewNoopPriorityAssigner(),
-		s.mockShard.GetTimeSource(),
-		s.mockNamespaceCache,
-		s.mockClusterMetadata,
-		s.mockShard.ChasmRegistry(),
+		d.mockShard.GetTimeSource(),
+		d.mockNamespaceCache,
+		d.mockClusterMetadata,
+		d.mockShard.ChasmRegistry(),
 		queues.GetTaskTypeTagValue,
 		nil,
 		metrics.NoopMetricsHandler,
@@ -2275,14 +2412,21 @@ func (s *timerQueueActiveTaskExecutorSuite) newTaskExecutable(
 	)
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) mustGenerateTaskID() int64 {
-	taskID, err := s.mockShard.GenerateTaskID()
-	s.NoError(err)
+func (d *timerQueueActiveTaskExecutorTestDeps) mustGenerateTaskID() int64 {
+	taskID, err := d.mockShard.GenerateTaskID()
+	if err != nil {
+		panic(err)
+	}
 	return taskID
 }
 
-func (s *timerQueueActiveTaskExecutorSuite) TestProcessSingleActivityTimeoutTask() {
-	ms := historyi.NewMockMutableState(s.controller)
+func TestProcessSingleActivityTimeoutTask(t *testing.T) {
+	d := setupTimerQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+
+	ms := historyi.NewMockMutableState(d.controller)
 
 	testCases := []struct {
 		name                         string
@@ -2359,7 +2503,7 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessSingleActivityTimeoutTask
 	info := &persistencespb.WorkflowExecutionInfo{}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func() {
 			if tc.expectRetryActivity {
 				ms.EXPECT().RetryActivity(gomock.Any(), gomock.Any()).Return(tc.retryState, tc.retryError)
 				ms.EXPECT().GetWorkflowType().Return(&commonpb.WorkflowType{Name: "test-workflow-type"}).AnyTimes()
@@ -2372,12 +2516,13 @@ func (s *timerQueueActiveTaskExecutorSuite) TestProcessSingleActivityTimeoutTask
 			ms.EXPECT().GetEffectiveVersioningBehavior().Return(enumspb.VERSIONING_BEHAVIOR_UNSPECIFIED).AnyTimes()
 			ms.EXPECT().GetNamespaceEntry().Return(tests.LocalNamespaceEntry).AnyTimes()
 
-			result, err := s.timerQueueActiveTaskExecutor.processSingleActivityTimeoutTask(
+			result, err := d.timerQueueActiveTaskExecutor.processSingleActivityTimeoutTask(
 				ms, tc.timerSequenceID, tc.ai)
 
-			s.NoError(err)
-			s.Equal(tc.expectedScheduleWorkflowTask, result.shouldScheduleWorkflowTask, "scheduleWorkflowTask")
-			s.Equal(tc.expectedUpdateMutableState, result.shouldUpdateMutableState, "updateMutableState")
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedScheduleWorkflowTask, result.shouldScheduleWorkflowTask, "scheduleWorkflowTask")
+			require.Equal(t, tc.expectedUpdateMutableState, result.shouldUpdateMutableState, "updateMutableState")
 		})
 	}
 }
+

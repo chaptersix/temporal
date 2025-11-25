@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/log"
@@ -14,48 +13,31 @@ import (
 	"go.temporal.io/server/service/history/tests"
 )
 
-type (
-	taskKeyGeneratorSuite struct {
-		suite.Suite
-		*require.Assertions
+func setupTaskKeyGenerator(t *testing.T) (*taskKeyGenerator, *clock.EventTimeSource, *int64) {
+	rangeID := int64(1)
+	rangeSizeBits := uint(3) // 1 << 3 = 8 tasks per range
+	mockTimeSource := clock.NewEventTimeSource()
 
-		rangeID       int64
-		rangeSizeBits uint
-
-		mockTimeSource *clock.EventTimeSource
-
-		generator *taskKeyGenerator
-	}
-)
-
-func TestTaskKeyGeneratorSuite(t *testing.T) {
-	s := &taskKeyGeneratorSuite{}
-	suite.Run(t, s)
-}
-
-func (s *taskKeyGeneratorSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.rangeID = 1
-	s.rangeSizeBits = 3 // 1 << 3 = 8 tasks per range
-	s.mockTimeSource = clock.NewEventTimeSource()
-	s.generator = newTaskKeyGenerator(
-		s.rangeSizeBits,
-		s.mockTimeSource,
+	var generator *taskKeyGenerator
+	generator = newTaskKeyGenerator(
+		rangeSizeBits,
+		mockTimeSource,
 		log.NewTestLogger(),
 		func() error {
-			s.rangeID++
-			s.generator.setRangeID(s.rangeID)
+			rangeID++
+			generator.setRangeID(rangeID)
 			return nil
 		},
 	)
-	s.generator.setRangeID(s.rangeID)
-	s.generator.setTaskMinScheduledTime(time.Now().Add(-time.Second))
+	generator.setRangeID(rangeID)
+	generator.setTaskMinScheduledTime(time.Now().Add(-time.Second))
+	return generator, mockTimeSource, &rangeID
 }
 
-func (s *taskKeyGeneratorSuite) TestSetTaskKeys_ImmediateTasks() {
+func TestSetTaskKeys_ImmediateTasks(t *testing.T) {
+	generator, mockTimeSource, _ := setupTaskKeyGenerator(t)
 	now := time.Now()
-	s.mockTimeSource.Update(now)
+	mockTimeSource.Update(now)
 
 	numTask := 5
 	transferTasks := make([]tasks.Task, 0, numTask)
@@ -71,56 +53,58 @@ func (s *taskKeyGeneratorSuite) TestSetTaskKeys_ImmediateTasks() {
 		)
 	}
 
-	err := s.generator.setTaskKeys(map[tasks.Category][]tasks.Task{
+	err := generator.setTaskKeys(map[tasks.Category][]tasks.Task{
 		tasks.CategoryTransfer: transferTasks,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
-	expectedTaskID := int64(s.rangeID << int64(s.rangeSizeBits))
+	expectedTaskID := int64(1 << 3) // rangeID << rangeSizeBits
 	for _, transferTask := range transferTasks {
 		actualKey := transferTask.GetKey()
 		expectedKey := tasks.NewImmediateKey(expectedTaskID)
-		s.Zero(expectedKey.CompareTo(actualKey))
-		s.Equal(now, transferTask.GetVisibilityTime())
+		require.Zero(t, expectedKey.CompareTo(actualKey))
+		require.Equal(t, now, transferTask.GetVisibilityTime())
 
 		expectedTaskID++
 	}
 }
 
-func (s *taskKeyGeneratorSuite) TestSetTaskKeys_ScheduledTasks() {
+func TestSetTaskKeys_ScheduledTasks(t *testing.T) {
+	generator, mockTimeSource, _ := setupTaskKeyGenerator(t)
 	now := time.Now().Truncate(common.ScheduledTaskMinPrecision)
-	s.mockTimeSource.Update(now)
+	mockTimeSource.Update(now)
 
 	timerTasks := []tasks.Task{
 		tasks.NewFakeTask(tests.WorkflowKey, tasks.CategoryTimer, now.Add(-time.Minute)),
 		tasks.NewFakeTask(tests.WorkflowKey, tasks.CategoryTimer, now.Add(time.Minute)),
 	}
-	initialTaskID := int64(s.rangeID << int64(s.rangeSizeBits))
+	initialTaskID := int64(1 << 3) // rangeID << rangeSizeBits
 	expectedKeys := []tasks.Key{
 		tasks.NewKey(now.Add(common.ScheduledTaskMinPrecision), initialTaskID),
 		tasks.NewKey(now.Add(time.Minute).Add(common.ScheduledTaskMinPrecision), initialTaskID+1),
 	}
 
-	err := s.generator.setTaskKeys(map[tasks.Category][]tasks.Task{
+	err := generator.setTaskKeys(map[tasks.Category][]tasks.Task{
 		tasks.CategoryTimer: timerTasks,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
 	for i, timerTask := range timerTasks {
 		actualKey := timerTask.GetKey()
 		expectedKey := expectedKeys[i]
-		s.Zero(expectedKey.CompareTo(actualKey))
+		require.Zero(t, expectedKey.CompareTo(actualKey))
 	}
 }
 
-func (s *taskKeyGeneratorSuite) TestSetTaskKeys_RenewRange() {
+func TestSetTaskKeys_RenewRange(t *testing.T) {
+	generator, mockTimeSource, rangeID := setupTaskKeyGenerator(t)
 	now := time.Now()
-	s.mockTimeSource.Update(now)
+	mockTimeSource.Update(now)
 
-	initialRangeID := s.rangeID
+	initialRangeID := *rangeID
 
 	numTask := 10
-	s.True(numTask > (1 << s.rangeSizeBits))
+	require.True(t, numTask > (1 << 3))
 
 	transferTasks := make([]tasks.Task, 0, numTask)
 	for i := 0; i < numTask; i++ {
@@ -130,40 +114,41 @@ func (s *taskKeyGeneratorSuite) TestSetTaskKeys_RenewRange() {
 		)
 	}
 
-	err := s.generator.setTaskKeys(map[tasks.Category][]tasks.Task{
+	err := generator.setTaskKeys(map[tasks.Category][]tasks.Task{
 		tasks.CategoryTransfer: transferTasks,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
-	expectedTaskID := int64(initialRangeID << int64(s.rangeSizeBits))
+	expectedTaskID := int64(initialRangeID << 3)
 	for _, transferTask := range transferTasks {
 		actualKey := transferTask.GetKey()
 		expectedKey := tasks.NewImmediateKey(expectedTaskID)
-		s.Zero(expectedKey.CompareTo(actualKey))
-		s.Equal(now, transferTask.GetVisibilityTime())
+		require.Zero(t, expectedKey.CompareTo(actualKey))
+		require.Equal(t, now, transferTask.GetVisibilityTime())
 
 		expectedTaskID++
 	}
-	s.Equal(initialRangeID+1, s.rangeID)
+	require.Equal(t, initialRangeID+1, *rangeID)
 }
 
-func (s *taskKeyGeneratorSuite) TestPeekAndGenerateTaskKey() {
-	nextTaskID := s.rangeID << int64(s.rangeSizeBits)
-	nextKey := s.generator.peekTaskKey(tasks.CategoryTransfer)
-	s.Zero(tasks.NewImmediateKey(nextTaskID).CompareTo(nextKey))
+func TestPeekAndGenerateTaskKey(t *testing.T) {
+	generator, mockTimeSource, rangeID := setupTaskKeyGenerator(t)
+	nextTaskID := *rangeID << 3
+	nextKey := generator.peekTaskKey(tasks.CategoryTransfer)
+	require.Zero(t, tasks.NewImmediateKey(nextTaskID).CompareTo(nextKey))
 
-	generatedKey, err := s.generator.generateTaskKey(tasks.CategoryTransfer)
-	s.NoError(err)
-	s.Zero(nextKey.CompareTo(generatedKey))
+	generatedKey, err := generator.generateTaskKey(tasks.CategoryTransfer)
+	require.NoError(t, err)
+	require.Zero(t, nextKey.CompareTo(generatedKey))
 
 	nextTaskID++
 	now := time.Now().Truncate(common.ScheduledTaskMinPrecision)
-	s.mockTimeSource.Update(now)
-	s.generator.setTaskMinScheduledTime(now)
-	nextKey = s.generator.peekTaskKey(tasks.CategoryTimer)
-	s.Zero(tasks.NewKey(now, nextTaskID).CompareTo(nextKey))
+	mockTimeSource.Update(now)
+	generator.setTaskMinScheduledTime(now)
+	nextKey = generator.peekTaskKey(tasks.CategoryTimer)
+	require.Zero(t, tasks.NewKey(now, nextTaskID).CompareTo(nextKey))
 
-	generatedKey, err = s.generator.generateTaskKey(tasks.CategoryTimer)
-	s.NoError(err)
-	s.Zero(nextKey.CompareTo(generatedKey))
+	generatedKey, err = generator.generateTaskKey(tasks.CategoryTimer)
+	require.NoError(t, err)
+	require.Zero(t, nextKey.CompareTo(generatedKey))
 }

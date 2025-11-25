@@ -6,7 +6,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	historyspb "go.temporal.io/server/api/history/v1"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/common/metrics"
@@ -17,40 +16,10 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	progressCacheSuite struct {
-		suite.Suite
-		*require.Assertions
-		protorequire.ProtoAssertions
-
-		controller *gomock.Controller
-		mockShard  *shard.ContextTest
-
-		shardContext  *shard.ContextTest
-		progressCache ProgressCache
-		namespaceID   string
-		workflowID    string
-		runID         string
-	}
-)
-
-func TestWorkflowCacheSuite(t *testing.T) {
-	s := new(progressCacheSuite)
-	suite.Run(t, s)
-}
-
-func (s *progressCacheSuite) SetupSuite() {
-}
-
-func (s *progressCacheSuite) TearDownSuite() {
-}
-
-func (s *progressCacheSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+func setupProgressCache(t *testing.T) (*gomock.Controller, *shard.ContextTest, ProgressCache, string, string, string) {
+	controller := gomock.NewController(t)
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{
 			ShardId: 0,
 			RangeId: 1,
@@ -58,10 +27,10 @@ func (s *progressCacheSuite) SetupTest() {
 		tests.NewDynamicConfig(),
 	)
 
-	s.mockShard.Resource.ClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(false).AnyTimes()
+	mockShard.Resource.ClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(false).AnyTimes()
 
-	s.shardContext = shard.NewTestContext(
-		s.controller,
+	shardContext := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{
 			ShardId: 0,
 			RangeId: 1,
@@ -69,19 +38,20 @@ func (s *progressCacheSuite) SetupTest() {
 		},
 		tests.NewDynamicConfig(),
 	)
-	s.progressCache = NewProgressCache(s.shardContext.GetConfig(), s.mockShard.GetLogger(), metrics.NoopMetricsHandler)
-	s.namespaceID = tests.NamespaceID.String()
-	s.workflowID = uuid.New()
-	s.runID = uuid.New()
+	progressCache := NewProgressCache(shardContext.GetConfig(), mockShard.GetLogger(), metrics.NoopMetricsHandler)
+	namespaceID := tests.NamespaceID.String()
+	workflowID := uuid.New()
+	runID := uuid.New()
 
+	return controller, mockShard, progressCache, namespaceID, workflowID, runID
 }
 
-func (s *progressCacheSuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.StopForTest()
-}
+func TestProgressCache(t *testing.T) {
+	controller, mockShard, progressCache, _, _, runID := setupProgressCache(t)
+	defer controller.Finish()
+	defer mockShard.StopForTest()
 
-func (s *progressCacheSuite) TestProgressCache() {
+	protoAssert := protorequire.New(t)
 	targetClusterID := rand.Int31()
 	firstEventID := int64(999)
 	versionedTransition := &persistencespb.VersionedTransition{
@@ -99,15 +69,15 @@ func (s *progressCacheSuite) TestProgressCache() {
 	}
 
 	// get non-existing progress
-	cachedProgress := s.progressCache.Get(s.runID, targetClusterID)
-	s.Nil(cachedProgress)
+	cachedProgress := progressCache.Get(runID, targetClusterID)
+	require.Nil(t, cachedProgress)
 
-	err := s.progressCache.Update(s.runID, targetClusterID, versionedTransitions, versionHistoryItems)
-	s.Nil(err)
+	err := progressCache.Update(runID, targetClusterID, versionedTransitions, versionHistoryItems)
+	require.Nil(t, err)
 
 	// get existing progress
-	cachedProgress = s.progressCache.Get(s.runID, targetClusterID)
-	s.DeepEqual(expected, cachedProgress)
+	cachedProgress = progressCache.Get(runID, targetClusterID)
+	protoAssert.DeepEqual(expected, cachedProgress)
 
 	// update existing versioned transition and version history
 	versionedTransitions2 := []*persistencespb.VersionedTransition{
@@ -119,8 +89,8 @@ func (s *progressCacheSuite) TestProgressCache() {
 	versionHistoryItems2 := []*historyspb.VersionHistoryItem{
 		versionhistory.NewVersionHistoryItem(firstEventID+1, versionedTransition.NamespaceFailoverVersion),
 	}
-	err = s.progressCache.Update(s.runID, targetClusterID, versionedTransitions2, versionHistoryItems2)
-	s.Nil(err)
+	err = progressCache.Update(runID, targetClusterID, versionedTransitions2, versionHistoryItems2)
+	require.Nil(t, err)
 
 	expected2 := &ReplicationProgress{
 		versionedTransitions:         [][]*persistencespb.VersionedTransition{versionedTransitions2},
@@ -128,8 +98,8 @@ func (s *progressCacheSuite) TestProgressCache() {
 		lastVersionTransitionIndex:   0,
 		lastEventVersionHistoryIndex: 0,
 	}
-	cachedProgress = s.progressCache.Get(s.runID, targetClusterID)
-	s.DeepEqual(expected2, cachedProgress)
+	cachedProgress = progressCache.Get(runID, targetClusterID)
+	protoAssert.DeepEqual(expected2, cachedProgress)
 
 	// add new versioned transition and version history
 	versionedTransitions3 := []*persistencespb.VersionedTransition{
@@ -142,8 +112,8 @@ func (s *progressCacheSuite) TestProgressCache() {
 		versionhistory.NewVersionHistoryItem(firstEventID, versionedTransition.NamespaceFailoverVersion),
 		versionhistory.NewVersionHistoryItem(firstEventID+1, versionedTransition.NamespaceFailoverVersion+1),
 	}
-	err = s.progressCache.Update(s.runID, targetClusterID, versionedTransitions3, versionHistoryItems3)
-	s.Nil(err)
+	err = progressCache.Update(runID, targetClusterID, versionedTransitions3, versionHistoryItems3)
+	require.Nil(t, err)
 
 	expected3 := &ReplicationProgress{
 		versionedTransitions:         [][]*persistencespb.VersionedTransition{versionedTransitions2, versionedTransitions3},
@@ -151,13 +121,13 @@ func (s *progressCacheSuite) TestProgressCache() {
 		lastVersionTransitionIndex:   1,
 		lastEventVersionHistoryIndex: 1,
 	}
-	cachedProgress = s.progressCache.Get(s.runID, targetClusterID)
-	s.DeepEqual(expected3, cachedProgress)
+	cachedProgress = progressCache.Get(runID, targetClusterID)
+	protoAssert.DeepEqual(expected3, cachedProgress)
 
 	// noop update: versioned transition and version history are already included in the existing progress
-	err = s.progressCache.Update(s.runID, targetClusterID, versionedTransitions, versionHistoryItems)
-	s.Nil(err)
+	err = progressCache.Update(runID, targetClusterID, versionedTransitions, versionHistoryItems)
+	require.Nil(t, err)
 
-	cachedProgress = s.progressCache.Get(s.runID, targetClusterID)
-	s.DeepEqual(expected3, cachedProgress)
+	cachedProgress = progressCache.Get(runID, targetClusterID)
+	protoAssert.DeepEqual(expected3, cachedProgress)
 }

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/common/headers"
 	"go.temporal.io/server/common/quotas"
@@ -19,71 +18,46 @@ var (
 	testOperatorRPSRatioFn = func() float64 { return 0.2 }
 )
 
-type (
-	quotasSuite struct {
-		suite.Suite
-		*require.Assertions
-	}
-)
-
-func TestQuotasSuite(t *testing.T) {
-	s := new(quotasSuite)
-	suite.Run(t, s)
-}
-
-func (s *quotasSuite) SetupSuite() {
-}
-
-func (s *quotasSuite) TearDownSuite() {
-}
-
-func (s *quotasSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-}
-
-func (s *quotasSuite) TearDownTest() {
-}
-
-func (s *quotasSuite) TestExecutionAPIToPriorityMapping() {
+func TestExecutionAPIToPriorityMapping(t *testing.T) {
 	for _, priority := range APIToPriority {
 		index := slices.Index(ExecutionAPIPrioritiesOrdered, priority)
-		s.NotEqual(-1, index)
+		require.NotEqual(t, -1, index)
 	}
 }
 
-func (s *quotasSuite) TestVisibilityAPIToPriorityMapping() {
+func TestVisibilityAPIToPriorityMapping(t *testing.T) {
 	for _, priority := range VisibilityAPIToPriority {
 		index := slices.Index(VisibilityAPIPrioritiesOrdered, priority)
-		s.NotEqual(-1, index)
+		require.NotEqual(t, -1, index)
 	}
 }
 
-func (s *quotasSuite) TestNamespaceReplicationInducingAPIToPriorityMapping() {
+func TestNamespaceReplicationInducingAPIToPriorityMapping(t *testing.T) {
 	for _, priority := range NamespaceReplicationInducingAPIToPriority {
 		index := slices.Index(NamespaceReplicationInducingAPIPrioritiesOrdered, priority)
-		s.NotEqual(-1, index)
+		require.NotEqual(t, -1, index)
 	}
 }
 
-func (s *quotasSuite) TestExecutionAPIPrioritiesOrdered() {
+func TestExecutionAPIPrioritiesOrdered(t *testing.T) {
 	for idx := range ExecutionAPIPrioritiesOrdered[1:] {
-		s.True(ExecutionAPIPrioritiesOrdered[idx] < ExecutionAPIPrioritiesOrdered[idx+1])
+		require.True(t, ExecutionAPIPrioritiesOrdered[idx] < ExecutionAPIPrioritiesOrdered[idx+1])
 	}
 }
 
-func (s *quotasSuite) TestVisibilityAPIPrioritiesOrdered() {
+func TestVisibilityAPIPrioritiesOrdered(t *testing.T) {
 	for idx := range VisibilityAPIPrioritiesOrdered[1:] {
-		s.True(VisibilityAPIPrioritiesOrdered[idx] < VisibilityAPIPrioritiesOrdered[idx+1])
+		require.True(t, VisibilityAPIPrioritiesOrdered[idx] < VisibilityAPIPrioritiesOrdered[idx+1])
 	}
 }
 
-func (s *quotasSuite) TestNamespaceReplicationInducingAPIPrioritiesOrdered() {
+func TestNamespaceReplicationInducingAPIPrioritiesOrdered(t *testing.T) {
 	for idx := range NamespaceReplicationInducingAPIPrioritiesOrdered[1:] {
-		s.True(NamespaceReplicationInducingAPIPrioritiesOrdered[idx] < NamespaceReplicationInducingAPIPrioritiesOrdered[idx+1])
+		require.True(t, NamespaceReplicationInducingAPIPrioritiesOrdered[idx] < NamespaceReplicationInducingAPIPrioritiesOrdered[idx+1])
 	}
 }
 
-func (s *quotasSuite) TestVisibilityAPIs() {
+func TestVisibilityAPIs(t *testing.T) {
 	apis := map[string]struct{}{
 		"/temporal.api.workflowservice.v1.WorkflowService/GetWorkflowExecution":           {},
 		"/temporal.api.workflowservice.v1.WorkflowService/CountWorkflowExecutions":        {},
@@ -104,21 +78,21 @@ func (s *quotasSuite) TestVisibilityAPIs() {
 	}
 
 	var service workflowservice.WorkflowServiceServer
-	t := reflect.TypeOf(&service).Elem()
-	apiToPriority := make(map[string]int, t.NumMethod())
-	for i := 0; i < t.NumMethod(); i++ {
-		apiName := "/temporal.api.workflowservice.v1.WorkflowService/" + t.Method(i).Name
-		if t.Method(i).Name == "DescribeTaskQueue" {
+	ty := reflect.TypeOf(&service).Elem()
+	apiToPriority := make(map[string]int, ty.NumMethod())
+	for i := 0; i < ty.NumMethod(); i++ {
+		apiName := "/temporal.api.workflowservice.v1.WorkflowService/" + ty.Method(i).Name
+		if ty.Method(i).Name == "DescribeTaskQueue" {
 			apiName += "WithReachability"
 		}
 		if _, ok := apis[apiName]; ok {
 			apiToPriority[apiName] = VisibilityAPIToPriority[apiName]
 		}
 	}
-	s.Equal(apiToPriority, VisibilityAPIToPriority)
+	require.Equal(t, apiToPriority, VisibilityAPIToPriority)
 }
 
-func (s *quotasSuite) TestNamespaceReplicationInducingAPIs() {
+func TestNamespaceReplicationInducingAPIs(t *testing.T) {
 	apis := map[string]struct{}{
 		"/temporal.api.workflowservice.v1.WorkflowService/RegisterNamespace":                {},
 		"/temporal.api.workflowservice.v1.WorkflowService/UpdateNamespace":                  {},
@@ -127,18 +101,18 @@ func (s *quotasSuite) TestNamespaceReplicationInducingAPIs() {
 	}
 
 	var service workflowservice.WorkflowServiceServer
-	t := reflect.TypeOf(&service).Elem()
-	apiToPriority := make(map[string]int, t.NumMethod())
-	for i := 0; i < t.NumMethod(); i++ {
-		apiName := "/temporal.api.workflowservice.v1.WorkflowService/" + t.Method(i).Name
+	ty := reflect.TypeOf(&service).Elem()
+	apiToPriority := make(map[string]int, ty.NumMethod())
+	for i := 0; i < ty.NumMethod(); i++ {
+		apiName := "/temporal.api.workflowservice.v1.WorkflowService/" + ty.Method(i).Name
 		if _, ok := apis[apiName]; ok {
 			apiToPriority[apiName] = NamespaceReplicationInducingAPIToPriority[apiName]
 		}
 	}
-	s.Equal(apiToPriority, NamespaceReplicationInducingAPIToPriority)
+	require.Equal(t, apiToPriority, NamespaceReplicationInducingAPIToPriority)
 }
 
-func (s *quotasSuite) TestAllAPIs() {
+func TestAllAPIs(t *testing.T) {
 	apisWithPriority := make(map[string]struct{})
 	for api := range APIToPriority {
 		apisWithPriority[api] = struct{}{}
@@ -152,32 +126,32 @@ func (s *quotasSuite) TestAllAPIs() {
 	var service workflowservice.WorkflowServiceServer
 	temporalapi.WalkExportedMethods(&service, func(m reflect.Method) {
 		_, ok := apisWithPriority["/temporal.api.workflowservice.v1.WorkflowService/"+m.Name]
-		s.True(ok, "missing priority for API: %v", m.Name)
+		require.True(t, ok, "missing priority for API: %v", m.Name)
 	})
 	_, ok := apisWithPriority[DispatchNexusTaskByNamespaceAndTaskQueueAPIName]
-	s.Truef(ok, "missing priority for API: %q", DispatchNexusTaskByNamespaceAndTaskQueueAPIName)
+	require.Truef(t, ok, "missing priority for API: %q", DispatchNexusTaskByNamespaceAndTaskQueueAPIName)
 	_, ok = apisWithPriority[DispatchNexusTaskByEndpointAPIName]
-	s.Truef(ok, "missing priority for API: %q", DispatchNexusTaskByEndpointAPIName)
+	require.Truef(t, ok, "missing priority for API: %q", DispatchNexusTaskByEndpointAPIName)
 	_, ok = apisWithPriority[CompleteNexusOperation]
-	s.Truef(ok, "missing priority for API: %q", CompleteNexusOperation)
+	require.Truef(t, ok, "missing priority for API: %q", CompleteNexusOperation)
 }
 
-func (s *quotasSuite) TestOperatorPriority_Execution() {
+func TestOperatorPriority_Execution(t *testing.T) {
 	limiter := NewExecutionPriorityRateLimiter(testRateBurstFn, testOperatorRPSRatioFn)
-	s.testOperatorPrioritized(limiter, "DescribeWorkflowExecution")
+	testOperatorPrioritized(t, limiter, "DescribeWorkflowExecution")
 }
 
-func (s *quotasSuite) TestOperatorPriority_Visibility() {
+func TestOperatorPriority_Visibility(t *testing.T) {
 	limiter := NewVisibilityPriorityRateLimiter(testRateBurstFn, testOperatorRPSRatioFn)
-	s.testOperatorPrioritized(limiter, "ListOpenWorkflowExecutions")
+	testOperatorPrioritized(t, limiter, "ListOpenWorkflowExecutions")
 }
 
-func (s *quotasSuite) TestOperatorPriority_NamespaceReplicationInducing() {
+func TestOperatorPriority_NamespaceReplicationInducing(t *testing.T) {
 	limiter := NewNamespaceReplicationInducingAPIPriorityRateLimiter(testRateBurstFn, testOperatorRPSRatioFn)
-	s.testOperatorPrioritized(limiter, "RegisterNamespace")
+	testOperatorPrioritized(t, limiter, "RegisterNamespace")
 }
 
-func (s *quotasSuite) testOperatorPrioritized(limiter quotas.RequestRateLimiter, api string) {
+func testOperatorPrioritized(t *testing.T, limiter quotas.RequestRateLimiter, api string) {
 	operatorRequest := quotas.NewRequest(
 		api,
 		1,
@@ -200,8 +174,8 @@ func (s *quotasSuite) testOperatorPrioritized(limiter quotas.RequestRateLimiter,
 	for i := 0; i < 12; i++ {
 		if !limiter.Allow(requestTime, apiRequest) {
 			limitCount++
-			s.True(limiter.Allow(requestTime, operatorRequest))
+			require.True(t, limiter.Allow(requestTime, operatorRequest))
 		}
 	}
-	s.Equal(2, limitCount)
+	require.Equal(t, 2, limitCount)
 }

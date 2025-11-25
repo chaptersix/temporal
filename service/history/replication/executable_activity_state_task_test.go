@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	failurepb "go.temporal.io/api/failure/v1"
 	"go.temporal.io/api/serviceerror"
@@ -33,57 +32,18 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type (
-	executableActivityStateTaskSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller              *gomock.Controller
-		clusterMetadata         *cluster.MockMetadata
-		clientBean              *client.MockBean
-		shardController         *shard.MockController
-		namespaceCache          *namespace.MockRegistry
-		metricsHandler          metrics.Handler
-		logger                  log.Logger
-		executableTask          *MockExecutableTask
-		EagerNamespaceRefresher *MockEagerNamespaceRefresher
-		mockExecutionManager    *persistence.MockExecutionManager
-		config                  *configs.Config
-
-		replicationTask   *replicationspb.SyncActivityTaskAttributes
-		sourceClusterName string
-		sourceShardKey    ClusterShardKey
-
-		taskID int64
-		task   *ExecutableActivityStateTask
-	}
-)
-
-func TestExecutableActivityStateTaskSuite(t *testing.T) {
-	s := new(executableActivityStateTaskSuite)
-	suite.Run(t, s)
-}
-
-func (s *executableActivityStateTaskSuite) SetupSuite() {
-	s.Assertions = require.New(s.T())
-}
-
-func (s *executableActivityStateTaskSuite) TearDownSuite() {
-
-}
-
-func (s *executableActivityStateTaskSuite) SetupTest() {
-	s.controller = gomock.NewController(s.T())
-	s.clusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.clientBean = client.NewMockBean(s.controller)
-	s.shardController = shard.NewMockController(s.controller)
-	s.namespaceCache = namespace.NewMockRegistry(s.controller)
-	s.metricsHandler = metrics.NoopMetricsHandler
-	s.logger = log.NewNoopLogger()
-	s.executableTask = NewMockExecutableTask(s.controller)
-	s.EagerNamespaceRefresher = NewMockEagerNamespaceRefresher(s.controller)
-	s.config = tests.NewDynamicConfig()
-	s.replicationTask = &replicationspb.SyncActivityTaskAttributes{
+func setupExecutableActivityStateTask(t *testing.T) (*gomock.Controller, *cluster.MockMetadata, *client.MockBean, *shard.MockController, *namespace.MockRegistry, metrics.Handler, log.Logger, *MockExecutableTask, *MockEagerNamespaceRefresher, *persistence.MockExecutionManager, *configs.Config, *replicationspb.SyncActivityTaskAttributes, string, ClusterShardKey, int64, *ExecutableActivityStateTask) {
+	controller := gomock.NewController(t)
+	clusterMetadata := cluster.NewMockMetadata(controller)
+	clientBean := client.NewMockBean(controller)
+	shardController := shard.NewMockController(controller)
+	namespaceCache := namespace.NewMockRegistry(controller)
+	metricsHandler := metrics.NoopMetricsHandler
+	logger := log.NewNoopLogger()
+	executableTask := NewMockExecutableTask(controller)
+	eagerNamespaceRefresher := NewMockEagerNamespaceRefresher(controller)
+	config := tests.NewDynamicConfig()
+	replicationTask := &replicationspb.SyncActivityTaskAttributes{
 		NamespaceId:        uuid.NewString(),
 		WorkflowId:         uuid.NewString(),
 		RunId:              uuid.NewString(),
@@ -100,343 +60,42 @@ func (s *executableActivityStateTaskSuite) SetupTest() {
 		BaseExecutionInfo:  &workflowspb.BaseExecutionInfo{},
 		VersionHistory:     &historyspb.VersionHistory{},
 	}
-	s.sourceClusterName = cluster.TestCurrentClusterName
-	s.sourceShardKey = ClusterShardKey{
+	sourceClusterName := cluster.TestCurrentClusterName
+	sourceShardKey := ClusterShardKey{
 		ClusterID: int32(cluster.TestCurrentClusterInitialFailoverVersion),
 		ShardID:   rand.Int31(),
 	}
-	s.taskID = rand.Int63()
-	s.mockExecutionManager = persistence.NewMockExecutionManager(s.controller)
-	s.task = NewExecutableActivityStateTask(
+	taskID := rand.Int63()
+	mockExecutionManager := persistence.NewMockExecutionManager(controller)
+	task := NewExecutableActivityStateTask(
 		ProcessToolBox{
-			ClusterMetadata: s.clusterMetadata,
-			ClientBean:      s.clientBean,
-			ShardController: s.shardController,
-			NamespaceCache:  s.namespaceCache,
-			MetricsHandler:  s.metricsHandler,
-			Logger:          s.logger,
-			DLQWriter:       NewExecutionManagerDLQWriter(s.mockExecutionManager),
-			Config:          s.config,
-		},
-		s.taskID,
-		time.Unix(0, rand.Int63()),
-		s.replicationTask,
-		s.sourceClusterName,
-		s.sourceShardKey,
-		&replicationspb.ReplicationTask{
-			Priority: enumsspb.TASK_PRIORITY_HIGH,
-		},
-	)
-	s.task.ExecutableTask = s.executableTask
-	s.executableTask.EXPECT().TaskID().Return(s.taskID).AnyTimes()
-	s.executableTask.EXPECT().SourceClusterName().Return(s.sourceClusterName).AnyTimes()
-	s.executableTask.EXPECT().GetPriority().Return(enumsspb.TASK_PRIORITY_HIGH).AnyTimes()
-}
-
-func (s *executableActivityStateTaskSuite) TearDownTest() {
-	s.controller.Finish()
-}
-
-func (s *executableActivityStateTaskSuite) TestExecute_Process() {
-	s.executableTask.EXPECT().TerminalState().Return(false)
-	s.executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), s.task.NamespaceID).Return(
-		uuid.NewString(), true, nil,
-	).AnyTimes()
-
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
-		namespace.ID(s.task.NamespaceID),
-		s.task.WorkflowID,
-	).Return(shardContext, nil).AnyTimes()
-	shardContext.EXPECT().GetEngine(gomock.Any()).Return(engine, nil).AnyTimes()
-	engine.EXPECT().SyncActivity(gomock.Any(), &historyservice.SyncActivityRequest{
-		NamespaceId:        s.replicationTask.NamespaceId,
-		WorkflowId:         s.replicationTask.WorkflowId,
-		RunId:              s.replicationTask.RunId,
-		Version:            s.replicationTask.Version,
-		ScheduledEventId:   s.replicationTask.ScheduledEventId,
-		ScheduledTime:      s.replicationTask.ScheduledTime,
-		StartedEventId:     s.replicationTask.StartedEventId,
-		StartVersion:       s.replicationTask.StartVersion,
-		StartedTime:        s.replicationTask.StartedTime,
-		LastHeartbeatTime:  s.replicationTask.LastHeartbeatTime,
-		Details:            s.replicationTask.Details,
-		Attempt:            s.replicationTask.Attempt,
-		LastFailure:        s.replicationTask.LastFailure,
-		LastWorkerIdentity: s.replicationTask.LastWorkerIdentity,
-		BaseExecutionInfo:  s.replicationTask.BaseExecutionInfo,
-		VersionHistory:     s.replicationTask.GetVersionHistory(),
-	}).Return(nil)
-
-	err := s.task.Execute()
-	s.NoError(err)
-}
-
-func (s *executableActivityStateTaskSuite) TestExecute_Skip_TerminalState() {
-	s.executableTask.EXPECT().TerminalState().Return(true)
-
-	err := s.task.Execute()
-	s.NoError(err)
-}
-
-func (s *executableActivityStateTaskSuite) TestExecute_Skip_Namespace() {
-	s.executableTask.EXPECT().TerminalState().Return(false)
-	s.executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), s.task.NamespaceID).Return(
-		uuid.NewString(), false, nil,
-	).AnyTimes()
-
-	err := s.task.Execute()
-	s.NoError(err)
-}
-
-func (s *executableActivityStateTaskSuite) TestExecute_Err() {
-	err := errors.New("OwO")
-	s.executableTask.EXPECT().TerminalState().Return(false)
-	s.executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), s.task.NamespaceID).Return(
-		"", false, err,
-	).AnyTimes()
-
-	s.Equal(err, s.task.Execute())
-}
-
-func (s *executableActivityStateTaskSuite) TestHandleErr_Resend_Success() {
-	s.executableTask.EXPECT().TerminalState().Return(false)
-	s.executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), s.task.NamespaceID).Return(
-		uuid.NewString(), true, nil,
-	).AnyTimes()
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
-		namespace.ID(s.task.NamespaceID),
-		s.task.WorkflowID,
-	).Return(shardContext, nil).AnyTimes()
-	shardContext.EXPECT().GetEngine(gomock.Any()).Return(engine, nil).AnyTimes()
-	engine.EXPECT().SyncActivity(gomock.Any(), &historyservice.SyncActivityRequest{
-		NamespaceId:        s.replicationTask.NamespaceId,
-		WorkflowId:         s.replicationTask.WorkflowId,
-		RunId:              s.replicationTask.RunId,
-		Version:            s.replicationTask.Version,
-		ScheduledEventId:   s.replicationTask.ScheduledEventId,
-		ScheduledTime:      s.replicationTask.ScheduledTime,
-		StartedEventId:     s.replicationTask.StartedEventId,
-		StartVersion:       s.replicationTask.StartVersion,
-		StartedTime:        s.replicationTask.StartedTime,
-		LastHeartbeatTime:  s.replicationTask.LastHeartbeatTime,
-		Details:            s.replicationTask.Details,
-		Attempt:            s.replicationTask.Attempt,
-		LastFailure:        s.replicationTask.LastFailure,
-		LastWorkerIdentity: s.replicationTask.LastWorkerIdentity,
-		BaseExecutionInfo:  s.replicationTask.BaseExecutionInfo,
-		VersionHistory:     s.replicationTask.GetVersionHistory(),
-	}).Return(nil)
-
-	err := serviceerrors.NewRetryReplication(
-		"",
-		s.task.NamespaceID,
-		s.task.WorkflowID,
-		s.task.RunID,
-		rand.Int63(),
-		rand.Int63(),
-		rand.Int63(),
-		rand.Int63(),
-	)
-	s.executableTask.EXPECT().Resend(gomock.Any(), s.sourceClusterName, err, ResendAttempt).Return(true, nil)
-
-	s.NoError(s.task.HandleErr(err))
-}
-
-func (s *executableActivityStateTaskSuite) TestHandleErr_Resend_Error() {
-	s.executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), s.task.NamespaceID).Return(
-		uuid.NewString(), true, nil,
-	).AnyTimes()
-	err := serviceerrors.NewRetryReplication(
-		"",
-		s.task.NamespaceID,
-		s.task.WorkflowID,
-		s.task.RunID,
-		rand.Int63(),
-		rand.Int63(),
-		rand.Int63(),
-		rand.Int63(),
-	)
-	s.executableTask.EXPECT().Resend(gomock.Any(), s.sourceClusterName, err, ResendAttempt).Return(false, errors.New("OwO"))
-
-	s.Equal(err, s.task.HandleErr(err))
-}
-
-func (s *executableActivityStateTaskSuite) TestHandleErr_Other() {
-	err := errors.New("OwO")
-	s.Equal(err, s.task.HandleErr(err))
-
-	err = serviceerror.NewNotFound("")
-	s.Equal(nil, s.task.HandleErr(err))
-
-	err = serviceerror.NewUnavailable("")
-	s.Equal(err, s.task.HandleErr(err))
-}
-
-func (s *executableActivityStateTaskSuite) TestMarkPoisonPill() {
-	replicationTask := &replicationspb.ReplicationTask{
-		TaskType:     enumsspb.REPLICATION_TASK_TYPE_SYNC_ACTIVITY_TASK,
-		SourceTaskId: s.taskID,
-		Attributes: &replicationspb.ReplicationTask_SyncActivityTaskAttributes{
-			SyncActivityTaskAttributes: s.replicationTask,
-		},
-		RawTaskInfo: nil,
-	}
-	s.executableTask.EXPECT().ReplicationTask().Return(replicationTask).AnyTimes()
-	s.executableTask.EXPECT().MarkPoisonPill().Times(1)
-
-	err := s.task.MarkPoisonPill()
-	s.NoError(err)
-
-	s.Equal(&persistencespb.ReplicationTaskInfo{
-		NamespaceId:      s.task.NamespaceID,
-		WorkflowId:       s.task.WorkflowID,
-		RunId:            s.task.RunID,
-		TaskId:           s.task.ExecutableTask.TaskID(),
-		TaskType:         enumsspb.TASK_TYPE_REPLICATION_SYNC_ACTIVITY,
-		ScheduledEventId: s.task.req.ScheduledEventId,
-		Version:          s.task.req.Version,
-	}, replicationTask.RawTaskInfo)
-}
-
-func (s *executableActivityStateTaskSuite) TestBatchedTask_ShouldBatchTogether_AndExecute() {
-	namespaceId := uuid.NewString()
-	workflowId := uuid.NewString()
-	runId := uuid.NewString()
-	replicationAttribute1 := s.generateReplicationAttribute(namespaceId, workflowId, runId)
-	config := tests.NewDynamicConfig()
-	config.EnableReplicationTaskBatching = func() bool {
-		return true
-	}
-	task1 := NewExecutableActivityStateTask(
-		ProcessToolBox{
-			ClusterMetadata: s.clusterMetadata,
-			ClientBean:      s.clientBean,
-			ShardController: s.shardController,
-			NamespaceCache:  s.namespaceCache,
-			MetricsHandler:  s.metricsHandler,
-			Logger:          s.logger,
-			DLQWriter:       NewExecutionManagerDLQWriter(s.mockExecutionManager),
+			ClusterMetadata: clusterMetadata,
+			ClientBean:      clientBean,
+			ShardController: shardController,
+			NamespaceCache:  namespaceCache,
+			MetricsHandler:  metricsHandler,
+			Logger:          logger,
+			DLQWriter:       NewExecutionManagerDLQWriter(mockExecutionManager),
 			Config:          config,
 		},
-		1,
+		taskID,
 		time.Unix(0, rand.Int63()),
-		replicationAttribute1,
-		s.sourceClusterName,
-		s.sourceShardKey,
+		replicationTask,
+		sourceClusterName,
+		sourceShardKey,
 		&replicationspb.ReplicationTask{
 			Priority: enumsspb.TASK_PRIORITY_HIGH,
 		},
 	)
-	task1.ExecutableTask = s.executableTask
+	task.ExecutableTask = executableTask
+	executableTask.EXPECT().TaskID().Return(taskID).AnyTimes()
+	executableTask.EXPECT().SourceClusterName().Return(sourceClusterName).AnyTimes()
+	executableTask.EXPECT().GetPriority().Return(enumsspb.TASK_PRIORITY_HIGH).AnyTimes()
 
-	replicationAttribute2 := s.generateReplicationAttribute(namespaceId, workflowId, runId)
-	task2 := NewExecutableActivityStateTask(
-		ProcessToolBox{
-			ClusterMetadata: s.clusterMetadata,
-			ClientBean:      s.clientBean,
-			ShardController: s.shardController,
-			NamespaceCache:  s.namespaceCache,
-			MetricsHandler:  s.metricsHandler,
-			Logger:          s.logger,
-			DLQWriter:       NewExecutionManagerDLQWriter(s.mockExecutionManager),
-			Config:          s.config,
-		},
-		2,
-		time.Unix(0, rand.Int63()),
-		replicationAttribute2,
-		s.sourceClusterName,
-		s.sourceShardKey,
-		&replicationspb.ReplicationTask{
-			Priority: enumsspb.TASK_PRIORITY_HIGH,
-		},
-	)
-	task2.ExecutableTask = s.executableTask
-
-	batchResult, batched := task1.BatchWith(task2)
-	s.True(batched)
-	activityTask, _ := batchResult.(*ExecutableActivityStateTask)
-	s.Equal(2, len(activityTask.activityInfos))
-	s.assertAttributeEqual(replicationAttribute1, activityTask.activityInfos[0])
-	s.assertAttributeEqual(replicationAttribute2, activityTask.activityInfos[1])
-
-	s.executableTask.EXPECT().TerminalState().Return(false)
-	s.executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), namespaceId).Return(
-		uuid.NewString(), true, nil,
-	).AnyTimes()
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
-		namespace.ID(namespaceId),
-		workflowId,
-	).Return(shardContext, nil).AnyTimes()
-	shardContext.EXPECT().GetEngine(gomock.Any()).Return(engine, nil).AnyTimes()
-
-	engine.EXPECT().SyncActivities(gomock.Any(), &historyservice.SyncActivitiesRequest{
-		NamespaceId:    namespaceId,
-		WorkflowId:     workflowId,
-		RunId:          runId,
-		ActivitiesInfo: activityTask.activityInfos,
-	})
-	err := batchResult.Execute()
-	s.Nil(err)
+	return controller, clusterMetadata, clientBean, shardController, namespaceCache, metricsHandler, logger, executableTask, eagerNamespaceRefresher, mockExecutionManager, config, replicationTask, sourceClusterName, sourceShardKey, taskID, task
 }
 
-func (s *executableActivityStateTaskSuite) TestBatchWith_InvalidBatchTask_ShouldNotBatch() {
-	namespaceId := uuid.NewString()
-	runId := uuid.NewString()
-	replicationAttribute1 := s.generateReplicationAttribute(namespaceId, "wf_1", runId)
-	task1 := NewExecutableActivityStateTask(
-		ProcessToolBox{
-			ClusterMetadata: s.clusterMetadata,
-			ClientBean:      s.clientBean,
-			ShardController: s.shardController,
-			NamespaceCache:  s.namespaceCache,
-			MetricsHandler:  s.metricsHandler,
-			Logger:          s.logger,
-			DLQWriter:       NewExecutionManagerDLQWriter(s.mockExecutionManager),
-			Config:          s.config,
-		},
-		1,
-		time.Unix(0, rand.Int63()),
-		replicationAttribute1,
-		s.sourceClusterName,
-		s.sourceShardKey,
-		&replicationspb.ReplicationTask{
-			Priority: enumsspb.TASK_PRIORITY_HIGH,
-		},
-	)
-
-	replicationAttribute2 := s.generateReplicationAttribute(namespaceId, "wf_2", runId) //
-	task2 := NewExecutableActivityStateTask(
-		ProcessToolBox{
-			ClusterMetadata: s.clusterMetadata,
-			ClientBean:      s.clientBean,
-			ShardController: s.shardController,
-			NamespaceCache:  s.namespaceCache,
-			MetricsHandler:  s.metricsHandler,
-			Logger:          s.logger,
-			DLQWriter:       NewExecutionManagerDLQWriter(s.mockExecutionManager),
-			Config:          s.config,
-		},
-		2,
-		time.Unix(0, rand.Int63()),
-		replicationAttribute2,
-		s.sourceClusterName,
-		s.sourceShardKey,
-		&replicationspb.ReplicationTask{
-			Priority: enumsspb.TASK_PRIORITY_HIGH,
-		},
-	)
-	batchResult, batched := task1.BatchWith(task2)
-	s.False(batched)
-	s.Nil(batchResult)
-}
-
-func (s *executableActivityStateTaskSuite) generateReplicationAttribute(
+func generateReplicationAttribute(
 	namespaceId string,
 	workflowId string,
 	runId string,
@@ -460,19 +119,349 @@ func (s *executableActivityStateTaskSuite) generateReplicationAttribute(
 	}
 }
 
-func (s *executableActivityStateTaskSuite) assertAttributeEqual(
+func assertAttributeEqual(
+	t *testing.T,
 	expected *replicationspb.SyncActivityTaskAttributes,
 	actual *historyservice.ActivitySyncInfo,
 ) {
-	s.Equal(expected.Version, actual.Version)
-	s.Equal(expected.ScheduledEventId, actual.ScheduledEventId)
-	s.Equal(expected.ScheduledTime, actual.ScheduledTime)
-	s.Equal(expected.StartedEventId, actual.StartedEventId)
-	s.Equal(expected.StartedTime, actual.StartedTime)
-	s.Equal(expected.LastHeartbeatTime, actual.LastHeartbeatTime)
-	s.Equal(expected.Details, actual.Details)
-	s.Equal(expected.Attempt, actual.Attempt)
-	s.Equal(expected.LastFailure, actual.LastFailure)
-	s.Equal(expected.LastWorkerIdentity, actual.LastWorkerIdentity)
-	s.Equal(expected.VersionHistory, actual.VersionHistory)
+	require.Equal(t, expected.Version, actual.Version)
+	require.Equal(t, expected.ScheduledEventId, actual.ScheduledEventId)
+	require.Equal(t, expected.ScheduledTime, actual.ScheduledTime)
+	require.Equal(t, expected.StartedEventId, actual.StartedEventId)
+	require.Equal(t, expected.StartedTime, actual.StartedTime)
+	require.Equal(t, expected.LastHeartbeatTime, actual.LastHeartbeatTime)
+	require.Equal(t, expected.Details, actual.Details)
+	require.Equal(t, expected.Attempt, actual.Attempt)
+	require.Equal(t, expected.LastFailure, actual.LastFailure)
+	require.Equal(t, expected.LastWorkerIdentity, actual.LastWorkerIdentity)
+	require.Equal(t, expected.VersionHistory, actual.VersionHistory)
 }
+
+func TestExecutableActivityStateTask_Execute_Process(t *testing.T) {
+	controller, _, _, shardController, _, _, _, executableTask, _, _, _, replicationTask, _, _, _, task := setupExecutableActivityStateTask(t)
+	defer controller.Finish()
+
+	executableTask.EXPECT().TerminalState().Return(false)
+	executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), task.NamespaceID).Return(
+		uuid.NewString(), true, nil,
+	).AnyTimes()
+
+	shardContext := historyi.NewMockShardContext(controller)
+	engine := historyi.NewMockEngine(controller)
+	shardController.EXPECT().GetShardByNamespaceWorkflow(
+		namespace.ID(task.NamespaceID),
+		task.WorkflowID,
+	).Return(shardContext, nil).AnyTimes()
+	shardContext.EXPECT().GetEngine(gomock.Any()).Return(engine, nil).AnyTimes()
+	engine.EXPECT().SyncActivity(gomock.Any(), &historyservice.SyncActivityRequest{
+		NamespaceId:        replicationTask.NamespaceId,
+		WorkflowId:         replicationTask.WorkflowId,
+		RunId:              replicationTask.RunId,
+		Version:            replicationTask.Version,
+		ScheduledEventId:   replicationTask.ScheduledEventId,
+		ScheduledTime:      replicationTask.ScheduledTime,
+		StartedEventId:     replicationTask.StartedEventId,
+		StartVersion:       replicationTask.StartVersion,
+		StartedTime:        replicationTask.StartedTime,
+		LastHeartbeatTime:  replicationTask.LastHeartbeatTime,
+		Details:            replicationTask.Details,
+		Attempt:            replicationTask.Attempt,
+		LastFailure:        replicationTask.LastFailure,
+		LastWorkerIdentity: replicationTask.LastWorkerIdentity,
+		BaseExecutionInfo:  replicationTask.BaseExecutionInfo,
+		VersionHistory:     replicationTask.GetVersionHistory(),
+	}).Return(nil)
+
+	err := task.Execute()
+	require.NoError(t, err)
+}
+
+func TestExecutableActivityStateTask_Execute_Skip_TerminalState(t *testing.T) {
+	controller, _, _, _, _, _, _, executableTask, _, _, _, _, _, _, _, task := setupExecutableActivityStateTask(t)
+	defer controller.Finish()
+
+	executableTask.EXPECT().TerminalState().Return(true)
+
+	err := task.Execute()
+	require.NoError(t, err)
+}
+
+func TestExecutableActivityStateTask_Execute_Skip_Namespace(t *testing.T) {
+	controller, _, _, _, _, _, _, executableTask, _, _, _, _, _, _, _, task := setupExecutableActivityStateTask(t)
+	defer controller.Finish()
+
+	executableTask.EXPECT().TerminalState().Return(false)
+	executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), task.NamespaceID).Return(
+		uuid.NewString(), false, nil,
+	).AnyTimes()
+
+	err := task.Execute()
+	require.NoError(t, err)
+}
+
+func TestExecutableActivityStateTask_Execute_Err(t *testing.T) {
+	controller, _, _, _, _, _, _, executableTask, _, _, _, _, _, _, _, task := setupExecutableActivityStateTask(t)
+	defer controller.Finish()
+
+	err := errors.New("OwO")
+	executableTask.EXPECT().TerminalState().Return(false)
+	executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), task.NamespaceID).Return(
+		"", false, err,
+	).AnyTimes()
+
+	require.Equal(t, err, task.Execute())
+}
+
+func TestExecutableActivityStateTask_HandleErr_Resend_Success(t *testing.T) {
+	controller, _, _, shardController, _, _, _, executableTask, _, _, _, replicationTask, sourceClusterName, _, _, task := setupExecutableActivityStateTask(t)
+	defer controller.Finish()
+
+	executableTask.EXPECT().TerminalState().Return(false)
+	executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), task.NamespaceID).Return(
+		uuid.NewString(), true, nil,
+	).AnyTimes()
+	shardContext := historyi.NewMockShardContext(controller)
+	engine := historyi.NewMockEngine(controller)
+	shardController.EXPECT().GetShardByNamespaceWorkflow(
+		namespace.ID(task.NamespaceID),
+		task.WorkflowID,
+	).Return(shardContext, nil).AnyTimes()
+	shardContext.EXPECT().GetEngine(gomock.Any()).Return(engine, nil).AnyTimes()
+	engine.EXPECT().SyncActivity(gomock.Any(), &historyservice.SyncActivityRequest{
+		NamespaceId:        replicationTask.NamespaceId,
+		WorkflowId:         replicationTask.WorkflowId,
+		RunId:              replicationTask.RunId,
+		Version:            replicationTask.Version,
+		ScheduledEventId:   replicationTask.ScheduledEventId,
+		ScheduledTime:      replicationTask.ScheduledTime,
+		StartedEventId:     replicationTask.StartedEventId,
+		StartVersion:       replicationTask.StartVersion,
+		StartedTime:        replicationTask.StartedTime,
+		LastHeartbeatTime:  replicationTask.LastHeartbeatTime,
+		Details:            replicationTask.Details,
+		Attempt:            replicationTask.Attempt,
+		LastFailure:        replicationTask.LastFailure,
+		LastWorkerIdentity: replicationTask.LastWorkerIdentity,
+		BaseExecutionInfo:  replicationTask.BaseExecutionInfo,
+		VersionHistory:     replicationTask.GetVersionHistory(),
+	}).Return(nil)
+
+	err := serviceerrors.NewRetryReplication(
+		"",
+		task.NamespaceID,
+		task.WorkflowID,
+		task.RunID,
+		rand.Int63(),
+		rand.Int63(),
+		rand.Int63(),
+		rand.Int63(),
+	)
+	executableTask.EXPECT().Resend(gomock.Any(), sourceClusterName, err, ResendAttempt).Return(true, nil)
+
+	require.NoError(t, task.HandleErr(err))
+}
+
+func TestExecutableActivityStateTask_HandleErr_Resend_Error(t *testing.T) {
+	controller, _, _, _, _, _, _, executableTask, _, _, _, _, sourceClusterName, _, _, task := setupExecutableActivityStateTask(t)
+	defer controller.Finish()
+
+	executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), task.NamespaceID).Return(
+		uuid.NewString(), true, nil,
+	).AnyTimes()
+	err := serviceerrors.NewRetryReplication(
+		"",
+		task.NamespaceID,
+		task.WorkflowID,
+		task.RunID,
+		rand.Int63(),
+		rand.Int63(),
+		rand.Int63(),
+		rand.Int63(),
+	)
+	executableTask.EXPECT().Resend(gomock.Any(), sourceClusterName, err, ResendAttempt).Return(false, errors.New("OwO"))
+
+	require.Equal(t, err, task.HandleErr(err))
+}
+
+func TestExecutableActivityStateTask_HandleErr_Other(t *testing.T) {
+	controller, _, _, _, _, _, _, _, _, _, _, _, _, _, _, task := setupExecutableActivityStateTask(t)
+	defer controller.Finish()
+
+	err := errors.New("OwO")
+	require.Equal(t, err, task.HandleErr(err))
+
+	err = serviceerror.NewNotFound("")
+	require.Nil(t, task.HandleErr(err))
+
+	err = serviceerror.NewUnavailable("")
+	require.Equal(t, err, task.HandleErr(err))
+}
+
+func TestExecutableActivityStateTask_MarkPoisonPill(t *testing.T) {
+	controller, _, _, _, _, _, _, executableTask, _, _, _, replicationTaskAttr, _, _, taskID, task := setupExecutableActivityStateTask(t)
+	defer controller.Finish()
+
+	replicationTask := &replicationspb.ReplicationTask{
+		TaskType:     enumsspb.REPLICATION_TASK_TYPE_SYNC_ACTIVITY_TASK,
+		SourceTaskId: taskID,
+		Attributes: &replicationspb.ReplicationTask_SyncActivityTaskAttributes{
+			SyncActivityTaskAttributes: replicationTaskAttr,
+		},
+		RawTaskInfo: nil,
+	}
+	executableTask.EXPECT().ReplicationTask().Return(replicationTask).AnyTimes()
+	executableTask.EXPECT().MarkPoisonPill().Times(1)
+
+	err := task.MarkPoisonPill()
+	require.NoError(t, err)
+
+	require.Equal(t, &persistencespb.ReplicationTaskInfo{
+		NamespaceId:      task.NamespaceID,
+		WorkflowId:       task.WorkflowID,
+		RunId:            task.RunID,
+		TaskId:           task.ExecutableTask.TaskID(),
+		TaskType:         enumsspb.TASK_TYPE_REPLICATION_SYNC_ACTIVITY,
+		ScheduledEventId: task.req.ScheduledEventId,
+		Version:          task.req.Version,
+	}, replicationTask.RawTaskInfo)
+}
+
+func TestExecutableActivityStateTask_BatchedTask_ShouldBatchTogether_AndExecute(t *testing.T) {
+	controller, clusterMetadata, clientBean, shardController, namespaceCache, metricsHandler, logger, executableTask, _, mockExecutionManager, config, _, sourceClusterName, sourceShardKey, _, _ := setupExecutableActivityStateTask(t)
+	defer controller.Finish()
+
+	namespaceId := uuid.NewString()
+	workflowId := uuid.NewString()
+	runId := uuid.NewString()
+	replicationAttribute1 := generateReplicationAttribute(namespaceId, workflowId, runId)
+	config.EnableReplicationTaskBatching = func() bool {
+		return true
+	}
+	task1 := NewExecutableActivityStateTask(
+		ProcessToolBox{
+			ClusterMetadata: clusterMetadata,
+			ClientBean:      clientBean,
+			ShardController: shardController,
+			NamespaceCache:  namespaceCache,
+			MetricsHandler:  metricsHandler,
+			Logger:          logger,
+			DLQWriter:       NewExecutionManagerDLQWriter(mockExecutionManager),
+			Config:          config,
+		},
+		1,
+		time.Unix(0, rand.Int63()),
+		replicationAttribute1,
+		sourceClusterName,
+		sourceShardKey,
+		&replicationspb.ReplicationTask{
+			Priority: enumsspb.TASK_PRIORITY_HIGH,
+		},
+	)
+	task1.ExecutableTask = executableTask
+
+	replicationAttribute2 := generateReplicationAttribute(namespaceId, workflowId, runId)
+	task2 := NewExecutableActivityStateTask(
+		ProcessToolBox{
+			ClusterMetadata: clusterMetadata,
+			ClientBean:      clientBean,
+			ShardController: shardController,
+			NamespaceCache:  namespaceCache,
+			MetricsHandler:  metricsHandler,
+			Logger:          logger,
+			DLQWriter:       NewExecutionManagerDLQWriter(mockExecutionManager),
+			Config:          config,
+		},
+		2,
+		time.Unix(0, rand.Int63()),
+		replicationAttribute2,
+		sourceClusterName,
+		sourceShardKey,
+		&replicationspb.ReplicationTask{
+			Priority: enumsspb.TASK_PRIORITY_HIGH,
+		},
+	)
+	task2.ExecutableTask = executableTask
+
+	batchResult, batched := task1.BatchWith(task2)
+	require.True(t, batched)
+	activityTask, _ := batchResult.(*ExecutableActivityStateTask)
+	require.Equal(t, 2, len(activityTask.activityInfos))
+	assertAttributeEqual(t, replicationAttribute1, activityTask.activityInfos[0])
+	assertAttributeEqual(t, replicationAttribute2, activityTask.activityInfos[1])
+
+	executableTask.EXPECT().TerminalState().Return(false)
+	executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), namespaceId).Return(
+		uuid.NewString(), true, nil,
+	).AnyTimes()
+	shardContext := historyi.NewMockShardContext(controller)
+	engine := historyi.NewMockEngine(controller)
+	shardController.EXPECT().GetShardByNamespaceWorkflow(
+		namespace.ID(namespaceId),
+		workflowId,
+	).Return(shardContext, nil).AnyTimes()
+	shardContext.EXPECT().GetEngine(gomock.Any()).Return(engine, nil).AnyTimes()
+
+	engine.EXPECT().SyncActivities(gomock.Any(), &historyservice.SyncActivitiesRequest{
+		NamespaceId:    namespaceId,
+		WorkflowId:     workflowId,
+		RunId:          runId,
+		ActivitiesInfo: activityTask.activityInfos,
+	})
+	err := batchResult.Execute()
+	require.Nil(t, err)
+}
+
+func TestExecutableActivityStateTask_BatchWith_InvalidBatchTask_ShouldNotBatch(t *testing.T) {
+	controller, clusterMetadata, clientBean, shardController, namespaceCache, metricsHandler, logger, _, _, mockExecutionManager, config, _, sourceClusterName, sourceShardKey, _, _ := setupExecutableActivityStateTask(t)
+	defer controller.Finish()
+
+	namespaceId := uuid.NewString()
+	runId := uuid.NewString()
+	replicationAttribute1 := generateReplicationAttribute(namespaceId, "wf_1", runId)
+	task1 := NewExecutableActivityStateTask(
+		ProcessToolBox{
+			ClusterMetadata: clusterMetadata,
+			ClientBean:      clientBean,
+			ShardController: shardController,
+			NamespaceCache:  namespaceCache,
+			MetricsHandler:  metricsHandler,
+			Logger:          logger,
+			DLQWriter:       NewExecutionManagerDLQWriter(mockExecutionManager),
+			Config:          config,
+		},
+		1,
+		time.Unix(0, rand.Int63()),
+		replicationAttribute1,
+		sourceClusterName,
+		sourceShardKey,
+		&replicationspb.ReplicationTask{
+			Priority: enumsspb.TASK_PRIORITY_HIGH,
+		},
+	)
+
+	replicationAttribute2 := generateReplicationAttribute(namespaceId, "wf_2", runId)
+	task2 := NewExecutableActivityStateTask(
+		ProcessToolBox{
+			ClusterMetadata: clusterMetadata,
+			ClientBean:      clientBean,
+			ShardController: shardController,
+			NamespaceCache:  namespaceCache,
+			MetricsHandler:  metricsHandler,
+			Logger:          logger,
+			DLQWriter:       NewExecutionManagerDLQWriter(mockExecutionManager),
+			Config:          config,
+		},
+		2,
+		time.Unix(0, rand.Int63()),
+		replicationAttribute2,
+		sourceClusterName,
+		sourceShardKey,
+		&replicationspb.ReplicationTask{
+			Priority: enumsspb.TASK_PRIORITY_HIGH,
+		},
+	)
+	batchResult, batched := task1.BatchWith(task2)
+	require.False(t, batched)
+	require.Nil(t, batchResult)
+}
+

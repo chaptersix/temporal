@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/server/api/adminservice/v1"
 	enumsspb "go.temporal.io/server/api/enums/v1"
@@ -22,19 +21,15 @@ import (
 )
 
 type (
-	streamReceiverSuite struct {
-		suite.Suite
-		*require.Assertions
-
+	streamReceiverTestDeps struct {
 		controller              *gomock.Controller
 		clusterMetadata         *cluster.MockMetadata
 		highPriorityTaskTracker *MockExecutableTaskTracker
 		lowPriorityTaskTracker  *MockExecutableTaskTracker
 		stream                  *mockStream
 		taskScheduler           *mockScheduler
-
-		streamReceiver         *StreamReceiverImpl
-		receiverFlowController *MockReceiverFlowController
+		streamReceiver          *StreamReceiverImpl
+		receiverFlowController  *MockReceiverFlowController
 	}
 
 	mockStream struct {
@@ -47,109 +42,110 @@ type (
 	}
 )
 
-func TestStreamReceiverSuite(t *testing.T) {
-	s := new(streamReceiverSuite)
-	suite.Run(t, s)
-}
-
-func (s *streamReceiverSuite) SetupSuite() {
-
-}
-
-func (s *streamReceiverSuite) TearDownSuite() {
-
-}
-
-func (s *streamReceiverSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.clusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.highPriorityTaskTracker = NewMockExecutableTaskTracker(s.controller)
-	s.lowPriorityTaskTracker = NewMockExecutableTaskTracker(s.controller)
-	s.stream = &mockStream{
+func setupStreamReceiverTest(t *testing.T) *streamReceiverTestDeps {
+	controller := gomock.NewController(t)
+	clusterMetadata := cluster.NewMockMetadata(controller)
+	highPriorityTaskTracker := NewMockExecutableTaskTracker(controller)
+	lowPriorityTaskTracker := NewMockExecutableTaskTracker(controller)
+	stream := &mockStream{
 		requests: nil,
 		respChan: make(chan StreamResp[*adminservice.StreamWorkflowReplicationMessagesResponse], 100),
 	}
-	s.taskScheduler = &mockScheduler{
+	taskScheduler := &mockScheduler{
 		tasks: nil,
 	}
 
 	processToolBox := ProcessToolBox{
-		ClusterMetadata:           s.clusterMetadata,
-		HighPriorityTaskScheduler: s.taskScheduler,
-		LowPriorityTaskScheduler:  s.taskScheduler,
+		ClusterMetadata:           clusterMetadata,
+		HighPriorityTaskScheduler: taskScheduler,
+		LowPriorityTaskScheduler:  taskScheduler,
 		MetricsHandler:            metrics.NoopMetricsHandler,
 		Logger:                    log.NewTestLogger(),
 		DLQWriter:                 NoopDLQWriter{},
 	}
-	s.clusterMetadata.EXPECT().ClusterNameForFailoverVersion(true, gomock.Any()).Return("some-cluster-name").AnyTimes()
-	s.streamReceiver = NewStreamReceiver(
+	clusterMetadata.EXPECT().ClusterNameForFailoverVersion(true, gomock.Any()).Return("some-cluster-name").AnyTimes()
+	streamReceiver := NewStreamReceiver(
 		processToolBox,
 		NewExecutableTaskConverter(processToolBox),
 		NewClusterShardKey(rand.Int31(), rand.Int31()),
 		NewClusterShardKey(rand.Int31(), rand.Int31()),
 	)
-	s.clusterMetadata.EXPECT().GetAllClusterInfo().Return(
+	clusterMetadata.EXPECT().GetAllClusterInfo().Return(
 		map[string]cluster.ClusterInformation{
 			uuid.New().String(): {
 				Enabled:                true,
-				InitialFailoverVersion: int64(s.streamReceiver.clientShardKey.ClusterID),
+				InitialFailoverVersion: int64(streamReceiver.clientShardKey.ClusterID),
 			},
 			uuid.New().String(): {
 				Enabled:                true,
-				InitialFailoverVersion: int64(s.streamReceiver.serverShardKey.ClusterID),
+				InitialFailoverVersion: int64(streamReceiver.serverShardKey.ClusterID),
 			},
 		},
 	).AnyTimes()
-	s.streamReceiver.highPriorityTaskTracker = s.highPriorityTaskTracker
-	s.streamReceiver.lowPriorityTaskTracker = s.lowPriorityTaskTracker
-	s.stream.requests = []*adminservice.StreamWorkflowReplicationMessagesRequest{}
-	s.receiverFlowController = NewMockReceiverFlowController(s.controller)
-	s.streamReceiver.flowController = s.receiverFlowController
+	streamReceiver.highPriorityTaskTracker = highPriorityTaskTracker
+	streamReceiver.lowPriorityTaskTracker = lowPriorityTaskTracker
+	stream.requests = []*adminservice.StreamWorkflowReplicationMessagesRequest{}
+	receiverFlowController := NewMockReceiverFlowController(controller)
+	streamReceiver.flowController = receiverFlowController
+
+	return &streamReceiverTestDeps{
+		controller:              controller,
+		clusterMetadata:         clusterMetadata,
+		highPriorityTaskTracker: highPriorityTaskTracker,
+		lowPriorityTaskTracker:  lowPriorityTaskTracker,
+		stream:                  stream,
+		taskScheduler:           taskScheduler,
+		streamReceiver:          streamReceiver,
+		receiverFlowController:  receiverFlowController,
+	}
 }
 
-func (s *streamReceiverSuite) TearDownTest() {
-	s.controller.Finish()
+func TestAckMessage_Noop(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
+	deps.highPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
+	deps.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
+	deps.highPriorityTaskTracker.EXPECT().Size().Return(0)
+	deps.lowPriorityTaskTracker.EXPECT().Size().Return(0)
+
+	deps.streamReceiver.ackMessage(deps.stream)
+
+	require.Equal(t, 0, len(deps.stream.requests))
 }
 
-func (s *streamReceiverSuite) TestAckMessage_Noop() {
-	s.highPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
-	s.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
-	s.highPriorityTaskTracker.EXPECT().Size().Return(0)
-	s.lowPriorityTaskTracker.EXPECT().Size().Return(0)
+func TestAckMessage_SyncStatus_ReceiverModeUnset(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
 
-	s.streamReceiver.ackMessage(s.stream)
-
-	s.Equal(0, len(s.stream.requests))
+	deps.streamReceiver.receiverMode = ReceiverModeUnset // when stream receiver is in unset mode, means no task received yet, so no ACK should be sent
+	deps.highPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
+	deps.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
+	deps.highPriorityTaskTracker.EXPECT().Size().Return(0)
+	deps.lowPriorityTaskTracker.EXPECT().Size().Return(0)
+	_, err := deps.streamReceiver.ackMessage(deps.stream)
+	require.Equal(t, 0, len(deps.stream.requests))
+	require.NoError(t, err)
 }
 
-func (s *streamReceiverSuite) TestAckMessage_SyncStatus_ReceiverModeUnset() {
-	s.streamReceiver.receiverMode = ReceiverModeUnset // when stream receiver is in unset mode, means no task received yet, so no ACK should be sent
-	s.highPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
-	s.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
-	s.highPriorityTaskTracker.EXPECT().Size().Return(0)
-	s.lowPriorityTaskTracker.EXPECT().Size().Return(0)
-	_, err := s.streamReceiver.ackMessage(s.stream)
-	s.Equal(0, len(s.stream.requests))
-	s.NoError(err)
-}
+func TestAckMessage_SyncStatus_ReceiverModeSingleStack(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
 
-func (s *streamReceiverSuite) TestAckMessage_SyncStatus_ReceiverModeSingleStack() {
 	watermarkInfo := &WatermarkInfo{
 		Watermark: rand.Int63(),
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
 
-	s.streamReceiver.receiverMode = ReceiverModeSingleStack
-	s.highPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
-	s.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
-	s.highPriorityTaskTracker.EXPECT().Size().Return(0)
-	s.lowPriorityTaskTracker.EXPECT().Size().Return(0)
+	deps.streamReceiver.receiverMode = ReceiverModeSingleStack
+	deps.highPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
+	deps.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
+	deps.highPriorityTaskTracker.EXPECT().Size().Return(0)
+	deps.lowPriorityTaskTracker.EXPECT().Size().Return(0)
 
-	_, err := s.streamReceiver.ackMessage(s.stream)
-	s.NoError(err)
-	s.Equal([]*adminservice.StreamWorkflowReplicationMessagesRequest{{
+	_, err := deps.streamReceiver.ackMessage(deps.stream)
+	require.NoError(t, err)
+	require.Equal(t, []*adminservice.StreamWorkflowReplicationMessagesRequest{{
 		Attributes: &adminservice.StreamWorkflowReplicationMessagesRequest_SyncReplicationState{
 			SyncReplicationState: &replicationspb.SyncReplicationState{
 				InclusiveLowWatermark:     watermarkInfo.Watermark,
@@ -157,75 +153,90 @@ func (s *streamReceiverSuite) TestAckMessage_SyncStatus_ReceiverModeSingleStack(
 			},
 		},
 	},
-	}, s.stream.requests)
+	}, deps.stream.requests)
 }
 
-func (s *streamReceiverSuite) TestAckMessage_SyncStatus_ReceiverModeSingleStack_NoHighPriorityWatermark() {
+func TestAckMessage_SyncStatus_ReceiverModeSingleStack_NoHighPriorityWatermark(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
 	watermarkInfo := &WatermarkInfo{
 		Watermark: rand.Int63(),
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
 
-	s.streamReceiver.receiverMode = ReceiverModeSingleStack
-	s.highPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
-	s.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
-	s.highPriorityTaskTracker.EXPECT().Size().Return(0)
-	s.lowPriorityTaskTracker.EXPECT().Size().Return(0)
+	deps.streamReceiver.receiverMode = ReceiverModeSingleStack
+	deps.highPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
+	deps.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
+	deps.highPriorityTaskTracker.EXPECT().Size().Return(0)
+	deps.lowPriorityTaskTracker.EXPECT().Size().Return(0)
 
-	_, err := s.streamReceiver.ackMessage(s.stream)
-	s.Error(err)
-	s.Equal(0, len(s.stream.requests))
+	_, err := deps.streamReceiver.ackMessage(deps.stream)
+	require.Error(t, err)
+	require.Equal(t, 0, len(deps.stream.requests))
 }
 
-func (s *streamReceiverSuite) TestAckMessage_SyncStatus_ReceiverModeSingleStack_HasBothWatermark() {
+func TestAckMessage_SyncStatus_ReceiverModeSingleStack_HasBothWatermark(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
 	watermarkInfo := &WatermarkInfo{
 		Watermark: rand.Int63(),
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
 
-	s.streamReceiver.receiverMode = ReceiverModeSingleStack
-	s.highPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
-	s.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
-	s.highPriorityTaskTracker.EXPECT().Size().Return(0)
-	s.lowPriorityTaskTracker.EXPECT().Size().Return(0)
+	deps.streamReceiver.receiverMode = ReceiverModeSingleStack
+	deps.highPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
+	deps.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
+	deps.highPriorityTaskTracker.EXPECT().Size().Return(0)
+	deps.lowPriorityTaskTracker.EXPECT().Size().Return(0)
 
-	_, err := s.streamReceiver.ackMessage(s.stream)
-	s.Error(err)
-	s.Equal(0, len(s.stream.requests))
+	_, err := deps.streamReceiver.ackMessage(deps.stream)
+	require.Error(t, err)
+	require.Equal(t, 0, len(deps.stream.requests))
 }
 
-func (s *streamReceiverSuite) TestAckMessage_SyncStatus_ReceiverModeTieredStack_NoHighPriorityWatermark() {
-	s.streamReceiver.receiverMode = ReceiverModeTieredStack
+func TestAckMessage_SyncStatus_ReceiverModeTieredStack_NoHighPriorityWatermark(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
+	deps.streamReceiver.receiverMode = ReceiverModeTieredStack
 	watermarkInfo := &WatermarkInfo{
 		Watermark: rand.Int63(),
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
-	s.highPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
-	s.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
-	s.highPriorityTaskTracker.EXPECT().Size().Return(0)
-	s.lowPriorityTaskTracker.EXPECT().Size().Return(0)
-	_, err := s.streamReceiver.ackMessage(s.stream)
-	s.Equal(0, len(s.stream.requests))
-	s.NoError(err)
+	deps.highPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
+	deps.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
+	deps.highPriorityTaskTracker.EXPECT().Size().Return(0)
+	deps.lowPriorityTaskTracker.EXPECT().Size().Return(0)
+	_, err := deps.streamReceiver.ackMessage(deps.stream)
+	require.Equal(t, 0, len(deps.stream.requests))
+	require.NoError(t, err)
 }
 
-func (s *streamReceiverSuite) TestAckMessage_SyncStatus_ReceiverModeTieredStack_NoLowPriorityWatermark() {
-	s.streamReceiver.receiverMode = ReceiverModeTieredStack
+func TestAckMessage_SyncStatus_ReceiverModeTieredStack_NoLowPriorityWatermark(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
+	deps.streamReceiver.receiverMode = ReceiverModeTieredStack
 	watermarkInfo := &WatermarkInfo{
 		Watermark: rand.Int63(),
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
-	s.highPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
-	s.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
-	s.highPriorityTaskTracker.EXPECT().Size().Return(0)
-	s.lowPriorityTaskTracker.EXPECT().Size().Return(0)
-	_, err := s.streamReceiver.ackMessage(s.stream)
-	s.Equal(0, len(s.stream.requests))
-	s.NoError(err)
+	deps.highPriorityTaskTracker.EXPECT().LowWatermark().Return(watermarkInfo)
+	deps.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(nil)
+	deps.highPriorityTaskTracker.EXPECT().Size().Return(0)
+	deps.lowPriorityTaskTracker.EXPECT().Size().Return(0)
+	_, err := deps.streamReceiver.ackMessage(deps.stream)
+	require.Equal(t, 0, len(deps.stream.requests))
+	require.NoError(t, err)
 }
 
-func (s *streamReceiverSuite) TestAckMessage_SyncStatus_ReceiverModeTieredStack() {
-	s.streamReceiver.receiverMode = ReceiverModeTieredStack
+func TestAckMessage_SyncStatus_ReceiverModeTieredStack(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
+	deps.streamReceiver.receiverMode = ReceiverModeTieredStack
 	highWatermarkInfo := &WatermarkInfo{
 		Watermark: 10,
 		Timestamp: time.Unix(0, rand.Int63()),
@@ -234,15 +245,15 @@ func (s *streamReceiverSuite) TestAckMessage_SyncStatus_ReceiverModeTieredStack(
 		Watermark: 11,
 		Timestamp: time.Unix(0, rand.Int63()),
 	}
-	s.highPriorityTaskTracker.EXPECT().LowWatermark().Return(highWatermarkInfo)
-	s.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(lowWatermarkInfo)
-	s.receiverFlowController.EXPECT().GetFlowControlInfo(enumsspb.TASK_PRIORITY_HIGH).Return(enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_RESUME)
-	s.receiverFlowController.EXPECT().GetFlowControlInfo(enumsspb.TASK_PRIORITY_LOW).Return(enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_PAUSE)
-	s.highPriorityTaskTracker.EXPECT().Size().Return(0).AnyTimes()
-	s.lowPriorityTaskTracker.EXPECT().Size().Return(0).AnyTimes()
-	_, err := s.streamReceiver.ackMessage(s.stream)
-	s.NoError(err)
-	s.Equal([]*adminservice.StreamWorkflowReplicationMessagesRequest{{
+	deps.highPriorityTaskTracker.EXPECT().LowWatermark().Return(highWatermarkInfo)
+	deps.lowPriorityTaskTracker.EXPECT().LowWatermark().Return(lowWatermarkInfo)
+	deps.receiverFlowController.EXPECT().GetFlowControlInfo(enumsspb.TASK_PRIORITY_HIGH).Return(enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_RESUME)
+	deps.receiverFlowController.EXPECT().GetFlowControlInfo(enumsspb.TASK_PRIORITY_LOW).Return(enumsspb.REPLICATION_FLOW_CONTROL_COMMAND_PAUSE)
+	deps.highPriorityTaskTracker.EXPECT().Size().Return(0).AnyTimes()
+	deps.lowPriorityTaskTracker.EXPECT().Size().Return(0).AnyTimes()
+	_, err := deps.streamReceiver.ackMessage(deps.stream)
+	require.NoError(t, err)
+	require.Equal(t, []*adminservice.StreamWorkflowReplicationMessagesRequest{{
 		Attributes: &adminservice.StreamWorkflowReplicationMessagesRequest_SyncReplicationState{
 			SyncReplicationState: &replicationspb.SyncReplicationState{
 				InclusiveLowWatermark:     highWatermarkInfo.Watermark,
@@ -260,10 +271,13 @@ func (s *streamReceiverSuite) TestAckMessage_SyncStatus_ReceiverModeTieredStack(
 			},
 		},
 	},
-	}, s.stream.requests)
+	}, deps.stream.requests)
 }
 
-func (s *streamReceiverSuite) TestProcessMessage_TrackSubmit_SingleStack() {
+func TestProcessMessage_TrackSubmit_SingleStack(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
 	replicationTask := &replicationspb.ReplicationTask{
 		TaskType:       enumsspb.ReplicationTaskType(-1),
 		SourceTaskId:   rand.Int63(),
@@ -282,28 +296,31 @@ func (s *streamReceiverSuite) TestProcessMessage_TrackSubmit_SingleStack() {
 		},
 		Err: nil,
 	}
-	s.stream.respChan <- streamResp
-	close(s.stream.respChan)
+	deps.stream.respChan <- streamResp
+	close(deps.stream.respChan)
 
-	s.highPriorityTaskTracker.EXPECT().TrackTasks(gomock.Any(), gomock.Any()).DoAndReturn(
+	deps.highPriorityTaskTracker.EXPECT().TrackTasks(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(highWatermarkInfo WatermarkInfo, tasks ...TrackableExecutableTask) []TrackableExecutableTask {
-			s.Equal(streamResp.Resp.GetMessages().ExclusiveHighWatermark, highWatermarkInfo.Watermark)
-			s.Equal(streamResp.Resp.GetMessages().ExclusiveHighWatermarkTime.AsTime(), highWatermarkInfo.Timestamp)
-			s.Equal(1, len(tasks))
-			s.IsType(&ExecutableUnknownTask{}, tasks[0])
+			require.Equal(t, streamResp.Resp.GetMessages().ExclusiveHighWatermark, highWatermarkInfo.Watermark)
+			require.Equal(t, streamResp.Resp.GetMessages().ExclusiveHighWatermarkTime.AsTime(), highWatermarkInfo.Timestamp)
+			require.Equal(t, 1, len(tasks))
+			require.IsType(t, &ExecutableUnknownTask{}, tasks[0])
 			return []TrackableExecutableTask{tasks[0]}
 		},
 	)
 
-	err := s.streamReceiver.processMessages(s.stream)
-	s.NoError(err)
-	s.Equal(1, len(s.taskScheduler.tasks))
-	s.IsType(&ExecutableUnknownTask{}, s.taskScheduler.tasks[0])
-	s.Equal(ReceiverModeSingleStack, s.streamReceiver.receiverMode)
+	err := deps.streamReceiver.processMessages(deps.stream)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(deps.taskScheduler.tasks))
+	require.IsType(t, &ExecutableUnknownTask{}, deps.taskScheduler.tasks[0])
+	require.Equal(t, ReceiverModeSingleStack, deps.streamReceiver.receiverMode)
 }
 
-func (s *streamReceiverSuite) TestProcessMessage_TrackSubmit_SingleStack_ReceivedPrioritizedTask() {
-	s.streamReceiver.receiverMode = ReceiverModeSingleStack
+func TestProcessMessage_TrackSubmit_SingleStack_ReceivedPrioritizedTask(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
+	deps.streamReceiver.receiverMode = ReceiverModeSingleStack
 	replicationTask := &replicationspb.ReplicationTask{
 		TaskType:       enumsspb.ReplicationTaskType(-1),
 		SourceTaskId:   rand.Int63(),
@@ -323,16 +340,19 @@ func (s *streamReceiverSuite) TestProcessMessage_TrackSubmit_SingleStack_Receive
 		},
 		Err: nil,
 	}
-	s.stream.respChan <- streamResp
+	deps.stream.respChan <- streamResp
 
 	// no TrackTasks call should be made
-	err := s.streamReceiver.processMessages(s.stream)
-	s.IsType(&StreamError{}, err)
-	s.Equal(0, len(s.taskScheduler.tasks))
+	err := deps.streamReceiver.processMessages(deps.stream)
+	require.IsType(t, &StreamError{}, err)
+	require.Equal(t, 0, len(deps.taskScheduler.tasks))
 }
 
-func (s *streamReceiverSuite) TestProcessMessage_TrackSubmit_TieredStack_ReceivedNonPrioritizedTask() {
-	s.streamReceiver.receiverMode = ReceiverModeTieredStack
+func TestProcessMessage_TrackSubmit_TieredStack_ReceivedNonPrioritizedTask(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
+	deps.streamReceiver.receiverMode = ReceiverModeTieredStack
 	replicationTask := &replicationspb.ReplicationTask{
 		TaskType:       enumsspb.ReplicationTaskType(-1),
 		SourceTaskId:   rand.Int63(),
@@ -350,15 +370,18 @@ func (s *streamReceiverSuite) TestProcessMessage_TrackSubmit_TieredStack_Receive
 		},
 		Err: nil,
 	}
-	s.stream.respChan <- streamResp
+	deps.stream.respChan <- streamResp
 
 	// no TrackTasks call should be made
-	err := s.streamReceiver.processMessages(s.stream)
-	s.IsType(&StreamError{}, err)
-	s.Equal(0, len(s.taskScheduler.tasks))
+	err := deps.streamReceiver.processMessages(deps.stream)
+	require.IsType(t, &StreamError{}, err)
+	require.Equal(t, 0, len(deps.taskScheduler.tasks))
 }
 
-func (s *streamReceiverSuite) TestProcessMessage_TrackSubmit_TieredStack() {
+func TestProcessMessage_TrackSubmit_TieredStack(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
 	replicationTask := &replicationspb.ReplicationTask{
 		TaskType:       enumsspb.ReplicationTaskType(-1),
 		SourceTaskId:   rand.Int63(),
@@ -398,40 +421,43 @@ func (s *streamReceiverSuite) TestProcessMessage_TrackSubmit_TieredStack() {
 		},
 		Err: nil,
 	}
-	s.stream.respChan <- streamResp1
-	s.stream.respChan <- streamResp2
-	close(s.stream.respChan)
+	deps.stream.respChan <- streamResp1
+	deps.stream.respChan <- streamResp2
+	close(deps.stream.respChan)
 
-	s.highPriorityTaskTracker.EXPECT().TrackTasks(gomock.Any(), gomock.Any()).DoAndReturn(
+	deps.highPriorityTaskTracker.EXPECT().TrackTasks(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(highWatermarkInfo WatermarkInfo, tasks ...TrackableExecutableTask) []TrackableExecutableTask {
-			s.Equal(streamResp1.Resp.GetMessages().ExclusiveHighWatermark, highWatermarkInfo.Watermark)
-			s.Equal(streamResp1.Resp.GetMessages().ExclusiveHighWatermarkTime.AsTime(), highWatermarkInfo.Timestamp)
-			s.Equal(1, len(tasks))
-			s.IsType(&ExecutableUnknownTask{}, tasks[0])
+			require.Equal(t, streamResp1.Resp.GetMessages().ExclusiveHighWatermark, highWatermarkInfo.Watermark)
+			require.Equal(t, streamResp1.Resp.GetMessages().ExclusiveHighWatermarkTime.AsTime(), highWatermarkInfo.Timestamp)
+			require.Equal(t, 1, len(tasks))
+			require.IsType(t, &ExecutableUnknownTask{}, tasks[0])
 			return []TrackableExecutableTask{tasks[0]}
 		},
 	)
-	s.lowPriorityTaskTracker.EXPECT().TrackTasks(gomock.Any(), gomock.Any()).DoAndReturn(
+	deps.lowPriorityTaskTracker.EXPECT().TrackTasks(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(highWatermarkInfo WatermarkInfo, tasks ...TrackableExecutableTask) []TrackableExecutableTask {
-			s.Equal(streamResp2.Resp.GetMessages().ExclusiveHighWatermark, highWatermarkInfo.Watermark)
-			s.Equal(streamResp2.Resp.GetMessages().ExclusiveHighWatermarkTime.AsTime(), highWatermarkInfo.Timestamp)
-			s.Equal(1, len(tasks))
-			s.IsType(&ExecutableUnknownTask{}, tasks[0])
+			require.Equal(t, streamResp2.Resp.GetMessages().ExclusiveHighWatermark, highWatermarkInfo.Watermark)
+			require.Equal(t, streamResp2.Resp.GetMessages().ExclusiveHighWatermarkTime.AsTime(), highWatermarkInfo.Timestamp)
+			require.Equal(t, 1, len(tasks))
+			require.IsType(t, &ExecutableUnknownTask{}, tasks[0])
 			return []TrackableExecutableTask{tasks[0]}
 		},
 	)
 
-	err := s.streamReceiver.processMessages(s.stream)
-	s.NoError(err)
-	s.Equal(2, len(s.taskScheduler.tasks))
-	s.Equal(ReceiverModeTieredStack, s.streamReceiver.receiverMode)
+	err := deps.streamReceiver.processMessages(deps.stream)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(deps.taskScheduler.tasks))
+	require.Equal(t, ReceiverModeTieredStack, deps.streamReceiver.receiverMode)
 }
 
-func (s *streamReceiverSuite) TestGetTaskScheduler() {
+func TestGetTaskScheduler(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
 	high := &mockScheduler{}
 	low := &mockScheduler{}
-	s.streamReceiver.ProcessToolBox.HighPriorityTaskScheduler = high
-	s.streamReceiver.ProcessToolBox.LowPriorityTaskScheduler = low
+	deps.streamReceiver.ProcessToolBox.HighPriorityTaskScheduler = high
+	deps.streamReceiver.ProcessToolBox.LowPriorityTaskScheduler = low
 
 	tests := []struct {
 		name         string
@@ -475,48 +501,60 @@ func (s *streamReceiverSuite) TestGetTaskScheduler() {
 	}
 
 	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			scheduler, err := s.streamReceiver.getTaskScheduler(tt.priority, tt.task)
+		t.Run(tt.name, func(t *testing.T) {
+			scheduler, err := deps.streamReceiver.getTaskScheduler(tt.priority, tt.task)
 			if tt.expectErr {
-				s.Error(err)
+				require.Error(t, err)
 			} else {
-				s.NoError(err)
-				s.True(scheduler == tt.expected, "Expected scheduler to match")
+				require.NoError(t, err)
+				require.True(t, scheduler == tt.expected, "Expected scheduler to match")
 			}
 		})
 	}
 }
 
-func (s *streamReceiverSuite) TestProcessMessage_Err() {
+func TestProcessMessage_Err(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
 	streamResp := StreamResp[*adminservice.StreamWorkflowReplicationMessagesResponse]{
 		Resp: nil,
 		Err:  serviceerror.NewUnavailable("random recv error"),
 	}
-	s.stream.respChan <- streamResp
-	close(s.stream.respChan)
+	deps.stream.respChan <- streamResp
+	close(deps.stream.respChan)
 
-	err := s.streamReceiver.processMessages(s.stream)
-	s.Error(err)
+	err := deps.streamReceiver.processMessages(deps.stream)
+	require.Error(t, err)
 }
 
-func (s *streamReceiverSuite) TestSendEventLoop_Panic_Captured() {
-	s.streamReceiver.sendEventLoop() // should not cause panic
+func TestSendEventLoop_Panic_Captured(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
+	deps.streamReceiver.sendEventLoop() // should not cause panic
 }
 
-func (s *streamReceiverSuite) TestRecvEventLoop_Panic_Captured() {
-	s.streamReceiver.recvEventLoop() // should not cause panic
+func TestRecvEventLoop_Panic_Captured(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
+	deps.streamReceiver.recvEventLoop() // should not cause panic
 }
 
-func (s *streamReceiverSuite) TestLivenessMonitor() {
+func TestLivenessMonitor(t *testing.T) {
+	deps := setupStreamReceiverTest(t)
+	defer deps.controller.Finish()
+
 	livenessMonitor(
-		s.streamReceiver.recvSignalChan,
+		deps.streamReceiver.recvSignalChan,
 		dynamicconfig.GetDurationPropertyFn(time.Second),
 		dynamicconfig.GetIntPropertyFn(1),
-		s.streamReceiver.shutdownChan,
-		s.streamReceiver.Stop,
-		s.streamReceiver.logger,
+		deps.streamReceiver.shutdownChan,
+		deps.streamReceiver.Stop,
+		deps.streamReceiver.logger,
 	)
-	s.False(s.streamReceiver.IsValid())
+	require.False(t, deps.streamReceiver.IsValid())
 }
 
 func (s *mockStream) Send(

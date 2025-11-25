@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/common/log"
@@ -24,10 +23,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type outboundQueueActiveTaskExecutorSuite struct {
-	suite.Suite
-	*require.Assertions
-
+type outboundQueueActiveTaskExecutorTestDeps struct {
 	controller            *gomock.Controller
 	mockShard             *shard.ContextTest
 	mockWorkflowCache     *cache.MockCache
@@ -48,55 +44,50 @@ type outboundQueueActiveTaskExecutorSuite struct {
 	executor *outboundQueueActiveTaskExecutor
 }
 
-func TestOutboundQueueActiveTaskExecutorSuite(t *testing.T) {
-	s := new(outboundQueueActiveTaskExecutorSuite)
-	suite.Run(t, s)
-}
+func setupOutboundQueueActiveTaskExecutorTest(t *testing.T) *outboundQueueActiveTaskExecutorTestDeps {
+	d := &outboundQueueActiveTaskExecutorTestDeps{}
 
-func (s *outboundQueueActiveTaskExecutorSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.namespaceID = tests.NamespaceID
-	s.namespaceEntry = tests.GlobalNamespaceEntry
+	d.namespaceID = tests.NamespaceID
+	d.namespaceEntry = tests.GlobalNamespaceEntry
 
 	// Setup controller and mocks
-	s.controller = gomock.NewController(s.T())
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+	d.controller = gomock.NewController(t)
+	d.mockShard = shard.NewTestContext(
+		d.controller,
 		&persistencespb.ShardInfo{
 			ShardId: 1,
 			RangeId: 1,
 		},
 		tests.NewDynamicConfig(),
 	)
-	s.mockWorkflowCache = cache.NewMockCache(s.controller)
-	s.mockChasmEngine = chasm.NewMockEngine(s.controller)
-	s.mockNamespaceRegistry = namespace.NewMockRegistry(s.controller)
-	s.hsmRegistry = hsm.NewRegistry()
-	s.mockWorkflowContext = historyi.NewMockWorkflowContext(s.controller)
-	s.mockMutableState = historyi.NewMockMutableState(s.controller)
-	s.mockExecutable = queues.NewMockExecutable(s.controller)
-	s.mockChasmTree = historyi.NewMockChasmTree(s.controller)
+	d.mockWorkflowCache = cache.NewMockCache(d.controller)
+	d.mockChasmEngine = chasm.NewMockEngine(d.controller)
+	d.mockNamespaceRegistry = namespace.NewMockRegistry(d.controller)
+	d.hsmRegistry = hsm.NewRegistry()
+	d.mockWorkflowContext = historyi.NewMockWorkflowContext(d.controller)
+	d.mockMutableState = historyi.NewMockMutableState(d.controller)
+	d.mockExecutable = queues.NewMockExecutable(d.controller)
+	d.mockChasmTree = historyi.NewMockChasmTree(d.controller)
 
-	s.logger = s.mockShard.GetLogger()
-	s.metricsHandler = s.mockShard.GetMetricsHandler()
+	d.logger = d.mockShard.GetLogger()
+	d.metricsHandler = d.mockShard.GetMetricsHandler()
 
 	ns := namespace.NewLocalNamespaceForTest(&persistencespb.NamespaceInfo{
-		Name: s.namespaceEntry.Name().String(),
-		Id:   string(s.namespaceID),
+		Name: d.namespaceEntry.Name().String(),
+		Id:   string(d.namespaceID),
 	}, nil, "")
-	s.mockNamespaceRegistry.EXPECT().GetNamespaceByID(gomock.Any()).Return(ns, nil).AnyTimes()
-	s.mockNamespaceRegistry.EXPECT().GetNamespaceName(gomock.Any()).Return(ns.Name(), nil).AnyTimes()
+	d.mockNamespaceRegistry.EXPECT().GetNamespaceByID(gomock.Any()).Return(ns, nil).AnyTimes()
+	d.mockNamespaceRegistry.EXPECT().GetNamespaceName(gomock.Any()).Return(ns.Name(), nil).AnyTimes()
 
-	s.mockShard.Resource.ClusterMetadata.EXPECT().GetClusterID().Return(int64(s.mockShard.GetShardID())).AnyTimes()
-	s.mockShard.Resource.NamespaceCache.EXPECT().GetNamespaceByID(gomock.Any()).Return(s.namespaceEntry, nil).AnyTimes()
-	s.mockShard.SetStateMachineRegistry(s.hsmRegistry)
-	s.mockShard.Resource.NamespaceCache.EXPECT().
+	d.mockShard.Resource.ClusterMetadata.EXPECT().GetClusterID().Return(int64(d.mockShard.GetShardID())).AnyTimes()
+	d.mockShard.Resource.NamespaceCache.EXPECT().GetNamespaceByID(gomock.Any()).Return(d.namespaceEntry, nil).AnyTimes()
+	d.mockShard.SetStateMachineRegistry(d.hsmRegistry)
+	d.mockShard.Resource.NamespaceCache.EXPECT().
 		GetNamespaceByID(gomock.Any()).
-		Return(s.namespaceEntry, nil).
+		Return(d.namespaceEntry, nil).
 		AnyTimes()
 
-	s.mockWorkflowCache.EXPECT().GetOrCreateCurrentWorkflowExecution(
+	d.mockWorkflowCache.EXPECT().GetOrCreateCurrentWorkflowExecution(
 		gomock.Any(),
 		gomock.Any(),
 		gomock.Any(),
@@ -104,26 +95,33 @@ func (s *outboundQueueActiveTaskExecutorSuite) SetupTest() {
 		gomock.Any(),
 	).Return(cache.NoopReleaseFn, nil).AnyTimes()
 
-	s.mockMutableState.EXPECT().GetCurrentVersion().Return(int64(1)).AnyTimes()
-	s.mockMutableState.EXPECT().NextTransitionCount().Return(int64(0)).AnyTimes()
-	s.mockMutableState.EXPECT().GetWorkflowKey().Return(tests.WorkflowKey).AnyTimes()
+	d.mockMutableState.EXPECT().GetCurrentVersion().Return(int64(1)).AnyTimes()
+	d.mockMutableState.EXPECT().NextTransitionCount().Return(int64(0)).AnyTimes()
+	d.mockMutableState.EXPECT().GetWorkflowKey().Return(tests.WorkflowKey).AnyTimes()
 
-	s.executor = newOutboundQueueActiveTaskExecutor(
-		s.mockShard,
-		s.mockWorkflowCache,
-		s.logger,
-		s.metricsHandler,
-		s.mockChasmEngine,
+	d.executor = newOutboundQueueActiveTaskExecutor(
+		d.mockShard,
+		d.mockWorkflowCache,
+		d.logger,
+		d.metricsHandler,
+		d.mockChasmEngine,
 	)
+
+	return d
 }
 
-func (s *outboundQueueActiveTaskExecutorSuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.StopForTest()
+func (d *outboundQueueActiveTaskExecutorTestDeps) mustGenerateTaskID(t *testing.T) int64 {
+	taskID, err := d.mockShard.GenerateTaskID()
+	require.NoError(t, err)
+	return taskID
 }
 
-func (s *outboundQueueActiveTaskExecutorSuite) TestExecute_ChasmTask() {
-	tv := testvars.New(s.T())
+func TestOutboundQueueActiveTaskExecutor_Execute_ChasmTask(t *testing.T) {
+	d := setupOutboundQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+	tv := testvars.New(t)
 	ctx := context.Background()
 
 	testCases := []struct {
@@ -137,19 +135,19 @@ func (s *outboundQueueActiveTaskExecutorSuite) TestExecute_ChasmTask() {
 			setupMocks: func(task *tasks.ChasmTask) {
 				// Setup successful workflow context loading and CHASM execution
 
-				s.mockWorkflowCache.EXPECT().
+				d.mockWorkflowCache.EXPECT().
 					GetOrCreateChasmExecution(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), chasm.ArchetypeAny, gomock.Any()).
-					Return(s.mockWorkflowContext, func(error) {}, nil)
+					Return(d.mockWorkflowContext, func(error) {}, nil)
 
-				s.mockWorkflowContext.EXPECT().
+				d.mockWorkflowContext.EXPECT().
 					LoadMutableState(gomock.Any(), gomock.Any()).
-					Return(s.mockMutableState, nil)
+					Return(d.mockMutableState, nil)
 
-				s.mockMutableState.EXPECT().
+				d.mockMutableState.EXPECT().
 					ChasmTree().
-					Return(s.mockChasmTree)
+					Return(d.mockChasmTree)
 
-				s.mockChasmTree.EXPECT().
+				d.mockChasmTree.EXPECT().
 					ExecuteSideEffectTask(
 						gomock.Any(),
 						gomock.Any(),
@@ -164,11 +162,11 @@ func (s *outboundQueueActiveTaskExecutorSuite) TestExecute_ChasmTask() {
 			name: "mutable state failure",
 			setupMocks: func(task *tasks.ChasmTask) {
 				// Workflow context loads but mutable state fails
-				s.mockWorkflowCache.EXPECT().
+				d.mockWorkflowCache.EXPECT().
 					GetOrCreateChasmExecution(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), chasm.ArchetypeAny, gomock.Any()).
-					Return(s.mockWorkflowContext, func(error) {}, nil)
+					Return(d.mockWorkflowContext, func(error) {}, nil)
 
-				s.mockWorkflowContext.EXPECT().
+				d.mockWorkflowContext.EXPECT().
 					LoadMutableState(gomock.Any(), gomock.Any()).
 					Return(nil, errors.New("mutable state failed to load"))
 			},
@@ -178,11 +176,11 @@ func (s *outboundQueueActiveTaskExecutorSuite) TestExecute_ChasmTask() {
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
 			// Create a CHASM task
 			task := &tasks.ChasmTask{
 				WorkflowKey: tv.Any().WorkflowKey(),
-				TaskID:      s.mustGenerateTaskID(),
+				TaskID:      d.mustGenerateTaskID(t),
 				Category:    tasks.CategoryOutbound,
 				Destination: tv.Any().String(),
 				Info: &persistencespb.ChasmTaskInfo{
@@ -191,24 +189,28 @@ func (s *outboundQueueActiveTaskExecutorSuite) TestExecute_ChasmTask() {
 			}
 
 			tc.setupMocks(task)
-			s.mockExecutable.EXPECT().GetTask().Return(task).AnyTimes()
+			d.mockExecutable.EXPECT().GetTask().Return(task).AnyTimes()
 
-			result := s.executor.Execute(ctx, s.mockExecutable)
+			result := d.executor.Execute(ctx, d.mockExecutable)
 
 			if tc.expectedError != "" {
-				s.Error(result.ExecutionErr)
-				s.Contains(result.ExecutionErr.Error(), tc.expectedError)
+				require.Error(t, result.ExecutionErr)
+				require.Contains(t, result.ExecutionErr.Error(), tc.expectedError)
 			} else {
-				s.NoError(result.ExecutionErr)
+				require.NoError(t, result.ExecutionErr)
 			}
-			s.True(result.ExecutedAsActive)
-			s.NotEmpty(result.ExecutionMetricTags)
+			require.True(t, result.ExecutedAsActive)
+			require.NotEmpty(t, result.ExecutionMetricTags)
 		})
 	}
 }
 
-func (s *outboundQueueActiveTaskExecutorSuite) TestExecute_PreValidationFails() {
-	tv := testvars.New(s.T())
+func TestOutboundQueueActiveTaskExecutor_Execute_PreValidationFails(t *testing.T) {
+	d := setupOutboundQueueActiveTaskExecutorTest(t)
+	defer d.controller.Finish()
+	defer d.mockShard.StopForTest()
+
+	tv := testvars.New(t)
 	ctx := context.Background()
 
 	testCases := []struct {
@@ -223,7 +225,7 @@ func (s *outboundQueueActiveTaskExecutorSuite) TestExecute_PreValidationFails() 
 				// Create a task type that's NOT StateMachineOutboundTask or ChasmTask
 				return &tasks.ActivityTask{
 					WorkflowKey: tv.Any().WorkflowKey(),
-					TaskID:      s.mustGenerateTaskID(),
+					TaskID:      d.mustGenerateTaskID(t),
 					TaskQueue:   tv.Any().String(),
 				}
 			},
@@ -245,23 +247,17 @@ func (s *outboundQueueActiveTaskExecutorSuite) TestExecute_PreValidationFails() 
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		t.Run(tc.name, func(t *testing.T) {
 			task := tc.setupTask()
 			tc.setupMocks(task)
-			s.mockExecutable.EXPECT().GetTask().Return(task)
+			d.mockExecutable.EXPECT().GetTask().Return(task)
 
-			result := s.executor.Execute(ctx, s.mockExecutable)
+			result := d.executor.Execute(ctx, d.mockExecutable)
 
-			s.Error(result.ExecutionErr)
-			s.Contains(result.ExecutionErr.Error(), tc.expectedError)
-			s.True(result.ExecutedAsActive)
-			s.NotEmpty(result.ExecutionMetricTags)
+			require.Error(t, result.ExecutionErr)
+			require.Contains(t, result.ExecutionErr.Error(), tc.expectedError)
+			require.True(t, result.ExecutedAsActive)
+			require.NotEmpty(t, result.ExecutionMetricTags)
 		})
 	}
-}
-
-func (s *outboundQueueActiveTaskExecutorSuite) mustGenerateTaskID() int64 {
-	taskID, err := s.mockShard.GenerateTaskID()
-	s.NoError(err)
-	return taskID
 }

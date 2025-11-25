@@ -5,7 +5,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	historyspb "go.temporal.io/server/api/history/v1"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
@@ -22,47 +21,28 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	pauseActivitySuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller          *gomock.Controller
-		mockShard           *shard.ContextTest
-		mockEventsCache     *events.MockCache
-		mockNamespaceCache  *namespace.MockRegistry
-		mockTaskGenerator   *workflow.MockTaskGenerator
-		mockMutableState    *historyi.MockMutableState
-		mockClusterMetadata *cluster.MockMetadata
-
-		executionInfo *persistencespb.WorkflowExecutionInfo
-
-		validator *api.CommandAttrValidator
-
-		logger log.Logger
-	}
-)
-
-func TestActivityOptionsSuite(t *testing.T) {
-	s := new(pauseActivitySuite)
-	suite.Run(t, s)
+type testDeps struct {
+	controller          *gomock.Controller
+	mockShard           *shard.ContextTest
+	mockEventsCache     *events.MockCache
+	mockNamespaceCache  *namespace.MockRegistry
+	mockTaskGenerator   *workflow.MockTaskGenerator
+	mockMutableState    *historyi.MockMutableState
+	mockClusterMetadata *cluster.MockMetadata
+	executionInfo       *persistencespb.WorkflowExecutionInfo
+	validator           *api.CommandAttrValidator
+	logger              log.Logger
 }
 
-func (s *pauseActivitySuite) SetupSuite() {
-}
+func setupTest(t *testing.T) *testDeps {
+	t.Helper()
 
-func (s *pauseActivitySuite) TearDownSuite() {
-}
+	controller := gomock.NewController(t)
+	mockTaskGenerator := workflow.NewMockTaskGenerator(controller)
+	mockMutableState := historyi.NewMockMutableState(controller)
 
-func (s *pauseActivitySuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.mockTaskGenerator = workflow.NewMockTaskGenerator(s.controller)
-	s.mockMutableState = historyi.NewMockMutableState(s.controller)
-
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{
 			ShardId: 0,
 			RangeId: 1,
@@ -70,36 +50,53 @@ func (s *pauseActivitySuite) SetupTest() {
 		tests.NewDynamicConfig(),
 	)
 
-	s.mockNamespaceCache = s.mockShard.Resource.NamespaceCache
-	s.mockClusterMetadata = s.mockShard.Resource.ClusterMetadata
-	s.mockEventsCache = s.mockShard.MockEventsCache
-	s.mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
-	s.mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
-	s.mockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
+	mockNamespaceCache := mockShard.Resource.NamespaceCache
+	mockClusterMetadata := mockShard.Resource.ClusterMetadata
+	mockEventsCache := mockShard.MockEventsCache
+	mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
+	mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
+	mockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
 
-	s.logger = s.mockShard.GetLogger()
-	s.executionInfo = &persistencespb.WorkflowExecutionInfo{
+	logger := mockShard.GetLogger()
+	executionInfo := &persistencespb.WorkflowExecutionInfo{
 		VersionHistories:                 versionhistory.NewVersionHistories(&historyspb.VersionHistory{}),
 		FirstExecutionRunId:              uuid.New(),
 		WorkflowExecutionTimerTaskStatus: workflow.TimerTaskStatusCreated,
 	}
-	s.mockMutableState.EXPECT().GetExecutionInfo().Return(s.executionInfo).AnyTimes()
-	s.mockMutableState.EXPECT().GetCurrentVersion().Return(int64(1)).AnyTimes()
+	mockMutableState.EXPECT().GetExecutionInfo().Return(executionInfo).AnyTimes()
+	mockMutableState.EXPECT().GetCurrentVersion().Return(int64(1)).AnyTimes()
 
-	s.validator = api.NewCommandAttrValidator(
-		s.mockShard.GetNamespaceRegistry(),
-		s.mockShard.GetConfig(),
+	validator := api.NewCommandAttrValidator(
+		mockShard.GetNamespaceRegistry(),
+		mockShard.GetConfig(),
 		nil,
 	)
+
+	t.Cleanup(func() {
+		controller.Finish()
+		mockShard.StopForTest()
+	})
+
+	return &testDeps{
+		controller:          controller,
+		mockShard:           mockShard,
+		mockEventsCache:     mockEventsCache,
+		mockNamespaceCache:  mockNamespaceCache,
+		mockTaskGenerator:   mockTaskGenerator,
+		mockMutableState:    mockMutableState,
+		mockClusterMetadata: mockClusterMetadata,
+		executionInfo:       executionInfo,
+		validator:           validator,
+		logger:              logger,
+	}
 }
 
-func (s *pauseActivitySuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.StopForTest()
-}
+func TestPauseActivityAcceptance(t *testing.T) {
+	t.Parallel()
 
-func (s *pauseActivitySuite) TestPauseActivityAcceptance() {
+	deps := setupTest(t)
+
 	activityId := "activity_id"
 	activityInfo := &persistencespb.ActivityInfo{
 		TaskQueue:  "task_queue_name",
@@ -109,10 +106,10 @@ func (s *pauseActivitySuite) TestPauseActivityAcceptance() {
 		},
 	}
 
-	s.mockMutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
-	s.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(activityInfo, true)
-	s.mockMutableState.EXPECT().UpdateActivity(gomock.Any(), gomock.Any())
+	deps.mockMutableState.EXPECT().IsWorkflowExecutionRunning().Return(true)
+	deps.mockMutableState.EXPECT().GetActivityByActivityID(gomock.Any()).Return(activityInfo, true)
+	deps.mockMutableState.EXPECT().UpdateActivity(gomock.Any(), gomock.Any())
 
-	err := workflow.PauseActivity(s.mockMutableState, activityId, nil)
-	s.NoError(err)
+	err := workflow.PauseActivity(deps.mockMutableState, activityId, nil)
+	require.NoError(t, err)
 }

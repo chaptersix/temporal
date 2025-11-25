@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/server/client"
 	"go.temporal.io/server/common/cluster"
@@ -18,56 +17,25 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	executableNoopTaskSuite struct {
-		suite.Suite
-		*require.Assertions
+func setupExecutableNoopTask(t *testing.T) (*gomock.Controller, *ExecutableNoopTask) {
+	controller := gomock.NewController(t)
+	clusterMetadata := cluster.NewMockMetadata(controller)
+	clientBean := client.NewMockBean(controller)
+	shardController := shard.NewMockController(controller)
+	namespaceCache := namespace.NewMockRegistry(controller)
+	metricsHandler := metrics.NoopMetricsHandler
+	logger := log.NewNoopLogger()
+	eagerNamespaceRefresher := NewMockEagerNamespaceRefresher(controller)
 
-		controller              *gomock.Controller
-		clusterMetadata         *cluster.MockMetadata
-		clientBean              *client.MockBean
-		shardController         *shard.MockController
-		namespaceCache          *namespace.MockRegistry
-		metricsHandler          metrics.Handler
-		logger                  log.Logger
-		eagerNamespaceRefresher *MockEagerNamespaceRefresher
-
-		task *ExecutableNoopTask
-	}
-)
-
-func TestExecutableNoopTaskSuite(t *testing.T) {
-	s := new(executableNoopTaskSuite)
-	suite.Run(t, s)
-}
-
-func (s *executableNoopTaskSuite) SetupSuite() {
-	s.Assertions = require.New(s.T())
-}
-
-func (s *executableNoopTaskSuite) TearDownSuite() {
-
-}
-
-func (s *executableNoopTaskSuite) SetupTest() {
-	s.controller = gomock.NewController(s.T())
-	s.clusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.clientBean = client.NewMockBean(s.controller)
-	s.shardController = shard.NewMockController(s.controller)
-	s.namespaceCache = namespace.NewMockRegistry(s.controller)
-	s.metricsHandler = metrics.NoopMetricsHandler
-	s.logger = log.NewNoopLogger()
-	s.eagerNamespaceRefresher = NewMockEagerNamespaceRefresher(s.controller)
-
-	s.task = NewExecutableNoopTask(
+	task := NewExecutableNoopTask(
 		ProcessToolBox{
-			ClusterMetadata:         s.clusterMetadata,
-			ClientBean:              s.clientBean,
-			ShardController:         s.shardController,
-			NamespaceCache:          s.namespaceCache,
-			MetricsHandler:          s.metricsHandler,
-			Logger:                  s.logger,
-			EagerNamespaceRefresher: s.eagerNamespaceRefresher,
+			ClusterMetadata:         clusterMetadata,
+			ClientBean:              clientBean,
+			ShardController:         shardController,
+			NamespaceCache:          namespaceCache,
+			MetricsHandler:          metricsHandler,
+			Logger:                  logger,
+			EagerNamespaceRefresher: eagerNamespaceRefresher,
 			DLQWriter:               NoopDLQWriter{},
 		},
 		rand.Int63(),
@@ -78,26 +46,32 @@ func (s *executableNoopTaskSuite) SetupTest() {
 			ShardID:   rand.Int31(),
 		},
 	)
+	return controller, task
 }
 
-func (s *executableNoopTaskSuite) TearDownTest() {
-	s.controller.Finish()
+func TestExecute(t *testing.T) {
+	controller, task := setupExecutableNoopTask(t)
+	defer controller.Finish()
+
+	err := task.Execute()
+	require.NoError(t, err)
 }
 
-func (s *executableNoopTaskSuite) TestExecute() {
-	err := s.task.Execute()
-	s.NoError(err)
-}
+func TestHandleErr(t *testing.T) {
+	controller, task := setupExecutableNoopTask(t)
+	defer controller.Finish()
 
-func (s *executableNoopTaskSuite) TestHandleErr() {
 	err := errors.New("OwO")
-	s.Equal(err, s.task.HandleErr(err))
+	require.Equal(t, err, task.HandleErr(err))
 
 	err = serviceerror.NewUnavailable("")
-	s.Equal(err, s.task.HandleErr(err))
+	require.Equal(t, err, task.HandleErr(err))
 }
 
-func (s *executableNoopTaskSuite) TestMarkPoisonPill() {
-	err := s.task.MarkPoisonPill()
-	s.NoError(err)
+func TestMarkPoisonPill(t *testing.T) {
+	controller, task := setupExecutableNoopTask(t)
+	defer controller.Finish()
+
+	err := task.MarkPoisonPill()
+	require.NoError(t, err)
 }

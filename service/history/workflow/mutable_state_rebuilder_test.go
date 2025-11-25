@@ -8,7 +8,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
@@ -41,10 +40,7 @@ import (
 )
 
 type (
-	stateBuilderSuite struct {
-		suite.Suite
-		*require.Assertions
-
+	stateBuilderTestDeps struct {
 		controller           *gomock.Controller
 		mockShard            *shard.ContextTest
 		mockEventsCache      *events.MockCache
@@ -67,26 +63,13 @@ type (
 	}
 )
 
-func TestStateBuilderSuite(t *testing.T) {
-	s := new(stateBuilderSuite)
-	suite.Run(t, s)
-}
+func setupStateBuilderTest(t *testing.T) *stateBuilderTestDeps {
+	controller := gomock.NewController(t)
+	mockTaskGenerator := NewMockTaskGenerator(controller)
+	mockMutableState := historyi.NewMockMutableState(controller)
 
-func (s *stateBuilderSuite) SetupSuite() {
-}
-
-func (s *stateBuilderSuite) TearDownSuite() {
-}
-
-func (s *stateBuilderSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.mockTaskGenerator = NewMockTaskGenerator(s.controller)
-	s.mockMutableState = historyi.NewMockMutableState(s.controller)
-
-	s.mockShard = shard.NewTestContext(
-		s.controller,
+	mockShard := shard.NewTestContext(
+		controller,
 		&persistencespb.ShardInfo{
 			ShardId: 0,
 			RangeId: 1,
@@ -95,71 +78,89 @@ func (s *stateBuilderSuite) SetupTest() {
 	)
 
 	reg := hsm.NewRegistry()
-	s.NoError(RegisterStateMachine(reg))
-	s.NoError(nexusoperations.RegisterStateMachines(reg))
-	s.NoError(nexusoperations.RegisterEventDefinitions(reg))
-	s.NoError(nexusoperations.RegisterTaskSerializers(reg))
-	s.mockShard.SetStateMachineRegistry(reg)
-	s.stateMachineRegistry = reg
+	require.NoError(t, RegisterStateMachine(reg))
+	require.NoError(t, nexusoperations.RegisterStateMachines(reg))
+	require.NoError(t, nexusoperations.RegisterEventDefinitions(reg))
+	require.NoError(t, nexusoperations.RegisterTaskSerializers(reg))
+	mockShard.SetStateMachineRegistry(reg)
 
-	root, err := hsm.NewRoot(reg, StateMachineType, s.mockMutableState, make(map[string]*persistencespb.StateMachineMap), s.mockMutableState)
-	s.NoError(err)
-	s.mockMutableState.EXPECT().HSM().Return(root).AnyTimes()
-	s.mockMutableState.EXPECT().IsTransitionHistoryEnabled().Return(false).AnyTimes()
+	root, err := hsm.NewRoot(reg, StateMachineType, mockMutableState, make(map[string]*persistencespb.StateMachineMap), mockMutableState)
+	require.NoError(t, err)
+	mockMutableState.EXPECT().HSM().Return(root).AnyTimes()
+	mockMutableState.EXPECT().IsTransitionHistoryEnabled().Return(false).AnyTimes()
 
-	s.mockNamespaceCache = s.mockShard.Resource.NamespaceCache
-	s.mockClusterMetadata = s.mockShard.Resource.ClusterMetadata
-	s.mockEventsCache = s.mockShard.MockEventsCache
-	s.mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
-	s.mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
-	s.mockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
+	mockNamespaceCache := mockShard.Resource.NamespaceCache
+	mockClusterMetadata := mockShard.Resource.ClusterMetadata
+	mockEventsCache := mockShard.MockEventsCache
+	mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockClusterMetadata.EXPECT().GetClusterID().Return(int64(1)).AnyTimes()
+	mockClusterMetadata.EXPECT().IsGlobalNamespaceEnabled().Return(true).AnyTimes()
+	mockEventsCache.EXPECT().PutEvent(gomock.Any(), gomock.Any()).AnyTimes()
 
-	s.logger = s.mockShard.GetLogger()
-	s.executionInfo = &persistencespb.WorkflowExecutionInfo{
+	logger := mockShard.GetLogger()
+	executionInfo := &persistencespb.WorkflowExecutionInfo{
 		VersionHistories:                 versionhistory.NewVersionHistories(&historyspb.VersionHistory{}),
 		FirstExecutionRunId:              uuid.New(),
 		WorkflowExecutionTimerTaskStatus: TimerTaskStatusCreated,
 	}
-	s.mockMutableState.EXPECT().GetExecutionInfo().Return(s.executionInfo).AnyTimes()
-	s.mockMutableState.EXPECT().GetCurrentVersion().Return(int64(1)).AnyTimes()
-	s.mockMutableState.EXPECT().NextTransitionCount().Return(int64(2)).AnyTimes()
+	mockMutableState.EXPECT().GetExecutionInfo().Return(executionInfo).AnyTimes()
+	mockMutableState.EXPECT().GetCurrentVersion().Return(int64(1)).AnyTimes()
+	mockMutableState.EXPECT().NextTransitionCount().Return(int64(2)).AnyTimes()
 
 	taskGeneratorProvider = &testTaskGeneratorProvider{
-		mockMutableState:  s.mockMutableState,
-		mockTaskGenerator: s.mockTaskGenerator,
+		mockMutableState:  mockMutableState,
+		mockTaskGenerator: mockTaskGenerator,
 	}
-	s.stateRebuilder = NewMutableStateRebuilder(
-		s.mockShard,
-		s.logger,
-		s.mockMutableState,
+	stateRebuilder := NewMutableStateRebuilder(
+		mockShard,
+		logger,
+		mockMutableState,
 	)
-	s.sourceCluster = "some random source cluster"
-}
+	sourceCluster := "some random source cluster"
 
-func (s *stateBuilderSuite) TearDownTest() {
-	s.stateRebuilder = nil
-	s.controller.Finish()
-	s.mockShard.StopForTest()
-}
+	t.Cleanup(func() {
+		controller.Finish()
+		mockShard.StopForTest()
+	})
 
-func (s *stateBuilderSuite) mockUpdateVersion(events ...*historypb.HistoryEvent) {
-	for _, event := range events {
-		s.mockMutableState.EXPECT().UpdateCurrentVersion(event.GetVersion(), true)
+	return &stateBuilderTestDeps{
+		controller:           controller,
+		mockShard:            mockShard,
+		mockEventsCache:      mockEventsCache,
+		mockNamespaceCache:   mockNamespaceCache,
+		mockTaskGenerator:    mockTaskGenerator,
+		mockMutableState:     mockMutableState,
+		mockClusterMetadata:  mockClusterMetadata,
+		stateMachineRegistry: reg,
+		logger:               logger,
+		sourceCluster:        sourceCluster,
+		executionInfo:        executionInfo,
+		stateRebuilder:       stateRebuilder,
 	}
-	s.mockTaskGenerator.EXPECT().GenerateActivityTimerTasks().Return(nil)
-	s.mockTaskGenerator.EXPECT().GenerateUserTimerTasks().Return(nil)
-	s.mockTaskGenerator.EXPECT().GenerateDirtySubStateMachineTasks(s.stateMachineRegistry).Return(nil).AnyTimes()
-	s.mockMutableState.EXPECT().SetHistoryBuilder(historybuilder.NewImmutable(events))
 }
 
-func (s *stateBuilderSuite) toHistory(eventss ...*historypb.HistoryEvent) [][]*historypb.HistoryEvent {
+func mockUpdateVersion(
+	deps *stateBuilderTestDeps,
+	events ...*historypb.HistoryEvent,
+) {
+	for _, event := range events {
+		deps.mockMutableState.EXPECT().UpdateCurrentVersion(event.GetVersion(), true)
+	}
+	deps.mockTaskGenerator.EXPECT().GenerateActivityTimerTasks().Return(nil)
+	deps.mockTaskGenerator.EXPECT().GenerateUserTimerTasks().Return(nil)
+	deps.mockTaskGenerator.EXPECT().GenerateDirtySubStateMachineTasks(deps.stateMachineRegistry).Return(nil).AnyTimes()
+	deps.mockMutableState.EXPECT().SetHistoryBuilder(historybuilder.NewImmutable(events))
+}
+
+func toHistory(eventss ...*historypb.HistoryEvent) [][]*historypb.HistoryEvent {
 	return [][]*historypb.HistoryEvent{eventss}
 }
 
 // workflow operations
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionStarted_NoCronSchedule() {
+func TestApplyEvents_EventTypeWorkflowExecutionStarted_NoCronSchedule(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	cronSchedule := ""
 	version := int64(1)
 	requestID := uuid.New()
@@ -168,8 +169,8 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionStarted_No
 		RunId:      tests.RunID,
 	}
 
-	s.executionInfo.WorkflowRunTimeout = timestamp.DurationFromSeconds(100)
-	s.executionInfo.CronSchedule = cronSchedule
+	deps.executionInfo.WorkflowRunTimeout = timestamp.DurationFromSeconds(100)
+	deps.executionInfo.CronSchedule = cronSchedule
 
 	now := time.Now().UTC()
 	evenType := enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
@@ -187,23 +188,25 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionStarted_No
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{WorkflowExecutionStartedEventAttributes: startWorkflowAttribute},
 	}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionStartedEvent(nil, execution, requestID, protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateRecordWorkflowStartedTasks(
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionStartedEvent(nil, execution, requestID, protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateRecordWorkflowStartedTasks(
 		protomock.Eq(event),
 	).Return(nil)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowStartTasks(
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowStartTasks(
 		protomock.Eq(event),
 	).Return(int32(TimerTaskStatusCreated), nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
-	s.mockMutableState.EXPECT().SetHistoryTree(nil, timestamp.DurationFromSeconds(100), tests.RunID).Return(nil)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().SetHistoryTree(nil, timestamp.DurationFromSeconds(100), tests.RunID).Return(nil)
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionStarted_WithCronSchedule() {
+func TestApplyEvents_EventTypeWorkflowExecutionStarted_WithCronSchedule(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	cronSchedule := "* * * * *"
 	version := int64(1)
 	requestID := uuid.New()
@@ -212,8 +215,8 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionStarted_Wi
 		RunId:      tests.RunID,
 	}
 
-	s.executionInfo.WorkflowRunTimeout = timestamp.DurationFromSeconds(100)
-	s.executionInfo.CronSchedule = cronSchedule
+	deps.executionInfo.WorkflowRunTimeout = timestamp.DurationFromSeconds(100)
+	deps.executionInfo.CronSchedule = cronSchedule
 
 	now := time.Now().UTC()
 	eventType := enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
@@ -233,26 +236,28 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionStarted_Wi
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{WorkflowExecutionStartedEventAttributes: startWorkflowAttribute},
 	}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionStartedEvent(nil, protomock.Eq(execution), requestID, protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateRecordWorkflowStartedTasks(
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionStartedEvent(nil, protomock.Eq(execution), requestID, protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateRecordWorkflowStartedTasks(
 		protomock.Eq(event),
 	).Return(nil)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowStartTasks(
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowStartTasks(
 		protomock.Eq(event),
 	).Return(int32(TimerTaskStatusCreated), nil)
-	s.mockTaskGenerator.EXPECT().GenerateDelayedWorkflowTasks(
+	deps.mockTaskGenerator.EXPECT().GenerateDelayedWorkflowTasks(
 		protomock.Eq(event),
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
-	s.mockMutableState.EXPECT().SetHistoryTree(nil, timestamp.DurationFromSeconds(100), tests.RunID).Return(nil)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().SetHistoryTree(nil, timestamp.DurationFromSeconds(100), tests.RunID).Return(nil)
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionTimedOut() {
+func TestApplyEvents_EventTypeWorkflowExecutionTimedOut(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -271,21 +276,23 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionTimedOut()
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionTimedOutEventAttributes{WorkflowExecutionTimedOutEventAttributes: &historypb.WorkflowExecutionTimedOutEventAttributes{}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionTimedoutEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionTimedoutEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
 		now,
 		false,
 		false, // skipCloseTransferTask
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionTimedOut_WithNewRunHistory() {
+func TestApplyEvents_EventTypeWorkflowExecutionTimedOut_WithNewRunHistory(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -322,39 +329,41 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionTimedOut_W
 			TaskQueue:                       &taskqueuepb.TaskQueue{Name: "some random taskqueue"},
 			WorkflowType:                    &commonpb.WorkflowType{Name: "some random workflow type"},
 			FirstWorkflowTaskBackoff:        durationpb.New(10 * time.Second),
-			FirstExecutionRunId:             s.mockMutableState.GetExecutionInfo().FirstExecutionRunId,
+			FirstExecutionRunId:             deps.mockMutableState.GetExecutionInfo().FirstExecutionRunId,
 			WorkflowExecutionExpirationTime: timestamppb.New(now.Add(100 * time.Second)),
 			ContinuedExecutionRunId:         execution.RunId,
 		}},
 	}
 	newRunEvents := []*historypb.HistoryEvent{newRunStartedEvent}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionTimedoutEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
-	s.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
-	s.mockMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionTimedoutEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
+	deps.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
+	deps.mockMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		CreateRequestId: uuid.New(),
 		State:           enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED,
 		Status:          enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT,
 	})
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
 		now,
 		false,
 		false, // skipCloseTransferTask
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	newRunStateBuilder, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), newRunEvents, newRunID)
-	s.Nil(err)
-	s.NotNil(newRunStateBuilder)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	newRunStateBuilder, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), newRunEvents, newRunID)
+	require.Nil(t, err)
+	require.NotNil(t, newRunStateBuilder)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 
 	newRunTasks := newRunStateBuilder.PopTasks()
-	s.Len(newRunTasks[tasks.CategoryTimer], 1)      // backoffTimer
-	s.Len(newRunTasks[tasks.CategoryVisibility], 1) // recordWorkflowStarted
+	require.Len(t, newRunTasks[tasks.CategoryTimer], 1)      // backoffTimer
+	require.Len(t, newRunTasks[tasks.CategoryVisibility], 1) // recordWorkflowStarted
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionTerminated() {
+func TestApplyEvents_EventTypeWorkflowExecutionTerminated(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -373,20 +382,22 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionTerminated
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionTerminatedEventAttributes{WorkflowExecutionTerminatedEventAttributes: &historypb.WorkflowExecutionTerminatedEventAttributes{}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionTerminatedEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionTerminatedEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
 		now,
 		false,
 		false, // skipCloseTransferTask
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionTerminated_WithNewRunHistory() {
+func TestApplyEvents_EventTypeWorkflowExecutionTerminated_WithNewRunHistory(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -424,32 +435,34 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionTerminated
 	}
 	newRunEvents := []*historypb.HistoryEvent{newRunStartedEvent}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionTerminatedEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
-	s.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
-	s.mockMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionTerminatedEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
+	deps.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
+	deps.mockMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		CreateRequestId: uuid.New(),
 		State:           enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED,
 		Status:          enumspb.WORKFLOW_EXECUTION_STATUS_TERMINATED,
 	})
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
 		now,
 		false,
 		false, // skipCloseTransferTask
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	newRunStateBuilder, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), newRunEvents, uuid.New())
-	s.Nil(err)
-	s.NotNil(newRunStateBuilder)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	newRunStateBuilder, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), newRunEvents, uuid.New())
+	require.Nil(t, err)
+	require.NotNil(t, newRunStateBuilder)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 
 	newRunTasks := newRunStateBuilder.PopTasks()
-	s.Len(newRunTasks[tasks.CategoryTimer], 3)      // backoff timer, runTimeout timer, executionTimeout timer
-	s.Len(newRunTasks[tasks.CategoryVisibility], 1) // recordWorkflowStarted
+	require.Len(t, newRunTasks[tasks.CategoryTimer], 3)      // backoff timer, runTimeout timer, executionTimeout timer
+	require.Len(t, newRunTasks[tasks.CategoryVisibility], 1) // recordWorkflowStarted
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionFailed() {
+func TestApplyEvents_EventTypeWorkflowExecutionFailed(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -468,21 +481,23 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionFailed() {
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionFailedEventAttributes{WorkflowExecutionFailedEventAttributes: &historypb.WorkflowExecutionFailedEventAttributes{}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionFailedEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionFailedEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
 		now,
 		false,
 		false, // skipCloseTransferTask
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionFailed_WithNewRunHistory() {
+func TestApplyEvents_EventTypeWorkflowExecutionFailed_WithNewRunHistory(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -519,39 +534,41 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionFailed_Wit
 			TaskQueue:                       &taskqueuepb.TaskQueue{Name: "some random taskqueue"},
 			WorkflowType:                    &commonpb.WorkflowType{Name: "some random workflow type"},
 			FirstWorkflowTaskBackoff:        durationpb.New(10 * time.Second),
-			FirstExecutionRunId:             s.mockMutableState.GetExecutionInfo().FirstExecutionRunId,
+			FirstExecutionRunId:             deps.mockMutableState.GetExecutionInfo().FirstExecutionRunId,
 			WorkflowExecutionExpirationTime: timestamppb.New(now.Add(100 * time.Second)),
 			ContinuedExecutionRunId:         execution.RunId,
 		}},
 	}
 	newRunEvents := []*historypb.HistoryEvent{newRunStartedEvent}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionFailedEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
-	s.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
-	s.mockMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionFailedEvent(event.GetEventId(), protomock.Eq(event)).Return(nil)
+	deps.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
+	deps.mockMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		CreateRequestId: uuid.New(),
 		State:           enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED,
 		Status:          enumspb.WORKFLOW_EXECUTION_STATUS_FAILED,
 	})
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
 		now,
 		false,
 		false, // skipCloseTransferTask
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	newRunStateBuilder, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), newRunEvents, newRunID)
-	s.Nil(err)
-	s.NotNil(newRunStateBuilder)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	newRunStateBuilder, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), newRunEvents, newRunID)
+	require.Nil(t, err)
+	require.NotNil(t, newRunStateBuilder)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 
 	newRunTasks := newRunStateBuilder.PopTasks()
-	s.Len(newRunTasks[tasks.CategoryTimer], 2)      // backoffTimer, runTimeout timer
-	s.Len(newRunTasks[tasks.CategoryVisibility], 1) // recordWorkflowStarted
+	require.Len(t, newRunTasks[tasks.CategoryTimer], 2)      // backoffTimer, runTimeout timer
+	require.Len(t, newRunTasks[tasks.CategoryVisibility], 1) // recordWorkflowStarted
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionCompleted() {
+func TestApplyEvents_EventTypeWorkflowExecutionCompleted(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -570,21 +587,23 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionCompleted(
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionCompletedEventAttributes{WorkflowExecutionCompletedEventAttributes: &historypb.WorkflowExecutionCompletedEventAttributes{}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionCompletedEvent(event.GetEventId(), event).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionCompletedEvent(event.GetEventId(), event).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
 		now,
 		false,
 		false, // skipCloseTransferTask
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionCompleted_WithNewRunHistory() {
+func TestApplyEvents_EventTypeWorkflowExecutionCompleted_WithNewRunHistory(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -620,39 +639,41 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionCompleted_
 			WorkflowTaskTimeout:             durationpb.New(10 * time.Second),
 			TaskQueue:                       &taskqueuepb.TaskQueue{Name: "some random taskqueue"},
 			WorkflowType:                    &commonpb.WorkflowType{Name: "some random workflow type"},
-			FirstExecutionRunId:             s.mockMutableState.GetExecutionInfo().FirstExecutionRunId,
+			FirstExecutionRunId:             deps.mockMutableState.GetExecutionInfo().FirstExecutionRunId,
 			WorkflowExecutionExpirationTime: timestamppb.New(now.Add(100 * time.Second)),
 			ContinuedExecutionRunId:         execution.RunId,
 		}},
 	}
 	newRunEvents := []*historypb.HistoryEvent{newRunStartedEvent}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionCompletedEvent(event.GetEventId(), event).Return(nil)
-	s.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
-	s.mockMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionCompletedEvent(event.GetEventId(), event).Return(nil)
+	deps.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
+	deps.mockMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		CreateRequestId: uuid.New(),
 		State:           enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED,
 		Status:          enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
 	})
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
 		now,
 		false,
 		false, // skipCloseTransferTask
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	newRunStateBuilder, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), newRunEvents, newRunID)
-	s.Nil(err)
-	s.NotNil(newRunStateBuilder)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	newRunStateBuilder, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), newRunEvents, newRunID)
+	require.Nil(t, err)
+	require.NotNil(t, newRunStateBuilder)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 
 	newRunTasks := newRunStateBuilder.PopTasks()
-	s.Len(newRunTasks[tasks.CategoryTimer], 0)
-	s.Len(newRunTasks[tasks.CategoryVisibility], 1) // recordWorkflowStarted
+	require.Len(t, newRunTasks[tasks.CategoryTimer], 0)
+	require.Len(t, newRunTasks[tasks.CategoryVisibility], 1) // recordWorkflowStarted
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionCanceled() {
+func TestApplyEvents_EventTypeWorkflowExecutionCanceled(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -671,21 +692,23 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionCanceled()
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionCanceledEventAttributes{WorkflowExecutionCanceledEventAttributes: &historypb.WorkflowExecutionCanceledEventAttributes{}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionCanceledEvent(event.GetEventId(), event).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionCanceledEvent(event.GetEventId(), event).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
 		now,
 		false,
 		false, // skipCloseTransferTask
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionContinuedAsNew() {
+func TestApplyEvents_EventTypeWorkflowExecutionContinuedAsNew(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -733,7 +756,7 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionContinuedA
 			TaskQueue:                       &taskqueuepb.TaskQueue{Name: taskqueue},
 			WorkflowType:                    &commonpb.WorkflowType{Name: workflowType},
 			WorkflowExecutionExpirationTime: timestamppb.New(now.Add(workflowTimeoutSecond)),
-			FirstExecutionRunId:             s.mockMutableState.GetExecutionInfo().FirstExecutionRunId,
+			FirstExecutionRunId:             deps.mockMutableState.GetExecutionInfo().FirstExecutionRunId,
 			ContinuedExecutionRunId:         execution.RunId,
 		}},
 	}
@@ -768,43 +791,45 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionContinuedA
 		newRunStartedEvent, newRunSignalEvent, newRunWorkflowTaskEvent,
 	}
 
-	s.mockClusterMetadata.EXPECT().ClusterNameForFailoverVersion(true, continueAsNewEvent.GetVersion()).Return(s.sourceCluster).AnyTimes()
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionContinuedAsNewEvent(
+	deps.mockClusterMetadata.EXPECT().ClusterNameForFailoverVersion(true, continueAsNewEvent.GetVersion()).Return(deps.sourceCluster).AnyTimes()
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionContinuedAsNewEvent(
 		continueAsNewEvent.GetEventId(),
 		protomock.Eq(continueAsNewEvent),
 	).Return(nil)
-	s.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
-	s.mockMutableState.EXPECT().GetWorkflowKey().Return(definition.NewWorkflowKey(tests.GlobalNamespaceEntry.ID().String(), execution.WorkflowId, execution.RunId)).AnyTimes()
-	s.mockMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
+	deps.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
+	deps.mockMutableState.EXPECT().GetWorkflowKey().Return(definition.NewWorkflowKey(tests.GlobalNamespaceEntry.ID().String(), execution.WorkflowId, execution.RunId)).AnyTimes()
+	deps.mockMutableState.EXPECT().GetExecutionState().Return(&persistencespb.WorkflowExecutionState{
 		CreateRequestId: uuid.New(),
 		State:           enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED,
 		Status:          enumspb.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW,
 	})
-	s.mockUpdateVersion(continueAsNewEvent)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
+	mockUpdateVersion(deps, continueAsNewEvent)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
 		now,
 		false,
 		false, // skipCloseTransferTask
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
 	// new workflow namespace
-	s.mockNamespaceCache.EXPECT().GetNamespace(tests.ParentNamespace).Return(tests.GlobalParentNamespaceEntry, nil).AnyTimes()
+	deps.mockNamespaceCache.EXPECT().GetNamespace(tests.ParentNamespace).Return(tests.GlobalParentNamespaceEntry, nil).AnyTimes()
 
-	newRunStateBuilder, err := s.stateRebuilder.ApplyEvents(
-		context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(continueAsNewEvent), newRunEvents, "",
+	newRunStateBuilder, err := deps.stateRebuilder.ApplyEvents(
+		context.Background(), tests.NamespaceID, requestID, execution, toHistory(continueAsNewEvent), newRunEvents, "",
 	)
-	s.Nil(err)
-	s.NotNil(newRunStateBuilder)
-	s.Equal(continueAsNewEvent.TaskId, s.executionInfo.LastRunningClock)
+	require.Nil(t, err)
+	require.NotNil(t, newRunStateBuilder)
+	require.Equal(t, continueAsNewEvent.TaskId, deps.executionInfo.LastRunningClock)
 
 	newRunTasks := newRunStateBuilder.PopTasks()
-	s.Empty(newRunTasks[tasks.CategoryTimer])
-	s.Len(newRunTasks[tasks.CategoryVisibility], 1) // recordWorkflowStarted
-	s.Len(newRunTasks[tasks.CategoryTransfer], 1)   // workflow task
+	require.Empty(t, newRunTasks[tasks.CategoryTimer])
+	require.Len(t, newRunTasks[tasks.CategoryVisibility], 1) // recordWorkflowStarted
+	require.Len(t, newRunTasks[tasks.CategoryTransfer], 1)   // workflow task
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionContinuedAsNew_EmptyNewRunHistory() {
+func TestApplyEvents_EventTypeWorkflowExecutionContinuedAsNew_EmptyNewRunHistory(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -826,30 +851,32 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionContinuedA
 		}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionContinuedAsNewEvent(
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionContinuedAsNewEvent(
 		continueAsNewEvent.GetEventId(),
 		protomock.Eq(continueAsNewEvent),
 	).Return(nil)
-	s.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
-	s.mockUpdateVersion(continueAsNewEvent)
-	s.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
+	deps.mockMutableState.EXPECT().GetNamespaceEntry().Return(tests.GlobalNamespaceEntry).AnyTimes()
+	mockUpdateVersion(deps, continueAsNewEvent)
+	deps.mockTaskGenerator.EXPECT().GenerateWorkflowCloseTasks(
 		now,
 		false,
 		false, // skipCloseTransferTask
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
 	// new workflow namespace
-	s.mockNamespaceCache.EXPECT().GetNamespace(tests.ParentNamespace).Return(tests.GlobalParentNamespaceEntry, nil).AnyTimes()
-	newRunStateBuilder, err := s.stateRebuilder.ApplyEvents(
-		context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(continueAsNewEvent), nil, "",
+	deps.mockNamespaceCache.EXPECT().GetNamespace(tests.ParentNamespace).Return(tests.GlobalParentNamespaceEntry, nil).AnyTimes()
+	newRunStateBuilder, err := deps.stateRebuilder.ApplyEvents(
+		context.Background(), tests.NamespaceID, requestID, execution, toHistory(continueAsNewEvent), nil, "",
 	)
-	s.Nil(err)
-	s.Nil(newRunStateBuilder)
-	s.Equal(continueAsNewEvent.TaskId, s.executionInfo.LastRunningClock)
+	require.Nil(t, err)
+	require.Nil(t, newRunStateBuilder)
+	require.Equal(t, continueAsNewEvent.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionSignaled() {
+func TestApplyEvents_EventTypeWorkflowExecutionSignaled(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -868,16 +895,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionSignaled()
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionSignaledEventAttributes{WorkflowExecutionSignaledEventAttributes: &historypb.WorkflowExecutionSignaledEventAttributes{}},
 	}
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionSignaled(protomock.Eq(event)).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionSignaled(protomock.Eq(event)).Return(nil)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionCancelRequested() {
+func TestApplyEvents_EventTypeWorkflowExecutionCancelRequested(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -896,16 +925,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionCancelRequ
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionCancelRequestedEventAttributes{WorkflowExecutionCancelRequestedEventAttributes: &historypb.WorkflowExecutionCancelRequestedEventAttributes{}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionCancelRequestedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionCancelRequestedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeUpsertWorkflowSearchAttributes() {
+func TestApplyEvents_EventTypeUpsertWorkflowSearchAttributes(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -926,17 +957,19 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeUpsertWorkflowSearchAttribu
 			UpsertWorkflowSearchAttributesEventAttributes: &historypb.UpsertWorkflowSearchAttributesEventAttributes{},
 		},
 	}
-	s.mockMutableState.EXPECT().ApplyUpsertWorkflowSearchAttributesEvent(protomock.Eq(event)).Return()
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateUpsertVisibilityTask().Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyUpsertWorkflowSearchAttributesEvent(protomock.Eq(event)).Return()
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateUpsertVisibilityTask().Return(nil)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowPropertiesModified() {
+func TestApplyEvents_EventTypeWorkflowPropertiesModified(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -957,17 +990,19 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowPropertiesModified(
 			WorkflowPropertiesModifiedEventAttributes: &historypb.WorkflowPropertiesModifiedEventAttributes{},
 		},
 	}
-	s.mockMutableState.EXPECT().ApplyWorkflowPropertiesModifiedEvent(protomock.Eq(event)).Return()
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateUpsertVisibilityTask().Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyWorkflowPropertiesModifiedEvent(protomock.Eq(event)).Return()
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateUpsertVisibilityTask().Return(nil)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeMarkerRecorded() {
+func TestApplyEvents_EventTypeMarkerRecorded(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -986,16 +1021,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeMarkerRecorded() {
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_MarkerRecordedEventAttributes{MarkerRecordedEventAttributes: &historypb.MarkerRecordedEventAttributes{}},
 	}
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
 // workflow task operations
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowTaskScheduled() {
+func TestApplyEvents_EventTypeWorkflowTaskScheduled(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1031,21 +1068,23 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowTaskScheduled() {
 		Attempt:             workflowTaskAttempt,
 		Type:                enumsspb.WORKFLOW_TASK_TYPE_NORMAL,
 	}
-	s.executionInfo.TaskQueue = taskqueue.GetName()
-	s.mockMutableState.EXPECT().ApplyWorkflowTaskScheduledEvent(
+	deps.executionInfo.TaskQueue = taskqueue.GetName()
+	deps.mockMutableState.EXPECT().ApplyWorkflowTaskScheduledEvent(
 		event.GetVersion(), event.GetEventId(), taskqueue, durationpb.New(timeout), workflowTaskAttempt, event.GetEventTime(), event.GetEventTime(), enumsspb.WORKFLOW_TASK_TYPE_NORMAL,
 	).Return(wt, nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateScheduleWorkflowTaskTasks(
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateScheduleWorkflowTaskTasks(
 		wt.ScheduledEventID,
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowTaskStarted() {
+func TestApplyEvents_EventTypeWorkflowTaskStarted(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1080,22 +1119,24 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowTaskStarted() {
 		TaskQueue:           taskqueue,
 		Attempt:             1,
 	}
-	s.mockMutableState.EXPECT().ApplyWorkflowTaskStartedEvent(
+	deps.mockMutableState.EXPECT().ApplyWorkflowTaskStartedEvent(
 		(*historyi.WorkflowTaskInfo)(nil), event.GetVersion(), scheduledEventID, event.GetEventId(), workflowTaskRequestID, timestamp.TimeValue(event.GetEventTime()),
 		false, gomock.Any(), nil, int64(0),
 	).Return(wt, nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateStartWorkflowTaskTasks(
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateStartWorkflowTaskTasks(
 		wt.ScheduledEventID,
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowTaskTimedOut() {
+func TestApplyEvents_EventTypeWorkflowTaskTimedOut(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1120,27 +1161,29 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowTaskTimedOut() {
 			TimeoutType:      enumspb.TIMEOUT_TYPE_START_TO_CLOSE,
 		}},
 	}
-	s.mockMutableState.EXPECT().ApplyWorkflowTaskTimedOutEvent(enumspb.TIMEOUT_TYPE_START_TO_CLOSE).Return(nil)
+	deps.mockMutableState.EXPECT().ApplyWorkflowTaskTimedOutEvent(enumspb.TIMEOUT_TYPE_START_TO_CLOSE).Return(nil)
 	taskqueue := &taskqueuepb.TaskQueue{Kind: enumspb.TASK_QUEUE_KIND_NORMAL, Name: "some random taskqueue"}
 	newScheduledEventID := int64(233)
-	s.executionInfo.TaskQueue = taskqueue.GetName()
-	s.mockMutableState.EXPECT().ApplyTransientWorkflowTaskScheduled().Return(&historyi.WorkflowTaskInfo{
+	deps.executionInfo.TaskQueue = taskqueue.GetName()
+	deps.mockMutableState.EXPECT().ApplyTransientWorkflowTaskScheduled().Return(&historyi.WorkflowTaskInfo{
 		Version:          version,
 		ScheduledEventID: newScheduledEventID,
 		TaskQueue:        taskqueue,
 	}, nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateScheduleWorkflowTaskTasks(
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateScheduleWorkflowTaskTasks(
 		newScheduledEventID,
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowTaskFailed() {
+func TestApplyEvents_EventTypeWorkflowTaskFailed(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1164,27 +1207,29 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowTaskFailed() {
 			StartedEventId:   startedEventID,
 		}},
 	}
-	s.mockMutableState.EXPECT().ApplyWorkflowTaskFailedEvent().Return(nil)
+	deps.mockMutableState.EXPECT().ApplyWorkflowTaskFailedEvent().Return(nil)
 	taskqueue := &taskqueuepb.TaskQueue{Kind: enumspb.TASK_QUEUE_KIND_NORMAL, Name: "some random taskqueue"}
 	newScheduledEventID := int64(233)
-	s.executionInfo.TaskQueue = taskqueue.GetName()
-	s.mockMutableState.EXPECT().ApplyTransientWorkflowTaskScheduled().Return(&historyi.WorkflowTaskInfo{
+	deps.executionInfo.TaskQueue = taskqueue.GetName()
+	deps.mockMutableState.EXPECT().ApplyTransientWorkflowTaskScheduled().Return(&historyi.WorkflowTaskInfo{
 		Version:          version,
 		ScheduledEventID: newScheduledEventID,
 		TaskQueue:        taskqueue,
 	}, nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateScheduleWorkflowTaskTasks(
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateScheduleWorkflowTaskTasks(
 		newScheduledEventID,
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowTaskCompleted() {
+func TestApplyEvents_EventTypeWorkflowTaskCompleted(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1208,18 +1253,20 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowTaskCompleted() {
 			StartedEventId:   startedEventID,
 		}},
 	}
-	s.mockMutableState.EXPECT().ApplyWorkflowTaskCompletedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyWorkflowTaskCompletedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
 // user timer operations
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeTimerStarted() {
+func TestApplyEvents_EventTypeTimerStarted(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1251,18 +1298,20 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeTimerStarted() {
 		StartedEventId: event.GetEventId(),
 		TaskStatus:     TimerTaskStatusNone,
 	}
-	s.mockMutableState.EXPECT().ApplyTimerStartedEvent(protomock.Eq(event)).Return(ti, nil)
-	s.mockUpdateVersion(event)
+	deps.mockMutableState.EXPECT().ApplyTimerStartedEvent(protomock.Eq(event)).Return(ti, nil)
+	mockUpdateVersion(deps, event)
 	// assertion on timer generated is in `mockUpdateVersion` function, since activity / user timer
 	// need to be refreshed each time
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeTimerFired() {
+func TestApplyEvents_EventTypeTimerFired(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1282,18 +1331,20 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeTimerFired() {
 		Attributes: &historypb.HistoryEvent_TimerFiredEventAttributes{TimerFiredEventAttributes: &historypb.TimerFiredEventAttributes{}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyTimerFiredEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
+	deps.mockMutableState.EXPECT().ApplyTimerFiredEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
 	// assertion on timer generated is in `mockUpdateVersion` function, since activity / user timer
 	// need to be refreshed each time
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeTimerCanceled() {
+func TestApplyEvents_EventTypeTimerCanceled(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1313,20 +1364,22 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeTimerCanceled() {
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_TimerCanceledEventAttributes{TimerCanceledEventAttributes: &historypb.TimerCanceledEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyTimerCanceledEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
+	deps.mockMutableState.EXPECT().ApplyTimerCanceledEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
 	// assertion on timer generated is in `mockUpdateVersion` function, since activity / user timer
 	// need to be refreshed each time
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
 // activity operations
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskScheduled() {
+func TestApplyEvents_EventTypeActivityTaskScheduled(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1367,22 +1420,24 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskScheduled() {
 		TimerTaskStatus:         TimerTaskStatusNone,
 		TaskQueue:               taskqueue,
 	}
-	s.executionInfo.TaskQueue = taskqueue
-	s.mockMutableState.EXPECT().ApplyActivityTaskScheduledEvent(event.GetEventId(), protomock.Eq(event)).Return(ai, nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateActivityTasks(
+	deps.executionInfo.TaskQueue = taskqueue
+	deps.mockMutableState.EXPECT().ApplyActivityTaskScheduledEvent(event.GetEventId(), protomock.Eq(event)).Return(ai, nil)
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateActivityTasks(
 		event.GetEventId(),
 	).Return(nil)
 	// assertion on timer generated is in `mockUpdateVersion` function, since activity / user timer
 	// need to be refreshed each time
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskStarted() {
+func TestApplyEvents_EventTypeActivityTaskStarted(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1413,19 +1468,21 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskStarted() {
 		Attributes: &historypb.HistoryEvent_ActivityTaskStartedEventAttributes{ActivityTaskStartedEventAttributes: &historypb.ActivityTaskStartedEventAttributes{}},
 	}
 
-	s.executionInfo.TaskQueue = taskqueue
-	s.mockMutableState.EXPECT().ApplyActivityTaskStartedEvent(protomock.Eq(startedEvent)).Return(nil)
-	s.mockUpdateVersion(startedEvent)
+	deps.executionInfo.TaskQueue = taskqueue
+	deps.mockMutableState.EXPECT().ApplyActivityTaskStartedEvent(protomock.Eq(startedEvent)).Return(nil)
+	mockUpdateVersion(deps, startedEvent)
 	// assertion on timer generated is in `mockUpdateVersion` function, since activity / user timer
 	// need to be refreshed each time
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(startedEvent), nil, "")
-	s.Nil(err)
-	s.Equal(startedEvent.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(startedEvent), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, startedEvent.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskTimedOut() {
+func TestApplyEvents_EventTypeActivityTaskTimedOut(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1445,19 +1502,21 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskTimedOut() {
 		Attributes: &historypb.HistoryEvent_ActivityTaskTimedOutEventAttributes{ActivityTaskTimedOutEventAttributes: &historypb.ActivityTaskTimedOutEventAttributes{}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyActivityTaskTimedOutEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
+	deps.mockMutableState.EXPECT().ApplyActivityTaskTimedOutEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
 	// assertion on timer generated is in `mockUpdateVersion` function, since activity / user timer
 	// need to be refreshed each time// assertion on timer generated is in `mockUpdateVersion` function, since activity / user timer
 	//	// need to be refreshed each time
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskFailed() {
+func TestApplyEvents_EventTypeActivityTaskFailed(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1477,18 +1536,20 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskFailed() {
 		Attributes: &historypb.HistoryEvent_ActivityTaskFailedEventAttributes{ActivityTaskFailedEventAttributes: &historypb.ActivityTaskFailedEventAttributes{}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyActivityTaskFailedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
+	deps.mockMutableState.EXPECT().ApplyActivityTaskFailedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
 	// assertion on timer generated is in `mockUpdateVersion` function, since activity / user timer
 	// need to be refreshed each time
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskCompleted() {
+func TestApplyEvents_EventTypeActivityTaskCompleted(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1508,18 +1569,20 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskCompleted() {
 		Attributes: &historypb.HistoryEvent_ActivityTaskCompletedEventAttributes{ActivityTaskCompletedEventAttributes: &historypb.ActivityTaskCompletedEventAttributes{}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyActivityTaskCompletedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
+	deps.mockMutableState.EXPECT().ApplyActivityTaskCompletedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
 	// assertion on timer generated is in `mockUpdateVersion` function, since activity / user timer
 	// need to be refreshed each time
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskCancelRequested() {
+func TestApplyEvents_EventTypeActivityTaskCancelRequested(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1538,16 +1601,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskCancelRequested
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_ActivityTaskCancelRequestedEventAttributes{ActivityTaskCancelRequestedEventAttributes: &historypb.ActivityTaskCancelRequestedEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyActivityTaskCancelRequestedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyActivityTaskCancelRequestedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskCanceled() {
+func TestApplyEvents_EventTypeActivityTaskCanceled(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1567,20 +1632,22 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskCanceled() {
 		Attributes: &historypb.HistoryEvent_ActivityTaskCanceledEventAttributes{ActivityTaskCanceledEventAttributes: &historypb.ActivityTaskCanceledEventAttributes{}},
 	}
 
-	s.mockMutableState.EXPECT().ApplyActivityTaskCanceledEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
+	deps.mockMutableState.EXPECT().ApplyActivityTaskCanceledEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
 	// assertion on timer generated is in `mockUpdateVersion` function, since activity / user timer
 	// need to be refreshed each time
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
 // child workflow operations
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeStartChildWorkflowExecutionInitiated() {
+func TestApplyEvents_EventTypeStartChildWorkflowExecutionInitiated(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1617,21 +1684,23 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeStartChildWorkflowExecution
 	}
 
 	// the create request ID is generated inside, cannot assert equal
-	s.mockMutableState.EXPECT().ApplyStartChildWorkflowExecutionInitiatedEvent(
+	deps.mockMutableState.EXPECT().ApplyStartChildWorkflowExecutionInitiatedEvent(
 		event.GetEventId(), protomock.Eq(event),
 	).Return(ci, nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateChildWorkflowTasks(
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateChildWorkflowTasks(
 		event.GetEventId(),
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeStartChildWorkflowExecutionFailed() {
+func TestApplyEvents_EventTypeStartChildWorkflowExecutionFailed(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1650,16 +1719,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeStartChildWorkflowExecution
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_StartChildWorkflowExecutionFailedEventAttributes{StartChildWorkflowExecutionFailedEventAttributes: &historypb.StartChildWorkflowExecutionFailedEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyStartChildWorkflowExecutionFailedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyStartChildWorkflowExecutionFailedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionStarted() {
+func TestApplyEvents_EventTypeChildWorkflowExecutionStarted(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1678,16 +1749,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionStart
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionStartedEventAttributes{ChildWorkflowExecutionStartedEventAttributes: &historypb.ChildWorkflowExecutionStartedEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyChildWorkflowExecutionStartedEvent(protomock.Eq(event), nil).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyChildWorkflowExecutionStartedEvent(protomock.Eq(event), nil).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionTimedOut() {
+func TestApplyEvents_EventTypeChildWorkflowExecutionTimedOut(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1706,16 +1779,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionTimed
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionTimedOutEventAttributes{ChildWorkflowExecutionTimedOutEventAttributes: &historypb.ChildWorkflowExecutionTimedOutEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyChildWorkflowExecutionTimedOutEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyChildWorkflowExecutionTimedOutEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionTerminated() {
+func TestApplyEvents_EventTypeChildWorkflowExecutionTerminated(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1734,16 +1809,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionTermi
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionTerminatedEventAttributes{ChildWorkflowExecutionTerminatedEventAttributes: &historypb.ChildWorkflowExecutionTerminatedEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyChildWorkflowExecutionTerminatedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyChildWorkflowExecutionTerminatedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionFailed() {
+func TestApplyEvents_EventTypeChildWorkflowExecutionFailed(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1762,16 +1839,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionFaile
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionFailedEventAttributes{ChildWorkflowExecutionFailedEventAttributes: &historypb.ChildWorkflowExecutionFailedEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyChildWorkflowExecutionFailedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyChildWorkflowExecutionFailedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionCompleted() {
+func TestApplyEvents_EventTypeChildWorkflowExecutionCompleted(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1790,18 +1869,20 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionCompl
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionCompletedEventAttributes{ChildWorkflowExecutionCompletedEventAttributes: &historypb.ChildWorkflowExecutionCompletedEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyChildWorkflowExecutionCompletedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyChildWorkflowExecutionCompletedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
 // cancel external workflow operations
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeRequestCancelExternalWorkflowExecutionInitiated() {
+func TestApplyEvents_EventTypeRequestCancelExternalWorkflowExecutionInitiated(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1842,21 +1923,23 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeRequestCancelExternalWorkfl
 	}
 
 	// the cancellation request ID is generated inside, cannot assert equal
-	s.mockMutableState.EXPECT().ApplyRequestCancelExternalWorkflowExecutionInitiatedEvent(
+	deps.mockMutableState.EXPECT().ApplyRequestCancelExternalWorkflowExecutionInitiatedEvent(
 		event.GetEventId(), protomock.Eq(event), gomock.Any(),
 	).Return(rci, nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateRequestCancelExternalTasks(
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateRequestCancelExternalTasks(
 		protomock.Eq(event),
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeRequestCancelExternalWorkflowExecutionFailed() {
+func TestApplyEvents_EventTypeRequestCancelExternalWorkflowExecutionFailed(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1875,16 +1958,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeRequestCancelExternalWorkfl
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_RequestCancelExternalWorkflowExecutionFailedEventAttributes{RequestCancelExternalWorkflowExecutionFailedEventAttributes: &historypb.RequestCancelExternalWorkflowExecutionFailedEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyRequestCancelExternalWorkflowExecutionFailedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyRequestCancelExternalWorkflowExecutionFailedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeExternalWorkflowExecutionCancelRequested() {
+func TestApplyEvents_EventTypeExternalWorkflowExecutionCancelRequested(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1903,16 +1988,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeExternalWorkflowExecutionCa
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_ExternalWorkflowExecutionCancelRequestedEventAttributes{ExternalWorkflowExecutionCancelRequestedEventAttributes: &historypb.ExternalWorkflowExecutionCancelRequestedEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyExternalWorkflowExecutionCancelRequested(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyExternalWorkflowExecutionCancelRequested(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionCanceled() {
+func TestApplyEvents_EventTypeChildWorkflowExecutionCanceled(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -1931,18 +2018,20 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeChildWorkflowExecutionCance
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionCanceledEventAttributes{ChildWorkflowExecutionCanceledEventAttributes: &historypb.ChildWorkflowExecutionCanceledEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyChildWorkflowExecutionCanceledEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyChildWorkflowExecutionCanceledEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
 // signal external workflow operations
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeSignalExternalWorkflowExecutionInitiated() {
+func TestApplyEvents_EventTypeSignalExternalWorkflowExecutionInitiated(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 	execution := &commonpb.WorkflowExecution{
@@ -1989,21 +2078,23 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeSignalExternalWorkflowExecu
 	}
 
 	// the cancellation request ID is generated inside, cannot assert equal
-	s.mockMutableState.EXPECT().ApplySignalExternalWorkflowExecutionInitiatedEvent(
+	deps.mockMutableState.EXPECT().ApplySignalExternalWorkflowExecutionInitiatedEvent(
 		event.GetEventId(), protomock.Eq(event), gomock.Any(),
 	).Return(si, nil)
-	s.mockUpdateVersion(event)
-	s.mockTaskGenerator.EXPECT().GenerateSignalExternalTasks(
+	mockUpdateVersion(deps, event)
+	deps.mockTaskGenerator.EXPECT().GenerateSignalExternalTasks(
 		protomock.Eq(event),
 	).Return(nil)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeSignalExternalWorkflowExecutionFailed() {
+func TestApplyEvents_EventTypeSignalExternalWorkflowExecutionFailed(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -2022,16 +2113,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeSignalExternalWorkflowExecu
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_SignalExternalWorkflowExecutionFailedEventAttributes{SignalExternalWorkflowExecutionFailedEventAttributes: &historypb.SignalExternalWorkflowExecutionFailedEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplySignalExternalWorkflowExecutionFailedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplySignalExternalWorkflowExecutionFailedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeExternalWorkflowExecutionSignaled() {
+func TestApplyEvents_EventTypeExternalWorkflowExecutionSignaled(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -2050,16 +2143,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeExternalWorkflowExecutionSi
 		EventType:  evenType,
 		Attributes: &historypb.HistoryEvent_ExternalWorkflowExecutionSignaledEventAttributes{ExternalWorkflowExecutionSignaledEventAttributes: &historypb.ExternalWorkflowExecutionSignaledEventAttributes{}},
 	}
-	s.mockMutableState.EXPECT().ApplyExternalWorkflowExecutionSignaled(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyExternalWorkflowExecutionSignaled(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.Nil(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.Nil(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionUpdateAccepted() {
+func TestApplyEvents_EventTypeWorkflowExecutionUpdateAccepted(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -2078,20 +2173,22 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionUpdateAcce
 		EventType: evenType,
 		Attributes: &historypb.HistoryEvent_WorkflowExecutionUpdateAcceptedEventAttributes{
 			WorkflowExecutionUpdateAcceptedEventAttributes: &historypb.WorkflowExecutionUpdateAcceptedEventAttributes{
-				ProtocolInstanceId: s.T().Name(),
+				ProtocolInstanceId: t.Name(),
 			},
 		},
 	}
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionUpdateAcceptedEvent(protomock.Eq(event)).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionUpdateAcceptedEvent(protomock.Eq(event)).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.NoError(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.NoError(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionUpdateCompleted() {
+func TestApplyEvents_EventTypeWorkflowExecutionUpdateCompleted(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -2112,16 +2209,18 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionUpdateComp
 			WorkflowExecutionUpdateCompletedEventAttributes: &historypb.WorkflowExecutionUpdateCompletedEventAttributes{},
 		},
 	}
-	s.mockMutableState.EXPECT().ApplyWorkflowExecutionUpdateCompletedEvent(protomock.Eq(event), event.EventId).Return(nil)
-	s.mockUpdateVersion(event)
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	deps.mockMutableState.EXPECT().ApplyWorkflowExecutionUpdateCompletedEvent(protomock.Eq(event), event.EventId).Return(nil)
+	mockUpdateVersion(deps, event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.NoError(err)
-	s.Equal(event.TaskId, s.executionInfo.LastRunningClock)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.NoError(t, err)
+	require.Equal(t, event.TaskId, deps.executionInfo.LastRunningClock)
 }
 
-func (s *stateBuilderSuite) TestApplyEvents_HSMRegistry() {
+func TestApplyEvents_HSMRegistry(t *testing.T) {
+	deps := setupStateBuilderTest(t)
+
 	version := int64(1)
 	requestID := uuid.New()
 
@@ -2148,15 +2247,15 @@ func (s *stateBuilderSuite) TestApplyEvents_HSMRegistry() {
 			},
 		},
 	}
-	s.mockMutableState.EXPECT().ClearStickyTaskQueue()
-	s.mockUpdateVersion(event)
+	deps.mockMutableState.EXPECT().ClearStickyTaskQueue()
+	mockUpdateVersion(deps, event)
 
-	_, err := s.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, s.toHistory(event), nil, "")
-	s.NoError(err)
+	_, err := deps.stateRebuilder.ApplyEvents(context.Background(), tests.NamespaceID, requestID, execution, toHistory(event), nil, "")
+	require.NoError(t, err)
 	// Verify the event was applied.
-	sm, err := nexusoperations.MachineCollection(s.mockMutableState.HSM()).Data("5")
-	s.NoError(err)
-	s.Equal(enumsspb.NEXUS_OPERATION_STATE_SCHEDULED, sm.State())
+	sm, err := nexusoperations.MachineCollection(deps.mockMutableState.HSM()).Data("5")
+	require.NoError(t, err)
+	require.Equal(t, enumsspb.NEXUS_OPERATION_STATE_SCHEDULED, sm.State())
 }
 
 func (p *testTaskGeneratorProvider) NewTaskGenerator(

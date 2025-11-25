@@ -7,7 +7,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/server/api/adminservice/v1"
@@ -25,47 +24,36 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	historyAPISuite struct {
-		suite.Suite
-		*require.Assertions
+type historyAPITestFixture struct {
+	controller         *gomock.Controller
+	logger             log.Logger
+	mockExecutionMgr   *persistence.MockExecutionManager
+	mockVisibilityMgr  *manager.MockVisibilityManager
+	mockNamespaceCache *namespace.MockRegistry
+}
 
-		controller         *gomock.Controller
-		logger             log.Logger
-		mockExecutionMgr   *persistence.MockExecutionManager
-		mockVisibilityMgr  *manager.MockVisibilityManager
-		mockNamespaceCache *namespace.MockRegistry
+func setupHistoryAPITest(t *testing.T) *historyAPITestFixture {
+	controller := gomock.NewController(t)
+	logger := log.NewTestLogger()
+	mockExecutionMgr := persistence.NewMockExecutionManager(controller)
+	mockVisibilityMgr := manager.NewMockVisibilityManager(controller)
+	mockNamespaceCache := namespace.NewMockRegistry(controller)
+	mockNamespaceCache.EXPECT().GetNamespaceByID(tests.NamespaceID).Return(tests.LocalNamespaceEntry, nil).AnyTimes()
+	mockNamespaceCache.EXPECT().GetNamespace(tests.Namespace).Return(tests.LocalNamespaceEntry, nil).AnyTimes()
+
+	return &historyAPITestFixture{
+		controller:         controller,
+		logger:             logger,
+		mockExecutionMgr:   mockExecutionMgr,
+		mockVisibilityMgr:  mockVisibilityMgr,
+		mockNamespaceCache: mockNamespaceCache,
 	}
-)
-
-func TestHistoryAPISuite(t *testing.T) {
-	s := new(historyAPISuite)
-	suite.Run(t, s)
 }
 
-func (s *historyAPISuite) SetupSuite() {
+func TestDeleteWorkflowExecution_DeleteCurrentExecution(t *testing.T) {
+	f := setupHistoryAPITest(t)
+	defer f.controller.Finish()
 
-}
-
-func (s *historyAPISuite) TearDownSuite() {
-}
-
-func (s *historyAPISuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.controller = gomock.NewController(s.T())
-	s.logger = log.NewTestLogger()
-	s.mockExecutionMgr = persistence.NewMockExecutionManager(s.controller)
-	s.mockVisibilityMgr = manager.NewMockVisibilityManager(s.controller)
-	s.mockNamespaceCache = namespace.NewMockRegistry(s.controller)
-	s.mockNamespaceCache.EXPECT().GetNamespaceByID(tests.NamespaceID).Return(tests.LocalNamespaceEntry, nil).AnyTimes()
-	s.mockNamespaceCache.EXPECT().GetNamespace(tests.Namespace).Return(tests.LocalNamespaceEntry, nil).AnyTimes()
-}
-
-func (s *historyAPISuite) TearDownTest() {
-	s.controller.Finish()
-}
-func (s *historyAPISuite) TestDeleteWorkflowExecution_DeleteCurrentExecution() {
 	execution := commonpb.WorkflowExecution{
 		WorkflowId: "workflowID",
 	}
@@ -83,13 +71,13 @@ func (s *historyAPISuite) TestDeleteWorkflowExecution_DeleteCurrentExecution() {
 		},
 	}
 
-	s.mockNamespaceCache.EXPECT().GetNamespaceID(tests.Namespace).Return(tests.NamespaceID, nil).AnyTimes()
-	s.mockVisibilityMgr.EXPECT().DeleteWorkflowExecution(gomock.Any(), gomock.Any()).AnyTimes()
+	f.mockNamespaceCache.EXPECT().GetNamespaceID(tests.Namespace).Return(tests.NamespaceID, nil).AnyTimes()
+	f.mockVisibilityMgr.EXPECT().DeleteWorkflowExecution(gomock.Any(), gomock.Any()).AnyTimes()
 
-	s.mockExecutionMgr.EXPECT().GetCurrentExecution(gomock.Any(), gomock.Any()).Return(nil, errors.New("some random error"))
-	resp, err := forcedeleteworkflowexecution.Invoke(context.Background(), request, shardID, s.mockExecutionMgr, s.mockVisibilityMgr, s.logger)
-	s.Nil(resp)
-	s.Error(err)
+	f.mockExecutionMgr.EXPECT().GetCurrentExecution(gomock.Any(), gomock.Any()).Return(nil, errors.New("some random error"))
+	resp, err := forcedeleteworkflowexecution.Invoke(context.Background(), request, shardID, f.mockExecutionMgr, f.mockVisibilityMgr, f.logger)
+	require.Nil(t, resp)
+	require.Error(t, err)
 
 	mutableState := &persistencespb.WorkflowMutableState{
 		ExecutionInfo: &persistencespb.WorkflowExecutionInfo{
@@ -105,37 +93,40 @@ func (s *historyAPISuite) TestDeleteWorkflowExecution_DeleteCurrentExecution() {
 	}
 
 	runID := uuid.New()
-	s.mockExecutionMgr.EXPECT().GetCurrentExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetCurrentExecutionResponse{
+	f.mockExecutionMgr.EXPECT().GetCurrentExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetCurrentExecutionResponse{
 		StartRequestID: uuid.New(),
 		RunID:          runID,
 		State:          enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED,
 		Status:         enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
 	}, nil)
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), &persistence.GetWorkflowExecutionRequest{
+	f.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), &persistence.GetWorkflowExecutionRequest{
 		ShardID:     shardID,
 		NamespaceID: tests.NamespaceID.String(),
 		WorkflowID:  execution.WorkflowId,
 		RunID:       runID,
 	}).Return(&persistence.GetWorkflowExecutionResponse{State: mutableState}, nil)
-	s.mockExecutionMgr.EXPECT().DeleteCurrentWorkflowExecution(gomock.Any(), &persistence.DeleteCurrentWorkflowExecutionRequest{
+	f.mockExecutionMgr.EXPECT().DeleteCurrentWorkflowExecution(gomock.Any(), &persistence.DeleteCurrentWorkflowExecutionRequest{
 		ShardID:     shardID,
 		NamespaceID: tests.NamespaceID.String(),
 		WorkflowID:  execution.WorkflowId,
 		RunID:       runID,
 	}).Return(nil)
-	s.mockExecutionMgr.EXPECT().DeleteWorkflowExecution(gomock.Any(), &persistence.DeleteWorkflowExecutionRequest{
+	f.mockExecutionMgr.EXPECT().DeleteWorkflowExecution(gomock.Any(), &persistence.DeleteWorkflowExecutionRequest{
 		ShardID:     shardID,
 		NamespaceID: tests.NamespaceID.String(),
 		WorkflowID:  execution.WorkflowId,
 		RunID:       runID,
 	}).Return(nil)
-	s.mockExecutionMgr.EXPECT().DeleteHistoryBranch(gomock.Any(), gomock.Any()).Times(len(mutableState.ExecutionInfo.VersionHistories.Histories))
+	f.mockExecutionMgr.EXPECT().DeleteHistoryBranch(gomock.Any(), gomock.Any()).Times(len(mutableState.ExecutionInfo.VersionHistories.Histories))
 
-	_, err = forcedeleteworkflowexecution.Invoke(context.Background(), request, shardID, s.mockExecutionMgr, s.mockVisibilityMgr, s.logger)
-	s.NoError(err)
+	_, err = forcedeleteworkflowexecution.Invoke(context.Background(), request, shardID, f.mockExecutionMgr, f.mockVisibilityMgr, f.logger)
+	require.NoError(t, err)
 }
 
-func (s *historyAPISuite) TestDeleteWorkflowExecution_LoadMutableStateFailed() {
+func TestDeleteWorkflowExecution_LoadMutableStateFailed(t *testing.T) {
+	f := setupHistoryAPITest(t)
+	defer f.controller.Finish()
+
 	execution := commonpb.WorkflowExecution{
 		WorkflowId: "workflowID",
 		RunId:      uuid.New(),
@@ -154,13 +145,13 @@ func (s *historyAPISuite) TestDeleteWorkflowExecution_LoadMutableStateFailed() {
 		},
 	}
 
-	s.mockNamespaceCache.EXPECT().GetNamespaceID(tests.Namespace).Return(tests.NamespaceID, nil).AnyTimes()
-	s.mockVisibilityMgr.EXPECT().DeleteWorkflowExecution(gomock.Any(), gomock.Any()).AnyTimes()
+	f.mockNamespaceCache.EXPECT().GetNamespaceID(tests.Namespace).Return(tests.NamespaceID, nil).AnyTimes()
+	f.mockVisibilityMgr.EXPECT().DeleteWorkflowExecution(gomock.Any(), gomock.Any()).AnyTimes()
 
-	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, errors.New("some random error"))
-	s.mockExecutionMgr.EXPECT().DeleteCurrentWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil)
-	s.mockExecutionMgr.EXPECT().DeleteWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil)
+	f.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, errors.New("some random error"))
+	f.mockExecutionMgr.EXPECT().DeleteCurrentWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil)
+	f.mockExecutionMgr.EXPECT().DeleteWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil)
 
-	_, err := forcedeleteworkflowexecution.Invoke(context.Background(), request, shardID, s.mockExecutionMgr, s.mockVisibilityMgr, s.logger)
-	s.NoError(err)
+	_, err := forcedeleteworkflowexecution.Invoke(context.Background(), request, shardID, f.mockExecutionMgr, f.mockVisibilityMgr, f.logger)
+	require.NoError(t, err)
 }

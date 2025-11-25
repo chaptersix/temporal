@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	historypb "go.temporal.io/api/history/v1"
 	"go.temporal.io/api/serviceerror"
@@ -35,40 +34,97 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	executableHistoryTaskSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller              *gomock.Controller
-		clusterMetadata         *cluster.MockMetadata
-		clientBean              *client.MockBean
-		shardController         *shard.MockController
-		namespaceCache          *namespace.MockRegistry
-		metricsHandler          metrics.Handler
-		logger                  log.Logger
-		executableTask          *MockExecutableTask
-		eagerNamespaceRefresher *MockEagerNamespaceRefresher
-		eventSerializer         serialization.Serializer
-		mockExecutionManager    *persistence.MockExecutionManager
-		mockEventHandler        *eventhandler.MockHistoryEventsHandler
-
-		replicationTask   *replicationspb.HistoryTaskAttributes
-		sourceClusterName string
-		sourceShardKey    ClusterShardKey
-
-		taskID                     int64
-		task                       *ExecutableHistoryTask
-		events                     []*historypb.HistoryEvent
-		eventsBatches              [][]*historypb.HistoryEvent
-		eventsBlob                 *commonpb.DataBlob
-		eventsBlobs                []*commonpb.DataBlob
-		newRunEvents               []*historypb.HistoryEvent
-		newRunID                   string
-		processToolBox             ProcessToolBox
-		replicationMultipleBatches bool
+func setupExecutableHistoryTask(t *testing.T, replicationMultipleBatches bool) (*gomock.Controller, *cluster.MockMetadata, *client.MockBean, *shard.MockController, *namespace.MockRegistry, metrics.Handler, log.Logger, *MockExecutableTask, *MockEagerNamespaceRefresher, serialization.Serializer, *persistence.MockExecutionManager, *eventhandler.MockHistoryEventsHandler, *replicationspb.HistoryTaskAttributes, string, ClusterShardKey, int64, *ExecutableHistoryTask, []*historypb.HistoryEvent, [][]*historypb.HistoryEvent, *commonpb.DataBlob, []*commonpb.DataBlob, []*historypb.HistoryEvent, string, ProcessToolBox) {
+	controller := gomock.NewController(t)
+	clusterMetadata := cluster.NewMockMetadata(controller)
+	clientBean := client.NewMockBean(controller)
+	shardController := shard.NewMockController(controller)
+	namespaceCache := namespace.NewMockRegistry(controller)
+	metricsHandler := metrics.NoopMetricsHandler
+	logger := log.NewNoopLogger()
+	executableTask := NewMockExecutableTask(controller)
+	eagerNamespaceRefresher := NewMockEagerNamespaceRefresher(controller)
+	eventSerializer := serialization.NewSerializer()
+	mockExecutionManager := persistence.NewMockExecutionManager(controller)
+	mockEventHandler := eventhandler.NewMockHistoryEventsHandler(controller)
+	taskID := rand.Int63()
+	processToolBox := ProcessToolBox{
+		ClusterMetadata:         clusterMetadata,
+		ClientBean:              clientBean,
+		ShardController:         shardController,
+		NamespaceCache:          namespaceCache,
+		MetricsHandler:          metricsHandler,
+		Logger:                  logger,
+		EagerNamespaceRefresher: eagerNamespaceRefresher,
+		EventSerializer:         eventSerializer,
+		DLQWriter:               NewExecutionManagerDLQWriter(mockExecutionManager),
+		Config:                  tests.NewDynamicConfig(),
+		HistoryEventsHandler:    mockEventHandler,
 	}
-)
+	processToolBox.Config.ReplicationMultipleBatches = dynamicconfig.GetBoolPropertyFn(replicationMultipleBatches)
+
+	firstEventID := rand.Int63()
+	nextEventID := firstEventID + 1
+	version := rand.Int63()
+	eventsBlob, _ := eventSerializer.SerializeEvents([]*historypb.HistoryEvent{{
+		EventId: firstEventID,
+		Version: version,
+	}})
+	events, _ := eventSerializer.DeserializeEvents(eventsBlob)
+	eventsBatches := [][]*historypb.HistoryEvent{events}
+	newEventsBlob, _ := eventSerializer.SerializeEvents([]*historypb.HistoryEvent{{
+		EventId: 1,
+		Version: version,
+	}})
+	newRunEvents, _ := eventSerializer.DeserializeEvents(newEventsBlob)
+	newRunID := uuid.NewString()
+
+	var eventsBlobs []*commonpb.DataBlob
+	var eventsBlobSingle *commonpb.DataBlob
+	if processToolBox.Config.ReplicationMultipleBatches() {
+		eventsBlobs = []*commonpb.DataBlob{eventsBlob}
+	} else {
+		eventsBlobSingle = eventsBlob
+	}
+
+	replicationTask := &replicationspb.HistoryTaskAttributes{
+		NamespaceId:       uuid.NewString(),
+		WorkflowId:        uuid.NewString(),
+		RunId:             uuid.NewString(),
+		BaseExecutionInfo: &workflowspb.BaseExecutionInfo{},
+		VersionHistoryItems: []*historyspb.VersionHistoryItem{{
+			EventId: nextEventID - 1,
+			Version: version,
+		}},
+		Events:        eventsBlobSingle,
+		NewRunEvents:  newEventsBlob,
+		NewRunId:      newRunID,
+		EventsBatches: eventsBlobs,
+	}
+	sourceClusterName := cluster.TestCurrentClusterName
+	sourceShardKey := ClusterShardKey{
+		ClusterID: int32(cluster.TestCurrentClusterInitialFailoverVersion),
+		ShardID:   rand.Int31(),
+	}
+
+	task := NewExecutableHistoryTask(
+		processToolBox,
+		taskID,
+		time.Unix(0, rand.Int63()),
+		replicationTask,
+		sourceClusterName,
+		sourceShardKey,
+		&replicationspb.ReplicationTask{
+			Priority: enumsspb.TASK_PRIORITY_HIGH,
+		},
+	)
+	task.ExecutableTask = executableTask
+	executableTask.EXPECT().TaskID().Return(taskID).AnyTimes()
+	executableTask.EXPECT().SourceClusterName().Return(sourceClusterName).AnyTimes()
+	executableTask.EXPECT().GetPriority().Return(enumsspb.TASK_PRIORITY_HIGH).AnyTimes()
+
+	return controller, clusterMetadata, clientBean, shardController, namespaceCache, metricsHandler, logger, executableTask, eagerNamespaceRefresher, eventSerializer, mockExecutionManager, mockEventHandler, replicationTask, sourceClusterName, sourceShardKey, taskID, task, events, eventsBatches, eventsBlobSingle, eventsBlobs, newRunEvents, newRunID, processToolBox
+}
 
 func TestExecutableHistoryTaskSuite(t *testing.T) {
 	for _, tc := range []struct {
@@ -85,271 +141,199 @@ func TestExecutableHistoryTaskSuite(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := &executableHistoryTaskSuite{
-				replicationMultipleBatches: tc.replicationMultipleBatches,
-			}
-			suite.Run(t, s)
+			testExecutableHistoryTask(t, tc.replicationMultipleBatches)
 		})
 	}
 }
 
-func (s *executableHistoryTaskSuite) SetupSuite() {
-	s.Assertions = require.New(s.T())
-}
+func testExecutableHistoryTask(t *testing.T, replicationMultipleBatches bool) {
+	t.Run("Execute_Process", func(t *testing.T) {
+		controller, _, _, shardController, _, _, _, executableTask, _, _, _, mockEventHandler, _, sourceClusterName, _, _, task, _, eventsBatches, _, _, newRunEvents, newRunID, _ := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
 
-func (s *executableHistoryTaskSuite) TearDownSuite() {
-
-}
-
-func (s *executableHistoryTaskSuite) SetupTest() {
-	s.controller = gomock.NewController(s.T())
-	s.clusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.clientBean = client.NewMockBean(s.controller)
-	s.shardController = shard.NewMockController(s.controller)
-	s.namespaceCache = namespace.NewMockRegistry(s.controller)
-	s.metricsHandler = metrics.NoopMetricsHandler
-	s.logger = log.NewNoopLogger()
-	s.executableTask = NewMockExecutableTask(s.controller)
-	s.eagerNamespaceRefresher = NewMockEagerNamespaceRefresher(s.controller)
-	s.eventSerializer = serialization.NewSerializer()
-	s.mockExecutionManager = persistence.NewMockExecutionManager(s.controller)
-	s.mockEventHandler = eventhandler.NewMockHistoryEventsHandler(s.controller)
-	s.taskID = rand.Int63()
-	s.processToolBox = ProcessToolBox{
-		ClusterMetadata:         s.clusterMetadata,
-		ClientBean:              s.clientBean,
-		ShardController:         s.shardController,
-		NamespaceCache:          s.namespaceCache,
-		MetricsHandler:          s.metricsHandler,
-		Logger:                  s.logger,
-		EagerNamespaceRefresher: s.eagerNamespaceRefresher,
-		EventSerializer:         s.eventSerializer,
-		DLQWriter:               NewExecutionManagerDLQWriter(s.mockExecutionManager),
-		Config:                  tests.NewDynamicConfig(),
-		HistoryEventsHandler:    s.mockEventHandler,
-	}
-	s.processToolBox.Config.ReplicationMultipleBatches = dynamicconfig.GetBoolPropertyFn(s.replicationMultipleBatches)
-
-	firstEventID := rand.Int63()
-	nextEventID := firstEventID + 1
-	version := rand.Int63()
-	eventsBlob, _ := s.eventSerializer.SerializeEvents([]*historypb.HistoryEvent{{
-		EventId: firstEventID,
-		Version: version,
-	}})
-	s.events, _ = s.eventSerializer.DeserializeEvents(eventsBlob)
-	s.eventsBatches = [][]*historypb.HistoryEvent{s.events}
-	newEventsBlob, _ := s.eventSerializer.SerializeEvents([]*historypb.HistoryEvent{{
-		EventId: 1,
-		Version: version,
-	}})
-	s.newRunEvents, _ = s.eventSerializer.DeserializeEvents(newEventsBlob)
-	s.newRunID = uuid.NewString()
-
-	if s.processToolBox.Config.ReplicationMultipleBatches() {
-		s.eventsBlobs = []*commonpb.DataBlob{eventsBlob}
-	} else {
-		s.eventsBlob = eventsBlob
-	}
-
-	s.replicationTask = &replicationspb.HistoryTaskAttributes{
-		NamespaceId:       uuid.NewString(),
-		WorkflowId:        uuid.NewString(),
-		RunId:             uuid.NewString(),
-		BaseExecutionInfo: &workflowspb.BaseExecutionInfo{},
-		VersionHistoryItems: []*historyspb.VersionHistoryItem{{
-			EventId: nextEventID - 1,
-			Version: version,
-		}},
-		Events:        s.eventsBlob,
-		NewRunEvents:  newEventsBlob,
-		NewRunId:      s.newRunID,
-		EventsBatches: s.eventsBlobs,
-	}
-	s.sourceClusterName = cluster.TestCurrentClusterName
-	s.sourceShardKey = ClusterShardKey{
-		ClusterID: int32(cluster.TestCurrentClusterInitialFailoverVersion),
-		ShardID:   rand.Int31(),
-	}
-
-	s.task = NewExecutableHistoryTask(
-		s.processToolBox,
-		s.taskID,
-		time.Unix(0, rand.Int63()),
-		s.replicationTask,
-		s.sourceClusterName,
-		s.sourceShardKey,
-		&replicationspb.ReplicationTask{
-			Priority: enumsspb.TASK_PRIORITY_HIGH,
-		},
-	)
-	s.task.ExecutableTask = s.executableTask
-	s.executableTask.EXPECT().TaskID().Return(s.taskID).AnyTimes()
-	s.executableTask.EXPECT().SourceClusterName().Return(s.sourceClusterName).AnyTimes()
-	s.executableTask.EXPECT().GetPriority().Return(enumsspb.TASK_PRIORITY_HIGH).AnyTimes()
-}
-
-func (s *executableHistoryTaskSuite) TearDownTest() {
-	s.controller.Finish()
-}
-
-func (s *executableHistoryTaskSuite) TestExecute_Process() {
-	s.executableTask.EXPECT().TerminalState().Return(false)
-	s.executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), s.task.NamespaceID).Return(
+		executableTask.EXPECT().TerminalState().Return(false)
+		executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), task.NamespaceID).Return(
 		uuid.NewString(), true, nil,
 	).AnyTimes()
 
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
-		namespace.ID(s.task.NamespaceID),
-		s.task.WorkflowID,
+		shardContext := historyi.NewMockShardContext(controller)
+		engine := historyi.NewMockEngine(controller)
+		shardController.EXPECT().GetShardByNamespaceWorkflow(
+			namespace.ID(task.NamespaceID),
+			task.WorkflowID,
 	).Return(shardContext, nil).AnyTimes()
 	shardContext.EXPECT().GetEngine(gomock.Any()).Return(engine, nil).AnyTimes()
-	s.mockEventHandler.EXPECT().HandleHistoryEvents(
+		mockEventHandler.EXPECT().HandleHistoryEvents(
 		gomock.Any(),
-		s.sourceClusterName,
-		definition.NewWorkflowKey(s.task.NamespaceID, s.task.WorkflowID, s.task.RunID),
-		s.task.baseExecutionInfo,
-		s.task.versionHistoryItems,
-		s.eventsBatches,
-		s.newRunEvents,
-		s.newRunID,
+			sourceClusterName,
+			definition.NewWorkflowKey(task.NamespaceID, task.WorkflowID, task.RunID),
+			task.baseExecutionInfo,
+			task.versionHistoryItems,
+			eventsBatches,
+			newRunEvents,
+			newRunID,
 	).Return(nil).Times(1)
 
-	err := s.task.Execute()
-	s.NoError(err)
-}
+		err := task.Execute()
+		require.NoError(t, err)
+	})
 
-func (s *executableHistoryTaskSuite) TestExecute_Skip_TerminalState() {
-	s.executableTask.EXPECT().TerminalState().Return(true)
+	t.Run("Execute_Skip_TerminalState", func(t *testing.T) {
+		controller, _, _, _, _, _, _, executableTask, _, _, _, _, _, _, _, _, task, _, _, _, _, _, _, _ := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
 
-	err := s.task.Execute()
-	s.NoError(err)
-}
+		executableTask.EXPECT().TerminalState().Return(true)
 
-func (s *executableHistoryTaskSuite) TestExecute_Skip_Namespace() {
-	s.executableTask.EXPECT().TerminalState().Return(false)
-	s.executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), s.task.NamespaceID).Return(
+		err := task.Execute()
+		require.NoError(t, err)
+	})
+
+	t.Run("Execute_Skip_Namespace", func(t *testing.T) {
+		controller, _, _, _, _, _, _, executableTask, _, _, _, _, _, _, _, _, task, _, _, _, _, _, _, _ := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
+		executableTask.EXPECT().TerminalState().Return(false)
+		executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), task.NamespaceID).Return(
 		uuid.NewString(), false, nil,
 	).AnyTimes()
 
-	err := s.task.Execute()
-	s.NoError(err)
-}
+		err := task.Execute()
+		require.NoError(t, err)
+	})
 
-func (s *executableHistoryTaskSuite) TestExecute_Err() {
-	s.executableTask.EXPECT().TerminalState().Return(false)
+	t.Run("Execute_Err", func(t *testing.T) {
+		controller, _, _, _, _, _, _, executableTask, _, _, _, _, _, _, _, _, task, _, _, _, _, _, _, _ := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
+		executableTask.EXPECT().TerminalState().Return(false)
 	err := errors.New("OwO")
-	s.executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), s.task.NamespaceID).Return(
+		executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), task.NamespaceID).Return(
 		"", false, err,
 	).AnyTimes()
 
-	s.Equal(err, s.task.Execute())
-}
+		require.Equal(t, err, task.Execute())
+	})
 
-func (s *executableHistoryTaskSuite) TestHandleErr_Resend_Success() {
-	s.executableTask.EXPECT().TerminalState().Return(false)
-	s.executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), s.task.NamespaceID).Return(
+	t.Run("HandleErr_Resend_Success", func(t *testing.T) {
+		controller, _, _, shardController, _, _, _, executableTask, _, _, _, mockEventHandler, _, sourceClusterName, _, _, task, _, eventsBatches, _, _, newRunEvents, newRunID, _ := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
+		executableTask.EXPECT().TerminalState().Return(false)
+		executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), task.NamespaceID).Return(
 		uuid.NewString(), true, nil,
 	).AnyTimes()
-	shardContext := historyi.NewMockShardContext(s.controller)
-	engine := historyi.NewMockEngine(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
-		namespace.ID(s.task.NamespaceID),
-		s.task.WorkflowID,
+		shardContext := historyi.NewMockShardContext(controller)
+		engine := historyi.NewMockEngine(controller)
+		shardController.EXPECT().GetShardByNamespaceWorkflow(
+			namespace.ID(task.NamespaceID),
+			task.WorkflowID,
 	).Return(shardContext, nil).AnyTimes()
 	shardContext.EXPECT().GetEngine(gomock.Any()).Return(engine, nil).AnyTimes()
-	s.mockEventHandler.EXPECT().HandleHistoryEvents(
+		mockEventHandler.EXPECT().HandleHistoryEvents(
 		gomock.Any(),
-		s.sourceClusterName,
-		definition.NewWorkflowKey(s.task.NamespaceID, s.task.WorkflowID, s.task.RunID),
-		s.task.baseExecutionInfo,
-		s.task.versionHistoryItems,
-		s.eventsBatches,
-		s.newRunEvents,
-		s.newRunID,
+			sourceClusterName,
+			definition.NewWorkflowKey(task.NamespaceID, task.WorkflowID, task.RunID),
+			task.baseExecutionInfo,
+			task.versionHistoryItems,
+			eventsBatches,
+			newRunEvents,
+			newRunID,
 	).Return(nil)
 
 	err := serviceerrors.NewRetryReplication(
 		"",
-		s.task.NamespaceID,
-		s.task.WorkflowID,
-		s.task.RunID,
+			task.NamespaceID,
+			task.WorkflowID,
+			task.RunID,
 		rand.Int63(),
 		rand.Int63(),
 		rand.Int63(),
 		rand.Int63(),
 	)
-	s.executableTask.EXPECT().Resend(gomock.Any(), s.sourceClusterName, err, ResendAttempt).Return(true, nil)
+		executableTask.EXPECT().Resend(gomock.Any(), sourceClusterName, err, ResendAttempt).Return(true, nil)
 
-	s.NoError(s.task.HandleErr(err))
-}
+		require.NoError(t, task.HandleErr(err))
+	})
 
-func (s *executableHistoryTaskSuite) TestHandleErr_Resend_Error() {
-	s.executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), s.task.NamespaceID).Return(
+	t.Run("HandleErr_Resend_Error", func(t *testing.T) {
+		controller, _, _, _, _, _, _, executableTask, _, _, _, _, _, sourceClusterName, _, _, task, _, _, _, _, _, _, _ := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
+		executableTask.EXPECT().GetNamespaceInfo(gomock.Any(), task.NamespaceID).Return(
 		uuid.NewString(), true, nil,
 	).AnyTimes()
 	err := serviceerrors.NewRetryReplication(
 		"",
-		s.task.NamespaceID,
-		s.task.WorkflowID,
-		s.task.RunID,
+			task.NamespaceID,
+			task.WorkflowID,
+			task.RunID,
 		rand.Int63(),
 		rand.Int63(),
 		rand.Int63(),
 		rand.Int63(),
 	)
-	s.executableTask.EXPECT().Resend(gomock.Any(), s.sourceClusterName, err, ResendAttempt).Return(false, errors.New("OwO"))
+		executableTask.EXPECT().Resend(gomock.Any(), sourceClusterName, err, ResendAttempt).Return(false, errors.New("OwO"))
 
-	s.Equal(err, s.task.HandleErr(err))
-}
+		require.Equal(t, err, task.HandleErr(err))
+	})
 
-func (s *executableHistoryTaskSuite) TestHandleErr_Other() {
+	t.Run("HandleErr_Other", func(t *testing.T) {
+		controller, _, _, _, _, _, _, executableTask, _, _, _, _, _, _, _, _, task, _, _, _, _, _, _, _ := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
 	err := errors.New("OwO")
-	s.Equal(err, s.task.HandleErr(err))
+		require.Equal(t, err, task.HandleErr(err))
 
 	err = serviceerror.NewNotFound("")
-	s.Equal(nil, s.task.HandleErr(err))
+		require.Nil(t, task.HandleErr(err))
 
 	err = consts.ErrDuplicate
-	s.executableTask.EXPECT().MarkTaskDuplicated().Times(1)
-	s.Equal(nil, s.task.HandleErr(err))
+		executableTask.EXPECT().MarkTaskDuplicated().Times(1)
+		require.Nil(t, task.HandleErr(err))
 
 	err = serviceerror.NewUnavailable("")
-	s.Equal(err, s.task.HandleErr(err))
-}
+		require.Equal(t, err, task.HandleErr(err))
+	})
 
-func (s *executableHistoryTaskSuite) TestMarkPoisonPill() {
+	t.Run("MarkPoisonPill", func(t *testing.T) {
+		controller, _, _, shardController, _, _, _, executableTask, _, _, _, _, replicationTaskAttr, _, _, taskID, task, _, _, _, _, _, _, _ := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
 	shardID := rand.Int31()
-	shardContext := historyi.NewMockShardContext(s.controller)
-	s.shardController.EXPECT().GetShardByNamespaceWorkflow(
-		namespace.ID(s.task.NamespaceID),
-		s.task.WorkflowID,
+		shardContext := historyi.NewMockShardContext(controller)
+		shardController.EXPECT().GetShardByNamespaceWorkflow(
+			namespace.ID(task.NamespaceID),
+			task.WorkflowID,
 	).Return(shardContext, nil).AnyTimes()
 	shardContext.EXPECT().GetShardID().Return(shardID).AnyTimes()
 
 	replicationTask := &replicationspb.ReplicationTask{
 		TaskType:     enumsspb.REPLICATION_TASK_TYPE_HISTORY_TASK,
-		SourceTaskId: s.taskID,
+			SourceTaskId: taskID,
 		Attributes: &replicationspb.ReplicationTask_HistoryTaskAttributes{
-			HistoryTaskAttributes: s.replicationTask,
+				HistoryTaskAttributes: replicationTaskAttr,
 		},
 		RawTaskInfo: nil,
 	}
-	s.executableTask.EXPECT().ReplicationTask().Return(replicationTask).AnyTimes()
-	s.executableTask.EXPECT().MarkPoisonPill().Times(1)
+		executableTask.EXPECT().ReplicationTask().Return(replicationTask).AnyTimes()
+		executableTask.EXPECT().MarkPoisonPill().Times(1)
 
-	err := s.task.MarkPoisonPill()
-	s.NoError(err)
-}
+		err := task.MarkPoisonPill()
+		require.NoError(t, err)
+	})
 
-func (s *executableHistoryTaskSuite) TestBatchWith_Success() {
-	s.generateTwoBatchableTasks()
-}
+	t.Run("BatchWith_Success", func(t *testing.T) {
+		controller, _, _, _, _, _, _, _, _, eventSerializer, _, _, _, sourceClusterName, sourceShardKey, _, _, _, _, _, _, _, _, processToolBox := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
 
-func (s *executableHistoryTaskSuite) TestBatchWith_EventNotConsecutive_BatchFailed() {
-	currentTask, incomingTask := s.generateTwoBatchableTasks()
+		generateTwoBatchableTasks(t, controller, eventSerializer, sourceClusterName, sourceShardKey, processToolBox)
+	})
+
+	t.Run("BatchWith_EventNotConsecutive_BatchFailed", func(t *testing.T) {
+		controller, _, _, _, _, _, _, _, _, eventSerializer, _, _, _, sourceClusterName, sourceShardKey, _, _, _, _, _, _, _, _, processToolBox := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
+		currentTask, incomingTask := generateTwoBatchableTasks(t, controller, eventSerializer, sourceClusterName, sourceShardKey, processToolBox)
 	currentTask.eventsDesResponse.events = [][]*historypb.HistoryEvent{
 		{
 			{
@@ -375,11 +359,14 @@ func (s *executableHistoryTaskSuite) TestBatchWith_EventNotConsecutive_BatchFail
 		},
 	}
 	_, success := currentTask.BatchWith(incomingTask)
-	s.False(success)
-}
+		require.False(t, success)
+	})
 
-func (s *executableHistoryTaskSuite) TestBatchWith_EventVersionNotMatch_BatchFailed() {
-	currentTask, incomingTask := s.generateTwoBatchableTasks()
+	t.Run("BatchWith_EventVersionNotMatch_BatchFailed", func(t *testing.T) {
+		controller, _, _, _, _, _, _, _, _, eventSerializer, _, _, _, sourceClusterName, sourceShardKey, _, _, _, _, _, _, _, _, processToolBox := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
+		currentTask, incomingTask := generateTwoBatchableTasks(t, controller, eventSerializer, sourceClusterName, sourceShardKey, processToolBox)
 	currentTask.eventsDesResponse.events = [][]*historypb.HistoryEvent{
 		{
 			{
@@ -405,11 +392,14 @@ func (s *executableHistoryTaskSuite) TestBatchWith_EventVersionNotMatch_BatchFai
 		},
 	}
 	_, success := currentTask.BatchWith(incomingTask)
-	s.False(success)
-}
+		require.False(t, success)
+	})
 
-func (s *executableHistoryTaskSuite) TestBatchWith_VersionHistoryDoesNotMatch_BatchFailed() {
-	currentTask, incomingTask := s.generateTwoBatchableTasks()
+	t.Run("BatchWith_VersionHistoryDoesNotMatch_BatchFailed", func(t *testing.T) {
+		controller, _, _, _, _, _, _, _, _, eventSerializer, _, _, _, sourceClusterName, sourceShardKey, _, _, _, _, _, _, _, _, processToolBox := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
+		currentTask, incomingTask := generateTwoBatchableTasks(t, controller, eventSerializer, sourceClusterName, sourceShardKey, processToolBox)
 	currentTask.versionHistoryItems = []*historyspb.VersionHistoryItem{
 		{
 			EventId: 108,
@@ -423,19 +413,25 @@ func (s *executableHistoryTaskSuite) TestBatchWith_VersionHistoryDoesNotMatch_Ba
 		},
 	}
 	_, success := currentTask.BatchWith(incomingTask)
-	s.False(success)
-}
+		require.False(t, success)
+	})
 
-func (s *executableHistoryTaskSuite) TestBatchWith_WorkflowKeyDoesNotMatch_BatchFailed() {
-	currentTask, incomingTask := s.generateTwoBatchableTasks()
+	t.Run("BatchWith_WorkflowKeyDoesNotMatch_BatchFailed", func(t *testing.T) {
+		controller, _, _, _, _, _, _, _, _, eventSerializer, _, _, _, sourceClusterName, sourceShardKey, _, _, _, _, _, _, _, _, processToolBox := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
+		currentTask, incomingTask := generateTwoBatchableTasks(t, controller, eventSerializer, sourceClusterName, sourceShardKey, processToolBox)
 	currentTask.WorkflowID = "1"
 	incomingTask.WorkflowID = "2"
 	_, success := currentTask.BatchWith(incomingTask)
-	s.False(success)
-}
+		require.False(t, success)
+	})
 
-func (s *executableHistoryTaskSuite) TestBatchWith_CurrentTaskHasNewRunEvents_BatchFailed() {
-	currentTask, incomingTask := s.generateTwoBatchableTasks()
+	t.Run("BatchWith_CurrentTaskHasNewRunEvents_BatchFailed", func(t *testing.T) {
+		controller, _, _, _, _, _, _, _, _, eventSerializer, _, _, _, sourceClusterName, sourceShardKey, _, _, _, _, _, _, _, _, processToolBox := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
+		currentTask, incomingTask := generateTwoBatchableTasks(t, controller, eventSerializer, sourceClusterName, sourceShardKey, processToolBox)
 	currentTask.eventsDesResponse.newRunEvents = []*historypb.HistoryEvent{
 		{
 			EventId: 104,
@@ -443,11 +439,14 @@ func (s *executableHistoryTaskSuite) TestBatchWith_CurrentTaskHasNewRunEvents_Ba
 		},
 	}
 	_, success := currentTask.BatchWith(incomingTask)
-	s.False(success)
-}
+		require.False(t, success)
+	})
 
-func (s *executableHistoryTaskSuite) TestBatchWith_IncomingTaskHasNewRunEvents_BatchSuccess() {
-	currentTask, incomingTask := s.generateTwoBatchableTasks()
+	t.Run("BatchWith_IncomingTaskHasNewRunEvents_BatchSuccess", func(t *testing.T) {
+		controller, _, _, _, _, _, _, _, _, eventSerializer, _, _, _, sourceClusterName, sourceShardKey, _, _, _, _, _, _, _, _, processToolBox := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
+		currentTask, incomingTask := generateTwoBatchableTasks(t, controller, eventSerializer, sourceClusterName, sourceShardKey, processToolBox)
 	incomingTask.newRunID = uuid.NewString()
 	incomingTask.eventsDesResponse.newRunEvents = []*historypb.HistoryEvent{
 		{
@@ -456,20 +455,24 @@ func (s *executableHistoryTaskSuite) TestBatchWith_IncomingTaskHasNewRunEvents_B
 		},
 	}
 	batchedTask, success := currentTask.BatchWith(incomingTask)
-	s.True(success)
-	s.Equal(incomingTask.newRunID, batchedTask.(*ExecutableHistoryTask).newRunID)
-}
+		require.True(t, success)
+		require.Equal(t, incomingTask.newRunID, batchedTask.(*ExecutableHistoryTask).newRunID)
+	})
 
-func (s *executableHistoryTaskSuite) TestNewExecutableHistoryTask() {
-	if s.processToolBox.Config.ReplicationMultipleBatches() {
-		s.Equal(s.eventsBlobs, s.task.eventsBlobs)
+	t.Run("NewExecutableHistoryTask", func(t *testing.T) {
+		controller, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, task, _, _, eventsBlobSingle, eventsBlobs, _, _, processToolBox := setupExecutableHistoryTask(t, replicationMultipleBatches)
+		defer controller.Finish()
+
+		if processToolBox.Config.ReplicationMultipleBatches() {
+			require.Equal(t, eventsBlobs, task.eventsBlobs)
 	} else {
-		s.Equal(len(s.task.eventsBlobs), 1)
-		s.Equal(s.eventsBlob, s.task.eventsBlobs[0])
+			require.Equal(t, 1, len(task.eventsBlobs))
+			require.Equal(t, eventsBlobSingle, task.eventsBlobs[0])
 	}
+	})
 }
 
-func (s *executableHistoryTaskSuite) generateTwoBatchableTasks() (*ExecutableHistoryTask, *ExecutableHistoryTask) {
+func generateTwoBatchableTasks(t *testing.T, controller *gomock.Controller, eventSerializer serialization.Serializer, sourceClusterName string, sourceShardKey ClusterShardKey, processToolBox ProcessToolBox) (*ExecutableHistoryTask, *ExecutableHistoryTask) {
 	currentEvent := [][]*historypb.HistoryEvent{
 		{
 			{
@@ -521,30 +524,36 @@ func (s *executableHistoryTaskSuite) generateTwoBatchableTasks() (*ExecutableHis
 	workflowKeyIncoming := definition.NewWorkflowKey(namespaceId, workflowId, runId)
 	sourceTaskId := int64(111)
 	incomingTaskId := int64(120)
-	currentTask := s.buildExecutableHistoryTask(currentEvent, nil, "", sourceTaskId, currentVersionHistoryItems, workflowKeyCurrent)
-	incomingTask := s.buildExecutableHistoryTask(incomingEvent, nil, "", incomingTaskId, incomingVersionHistoryItems, workflowKeyIncoming)
+	currentTask := buildExecutableHistoryTask(t, controller, eventSerializer, sourceClusterName, sourceShardKey, processToolBox, currentEvent, nil, "", sourceTaskId, currentVersionHistoryItems, workflowKeyCurrent)
+	incomingTask := buildExecutableHistoryTask(t, controller, eventSerializer, sourceClusterName, sourceShardKey, processToolBox, incomingEvent, nil, "", incomingTaskId, incomingVersionHistoryItems, workflowKeyIncoming)
 
 	resultTask, batched := currentTask.BatchWith(incomingTask)
 
 	// following assert are used for testing happy case, do not delete
-	s.True(batched)
+	require.True(t, batched)
 
 	resultHistoryTask, _ := resultTask.(*ExecutableHistoryTask)
-	s.NotNil(resultHistoryTask)
+	require.NotNil(t, resultHistoryTask)
 
-	s.Equal(sourceTaskId, resultHistoryTask.TaskID())
-	s.Equal(incomingVersionHistoryItems, resultHistoryTask.versionHistoryItems)
+	require.Equal(t, sourceTaskId, resultHistoryTask.TaskID())
+	require.Equal(t, incomingVersionHistoryItems, resultHistoryTask.versionHistoryItems)
 	expectedBatchedEvents := append(currentEvent, incomingEvent...)
 
-	s.Equal(len(resultHistoryTask.eventsDesResponse.events), len(expectedBatchedEvents))
+	require.Equal(t, len(resultHistoryTask.eventsDesResponse.events), len(expectedBatchedEvents))
 	for i := range expectedBatchedEvents {
-		protorequire.ProtoSliceEqual(s.T(), expectedBatchedEvents[i], resultHistoryTask.eventsDesResponse.events[i])
+		protorequire.ProtoSliceEqual(t, expectedBatchedEvents[i], resultHistoryTask.eventsDesResponse.events[i])
 	}
-	s.Nil(resultHistoryTask.eventsDesResponse.newRunEvents)
+	require.Nil(t, resultHistoryTask.eventsDesResponse.newRunEvents)
 	return currentTask, incomingTask
 }
 
-func (s *executableHistoryTaskSuite) buildExecutableHistoryTask(
+func buildExecutableHistoryTask(
+	t *testing.T,
+	controller *gomock.Controller,
+	eventSerializer serialization.Serializer,
+	sourceClusterName string,
+	sourceShardKey ClusterShardKey,
+	processToolBox ProcessToolBox,
 	events [][]*historypb.HistoryEvent,
 	newRunEvents []*historypb.HistoryEvent,
 	newRunID string,
@@ -552,8 +561,8 @@ func (s *executableHistoryTaskSuite) buildExecutableHistoryTask(
 	versionHistoryItems []*historyspb.VersionHistoryItem,
 	workflowKey definition.WorkflowKey,
 ) *ExecutableHistoryTask {
-	eventsBlob, _ := s.eventSerializer.SerializeEvents(events[0])
-	newRunEventsBlob, _ := s.eventSerializer.SerializeEvents(newRunEvents)
+	eventsBlob, _ := eventSerializer.SerializeEvents(events[0])
+	newRunEventsBlob, _ := eventSerializer.SerializeEvents(newRunEvents)
 	replicationTaskAttribute := &replicationspb.HistoryTaskAttributes{
 		WorkflowId:          workflowKey.WorkflowID,
 		NamespaceId:         workflowKey.NamespaceID,
@@ -564,16 +573,16 @@ func (s *executableHistoryTaskSuite) buildExecutableHistoryTask(
 		NewRunEvents:        newRunEventsBlob,
 		NewRunId:            newRunID,
 	}
-	executableTask := NewMockExecutableTask(s.controller)
+	executableTask := NewMockExecutableTask(controller)
 	executableTask.EXPECT().TaskID().Return(taskId).AnyTimes()
-	executableTask.EXPECT().SourceClusterName().Return(s.sourceClusterName).AnyTimes()
+	executableTask.EXPECT().SourceClusterName().Return(sourceClusterName).AnyTimes()
 	executableHistoryTask := NewExecutableHistoryTask(
-		s.processToolBox,
+		processToolBox,
 		taskId,
 		time.Unix(0, rand.Int63()),
 		replicationTaskAttribute,
-		s.sourceClusterName,
-		s.sourceShardKey,
+		sourceClusterName,
+		sourceShardKey,
 		&replicationspb.ReplicationTask{
 			Priority: enumsspb.TASK_PRIORITY_HIGH,
 		},

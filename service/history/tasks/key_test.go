@@ -8,77 +8,48 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
-type (
-	taskKeySuite struct {
-		suite.Suite
-		*require.Assertions
-	}
-)
-
-func TestTaskKeySuite(t *testing.T) {
-	s := new(taskKeySuite)
-	suite.Run(t, s)
-}
-
-func (s *taskKeySuite) SetupSuite() {
-
-}
-
-func (s *taskKeySuite) TearDownSuite() {
-
-}
-
-func (s *taskKeySuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-}
-
-func (s *taskKeySuite) TearDownTest() {
-
-}
-
-func (s *taskKeySuite) TestValidateKey_Valid() {
-	s.NoError(ValidateKey(Key{
+func TestValidateKey_Valid(t *testing.T) {
+	require.NoError(t, ValidateKey(Key{
 		FireTime: time.Unix(0, 0),
 		TaskID:   0,
 	}))
-	s.NoError(ValidateKey(Key{
+	require.NoError(t, ValidateKey(Key{
 		FireTime: time.Unix(0, math.MaxInt64),
 		TaskID:   math.MaxInt64,
 	}))
-	s.NoError(ValidateKey(Key{
+	require.NoError(t, ValidateKey(Key{
 		FireTime: time.Unix(0, rand.Int63()),
 		TaskID:   rand.Int63(),
 	}))
 }
 
-func (s *taskKeySuite) TestValidateKey_Invalid() {
-	s.Error(ValidateKey(Key{
+func TestValidateKey_Invalid(t *testing.T) {
+	require.Error(t, ValidateKey(Key{
 		FireTime: time.Time{},
 		TaskID:   0,
 	}))
-	s.Error(ValidateKey(Key{
+	require.Error(t, ValidateKey(Key{
 		FireTime: time.Now(),
 		TaskID:   -1,
 	}))
 }
 
-func (s *taskKeySuite) TestMinMaxKey() {
+func TestMinMaxKey(t *testing.T) {
 	thisKey := NewKey(time.Unix(0, rand.Int63()), rand.Int63())
 	thatKey := NewKey(time.Unix(0, rand.Int63()), rand.Int63())
 
 	minKey := MinKey(thisKey, thatKey)
-	s.True(minKey.CompareTo(thisKey) <= 0)
-	s.True(minKey.CompareTo(thatKey) <= 0)
+	require.True(t, minKey.CompareTo(thisKey) <= 0)
+	require.True(t, minKey.CompareTo(thatKey) <= 0)
 
 	maxKey := MaxKey(thisKey, thatKey)
-	s.True(maxKey.CompareTo(thisKey) >= 0)
-	s.True(maxKey.CompareTo(thisKey) >= 0)
+	require.True(t, maxKey.CompareTo(thisKey) >= 0)
+	require.True(t, maxKey.CompareTo(thisKey) >= 0)
 }
 
-func (s *taskKeySuite) TestSort() {
+func TestSort(t *testing.T) {
 	numInstant := 256
 	numTaskPerInstant := 16
 
@@ -98,45 +69,45 @@ func (s *taskKeySuite) TestSort() {
 		if prev.FireTime.Before(next.FireTime) {
 			// noop
 		} else if prev.FireTime.Equal(next.FireTime) {
-			s.True(prev.TaskID <= next.TaskID)
+			require.True(t, prev.TaskID <= next.TaskID)
 		} else {
-			s.Fail("task keys are not sorted prev: %v, next: %v", prev, next)
+			t.Fatalf("task keys are not sorted prev: %v, next: %v", prev, next)
 		}
 	}
 }
 
-func (s *taskKeySuite) TestPrev() {
-	s.Equal(NewKey(time.Unix(0, 1), 0), NewKey(time.Unix(0, 1), 1).Prev())
-	s.Equal(NewKey(time.Unix(0, 0), math.MaxInt64), NewKey(time.Unix(0, 1), 0).Prev())
-	s.Equal(NewKey(time.Unix(0, 0), math.MaxInt64-1), NewKey(time.Unix(0, 0), math.MaxInt64).Prev())
+func TestPrev(t *testing.T) {
+	require.Equal(t, NewKey(time.Unix(0, 1), 0), NewKey(time.Unix(0, 1), 1).Prev())
+	require.Equal(t, NewKey(time.Unix(0, 0), math.MaxInt64), NewKey(time.Unix(0, 1), 0).Prev())
+	require.Equal(t, NewKey(time.Unix(0, 0), math.MaxInt64-1), NewKey(time.Unix(0, 0), math.MaxInt64).Prev())
 
-	s.Equal(NewKey(time.Unix(0, math.MaxInt64), 0), NewKey(time.Unix(0, math.MaxInt64), 1).Prev())
-	s.Equal(NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64), NewKey(time.Unix(0, math.MaxInt64), 0).Prev())
-	s.Equal(NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64-1), NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64).Prev())
+	require.Equal(t, NewKey(time.Unix(0, math.MaxInt64), 0), NewKey(time.Unix(0, math.MaxInt64), 1).Prev())
+	require.Equal(t, NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64), NewKey(time.Unix(0, math.MaxInt64), 0).Prev())
+	require.Equal(t, NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64-1), NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64).Prev())
 }
 
-func (s *taskKeySuite) TestNext() {
-	s.Equal(NewKey(time.Unix(0, 0), math.MaxInt64), NewKey(time.Unix(0, 0), math.MaxInt64-1).Next())
-	s.Equal(NewKey(time.Unix(0, 1), 0), NewKey(time.Unix(0, 0), math.MaxInt64).Next())
-	s.Equal(NewKey(time.Unix(0, 1), 1), NewKey(time.Unix(0, 1), 0).Next())
+func TestNext(t *testing.T) {
+	require.Equal(t, NewKey(time.Unix(0, 0), math.MaxInt64), NewKey(time.Unix(0, 0), math.MaxInt64-1).Next())
+	require.Equal(t, NewKey(time.Unix(0, 1), 0), NewKey(time.Unix(0, 0), math.MaxInt64).Next())
+	require.Equal(t, NewKey(time.Unix(0, 1), 1), NewKey(time.Unix(0, 1), 0).Next())
 
-	s.Equal(NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64), NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64-1).Next())
-	s.Equal(NewKey(time.Unix(0, math.MaxInt64), 0), NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64).Next())
-	s.Equal(NewKey(time.Unix(0, math.MaxInt64), 1), NewKey(time.Unix(0, math.MaxInt64), 0).Next())
+	require.Equal(t, NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64), NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64-1).Next())
+	require.Equal(t, NewKey(time.Unix(0, math.MaxInt64), 0), NewKey(time.Unix(0, math.MaxInt64-1), math.MaxInt64).Next())
+	require.Equal(t, NewKey(time.Unix(0, math.MaxInt64), 1), NewKey(time.Unix(0, math.MaxInt64), 0).Next())
 }
 
-func (s *taskKeySuite) TestSub() {
-	s.Equal(
+func TestSub(t *testing.T) {
+	require.Equal(t,
 		NewKey(time.Unix(0, math.MaxInt64).UTC(), 1),
 		MaximumKey.Sub(NewKey(time.Unix(0, 0).UTC(), math.MaxInt64-1)),
 	)
 
-	s.Equal(
+	require.Equal(t,
 		NewKey(time.Unix(0, math.MaxInt64).UTC(), 0),
 		MaximumKey.Sub(NewKey(time.Unix(0, 0).UTC(), math.MaxInt64)),
 	)
 
-	s.Equal(
+	require.Equal(t,
 		NewKey(time.Unix(0, 0).UTC(), 1),
 		NewKey(time.Unix(0, math.MaxInt64).UTC(), 1).Sub(NewKey(time.Unix(0, math.MaxInt64), 0)),
 	)

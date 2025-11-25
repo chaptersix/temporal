@@ -5,59 +5,38 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/service/history/tasks"
 	"go.temporal.io/server/service/history/tests"
 )
 
-type (
-	taskKeyManagerSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		rangeID       int64
-		rangeSizeBits uint
-		initialTaskID int64
-
-		mockTimeSource *clock.EventTimeSource
-
-		manager *taskKeyManager
-	}
-)
-
-func TestTaskKeyManagerSuite(t *testing.T) {
-	s := &taskKeyManagerSuite{}
-	suite.Run(t, s)
-}
-
-func (s *taskKeyManagerSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-
-	s.rangeID = 1
-	s.rangeSizeBits = 3 // 1 << 3 = 8 tasks per range
-	s.initialTaskID = s.rangeID << int64(s.rangeSizeBits)
+func setupTaskKeyManager(t *testing.T) (*taskKeyManager, *clock.EventTimeSource, *int64) {
+	rangeID := int64(1)
+	rangeSizeBits := uint(3) // 1 << 3 = 8 tasks per range
 	config := tests.NewDynamicConfig()
-	config.RangeSizeBits = s.rangeSizeBits
-	s.mockTimeSource = clock.NewEventTimeSource()
+	config.RangeSizeBits = rangeSizeBits
+	mockTimeSource := clock.NewEventTimeSource()
 
-	s.manager = newTaskKeyManager(
+	var manager *taskKeyManager
+	manager = newTaskKeyManager(
 		tasks.NewDefaultTaskCategoryRegistry(),
-		s.mockTimeSource,
+		mockTimeSource,
 		config,
 		log.NewTestLogger(),
 		func() error {
-			s.rangeID++
-			s.manager.setRangeID(s.rangeID)
+			rangeID++
+			manager.setRangeID(rangeID)
 			return nil
 		},
 	)
-	s.manager.setRangeID(s.rangeID)
-	s.manager.setTaskMinScheduledTime(time.Now().Add(-time.Second))
+	manager.setRangeID(rangeID)
+	manager.setTaskMinScheduledTime(time.Now().Add(-time.Second))
+	return manager, mockTimeSource, &rangeID
 }
 
-func (s *taskKeyManagerSuite) TestSetAndTrackTaskKeys() {
+func TestSetAndTrackTaskKeys(t *testing.T) {
+	manager, _, rangeID := setupTaskKeyManager(t)
 	now := time.Now()
 
 	// this tests is just for making sure task keys are set and tracked
@@ -77,31 +56,35 @@ func (s *taskKeyManagerSuite) TestSetAndTrackTaskKeys() {
 	}
 	// assert that task keys are not set
 	for _, transferTask := range transferTasks {
-		s.Zero(transferTask.GetKey().TaskID)
+		require.Zero(t, transferTask.GetKey().TaskID)
 	}
 
-	completionFn, err := s.manager.setAndTrackTaskKeys(map[tasks.Category][]tasks.Task{
+	initialTaskID := *rangeID << 3
+	completionFn, err := manager.setAndTrackTaskKeys(map[tasks.Category][]tasks.Task{
 		tasks.CategoryTransfer: transferTasks,
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
 	// assert that task keys are set after calling setAndTrackTaskKeys
 	for _, transferTask := range transferTasks {
-		s.NotZero(transferTask.GetKey().TaskID)
+		require.NotZero(t, transferTask.GetKey().TaskID)
 	}
 
 	// assert that task keys are tracked
-	highReaderWatermark := s.manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer)
-	s.Equal(s.initialTaskID, highReaderWatermark.TaskID)
+	highReaderWatermark := manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer)
+	require.Equal(t, initialTaskID, highReaderWatermark.TaskID)
 
 	// assert that pending task keys are cleared after calling completionFn
 	completionFn(nil)
-	highReaderWatermark = s.manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer)
-	s.Equal(s.initialTaskID+int64(numTask), highReaderWatermark.TaskID)
+	highReaderWatermark = manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer)
+	require.Equal(t, initialTaskID+int64(numTask), highReaderWatermark.TaskID)
 }
 
-func (s *taskKeyManagerSuite) TestSetRangeID() {
-	_, err := s.manager.setAndTrackTaskKeys(map[tasks.Category][]tasks.Task{
+func TestSetRangeID(t *testing.T) {
+	manager, _, rangeID := setupTaskKeyManager(t)
+	initialTaskID := *rangeID << 3
+
+	_, err := manager.setAndTrackTaskKeys(map[tasks.Category][]tasks.Task{
 		tasks.CategoryTransfer: {
 			tasks.NewFakeTask(
 				tests.WorkflowKey,
@@ -110,46 +93,51 @@ func (s *taskKeyManagerSuite) TestSetRangeID() {
 			),
 		},
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
-	s.Equal(
-		s.initialTaskID,
-		s.manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer).TaskID,
+	require.Equal(t,
+		initialTaskID,
+		manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer).TaskID,
 	)
 
-	s.rangeID++
-	s.manager.setRangeID(s.rangeID)
+	*rangeID++
+	manager.setRangeID(*rangeID)
 
-	expectedNextTaskID := s.rangeID << int64(s.rangeSizeBits)
-	s.Equal(
+	expectedNextTaskID := *rangeID << 3
+	require.Equal(t,
 		expectedNextTaskID,
-		s.manager.peekTaskKey(tasks.CategoryTransfer).TaskID,
+		manager.peekTaskKey(tasks.CategoryTransfer).TaskID,
 	)
 
 	// setRangeID should also clear pending task requests
-	s.Equal(
+	require.Equal(t,
 		expectedNextTaskID,
-		s.manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer).TaskID,
+		manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer).TaskID,
 	)
 }
 
-func (s *taskKeyManagerSuite) TestGetExclusiveReaderHighWatermark_NoPendingTask() {
-	highReaderWatermark := s.manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer)
-	s.Zero(tasks.NewImmediateKey(s.initialTaskID).CompareTo(highReaderWatermark))
+func TestGetExclusiveReaderHighWatermark_NoPendingTask(t *testing.T) {
+	manager, mockTimeSource, rangeID := setupTaskKeyManager(t)
+	initialTaskID := *rangeID << 3
+
+	highReaderWatermark := manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer)
+	require.Zero(t, tasks.NewImmediateKey(initialTaskID).CompareTo(highReaderWatermark))
 
 	now := time.Now()
-	s.mockTimeSource.Update(now)
+	mockTimeSource.Update(now)
 
-	highReaderWatermark = s.manager.getExclusiveReaderHighWatermark(tasks.CategoryTimer)
+	highReaderWatermark = manager.getExclusiveReaderHighWatermark(tasks.CategoryTimer)
 	// for scheduled category type, we only need to make sure TaskID is 0 and FireTime is moved forwarded
-	s.Zero(highReaderWatermark.TaskID)
-	s.True(highReaderWatermark.FireTime.After(now))
-	s.False(highReaderWatermark.FireTime.After(now.Add(s.manager.config.TimerProcessorMaxTimeShift())))
+	require.Zero(t, highReaderWatermark.TaskID)
+	require.True(t, highReaderWatermark.FireTime.After(now))
+	require.False(t, highReaderWatermark.FireTime.After(now.Add(manager.config.TimerProcessorMaxTimeShift())))
 }
 
-func (s *taskKeyManagerSuite) TestGetExclusiveReaderHighWatermark_WithPendingTask() {
+func TestGetExclusiveReaderHighWatermark_WithPendingTask(t *testing.T) {
+	manager, mockTimeSource, rangeID := setupTaskKeyManager(t)
+	initialTaskID := *rangeID << 3
 	now := time.Now()
-	s.mockTimeSource.Update(now)
+	mockTimeSource.Update(now)
 
 	transferTask := tasks.NewFakeTask(
 		tests.WorkflowKey,
@@ -163,18 +151,18 @@ func (s *taskKeyManagerSuite) TestGetExclusiveReaderHighWatermark_WithPendingTas
 	)
 
 	// make two calls here, otherwise the order for assgining task keys is not guaranteed
-	_, err := s.manager.setAndTrackTaskKeys(map[tasks.Category][]tasks.Task{
+	_, err := manager.setAndTrackTaskKeys(map[tasks.Category][]tasks.Task{
 		tasks.CategoryTransfer: {transferTask},
 	})
-	s.NoError(err)
-	_, err = s.manager.setAndTrackTaskKeys(map[tasks.Category][]tasks.Task{
+	require.NoError(t, err)
+	_, err = manager.setAndTrackTaskKeys(map[tasks.Category][]tasks.Task{
 		tasks.CategoryTimer: {timerTask},
 	})
-	s.NoError(err)
+	require.NoError(t, err)
 
-	highReaderWatermark := s.manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer)
-	s.Zero(tasks.NewImmediateKey(s.initialTaskID).CompareTo(highReaderWatermark))
+	highReaderWatermark := manager.getExclusiveReaderHighWatermark(tasks.CategoryTransfer)
+	require.Zero(t, tasks.NewImmediateKey(initialTaskID).CompareTo(highReaderWatermark))
 
-	highReaderWatermark = s.manager.getExclusiveReaderHighWatermark(tasks.CategoryTimer)
-	s.Zero(tasks.NewKey(timerTask.GetVisibilityTime(), 0).CompareTo(highReaderWatermark))
+	highReaderWatermark = manager.getExclusiveReaderHighWatermark(tasks.CategoryTimer)
+	require.Zero(t, tasks.NewKey(timerTask.GetVisibilityTime(), 0).CompareTo(highReaderWatermark))
 }

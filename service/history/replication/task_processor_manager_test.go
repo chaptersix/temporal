@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	enumsspb "go.temporal.io/server/api/enums/v1"
 	"go.temporal.io/server/api/historyservicemock/v1"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
@@ -26,95 +25,91 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	taskProcessorManagerSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller                        *gomock.Controller
-		mockShard                         *historyi.MockShardContext
-		mockEngine                        *historyi.MockEngine
-		mockClientBean                    *client.MockBean
-		mockClusterMetadata               *cluster.MockMetadata
-		mockHistoryClient                 *historyservicemock.MockHistoryServiceClient
-		mockReplicationTaskExecutor       *MockTaskExecutor
-		mockReplicationTaskFetcherFactory *MockTaskFetcherFactory
-
-		mockExecutionManager *persistence.MockExecutionManager
-
-		shardID     int32
-		shardOwner  string
-		config      *configs.Config
-		requestChan chan *replicationTaskRequest
-
-		taskProcessorManager *taskProcessorManagerImpl
-	}
-)
-
-func TestTaskProcessorManagerSuite(t *testing.T) {
-	s := new(taskProcessorManagerSuite)
-	suite.Run(t, s)
+type taskProcessorManagerTestDeps struct {
+	controller                        *gomock.Controller
+	mockShard                         *historyi.MockShardContext
+	mockEngine                        *historyi.MockEngine
+	mockClientBean                    *client.MockBean
+	mockClusterMetadata               *cluster.MockMetadata
+	mockHistoryClient                 *historyservicemock.MockHistoryServiceClient
+	mockReplicationTaskExecutor       *MockTaskExecutor
+	mockReplicationTaskFetcherFactory *MockTaskFetcherFactory
+	mockExecutionManager              *persistence.MockExecutionManager
+	shardID                           int32
+	shardOwner                        string
+	config                            *configs.Config
+	requestChan                       chan *replicationTaskRequest
+	taskProcessorManager              *taskProcessorManagerImpl
 }
 
-func (s *taskProcessorManagerSuite) SetupSuite() {
-}
+func setupTaskProcessorManagerTest(t *testing.T) *taskProcessorManagerTestDeps {
+	controller := gomock.NewController(t)
 
-func (s *taskProcessorManagerSuite) TearDownSuite() {
-}
+	config := tests.NewDynamicConfig()
+	requestChan := make(chan *replicationTaskRequest, 10)
 
-func (s *taskProcessorManagerSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
-	s.controller = gomock.NewController(s.T())
+	shardID := rand.Int31()
+	shardOwner := "test-shard-owner"
+	mockShard := historyi.NewMockShardContext(controller)
+	mockEngine := historyi.NewMockEngine(controller)
+	mockClientBean := client.NewMockBean(controller)
 
-	s.config = tests.NewDynamicConfig()
-	s.requestChan = make(chan *replicationTaskRequest, 10)
-
-	s.shardID = rand.Int31()
-	s.shardOwner = "test-shard-owner"
-	s.mockShard = historyi.NewMockShardContext(s.controller)
-	s.mockEngine = historyi.NewMockEngine(s.controller)
-	s.mockClientBean = client.NewMockBean(s.controller)
-
-	s.mockReplicationTaskExecutor = NewMockTaskExecutor(s.controller)
-	s.mockHistoryClient = historyservicemock.NewMockHistoryServiceClient(s.controller)
-	s.mockReplicationTaskFetcherFactory = NewMockTaskFetcherFactory(s.controller)
+	mockReplicationTaskExecutor := NewMockTaskExecutor(controller)
+	mockHistoryClient := historyservicemock.NewMockHistoryServiceClient(controller)
+	mockReplicationTaskFetcherFactory := NewMockTaskFetcherFactory(controller)
 	serializer := serialization.NewSerializer()
-	s.mockClusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.mockClientBean.EXPECT().GetHistoryClient().Return(s.mockHistoryClient).AnyTimes()
-	s.mockShard.EXPECT().GetClusterMetadata().Return(s.mockClusterMetadata).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockClusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
-	s.mockShard.EXPECT().GetHistoryClient().Return(nil).AnyTimes()
-	s.mockShard.EXPECT().GetNamespaceRegistry().Return(namespace.NewMockRegistry(s.controller)).AnyTimes()
-	s.mockShard.EXPECT().GetConfig().Return(s.config).AnyTimes()
-	s.mockShard.EXPECT().GetLogger().Return(log.NewNoopLogger()).AnyTimes()
-	s.mockShard.EXPECT().GetMetricsHandler().Return(metrics.NoopMetricsHandler).AnyTimes()
-	s.mockShard.EXPECT().GetPayloadSerializer().Return(serializer).AnyTimes()
-	s.mockExecutionManager = persistence.NewMockExecutionManager(s.controller)
-	s.mockShard.EXPECT().GetExecutionManager().Return(s.mockExecutionManager).AnyTimes()
-	s.mockShard.EXPECT().GetShardID().Return(s.shardID).AnyTimes()
-	s.mockShard.EXPECT().GetOwner().Return(s.shardOwner).AnyTimes()
-	s.taskProcessorManager = NewTaskProcessorManager(
-		s.config,
-		s.mockShard,
-		s.mockEngine,
+	mockClusterMetadata := cluster.NewMockMetadata(controller)
+	mockClientBean.EXPECT().GetHistoryClient().Return(mockHistoryClient).AnyTimes()
+	mockShard.EXPECT().GetClusterMetadata().Return(mockClusterMetadata).AnyTimes()
+	mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockClusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
+	mockShard.EXPECT().GetHistoryClient().Return(nil).AnyTimes()
+	mockShard.EXPECT().GetNamespaceRegistry().Return(namespace.NewMockRegistry(controller)).AnyTimes()
+	mockShard.EXPECT().GetConfig().Return(config).AnyTimes()
+	mockShard.EXPECT().GetLogger().Return(log.NewNoopLogger()).AnyTimes()
+	mockShard.EXPECT().GetMetricsHandler().Return(metrics.NoopMetricsHandler).AnyTimes()
+	mockShard.EXPECT().GetPayloadSerializer().Return(serializer).AnyTimes()
+	mockExecutionManager := persistence.NewMockExecutionManager(controller)
+	mockShard.EXPECT().GetExecutionManager().Return(mockExecutionManager).AnyTimes()
+	mockShard.EXPECT().GetShardID().Return(shardID).AnyTimes()
+	mockShard.EXPECT().GetOwner().Return(shardOwner).AnyTimes()
+	taskProcessorManager := NewTaskProcessorManager(
+		config,
+		mockShard,
+		mockEngine,
 		nil,
 		nil,
-		s.mockClientBean,
+		mockClientBean,
 		serializer,
-		s.mockReplicationTaskFetcherFactory,
+		mockReplicationTaskFetcherFactory,
 		func(params TaskExecutorParams) TaskExecutor {
-			return s.mockReplicationTaskExecutor
+			return mockReplicationTaskExecutor
 		},
-		NewExecutionManagerDLQWriter(s.mockExecutionManager),
+		NewExecutionManagerDLQWriter(mockExecutionManager),
 	)
+
+	return &taskProcessorManagerTestDeps{
+		controller:                        controller,
+		mockShard:                         mockShard,
+		mockEngine:                        mockEngine,
+		mockClientBean:                    mockClientBean,
+		mockClusterMetadata:               mockClusterMetadata,
+		mockHistoryClient:                 mockHistoryClient,
+		mockReplicationTaskExecutor:       mockReplicationTaskExecutor,
+		mockReplicationTaskFetcherFactory: mockReplicationTaskFetcherFactory,
+		mockExecutionManager:              mockExecutionManager,
+		shardID:                           shardID,
+		shardOwner:                        shardOwner,
+		config:                            config,
+		requestChan:                       requestChan,
+		taskProcessorManager:              taskProcessorManager,
+	}
 }
 
-func (s *taskProcessorManagerSuite) TearDownTest() {
-	s.controller.Finish()
-}
+func TestCleanupReplicationTask_Noop(t *testing.T) {
+	s := setupTaskProcessorManagerTest(t)
+	defer s.controller.Finish()
 
-func (s *taskProcessorManagerSuite) TestCleanupReplicationTask_Noop() {
 	ackedTaskID := int64(12345)
 	s.mockShard.EXPECT().GetQueueExclusiveHighReadWatermark(tasks.CategoryReplication).Return(tasks.NewImmediateKey(ackedTaskID + 2)).AnyTimes()
 	s.mockShard.EXPECT().GetQueueState(tasks.CategoryReplication).Return(&persistencespb.QueueState{
@@ -141,10 +136,13 @@ func (s *taskProcessorManagerSuite) TestCleanupReplicationTask_Noop() {
 
 	s.taskProcessorManager.minTxAckedTaskID = ackedTaskID
 	err := s.taskProcessorManager.cleanupReplicationTasks()
-	s.NoError(err)
+	require.NoError(t, err)
 }
 
-func (s *taskProcessorManagerSuite) TestCleanupReplicationTask_Cleanup() {
+func TestCleanupReplicationTask_Cleanup(t *testing.T) {
+	s := setupTaskProcessorManagerTest(t)
+	defer s.controller.Finish()
+
 	ackedTaskID := int64(12345)
 	s.mockShard.EXPECT().GetQueueExclusiveHighReadWatermark(tasks.CategoryReplication).Return(tasks.NewImmediateKey(ackedTaskID + 2)).AnyTimes()
 	s.mockShard.EXPECT().GetQueueState(tasks.CategoryReplication).Return(&persistencespb.QueueState{
@@ -182,5 +180,5 @@ func (s *taskProcessorManagerSuite) TestCleanupReplicationTask_Cleanup() {
 		},
 	).Return(nil).Times(1)
 	err := s.taskProcessorManager.cleanupReplicationTasks()
-	s.NoError(err)
+	require.NoError(t, err)
 }

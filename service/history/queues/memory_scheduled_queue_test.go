@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/cluster"
@@ -21,135 +20,48 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type (
-	memoryScheduledQueueSuite struct {
-		suite.Suite
-		*require.Assertions
-
-		controller            *gomock.Controller
-		mockTimeSource        *clock.EventTimeSource
-		mockScheduler         *ctasks.MockScheduler[ctasks.Task]
-		mockClusterMetadata   *cluster.MockMetadata
-		mockNamespaceRegistry *namespace.MockRegistry
-
-		scheduledQueue *memoryScheduledQueue
-	}
-)
-
-func TestMemoryScheduledQueueSuite(t *testing.T) {
-	s := new(memoryScheduledQueueSuite)
-	suite.Run(t, s)
+type memoryScheduledQueueTestDeps struct {
+	controller            *gomock.Controller
+	mockTimeSource        *clock.EventTimeSource
+	mockScheduler         *ctasks.MockScheduler[ctasks.Task]
+	mockClusterMetadata   *cluster.MockMetadata
+	mockNamespaceRegistry *namespace.MockRegistry
+	scheduledQueue        *memoryScheduledQueue
 }
 
-func (s *memoryScheduledQueueSuite) SetupTest() {
-	s.Assertions = require.New(s.T())
+func setupMemoryScheduledQueueTest(t *testing.T) *memoryScheduledQueueTestDeps {
+	controller := gomock.NewController(t)
+	mockTimeSource := clock.NewEventTimeSource()
+	mockTimeSource.Update(time.Now().UTC())
+	mockClusterMetadata := cluster.NewMockMetadata(controller)
+	mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
+	mockNamespaceRegistry := namespace.NewMockRegistry(controller)
+	mockNamespaceRegistry.EXPECT().GetNamespaceByID(gomock.Any()).Return(tests.LocalNamespaceEntry, nil).AnyTimes()
 
-	s.controller = gomock.NewController(s.T())
-	s.mockTimeSource = clock.NewEventTimeSource()
-	s.mockTimeSource.Update(time.Now().UTC())
-	s.mockClusterMetadata = cluster.NewMockMetadata(s.controller)
-	s.mockClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
-	s.mockNamespaceRegistry = namespace.NewMockRegistry(s.controller)
-	s.mockNamespaceRegistry.EXPECT().GetNamespaceByID(gomock.Any()).Return(tests.LocalNamespaceEntry, nil).AnyTimes()
+	mockScheduler := ctasks.NewMockScheduler[ctasks.Task](controller)
+	mockScheduler.EXPECT().Start().AnyTimes()
+	mockScheduler.EXPECT().Stop().AnyTimes()
 
-	s.mockScheduler = ctasks.NewMockScheduler[ctasks.Task](s.controller)
-	s.mockScheduler.EXPECT().Start().AnyTimes()
-	s.mockScheduler.EXPECT().Stop().AnyTimes()
-
-	s.scheduledQueue = newMemoryScheduledQueue(
-		s.mockScheduler,
-		s.mockTimeSource,
+	scheduledQueue := newMemoryScheduledQueue(
+		mockScheduler,
+		mockTimeSource,
 		log.NewTestLogger(),
 		metrics.NoopMetricsHandler,
 	)
 
-	s.scheduledQueue.Start()
-}
+	scheduledQueue.Start()
 
-func (s *memoryScheduledQueueSuite) TearDownTest() {
-	s.scheduledQueue.Stop()
-}
-
-func (s *memoryScheduledQueueSuite) Test_ThreeInOrderTasks() {
-
-	now := s.mockTimeSource.Now()
-	t1 := s.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(20 * time.Millisecond))
-	t2 := s.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(10 * time.Millisecond))
-	t3 := s.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(30 * time.Millisecond))
-
-	calls := atomic.Int32{}
-	calls.Store(3)
-	gomock.InOrder(
-		s.mockScheduler.EXPECT().TrySubmit(t2).Return(true).Do(func(_ ctasks.Task) { calls.Add(-1) }),
-		s.mockScheduler.EXPECT().TrySubmit(t1).Return(true).Do(func(_ ctasks.Task) { calls.Add(-1) }),
-		s.mockScheduler.EXPECT().TrySubmit(t3).Return(true).Do(func(_ ctasks.Task) { calls.Add(-1) }),
-	)
-
-	s.scheduledQueue.Add(t1)
-	s.scheduledQueue.Add(t2)
-	s.scheduledQueue.Add(t3)
-
-	// To ensure all timers have fired.
-	s.Eventually(func() bool { return calls.Load() == 0 }, time.Second, 100*time.Millisecond)
-}
-
-func (s *memoryScheduledQueueSuite) Test_ThreeCancelledTasks() {
-
-	s.scheduledQueue.scheduler = s.mockScheduler
-
-	now := s.mockTimeSource.Now()
-	t1 := s.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(20 * time.Millisecond))
-	t2 := s.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(10 * time.Millisecond))
-	t3 := s.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(30 * time.Millisecond))
-
-	t1.Cancel()
-	t2.Cancel()
-
-	calls := atomic.Int32{}
-	calls.Store(1)
-	s.mockScheduler.EXPECT().TrySubmit(t3).Return(true).Do(func(_ ctasks.Task) { calls.Add(-1) })
-
-	s.scheduledQueue.Add(t1)
-	s.scheduledQueue.Add(t2)
-	s.scheduledQueue.Add(t3)
-
-	s.Eventually(func() bool { return calls.Load() == 0 }, time.Second, 100*time.Millisecond)
-}
-
-func (s *memoryScheduledQueueSuite) Test_1KRandomTasks() {
-
-	s.scheduledQueue.scheduler = s.mockScheduler
-
-	now := s.mockTimeSource.Now()
-	t := make([]*speculativeWorkflowTaskTimeoutExecutable, 1000)
-	calls := atomic.Int32{}
-
-	for i := 0; i < 1000; i++ {
-		t[i] = s.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(time.Duration(rand.Intn(100)) * time.Microsecond))
-
-		// Randomly cancel some tasks.
-		if rand.Intn(2) == 0 {
-			t[i].Cancel()
-		} else {
-			calls.Add(1)
-		}
+	return &memoryScheduledQueueTestDeps{
+		controller:            controller,
+		mockTimeSource:        mockTimeSource,
+		mockScheduler:         mockScheduler,
+		mockClusterMetadata:   mockClusterMetadata,
+		mockNamespaceRegistry: mockNamespaceRegistry,
+		scheduledQueue:        scheduledQueue,
 	}
-
-	for i := 0; i < 1000; i++ {
-		if t[i].State() != ctasks.TaskStateCancelled {
-			s.mockScheduler.EXPECT().TrySubmit(t[i]).Return(true).Do(func(_ ctasks.Task) { calls.Add(-1) })
-		}
-	}
-
-	for i := 0; i < 1000; i++ {
-		s.scheduledQueue.Add(t[i])
-	}
-
-	// To ensure all timers have fired.
-	s.Eventually(func() bool { return calls.Load() == 0 }, 10*time.Second, 100*time.Millisecond)
 }
 
-func (s *memoryScheduledQueueSuite) newSpeculativeWorkflowTaskTimeoutTestExecutable(
+func (d *memoryScheduledQueueTestDeps) newSpeculativeWorkflowTaskTimeoutTestExecutable(
 	visibilityTimestamp time.Time,
 ) *speculativeWorkflowTaskTimeoutExecutable {
 
@@ -165,9 +77,9 @@ func (s *memoryScheduledQueueSuite) newSpeculativeWorkflowTaskTimeoutTestExecuta
 			nil,
 			nil,
 			NewNoopPriorityAssigner(),
-			s.mockTimeSource,
-			s.mockNamespaceRegistry,
-			s.mockClusterMetadata,
+			d.mockTimeSource,
+			d.mockNamespaceRegistry,
+			d.mockClusterMetadata,
 			chasm.NewRegistry(log.NewTestLogger()),
 			GetTaskTypeTagValue,
 			nil,
@@ -176,4 +88,92 @@ func (s *memoryScheduledQueueSuite) newSpeculativeWorkflowTaskTimeoutTestExecuta
 		),
 		wttt,
 	)
+}
+
+func TestThreeInOrderTasks(t *testing.T) {
+	t.Parallel()
+	deps := setupMemoryScheduledQueueTest(t)
+	defer deps.scheduledQueue.Stop()
+
+	now := deps.mockTimeSource.Now()
+	t1 := deps.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(20 * time.Millisecond))
+	t2 := deps.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(10 * time.Millisecond))
+	t3 := deps.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(30 * time.Millisecond))
+
+	calls := atomic.Int32{}
+	calls.Store(3)
+	gomock.InOrder(
+		deps.mockScheduler.EXPECT().TrySubmit(t2).Return(true).Do(func(_ ctasks.Task) { calls.Add(-1) }),
+		deps.mockScheduler.EXPECT().TrySubmit(t1).Return(true).Do(func(_ ctasks.Task) { calls.Add(-1) }),
+		deps.mockScheduler.EXPECT().TrySubmit(t3).Return(true).Do(func(_ ctasks.Task) { calls.Add(-1) }),
+	)
+
+	deps.scheduledQueue.Add(t1)
+	deps.scheduledQueue.Add(t2)
+	deps.scheduledQueue.Add(t3)
+
+	// To ensure all timers have fired.
+	require.Eventually(t, func() bool { return calls.Load() == 0 }, time.Second, 100*time.Millisecond)
+}
+
+func TestThreeCancelledTasks(t *testing.T) {
+	t.Parallel()
+	deps := setupMemoryScheduledQueueTest(t)
+	defer deps.scheduledQueue.Stop()
+
+	deps.scheduledQueue.scheduler = deps.mockScheduler
+
+	now := deps.mockTimeSource.Now()
+	t1 := deps.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(20 * time.Millisecond))
+	t2 := deps.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(10 * time.Millisecond))
+	t3 := deps.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(30 * time.Millisecond))
+
+	t1.Cancel()
+	t2.Cancel()
+
+	calls := atomic.Int32{}
+	calls.Store(1)
+	deps.mockScheduler.EXPECT().TrySubmit(t3).Return(true).Do(func(_ ctasks.Task) { calls.Add(-1) })
+
+	deps.scheduledQueue.Add(t1)
+	deps.scheduledQueue.Add(t2)
+	deps.scheduledQueue.Add(t3)
+
+	require.Eventually(t, func() bool { return calls.Load() == 0 }, time.Second, 100*time.Millisecond)
+}
+
+func Test1KRandomTasks(t *testing.T) {
+	t.Parallel()
+	deps := setupMemoryScheduledQueueTest(t)
+	defer deps.scheduledQueue.Stop()
+
+	deps.scheduledQueue.scheduler = deps.mockScheduler
+
+	now := deps.mockTimeSource.Now()
+	taskList := make([]*speculativeWorkflowTaskTimeoutExecutable, 1000)
+	calls := atomic.Int32{}
+
+	for i := 0; i < 1000; i++ {
+		taskList[i] = deps.newSpeculativeWorkflowTaskTimeoutTestExecutable(now.Add(time.Duration(rand.Intn(100)) * time.Microsecond))
+
+		// Randomly cancel some tasks.
+		if rand.Intn(2) == 0 {
+			taskList[i].Cancel()
+		} else {
+			calls.Add(1)
+		}
+	}
+
+	for i := 0; i < 1000; i++ {
+		if taskList[i].State() != ctasks.TaskStateCancelled {
+			deps.mockScheduler.EXPECT().TrySubmit(taskList[i]).Return(true).Do(func(_ ctasks.Task) { calls.Add(-1) })
+		}
+	}
+
+	for i := 0; i < 1000; i++ {
+		deps.scheduledQueue.Add(taskList[i])
+	}
+
+	// To ensure all timers have fired.
+	require.Eventually(t, func() bool { return calls.Load() == 0 }, 10*time.Second, 100*time.Millisecond)
 }
