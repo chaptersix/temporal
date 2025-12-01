@@ -80,7 +80,7 @@ func setupConflictResolverTest(t *testing.T) *conflictResolverTestDeps {
 	}
 }
 
-func TestRebuild(t *testing.T) {
+func TestConflictResolverRebuild(t *testing.T) {
 	t.Parallel()
 	deps := setupConflictResolverTest(t)
 

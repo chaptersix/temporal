@@ -542,7 +542,7 @@ func TestRecvEventLoop_Panic_Captured(t *testing.T) {
 	deps.streamReceiver.recvEventLoop() // should not cause panic
 }
 
-func TestLivenessMonitor(t *testing.T) {
+func TestStreamReceiverLivenessMonitor(t *testing.T) {
 	deps := setupStreamReceiverTest(t)
 	defer deps.controller.Finish()
 

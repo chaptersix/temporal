@@ -68,7 +68,7 @@ func TestHandleErr(t *testing.T) {
 	require.Equal(t, err, task.HandleErr(err))
 }
 
-func TestMarkPoisonPill(t *testing.T) {
+func TestNoopTaskMarkPoisonPill(t *testing.T) {
 	controller, task := setupExecutableNoopTask(t)
 	defer controller.Finish()
 

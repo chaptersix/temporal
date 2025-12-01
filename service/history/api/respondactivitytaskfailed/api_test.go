@@ -96,7 +96,7 @@ func Test_NormalFlowShouldRescheduleActivity_UpdatesWorkflowExecutionAsActive(t 
 	request := newRespondActivityTaskFailedRequest(t, uc)
 	setupStubs(t, deps, uc)
 
-	expectTransientFailureMetricsRecorded(t, uc, deps.shardContext)
+	expectTransientFailureMetricsRecorded(deps.controller, uc, deps.shardContext)
 	deps.workflowContext.EXPECT().UpdateWorkflowExecutionAsActive(ctx, deps.shardContext).Return(nil)
 	deps.currentMutableState.EXPECT().GetEffectiveVersioningBehavior().Return(enumspb.VERSIONING_BEHAVIOR_UNSPECIFIED)
 
@@ -140,7 +140,7 @@ func Test_CacheRefreshRequired_ReturnCacheStaleError(t *testing.T) {
 	})
 	setupStubs(t, deps, uc)
 	request := newRespondActivityTaskFailedRequest(t, uc)
-	expectCounterRecorded(t, deps.shardContext)
+	expectCounterRecorded(deps.controller, deps.shardContext)
 
 	_, err := Invoke(
 		context.Background(),
@@ -254,7 +254,7 @@ func Test_LastHeartBeatDetailsExist_UpdatesMutableState(t *testing.T) {
 	})
 	deps.currentMutableState.EXPECT().GetEffectiveVersioningBehavior().Return(enumspb.VERSIONING_BEHAVIOR_UNSPECIFIED)
 
-	expectTransientFailureMetricsRecorded(t, uc, deps.shardContext)
+	expectTransientFailureMetricsRecorded(deps.controller, uc, deps.shardContext)
 
 	_, err := Invoke(
 		ctx,
@@ -308,7 +308,7 @@ func Test_NoMoreRetriesAndMutableStateHasNoPendingTasks_WillRecordFailedEventAnd
 	})
 	setupStubs(t, deps, uc)
 	request := newRespondActivityTaskFailedRequest(t, uc)
-	expectTerminalFailureMetricsRecorded(t, uc, deps.shardContext)
+	expectTerminalFailureMetricsRecorded(deps.controller, uc, deps.shardContext)
 	deps.currentMutableState.EXPECT().AddActivityTaskFailedEvent(
 		uc.scheduledEventId,
 		uc.startedEventId,
@@ -454,9 +454,9 @@ func setupShardContext(controller *gomock.Controller, registry namespace.Registr
 	return shardContext
 }
 
-func expectTransientFailureMetricsRecorded(t *testing.T, uc UsecaseConfig, shardContext *historyi.MockShardContext) {
-	timer := metrics.NewMockTimerIface(t)
-	counter := metrics.NewMockCounterIface(t)
+func expectTransientFailureMetricsRecorded(ctrl *gomock.Controller, uc UsecaseConfig, shardContext *historyi.MockShardContext) {
+	timer := metrics.NewMockTimerIface(ctrl)
+	counter := metrics.NewMockCounterIface(ctrl)
 	tags := []metrics.Tag{
 		metrics.OperationTag(metrics.HistoryRespondActivityTaskFailedScope),
 		metrics.WorkflowTypeTag(uc.wfType.Name),
@@ -466,7 +466,7 @@ func expectTransientFailureMetricsRecorded(t *testing.T, uc UsecaseConfig, shard
 		metrics.UnsafeTaskQueueTag(uc.taskQueueId),
 	}
 
-	metricsHandler := metrics.NewMockHandler(t)
+	metricsHandler := metrics.NewMockHandler(ctrl)
 	metricsHandler.EXPECT().WithTags(tags).Return(metricsHandler)
 
 	timer.EXPECT().Record(gomock.Any()).Times(2) // ActivityE2ELatency and ActivityStartToCloseLatency
@@ -479,9 +479,9 @@ func expectTransientFailureMetricsRecorded(t *testing.T, uc UsecaseConfig, shard
 	shardContext.EXPECT().GetMetricsHandler().Return(metricsHandler).AnyTimes()
 }
 
-func expectTerminalFailureMetricsRecorded(t *testing.T, uc UsecaseConfig, shardContext *historyi.MockShardContext) {
-	timer := metrics.NewMockTimerIface(t)
-	counter := metrics.NewMockCounterIface(t)
+func expectTerminalFailureMetricsRecorded(ctrl *gomock.Controller, uc UsecaseConfig, shardContext *historyi.MockShardContext) {
+	timer := metrics.NewMockTimerIface(ctrl)
+	counter := metrics.NewMockCounterIface(ctrl)
 	tags := []metrics.Tag{
 		metrics.OperationTag(metrics.HistoryRespondActivityTaskFailedScope),
 		metrics.WorkflowTypeTag(uc.wfType.Name),
@@ -491,7 +491,7 @@ func expectTerminalFailureMetricsRecorded(t *testing.T, uc UsecaseConfig, shardC
 		metrics.UnsafeTaskQueueTag(uc.taskQueueId),
 	}
 
-	metricsHandler := metrics.NewMockHandler(t)
+	metricsHandler := metrics.NewMockHandler(ctrl)
 	metricsHandler.EXPECT().WithTags(tags).Return(metricsHandler)
 
 	timer.EXPECT().Record(gomock.Any()).Times(3) // ActivityE2ELatency, ActivityStartToCloseLatency, and ActivityScheduleToCloseLatency
@@ -505,11 +505,11 @@ func expectTerminalFailureMetricsRecorded(t *testing.T, uc UsecaseConfig, shardC
 	shardContext.EXPECT().GetMetricsHandler().Return(metricsHandler).AnyTimes()
 }
 
-func expectCounterRecorded(t *testing.T, shardContext *historyi.MockShardContext) {
-	counter := metrics.NewMockCounterIface(t)
+func expectCounterRecorded(ctrl *gomock.Controller, shardContext *historyi.MockShardContext) {
+	counter := metrics.NewMockCounterIface(ctrl)
 	counter.EXPECT().Record(int64(1), metrics.OperationTag(metrics.HistoryRespondActivityTaskFailedScope))
 
-	counterHandler := metrics.NewMockHandler(t)
+	counterHandler := metrics.NewMockHandler(ctrl)
 	counterHandler.EXPECT().Counter(gomock.Any()).Return(counter)
 	shardContext.EXPECT().GetMetricsHandler().Return(counterHandler).AnyTimes()
 }

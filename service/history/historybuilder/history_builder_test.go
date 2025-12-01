@@ -2212,9 +2212,12 @@ func TestWireEventIDs_ChildWorkflow(t *testing.T) {
 }
 
 func testWireEventIDs(t *testing.T, deps *historyBuilderTestDeps, scheduledEventID int64, startEvent *historypb.HistoryEvent, finishEvent *historypb.HistoryEvent) {
+	taskIDGen := func(number int) ([]int64, error) {
+		return taskIDGenerator(deps, number)
+	}
 	deps.historyBuilder = New(
 		deps.mockTimeSource,
-		s.taskIDGenerator,
+		taskIDGen,
 		deps.version,
 		deps.nextEventID,
 		nil,
@@ -2261,9 +2264,12 @@ func testWireEventIDs(t *testing.T, deps *historyBuilderTestDeps, scheduledEvent
 func TestHasBufferEvent(t *testing.T) {
 	deps := setupHistoryBuilderTest(t)
 
+	taskIDGen := func(number int) ([]int64, error) {
+		return taskIDGenerator(deps, number)
+	}
 	historyBuilder := New(
 		deps.mockTimeSource,
-		s.taskIDGenerator,
+		taskIDGen,
 		deps.version,
 		deps.nextEventID,
 		nil,

@@ -44,6 +44,7 @@ func setupContextTest(t *testing.T) *contextTestDeps {
 	mockEngine := historyi.NewMockEngine(controller)
 	mockEngine.EXPECT().NotifyNewTasks(gomock.Any()).AnyTimes()
 	mockEngine.EXPECT().NotifyNewHistoryEvent(gomock.Any()).AnyTimes()
+	mockEngine.EXPECT().Stop().AnyTimes()
 	mockShard.SetEngineForTesting(mockEngine)
 	require.NoError(t, RegisterStateMachine(mockShard.StateMachineRegistry()))
 	mockClusterMetadata := mockShard.Resource.ClusterMetadata

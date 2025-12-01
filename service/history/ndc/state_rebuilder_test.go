@@ -160,7 +160,7 @@ func TestApplyEvents(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestPagination(t *testing.T) {
+func TestStateRebuilderPagination(t *testing.T) {
 	t.Parallel()
 	deps := setupStateRebuilderTest(t)
 
@@ -249,7 +249,7 @@ func TestPagination(t *testing.T) {
 	require.Equal(t, expectedTransactionIDs, transactionIDsResult)
 }
 
-func TestRebuild(t *testing.T) {
+func TestStateRebuilderRebuild(t *testing.T) {
 	t.Parallel()
 	deps := setupStateRebuilderTest(t)
 

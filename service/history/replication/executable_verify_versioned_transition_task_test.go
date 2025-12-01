@@ -593,7 +593,7 @@ func TestExecute_NonCurrentBranch_NotUpToDate(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestExecute_Skip_TerminalState(t *testing.T) {
+func TestVerifyVersionedTransitionExecute_Skip_TerminalState(t *testing.T) {
 	deps := setupExecutableVerifyVersionedTransitionTaskTest(t)
 	defer deps.controller.Finish()
 
@@ -603,7 +603,7 @@ func TestExecute_Skip_TerminalState(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestExecute_Skip_Namespace(t *testing.T) {
+func TestVerifyVersionedTransitionExecute_Skip_Namespace(t *testing.T) {
 	deps := setupExecutableVerifyVersionedTransitionTaskTest(t)
 	defer deps.controller.Finish()
 
@@ -616,7 +616,7 @@ func TestExecute_Skip_Namespace(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestExecute_Err(t *testing.T) {
+func TestVerifyVersionedTransitionExecute_Err(t *testing.T) {
 	deps := setupExecutableVerifyVersionedTransitionTaskTest(t)
 	defer deps.controller.Finish()
 

@@ -27,8 +27,6 @@ import (
 	"go.temporal.io/server/common/payloads"
 	"go.temporal.io/server/common/persistence"
 	"go.temporal.io/server/common/testing/protorequire"
-	"go.temporal.io/server/service/history/hsm"
-	"go.temporal.io/server/service/history/hsm/hsmtest"
 	historyi "go.temporal.io/server/service/history/interfaces"
 	"go.temporal.io/server/service/history/shard"
 	"go.temporal.io/server/service/history/tasks"
@@ -101,16 +99,13 @@ func setupRawTaskConverterTest(t *testing.T, replicationMultipleBatches bool) *r
 	runID := uuid.New()
 	workflowContext := historyi.NewMockWorkflowContext(controller)
 	mutableState := historyi.NewMockMutableState(controller)
-	lockReleased := false
-	releaseFn := func(error) { lockReleased = true }
+	syncStateRetriever := NewMockSyncStateRetriever(controller)
 
 	newRunID := uuid.New()
 	newWorkflowContext := historyi.NewMockWorkflowContext(controller)
 	newMutableState := historyi.NewMockMutableState(controller)
-	newReleaseFn := func(error) { lockReleased = true }
-	syncStateRetriever := NewMockSyncStateRetriever(controller)
 
-	return &rawTaskConverterTestHelper{
+	h := &rawTaskConverterTestHelper{
 		controller:                 controller,
 		shardContext:               shardContext,
 		workflowCache:              workflowCache,
@@ -124,14 +119,17 @@ func setupRawTaskConverterTest(t *testing.T, replicationMultipleBatches bool) *r
 		runID:                      runID,
 		workflowContext:            workflowContext,
 		mutableState:               mutableState,
-		releaseFn:                  releaseFn,
-		lockReleased:               lockReleased,
+		lockReleased:               false,
 		newRunID:                   newRunID,
 		newWorkflowContext:         newWorkflowContext,
 		newMutableState:            newMutableState,
-		newReleaseFn:               newReleaseFn,
 		replicationMultipleBatches: replicationMultipleBatches,
 	}
+
+	h.releaseFn = func(error) { h.lockReleased = true }
+	h.newReleaseFn = func(error) { h.lockReleased = true }
+
+	return h
 }
 
 func (h *rawTaskConverterTestHelper) tearDown() {

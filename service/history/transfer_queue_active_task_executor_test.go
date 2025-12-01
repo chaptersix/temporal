@@ -1295,7 +1295,7 @@ func TestProcessCloseExecution_NoParent_HasFewChildren(t *testing.T) {
 	persistenceMutableState := d.createPersistenceMutableState(t, mutableState, event.GetEventId(), event.GetVersion())
 	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 	d.mockHistoryClient.EXPECT().RequestCancelWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, request *historyservice.RequestCancelWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.RequestCancelWorkflowExecutionResponse, error
+		func(_ context.Context, request *historyservice.RequestCancelWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.RequestCancelWorkflowExecutionResponse, error) {
 			require.True(t, request.GetChildWorkflowOnly())
 			require.Equal(t, execution.GetWorkflowId(), request.GetExternalWorkflowExecution().GetWorkflowId())
 			require.Equal(t, execution.GetRunId(), request.GetExternalWorkflowExecution().GetRunId())
@@ -1303,7 +1303,7 @@ func TestProcessCloseExecution_NoParent_HasFewChildren(t *testing.T) {
 		},
 	)
 	d.mockHistoryClient.EXPECT().TerminateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, request *historyservice.TerminateWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.TerminateWorkflowExecutionResponse, error
+		func(_ context.Context, request *historyservice.TerminateWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.TerminateWorkflowExecutionResponse, error) {
 			require.True(t, request.GetChildWorkflowOnly())
 			require.Equal(t, execution.GetWorkflowId(), request.GetExternalWorkflowExecution().GetWorkflowId())
 			require.Equal(t, execution.GetRunId(), request.GetExternalWorkflowExecution().GetRunId())
@@ -1703,7 +1703,7 @@ func TestProcessCloseExecution_NoParent_ChildInDeletedNamespace(t *testing.T) {
 	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 
 	d.mockHistoryClient.EXPECT().TerminateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, request *historyservice.TerminateWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.TerminateWorkflowExecutionResponse, error
+		func(_ context.Context, request *historyservice.TerminateWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.TerminateWorkflowExecutionResponse, error) {
 			require.True(t, request.GetChildWorkflowOnly())
 			require.Equal(t, execution.GetWorkflowId(), request.GetExternalWorkflowExecution().GetWorkflowId())
 			require.Equal(t, execution.GetRunId(), request.GetExternalWorkflowExecution().GetRunId())
@@ -1712,7 +1712,7 @@ func TestProcessCloseExecution_NoParent_ChildInDeletedNamespace(t *testing.T) {
 	)
 
 	d.mockHistoryClient.EXPECT().RequestCancelWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, request *historyservice.RequestCancelWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.RequestCancelWorkflowExecutionResponse, error
+		func(_ context.Context, request *historyservice.RequestCancelWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.RequestCancelWorkflowExecutionResponse, error) {
 			require.True(t, request.GetChildWorkflowOnly())
 			require.Equal(t, execution.GetWorkflowId(), request.GetExternalWorkflowExecution().GetWorkflowId())
 			require.Equal(t, execution.GetRunId(), request.GetExternalWorkflowExecution().GetRunId())
@@ -2079,7 +2079,7 @@ func TestProcessSignalExecution_Failure_TargetWorkflowNotFound(t *testing.T) {
 	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 	d.mockHistoryClient.EXPECT().SignalWorkflowExecution(gomock.Any(), d.createSignalWorkflowExecutionRequest(namespace.Name(attributes.Namespace), transferTask, si, attributes)).Return(nil, serviceerror.NewNotFound(""))
 	d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, request *persistence.UpdateWorkflowExecutionRequest) (*persistence.UpdateWorkflowExecutionResponse, error
+		func(_ context.Context, request *persistence.UpdateWorkflowExecutionRequest) (*persistence.UpdateWorkflowExecutionResponse, error) {
 			validateUpdateExecutionRequestWithSignalExternalFailedEvent(t,
 				si.InitiatedEventId,
 				enumspb.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED_CAUSE_EXTERNAL_WORKFLOW_EXECUTION_NOT_FOUND,
@@ -2113,7 +2113,7 @@ func TestProcessSignalExecution_Failure_TargetNamespaceNotFound(t *testing.T) {
 	persistenceMutableState := d.createPersistenceMutableState(t, mutableState, event.GetEventId(), event.GetVersion())
 	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 	d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, request *persistence.UpdateWorkflowExecutionRequest) (*persistence.UpdateWorkflowExecutionResponse, error
+		func(_ context.Context, request *persistence.UpdateWorkflowExecutionRequest) (*persistence.UpdateWorkflowExecutionResponse, error) {
 			validateUpdateExecutionRequestWithSignalExternalFailedEvent(t,
 				si.InitiatedEventId,
 				enumspb.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED_CAUSE_NAMESPACE_NOT_FOUND,
@@ -2149,7 +2149,7 @@ func TestProcessSignalExecution_Failure_SignalCountLimitExceeded(t *testing.T) {
 	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 	d.mockHistoryClient.EXPECT().SignalWorkflowExecution(gomock.Any(), d.createSignalWorkflowExecutionRequest(namespace.Name(attributes.Namespace), transferTask, si, attributes)).Return(nil, consts.ErrSignalsLimitExceeded)
 	d.mockExecutionMgr.EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, request *persistence.UpdateWorkflowExecutionRequest) (*persistence.UpdateWorkflowExecutionResponse, error
+		func(_ context.Context, request *persistence.UpdateWorkflowExecutionRequest) (*persistence.UpdateWorkflowExecutionResponse, error) {
 			validateUpdateExecutionRequestWithSignalExternalFailedEvent(t,
 				si.InitiatedEventId,
 				enumspb.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED_CAUSE_SIGNAL_COUNT_LIMIT_EXCEEDED,
@@ -2378,7 +2378,7 @@ func TestProcessStartChildExecution_Success(t *testing.T) {
 	d.mockClusterMetadata.EXPECT().ClusterNameForFailoverVersion(d.namespaceEntry.IsGlobalNamespace(), d.version).Return(cluster.TestCurrentClusterName).AnyTimes()
 	currentShardClock := d.mockShard.CurrentVectorClock()
 	d.mockHistoryClient.EXPECT().ScheduleWorkflowTask(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, request *historyservice.ScheduleWorkflowTaskRequest, _ ...grpc.CallOption) (*historyservice.ScheduleWorkflowTaskResponse, error
+		func(_ context.Context, request *historyservice.ScheduleWorkflowTaskRequest, _ ...grpc.CallOption) (*historyservice.ScheduleWorkflowTaskResponse, error) {
 			parentClock := request.ParentClock
 			request.ParentClock = nil
 			require.Equal(t, &historyservice.ScheduleWorkflowTaskRequest{
@@ -2501,7 +2501,7 @@ func TestProcessStartChildExecution_ResetSuccess(t *testing.T) {
 	d.mockClusterMetadata.EXPECT().ClusterNameForFailoverVersion(d.namespaceEntry.IsGlobalNamespace(), d.version).Return(cluster.TestCurrentClusterName).AnyTimes()
 	currentShardClock := d.mockShard.CurrentVectorClock()
 	d.mockHistoryClient.EXPECT().ScheduleWorkflowTask(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, request *historyservice.ScheduleWorkflowTaskRequest, _ ...grpc.CallOption) (*historyservice.ScheduleWorkflowTaskResponse, error
+		func(_ context.Context, request *historyservice.ScheduleWorkflowTaskRequest, _ ...grpc.CallOption) (*historyservice.ScheduleWorkflowTaskResponse, error) {
 			parentClock := request.ParentClock
 			request.ParentClock = nil
 			require.Equal(t, &historyservice.ScheduleWorkflowTaskRequest{
@@ -2764,7 +2764,7 @@ func TestProcessStartChildExecution_Success_Dup(t *testing.T) {
 	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 	currentShardClock := d.mockShard.CurrentVectorClock()
 	d.mockHistoryClient.EXPECT().ScheduleWorkflowTask(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, request *historyservice.ScheduleWorkflowTaskRequest, _ ...grpc.CallOption) (*historyservice.ScheduleWorkflowTaskResponse, error
+		func(_ context.Context, request *historyservice.ScheduleWorkflowTaskRequest, _ ...grpc.CallOption) (*historyservice.ScheduleWorkflowTaskResponse, error) {
 			parentClock := request.ParentClock
 			request.ParentClock = nil
 			require.Equal(t, &historyservice.ScheduleWorkflowTaskRequest{
@@ -2955,7 +2955,7 @@ func TestProcessorStartChildExecution_ChildStarted_ParentClosed(t *testing.T) {
 	d.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
 	currentShardClock := d.mockShard.CurrentVectorClock()
 	d.mockHistoryClient.EXPECT().ScheduleWorkflowTask(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, request *historyservice.ScheduleWorkflowTaskRequest, _ ...grpc.CallOption) (*historyservice.ScheduleWorkflowTaskResponse, error
+		func(_ context.Context, request *historyservice.ScheduleWorkflowTaskRequest, _ ...grpc.CallOption) (*historyservice.ScheduleWorkflowTaskResponse, error) {
 			parentClock := request.ParentClock
 			request.ParentClock = nil
 			require.Equal(t, &historyservice.ScheduleWorkflowTaskRequest{

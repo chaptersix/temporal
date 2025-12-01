@@ -1839,7 +1839,7 @@ func TestUpdateWorkflowStateStatus_Table(t *testing.T) {
 			}
 
 			for _, c := range cases {
-				t.Run(c.name, func() {
+				t.Run(c.name, func(t *testing.T) {
 					deps.newMutableState()
 					deps.mutableState.executionState.State = c.currentState
 					// default current status to RUNNING unless specified
@@ -2845,7 +2845,7 @@ func TestApplyActivityTaskStartedEvent(t *testing.T) {
 			require.NotNil(t, ai.StartedTime)
 			require.Equal(t, now, ai.StartedTime.AsTime())
 			require.Equal(t, requestID, ai.RequestId)
-			s.Assert().Nil(ai.LastHeartbeatDetails)
+			require.Nil(t, ai.LastHeartbeatDetails)
 
 		})
 	}
@@ -3244,7 +3244,7 @@ func TestRetryActivity_PausedIncrementsStamp(t *testing.T) {
 	}
 }
 
-func TestupdateBuildIdsAndDeploymentSearchAttributes(t *testing.T) {
+func TestUpdateBuildIdsAndDeploymentSearchAttributes(t *testing.T) {
 	for _, replicationMultipleBatches := range []bool{true, false} {
 		t.Run(fmt.Sprintf("replicationMultipleBatches=%v", replicationMultipleBatches), func(t *testing.T) {
 			deps := setupMutableStateTest(t, replicationMultipleBatches)
@@ -4194,7 +4194,7 @@ func TestCloseTransactionHandleUnknownVersionedTransition(t *testing.T) {
 }
 
 func (d *mutableStateTestDeps) getBuildIdsFromMutableState(t *testing.T) []string {
-	payload, found := deps.mutableState.executionInfo.SearchAttributes[sadefs.BuildIds]
+	payload, found := d.mutableState.executionInfo.SearchAttributes[sadefs.BuildIds]
 	if !found {
 		return []string{}
 	}
@@ -4359,9 +4359,10 @@ func TestCollapseVisibilityTasks(t *testing.T) {
 			ms := deps.mutableState
 
 			for _, tc := range testCases {
+				tc := tc // capture range variable
 				t.Run(
 					tc.name,
-					func() {
+					func(t *testing.T) {
 						ms.InsertTasks[tasks.CategoryVisibility] = []tasks.Task{}
 						ms.AddTasks(tc.tasks...)
 						ms.closeTransactionCollapseVisibilityTasks()
@@ -4546,10 +4547,11 @@ func TestCloseTransactionPrepareReplicationTasks_HistoryTask(t *testing.T) {
 			ms := deps.mutableState
 			ms.transitionHistoryEnabled = false
 			for _, tc := range testCases {
+				tc := tc // capture range variable
 				t.Run(
 					tc.name,
-					func() {
-						if s.replicationMultipleBatches != tc.replicationMultipleBatches {
+					func(t *testing.T) {
+						if replicationMultipleBatches != tc.replicationMultipleBatches {
 							return
 						}
 						ms.InsertTasks[tasks.CategoryReplication] = []tasks.Task{}
@@ -4576,7 +4578,7 @@ func TestCloseTransactionPrepareReplicationTasks_SyncVersionedTransitionTask(t *
 			deps := setupMutableStateTest(t, replicationMultipleBatches)
 			defer deps.cleanup()
 
-			if s.replicationMultipleBatches == true {
+			if replicationMultipleBatches == true {
 				return
 			}
 			version := int64(777)
@@ -4739,96 +4741,98 @@ func TestMaxAllowedTimer(t *testing.T) {
 
 func TestCloseTransactionPrepareReplicationTasks_SyncHSMTask(t *testing.T) {
 	for _, replicationMultipleBatches := range []bool{true, false} {
+		replicationMultipleBatches := replicationMultipleBatches // capture range variable
 		t.Run(fmt.Sprintf("replicationMultipleBatches=%v", replicationMultipleBatches), func(t *testing.T) {
-			deps := setupMutableStateTest(t, replicationMultipleBatches)
-			defer deps.cleanup()
-
-			version := deps.mutableState.GetCurrentVersion()
 			stateMachineDef := hsmtest.NewDefinition("test")
-			err := deps.mockShard.StateMachineRegistry().RegisterMachine(stateMachineDef)
-			require.NoError(t, err)
 
 			testCases := []struct {
-				name                    string
-				hsmEmpty                bool
-				hsmDirty                bool
-				eventBatches            [][]*historypb.HistoryEvent
-				clearBufferEvents       bool
-				expectedReplicationTask tasks.Task
+				name              string
+				hsmEmpty          bool
+				hsmDirty          bool
+				hasEventBatches   bool
+				clearBufferEvents bool
+				expectHistoryTask bool // if true, expect HistoryReplicationTask; if false and not nil, expect SyncHSMTask
+				expectSyncHSMTask bool
 			}{
 				{
-					name:     "WithEvents",
-					hsmEmpty: false,
-					hsmDirty: true,
-					eventBatches: [][]*historypb.HistoryEvent{
-						{
-							&historypb.HistoryEvent{
-								Version:   version,
-								EventId:   5,
-								EventTime: timestamppb.New(time.Now()),
-								EventType: enumspb.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED,
-								Attributes: &historypb.HistoryEvent_NexusOperationScheduledEventAttributes{
-									NexusOperationScheduledEventAttributes: &historypb.NexusOperationScheduledEventAttributes{},
-								},
-							},
-						},
-					},
+					name:              "WithEvents",
+					hsmEmpty:          false,
+					hsmDirty:          true,
+					hasEventBatches:   true,
 					clearBufferEvents: false,
-					expectedReplicationTask: &tasks.HistoryReplicationTask{
-						WorkflowKey:  deps.mutableState.GetWorkflowKey(),
-						FirstEventID: 5,
-						NextEventID:  6,
-						Version:      version,
-					},
+					expectHistoryTask: true,
 				},
 				{
 					name:              "NoEvents",
 					hsmEmpty:          false,
 					hsmDirty:          true,
-					eventBatches:      nil,
+					hasEventBatches:   false,
 					clearBufferEvents: false,
-					expectedReplicationTask: &tasks.SyncHSMTask{
-						WorkflowKey: deps.mutableState.GetWorkflowKey(),
-					},
+					expectSyncHSMTask: true,
 				},
 				{
-					name:                    "NoChildren/ClearBufferFalse",
-					hsmEmpty:                true,
-					hsmDirty:                false,
-					eventBatches:            nil,
-					clearBufferEvents:       false,
-					expectedReplicationTask: nil,
+					name:              "NoChildren/ClearBufferFalse",
+					hsmEmpty:          true,
+					hsmDirty:          false,
+					hasEventBatches:   false,
+					clearBufferEvents: false,
 				},
 				{
-					name:                    "NoChildren/ClearBufferTrue",
-					hsmEmpty:                true,
-					hsmDirty:                false,
-					eventBatches:            nil,
-					clearBufferEvents:       true,
-					expectedReplicationTask: nil,
+					name:              "NoChildren/ClearBufferTrue",
+					hsmEmpty:          true,
+					hsmDirty:          false,
+					hasEventBatches:   false,
+					clearBufferEvents: true,
 				},
 				{
-					name:                    "CleanChildren/ClearBufferFalse",
-					hsmEmpty:                false,
-					hsmDirty:                false,
-					clearBufferEvents:       false,
-					expectedReplicationTask: nil,
+					name:              "CleanChildren/ClearBufferFalse",
+					hsmEmpty:          false,
+					hsmDirty:          false,
+					hasEventBatches:   false,
+					clearBufferEvents: false,
 				},
 				{
 					name:              "CleanChildren/ClearBufferTrue",
 					hsmEmpty:          false,
 					hsmDirty:          false,
+					hasEventBatches:   false,
 					clearBufferEvents: true,
-					expectedReplicationTask: &tasks.SyncHSMTask{
-						WorkflowKey: deps.mutableState.GetWorkflowKey(),
-					},
+					expectSyncHSMTask: true,
 				},
 			}
 
 			for _, tc := range testCases {
+				tc := tc // capture range variable
 				t.Run(
 					tc.name,
-					func() {
+					func(t *testing.T) {
+						// Create fresh deps for each test case to ensure isolation
+						deps := setupMutableStateTest(t, replicationMultipleBatches)
+						defer deps.cleanup()
+
+						version := deps.mutableState.GetCurrentVersion()
+						err := deps.mockShard.StateMachineRegistry().RegisterMachine(stateMachineDef)
+						if err != nil && err.Error() != "state machine type test already registered" {
+							require.NoError(t, err)
+						}
+
+						var eventBatches [][]*historypb.HistoryEvent
+						if tc.hasEventBatches {
+							eventBatches = [][]*historypb.HistoryEvent{
+								{
+									&historypb.HistoryEvent{
+										Version:   version,
+										EventId:   5,
+										EventTime: timestamppb.New(time.Now()),
+										EventType: enumspb.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED,
+										Attributes: &historypb.HistoryEvent_NexusOperationScheduledEventAttributes{
+											NexusOperationScheduledEventAttributes: &historypb.NexusOperationScheduledEventAttributes{},
+										},
+									},
+								},
+							}
+						}
+
 						if !tc.hsmEmpty {
 							_, err = deps.mutableState.HSM().AddChild(
 								hsm.Key{Type: stateMachineDef.Type(), ID: "child_1"},
@@ -4841,14 +4845,26 @@ func TestCloseTransactionPrepareReplicationTasks_SyncHSMTask(t *testing.T) {
 							}
 						}
 						deps.mutableState.transitionHistoryEnabled = false
-						err := deps.mutableState.closeTransactionPrepareReplicationTasks(historyi.TransactionPolicyActive, tc.eventBatches, tc.clearBufferEvents)
+						err = deps.mutableState.closeTransactionPrepareReplicationTasks(historyi.TransactionPolicyActive, eventBatches, tc.clearBufferEvents)
 						require.NoError(t, err)
 
 						repicationTasks := deps.mutableState.PopTasks()[tasks.CategoryReplication]
 
-						if tc.expectedReplicationTask != nil {
+						if tc.expectHistoryTask {
 							require.Len(t, repicationTasks, 1)
-							require.Equal(t, tc.expectedReplicationTask, repicationTasks[0])
+							expectedTask := &tasks.HistoryReplicationTask{
+								WorkflowKey:  deps.mutableState.GetWorkflowKey(),
+								FirstEventID: 5,
+								NextEventID:  6,
+								Version:      version,
+							}
+							require.Equal(t, expectedTask, repicationTasks[0])
+						} else if tc.expectSyncHSMTask {
+							require.Len(t, repicationTasks, 1)
+							expectedTask := &tasks.SyncHSMTask{
+								WorkflowKey: deps.mutableState.GetWorkflowKey(),
+							}
+							require.Equal(t, expectedTask, repicationTasks[0])
 						} else {
 							require.Empty(t, repicationTasks)
 						}
@@ -5532,30 +5548,30 @@ func (d *mutableStateTestDeps) verifyExecutionInfo(t *testing.T, current, target
 }
 
 func (d *mutableStateTestDeps) verifyMutableState(t *testing.T, current, target, origin *MutableStateImpl) {
-	deps.verifyExecutionInfo(t, current.executionInfo, target.executionInfo, origin.executionInfo)
+	d.verifyExecutionInfo(t, current.executionInfo, target.executionInfo, origin.executionInfo)
 	require.True(t, proto.Equal(target.executionState, current.executionState), "executionState mismatch")
 
 	require.Equal(t, target.pendingActivityTimerHeartbeats, current.pendingActivityTimerHeartbeats, "pendingActivityTimerHeartbeats mismatch")
 	d.verifyActivityInfos(t, target.pendingActivityInfoIDs, current.pendingActivityInfoIDs)
 	require.Equal(t, target.pendingActivityIDToEventID, current.pendingActivityIDToEventID, "pendingActivityIDToEventID mismatch")
-	compareMapOfProto(s, current.pendingActivityInfoIDs, current.updateActivityInfos)
+	compareMapOfProto(t, current.pendingActivityInfoIDs, current.updateActivityInfos)
 	require.Equal(t, map[int64]struct{}{89: {}}, current.deleteActivityInfos, "deleteActivityInfos mismatch")
 
-	compareMapOfProto(s, target.pendingTimerInfoIDs, current.pendingTimerInfoIDs)
+	compareMapOfProto(t, target.pendingTimerInfoIDs, current.pendingTimerInfoIDs)
 	require.Equal(t, target.pendingTimerEventIDToID, current.pendingTimerEventIDToID, "pendingTimerEventIDToID mismatch")
-	compareMapOfProto(s, target.pendingTimerInfoIDs, current.updateTimerInfos)
+	compareMapOfProto(t, target.pendingTimerInfoIDs, current.updateTimerInfos)
 	require.Equal(t, map[string]struct{}{"to-be-deleted": {}}, current.deleteTimerInfos, "deleteTimerInfos mismatch")
 
-	deps.verifyChildExecutionInfos(t, target.pendingChildExecutionInfoIDs, current.pendingChildExecutionInfoIDs, origin.pendingChildExecutionInfoIDs)
-	deps.verifyChildExecutionInfos(t, target.pendingChildExecutionInfoIDs, current.updateChildExecutionInfos, origin.pendingChildExecutionInfoIDs)
+	d.verifyChildExecutionInfos(t, target.pendingChildExecutionInfoIDs, current.pendingChildExecutionInfoIDs, origin.pendingChildExecutionInfoIDs)
+	d.verifyChildExecutionInfos(t, target.pendingChildExecutionInfoIDs, current.updateChildExecutionInfos, origin.pendingChildExecutionInfoIDs)
 	require.Equal(t, map[int64]struct{}{79: {}}, current.deleteChildExecutionInfos, "deleteChildExecutionInfos mismatch")
 
-	compareMapOfProto(s, target.pendingRequestCancelInfoIDs, current.pendingRequestCancelInfoIDs)
-	compareMapOfProto(s, target.pendingRequestCancelInfoIDs, current.updateRequestCancelInfos)
+	compareMapOfProto(t, target.pendingRequestCancelInfoIDs, current.pendingRequestCancelInfoIDs)
+	compareMapOfProto(t, target.pendingRequestCancelInfoIDs, current.updateRequestCancelInfos)
 	require.Equal(t, map[int64]struct{}{69: {}}, current.deleteRequestCancelInfos, "deleteRequestCancelInfos mismatch")
 
-	compareMapOfProto(s, target.pendingSignalInfoIDs, current.pendingSignalInfoIDs)
-	compareMapOfProto(s, target.pendingSignalInfoIDs, current.updateSignalInfos)
+	compareMapOfProto(t, target.pendingSignalInfoIDs, current.pendingSignalInfoIDs)
+	compareMapOfProto(t, target.pendingSignalInfoIDs, current.updateSignalInfos)
 	require.Equal(t, map[int64]struct{}{74: {}}, current.deleteSignalInfos, "deleteSignalInfos mismatch")
 
 	require.Equal(t, target.pendingSignalRequestedIDs, current.pendingSignalRequestedIDs, "pendingSignalRequestedIDs mismatch")
@@ -5727,7 +5743,7 @@ func TestApplySnapshot(t *testing.T) {
 				},
 			}
 			for _, tc := range testCases {
-				t.Run(tc.name, func() {
+				t.Run(tc.name, func(t *testing.T) {
 					state := deps.buildWorkflowMutableState(t)
 					deps.addChangesForStateReplication(t, state)
 
@@ -5872,7 +5888,7 @@ func TestApplyMutation(t *testing.T) {
 				},
 			}
 			for _, tc := range testCases {
-				t.Run(tc.name, func() {
+				t.Run(tc.name, func(t *testing.T) {
 					state := deps.buildWorkflowMutableState(t)
 					deps.addChangesForStateReplication(t, state)
 
@@ -6270,7 +6286,7 @@ func TestHasRequestID(t *testing.T) {
 			}
 
 			for _, tc := range testCases {
-				t.Run(tc.name, func() {
+				t.Run(tc.name, func(t *testing.T) {
 					deps.newMutableState()
 
 					// Setup the mutable state
@@ -6410,7 +6426,7 @@ func TestDeleteCHASMPureTasks(t *testing.T) {
 			}
 
 			for _, tc := range testCases {
-				t.Run(tc.name, func() {
+				t.Run(tc.name, func(t *testing.T) {
 					deps.mutableState.chasmPureTasks = []*tasks.ChasmTaskPure{
 						{
 							VisibilityTimestamp: now.Add(3 * time.Minute),

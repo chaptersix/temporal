@@ -1431,7 +1431,7 @@ func TestReapplyContinueAsNewWorkflowEvents_ExcludeAllEvents(t *testing.T) {
 	require.Equal(t, deps.baseRunID, lastVisitedRunID)
 }
 
-func TestPagination(t *testing.T) {
+func TestWorkflowResetterPagination(t *testing.T) {
 	deps := setupWorkflowResetterTest(t)
 	defer deps.controller.Finish()
 	defer deps.mockShard.StopForTest()
