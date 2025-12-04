@@ -1,0 +1,67 @@
+name: Manual Build Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch/tag/commit to build'
+        required: true
+        default: 'main'
+      build-docker:
+        description: 'Build Docker images'
+        type: boolean
+        default: true
+      push-images:
+        description: 'Push to Docker Hub'
+        type: boolean
+        default: false
+      snapshot:
+        description: 'Use GoReleaser snapshot mode'
+        type: boolean
+        default: true
+
+jobs:
+  validate-inputs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate ref format
+        env:
+          REF_INPUT: ${{ inputs.ref }}
+        run: |
+          # Validate ref contains only safe characters
+          if ! echo "$REF_INPUT" | grep -qE '^[a-zA-Z0-9/_.-]+$'; then
+            echo "Error: Invalid ref format. Only alphanumeric, dash, underscore, slash, and dot allowed."
+            echo "Provided ref: $REF_INPUT"
+            exit 1
+          fi
+
+          # Additional validation - prevent refs that look like command injection
+          if echo "$REF_INPUT" | grep -qE '[;|&$`]'; then
+            echo "Error: ref contains shell metacharacters"
+            exit 1
+          fi
+
+          echo "✓ Ref validation passed: $REF_INPUT"
+
+  build-binaries:
+    needs: validate-inputs
+    uses: ./.github/workflows/reusable-build-binaries.yml
+    with:
+      snapshot: ${{ inputs.snapshot }}
+      ref: ${{ inputs.ref }}
+      upload-artifacts: true
+    permissions:
+      contents: write
+
+  build-docker:
+    if: ${{ inputs.build-docker }}
+    needs: build-binaries
+    uses: ./.github/workflows/reusable-build-docker-images.yml
+    with:
+      ref: ${{ inputs.ref }}
+      image-tag: manual-${{ inputs.ref }}
+      upload-artifact: true
+      push-to-registry: ${{ inputs.push-images }}
+    secrets:
+      dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+      dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}

@@ -1,0 +1,113 @@
+name: Build and Publish
+
+on:
+  push:
+    branches:
+      - main
+      - cloud/*
+      - feature/*
+      - release/*
+
+jobs:
+  sanitize-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      safe-tag: ${{ steps.sanitize.outputs.tag }}
+    steps:
+      - name: Sanitize branch name for Docker tag
+        id: sanitize
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          # Sanitize branch name to create safe Docker tag
+          # Replace any non-alphanumeric (except .-_) with dash
+          SAFE_TAG=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g')
+
+          # Docker tags must be lowercase and start with alphanumeric
+          SAFE_TAG=$(echo "$SAFE_TAG" | tr '[:upper:]' '[:lower:]')
+          SAFE_TAG=$(echo "$SAFE_TAG" | sed 's/^[^a-z0-9]*//')
+
+          # Truncate to 128 characters (Docker tag limit)
+          SAFE_TAG=$(echo "$SAFE_TAG" | cut -c1-128)
+
+          echo "Original: $BRANCH_NAME"
+          echo "Sanitized: $SAFE_TAG"
+          echo "tag=$SAFE_TAG" >> "$GITHUB_OUTPUT"
+
+  build-binaries:
+    uses: ./.github/workflows/reusable-build-binaries.yml
+    with:
+      snapshot: true
+      ref: ${{ github.sha }}
+      upload-artifacts: true
+
+  build-and-push-docker:
+    needs: [build-binaries, sanitize-tag]
+    # Only push for main, cloud, release branches (not feature)
+    if: |
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/heads/cloud/') ||
+      startsWith(github.ref, 'refs/heads/release/')
+    uses: ./.github/workflows/reusable-build-docker-images.yml
+    with:
+      ref: ${{ github.sha }}
+      image-tag: ${{ needs.sanitize-tag.outputs.safe-tag }}
+      upload-artifact: false
+      push-to-registry: true
+      tag-latest: false
+    secrets:
+      dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+      dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  # For feature branches, just build (no push)
+  build-docker-feature:
+    needs: [build-binaries, sanitize-tag]
+    if: startsWith(github.ref, 'refs/heads/feature/')
+    uses: ./.github/workflows/reusable-build-docker-images.yml
+    with:
+      ref: ${{ github.sha }}
+      image-tag: ${{ needs.sanitize-tag.outputs.safe-tag }}
+      upload-artifact: false
+      push-to-registry: false
+
+  # KEEP EXISTING: Fallback to external trigger
+  trigger-external:
+    if: ${{ vars.SHOULD_TRIGGER_DOCKER_BUILD == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get git branch name
+        id: get_branch
+        run: |
+          echo "branch=${GITHUB_REF#refs/heads/}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate a token
+        id: generate_token
+        uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92
+        with:
+          app_id: ${{ secrets.TEMPORAL_CICD_APP_ID }}
+          private_key: ${{ secrets.TEMPORAL_CICD_PRIVATE_KEY }}
+
+      - name: Dispatch docker builds Github Action
+        env:
+          PARENT_REPO: temporalio/docker-builds
+          PARENT_BRANCH: main
+          WORKFLOW_ID: update-submodules.yml
+          REPO: temporal
+          BRANCH: ${{ steps.get_branch.outputs.branch }}
+        run: |
+          echo "Triggering external Docker build workflow..."
+          echo "Repository: $PARENT_REPO"
+          echo "Workflow: $WORKFLOW_ID"
+          echo "Branch: $BRANCH"
+
+          if ! curl -fL -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ steps.generate_token.outputs.token }}" \
+            "https://api.github.com/repos/$PARENT_REPO/actions/workflows/$WORKFLOW_ID/dispatches" \
+            -d "{\"ref\":\"$PARENT_BRANCH\", \"inputs\": { \"repo\":\"$REPO\", \"branch\":\"$BRANCH\" }}"; then
+            echo "Error: Failed to trigger external Docker build workflow"
+            echo "This may indicate an authentication issue or the external workflow is unavailable"
+            exit 1
+          fi
+
+          echo "✓ Successfully triggered external Docker build workflow"

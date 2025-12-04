@@ -1,0 +1,314 @@
+name: Reusable - Build Docker Images
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git ref to checkout'
+        type: string
+        required: true
+      image-tag:
+        description: 'Docker image tag'
+        type: string
+        required: true
+      upload-artifact:
+        description: 'Upload Docker image as artifact'
+        type: boolean
+        required: false
+        default: false
+      push-to-registry:
+        description: 'Push images to Docker Hub'
+        type: boolean
+        required: false
+        default: false
+      tag-latest:
+        description: 'Tag images as latest'
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      dockerhub-username:
+        description: 'Docker Hub username'
+        required: false
+      dockerhub-token:
+        description: 'Docker Hub token'
+        required: false
+
+jobs:
+  build-docker-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Validate image tag
+        env:
+          IMAGE_TAG: ${{ inputs.image-tag }}
+        run: |
+          # Validate image tag format (Docker tag rules)
+          if ! echo "$IMAGE_TAG" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$'; then
+            echo "Error: Invalid Docker image tag format"
+            echo "Tag must start with alphanumeric, contain only [a-zA-Z0-9._-], and be max 128 chars"
+            echo "Provided tag: $IMAGE_TAG"
+            exit 1
+          fi
+
+          # Prevent shell metacharacters
+          if echo "$IMAGE_TAG" | grep -qE '[;|&$`()]'; then
+            echo "Error: Image tag contains shell metacharacters"
+            exit 1
+          fi
+
+          echo "✓ Image tag validation passed: $IMAGE_TAG"
+
+      - name: Download amd64 binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: temporal-binaries-amd64
+          path: build-artifacts/amd64
+
+      - name: Download arm64 binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: temporal-binaries-arm64
+          path: build-artifacts/arm64
+
+      - name: Verify artifact checksums
+        run: |
+          echo "Verifying artifact integrity..."
+
+          # Verify amd64 checksums
+          if [ -f build-artifacts/amd64/checksums.txt ]; then
+            cd build-artifacts/amd64
+            if sha256sum -c --ignore-missing checksums.txt; then
+              echo "✓ amd64 checksums verified"
+            else
+              echo "Error: amd64 checksum verification failed"
+              exit 1
+            fi
+            cd ../..
+          else
+            echo "Warning: No checksums found for amd64 artifacts"
+          fi
+
+          # Verify arm64 checksums
+          if [ -f build-artifacts/arm64/checksums.txt ]; then
+            cd build-artifacts/arm64
+            if sha256sum -c --ignore-missing checksums.txt; then
+              echo "✓ arm64 checksums verified"
+            else
+              echo "Error: arm64 checksum verification failed"
+              exit 1
+            fi
+            cd ../..
+          else
+            echo "Warning: No checksums found for arm64 artifacts"
+          fi
+
+      - name: Organize binaries
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Create build directory structure
+            ['amd64', 'arm64'].forEach(arch => {
+              const srcDir = `build-artifacts/${arch}`;
+              const destDir = `build/${arch}`;
+
+              if (!fs.existsSync(destDir)) {
+                fs.mkdirSync(destDir, { recursive: true });
+              }
+
+              // Copy binaries
+              if (fs.existsSync(srcDir)) {
+                fs.readdirSync(srcDir).forEach(file => {
+                  const srcFile = path.join(srcDir, file);
+                  const destFile = path.join(destDir, file);
+
+                  if (fs.statSync(srcFile).isFile()) {
+                    fs.copyFileSync(srcFile, destFile);
+                    // Make executable
+                    fs.chmodSync(destFile, 0o755);
+                    console.log(`Copied ${srcFile} -> ${destFile}`);
+                  }
+                });
+              }
+            });
+
+            // Copy schema directory (should be in amd64 artifact)
+            const schemaSource = 'build-artifacts/amd64/temporal/schema';
+            const schemaDest = 'build/temporal/schema';
+
+            if (fs.existsSync(schemaSource)) {
+              const copyRecursive = (src, dest) => {
+                if (!fs.existsSync(dest)) {
+                  fs.mkdirSync(dest, { recursive: true });
+                }
+                fs.readdirSync(src).forEach(item => {
+                  const srcPath = path.join(src, item);
+                  const destPath = path.join(dest, item);
+                  if (fs.statSync(srcPath).isDirectory()) {
+                    copyRecursive(srcPath, destPath);
+                  } else {
+                    fs.copyFileSync(srcPath, destPath);
+                  }
+                });
+              };
+              copyRecursive(schemaSource, schemaDest);
+              console.log('Copied schema directory');
+            }
+
+      - name: Download Temporal CLI
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const { execFileSync } = require('child_process');
+            const crypto = require('crypto');
+
+            const CLI_VERSION = '1.5.0';
+
+            // Validate CLI_VERSION format to prevent injection
+            if (!/^[0-9]+\.[0-9]+\.[0-9]+$/.test(CLI_VERSION)) {
+              throw new Error(`Invalid CLI_VERSION format: ${CLI_VERSION}`);
+            }
+
+            const archs = [
+              { name: 'amd64', release: 'x86_64' },
+              { name: 'arm64', release: 'arm64' }
+            ];
+
+            // Download checksums file first
+            const checksumUrl = `https://github.com/temporalio/cli/releases/download/v${CLI_VERSION}/checksums.txt`;
+            console.log(`Downloading checksums from ${checksumUrl}`);
+
+            try {
+              execFileSync('curl', ['-fsSL', '-o', '/tmp/cli-checksums.txt', checksumUrl]);
+            } catch (error) {
+              throw new Error(`Failed to download checksums: ${error.message}`);
+            }
+
+            // Read checksums
+            const checksumsContent = fs.readFileSync('/tmp/cli-checksums.txt', 'utf8');
+            const checksums = new Map();
+            checksumsContent.split('\n').forEach(line => {
+              const match = line.match(/^([a-f0-9]{64})\s+(.+)$/);
+              if (match) {
+                checksums.set(match[2], match[1]);
+              }
+            });
+
+            for (const arch of archs) {
+              const tarballName = `temporal_cli_${CLI_VERSION}_linux_${arch.release}.tar.gz`;
+              const downloadUrl = `https://github.com/temporalio/cli/releases/download/v${CLI_VERSION}/${tarballName}`;
+              const tempPath = `/tmp/${tarballName}`;
+
+              console.log(`Downloading Temporal CLI for ${arch.name} from ${downloadUrl}`);
+
+              // Download tarball using execFileSync to prevent command injection
+              try {
+                execFileSync('curl', ['-fsSL', '-o', tempPath, downloadUrl]);
+              } catch (error) {
+                throw new Error(`Failed to download ${tarballName}: ${error.message}`);
+              }
+
+              // Verify checksum
+              const expectedChecksum = checksums.get(tarballName);
+              if (!expectedChecksum) {
+                throw new Error(`No checksum found for ${tarballName}`);
+              }
+
+              const fileBuffer = fs.readFileSync(tempPath);
+              const actualChecksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+
+              if (actualChecksum !== expectedChecksum) {
+                throw new Error(`Checksum mismatch for ${tarballName}. Expected: ${expectedChecksum}, Got: ${actualChecksum}`);
+              }
+
+              console.log(`Checksum verified for ${tarballName}`);
+
+              // Extract binary using execFileSync
+              try {
+                execFileSync('tar', ['-xzf', tempPath, '-C', '/tmp', 'temporal']);
+              } catch (error) {
+                throw new Error(`Failed to extract ${tarballName}: ${error.message}`);
+              }
+
+              // Move to build directory
+              const destDir = `build/${arch.name}`;
+              if (!fs.existsSync(destDir)) {
+                fs.mkdirSync(destDir, { recursive: true });
+              }
+
+              fs.renameSync('/tmp/temporal', `${destDir}/temporal`);
+              fs.chmodSync(`${destDir}/temporal`, 0o755);
+
+              console.log(`Installed Temporal CLI to ${destDir}/temporal`);
+
+              // Clean up
+              fs.unlinkSync(tempPath);
+            }
+
+            // Clean up checksums file
+            fs.unlinkSync('/tmp/cli-checksums.txt');
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Docker Hub credentials
+        if: inputs.push-to-registry
+        run: |
+          if [ -z "${{ secrets.dockerhub-username }}" ] || [ -z "${{ secrets.dockerhub-token }}" ]; then
+            echo "Error: Docker Hub credentials are not configured"
+            echo "Please set DOCKERHUB_USERNAME and DOCKERHUB_TOKEN secrets"
+            exit 1
+          fi
+          echo "✓ Docker Hub credentials are configured"
+
+      - name: Log in to Docker Hub
+        if: inputs.push-to-registry
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.dockerhub-username }}
+          password: ${{ secrets.dockerhub-token }}
+
+      - name: Build Docker images
+        env:
+          IMAGE_REPO: temporaliotest
+          IMAGE_SHA_TAG: ${{ inputs.image-tag }}
+          IMAGE_BRANCH_TAG: ${{ inputs.image-tag }}
+          TEMPORAL_SHA: ${{ github.sha }}
+          TAG_LATEST: ${{ inputs.tag-latest }}
+        run: |
+          # Use branch-specific cache to prevent cross-contamination
+          CACHE_SCOPE="docker-${{ github.workflow }}-${{ github.ref }}"
+          docker buildx bake \
+            --set "*.cache-from=type=gha,scope=$CACHE_SCOPE" \
+            --set "*.cache-to=type=gha,mode=max,scope=$CACHE_SCOPE" \
+            ${{ inputs.push-to-registry && '--push' || '--load' }} \
+            -f .github/docker/docker-bake.hcl \
+            server admin-tools
+
+      - name: Save Docker image as artifact
+        if: inputs.upload-artifact
+        run: |
+          docker save temporaliotest/server:${{ inputs.image-tag }} -o /tmp/temporal-server.tar
+          echo ${{ inputs.image-tag }} > /tmp/image_tag
+
+      - name: Upload Docker artifact
+        if: inputs.upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: temporal-server-docker
+          path: |
+            /tmp/temporal-server.tar
+            /tmp/image_tag
+          retention-days: 7

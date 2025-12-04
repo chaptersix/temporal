@@ -1,0 +1,339 @@
+name: Promote Docker Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      source-tag:
+        description: 'Source tag from temporaliotest registry (e.g., main, v1.30.0, sha-abc123)'
+        required: true
+      target-tag:
+        description: 'Target tag for temporalio registry (e.g., v1.30.0, latest)'
+        required: true
+      override-security-scan:
+        description: 'Override security scan failures (use with caution)'
+        type: boolean
+        default: false
+        required: false
+      skip-admin-tools:
+        description: 'Skip promoting admin-tools image'
+        type: boolean
+        default: false
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate-inputs:
+    runs-on: ubuntu-latest
+    outputs:
+      source-tag-safe: ${{ steps.validate.outputs.source-tag }}
+      target-tag-safe: ${{ steps.validate.outputs.target-tag }}
+    steps:
+      - name: Validate input tags
+        id: validate
+        env:
+          SOURCE_TAG: ${{ inputs.source-tag }}
+          TARGET_TAG: ${{ inputs.target-tag }}
+        run: |
+          # Validate source tag format
+          if ! echo "$SOURCE_TAG" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$'; then
+            echo "Error: Invalid source tag format"
+            exit 1
+          fi
+
+          # Validate target tag format
+          if ! echo "$TARGET_TAG" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$'; then
+            echo "Error: Invalid target tag format"
+            exit 1
+          fi
+
+          echo "source-tag=$SOURCE_TAG" >> "$GITHUB_OUTPUT"
+          echo "target-tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+
+          echo "✓ Tag validation passed"
+          echo "  Source: $SOURCE_TAG"
+          echo "  Target: $TARGET_TAG"
+
+  scan-server-image:
+    needs: validate-inputs
+    runs-on: ubuntu-latest
+    outputs:
+      scan-result: ${{ steps.scan.outputs.result }}
+      has-critical: ${{ steps.scan.outputs.has-critical }}
+      has-high: ${{ steps.scan.outputs.has-high }}
+    steps:
+      - name: Pull source server image
+        env:
+          SOURCE_TAG: ${{ needs.validate-inputs.outputs.source-tag-safe }}
+        run: |
+          echo "Pulling temporaliotest/server:$SOURCE_TAG"
+          docker pull temporaliotest/server:$SOURCE_TAG
+
+      - name: Scan server image with Trivy
+        id: scan
+        env:
+          SOURCE_TAG: ${{ needs.validate-inputs.outputs.source-tag-safe }}
+        run: |
+          # Install Trivy
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+          # Scan image and save results
+          echo "Scanning temporaliotest/server:$SOURCE_TAG for vulnerabilities..."
+
+          # Scan and output results
+          trivy image \
+            --severity CRITICAL,HIGH \
+            --format table \
+            temporaliotest/server:$SOURCE_TAG | tee trivy-server-scan.txt
+
+          # Check for critical vulnerabilities
+          CRITICAL_COUNT=$(trivy image --severity CRITICAL --format json temporaliotest/server:$SOURCE_TAG | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length')
+          HIGH_COUNT=$(trivy image --severity HIGH --format json temporaliotest/server:$SOURCE_TAG | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length')
+
+          echo "Critical vulnerabilities: $CRITICAL_COUNT"
+          echo "High vulnerabilities: $HIGH_COUNT"
+
+          if [ "$CRITICAL_COUNT" -gt 0 ] || [ "$HIGH_COUNT" -gt 0 ]; then
+            echo "result=fail" >> "$GITHUB_OUTPUT"
+            echo "has-critical=$( [ "$CRITICAL_COUNT" -gt 0 ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            echo "has-high=$( [ "$HIGH_COUNT" -gt 0 ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            echo "⚠️  Security vulnerabilities found!"
+          else
+            echo "result=pass" >> "$GITHUB_OUTPUT"
+            echo "has-critical=false" >> "$GITHUB_OUTPUT"
+            echo "has-high=false" >> "$GITHUB_OUTPUT"
+            echo "✓ No critical or high vulnerabilities found"
+          fi
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-server-scan-results
+          path: trivy-server-scan.txt
+          retention-days: 30
+
+  scan-admin-tools-image:
+    needs: validate-inputs
+    if: ${{ !inputs.skip-admin-tools }}
+    runs-on: ubuntu-latest
+    outputs:
+      scan-result: ${{ steps.scan.outputs.result }}
+      has-critical: ${{ steps.scan.outputs.has-critical }}
+      has-high: ${{ steps.scan.outputs.has-high }}
+    steps:
+      - name: Pull source admin-tools image
+        env:
+          SOURCE_TAG: ${{ needs.validate-inputs.outputs.source-tag-safe }}
+        run: |
+          echo "Pulling temporaliotest/admin-tools:$SOURCE_TAG"
+          docker pull temporaliotest/admin-tools:$SOURCE_TAG
+
+      - name: Scan admin-tools image with Trivy
+        id: scan
+        env:
+          SOURCE_TAG: ${{ needs.validate-inputs.outputs.source-tag-safe }}
+        run: |
+          # Install Trivy
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+          echo "Scanning temporaliotest/admin-tools:$SOURCE_TAG for vulnerabilities..."
+
+          trivy image \
+            --severity CRITICAL,HIGH \
+            --format table \
+            temporaliotest/admin-tools:$SOURCE_TAG | tee trivy-admin-tools-scan.txt
+
+          CRITICAL_COUNT=$(trivy image --severity CRITICAL --format json temporaliotest/admin-tools:$SOURCE_TAG | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length')
+          HIGH_COUNT=$(trivy image --severity HIGH --format json temporaliotest/admin-tools:$SOURCE_TAG | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length')
+
+          echo "Critical vulnerabilities: $CRITICAL_COUNT"
+          echo "High vulnerabilities: $HIGH_COUNT"
+
+          if [ "$CRITICAL_COUNT" -gt 0 ] || [ "$HIGH_COUNT" -gt 0 ]; then
+            echo "result=fail" >> "$GITHUB_OUTPUT"
+            echo "has-critical=$( [ "$CRITICAL_COUNT" -gt 0 ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            echo "has-high=$( [ "$HIGH_COUNT" -gt 0 ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            echo "⚠️  Security vulnerabilities found!"
+          else
+            echo "result=pass" >> "$GITHUB_OUTPUT"
+            echo "has-critical=false" >> "$GITHUB_OUTPUT"
+            echo "has-high=false" >> "$GITHUB_OUTPUT"
+            echo "✓ No critical or high vulnerabilities found"
+          fi
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-admin-tools-scan-results
+          path: trivy-admin-tools-scan.txt
+          retention-days: 30
+
+  check-security-gate:
+    needs: [scan-server-image, scan-admin-tools-image]
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      can-promote: ${{ steps.check.outputs.can-promote }}
+    steps:
+      - name: Evaluate security scan results
+        id: check
+        env:
+          OVERRIDE: ${{ inputs.override-security-scan }}
+          SERVER_RESULT: ${{ needs.scan-server-image.outputs.scan-result }}
+          ADMIN_RESULT: ${{ needs.scan-admin-tools-image.outputs.scan-result || 'pass' }}
+          SERVER_HAS_CRITICAL: ${{ needs.scan-server-image.outputs.has-critical }}
+          SERVER_HAS_HIGH: ${{ needs.scan-server-image.outputs.has-high }}
+          ADMIN_HAS_CRITICAL: ${{ needs.scan-admin-tools-image.outputs.has-critical || 'false' }}
+          ADMIN_HAS_HIGH: ${{ needs.scan-admin-tools-image.outputs.has-high || 'false' }}
+        run: |
+          echo "=== Security Scan Results ==="
+          echo "Server image: $SERVER_RESULT"
+          echo "  Critical: $SERVER_HAS_CRITICAL"
+          echo "  High: $SERVER_HAS_HIGH"
+          echo ""
+          echo "Admin-tools image: $ADMIN_RESULT"
+          echo "  Critical: $ADMIN_HAS_CRITICAL"
+          echo "  High: $ADMIN_HAS_HIGH"
+          echo ""
+          echo "Override enabled: $OVERRIDE"
+          echo "=============================="
+
+          if [ "$SERVER_RESULT" = "fail" ] || [ "$ADMIN_RESULT" = "fail" ]; then
+            if [ "$OVERRIDE" = "true" ]; then
+              echo ""
+              echo "⚠️  WARNING: Security vulnerabilities detected but OVERRIDE is enabled!"
+              echo "Proceeding with image promotion despite security issues."
+              echo "can-promote=true" >> "$GITHUB_OUTPUT"
+            else
+              echo ""
+              echo "❌ Security vulnerabilities detected. Promotion BLOCKED."
+              echo "To proceed anyway, re-run with 'override-security-scan' enabled."
+              echo "can-promote=false" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+          else
+            echo ""
+            echo "✓ All security scans passed. Proceeding with promotion."
+            echo "can-promote=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  promote-server:
+    needs: [validate-inputs, check-security-gate]
+    if: needs.check-security-gate.outputs.can-promote == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Docker Hub credentials
+        run: |
+          if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ] || [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            echo "Error: Docker Hub credentials not configured"
+            exit 1
+          fi
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull, tag, and push server image
+        env:
+          SOURCE_TAG: ${{ needs.validate-inputs.outputs.source-tag-safe }}
+          TARGET_TAG: ${{ needs.validate-inputs.outputs.target-tag-safe }}
+        run: |
+          echo "Promoting server image..."
+          echo "  From: temporaliotest/server:$SOURCE_TAG"
+          echo "  To:   temporalio/server:$TARGET_TAG"
+
+          # Pull from test registry
+          docker pull temporaliotest/server:$SOURCE_TAG
+
+          # Tag for production registry
+          docker tag temporaliotest/server:$SOURCE_TAG temporalio/server:$TARGET_TAG
+
+          # Push to production registry
+          docker push temporalio/server:$TARGET_TAG
+
+          echo "✓ Server image promoted successfully"
+
+  promote-admin-tools:
+    needs: [validate-inputs, check-security-gate]
+    if: needs.check-security-gate.outputs.can-promote == 'true' && !inputs.skip-admin-tools
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Docker Hub credentials
+        run: |
+          if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ] || [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            echo "Error: Docker Hub credentials not configured"
+            exit 1
+          fi
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull, tag, and push admin-tools image
+        env:
+          SOURCE_TAG: ${{ needs.validate-inputs.outputs.source-tag-safe }}
+          TARGET_TAG: ${{ needs.validate-inputs.outputs.target-tag-safe }}
+        run: |
+          echo "Promoting admin-tools image..."
+          echo "  From: temporaliotest/admin-tools:$SOURCE_TAG"
+          echo "  To:   temporalio/admin-tools:$TARGET_TAG"
+
+          # Pull from test registry
+          docker pull temporaliotest/admin-tools:$SOURCE_TAG
+
+          # Tag for production registry
+          docker tag temporaliotest/admin-tools:$SOURCE_TAG temporalio/admin-tools:$TARGET_TAG
+
+          # Push to production registry
+          docker push temporalio/admin-tools:$TARGET_TAG
+
+          echo "✓ Admin-tools image promoted successfully"
+
+  promotion-summary:
+    needs: [validate-inputs, promote-server, promote-admin-tools]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate promotion summary
+        env:
+          SOURCE_TAG: ${{ needs.validate-inputs.outputs.source-tag-safe }}
+          TARGET_TAG: ${{ needs.validate-inputs.outputs.target-tag-safe }}
+          SERVER_RESULT: ${{ needs.promote-server.result }}
+          ADMIN_RESULT: ${{ needs.promote-admin-tools.result }}
+          OVERRIDE_USED: ${{ inputs.override-security-scan }}
+        run: |
+          echo "=== Image Promotion Summary ==="
+          echo ""
+          echo "Source: temporaliotest/*:$SOURCE_TAG"
+          echo "Target: temporalio/*:$TARGET_TAG"
+          echo ""
+          echo "Server image: $SERVER_RESULT"
+          echo "Admin-tools image: $ADMIN_RESULT"
+          echo ""
+
+          if [ "$OVERRIDE_USED" = "true" ]; then
+            echo "⚠️  Security scan override was used"
+          fi
+
+          echo ""
+          echo "Promoted images:"
+          if [ "$SERVER_RESULT" = "success" ]; then
+            echo "  ✓ docker pull temporalio/server:$TARGET_TAG"
+          fi
+          if [ "$ADMIN_RESULT" = "success" ]; then
+            echo "  ✓ docker pull temporalio/admin-tools:$TARGET_TAG"
+          fi
+          echo "=============================="
