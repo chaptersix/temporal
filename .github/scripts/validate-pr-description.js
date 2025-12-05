@@ -1,0 +1,49 @@
+/**
+ * Validates PR description for placeholder lines or empty sections
+ * @param {object} github - GitHub API client
+ * @param {object} context - GitHub Actions context
+ * @param {object} core - GitHub Actions core utilities
+ */
+module.exports = async ({ github, context, core }) => {
+  const pr = await github.rest.pulls.get({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    pull_number: context.payload.pull_request.number
+  });
+
+  const body = pr.data.body || '';
+  const lines = body.split(/\r?\n/);
+
+  const violations = [];
+
+  // Detect placeholder lines: entire line starts and ends with _
+  lines.forEach((line, idx) => {
+    if (/^_.*_$/.test(line.trim())) {
+      violations.push(`Line ${idx + 1}: Placeholder "${line.trim()}"`);
+    }
+  });
+
+  // Detect empty sections: look for headers like '## Why?' followed by no meaningful content
+  const requiredSections = ['## What changed?', '## Why?', '## How did you test it?'];
+  requiredSections.forEach((header) => {
+    const idx = lines.findIndex(line => line.trim().toLowerCase() === header.toLowerCase());
+    if (idx !== -1) {
+      let contentIdx = idx + 1;
+      while (contentIdx < lines.length && lines[contentIdx].trim() === '') {
+        contentIdx++;
+      }
+      const nextLine = lines[contentIdx]?.trim();
+      if (!nextLine || /^## /.test(nextLine)) {
+        violations.push(`Section "${header}" appears to be empty.`);
+      }
+    }
+  });
+
+  if (violations.length > 0) {
+    console.log("❌ PR description issues found:");
+    violations.forEach(v => console.log(`- ${v}`));
+    core.setFailed('PR description must not contain placeholders or empty sections.');
+  } else {
+    console.log("✅ PR description passed all checks.");
+  }
+};

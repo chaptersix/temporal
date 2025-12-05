@@ -67,8 +67,8 @@ jobs:
         env:
           SOURCE_TAG: ${{ needs.validate-inputs.outputs.source-tag-safe }}
         run: |
-          echo "Pulling temporaliotest/server:$SOURCE_TAG"
-          docker pull temporaliotest/server:$SOURCE_TAG
+          echo "Pulling temporaliotest/server:${SOURCE_TAG}"
+          docker pull "temporaliotest/server:${SOURCE_TAG}"
 
       - name: Scan server image with Trivy
         id: scan
@@ -82,30 +82,34 @@ jobs:
           sudo apt-get install -y trivy
 
           # Scan image and save results
-          echo "Scanning temporaliotest/server:$SOURCE_TAG for vulnerabilities..."
+          echo "Scanning temporaliotest/server:${SOURCE_TAG} for vulnerabilities..."
 
           # Scan and output results
           trivy image \
             --severity CRITICAL,HIGH \
             --format table \
-            temporaliotest/server:$SOURCE_TAG | tee trivy-server-scan.txt
+            "temporaliotest/server:${SOURCE_TAG}" | tee trivy-server-scan.txt
 
           # Check for critical vulnerabilities
-          CRITICAL_COUNT=$(trivy image --severity CRITICAL --format json temporaliotest/server:$SOURCE_TAG | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length')
-          HIGH_COUNT=$(trivy image --severity HIGH --format json temporaliotest/server:$SOURCE_TAG | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length')
+          CRITICAL_COUNT=$(trivy image --severity CRITICAL --format json "temporaliotest/server:${SOURCE_TAG}" | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length')
+          HIGH_COUNT=$(trivy image --severity HIGH --format json "temporaliotest/server:${SOURCE_TAG}" | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length')
 
-          echo "Critical vulnerabilities: $CRITICAL_COUNT"
-          echo "High vulnerabilities: $HIGH_COUNT"
+          echo "Critical vulnerabilities: ${CRITICAL_COUNT}"
+          echo "High vulnerabilities: ${HIGH_COUNT}"
 
           if [ "$CRITICAL_COUNT" -gt 0 ] || [ "$HIGH_COUNT" -gt 0 ]; then
-            echo "result=fail" >> "$GITHUB_OUTPUT"
-            echo "has-critical=$( [ "$CRITICAL_COUNT" -gt 0 ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
-            echo "has-high=$( [ "$HIGH_COUNT" -gt 0 ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            {
+              echo "result=fail"
+              echo "has-critical=$( [ "$CRITICAL_COUNT" -gt 0 ] && echo true || echo false )"
+              echo "has-high=$( [ "$HIGH_COUNT" -gt 0 ] && echo true || echo false )"
+            } >> "$GITHUB_OUTPUT"
             echo "⚠️  Security vulnerabilities found!"
           else
-            echo "result=pass" >> "$GITHUB_OUTPUT"
-            echo "has-critical=false" >> "$GITHUB_OUTPUT"
-            echo "has-high=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "result=pass"
+              echo "has-critical=false"
+              echo "has-high=false"
+            } >> "$GITHUB_OUTPUT"
             echo "✓ No critical or high vulnerabilities found"
           fi
 
@@ -130,8 +134,8 @@ jobs:
         env:
           SOURCE_TAG: ${{ needs.validate-inputs.outputs.source-tag-safe }}
         run: |
-          echo "Pulling temporaliotest/admin-tools:$SOURCE_TAG"
-          docker pull temporaliotest/admin-tools:$SOURCE_TAG
+          echo "Pulling temporaliotest/admin-tools:${SOURCE_TAG}"
+          docker pull "temporaliotest/admin-tools:${SOURCE_TAG}"
 
       - name: Scan admin-tools image with Trivy
         id: scan
@@ -144,28 +148,32 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y trivy
 
-          echo "Scanning temporaliotest/admin-tools:$SOURCE_TAG for vulnerabilities..."
+          echo "Scanning temporaliotest/admin-tools:${SOURCE_TAG} for vulnerabilities..."
 
           trivy image \
             --severity CRITICAL,HIGH \
             --format table \
-            temporaliotest/admin-tools:$SOURCE_TAG | tee trivy-admin-tools-scan.txt
+            "temporaliotest/admin-tools:${SOURCE_TAG}" | tee trivy-admin-tools-scan.txt
 
-          CRITICAL_COUNT=$(trivy image --severity CRITICAL --format json temporaliotest/admin-tools:$SOURCE_TAG | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length')
-          HIGH_COUNT=$(trivy image --severity HIGH --format json temporaliotest/admin-tools:$SOURCE_TAG | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length')
+          CRITICAL_COUNT=$(trivy image --severity CRITICAL --format json "temporaliotest/admin-tools:${SOURCE_TAG}" | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length')
+          HIGH_COUNT=$(trivy image --severity HIGH --format json "temporaliotest/admin-tools:${SOURCE_TAG}" | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length')
 
-          echo "Critical vulnerabilities: $CRITICAL_COUNT"
-          echo "High vulnerabilities: $HIGH_COUNT"
+          echo "Critical vulnerabilities: ${CRITICAL_COUNT}"
+          echo "High vulnerabilities: ${HIGH_COUNT}"
 
           if [ "$CRITICAL_COUNT" -gt 0 ] || [ "$HIGH_COUNT" -gt 0 ]; then
-            echo "result=fail" >> "$GITHUB_OUTPUT"
-            echo "has-critical=$( [ "$CRITICAL_COUNT" -gt 0 ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
-            echo "has-high=$( [ "$HIGH_COUNT" -gt 0 ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            {
+              echo "result=fail"
+              echo "has-critical=$( [ "$CRITICAL_COUNT" -gt 0 ] && echo true || echo false )"
+              echo "has-high=$( [ "$HIGH_COUNT" -gt 0 ] && echo true || echo false )"
+            } >> "$GITHUB_OUTPUT"
             echo "⚠️  Security vulnerabilities found!"
           else
-            echo "result=pass" >> "$GITHUB_OUTPUT"
-            echo "has-critical=false" >> "$GITHUB_OUTPUT"
-            echo "has-high=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "result=pass"
+              echo "has-critical=false"
+              echo "has-high=false"
+            } >> "$GITHUB_OUTPUT"
             echo "✓ No critical or high vulnerabilities found"
           fi
 
@@ -250,17 +258,17 @@ jobs:
           TARGET_TAG: ${{ needs.validate-inputs.outputs.target-tag-safe }}
         run: |
           echo "Promoting server image..."
-          echo "  From: temporaliotest/server:$SOURCE_TAG"
-          echo "  To:   temporalio/server:$TARGET_TAG"
+          echo "  From: temporaliotest/server:${SOURCE_TAG}"
+          echo "  To:   temporalio/server:${TARGET_TAG}"
 
           # Pull from test registry
-          docker pull temporaliotest/server:$SOURCE_TAG
+          docker pull "temporaliotest/server:${SOURCE_TAG}"
 
           # Tag for production registry
-          docker tag temporaliotest/server:$SOURCE_TAG temporalio/server:$TARGET_TAG
+          docker tag "temporaliotest/server:${SOURCE_TAG}" "temporalio/server:${TARGET_TAG}"
 
           # Push to production registry
-          docker push temporalio/server:$TARGET_TAG
+          docker push "temporalio/server:${TARGET_TAG}"
 
           echo "✓ Server image promoted successfully"
 
@@ -288,17 +296,17 @@ jobs:
           TARGET_TAG: ${{ needs.validate-inputs.outputs.target-tag-safe }}
         run: |
           echo "Promoting admin-tools image..."
-          echo "  From: temporaliotest/admin-tools:$SOURCE_TAG"
-          echo "  To:   temporalio/admin-tools:$TARGET_TAG"
+          echo "  From: temporaliotest/admin-tools:${SOURCE_TAG}"
+          echo "  To:   temporalio/admin-tools:${TARGET_TAG}"
 
           # Pull from test registry
-          docker pull temporaliotest/admin-tools:$SOURCE_TAG
+          docker pull "temporaliotest/admin-tools:${SOURCE_TAG}"
 
           # Tag for production registry
-          docker tag temporaliotest/admin-tools:$SOURCE_TAG temporalio/admin-tools:$TARGET_TAG
+          docker tag "temporaliotest/admin-tools:${SOURCE_TAG}" "temporalio/admin-tools:${TARGET_TAG}"
 
           # Push to production registry
-          docker push temporalio/admin-tools:$TARGET_TAG
+          docker push "temporalio/admin-tools:${TARGET_TAG}"
 
           echo "✓ Admin-tools image promoted successfully"
 
