@@ -58,14 +58,14 @@ jobs:
         run: |
           # Generate checksums for amd64 binaries
           cd build/amd64
-          sha256sum * > checksums.txt
+          sha256sum ./* > checksums.txt
           echo "Generated checksums for amd64:"
           cat checksums.txt
           cd ../..
 
           # Generate checksums for arm64 binaries
           cd build/arm64
-          sha256sum * > checksums.txt
+          sha256sum ./* > checksums.txt
           echo "Generated checksums for arm64:"
           cat checksums.txt
           cd ../..
