@@ -1,4 +1,4 @@
-name: goreleaser
+name: Release
 
 on:
   release:
@@ -9,24 +9,24 @@ permissions:
   contents: write
 
 jobs:
-  goreleaser:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  release-binaries:
+    uses: ./.github/workflows/reusable-build-binaries.yml
+    with:
+      snapshot: false  # Release mode
+      ref: ${{ github.ref }}
+      upload-artifacts: true
+    permissions:
+      contents: write
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-          check-latest: true
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5
-        with:
-          version: latest
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  release-docker-images:
+    needs: release-binaries
+    uses: ./.github/workflows/reusable-build-docker-images.yml
+    with:
+      ref: ${{ github.ref }}
+      image-tag: ${{ github.ref_name }}
+      upload-artifact: true
+      push-to-registry: true
+      tag-latest: true
+    secrets:
+      dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+      dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}

@@ -7,23 +7,27 @@ variable "CLI_VERSION" {
 }
 
 variable "IMAGE_REPO" {
-  default = "temporaliotest"
+  default = getenv("IMAGE_REPO", "temporaliotest")
 }
 
-variable "IMAGE_SHA_TAG" {}
+variable "IMAGE_SHA_TAG" {
+  default = getenv("IMAGE_SHA_TAG", "")
+}
 
-variable "IMAGE_BRANCH_TAG" {}
+variable "IMAGE_BRANCH_TAG" {
+  default = getenv("IMAGE_BRANCH_TAG", "")
+}
 
 variable "SAFE_IMAGE_BRANCH_TAG" {
   default = join("-", [for c in regexall("[a-z0-9]+", lower(IMAGE_BRANCH_TAG)) : c])
 }
 
 variable "TEMPORAL_SHA" {
-  default = ""
+  default = getenv("TEMPORAL_SHA", "")
 }
 
 variable "TAG_LATEST" {
-  default = false
+  default = getenv("TAG_LATEST", "false") == "true"
 }
 
 # Legacy targets (legacy-admin-tools, legacy-server) are for building images with server versions

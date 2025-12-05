@@ -13,7 +13,28 @@ concurrency: # Auto-cancel existing runs in the PR when a new commit is pushed
   cancel-in-progress: true
 
 jobs:
-  build-docker-image:
+  # NEW: Local build path
+  build-binaries-local:
+    uses: ./.github/workflows/reusable-build-binaries.yml
+    with:
+      snapshot: true
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      upload-artifacts: true
+
+  build-docker-image-local:
+    needs: build-binaries-local
+    permissions:
+      actions: write
+      contents: read
+    uses: ./.github/workflows/reusable-build-docker-images.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      image-tag: sha-${{ github.event.pull_request.head.sha || github.sha }}
+      upload-artifact: true
+      push-to-registry: false
+
+  # EXISTING: Keep as fallback (renamed for clarity)
+  build-docker-image-external:
     permissions:
       actions: write
       contents: read
@@ -23,7 +44,7 @@ jobs:
       temporal-server-repo-ref: ${{github.event.pull_request.head.ref}}
 
   feature-tests-ts:
-    needs: build-docker-image
+    needs: build-docker-image-local
     uses: temporalio/features/.github/workflows/typescript.yaml@main
     with:
       # This field is not actually used by these workflow if docker-image-artifact-name
@@ -33,7 +54,7 @@ jobs:
       docker-image-artifact-name: temporal-server-docker
 
   feature-tests-go:
-    needs: build-docker-image
+    needs: build-docker-image-local
     uses: temporalio/features/.github/workflows/go.yaml@main
     with:
       version: __latest_features_docker_image__
@@ -41,7 +62,7 @@ jobs:
       docker-image-artifact-name: temporal-server-docker
 
   feature-tests-python:
-    needs: build-docker-image
+    needs: build-docker-image-local
     uses: temporalio/features/.github/workflows/python.yaml@main
     with:
       version: __latest_features_docker_image__
@@ -49,7 +70,7 @@ jobs:
       docker-image-artifact-name: temporal-server-docker
 
   feature-tests-java:
-    needs: build-docker-image
+    needs: build-docker-image-local
     uses: temporalio/features/.github/workflows/java.yaml@main
     with:
       version: __latest_features_docker_image__
@@ -57,7 +78,7 @@ jobs:
       docker-image-artifact-name: temporal-server-docker
 
   feature-tests-dotnet:
-    needs: build-docker-image
+    needs: build-docker-image-local
     uses: temporalio/features/.github/workflows/dotnet.yaml@main
     with:
       version: __latest_features_docker_image__
