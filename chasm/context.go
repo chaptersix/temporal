@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+// Context provides read-only access to component state and execution metadata.
+// It is passed to read operations and provides methods to access component references,
+// execution time, and execution keys. Use Now(Component) to get the current time within
+// a transaction (supports pause and time skipping). Use Ref(Component) to get a serialized
+// reference to component state. Components created within the current transaction don't have
+// a ref yet.
 type Context interface {
 	// Context is not bound to any component,
 	// so all methods needs to take in component as a parameter
@@ -24,6 +30,15 @@ type Context interface {
 	getContext() context.Context
 }
 
+// MutableContext extends Context with write capabilities for state mutations and task scheduling.
+// It is passed to state transition functions and allows components to modify state and schedule
+// tasks. All mutations are buffered and committed atomically when the transition function returns
+// successfully. If the function returns an error, all mutations are rolled back.
+//
+// Use AddTask to schedule tasks for asynchronous execution after the transaction commits.
+// Tasks can be pure tasks (transactional state updates) or side-effect tasks (external operations).
+// Use TaskAttributes to control task scheduling (ScheduledTime) and routing (Destination for
+// side-effect tasks).
 type MutableContext interface {
 	Context
 

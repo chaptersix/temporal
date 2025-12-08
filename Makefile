@@ -666,3 +666,21 @@ ensure-no-changes:
 	@printf $(COLOR) "========================================================================"
 	@git status --porcelain
 	@test -z "`git status --porcelain`" || (printf $(COLOR) "========================================================================"; printf $(RED) "Above files are not regenerated properly. Regenerate them and try again."; exit 1)
+
+##### Documentation #####
+
+.PHONY: docs-embed
+docs-embed: ## Update embedded code snippets in documentation
+	@printf $(COLOR) "Updating embedded code snippets in documentation..."
+	@command -v embedmd >/dev/null 2>&1 || { echo "embedmd not found. Install with: go install github.com/campoy/embedmd@latest"; exit 1; }
+	@embedmd -w chasm/lib/scheduler/README.md
+	@embedmd -w chasm/lib/callback/README.md
+	@echo "Done. Documentation updated with latest code from source files."
+
+.PHONY: docs-check
+docs-check: ## Check if embedded code snippets are up to date
+	@printf $(COLOR) "Checking embedded code snippets are up to date..."
+	@command -v embedmd >/dev/null 2>&1 || { echo "embedmd not found. Install with: go install github.com/campoy/embedmd@latest"; exit 1; }
+	@embedmd -d chasm/lib/scheduler/README.md || { printf $(RED) "Documentation is out of date. Run 'make docs-embed' to update."; exit 1; }
+	@embedmd -d chasm/lib/callback/README.md || { printf $(RED) "Callback documentation is out of date. Run 'make docs-embed' to update."; exit 1; }
+	@echo "Documentation is up to date."

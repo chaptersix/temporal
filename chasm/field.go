@@ -12,19 +12,22 @@ const (
 	internalFieldName = "Internal"
 )
 
+// Field[T] is a type-safe container for component state with lazy deserialization.
+// Fields can hold either data (protobuf messages via NewDataField) or child components
+// (via NewComponentField). The framework handles serialization, deserialization, and
+// persistence automatically.
+//
+// Fields are accessed via TryGet or Get and are lazily loaded from persistence only when
+// accessed, minimizing memory footprint for large component trees. Fields are immutable once
+// created; to update a field's value, create a new field with the updated value.
 type Field[T any] struct {
 	// This struct needs to be created via reflection, but reflection can't set private fields.
 	Internal fieldInternal
 }
 
-// re. Data v.s. Component.
-// Components have behavior and has a lifecycle.
-// while Data doesn't and must be attached to a component.
-//
-// You can define a component just for storing the data,
-// that may contain other information like ref count etc.
-// most importantly, the framework needs to know when it's safe to delete the data.
-// i.e. the lifecycle of that data component reaches completed.
+// NewDataField creates a Field[D] containing a protobuf message.
+// Data fields store protobuf messages as component state and are serialized/deserialized
+// automatically. Use for configuration, results, and simple state without behavior.
 func NewDataField[D proto.Message](
 	ctx MutableContext,
 	d D,
@@ -34,6 +37,10 @@ func NewDataField[D proto.Message](
 	}
 }
 
+// NewComponentField creates a Field[C] containing a child component.
+// Child components have their own state, lifecycle, and behavior, and are useful for
+// decomposing complex archetypes into smaller pieces. Component fields support lazy
+// loading - child components are deserialized only when accessed.
 func NewComponentField[C Component](
 	ctx MutableContext,
 	c C,

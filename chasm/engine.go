@@ -11,6 +11,15 @@ import (
 // return any information.
 type NoValue = *struct{}
 
+// Engine is the primary API for interacting with CHASM executions.
+// It provides operations for creating new executions (NewExecution),
+// updating existing components (UpdateComponent), and reading component
+// state (ReadComponent). All write operations are transactional with
+// optimistic concurrency control.
+//
+// Write operations create a transaction that commits atomically. If the
+// transition function returns an error, the transaction is rolled back.
+// Read operations provide a snapshot view without creating a transaction.
 type Engine interface {
 	NewExecution(
 		context.Context,
@@ -48,22 +57,42 @@ type Engine interface {
 	) ([]byte, error)
 }
 
+// BusinessIDReusePolicy controls whether duplicate BusinessIDs are allowed when creating executions.
 type BusinessIDReusePolicy int
 
 const (
+	// BusinessIDReusePolicyAllowDuplicate allows creating a new execution even if one with the
+	// same BusinessID already exists (regardless of state).
 	BusinessIDReusePolicyAllowDuplicate BusinessIDReusePolicy = iota
+
+	// BusinessIDReusePolicyAllowDuplicateFailedOnly allows creating a new execution only if
+	// the existing execution with the same BusinessID is in a failed state.
 	BusinessIDReusePolicyAllowDuplicateFailedOnly
+
+	// BusinessIDReusePolicyRejectDuplicate rejects creating a new execution if one with the
+	// same BusinessID already exists.
 	BusinessIDReusePolicyRejectDuplicate
 )
 
+// BusinessIDConflictPolicy determines behavior when a BusinessID conflict is detected.
 type BusinessIDConflictPolicy int
 
 const (
+	// BusinessIDConflictPolicyFail returns an error when a conflict is detected.
 	BusinessIDConflictPolicyFail BusinessIDConflictPolicy = iota
+
+	// BusinessIDConflictPolicyTerminateExisting terminates the existing execution and
+	// creates a new one with the same BusinessID.
 	BusinessIDConflictPolicyTerminateExisting
+
+	// BusinessIDConflictPolicyUseExisting uses the existing execution instead of creating
+	// a new one (effectively becomes an update operation).
 	BusinessIDConflictPolicyUseExisting
 )
 
+// TransitionOptions configures Engine operations like NewExecution and UpdateComponent.
+//
+// Options control execution creation behavior, request idempotency, and transaction persistence.
 type TransitionOptions struct {
 	ReusePolicy    BusinessIDReusePolicy
 	ConflictPolicy BusinessIDConflictPolicy
@@ -71,24 +100,59 @@ type TransitionOptions struct {
 	Speculative    bool
 }
 
+// TransitionOption is a functional option for configuring Engine operations.
 type TransitionOption func(*TransitionOptions)
 
-// (only) this transition will not be persisted
-// The next non-speculative transition will persist this transition as well.
-// Compared to the ExecutionEphemeral() operation on RegistrableComponent,
-// the scope of this operation is limited to a certain transition,
-// while the ExecutionEphemeral() applies to all transitions.
-// TODO: we need to figure out a way to run the tasks
-// generated in a speculative transition
+// WithSpeculative marks a transition as speculative (not immediately persisted).
+//
+// Speculative transitions are buffered and persisted together with the next non-speculative
+// transition. This is useful for batching multiple state changes into a single persistence
+// operation for efficiency.
+//
+// Scope: This option applies to a single transition. Compare with ExecutionEphemeral() on
+// RegistrableComponent, which applies to all transitions for a component type.
+//
+// Example:
+//
+//	// First transition is speculative (buffered)
+//	engine.UpdateComponent(ctx, ref, updateFunc, chasm.WithSpeculative())
+//
+//	// Second transition persists both changes atomically
+//	engine.UpdateComponent(ctx, ref, anotherUpdateFunc)
+//
+// Note: Task scheduling in speculative transitions requires special handling (see implementation).
 func WithSpeculative() TransitionOption {
 	return func(opts *TransitionOptions) {
 		opts.Speculative = true
 	}
 }
 
-// WithBusinessIDPolicy sets the businessID reuse and conflict policy
-// used in the transition when creating a new execution.
-// This option only applies to NewExecution() and UpdateWithNewExecution().
+// WithBusinessIDPolicy configures BusinessID reuse and conflict behavior for execution creation.
+//
+// This option controls what happens when attempting to create an execution with a BusinessID
+// that already exists. It only applies to NewExecution() and UpdateWithNewExecution().
+//
+// ReusePolicy options:
+//   - AllowDuplicate: Allow new execution regardless of existing state
+//   - AllowDuplicateFailedOnly: Allow new execution only if existing one failed
+//   - RejectDuplicate: Fail if BusinessID already exists
+//
+// ConflictPolicy options (when duplicate is detected):
+//   - Fail: Return an error
+//   - TerminateExisting: Terminate existing execution and create new one
+//   - UseExisting: Use existing execution (becomes an update)
+//
+// Example:
+//
+//	engine.NewExecution(
+//	    ctx,
+//	    ref,
+//	    constructorFunc,
+//	    chasm.WithBusinessIDPolicy(
+//	        chasm.BusinessIDReusePolicyRejectDuplicate,
+//	        chasm.BusinessIDConflictPolicyFail,
+//	    ),
+//	)
 func WithBusinessIDPolicy(
 	reusePolicy BusinessIDReusePolicy,
 	conflictPolicy BusinessIDConflictPolicy,
@@ -99,8 +163,22 @@ func WithBusinessIDPolicy(
 	}
 }
 
-// WithRequestID sets the requestID used when creating a new execution.
+// WithRequestID sets a request ID for idempotent execution creation.
+//
+// When provided, the request ID is used to deduplicate execution creation requests. Multiple
+// requests with the same BusinessID and RequestID will create only one execution, making the
+// operation idempotent.
+//
 // This option only applies to NewExecution() and UpdateWithNewExecution().
+//
+// Example:
+//
+//	engine.NewExecution(
+//	    ctx,
+//	    ref,
+//	    constructorFunc,
+//	    chasm.WithRequestID(uuid.New().String()),
+//	)
 func WithRequestID(
 	requestID string,
 ) TransitionOption {

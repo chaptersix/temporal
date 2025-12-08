@@ -12,12 +12,62 @@ var (
 )
 
 // ExecutionKey uniquely identifies a CHASM execution in the system.
+//
+// Executions are identified by:
+//   - NamespaceID: Temporal namespace containing the execution
+//   - BusinessID: User-provided business identifier (stable across runs)
+//   - RunID: Framework-generated unique identifier for a specific run
+//
+// The BusinessID is stable and can be reused across multiple runs (depending on
+// BusinessIDReusePolicy). The RunID is unique per run and never reused.
 type ExecutionKey struct {
 	NamespaceID string
 	BusinessID  string
 	RunID       string
 }
 
+// ComponentRef is a reference to a component within a CHASM execution.
+//
+// ComponentRef identifies a specific component in the component tree and is used with Engine
+// operations to target components for read, update, or create operations.
+//
+// # Creation
+//
+// Create a ComponentRef using NewComponentRef with the root component type:
+//
+//	ref := chasm.NewComponentRef[*Scheduler](chasm.ExecutionKey{
+//	    NamespaceID: "default",
+//	    BusinessID:  "schedule-123",
+//	})
+//
+// The type parameter determines the archetype (root component type). The framework uses this
+// to validate that operations target the correct component type.
+//
+// # Usage with Engine
+//
+// Pass ComponentRef to Engine operations:
+//
+//	// Create new execution
+//	executionKey, ref, err := engine.NewExecution(ctx, ref, constructorFunc)
+//
+//	// Update component
+//	ref, err := engine.UpdateComponent(ctx, ref, updateFunc)
+//
+//	// Read component
+//	err := engine.ReadComponent(ctx, ref, readFunc)
+//
+// # Reference Semantics
+//
+// ComponentRef contains:
+//   - ExecutionKey: Identifies the execution (NamespaceID, BusinessID, RunID)
+//   - Component path: Location within the component tree (root vs child)
+//   - Version information: For optimistic concurrency control
+//   - Type information: For archetype validation
+//
+// In V1, ComponentRef always references the root component of an execution. Future versions
+// may support referencing child components directly.
+//
+// See README.md#componentref for detailed documentation.
 type ComponentRef struct {
 	ExecutionKey
 
@@ -52,10 +102,21 @@ type ComponentRef struct {
 	validationFn func(NodeBackend, Context, Component) error
 }
 
-// NewComponentRef creates a new ComponentRef with a registered root component go type.
+// NewComponentRef creates a ComponentRef for a root component of type C.
 //
-// In V1, if you don't have a ref,
-// then you can only interact with the (top level) execution.
+// The type parameter C determines the archetype (root component type) for the execution.
+// This is used by the framework to validate that Engine operations target the correct
+// component type.
+//
+// Example:
+//
+//	ref := chasm.NewComponentRef[*Scheduler](chasm.ExecutionKey{
+//	    NamespaceID: "default",
+//	    BusinessID:  "schedule-daily-report",
+//	})
+//
+// In V1, ComponentRef always references the root (top-level) component of an execution.
+// To interact with child components, access them through the root component's fields.
 func NewComponentRef[C Component](
 	executionKey ExecutionKey,
 ) ComponentRef {

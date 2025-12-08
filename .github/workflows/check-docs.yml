@@ -1,0 +1,46 @@
+name: Check Documentation
+
+on:
+  pull_request:
+    paths:
+      - 'chasm/**/*.md'
+      - 'chasm/**/*.go'
+      - '.github/workflows/check-docs.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'chasm/**/*.md'
+      - 'chasm/**/*.go'
+
+permissions:
+  contents: read
+
+jobs:
+  check-embedded-docs:
+    name: Verify embedded code snippets are up to date
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      
+      - name: Install embedmd
+        run: go install github.com/campoy/embedmd@latest
+      
+      - name: Check documentation freshness
+        run: make docs-check
+      
+      - name: Provide helpful error message
+        if: failure()
+        run: |
+          echo "::error::Documentation is out of date!"
+          echo "Run 'make docs-embed' locally to update embedded code snippets, then commit the changes."
+          echo ""
+          echo "This ensures documentation examples stay in sync with actual code."

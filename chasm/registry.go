@@ -17,6 +17,36 @@ var (
 )
 
 type (
+	// Registry manages all CHASM libraries and provides lookup for components and tasks.
+	//
+	// The Registry is the central repository for archetype implementations. It maintains mappings
+	// between component types, task types, and their metadata, enabling the CHASM framework to
+	// instantiate components and execute tasks based on their registered names and IDs.
+	//
+	// # Registration
+	//
+	// Libraries are registered at application startup:
+	//
+	//	registry := chasm.NewRegistry(logger)
+	//	registry.Register(&scheduler.Library{})
+	//	registry.Register(&callback.Library{})
+	//
+	// The Registry validates library names, component names, and task names to ensure uniqueness
+	// and prevent conflicts.
+	//
+	// # Lookup Operations
+	//
+	// The Registry provides lookup by:
+	//   - Name: ComponentByFqn("scheduler.scheduler")
+	//   - ID: ComponentByID(archetypeID)
+	//   - Go Type: componentOf(reflect.TypeFor[*Scheduler]())
+	//
+	// # Thread Safety
+	//
+	// Registry is not thread-safe. All libraries must be registered before the application
+	// starts processing requests. Registration after startup is not supported.
+	//
+	// See README.md#registry for detailed documentation.
 	Registry struct {
 		libraries         map[string]Library                     // library name -> library
 		componentByType   map[string]*RegistrableComponent       // fully qualified type name -> component
@@ -31,6 +61,10 @@ type (
 	}
 )
 
+// NewRegistry creates a new Registry for managing CHASM libraries.
+//
+// The Registry should be created at application startup and populated with all libraries
+// before processing any requests.
 func NewRegistry(logger log.Logger) *Registry {
 	return &Registry{
 		libraries:         make(map[string]Library),
@@ -44,6 +78,20 @@ func NewRegistry(logger log.Logger) *Registry {
 	}
 }
 
+// Register adds a Library to the Registry.
+//
+// This validates the library name, component names, and task names, then adds all components
+// and tasks to the Registry's lookup maps. Returns an error if:
+//   - The library name is invalid or already registered
+//   - Any component name is invalid or conflicts with an existing component
+//   - Any task name is invalid or conflicts with an existing task
+//
+// Example:
+//
+//	registry := chasm.NewRegistry(logger)
+//	if err := registry.Register(&scheduler.Library{}); err != nil {
+//	    return err
+//	}
 func (r *Registry) Register(lib Library) error {
 	if err := r.validateName(lib.Name()); err != nil {
 		return err
