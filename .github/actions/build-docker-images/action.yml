@@ -1,5 +1,9 @@
 name: Build Docker Images
-description: Build Temporal Docker images from binaries
+description: |
+  Build Temporal Docker images from binaries.
+
+  Prerequisites:
+    - The build-binaries action must run before this action to produce the binaries.
 
 inputs:
   push:
@@ -28,30 +32,33 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Build docker-build-helper
+      shell: bash
+      working-directory: ${{ github.workspace }}/.github/actions/build-docker-images/scripts
+      run: |
+        go build -o docker-build-helper .
+
     - name: Validate and sanitize branch name for Docker tag
       id: sanitize-tag
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const sanitizeTag = require('./.github/actions/build-docker-images/scripts/sanitize-tag.js');
-          sanitizeTag({ context, core });
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        .github/actions/build-docker-images/scripts/docker-build-helper sanitize-tag
 
     - name: Organize binaries for Docker
       id: organize-binaries
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const organizeBinaries = require('./.github/actions/build-docker-images/scripts/organize-binaries.js');
-          organizeBinaries({ core });
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        .github/actions/build-docker-images/scripts/docker-build-helper organize-binaries
 
     - name: Download Temporal CLI
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const downloadCli = require('./.github/actions/build-docker-images/scripts/download-cli.js');
-          const availableArchsStr = '${{ steps.organize-binaries.outputs.available-archs }}';
-          const availableArchs = availableArchsStr.split(',');
-          downloadCli({ availableArchs });
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        AVAILABLE_ARCHS: ${{ steps.organize-binaries.outputs.available-archs }}
+      run: |
+        .github/actions/build-docker-images/scripts/docker-build-helper download-cli
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
