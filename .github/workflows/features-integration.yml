@@ -95,6 +95,7 @@ jobs:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
       docker-image-artifact-name: temporal-server-docker
+      features-repo-ref: alex/fix-compose
 
   feature-tests-python:
     needs: build-docker-image
