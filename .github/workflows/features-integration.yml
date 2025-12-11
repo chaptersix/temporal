@@ -80,7 +80,7 @@ jobs:
 
   feature-tests-ts:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/typescript.yaml@alex/fix-compose
+    uses: temporalio/features/.github/workflows/typescript.yaml@7c02adf89674d6863d8ef23bce46e89a33ff69f0
     with:
       # This field is not actually used by these workflow if docker-image-artifact-name
       # is set, but it's marked as required, so supply some string.
@@ -90,7 +90,7 @@ jobs:
 
   feature-tests-go:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/go.yaml@alex/fix-compose
+    uses: temporalio/features/.github/workflows/go.yaml@7c02adf89674d6863d8ef23bce46e89a33ff69f0
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
@@ -98,7 +98,7 @@ jobs:
 
   feature-tests-python:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/python.yaml@alex/fix-compose
+    uses: temporalio/features/.github/workflows/python.yaml@7c02adf89674d6863d8ef23bce46e89a33ff69f0
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
@@ -106,7 +106,7 @@ jobs:
 
   feature-tests-java:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/java.yaml@alex/fix-compose
+    uses: temporalio/features/.github/workflows/java.yaml@7c02adf89674d6863d8ef23bce46e89a33ff69f0
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
@@ -114,7 +114,7 @@ jobs:
 
   feature-tests-dotnet:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/dotnet.yaml@alex/fix-compose
+    uses: temporalio/features/.github/workflows/dotnet.yaml@7c02adf89674d6863d8ef23bce46e89a33ff69f0
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
