@@ -67,7 +67,7 @@ jobs:
             /tmp/temporal-server.tar
             /tmp/temporal-admin-tools.tar
             /tmp/image_tag
-          ./develop/docker-compose/docker-compose.yml 
+            ./develop/docker-compose/docker-compose.yml 
 
           retention-days: 7
 
