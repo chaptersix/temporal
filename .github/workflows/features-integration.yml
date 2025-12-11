@@ -60,12 +60,15 @@ jobs:
 
       - name: Upload Docker artifact
         uses: actions/upload-artifact@v4
+        working-directory: ${{ github.workspace }}
         with:
           name: temporal-server-docker
           path: |
             /tmp/temporal-server.tar
             /tmp/temporal-admin-tools.tar
             /tmp/image_tag
+          ./develop/docker-compose/docker-compose.yml 
+
           retention-days: 7
 
   feature-tests-ts:
