@@ -55,6 +55,7 @@ jobs:
       - name: Save Docker image as artifact
         run: |
           docker save temporaliotest/server:${{ steps.image-tag.outputs.tag }} -o /tmp/temporal-server.tar
+          docker save temporaliotest/admin-tools:${{ steps.image-tag.outputs.tag }} -o /tmp/temporal-admin-tools.tar
           echo ${{ steps.image-tag.outputs.tag }} > /tmp/image_tag
 
       - name: Upload Docker artifact
@@ -63,6 +64,7 @@ jobs:
           name: temporal-server-docker
           path: |
             /tmp/temporal-server.tar
+            /tmp/temporal-admin-tools.tar
             /tmp/image_tag
           retention-days: 7
 
