@@ -1,7 +1,7 @@
 name: Features Integration Debug
 
 on:
-  workflow_dispatch:
+  pull_request:
 
 permissions: read-all
 
