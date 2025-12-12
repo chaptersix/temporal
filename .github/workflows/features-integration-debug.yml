@@ -77,7 +77,7 @@ jobs:
 
   feature-tests-go:
     needs: pull-docker-images
-    uses: temporalio/features/.github/workflows/go.yaml@978e9a9801d8dc426a04d461b53b1cb9e59a9f39
+    uses: temporalio/features/.github/workflows/go.yaml@1cc5934a0a98230c1c2f5f461faefefd9ee11c54
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
