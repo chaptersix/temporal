@@ -80,45 +80,50 @@ jobs:
 
   feature-tests-ts:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/typescript.yaml@7c02adf89674d6863d8ef23bce46e89a33ff69f0
+    uses: temporalio/features/.github/workflows/typescript.yaml@1cc5934a0a98230c1c2f5f461faefefd9ee11c54
     with:
       # This field is not actually used by these workflow if docker-image-artifact-name
       # is set, but it's marked as required, so supply some string.
       version: __latest_features_docker_image__
       version-is-repo-ref: false
       docker-image-artifact-name: temporal-server-docker
+      features-repo-ref: 1cc5934a0a98230c1c2f5f461faefefd9ee11c54
 
   feature-tests-go:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/go.yaml@7c02adf89674d6863d8ef23bce46e89a33ff69f0
+    uses: temporalio/features/.github/workflows/go.yaml@1cc5934a0a98230c1c2f5f461faefefd9ee11c54
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
       docker-image-artifact-name: temporal-server-docker
+      features-repo-ref: 1cc5934a0a98230c1c2f5f461faefefd9ee11c54
 
   feature-tests-python:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/python.yaml@7c02adf89674d6863d8ef23bce46e89a33ff69f0
+    uses: temporalio/features/.github/workflows/python.yaml@1cc5934a0a98230c1c2f5f461faefefd9ee11c54
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
       docker-image-artifact-name: temporal-server-docker
+      features-repo-ref: 1cc5934a0a98230c1c2f5f461faefefd9ee11c54
 
   feature-tests-java:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/java.yaml@7c02adf89674d6863d8ef23bce46e89a33ff69f0
+    uses: temporalio/features/.github/workflows/java.yaml@1cc5934a0a98230c1c2f5f461faefefd9ee11c54
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
       docker-image-artifact-name: temporal-server-docker
+      features-repo-ref: 1cc5934a0a98230c1c2f5f461faefefd9ee11c54
 
   feature-tests-dotnet:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/dotnet.yaml@7c02adf89674d6863d8ef23bce46e89a33ff69f0
+    uses: temporalio/features/.github/workflows/dotnet.yaml@1cc5934a0a98230c1c2f5f461faefefd9ee11c54
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
       docker-image-artifact-name: temporal-server-docker
+      features-repo-ref: 1cc5934a0a98230c1c2f5f461faefefd9ee11c54
 
   feature-tests-status:
     name: Tests Status
