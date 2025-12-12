@@ -80,50 +80,50 @@ jobs:
 
   feature-tests-ts:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/typescript.yaml@alex/fix-compose
+    uses: temporalio/features/.github/workflows/typescript.yaml@43ca506805c50ffe938779f7735ea800ed587f1a
     with:
       # This field is not actually used by these workflow if docker-image-artifact-name
       # is set, but it's marked as required, so supply some string.
       version: __latest_features_docker_image__
       version-is-repo-ref: false
       docker-image-artifact-name: temporal-server-docker
-      features-repo-ref: alex/fix-compose
+      features-repo-ref: 43ca506805c50ffe938779f7735ea800ed587f1a
 
   feature-tests-go:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/go.yaml@alex/fix-compose
+    uses: temporalio/features/.github/workflows/go.yaml@43ca506805c50ffe938779f7735ea800ed587f1a
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
       docker-image-artifact-name: temporal-server-docker
-      features-repo-ref: alex/fix-compose
+      features-repo-ref: 43ca506805c50ffe938779f7735ea800ed587f1a
 
   feature-tests-python:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/python.yaml@alex/fix-compose
+    uses: temporalio/features/.github/workflows/python.yaml@43ca506805c50ffe938779f7735ea800ed587f1a
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
       docker-image-artifact-name: temporal-server-docker
-      features-repo-ref: alex/fix-compose
+      features-repo-ref: 43ca506805c50ffe938779f7735ea800ed587f1a
 
   feature-tests-java:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/java.yaml@alex/fix-compose
+    uses: temporalio/features/.github/workflows/java.yaml@43ca506805c50ffe938779f7735ea800ed587f1a
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
       docker-image-artifact-name: temporal-server-docker
-      features-repo-ref: alex/fix-compose
+      features-repo-ref: 43ca506805c50ffe938779f7735ea800ed587f1a
 
   feature-tests-dotnet:
     needs: build-docker-image
-    uses: temporalio/features/.github/workflows/dotnet.yaml@alex/fix-compose
+    uses: temporalio/features/.github/workflows/dotnet.yaml@43ca506805c50ffe938779f7735ea800ed587f1a
     with:
       version: __latest_features_docker_image__
       version-is-repo-ref: false
       docker-image-artifact-name: temporal-server-docker
-      features-repo-ref: alex/fix-compose
+      features-repo-ref: 43ca506805c50ffe938779f7735ea800ed587f1a
 
   feature-tests-status:
     name: Tests Status
