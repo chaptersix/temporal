@@ -104,14 +104,18 @@ runs:
         ALPINE_TAG: ${{ inputs.alpine-tag }}
         SERVER_VERSION: ${{ steps.extract-version.outputs.server-version }}
       run: |
+        # --no-cache: Prevents incorrect platform resolution when using digest-pinned
+        # multi-arch base images, which can cause InvalidBaseImagePlatform warnings
         if [ -n "${{ inputs.platform }}" ]; then
           docker buildx bake \
+            --no-cache \
             --set "*.platform=${{ inputs.platform }}" \
             ${{ inputs.load == 'true' && '--load' || '' }} \
             -f docker/docker-bake.hcl \
             server admin-tools
         else
           docker buildx bake \
+            --no-cache \
             ${{ inputs.load == 'true' && '--load' || '' }} \
             -f docker/docker-bake.hcl \
             server admin-tools
