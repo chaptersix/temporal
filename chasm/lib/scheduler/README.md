@@ -5,11 +5,11 @@ The Scheduler archetype implements schedule-based workflow execution in Temporal
 ## Prerequisites
 
 This document assumes familiarity with CHASM concepts. See [../../README.md](../../README.md) for:
-- [Component architecture](../../README.md#component) and [Field[T] types](../../README.md#field-system)
+- [Component architecture](../../README.md#component) and [Field[T] types](../../README.md#field-system-and-tree-structure)
 - [Pure vs Side-Effect Tasks](../../README.md#task-system)
-- [MutableContext](../../README.md#mutablecontext) and state transitions
-- [State machines](../../README.md#state-machines) and transitions
-- [Library architecture](../../README.md#library-architecture) and registration
+- [MutableContext](../../README.md#mutablecontext-interface) and state transitions
+- [State machines](../../README.md#state-machines-and-transitions) and transitions
+- [Library architecture](../../README.md#library-and-registry-architecture) and registration
 
 ## Overview
 
@@ -402,7 +402,7 @@ When a workflow times out:
 
 ## State Machines and Transitions
 
-The Scheduler doesn't use explicit [state machine](../../README.md#state-machines) transitions but manages state through:
+The Scheduler doesn't use explicit [state machine](../../README.md#state-machines-and-transitions) transitions but manages state through:
 
 ### Schedule States
 
@@ -530,15 +530,19 @@ The handler (`handler.go`) implements these operations using the CHASM Engine.
 ```go
 type handler struct {
 	schedulerpb.UnimplementedSchedulerServiceServer
+
+	logger log.Logger
 }
 ```
 
-**Update Pattern** - Uses [`chasm.UpdateComponent`](../../README.md#updatecomponent) with method reference:
+**Update Pattern** - Uses [`chasm.UpdateComponent`](../../README.md#engine-interface) with method reference:
 
 [embedmd]:# (handler.go go /func \(h \*handler\) UpdateSchedule/ /^}/)
 ```go
-func (h *handler) UpdateSchedule(ctx context.Context, req *schedulerpb.UpdateScheduleRequest) (*schedulerpb.UpdateScheduleResponse, error) {
-	resp, _, err := chasm.UpdateComponent(
+func (h *handler) UpdateSchedule(ctx context.Context, req *schedulerpb.UpdateScheduleRequest) (resp *schedulerpb.UpdateScheduleResponse, err error) {
+	defer log.CapturePanic(h.logger, &err)
+
+	resp, _, err = chasm.UpdateComponent(
 		ctx,
 		chasm.NewComponentRef[*Scheduler](
 			chasm.ExecutionKey{
@@ -553,12 +557,14 @@ func (h *handler) UpdateSchedule(ctx context.Context, req *schedulerpb.UpdateSch
 }
 ```
 
-**Create Pattern** - Uses [`chasm.NewExecution`](../../README.md#newexecution) with constructor:
+**Create Pattern** - Uses [`chasm.NewExecution`](../../README.md#engine-interface) with constructor:
 
 [embedmd]:# (handler.go go /func \(h \*handler\) CreateSchedule/ /^}/)
 ```go
-func (h *handler) CreateSchedule(ctx context.Context, req *schedulerpb.CreateScheduleRequest) (*schedulerpb.CreateScheduleResponse, error) {
-	resp, _, _, err := chasm.NewExecution(
+func (h *handler) CreateSchedule(ctx context.Context, req *schedulerpb.CreateScheduleRequest) (resp *schedulerpb.CreateScheduleResponse, err error) {
+	defer log.CapturePanic(h.logger, &err)
+
+	result, err := chasm.NewExecution(
 		ctx,
 		chasm.ExecutionKey{
 			NamespaceID: req.NamespaceId,
@@ -568,15 +574,17 @@ func (h *handler) CreateSchedule(ctx context.Context, req *schedulerpb.CreateSch
 		req,
 		chasm.WithRequestID(req.FrontendRequest.RequestId),
 	)
-	return resp, err
+	return result.Output, err
 }
 ```
 
-**Read Pattern** - Uses [`chasm.ReadComponent`](../../README.md#readcomponent) for read-only access:
+**Read Pattern** - Uses [`chasm.ReadComponent`](../../README.md#engine-interface) for read-only access:
 
 [embedmd]:# (handler.go go /func \(h \*handler\) DescribeSchedule/ /^}/)
 ```go
-func (h *handler) DescribeSchedule(ctx context.Context, req *schedulerpb.DescribeScheduleRequest) (*schedulerpb.DescribeScheduleResponse, error) {
+func (h *handler) DescribeSchedule(ctx context.Context, req *schedulerpb.DescribeScheduleRequest) (resp *schedulerpb.DescribeScheduleResponse, err error) {
+	defer log.CapturePanic(h.logger, &err)
+
 	return chasm.ReadComponent(
 		ctx,
 		chasm.NewComponentRef[*Scheduler](

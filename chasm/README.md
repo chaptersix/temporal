@@ -323,8 +323,8 @@ type Engine interface {
         ComponentRef,
         func(MutableContext) (Component, error),
         ...TransitionOption,
-    ) (ExecutionKey, []byte, error)
-    
+    ) (EngineNewExecutionResult, error)
+
     UpdateWithNewExecution(
         context.Context,
         ComponentRef,
@@ -332,28 +332,30 @@ type Engine interface {
         func(MutableContext, Component) error,
         ...TransitionOption,
     ) (ExecutionKey, []byte, error)
-    
+
     UpdateComponent(
         context.Context,
         ComponentRef,
         func(MutableContext, Component) error,
         ...TransitionOption,
     ) ([]byte, error)
-    
+
     ReadComponent(
         context.Context,
         ComponentRef,
         func(Context, Component) error,
         ...TransitionOption,
     ) error
-    
+
     PollComponent(
         context.Context,
         ComponentRef,
-        func(Context, Component) (any, bool, error),
-        func(MutableContext, Component, any) error,
+        func(Context, Component) (bool, error),
         ...TransitionOption,
     ) ([]byte, error)
+
+    // NotifyExecution notifies any PollComponent callers waiting on the execution.
+    NotifyExecution(ExecutionKey)
 }
 ```
 
@@ -363,7 +365,11 @@ The framework provides generic wrapper functions that handle types automatically
 
 ```go
 // Pattern: NewExecution(ctx, key, constructorFunc, input, ...opts)
-output, executionKey, ref, err := chasm.NewExecution(ctx, key, CreateScheduler, request)
+result, err := chasm.NewExecution(ctx, key, CreateScheduler, request)
+// result.Output contains the constructor's output
+// result.ExecutionKey contains the execution key
+// result.NewExecutionRef contains the serialized ref
+// result.Created indicates if a new execution was created
 
 // Pattern: UpdateComponent(ctx, ref, methodOrFunc, input, ...opts)
 output, newRef, err := chasm.UpdateComponent(ctx, ref, (*Scheduler).Update, request)
@@ -1650,8 +1656,9 @@ Handlers perform a simple workflow:
 
 **Creating Executions** - Use `NewExecution` with constructor function:
 ```go
-// Handler delegates to constructor
-resp, _, _, err := chasm.NewExecution(ctx, executionKey, CreateScheduler, req, opts...)
+// Handler delegates to constructor - returns NewExecutionResult
+result, err := chasm.NewExecution(ctx, executionKey, CreateScheduler, req, opts...)
+return result.Output, err
 
 // Constructor initializes component
 func CreateScheduler(ctx MutableContext, req Request) (*Scheduler, Response, error) {

@@ -5,11 +5,11 @@ The Callback archetype manages asynchronous callback handling for Nexus operatio
 ## Prerequisites
 
 This document assumes familiarity with CHASM concepts. See [../../README.md](../../README.md) for:
-- [Component architecture](../../README.md#component) and [Field[T] types](../../README.md#field-system)
+- [Component architecture](../../README.md#component) and [Field[T] types](../../README.md#field-system-and-tree-structure)
 - [Pure vs Side-Effect Tasks](../../README.md#task-system)
-- [MutableContext](../../README.md#mutablecontext) and state transitions
-- [State machines](../../README.md#state-machines) and transitions
-- [Library architecture](../../README.md#library-architecture) and registration
+- [MutableContext](../../README.md#mutablecontext-interface) and state transitions
+- [State machines](../../README.md#state-machines-and-transitions) and transitions
+- [Library architecture](../../README.md#library-and-registry-architecture) and registration
 
 ## Overview
 
@@ -36,7 +36,7 @@ Callback (root)
     └── result_info
 ```
 
-Unlike the Scheduler archetype which has multiple sub-components, Callback is implemented as a single [component](../../README.md#component) with an embedded [state machine](../../README.md#state-machines).
+Unlike the Scheduler archetype which has multiple sub-components, Callback is implemented as a single [component](../../README.md#component) with an embedded [state machine](../../README.md#state-machines-and-transitions).
 
 ## Callback Component
 
@@ -107,7 +107,7 @@ enum CallbackStatus {
 
 ## State Machine
 
-The Callback component implements a [state machine](../../README.md#state-machines) to track callback lifecycle from registration through completion or failure.
+The Callback component implements a [state machine](../../README.md#state-machines-and-transitions) to track callback lifecycle from registration through completion or failure.
 
 ```mermaid
 stateDiagram-v2
@@ -372,7 +372,7 @@ The Callback archetype integrates with Nexus operations through the Temporal fro
 // When starting a Nexus operation
 operationID := uuid.New().String()
 
-_, executionKey, ref, err := chasm.NewExecution( // See: ../../README.md#newexecution
+_, executionKey, ref, err := chasm.NewExecution( // See: ../../README.md#engine-interface
     chasm.NewEngineContext(ctx, engine),
     chasm.ExecutionKey{
         NamespaceID: namespaceID,
@@ -399,7 +399,7 @@ _, executionKey, ref, err := chasm.NewExecution( // See: ../../README.md#newexec
 
 ```go
 // When callback is received from Nexus endpoint
-_, _, err := chasm.UpdateComponent( // See: ../../README.md#updatecomponent
+_, _, err := chasm.UpdateComponent( // See: ../../README.md#engine-interface
     chasm.NewEngineContext(ctx, engine),
     ref,
     func(c *Callback, ctx chasm.MutableContext, input CompleteCallbackRequest) (CompleteCallbackResponse, error) {
