@@ -190,6 +190,7 @@ func (s *workflowResetterSuite) TestPersistToDB_CurrentTerminated() {
 		}},
 	}}
 	resetMutableState.EXPECT().CloseTransactionAsSnapshot(
+		context.Background(),
 		historyi.TransactionPolicyActive,
 	).Return(resetSnapshot, resetEventsSeq, nil)
 
@@ -230,7 +231,7 @@ func (s *workflowResetterSuite) TestPersistToDB_CurrentNotTerminated() {
 	currentEventsSeq := []*persistence.WorkflowEvents{{}}
 	currentMutableState.EXPECT().GetCurrentVersion().Return(int64(0)).AnyTimes()
 	currentMutableState.EXPECT().IsWorkflow().Return(true).AnyTimes()
-	currentMutableState.EXPECT().CloseTransactionAsMutation(historyi.TransactionPolicyActive).Return(currentMutation, currentEventsSeq, nil)
+	currentMutableState.EXPECT().CloseTransactionAsMutation(context.Background(), historyi.TransactionPolicyActive).Return(currentMutation, currentEventsSeq, nil)
 
 	resetWorkflow := NewMockWorkflow(s.controller)
 	resetReleaseCalled := false
@@ -255,6 +256,7 @@ func (s *workflowResetterSuite) TestPersistToDB_CurrentNotTerminated() {
 		}},
 	}}
 	resetMutableState.EXPECT().CloseTransactionAsSnapshot(
+		context.Background(),
 		historyi.TransactionPolicyActive,
 	).Return(resetSnapshot, resetEventsSeq, nil)
 
@@ -388,6 +390,7 @@ func (s *workflowResetterSuite) TestFailWorkflowTask_WorkflowTaskScheduled() {
 		nil,
 		nil,
 		true,
+		nil,
 	).Return(&historypb.HistoryEvent{}, workflowTaskStart, nil)
 	mutableState.EXPECT().AddWorkflowTaskFailedEvent(
 		workflowTaskStart,
@@ -1536,6 +1539,7 @@ func (s *workflowResetterSuite) TestWorkflowRestartAfterExecutionTimeout() {
 		nil,
 		nil,
 		true,
+		nil,
 	).Return(&historypb.HistoryEvent{}, workflowTaskStart, nil)
 
 	resetMutableState.EXPECT().AddWorkflowTaskFailedEvent(
