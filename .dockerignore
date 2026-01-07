@@ -1,11 +1,17 @@
-build/
-temporal-canary
-vendor/
-.gobincache/
-.idea/
-.buildkite/
-# exclude binaries from the build context sent to docker
-tctl
+.coverage
+.testoutput
+.github
+.idea
+.vscode
+*.md
+
+develop/docker-compose
+
+.git
+
+# exclude binaries from the docker build context
+tdbg
 temporal-server
 temporal-cassandra-tool
 temporal-sql-tool
+temporal-elasticsearch-tool

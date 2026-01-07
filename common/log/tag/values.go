@@ -1,27 +1,3 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package tag
 
 // Pre-defined values for TagWorkflowAction
@@ -34,23 +10,32 @@ var (
 	WorkflowActionWorkflowTimeout       = workflowAction("add-workflow-timeout-event")
 	WorkflowActionWorkflowTerminated    = workflowAction("add-workflow-terminated-event")
 	WorkflowActionWorkflowContinueAsNew = workflowAction("add-workflow-continue-as-new-event")
+	WorkflowActionWorkflowPaused        = workflowAction("add-workflow-paused-event")
+	WorkflowActionWorkflowUnpaused      = workflowAction("add-workflow-unpaused-event")
 
-	// workflow cancellation / sign
+	// workflow cancellation / sign / update-options
 	WorkflowActionWorkflowCancelRequested        = workflowAction("add-workflow-cancel-requested-event")
 	WorkflowActionWorkflowSignaled               = workflowAction("add-workflow-signaled-event")
 	WorkflowActionWorkflowRecordMarker           = workflowAction("add-workflow-marker-record-event")
 	WorkflowActionUpsertWorkflowSearchAttributes = workflowAction("add-workflow-upsert-search-attributes-event")
+	WorkflowActionWorkflowPropertiesModified     = workflowAction("add-workflow-properties-modified-event")
+	WorkflowActionWorkflowOptionsUpdated         = workflowAction("add-workflow-options-updated-event")
 
-	// decision
-	WorkflowActionDecisionTaskScheduled = workflowAction("add-decisiontask-scheduled-event")
-	WorkflowActionDecisionTaskStarted   = workflowAction("add-decisiontask-started-event")
-	WorkflowActionDecisionTaskCompleted = workflowAction("add-decisiontask-completed-event")
-	WorkflowActionDecisionTaskTimedOut  = workflowAction("add-decisiontask-timedout-event")
-	WorkflowActionDecisionTaskFailed    = workflowAction("add-decisiontask-failed-event")
+	// workflow update
+	WorkflowActionUpdateAccepted  = workflowAction("add-workflow-update-accepted-event")
+	WorkflowActionUpdateCompleted = workflowAction("add-workflow-update-completed-event")
+	WorkflowActionUpdateAdmitted  = workflowAction("add-workflow-update-admitted-event")
 
-	// in memory decision
-	WorkflowActionInMemoryDecisionTaskScheduled = workflowAction("add-in-memory-decisiontask-scheduled")
-	WorkflowActionInMemoryDecisionTaskStarted   = workflowAction("add-in-memory-decisiontask-started")
+	// workflow task
+	WorkflowActionWorkflowTaskScheduled = workflowAction("add-workflowtask-scheduled-event")
+	WorkflowActionWorkflowTaskStarted   = workflowAction("add-workflowtask-started-event")
+	WorkflowActionWorkflowTaskCompleted = workflowAction("add-workflowtask-completed-event")
+	WorkflowActionWorkflowTaskTimedOut  = workflowAction("add-workflowtask-timedout-event")
+	WorkflowActionWorkflowTaskFailed    = workflowAction("add-workflowtask-failed-event")
+
+	// in memory workflow task
+	WorkflowActionInMemoryWorkflowTaskScheduled = workflowAction("add-in-memory-workflowtask-scheduled")
+	WorkflowActionInMemoryWorkflowTaskStarted   = workflowAction("add-in-memory-workflowtask-started")
 
 	// activity
 	WorkflowActionActivityTaskScheduled       = workflowAction("add-activitytask-scheduled-event")
@@ -101,31 +86,57 @@ var (
 
 // Pre-defined values for TagSysComponent
 var (
-	ComponentTaskList                 = component("tasklist")
-	ComponentHistoryEngine            = component("history-engine")
-	ComponentHistoryCache             = component("history-cache")
-	ComponentEventsCache              = component("events-cache")
-	ComponentTransferQueue            = component("transfer-queue-processor")
-	ComponentTimerQueue               = component("timer-queue-processor")
-	ComponentTimerBuilder             = component("timer-builder")
-	ComponentReplicatorQueue          = component("replicator-queue-processor")
-	ComponentShardController          = component("shard-controller")
-	ComponentShard                    = component("shard")
-	ComponentShardItem                = component("shard-item")
-	ComponentShardEngine              = component("shard-engine")
-	ComponentMatchingEngine           = component("matching-engine")
-	ComponentReplicator               = component("replicator")
-	ComponentReplicationTaskProcessor = component("replication-task-processor")
-	ComponentHistoryReplicator        = component("history-replicator")
-	ComponentIndexer                  = component("indexer")
-	ComponentIndexerProcessor         = component("indexer-processor")
-	ComponentIndexerESProcessor       = component("indexer-es-processor")
-	ComponentESVisibilityManager      = component("es-visibility-manager")
-	ComponentArchiver                 = component("archiver")
-	ComponentBatcher                  = component("batcher")
-	ComponentWorker                   = component("worker")
-	ComponentServiceResolver          = component("service-resolver")
-	ComponentMetadataInitializer      = component("metadata-initializer")
+	ComponentFX                        = component("fx")
+	ComponentTaskQueue                 = component("taskqueue")
+	ComponentHistoryEngine             = component("history-engine")
+	ComponentHistoryCache              = component("history-cache")
+	ComponentEventsCache               = component("events-cache")
+	ComponentTransferQueue             = component("transfer-queue-processor")
+	ComponentOutboundQueue             = component("outbound-queue-processor")
+	ComponentVisibilityQueue           = component("visibility-queue-processor")
+	ComponentArchivalQueue             = component("archival-queue-processor")
+	ComponentTimerQueue                = component("timer-queue-processor")
+	ComponentMemoryScheduledQueue      = component("memory-scheduled-queue-processor")
+	ComponentTimerBuilder              = component("timer-builder")
+	ComponentReplicatorQueue           = component("replicator-queue-processor")
+	ComponentShardController           = component("shard-controller")
+	ComponentShardContext              = component("shard-context")
+	ComponentShardEngine               = component("shard-engine")
+	ComponentMatchingEngine            = component("matching-engine")
+	ComponentReplicator                = component("replicator")
+	ComponentReplicationTaskProcessor  = component("replication-task-processor")
+	ComponentHSMStateReplicator        = component("hsm-state-replicator")
+	ComponentActivityStateReplicator   = component("activity-state-replicator")
+	ComponentWorkflowStateReplicator   = component("workflow-state-replicator")
+	ComponentBackfillHistoryReplicator = component("backfill-history-replicator")
+	ComponentHistoryReplicator         = component("history-replicator")
+	ComponentHistoryImporter           = component("history-importer")
+	ComponentIndexer                   = component("indexer")
+	ComponentIndexerProcessor          = component("indexer-processor")
+	ComponentIndexerESProcessor        = component("indexer-es-processor")
+	ComponentESVisibilityManager       = component("es-visibility-manager")
+	ComponentArchiver                  = component("archiver")
+	ComponentBatcher                   = component("batcher")
+	ComponentWorker                    = component("worker")
+	ComponentWorkerManager             = component("worker-manager")
+	ComponentPerNSWorkerManager        = component("perns-worker-manager")
+	ComponentServiceResolver           = component("service-resolver")
+	ComponentMetadataInitializer       = component("metadata-initializer")
+	ComponentAddSearchAttributes       = component("add-search-attributes")
+	ComponentRPCHandler                = component("rpc-handler")
+	ComponentLongPollHandler           = component("long-poll-handler")
+	ComponentVisibilityHandler         = component("visibility-handler")
+	ComponentNamespaceReplication      = component("namespace-replication")
+	ComponentPersistence               = component("persistence")
+	ComponentWorkflowUpdate            = component("workflow-update")
+	ComponentTaskScheduler             = component("task-scheduler")
+	VersionChecker                     = component("version-checker")
+)
+
+// Pre-defined values for scope tag
+var (
+	ScopeHost      = scope("host")
+	ScopeNamespace = scope("namespace")
 )
 
 // Pre-defined values for TagSysLifecycle
@@ -149,11 +160,11 @@ var (
 	ErrorTypeHistorySerializationError    = errorType("HistorySerializationError")
 	ErrorTypeHistoryDeserializationError  = errorType("HistoryDeserializationError")
 	ErrorTypeDuplicateTask                = errorType("DuplicateTask")
-	ErrorTypeMultipleCompletionDecisions  = errorType("MultipleCompletionDecisions")
+	ErrorTypeMultipleCompletionCommands   = errorType("MultipleCompletionCommands")
 	ErrorTypeDuplicateTransferTask        = errorType("DuplicateTransferTask")
-	ErrorTypeDecisionFailed               = errorType("DecisionFailed")
+	ErrorTypeWorkflowTaskFailed           = errorType("WorkflowTaskFailed")
 	ErrorTypeInvalidMutableStateAction    = errorType("InvalidMutableStateAction")
-	ErrorTypeInvalidMemDecisionTaskAction = errorType("InvalidMemDecisionTaskAction")
+	ErrorTypeInvalidMemWorkflowTaskAction = errorType("InvalidMemWorkflowTaskAction")
 )
 
 // Pre-defined values for SysShardUpdate
@@ -173,15 +184,16 @@ var (
 
 // Pre-defined values for TagSysStoreOperation
 var (
-	StoreOperationGetTasks                = storeOperation("get-tasks")
-	StoreOperationCompleteTask            = storeOperation("complete-task")
-	StoreOperationCompleteTasksLessThan   = storeOperation("complete-tasks-less-than")
-	StoreOperationCreateWorkflowExecution = storeOperation("create-wf-execution")
-	StoreOperationGetWorkflowExecution    = storeOperation("get-wf-execution")
-	StoreOperationUpdateWorkflowExecution = storeOperation("update-wf-execution")
-	StoreOperationDeleteWorkflowExecution = storeOperation("delete-wf-execution")
-	StoreOperationUpdateShard             = storeOperation("update-shard")
-	StoreOperationCreateTask              = storeOperation("create-task")
-	StoreOperationUpdateTaskList          = storeOperation("update-task-list")
-	StoreOperationStopTaskList            = storeOperation("stop-task-list")
+	StoreOperationGetTasks                         = storeOperation("get-tasks")
+	StoreOperationCompleteTask                     = storeOperation("complete-task")
+	StoreOperationCompleteTasksLessThan            = storeOperation("complete-tasks-less-than")
+	StoreOperationCreateWorkflowExecution          = storeOperation("create-wf-execution")
+	StoreOperationConflictResolveWorkflowExecution = storeOperation("conflict-resolve-wf-execution")
+	StoreOperationGetWorkflowExecution             = storeOperation("get-wf-execution")
+	StoreOperationUpdateWorkflowExecution          = storeOperation("update-wf-execution")
+	StoreOperationDeleteWorkflowExecution          = storeOperation("delete-wf-execution")
+	StoreOperationUpdateShard                      = storeOperation("update-shard")
+	StoreOperationCreateTask                       = storeOperation("create-task")
+	StoreOperationUpdateTaskQueue                  = storeOperation("update-task-queue")
+	StoreOperationStopTaskQueue                    = storeOperation("stop-task-queue")
 )

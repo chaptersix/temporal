@@ -1,35 +1,12 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package executor
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 
-	"github.com/temporalio/temporal/common"
-	"github.com/temporalio/temporal/common/metrics"
+	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/metrics"
 )
 
 type (
@@ -56,15 +33,14 @@ type (
 	// goroutine pool. This executor also supports deferred execution of tasks
 	// for fairness
 	fixedPoolExecutor struct {
-		size        int
-		maxDeferred int
-		runQ        *runQueue
-		outstanding int64
-		status      int32
-		metrics     metrics.Client
-		metricScope int
-		stopC       chan struct{}
-		stopWG      sync.WaitGroup
+		size           int
+		maxDeferred    int
+		runQ           *runQueue
+		outstanding    int64
+		status         int32
+		metricsHandler metrics.Handler
+		stopC          chan struct{}
+		stopWG         sync.WaitGroup
 	}
 
 	// TaskStatus is the return code from a Task
@@ -85,15 +61,14 @@ const (
 // to be deferred for fairness. To defer processing of a task, simply return TaskStatsDefer
 // from your task.Run method. When a task is deferred, it will be added to the tail of a
 // deferredTaskQ which in turn will be processed after the current runQ is drained
-func NewFixedSizePoolExecutor(size int, maxDeferred int, metrics metrics.Client, scope int) Executor {
+func NewFixedSizePoolExecutor(size int, maxDeferred int, metricsHandler metrics.Handler, operation string) Executor {
 	stopC := make(chan struct{})
 	return &fixedPoolExecutor{
-		size:        size,
-		maxDeferred: maxDeferred,
-		runQ:        newRunQueue(size, stopC),
-		metrics:     metrics,
-		metricScope: scope,
-		stopC:       stopC,
+		size:           size,
+		maxDeferred:    maxDeferred,
+		runQ:           newRunQueue(size, stopC),
+		metricsHandler: metricsHandler.WithTags(metrics.OperationTag(operation)),
+		stopC:          stopC,
 	}
 }
 
@@ -141,16 +116,26 @@ func (e *fixedPoolExecutor) worker() {
 		if !ok {
 			return
 		}
+
 		status := task.Run()
-		if status == TaskStatusDefer {
+		switch status {
+		case TaskStatusDone:
+			atomic.AddInt64(&e.outstanding, -1)
+			metrics.ExecutorTasksDoneCount.With(e.metricsHandler).Record(1)
+		case TaskStatusDefer:
 			if e.runQ.deferredCount() < e.maxDeferred {
 				e.runQ.addAndDefer(task)
-				e.metrics.IncCounter(e.metricScope, metrics.ExecutorTasksDeferredCount)
-				continue
+				metrics.ExecutorTasksDeferredCount.With(e.metricsHandler).Record(1)
+			} else {
+				atomic.AddInt64(&e.outstanding, -1)
+				metrics.ExecutorTasksDroppedCount.With(e.metricsHandler).Record(1)
 			}
-			e.metrics.IncCounter(e.metricScope, metrics.ExecutorTasksDroppedCount)
+		case TaskStatusErr:
+			atomic.AddInt64(&e.outstanding, -1)
+			metrics.ExecutorTasksErrCount.With(e.metricsHandler).Record(1)
+		default:
+			panic(fmt.Sprintf("unknown task status: %v", status))
 		}
-		atomic.AddInt64(&e.outstanding, -1)
 	}
 }
 

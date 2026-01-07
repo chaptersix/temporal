@@ -1,30 +1,7 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package schema
 
 import (
+	"bytes"
 	// In this context md5 is just used for versioning the current schema. It is a weak cryptographic primitive and
 	// should not be used for anything more important (password hashes etc.). Marking it as #nosec because of how it's
 	// being used.
@@ -32,10 +9,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
+	"io"
+	"io/fs"
+	"os"
+	"path"
+	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/blang/semver/v4"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/persistence"
+	dbschemas "go.temporal.io/server/schema"
 )
 
 type (
@@ -44,6 +30,7 @@ type (
 	UpdateTask struct {
 		db     DB
 		config *UpdateConfig
+		logger log.Logger
 	}
 
 	// manifest is a value type that represents
@@ -54,7 +41,9 @@ type (
 		MinCompatibleVersion string
 		Description          string
 		SchemaUpdateCqlFiles []string
-		md5                  string
+		// If set, the manifest is intentionally opting out of schema updates.
+		AllowNoCqlFiles bool
+		md5             string
 	}
 
 	// changeSet represents all the changes
@@ -64,11 +53,6 @@ type (
 		manifest *manifest
 		cqlStmts []string
 	}
-
-	// byVersion is a comparator type
-	// for sorting a set of version
-	// strings
-	byVersion []string
 )
 
 const (
@@ -76,14 +60,16 @@ const (
 )
 
 var (
-	whitelistedCQLPrefixes = [3]string{"CREATE", "ALTER", "INSERT"}
+	whitelistedCQLPrefixes = [5]string{"CREATE", "ALTER", "INSERT", "DROP", "DO"}
+	versionDirectoryRegex  = regexp.MustCompile(`^v[\d.]+`)
 )
 
 // NewUpdateSchemaTask returns a new instance of UpdateTask
-func newUpdateSchemaTask(db DB, config *UpdateConfig) *UpdateTask {
+func NewUpdateSchemaTask(db DB, config *UpdateConfig, logger log.Logger) *UpdateTask {
 	return &UpdateTask{
 		db:     db,
 		config: config,
+		logger: logger,
 	}
 }
 
@@ -91,10 +77,10 @@ func newUpdateSchemaTask(db DB, config *UpdateConfig) *UpdateTask {
 func (task *UpdateTask) Run() error {
 	config := task.config
 
-	log.Printf("UpdateSchemeTask started, config=%+v\n", config)
+	task.logger.Info("UpdateSchemaTask started", tag.NewAnyTag("config", config))
 
 	if config.IsDryRun {
-		if err := task.setupDryrunDatabase(); err != nil {
+		if err := task.setupDryRunDatabase(); err != nil {
 			return fmt.Errorf("error creating dryrun database:%v", err.Error())
 		}
 	}
@@ -114,21 +100,20 @@ func (task *UpdateTask) Run() error {
 		return err
 	}
 
-	log.Printf("UpdateSchemeTask done\n")
+	task.logger.Info("UpdateSchemaTask done")
 
 	return nil
 }
 
 func (task *UpdateTask) executeUpdates(currVer string, updates []changeSet) error {
-
 	if len(updates) == 0 {
-		log.Printf("found zero updates from current version %v", currVer)
+		task.logger.Debug(fmt.Sprintf("found zero updates from current version %v", currVer))
 		return nil
 	}
 
+	task.logger.Debug(fmt.Sprintf("running %v updates for current version %v", len(updates), currVer))
 	for _, cs := range updates {
-
-		err := task.execCQLStmts(cs.version, cs.cqlStmts)
+		err := task.execStmts(cs.version, cs.cqlStmts)
 		if err != nil {
 			return err
 		}
@@ -137,33 +122,42 @@ func (task *UpdateTask) executeUpdates(currVer string, updates []changeSet) erro
 			return err
 		}
 
-		log.Printf("Schema updated from %v to %v\n", currVer, cs.version)
+		task.logger.Debug(fmt.Sprintf("Schema updated from %v to %v", currVer, cs.version))
 		currVer = cs.version
 	}
 
 	return nil
 }
 
-func (task *UpdateTask) execCQLStmts(ver string, stmts []string) error {
-	log.Printf("---- Executing updates for version %v ----\n", ver)
+func (task *UpdateTask) execStmts(ver string, stmts []string) error {
+	task.logger.Debug(fmt.Sprintf("---- Executing updates for version %v ----", ver))
 	for _, stmt := range stmts {
-		log.Println(rmspaceRegex.ReplaceAllString(stmt, " "))
-		e := task.db.Exec(stmt)
-		if e != nil {
-			return fmt.Errorf("error executing CQL statement:%v", e)
+		task.logger.Debug(rmspaceRegex.ReplaceAllString(stmt, " "))
+		err := task.db.Exec(stmt)
+		if err != nil {
+			// To make schema update idempotent, we need to handle error when retry on previous partially succeeded update attempt.
+			// There are 2 major cases that will be handled:
+			// 1) Add table or column that already exists (message contains 'already existing' for table or 'already exists' for column)
+			// 2) Drop column that is not found (message contains 'not found')
+			alreadyExists := strings.Contains(err.Error(), "already exist")
+			notFound := strings.Contains(err.Error(), "not found")
+			if alreadyExists || notFound {
+				task.logger.Warn("Duplicate update, most likely due to previous partially succeeded update attempt. Ignoring it and continue.", tag.Error(err))
+				continue
+			}
+
+			return fmt.Errorf("error executing statement: %w", err)
 		}
 	}
-	log.Printf("---- Done ----\n")
+	task.logger.Debug("---- Done ----")
 	return nil
 }
 
 func (task *UpdateTask) updateSchemaVersion(oldVer string, cs *changeSet) error {
-
 	err := task.db.UpdateSchemaVersion(cs.version, cs.manifest.MinCompatibleVersion)
 	if err != nil {
 		return fmt.Errorf("failed to update schema_version table, err=%v", err.Error())
 	}
-
 	err = task.db.WriteSchemaUpdateLog(oldVer, cs.manifest.CurrVersion, cs.manifest.md5, cs.manifest.Description)
 	if err != nil {
 		return fmt.Errorf("failed to add entry to schema_update_history, err=%v", err.Error())
@@ -176,28 +170,41 @@ func (task *UpdateTask) buildChangeSet(currVer string) ([]changeSet, error) {
 
 	config := task.config
 
-	verDirs, err := readSchemaDir(config.SchemaDir, currVer, config.TargetVersion)
+	var fsys fs.FS
+	var dir string
+	if len(config.SchemaName) > 0 {
+		fsys = dbschemas.Assets()
+		dir = path.Join(config.SchemaName, "versioned")
+	} else {
+		fsys = os.DirFS(config.SchemaDir)
+		dir = "."
+	}
+
+	verDirs, err := readSchemaDir(fsys, dir, currVer, config.TargetVersion, task.logger)
 	if err != nil {
 		return nil, fmt.Errorf("error listing schema dir:%v", err.Error())
 	}
 
+	task.logger.Debug(fmt.Sprintf("Schema Dirs: %s", verDirs))
+
 	var result []changeSet
 
 	for _, vd := range verDirs {
+		dirPath := path.Join(dir, vd)
 
-		dirPath := config.SchemaDir + "/" + vd
-
-		m, e := readManifest(dirPath)
+		m, e := readManifest(fsys, dirPath)
 		if e != nil {
 			return nil, fmt.Errorf("error processing manifest for version %v:%v", vd, e.Error())
 		}
 
 		if m.CurrVersion != dirToVersion(vd) {
-			return nil, fmt.Errorf("manifest version doesn't match with dirname, dir=%v,manifest.version=%v",
-				vd, m.CurrVersion)
+			return nil, fmt.Errorf(
+				"manifest version doesn't match with dirname, dir=%v,manifest.version=%v",
+				vd, m.CurrVersion,
+			)
 		}
 
-		stmts, e := task.parseSQLStmts(dirPath, m)
+		stmts, e := task.parseSQLStmts(fsys, dirPath, m)
 		if e != nil {
 			return nil, e
 		}
@@ -217,20 +224,24 @@ func (task *UpdateTask) buildChangeSet(currVer string) ([]changeSet, error) {
 	return result, nil
 }
 
-func (task *UpdateTask) parseSQLStmts(dir string, manifest *manifest) ([]string, error) {
-
+func (task *UpdateTask) parseSQLStmts(fsys fs.FS, dir string, manifest *manifest) ([]string, error) {
 	result := make([]string, 0, 4)
 
 	for _, file := range manifest.SchemaUpdateCqlFiles {
-		path := dir + "/" + file
-		stmts, err := ParseFile(path)
+		schemaPath := path.Join(dir, file)
+		task.logger.Info("Processing schema file: " + schemaPath)
+		schemaBuf, err := fs.ReadFile(fsys, schemaPath)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing file %v, err=%v", path, err)
+			return nil, fmt.Errorf("error reading file %s: %w", schemaPath, err)
+		}
+		stmts, err := persistence.LoadAndSplitQueryFromReaders([]io.Reader{bytes.NewBuffer(schemaBuf)})
+		if err != nil {
+			return nil, fmt.Errorf("error parsing file %v, err=%v", schemaPath, err)
 		}
 		result = append(result, stmts...)
 	}
 
-	if len(result) == 0 {
+	if len(result) == 0 && !manifest.AllowNoCqlFiles {
 		return nil, fmt.Errorf("found 0 updates in dir %v", dir)
 	}
 
@@ -253,15 +264,14 @@ func validateCQLStmts(stmts []string) error {
 	return nil
 }
 
-func readManifest(dirPath string) (*manifest, error) {
+// readManifest reads the json manifest at dirPath into a manifest struct.
+func readManifest(fsys fs.FS, dirPath string) (*manifest, error) {
+	manifestPath := path.Join(dirPath, manifestFileName)
 
-	filePath := dirPath + "/" + manifestFileName
-	jsonStr, err := ioutil.ReadFile(filePath)
+	jsonBlob, err := fs.ReadFile(fsys, manifestPath)
 	if err != nil {
 		return nil, err
 	}
-
-	jsonBlob := []byte(jsonStr)
 
 	var manifest manifest
 	err = json.Unmarshal(jsonBlob, &manifest)
@@ -269,13 +279,13 @@ func readManifest(dirPath string) (*manifest, error) {
 		return nil, err
 	}
 
-	currVer, err := parseValidateVersion(manifest.CurrVersion)
+	currVer, err := normalizeVersionString(manifest.CurrVersion)
 	if err != nil {
 		return nil, fmt.Errorf("invalid CurrVersion in manifest")
 	}
 	manifest.CurrVersion = currVer
 
-	minVer, err := parseValidateVersion(manifest.MinCompatibleVersion)
+	minVer, err := normalizeVersionString(manifest.MinCompatibleVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +294,7 @@ func readManifest(dirPath string) (*manifest, error) {
 	}
 	manifest.MinCompatibleVersion = minVer
 
-	if len(manifest.SchemaUpdateCqlFiles) == 0 {
+	if len(manifest.SchemaUpdateCqlFiles) == 0 && !manifest.AllowNoCqlFiles {
 		return nil, fmt.Errorf("manifest missing SchemaUpdateCqlFiles")
 	}
 
@@ -296,110 +306,126 @@ func readManifest(dirPath string) (*manifest, error) {
 	return &manifest, nil
 }
 
-// readSchemaDir returns a sorted list of subdir names that hold
-// the schema changes for versions in the range startVer < ver <= endVer
-// when endVer is empty this method returns all subdir names that are greater than startVer
-// this method has an assumption that the subdirs containing the
-// schema changes will be of the form vx.x, where x.x is the version
-// returns error when
-//  - startVer <= endVer
-//  - endVer is empty and no subdirs have version >= startVer
-//  - endVer is non-empty and subdir with version == endVer is not found
-func readSchemaDir(dir string, startVer string, endVer string) ([]string, error) {
+// sortAndFilterVersions returns a sorted list of semantic versions the fall within the range
+// (startVerExcl, endVerIncl]. If endVerIncl is not specified, returns all versions > startVerExcl.
+// If endVerIncl is specified, it must be present in the list of versions.
+func sortAndFilterVersions(versions []string, startVerExcl string, endVerIncl string, logger log.Logger) ([]string, error) {
 
-	subdirs, err := ioutil.ReadDir(dir)
+	startVersionExclusive, err := semver.ParseTolerant(startVerExcl)
 	if err != nil {
 		return nil, err
 	}
 
-	hasEndVer := len(endVer) > 0
+	var endVersionInclusive *semver.Version
+	if len(endVerIncl) > 0 {
+		evi, err := semver.ParseTolerant(endVerIncl)
+		if err != nil {
+			return nil, err
+		}
+		endVersionInclusive = &evi
 
-	if hasEndVer && cmpVersion(startVer, endVer) >= 0 {
-		return nil, fmt.Errorf("startVer (%v) must be less than endVer (%v)", startVer, endVer)
+		cmp := startVersionExclusive.Compare(*endVersionInclusive)
+		if cmp > 0 {
+			return nil, fmt.Errorf("start version '%s' must be less than end version '%s'", startVerExcl, endVerIncl)
+		} else if cmp == 0 {
+			logger.Warn(
+				fmt.Sprintf(
+					"Start version '%s' is equal to end version '%s'. Returning empty version list",
+					startVerExcl,
+					endVerIncl,
+				),
+			)
+			return []string{}, nil
+		}
 	}
 
-	var endFound bool
-	var highestVer string
-	var result []string
+	var retVersions []string
 
-	for _, dir := range subdirs {
+	foundEndVer := false
 
-		if !dir.IsDir() {
+	for _, version := range versions {
+		semVer, err := semver.ParseTolerant(version)
+		if err != nil {
+			logger.Warn(fmt.Sprintf("Input '%s' is not a valid semver", version))
 			continue
 		}
 
-		dirname := dir.Name()
-
-		if !versionStrRegex.MatchString(dirname) {
+		if startVersionExclusive.Compare(semVer) >= 0 {
 			continue
 		}
 
-		ver := dirToVersion(dirname)
-
-		if len(highestVer) == 0 {
-			highestVer = ver
-		} else if cmpVersion(ver, highestVer) > 0 {
-			highestVer = ver
+		if endVersionInclusive != nil && endVersionInclusive.Compare(semVer) < 0 {
+			continue
 		}
 
-		highcmp := 0
-		lowcmp := cmpVersion(ver, startVer)
-		if hasEndVer {
-			highcmp = cmpVersion(ver, endVer)
+		if endVersionInclusive != nil && endVersionInclusive.Compare(semVer) == 0 {
+			foundEndVer = true
 		}
 
-		if lowcmp <= 0 || highcmp > 0 {
-			continue // out of range
-		}
-
-		endFound = endFound || (highcmp == 0)
-		result = append(result, dirname)
+		retVersions = append(retVersions, version)
 	}
 
-	// when endVer is specified, atleast one result MUST be found since startVer < endVer
-	if hasEndVer && !endFound {
-		return nil, fmt.Errorf("version dir not found for target version %v", endVer)
+	if endVersionInclusive != nil && !foundEndVer {
+		return nil, fmt.Errorf("end version '%s' specified but not found. existing versions: %s", endVerIncl, versions)
 	}
 
-	// when endVer is empty and no result is found, then the highest version
-	// found must be equal to startVer, else return error
-	if !hasEndVer && len(result) == 0 {
-		if len(highestVer) == 0 || cmpVersion(startVer, highestVer) != 0 {
-			return nil, fmt.Errorf("no subdirs found with version >= %v", startVer)
+	sort.Slice(retVersions, func(i, j int) bool {
+		verI, err := semver.ParseTolerant(retVersions[i])
+		if err != nil {
+			panic(err)
 		}
-		return result, nil
+		verJ, err := semver.ParseTolerant(retVersions[j])
+		if err != nil {
+			panic(err)
+		}
+		return verI.Compare(verJ) < 0
+	})
+
+	return retVersions, nil
+}
+
+// readSchemaDir returns a sorted list of subdir names that hold
+// the schema changes for versions in the range startVer < ver <= endVer
+// when endVer is empty this method returns all subdir names that are greater than startVer
+func readSchemaDir(fsys fs.FS, dir string, startVer string, endVer string, logger log.Logger) ([]string, error) {
+	subDirs, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		return nil, err
 	}
 
-	sort.Sort(byVersion(result))
+	if len(subDirs) == 0 {
+		return nil, fmt.Errorf("directory '%s' contains no subDirs", dir)
+	}
 
-	return result, nil
+	dirNames := make([]string, 0, len(subDirs))
+	for _, d := range subDirs {
+		if !d.IsDir() {
+			logger.Warn("not a directory: " + d.Name())
+			continue
+		}
+
+		if !versionDirectoryRegex.MatchString(d.Name()) {
+			logger.Warn("invalid directory name: " + d.Name())
+			continue
+		}
+
+		dirNames = append(dirNames, d.Name())
+	}
+
+	return sortAndFilterVersions(dirNames, startVer, endVer, logger)
 }
 
 // sets up a temporary dryrun database for
 // executing the cassandra schema update
-func (task *UpdateTask) setupDryrunDatabase() error {
+func (task *UpdateTask) setupDryRunDatabase() error {
 	setupConfig := &SetupConfig{
 		Overwrite:      true,
 		InitialVersion: "0.0",
 	}
-	setupTask := newSetupSchemaTask(task.db, setupConfig)
+	setupTask := NewSetupSchemaTask(task.db, setupConfig, task.logger)
 	return setupTask.Run()
 }
 
 func dirToVersion(dir string) string {
 	return dir[1:]
-}
-
-func (v byVersion) Len() int {
-	return len(v)
-}
-
-func (v byVersion) Less(i, j int) bool {
-	v1 := dirToVersion(v[i])
-	v2 := dirToVersion(v[j])
-	return cmpVersion(v1, v2) < 0
-}
-
-func (v byVersion) Swap(i, j int) {
-	v[i], v[j] = v[j], v[i]
 }

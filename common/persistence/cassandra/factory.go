@@ -1,162 +1,115 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package cassandra
 
 import (
 	"sync"
 
 	"github.com/gocql/gocql"
-
-	"github.com/temporalio/temporal/common/cassandra"
-	"github.com/temporalio/temporal/common/log"
-	p "github.com/temporalio/temporal/common/persistence"
-	"github.com/temporalio/temporal/common/service/config"
+	"go.temporal.io/server/common/config"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/metrics"
+	p "go.temporal.io/server/common/persistence"
+	commongocql "go.temporal.io/server/common/persistence/nosql/nosqlplugin/cassandra/gocql"
+	"go.temporal.io/server/common/resolver"
 )
 
 type (
 	// Factory vends datastore implementations backed by cassandra
 	Factory struct {
 		sync.RWMutex
-		cfg              config.Cassandra
-		clusterName      string
-		logger           log.Logger
-		execStoreFactory *executionStoreFactory
-	}
-	executionStoreFactory struct {
-		session *gocql.Session
-		logger  log.Logger
+		cfg         config.Cassandra
+		clusterName string
+		logger      log.Logger
+		session     commongocql.Session
 	}
 )
 
 // NewFactory returns an instance of a factory object which can be used to create
-// datastores that are backed by cassandra
-func NewFactory(cfg config.Cassandra, clusterName string, logger log.Logger) *Factory {
+// data stores that are backed by cassandra
+func NewFactory(
+	cfg config.Cassandra,
+	r resolver.ServiceResolver,
+	clusterName string,
+	logger log.Logger,
+	metricsHandler metrics.Handler,
+) *Factory {
+	session, err := commongocql.NewSession(
+		func() (*gocql.ClusterConfig, error) {
+			return commongocql.NewCassandraCluster(cfg, r)
+		},
+		logger,
+		metricsHandler,
+	)
+	if err != nil {
+		logger.Fatal("unable to initialize cassandra session", tag.Error(err))
+	}
+	return NewFactoryFromSession(cfg, clusterName, logger, session)
+}
+
+// NewFactoryFromSession returns an instance of a factory object from the given session.
+func NewFactoryFromSession(
+	cfg config.Cassandra,
+	clusterName string,
+	logger log.Logger,
+	session commongocql.Session,
+) *Factory {
 	return &Factory{
 		cfg:         cfg,
 		clusterName: clusterName,
 		logger:      logger,
+		session:     session,
 	}
 }
 
 // NewTaskStore returns a new task store
 func (f *Factory) NewTaskStore() (p.TaskStore, error) {
-	return newTaskPersistence(f.cfg, f.logger)
+	return NewMatchingTaskStore(f.session, f.logger, false), nil
+}
+
+// NewTaskStore returns a new task store
+func (f *Factory) NewFairTaskStore() (p.TaskStore, error) {
+	return NewMatchingTaskStore(f.session, f.logger, true), nil
 }
 
 // NewShardStore returns a new shard store
 func (f *Factory) NewShardStore() (p.ShardStore, error) {
-	return newShardPersistence(f.cfg, f.clusterName, f.logger)
+	return NewShardStore(f.clusterName, f.session, f.logger), nil
 }
 
-// NewHistoryV2Store returns a new history store
-func (f *Factory) NewHistoryV2Store() (p.HistoryStore, error) {
-	return newHistoryV2Persistence(f.cfg, f.logger)
-}
-
-// NewMetadataStore returns a metadata store that understands only v2
+// NewMetadataStore returns a metadata store
 func (f *Factory) NewMetadataStore() (p.MetadataStore, error) {
-	return newMetadataPersistenceV2(f.cfg, f.clusterName, f.logger)
+	return NewMetadataStore(f.clusterName, f.session, f.logger)
 }
 
 // NewClusterMetadataStore returns a metadata store
 func (f *Factory) NewClusterMetadataStore() (p.ClusterMetadataStore, error) {
-	return newClusterMetadataInstance(f.cfg, f.logger)
+	return NewClusterMetadataStore(f.session, f.logger)
 }
 
-// NewExecutionStore returns an ExecutionStore for a given shardID
-func (f *Factory) NewExecutionStore(shardID int) (p.ExecutionStore, error) {
-	factory, err := f.executionStoreFactory()
-	if err != nil {
-		return nil, err
-	}
-	return factory.new(shardID)
-}
-
-// NewVisibilityStore returns a visibility store
-func (f *Factory) NewVisibilityStore() (p.VisibilityStore, error) {
-	return newVisibilityPersistence(f.cfg, f.logger)
+// NewExecutionStore returns a new ExecutionStore.
+func (f *Factory) NewExecutionStore() (p.ExecutionStore, error) {
+	return NewExecutionStore(f.session, f.logger), nil
 }
 
 // NewQueue returns a new queue backed by cassandra
 func (f *Factory) NewQueue(queueType p.QueueType) (p.Queue, error) {
-	return newQueue(f.cfg, f.logger, queueType)
+	return NewQueueStore(queueType, f.session, f.logger)
+}
+
+// NewQueueV2 returns a new data-access object for queues and messages stored in Cassandra. It will never return an
+// error.
+func (f *Factory) NewQueueV2() (p.QueueV2, error) {
+	return NewQueueV2Store(f.session, f.logger), nil
+}
+
+// NewNexusEndpointStore returns a new NexusEndpointStore
+func (f *Factory) NewNexusEndpointStore() (p.NexusEndpointStore, error) {
+	return NewNexusEndpointStore(f.session, f.logger), nil
 }
 
 // Close closes the factory
 func (f *Factory) Close() {
 	f.Lock()
 	defer f.Unlock()
-	if f.execStoreFactory != nil {
-		f.execStoreFactory.close()
-	}
-}
-
-func (f *Factory) executionStoreFactory() (*executionStoreFactory, error) {
-	f.RLock()
-	if f.execStoreFactory != nil {
-		f.RUnlock()
-		return f.execStoreFactory, nil
-	}
-	f.RUnlock()
-	f.Lock()
-	defer f.Unlock()
-	if f.execStoreFactory != nil {
-		return f.execStoreFactory, nil
-	}
-
-	factory, err := newExecutionStoreFactory(f.cfg, f.logger)
-	if err != nil {
-		return nil, err
-	}
-	f.execStoreFactory = factory
-	return f.execStoreFactory, nil
-}
-
-// newExecutionStoreFactory is used to create an instance of ExecutionStoreFactory implementation
-func newExecutionStoreFactory(cfg config.Cassandra, logger log.Logger) (*executionStoreFactory, error) {
-	cluster := cassandra.NewCassandraCluster(cfg)
-	cluster.ProtoVersion = cassandraProtoVersion
-	cluster.Consistency = gocql.LocalQuorum
-	cluster.SerialConsistency = gocql.LocalSerial
-	cluster.Timeout = defaultSessionTimeout
-	session, err := cluster.CreateSession()
-	if err != nil {
-		return nil, err
-	}
-	return &executionStoreFactory{session: session, logger: logger}, nil
-}
-
-func (f *executionStoreFactory) close() {
 	f.session.Close()
-}
-
-// new implements ExecutionStoreFactory interface
-func (f *executionStoreFactory) new(shardID int) (p.ExecutionStore, error) {
-	pmgr, err := NewWorkflowExecutionPersistence(shardID, f.session, f.logger)
-	if err != nil {
-		return nil, err
-	}
-	return pmgr, nil
 }

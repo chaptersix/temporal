@@ -1,80 +1,64 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package parentclosepolicy
 
 import (
 	"context"
 	"time"
 
-	"go.temporal.io/temporal"
-	commonpb "go.temporal.io/temporal-proto/common"
-	executionpb "go.temporal.io/temporal-proto/execution"
-	"go.temporal.io/temporal-proto/serviceerror"
-	"go.temporal.io/temporal-proto/workflowservice"
-	"go.temporal.io/temporal/activity"
-	"go.temporal.io/temporal/workflow"
-
-	"github.com/temporalio/temporal/.gen/proto/historyservice"
-	"github.com/temporalio/temporal/common/log"
-	"github.com/temporalio/temporal/common/log/tag"
-	"github.com/temporalio/temporal/common/metrics"
+	"github.com/google/uuid"
+	commonpb "go.temporal.io/api/common/v1"
+	enumspb "go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
+	taskqueuepb "go.temporal.io/api/taskqueue/v1"
+	"go.temporal.io/api/workflowservice/v1"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/converter"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
+	"go.temporal.io/server/api/historyservice/v1"
+	"go.temporal.io/server/client"
+	"go.temporal.io/server/common/headers"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/primitives"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 const (
-	processorContextKey = "processorContext"
-	// processorTaskListName is the tasklist name
-	processorTaskListName = "temporal-sys-processor-parent-close-policy"
+	// processorTaskQueueName is the taskqueue name
+	processorTaskQueueName = "temporal-sys-processor-parent-close-policy"
 	// processorWFTypeName is the workflow type
 	processorWFTypeName   = "temporal-sys-parent-close-policy-workflow"
 	processorActivityName = "temporal-sys-parent-close-policy-activity"
-	infiniteDuration      = 20 * 365 * 24 * time.Hour
 	processorChannelName  = "ParentClosePolicyProcessorChannelName"
 )
 
 type (
 	// RequestDetail defines detail of each workflow to process
 	RequestDetail struct {
-		WorkflowID string
-		RunID      string
-		Policy     commonpb.ParentClosePolicy
+		Namespace   string
+		NamespaceID string
+		WorkflowID  string
+		RunID       string
+		Policy      enumspb.ParentClosePolicy
 	}
 
 	// Request defines the request for parent close policy
 	Request struct {
-		Executions  []RequestDetail
-		Namespace   string
-		NamespaceID string
+		ParentExecution *commonpb.WorkflowExecution
+		Executions      []RequestDetail
 	}
+
+	processorContextKeyType struct{}
 )
 
 var (
+	processorContextKey = processorContextKeyType{}
+
 	retryPolicy = temporal.RetryPolicy{
 		InitialInterval:    10 * time.Second,
 		BackoffCoefficient: 1.7,
 		MaximumInterval:    5 * time.Minute,
-		ExpirationInterval: infiniteDuration,
 	}
 
 	activityOptions = workflow.ActivityOptions{
@@ -104,59 +88,140 @@ func ProcessorWorkflow(ctx workflow.Context) error {
 func ProcessorActivity(ctx context.Context, request Request) error {
 	processor := ctx.Value(processorContextKey).(*Processor)
 	client := processor.clientBean.GetHistoryClient()
+	// this is for backward compatibility
+	// ideally we should always have childWorkflowOnly = true
+	// however if ParentExecution is not specified, setting it to false
+	// will cause terminate or cancel request to return mismatch error
+	childWorkflowOnly := request.ParentExecution.GetWorkflowId() != "" &&
+		request.ParentExecution.GetRunId() != ""
+
+	remoteExecutions := make(map[string][]RequestDetail)
 	for _, execution := range request.Executions {
+		requestCtx := headers.SetCallerName(ctx, execution.Namespace)
+
 		var err error
 		switch execution.Policy {
-		case commonpb.ParentClosePolicy_Abandon:
-			//no-op
+		case enumspb.PARENT_CLOSE_POLICY_ABANDON:
+			// no-op
 			continue
-		case commonpb.ParentClosePolicy_Terminate:
-			_, err = client.TerminateWorkflowExecution(nil, &historyservice.TerminateWorkflowExecutionRequest{
-				NamespaceId: request.NamespaceID,
+		case enumspb.PARENT_CLOSE_POLICY_TERMINATE:
+			_, err = client.TerminateWorkflowExecution(requestCtx, &historyservice.TerminateWorkflowExecutionRequest{
+				NamespaceId: execution.NamespaceID,
 				TerminateRequest: &workflowservice.TerminateWorkflowExecutionRequest{
-					Namespace: request.Namespace,
-					WorkflowExecution: &executionpb.WorkflowExecution{
+					Namespace: execution.Namespace,
+					WorkflowExecution: &commonpb.WorkflowExecution{
 						WorkflowId: execution.WorkflowID,
-						RunId:      execution.RunID,
 					},
-					Reason:   "by parent close policy",
-					Identity: processorWFTypeName,
+					Reason:              "by parent close policy",
+					Identity:            processorWFTypeName,
+					FirstExecutionRunId: execution.RunID,
 				},
+				ExternalWorkflowExecution: request.ParentExecution,
+				ChildWorkflowOnly:         childWorkflowOnly,
 			})
-		case commonpb.ParentClosePolicy_RequestCancel:
-			_, err = client.RequestCancelWorkflowExecution(nil, &historyservice.RequestCancelWorkflowExecutionRequest{
-				NamespaceId: request.NamespaceID,
+		case enumspb.PARENT_CLOSE_POLICY_REQUEST_CANCEL:
+			_, err = client.RequestCancelWorkflowExecution(requestCtx, &historyservice.RequestCancelWorkflowExecutionRequest{
+				NamespaceId: execution.NamespaceID,
 				CancelRequest: &workflowservice.RequestCancelWorkflowExecutionRequest{
-					Namespace: request.Namespace,
-					WorkflowExecution: &executionpb.WorkflowExecution{
+					Namespace: execution.Namespace,
+					WorkflowExecution: &commonpb.WorkflowExecution{
 						WorkflowId: execution.WorkflowID,
-						RunId:      execution.RunID,
 					},
-					Identity: processorWFTypeName,
+					Identity:            processorWFTypeName,
+					FirstExecutionRunId: execution.RunID,
 				},
+				ExternalWorkflowExecution: request.ParentExecution,
+				ChildWorkflowOnly:         childWorkflowOnly,
 			})
 		}
 
-		if err != nil {
-			if _, ok := err.(*serviceerror.NotFound); ok {
-				err = nil
-			}
-		}
-
-		if err != nil {
-			processor.metricsClient.IncCounter(metrics.ParentClosePolicyProcessorScope, metrics.ParentClosePolicyProcessorFailures)
+		switch typedErr := err.(type) {
+		case nil:
+			metrics.ParentClosePolicyProcessorSuccess.With(processor.metricsHandler).Record(1)
+		case *serviceerror.NotFound, *serviceerror.NamespaceNotFound:
+			// no-op
+		case *serviceerror.NamespaceNotActive:
+			remoteExecutions[typedErr.ActiveCluster] = append(remoteExecutions[typedErr.ActiveCluster], execution)
+		default:
+			metrics.ParentClosePolicyProcessorFailures.With(processor.metricsHandler).Record(1)
 			getActivityLogger(ctx).Error("failed to process parent close policy", tag.Error(err))
 			return err
 		}
-		processor.metricsClient.IncCounter(metrics.ParentClosePolicyProcessorScope, metrics.ParentClosePolicyProcessorSuccess)
 	}
+
+	if err := signalRemoteCluster(
+		ctx,
+		processor.currentCluster,
+		processor.clientBean,
+		request.ParentExecution,
+		remoteExecutions,
+		processor.cfg.NumParentClosePolicySystemWorkflows(),
+	); err != nil {
+		getActivityLogger(ctx).Error("Failed to signal remote parent close policy workflow", tag.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func signalRemoteCluster(
+	ctx context.Context,
+	currentCluster string,
+	clientBean client.Bean,
+	parentExecution *commonpb.WorkflowExecution,
+	remoteExecutions map[string][]RequestDetail,
+	numWorkflows int,
+) error {
+	for cluster, executions := range remoteExecutions {
+		_, remoteClient, err := clientBean.GetRemoteFrontendClient(cluster)
+		if err != nil {
+			return err
+		}
+		signalValue := Request{
+			ParentExecution: parentExecution,
+			Executions:      executions,
+		}
+		signalInput, err := converter.GetDefaultDataConverter().ToPayloads(signalValue)
+		if err != nil {
+			return err
+		}
+
+		signalCtx, cancel := context.WithTimeout(ctx, signalTimeout)
+		_, err = remoteClient.SignalWithStartWorkflowExecution(
+			signalCtx,
+			&workflowservice.SignalWithStartWorkflowExecutionRequest{
+				Namespace:  primitives.SystemLocalNamespace,
+				RequestId:  uuid.NewString(),
+				WorkflowId: getWorkflowID(numWorkflows),
+				WorkflowType: &commonpb.WorkflowType{
+					Name: processorWFTypeName,
+				},
+				TaskQueue: &taskqueuepb.TaskQueue{
+					Name: processorTaskQueueName,
+				},
+				Input:                 nil,
+				WorkflowTaskTimeout:   durationpb.New(workflowTaskTimeout),
+				Identity:              currentCluster + "-" + string(primitives.WorkerService) + "-service",
+				WorkflowIdReusePolicy: workflowIDReusePolicy,
+				SignalName:            processorChannelName,
+				SignalInput:           signalInput,
+			},
+		)
+		cancel()
+
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func getActivityLogger(ctx context.Context) log.Logger {
 	processor := ctx.Value(processorContextKey).(*Processor)
 	wfInfo := activity.GetInfo(ctx)
-	return processor.logger.WithTags(
+	return log.With(
+		processor.logger,
 		tag.WorkflowID(wfInfo.WorkflowExecution.ID),
 		tag.WorkflowRunID(wfInfo.WorkflowExecution.RunID),
 		tag.WorkflowNamespace(wfInfo.WorkflowNamespace),

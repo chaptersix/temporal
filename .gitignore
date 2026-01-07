@@ -1,29 +1,46 @@
 .tmp/
+.bin/
+.stamp/
 
 .idea/
-.vscode/
+.vscode/settings.json
+.vscode
 *.code-workspace
 .DS_Store
+.coverage
+.testoutput
 
 *.out
 *.test
 *.xml
+!tools/testrunner/testdata/*.xml
 *.swp
-*.iml
+/*.iml
 *.cov
 *.html
-test
-test.log
-test_xdc
-test_xdc.log
-test_eventsV2
-test_eventsV2.log
-test_eventsV2_xdc
-test_eventsV2_xdc.log
+/test.log
 
 # Executables produced by temporal repo
-/temporal*
-/tctl
+/temporal-*
+/tctl*
+/tdbg
 
-# protobuf generated files
-.gen/proto
+# proto images
+/proto/image.bin
+/proto/chasm.bin
+# api+google proto dependencies
+/proto/api.binpb
+
+# Goreleaser
+/dist
+
+# direnv
+.envrc
+
+# Git SPR: https://github.com/ejoffe/spr
+.spr.yml
+
+/proto.tmp
+
+**/.venv/
+**/.ruff_cache/

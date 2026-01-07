@@ -1,131 +1,119 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination client_factory_mock.go
 
 package client
 
 import (
 	"time"
 
-	"go.temporal.io/temporal-proto/workflowservice"
-
-	"github.com/temporalio/temporal/.gen/proto/adminservice"
-	"github.com/temporalio/temporal/.gen/proto/historyservice"
-	"github.com/temporalio/temporal/.gen/proto/matchingservice"
-	"github.com/temporalio/temporal/client/admin"
-	"github.com/temporalio/temporal/client/frontend"
-	"github.com/temporalio/temporal/client/history"
-	"github.com/temporalio/temporal/client/matching"
-	"github.com/temporalio/temporal/common"
-	"github.com/temporalio/temporal/common/log"
-	"github.com/temporalio/temporal/common/membership"
-	"github.com/temporalio/temporal/common/metrics"
-	"github.com/temporalio/temporal/common/service/dynamicconfig"
-)
-
-const (
-	clientKeyConnection = "client-key-connection"
+	"go.temporal.io/api/workflowservice/v1"
+	"go.temporal.io/server/api/adminservice/v1"
+	"go.temporal.io/server/api/historyservice/v1"
+	"go.temporal.io/server/api/matchingservice/v1"
+	"go.temporal.io/server/client/admin"
+	"go.temporal.io/server/client/frontend"
+	"go.temporal.io/server/client/history"
+	"go.temporal.io/server/client/matching"
+	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/dynamicconfig"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/membership"
+	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/namespace"
+	"go.temporal.io/server/common/primitives"
+	"go.temporal.io/server/common/testing/testhooks"
+	"google.golang.org/grpc"
 )
 
 type (
 	// Factory can be used to create RPC clients for temporal services
 	Factory interface {
-		NewHistoryClient() (history.Client, error)
-		NewMatchingClient(namespaceIDToName NamespaceIDToNameFunc) (matching.Client, error)
-		NewFrontendClient(rpcAddress string) (frontend.Client, error)
+		NewHistoryClientWithTimeout(timeout time.Duration) (historyservice.HistoryServiceClient, error)
+		NewMatchingClientWithTimeout(namespaceIDToName NamespaceIDToNameFunc, timeout time.Duration, longPollTimeout time.Duration) (matchingservice.MatchingServiceClient, error)
+		NewRemoteFrontendClientWithTimeout(rpcAddress string, timeout time.Duration, longPollTimeout time.Duration) (grpc.ClientConnInterface, workflowservice.WorkflowServiceClient)
+		NewLocalFrontendClientWithTimeout(timeout time.Duration, longPollTimeout time.Duration) (grpc.ClientConnInterface, workflowservice.WorkflowServiceClient, error)
+		NewRemoteAdminClientWithTimeout(rpcAddress string, timeout time.Duration, largeTimeout time.Duration) adminservice.AdminServiceClient
+		NewLocalAdminClientWithTimeout(timeout time.Duration, largeTimeout time.Duration) (adminservice.AdminServiceClient, error)
+	}
 
-		NewHistoryClientWithTimeout(timeout time.Duration) (history.Client, error)
-		NewMatchingClientWithTimeout(namespaceIDToName NamespaceIDToNameFunc, timeout time.Duration, longPollTimeout time.Duration) (matching.Client, error)
-		NewFrontendClientWithTimeout(rpcAddress string, timeout time.Duration, longPollTimeout time.Duration) (frontend.Client, error)
-		NewAdminClientWithTimeout(rpcAddress string, timeout time.Duration) (admin.Client, error)
+	// FactoryProvider can be used to provide a customized client Factory implementation.
+	FactoryProvider interface {
+		NewFactory(
+			rpcFactory common.RPCFactory,
+			monitor membership.Monitor,
+			metricsHandler metrics.Handler,
+			dc *dynamicconfig.Collection,
+			testHooks testhooks.TestHooks,
+			numberOfHistoryShards int32,
+			logger log.Logger,
+			throttledLogger log.Logger,
+		) Factory
 	}
 
 	// NamespaceIDToNameFunc maps a namespaceID to namespace name. Returns error when mapping is not possible.
-	NamespaceIDToNameFunc func(string) (string, error)
+	NamespaceIDToNameFunc func(id namespace.ID) (namespace.Name, error)
 
 	rpcClientFactory struct {
 		rpcFactory            common.RPCFactory
 		monitor               membership.Monitor
-		metricsClient         metrics.Client
+		metricsHandler        metrics.Handler
 		dynConfig             *dynamicconfig.Collection
-		numberOfHistoryShards int
+		testHooks             testhooks.TestHooks
+		numberOfHistoryShards int32
 		logger                log.Logger
+		throttledLogger       log.Logger
+	}
+
+	factoryProviderImpl struct {
+	}
+
+	serviceKeyResolverImpl struct {
+		resolver membership.ServiceResolver
 	}
 )
 
-// NewRPCClientFactory creates an instance of client factory that knows how to dispatch RPC calls.
-func NewRPCClientFactory(
+// NewFactoryProvider creates a default implementation of FactoryProvider.
+func NewFactoryProvider() FactoryProvider {
+	return &factoryProviderImpl{}
+}
+
+// NewFactory creates an instance of client factory that knows how to dispatch RPC calls.
+func (p *factoryProviderImpl) NewFactory(
 	rpcFactory common.RPCFactory,
 	monitor membership.Monitor,
-	metricsClient metrics.Client,
+	metricsHandler metrics.Handler,
 	dc *dynamicconfig.Collection,
-	numberOfHistoryShards int,
+	testHooks testhooks.TestHooks,
+	numberOfHistoryShards int32,
 	logger log.Logger,
+	throttledLogger log.Logger,
 ) Factory {
 	return &rpcClientFactory{
 		rpcFactory:            rpcFactory,
 		monitor:               monitor,
-		metricsClient:         metricsClient,
+		metricsHandler:        metricsHandler,
 		dynConfig:             dc,
+		testHooks:             testHooks,
 		numberOfHistoryShards: numberOfHistoryShards,
 		logger:                logger,
+		throttledLogger:       throttledLogger,
 	}
 }
 
-func (cf *rpcClientFactory) NewHistoryClient() (history.Client, error) {
-	return cf.NewHistoryClientWithTimeout(history.DefaultTimeout)
-}
-
-func (cf *rpcClientFactory) NewMatchingClient(namespaceIDToName NamespaceIDToNameFunc) (matching.Client, error) {
-	return cf.NewMatchingClientWithTimeout(namespaceIDToName, matching.DefaultTimeout, matching.DefaultLongPollTimeout)
-}
-
-func (cf *rpcClientFactory) NewFrontendClient(rpcAddress string) (frontend.Client, error) {
-	return cf.NewFrontendClientWithTimeout(rpcAddress, frontend.DefaultTimeout, frontend.DefaultLongPollTimeout)
-}
-
-func (cf *rpcClientFactory) NewHistoryClientWithTimeout(timeout time.Duration) (history.Client, error) {
-	resolver, err := cf.monitor.GetResolver(common.HistoryServiceName)
+func (cf *rpcClientFactory) NewHistoryClientWithTimeout(timeout time.Duration) (historyservice.HistoryServiceClient, error) {
+	resolver, err := cf.monitor.GetResolver(primitives.HistoryService)
 	if err != nil {
 		return nil, err
 	}
-
-	keyResolver := func(key string) (string, error) {
-		host, err := resolver.Lookup(key)
-		if err != nil {
-			return "", err
-		}
-		return host.GetAddress(), nil
-	}
-
-	clientProvider := func(clientKey string) (interface{}, error) {
-		connection := cf.rpcFactory.CreateGRPCConnection(clientKey)
-		return historyservice.NewHistoryServiceClient(connection), nil
-	}
-
-	client := history.NewClient(cf.numberOfHistoryShards, timeout, common.NewClientCache(keyResolver, clientProvider), cf.logger)
-	if cf.metricsClient != nil {
-		client = history.NewMetricClient(client, cf.metricsClient)
+	client := history.NewClient(
+		cf.dynConfig,
+		resolver,
+		cf.logger,
+		cf.numberOfHistoryShards,
+		cf.rpcFactory,
+		timeout,
+	)
+	if cf.metricsHandler != nil {
+		client = history.NewMetricClient(client, cf.metricsHandler, cf.logger, cf.throttledLogger)
 	}
 	return client, nil
 }
@@ -134,76 +122,115 @@ func (cf *rpcClientFactory) NewMatchingClientWithTimeout(
 	namespaceIDToName NamespaceIDToNameFunc,
 	timeout time.Duration,
 	longPollTimeout time.Duration,
-) (matching.Client, error) {
-	resolver, err := cf.monitor.GetResolver(common.MatchingServiceName)
+) (matchingservice.MatchingServiceClient, error) {
+	resolver, err := cf.monitor.GetResolver(primitives.MatchingService)
 	if err != nil {
 		return nil, err
 	}
 
-	keyResolver := func(key string) (string, error) {
-		host, err := resolver.Lookup(key)
-		if err != nil {
-			return "", err
-		}
-		return host.GetAddress(), nil
-	}
-
+	keyResolver := newServiceKeyResolver(resolver)
 	clientProvider := func(clientKey string) (interface{}, error) {
-		connection := cf.rpcFactory.CreateGRPCConnection(clientKey)
+		connection := cf.rpcFactory.CreateMatchingGRPCConnection(clientKey)
 		return matchingservice.NewMatchingServiceClient(connection), nil
 	}
-
 	client := matching.NewClient(
 		timeout,
 		longPollTimeout,
 		common.NewClientCache(keyResolver, clientProvider),
-		matching.NewLoadBalancer(namespaceIDToName, cf.dynConfig),
+		cf.metricsHandler,
+		cf.logger,
+		matching.NewLoadBalancer(namespaceIDToName, cf.dynConfig, cf.testHooks),
 	)
 
-	if cf.metricsClient != nil {
-		client = matching.NewMetricClient(client, cf.metricsClient)
+	if cf.metricsHandler != nil {
+		client = matching.NewMetricClient(client, cf.metricsHandler, cf.logger, cf.throttledLogger)
 	}
 	return client, nil
 
 }
 
-func (cf *rpcClientFactory) NewFrontendClientWithTimeout(
+func (cf *rpcClientFactory) NewRemoteFrontendClientWithTimeout(
 	rpcAddress string,
 	timeout time.Duration,
 	longPollTimeout time.Duration,
-) (frontend.Client, error) {
-	keyResolver := func(key string) (string, error) {
-		return clientKeyConnection, nil
-	}
-
-	clientProvider := func(clientKey string) (interface{}, error) {
-		connection := cf.rpcFactory.CreateGRPCConnection(rpcAddress)
-		return workflowservice.NewWorkflowServiceClient(connection), nil
-	}
-
-	client := frontend.NewClient(timeout, longPollTimeout, common.NewClientCache(keyResolver, clientProvider))
-	if cf.metricsClient != nil {
-		client = frontend.NewMetricClient(client, cf.metricsClient)
-	}
-	return client, nil
+) (grpc.ClientConnInterface, workflowservice.WorkflowServiceClient) {
+	connection := cf.rpcFactory.CreateRemoteFrontendGRPCConnection(rpcAddress)
+	client := workflowservice.NewWorkflowServiceClient(connection)
+	return connection, cf.newFrontendClient(client, timeout, longPollTimeout)
 }
 
-func (cf *rpcClientFactory) NewAdminClientWithTimeout(
+func (cf *rpcClientFactory) NewLocalFrontendClientWithTimeout(
+	timeout time.Duration,
+	longPollTimeout time.Duration,
+) (grpc.ClientConnInterface, workflowservice.WorkflowServiceClient, error) {
+	connection := cf.rpcFactory.CreateLocalFrontendGRPCConnection()
+	client := workflowservice.NewWorkflowServiceClient(connection)
+	return connection, cf.newFrontendClient(client, timeout, longPollTimeout), nil
+}
+
+func (cf *rpcClientFactory) NewRemoteAdminClientWithTimeout(
 	rpcAddress string,
 	timeout time.Duration,
-) (admin.Client, error) {
-	keyResolver := func(key string) (string, error) {
-		return clientKeyConnection, nil
+	largeTimeout time.Duration,
+) adminservice.AdminServiceClient {
+	connection := cf.rpcFactory.CreateRemoteFrontendGRPCConnection(rpcAddress)
+	client := adminservice.NewAdminServiceClient(connection)
+	return cf.newAdminClient(client, timeout, largeTimeout)
+}
+
+func (cf *rpcClientFactory) NewLocalAdminClientWithTimeout(
+	timeout time.Duration,
+	longPollTimeout time.Duration,
+) (adminservice.AdminServiceClient, error) {
+	connection := cf.rpcFactory.CreateLocalFrontendGRPCConnection()
+	client := adminservice.NewAdminServiceClient(connection)
+	return cf.newAdminClient(client, timeout, longPollTimeout), nil
+}
+
+func (cf *rpcClientFactory) newAdminClient(
+	client adminservice.AdminServiceClient,
+	timeout time.Duration,
+	longPollTimeout time.Duration,
+) adminservice.AdminServiceClient {
+	client = admin.NewClient(timeout, longPollTimeout, client)
+	if cf.metricsHandler != nil {
+		client = admin.NewMetricClient(client, cf.metricsHandler, cf.throttledLogger)
+	}
+	return client
+}
+
+func (cf *rpcClientFactory) newFrontendClient(
+	client workflowservice.WorkflowServiceClient,
+	timeout time.Duration,
+	longPollTimeout time.Duration,
+) workflowservice.WorkflowServiceClient {
+	client = frontend.NewClient(timeout, longPollTimeout, client)
+	if cf.metricsHandler != nil {
+		client = frontend.NewMetricClient(client, cf.metricsHandler, cf.throttledLogger)
+	}
+	return client
+}
+
+func newServiceKeyResolver(resolver membership.ServiceResolver) *serviceKeyResolverImpl {
+	return &serviceKeyResolverImpl{
+		resolver: resolver,
+	}
+}
+
+func (r *serviceKeyResolverImpl) Lookup(key string) (string, error) {
+	host, err := r.resolver.Lookup(key)
+	if err != nil {
+		return "", err
+	}
+	return host.GetAddress(), nil
+}
+
+func (r *serviceKeyResolverImpl) GetAllAddresses() ([]string, error) {
+	var all []string
+
+	for _, host := range r.resolver.Members() {
+		all = append(all, host.GetAddress())
 	}
 
-	clientProvider := func(clientKey string) (interface{}, error) {
-		connection := cf.rpcFactory.CreateGRPCConnection(rpcAddress)
-		return adminservice.NewAdminServiceClient(connection), nil
-	}
-
-	client := admin.NewClient(timeout, common.NewClientCache(keyResolver, clientProvider))
-	if cf.metricsClient != nil {
-		client = admin.NewMetricClient(client, cf.metricsClient)
-	}
-	return client, nil
+	return all, nil
 }

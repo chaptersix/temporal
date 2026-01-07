@@ -1,87 +1,93 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package parentclosepolicy
 
 import (
 	"context"
 
-	"go.temporal.io/temporal/activity"
-	sdkclient "go.temporal.io/temporal/client"
-	"go.temporal.io/temporal/workflow"
-
-	"go.temporal.io/temporal/worker"
-
-	"github.com/temporalio/temporal/client"
-	"github.com/temporalio/temporal/common/log"
-	"github.com/temporalio/temporal/common/log/tag"
-	"github.com/temporalio/temporal/common/metrics"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/worker"
+	"go.temporal.io/sdk/workflow"
+	"go.temporal.io/server/client"
+	"go.temporal.io/server/common/dynamicconfig"
+	"go.temporal.io/server/common/headers"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/membership"
+	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/sdk"
 )
 
 type (
-	// BootstrapParams contains the set of params needed to bootstrap
-	// the sub-system
+	// Config defines the configuration for parent close policy worker
+	Config struct {
+		MaxConcurrentActivityExecutionSize     dynamicconfig.IntPropertyFn
+		MaxConcurrentWorkflowTaskExecutionSize dynamicconfig.IntPropertyFn
+		MaxConcurrentActivityTaskPollers       dynamicconfig.IntPropertyFn
+		MaxConcurrentWorkflowTaskPollers       dynamicconfig.IntPropertyFn
+		NumParentClosePolicySystemWorkflows    dynamicconfig.IntPropertyFn
+	}
+
+	// BootstrapParams contains the set of params needed to bootstrap the sub-system
 	BootstrapParams struct {
+		SdkClientFactory sdk.ClientFactory
+		// MetricsHandler is an instance of metrics object for emitting stats
+		MetricsHandler metrics.Handler
+		// Logger is the logger
+		Logger log.Logger
 		// Config contains the configuration for scanner
-		// ServiceClient is an instance of temporal service client
-		ServiceClient sdkclient.Client
-		// MetricsClient is an instance of metrics object for emitting stats
-		MetricsClient metrics.Client
-		Logger        log.Logger
+		Config Config
 		// ClientBean is an instance of client.Bean for a collection of clients
 		ClientBean client.Bean
+		// CurrentCluster is the name of current cluster
+		CurrentCluster string
+
+		HostInfo membership.HostInfo
 	}
 
 	// Processor is the background sub-system that execute workflow for ParentClosePolicy
 	Processor struct {
-		svcClient     sdkclient.Client
-		clientBean    client.Bean
-		metricsClient metrics.Client
-		logger        log.Logger
+		sdkClientFactory sdk.ClientFactory
+		clientBean       client.Bean
+		metricsHandler   metrics.Handler
+		cfg              Config
+		logger           log.Logger
+		currentCluster   string
+		hostInfo         membership.HostInfo
 	}
 )
 
 // New returns a new instance as daemon
 func New(params *BootstrapParams) *Processor {
 	return &Processor{
-		svcClient:     params.ServiceClient,
-		metricsClient: params.MetricsClient,
-		logger:        params.Logger.WithTags(tag.ComponentBatcher),
-		clientBean:    params.ClientBean,
+		sdkClientFactory: params.SdkClientFactory,
+		metricsHandler:   params.MetricsHandler.WithTags(metrics.OperationTag(metrics.ParentClosePolicyProcessorScope)),
+		cfg:              params.Config,
+		logger:           log.With(params.Logger, tag.ComponentBatcher),
+		clientBean:       params.ClientBean,
+		currentCluster:   params.CurrentCluster,
+		hostInfo:         params.HostInfo,
 	}
 }
 
 // Start starts the scanner
 func (s *Processor) Start() error {
-	ctx := context.WithValue(context.Background(), processorContextKey, s)
-	workerOpts := worker.Options{
-		BackgroundActivityContext: ctx,
-	}
-	processorWorker := worker.New(s.svcClient, processorTaskListName, workerOpts)
-
+	svcClient := s.sdkClientFactory.GetSystemClient()
+	processorWorker := s.sdkClientFactory.NewWorker(svcClient, processorTaskQueueName, getWorkerOptions(s))
 	processorWorker.RegisterWorkflowWithOptions(ProcessorWorkflow, workflow.RegisterOptions{Name: processorWFTypeName})
 	processorWorker.RegisterActivityWithOptions(ProcessorActivity, activity.RegisterOptions{Name: processorActivityName})
 
 	return processorWorker.Start()
+}
+
+func getWorkerOptions(p *Processor) worker.Options {
+	ctx := context.WithValue(context.Background(), processorContextKey, p)
+	ctx = headers.SetCallerInfo(ctx, headers.SystemBackgroundHighCallerInfo)
+
+	return worker.Options{
+		MaxConcurrentActivityExecutionSize:     p.cfg.MaxConcurrentActivityExecutionSize(),
+		MaxConcurrentWorkflowTaskExecutionSize: p.cfg.MaxConcurrentWorkflowTaskExecutionSize(),
+		MaxConcurrentActivityTaskPollers:       p.cfg.MaxConcurrentActivityTaskPollers(),
+		MaxConcurrentWorkflowTaskPollers:       p.cfg.MaxConcurrentWorkflowTaskPollers(),
+		BackgroundActivityContext:              ctx,
+		Identity:                               "temporal-system@" + p.hostInfo.Identity(),
+	}
 }

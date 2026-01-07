@@ -1,27 +1,3 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package executor
 
 import (
@@ -31,10 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/uber-go/tally"
-
-	"github.com/temporalio/temporal/common"
-	"github.com/temporalio/temporal/common/metrics"
+	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/metrics"
 )
 
 type (
@@ -53,14 +27,14 @@ func TestExecutionTestSuite(t *testing.T) {
 
 func (s *ExecutorTestSuite) TestStartStop() {
 	e := NewFixedSizePoolExecutor(
-		4, 4, metrics.NewClient(tally.NoopScope, metrics.Worker), metrics.TaskListScavengerScope)
+		4, 4, metrics.NoopMetricsHandler, metrics.TaskQueueScavengerScope)
 	e.Start()
 	e.Stop()
 }
 
 func (s *ExecutorTestSuite) TestTaskExecution() {
 	e := NewFixedSizePoolExecutor(
-		32, 100, metrics.NewClient(tally.NoopScope, metrics.Worker), metrics.TaskListScavengerScope)
+		32, 100, metrics.NoopMetricsHandler, metrics.TaskQueueScavengerScope)
 	e.Start()
 	var runCounter int64
 	var startWG sync.WaitGroup
@@ -84,8 +58,8 @@ func (s *ExecutorTestSuite) TestTaskExecution() {
 }
 
 func (s *ExecutorTestSuite) awaitCompletion(e Executor) bool {
-	expiry := time.Now().Add(time.Second * 10)
-	for time.Now().Before(expiry) {
+	expiry := time.Now().UTC().Add(time.Second * 10)
+	for time.Now().UTC().Before(expiry) {
 		if e.TaskCount() == 0 {
 			return true
 		}

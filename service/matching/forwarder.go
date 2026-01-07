@@ -1,57 +1,31 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package matching
 
 import (
 	"context"
 	"errors"
-	"math"
 	"sync/atomic"
 	"time"
 
-	"github.com/gogo/protobuf/types"
-	"go.temporal.io/temporal-proto/serviceerror"
-	tasklistpb "go.temporal.io/temporal-proto/tasklist"
-	"go.temporal.io/temporal-proto/workflowservice"
-
-	"github.com/temporalio/temporal/.gen/proto/matchingservice"
-	"github.com/temporalio/temporal/client/matching"
-	"github.com/temporalio/temporal/common/metrics"
-	"github.com/temporalio/temporal/common/persistence"
-	"github.com/temporalio/temporal/common/primitives"
-	"github.com/temporalio/temporal/common/quotas"
+	enumspb "go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
+	taskqueuepb "go.temporal.io/api/taskqueue/v1"
+	"go.temporal.io/api/workflowservice/v1"
+	"go.temporal.io/server/api/matchingservice/v1"
+	taskqueuespb "go.temporal.io/server/api/taskqueue/v1"
+	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/quotas"
+	"go.temporal.io/server/common/tqid"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 type (
 	// Forwarder is the type that contains state pertaining to
 	// the api call forwarder component
 	Forwarder struct {
-		cfg          *forwarderConfig
-		taskListID   *taskListID
-		taskListKind tasklistpb.TaskListKind
-		client       matching.Client
+		cfg       *forwarderConfig
+		queue     *PhysicalTaskQueueKey
+		partition *tqid.NormalPartition
+		client    matchingservice.MatchingServiceClient
 
 		// token channels that vend tokens necessary to make
 		// API calls exposed by forwarder. Tokens are used
@@ -69,16 +43,7 @@ type (
 
 		// todo: implement a rate limiter that automatically
 		// adjusts rate based on ServiceBusy errors from API calls
-		limiter *quotas.DynamicRateLimiter
-
-		// cached metric scopes for API calls
-		//nolint
-		scope struct {
-			forwardTask  metrics.Scope
-			forwardQuery metrics.Scope
-			forwardPoll  metrics.Scope
-		}
-		scopeFunc func() metrics.Scope
+		limiter *quotas.DynamicRateLimiterImpl
 	}
 	// ForwarderReqToken is the token that must be acquired before
 	// making forwarder API calls. This type contains the state
@@ -89,193 +54,259 @@ type (
 )
 
 var (
-	errNoParent            = errors.New("cannot find parent task list for forwarding")
-	errTaskListKind        = errors.New("forwarding is not supported on sticky task list")
-	errInvalidTaskListType = errors.New("unrecognized task list type")
-	errForwarderSlowDown   = errors.New("limit exceeded")
+	errInvalidTaskQueueType = errors.New("unrecognized task queue type")
+	errForwarderSlowDown    = errors.New("limit exceeded")
 )
 
-// noopForwarderTokenC refers to a token channel that blocks forever
-var noopForwarderTokenC <-chan *ForwarderReqToken = make(chan *ForwarderReqToken)
-
 // newForwarder returns an instance of Forwarder object which
-// can be used to forward api request calls from a task list
-// child partition to a task list parent partition. The returned
-// forwarder is tied to a single task list. All of the exposed
+// can be used to forward api request calls from a task queue
+// child partition to a task queue parent partition. The returned
+// forwarder is tied to a single task queue partition. All exposed
 // methods can return the following errors:
 // Returns following errors:
-//  - errNoParent: If this task list doesn't have a parent to forward to
-//  - errTaskListKind: If the task list is a sticky task list. Sticky task lists are never partitioned
-//  - errForwarderSlowDown: When the rate limit is exceeded
-//  - errInvalidTaskType: If the task list type is invalid
+//   - taskqueue.ErrNoParent, taskqueue.ErrInvalidDegree: If this task queue doesn't have a parent to forward to
+//   - errForwarderSlowDown: When the rate limit is exceeded
 func newForwarder(
 	cfg *forwarderConfig,
-	taskListID *taskListID,
-	kind tasklistpb.TaskListKind,
-	client matching.Client,
-	scopeFunc func() metrics.Scope,
-) *Forwarder {
-	rpsFunc := func() float64 { return float64(cfg.ForwarderMaxRatePerSecond()) }
+	queue *PhysicalTaskQueueKey,
+	client matchingservice.MatchingServiceClient,
+) (*Forwarder, error) {
+	partition, ok := queue.Partition().(*tqid.NormalPartition)
+	if !ok {
+		return nil, serviceerror.NewInvalidArgument("physical queue of normal partition expected")
+	}
+
 	fwdr := &Forwarder{
 		cfg:                   cfg,
 		client:                client,
-		taskListID:            taskListID,
-		taskListKind:          kind,
+		partition:             partition,
+		queue:                 queue,
 		outstandingTasksLimit: int32(cfg.ForwarderMaxOutstandingTasks()),
 		outstandingPollsLimit: int32(cfg.ForwarderMaxOutstandingPolls()),
-		limiter:               quotas.NewDynamicRateLimiter(rpsFunc),
-		scopeFunc:             scopeFunc,
+		limiter: quotas.NewDefaultOutgoingRateLimiter(
+			func() float64 { return float64(cfg.ForwarderMaxRatePerSecond()) },
+		),
 	}
 	fwdr.addReqToken.Store(newForwarderReqToken(cfg.ForwarderMaxOutstandingTasks()))
 	fwdr.pollReqToken.Store(newForwarderReqToken(cfg.ForwarderMaxOutstandingPolls()))
-	return fwdr
+	return fwdr, nil
 }
 
-// ForwardTask forwards an activity or decision task to the parent task list partition if it exist
+// ForwardTask forwards an activity or workflow task to the parent task queue partition if it exists
 func (fwdr *Forwarder) ForwardTask(ctx context.Context, task *internalTask) error {
-	if fwdr.taskListKind == tasklistpb.TaskListKind_Sticky {
-		return errTaskListKind
-	}
-
-	name := fwdr.taskListID.Parent(fwdr.cfg.ForwarderMaxChildrenPerNode())
-	if name == "" {
-		return errNoParent
+	degree := fwdr.cfg.ForwarderMaxChildrenPerNode()
+	target, err := fwdr.partition.ParentPartition(degree)
+	if err != nil {
+		return err
 	}
 
 	if !fwdr.limiter.Allow() {
 		return errForwarderSlowDown
 	}
 
-	var err error
-
-	// todo: Vet recomputing ScheduleToStart and rechecking expiry here
-	expiryGo, err := types.TimestampFromProto(task.event.Data.Expiry)
-	if err != nil {
-		return err
+	var expirationDuration *durationpb.Duration
+	var expirationTime time.Time
+	if task.event.Data.ExpiryTime != nil {
+		expirationTime = task.event.Data.ExpiryTime.AsTime()
+		remaining := time.Until(expirationTime)
+		if remaining <= 0 {
+			return nil
+		}
+		expirationDuration = durationpb.New(remaining)
 	}
 
-	newScheduleToStartTimeout := int32(math.Ceil(time.Until(expiryGo).Seconds()))
-
-	// Todo - should we noop expired tasks? This will be moot once history stamp absolute time
-	/*if newScheduleToStartTimeout <= 0 {
-		return nil
-	}*/
-
-	switch fwdr.taskListID.taskType {
-	case persistence.TaskListTypeDecision:
-		_, err = fwdr.client.AddDecisionTask(ctx, &matchingservice.AddDecisionTaskRequest{
-			NamespaceId: primitives.UUIDString(task.event.Data.GetNamespaceId()),
-			Execution:   task.workflowExecution(),
-			TaskList: &tasklistpb.TaskList{
-				Name: name,
-				Kind: tasklistpb.TaskListKind(fwdr.taskListKind),
+	switch fwdr.partition.TaskType() {
+	case enumspb.TASK_QUEUE_TYPE_WORKFLOW:
+		_, err = fwdr.client.AddWorkflowTask(
+			ctx, &matchingservice.AddWorkflowTaskRequest{
+				NamespaceId: task.event.Data.GetNamespaceId(),
+				Execution:   task.workflowExecution(),
+				TaskQueue: &taskqueuepb.TaskQueue{
+					Name: target.RpcName(),
+					Kind: fwdr.partition.Kind(),
+				},
+				ScheduledEventId:       task.event.Data.GetScheduledEventId(),
+				Clock:                  task.event.Data.GetClock(),
+				ScheduleToStartTimeout: expirationDuration,
+				ForwardInfo:            fwdr.getForwardInfo(task),
+				VersionDirective:       task.event.Data.GetVersionDirective(),
+				Stamp:                  task.event.Data.GetStamp(),
+				Priority:               task.event.Data.GetPriority(),
 			},
-			ScheduleId:                    task.event.Data.GetScheduleId(),
-			Source:                        task.source,
-			ScheduleToStartTimeoutSeconds: newScheduleToStartTimeout,
-			ForwardedFrom:                 fwdr.taskListID.name,
-		})
-	case persistence.TaskListTypeActivity:
-		_, err = fwdr.client.AddActivityTask(ctx, &matchingservice.AddActivityTaskRequest{
-			NamespaceId:       fwdr.taskListID.namespaceID,
-			SourceNamespaceId: primitives.UUIDString(task.event.Data.GetNamespaceId()),
-			Execution:         task.workflowExecution(),
-			TaskList: &tasklistpb.TaskList{
-				Name: name,
-				Kind: tasklistpb.TaskListKind(fwdr.taskListKind),
+		)
+	case enumspb.TASK_QUEUE_TYPE_ACTIVITY:
+		_, err = fwdr.client.AddActivityTask(
+			ctx, &matchingservice.AddActivityTaskRequest{
+				NamespaceId: task.event.Data.GetNamespaceId(),
+				Execution:   task.workflowExecution(),
+				TaskQueue: &taskqueuepb.TaskQueue{
+					Name: target.RpcName(),
+					Kind: fwdr.partition.Kind(),
+				},
+				ScheduledEventId:       task.event.Data.GetScheduledEventId(),
+				Clock:                  task.event.Data.GetClock(),
+				ScheduleToStartTimeout: expirationDuration,
+				ForwardInfo:            fwdr.getForwardInfo(task),
+				VersionDirective:       task.event.Data.GetVersionDirective(),
+				Stamp:                  task.event.Data.GetStamp(),
+				Priority:               task.event.Data.GetPriority(),
+				ComponentRef:           task.event.Data.GetComponentRef(),
 			},
-			ScheduleId:                    task.event.Data.GetScheduleId(),
-			Source:                        task.source,
-			ScheduleToStartTimeoutSeconds: newScheduleToStartTimeout,
-			ForwardedFrom:                 fwdr.taskListID.name,
-		})
+		)
 	default:
-		return errInvalidTaskListType
+		return errInvalidTaskQueueType
 	}
 
 	return fwdr.handleErr(err)
 }
 
-// ForwardQueryTask forwards a query task to parent task list partition, if it exist
+func (fwdr *Forwarder) getForwardInfo(task *internalTask) *taskqueuespb.TaskForwardInfo {
+	if task.isForwarded() {
+		// task is already forwarded from a child partition, only overwrite SourcePartition
+		clone := common.CloneProto(task.forwardInfo)
+		clone.SourcePartition = fwdr.partition.RpcName()
+		return clone
+	}
+	// task is forwarded for the first time
+	forwardInfo := &taskqueuespb.TaskForwardInfo{
+		TaskSource:         task.source,
+		SourcePartition:    fwdr.partition.RpcName(),
+		DispatchBuildId:    fwdr.queue.Version().BuildId(),
+		DispatchVersionSet: fwdr.queue.Version().VersionSet(),
+		RedirectInfo:       task.redirectInfo,
+	}
+	return forwardInfo
+}
+
+// ForwardQueryTask forwards a query task to parent task queue partition, if it exists
 func (fwdr *Forwarder) ForwardQueryTask(
 	ctx context.Context,
 	task *internalTask,
 ) (*matchingservice.QueryWorkflowResponse, error) {
-
-	if fwdr.taskListKind == tasklistpb.TaskListKind_Sticky {
-		return nil, errTaskListKind
-	}
-
-	name := fwdr.taskListID.Parent(fwdr.cfg.ForwarderMaxChildrenPerNode())
-	if name == "" {
-		return nil, errNoParent
+	degree := fwdr.cfg.ForwarderMaxChildrenPerNode()
+	target, err := fwdr.partition.ParentPartition(degree)
+	if err != nil {
+		return nil, err
 	}
 
 	resp, err := fwdr.client.QueryWorkflow(ctx, &matchingservice.QueryWorkflowRequest{
 		NamespaceId: task.query.request.GetNamespaceId(),
-		TaskList: &tasklistpb.TaskList{
-			Name: name,
-			Kind: fwdr.taskListKind,
+		TaskQueue: &taskqueuepb.TaskQueue{
+			Name: target.RpcName(),
+			Kind: fwdr.partition.Kind(),
 		},
-		QueryRequest:  task.query.request.QueryRequest,
-		ForwardedFrom: fwdr.taskListID.name,
+		QueryRequest:     task.query.request.QueryRequest,
+		VersionDirective: task.query.request.VersionDirective,
+		ForwardInfo:      fwdr.getForwardInfo(task),
 	})
 
 	return resp, fwdr.handleErr(err)
 }
 
-// ForwardPoll forwards a poll request to parent task list partition if it exist
-func (fwdr *Forwarder) ForwardPoll(ctx context.Context) (*internalTask, error) {
-	if fwdr.taskListKind == tasklistpb.TaskListKind_Sticky {
-		return nil, errTaskListKind
+// ForwardNexusTask forwards a nexus task to parent task queue partition, if it exists.
+func (fwdr *Forwarder) ForwardNexusTask(ctx context.Context, task *internalTask) (*matchingservice.DispatchNexusTaskResponse, error) {
+	degree := fwdr.cfg.ForwarderMaxChildrenPerNode()
+	target, err := fwdr.partition.ParentPartition(degree)
+	if err != nil {
+		return nil, err
 	}
 
-	name := fwdr.taskListID.Parent(fwdr.cfg.ForwarderMaxChildrenPerNode())
-	if name == "" {
-		return nil, errNoParent
+	resp, err := fwdr.client.DispatchNexusTask(ctx, &matchingservice.DispatchNexusTaskRequest{
+		NamespaceId: task.nexus.request.GetNamespaceId(),
+		TaskQueue: &taskqueuepb.TaskQueue{
+			Name: target.RpcName(),
+			Kind: fwdr.partition.Kind(),
+		},
+		Request:     task.nexus.request.Request,
+		ForwardInfo: fwdr.getForwardInfo(task),
+	})
+
+	return resp, fwdr.handleErr(err)
+}
+
+// ForwardPoll forwards a poll request to parent task queue partition if it exist
+func (fwdr *Forwarder) ForwardPoll(ctx context.Context, pollMetadata *pollMetadata) (*internalTask, error) {
+	degree := fwdr.cfg.ForwarderMaxChildrenPerNode()
+	target, err := fwdr.partition.ParentPartition(degree)
+	if err != nil {
+		return nil, err
 	}
 
 	pollerID, _ := ctx.Value(pollerIDKey).(string)
 	identity, _ := ctx.Value(identityKey).(string)
 
-	switch fwdr.taskListID.taskType {
-	case persistence.TaskListTypeDecision:
-		resp, err := fwdr.client.PollForDecisionTask(ctx, &matchingservice.PollForDecisionTaskRequest{
-			NamespaceId: fwdr.taskListID.namespaceID,
+	switch fwdr.partition.TaskType() {
+	case enumspb.TASK_QUEUE_TYPE_WORKFLOW:
+		resp, err := fwdr.client.PollWorkflowTaskQueue(ctx, &matchingservice.PollWorkflowTaskQueueRequest{
+			NamespaceId: fwdr.partition.TaskQueue().NamespaceId(),
 			PollerId:    pollerID,
-			PollRequest: &workflowservice.PollForDecisionTaskRequest{
-				TaskList: &tasklistpb.TaskList{
-					Name: name,
-					Kind: tasklistpb.TaskListKind(fwdr.taskListKind),
+			PollRequest: &workflowservice.PollWorkflowTaskQueueRequest{
+				TaskQueue: &taskqueuepb.TaskQueue{
+					Name: target.RpcName(),
+					Kind: fwdr.partition.Kind(),
 				},
-				Identity: identity,
+				Identity:                  identity,
+				WorkerVersionCapabilities: pollMetadata.workerVersionCapabilities,
+				DeploymentOptions:         pollMetadata.deploymentOptions,
 			},
-			ForwardedFrom: fwdr.taskListID.name,
+			ForwardedSource: fwdr.partition.RpcName(),
+			Conditions:      pollMetadata.conditions,
 		})
 		if err != nil {
 			return nil, fwdr.handleErr(err)
+		} else if resp.TaskToken == nil {
+			return nil, errNoTasks
 		}
-		return newInternalStartedTask(&startedTaskInfo{decisionTaskInfo: resp}), nil
-	case persistence.TaskListTypeActivity:
-		resp, err := fwdr.client.PollForActivityTask(ctx, &matchingservice.PollForActivityTaskRequest{
-			NamespaceId: fwdr.taskListID.namespaceID,
+		return newInternalStartedTask(&startedTaskInfo{workflowTaskInfo: resp}), nil
+	case enumspb.TASK_QUEUE_TYPE_ACTIVITY:
+		resp, err := fwdr.client.PollActivityTaskQueue(ctx, &matchingservice.PollActivityTaskQueueRequest{
+			NamespaceId: fwdr.partition.TaskQueue().NamespaceId(),
 			PollerId:    pollerID,
-			PollRequest: &workflowservice.PollForActivityTaskRequest{
-				TaskList: &tasklistpb.TaskList{
-					Name: name,
-					Kind: tasklistpb.TaskListKind(fwdr.taskListKind),
+			PollRequest: &workflowservice.PollActivityTaskQueueRequest{
+				TaskQueue: &taskqueuepb.TaskQueue{
+					Name: target.RpcName(),
+					Kind: fwdr.partition.Kind(),
 				},
-				Identity: identity,
+				Identity:                  identity,
+				TaskQueueMetadata:         pollMetadata.taskQueueMetadata,
+				WorkerVersionCapabilities: pollMetadata.workerVersionCapabilities,
+				DeploymentOptions:         pollMetadata.deploymentOptions,
 			},
-			ForwardedFrom: fwdr.taskListID.name,
+			ForwardedSource: fwdr.partition.RpcName(),
+			Conditions:      pollMetadata.conditions,
 		})
 		if err != nil {
 			return nil, fwdr.handleErr(err)
+		} else if resp.TaskToken == nil {
+			return nil, errNoTasks
 		}
 		return newInternalStartedTask(&startedTaskInfo{activityTaskInfo: resp}), nil
+	case enumspb.TASK_QUEUE_TYPE_NEXUS:
+		resp, err := fwdr.client.PollNexusTaskQueue(ctx, &matchingservice.PollNexusTaskQueueRequest{
+			NamespaceId: fwdr.partition.TaskQueue().NamespaceId(),
+			PollerId:    pollerID,
+			Request: &workflowservice.PollNexusTaskQueueRequest{
+				TaskQueue: &taskqueuepb.TaskQueue{
+					Name: target.RpcName(),
+					Kind: fwdr.partition.Kind(),
+				},
+				Identity:                  identity,
+				WorkerVersionCapabilities: pollMetadata.workerVersionCapabilities,
+				DeploymentOptions:         pollMetadata.deploymentOptions,
+				// Namespace is ignored here.
+			},
+			ForwardedSource: fwdr.partition.RpcName(),
+			Conditions:      pollMetadata.conditions,
+		})
+		if err != nil {
+			return nil, fwdr.handleErr(err)
+		} else if resp.Response == nil {
+			return nil, errNoTasks
+		}
+		return newInternalStartedTask(&startedTaskInfo{nexusTaskInfo: resp}), nil
+	default:
+		return nil, errInvalidTaskQueueType
 	}
-
-	return nil, errInvalidTaskListType
 }
 
 // AddReqTokenC returns a channel that can be used to wait for a token

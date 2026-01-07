@@ -1,32 +1,7 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"time"
@@ -34,10 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/urfave/cli"
-
-	"github.com/temporalio/temporal/common/log"
-	"github.com/temporalio/temporal/common/log/loggerimpl"
-	"github.com/temporalio/temporal/common/log/tag"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/tests/testutils"
 )
 
 // UpdateSchemaTestBase is the base test suite for all tests
@@ -45,25 +19,25 @@ import (
 type UpdateSchemaTestBase struct {
 	suite.Suite
 	*require.Assertions
-	rand   *rand.Rand
-	Log    log.Logger
-	DBName string
-	db     DB
+	rand       *rand.Rand
+	Logger     log.Logger
+	DBName     string
+	db         DB
+	pluginName string
 }
 
 // SetupSuiteBase sets up the test suite
-func (tb *UpdateSchemaTestBase) SetupSuiteBase(db DB) {
+func (tb *UpdateSchemaTestBase) SetupSuiteBase(db DB, pluginName string) {
 	tb.Assertions = require.New(tb.T()) // Have to define our overridden assertions in the test setup. If we did it earlier, tb.T() will return nil
-	var err error
-	tb.Log, err = loggerimpl.NewDevelopment()
-	tb.Require().NoError(err)
+	tb.Logger = log.NewTestLogger()
 	tb.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 	tb.DBName = fmt.Sprintf("update_test_%v", tb.rand.Int63())
-	err = db.CreateDatabase(tb.DBName)
+	err := db.CreateDatabase(tb.DBName)
 	if err != nil {
-		tb.Log.Fatal("error creating database, ", tag.Error(err))
+		tb.Logger.Fatal("error creating database, ", tag.Error(err))
 	}
 	tb.db = db
+	tb.pluginName = pluginName
 }
 
 // TearDownSuiteBase tears down the test suite
@@ -74,26 +48,51 @@ func (tb *UpdateSchemaTestBase) TearDownSuiteBase() {
 
 // RunDryrunTest tests a dryrun schema setup & update
 func (tb *UpdateSchemaTestBase) RunDryrunTest(app *cli.App, db DB, dbNameFlag string, dir string, endVersion string) {
-	tb.NoError(app.Run([]string{"./tool", dbNameFlag, tb.DBName, "-q", "setup-schema", "-v", "0.0"}))
-	tb.NoError(app.Run([]string{"./tool", dbNameFlag, tb.DBName, "-q", "update-schema", "-d", dir}))
+	command := append(tb.getCommandBase(), []string{
+		dbNameFlag, tb.DBName,
+		"-q",
+		"setup-schema",
+		"-v", "0.0",
+	}...)
+	tb.NoError(app.Run(command))
+
+	command = append(tb.getCommandBase(), []string{
+		dbNameFlag, tb.DBName,
+		"-q",
+		"update-schema",
+		"-d", dir,
+	}...)
+	tb.NoError(app.Run(command))
 	ver, err := db.ReadSchemaVersion()
 	tb.Nil(err)
 	// update the version to the latest
-	tb.Log.Info(ver)
-	tb.Equal(ver, endVersion)
+	tb.Logger.Info(ver)
+	tb.Equal(endVersion, ver)
 	tb.NoError(db.DropAllTables())
 }
 
 // RunUpdateSchemaTest tests schema update
 func (tb *UpdateSchemaTestBase) RunUpdateSchemaTest(app *cli.App, db DB, dbNameFlag string, sqlFileContent string, expectedTables []string) {
-	tmpDir, err := ioutil.TempDir("", "update_schema_test")
-	tb.Nil(err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutils.MkdirTemp(tb.T(), "", "update_schema_test")
 
 	tb.makeSchemaVersionDirs(tmpDir, sqlFileContent)
 
-	tb.NoError(app.Run([]string{"./tool", dbNameFlag, tb.DBName, "-q", "setup-schema", "-v", "0.0"}))
-	tb.NoError(app.Run([]string{"./tool", dbNameFlag, tb.DBName, "-q", "update-schema", "-d", tmpDir, "-v", "2.0"}))
+	command := append(tb.getCommandBase(), []string{
+		dbNameFlag, tb.DBName,
+		"-q",
+		"setup-schema",
+		"-v", "0.0",
+	}...)
+	tb.NoError(app.Run(command))
+
+	command = append(tb.getCommandBase(), []string{
+		dbNameFlag, tb.DBName,
+		"-q",
+		"update-schema",
+		"-d", tmpDir,
+		"-v", "2.0",
+	}...)
+	tb.NoError(app.Run(command))
 
 	expected := getExpectedTables(true, expectedTables)
 	expected["namespaces"] = struct{}{}
@@ -126,9 +125,9 @@ func (tb *UpdateSchemaTestBase) makeSchemaVersionDirs(rootDir string, sqlFileCon
 
 	dir := rootDir + "/v1.0"
 	tb.NoError(os.Mkdir(rootDir+"/v1.0", os.FileMode(0700)))
-	err := ioutil.WriteFile(dir+"/manifest.json", []byte(mData), os.FileMode(0600))
+	err := os.WriteFile(dir+"/manifest.json", []byte(mData), os.FileMode(0600))
 	tb.Nil(err)
-	err = ioutil.WriteFile(dir+"/base.sql", []byte(sqlFileContent), os.FileMode(0600))
+	err = os.WriteFile(dir+"/base.sql", []byte(sqlFileContent), os.FileMode(0600))
 	tb.Nil(err)
 
 	mData = `{
@@ -145,8 +144,18 @@ func (tb *UpdateSchemaTestBase) makeSchemaVersionDirs(rootDir string, sqlFileCon
 
 	dir = rootDir + "/v2.0"
 	tb.NoError(os.Mkdir(rootDir+"/v2.0", os.FileMode(0700)))
-	err = ioutil.WriteFile(dir+"/manifest.json", []byte(mData), os.FileMode(0600))
+	err = os.WriteFile(dir+"/manifest.json", []byte(mData), os.FileMode(0600))
 	tb.Nil(err)
-	err = ioutil.WriteFile(dir+"/namespace.cql", []byte(namespace), os.FileMode(0600))
+	err = os.WriteFile(dir+"/namespace.cql", []byte(namespace), os.FileMode(0600))
 	tb.Nil(err)
+}
+
+func (tb *UpdateSchemaTestBase) getCommandBase() []string {
+	command := []string{"./tool"}
+	if tb.pluginName != "" {
+		command = append(command, []string{
+			"-pl", tb.pluginName,
+		}...)
+	}
+	return command
 }

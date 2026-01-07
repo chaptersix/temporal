@@ -1,46 +1,21 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package filestore
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dgryski/go-farm"
-	"github.com/gogo/protobuf/proto"
-	eventpb "go.temporal.io/temporal-proto/event"
-
-	archiverproto "github.com/temporalio/temporal/.gen/proto/archiver"
-	"github.com/temporalio/temporal/common/archiver"
-	"github.com/temporalio/temporal/common/codec"
+	historypb "go.temporal.io/api/history/v1"
+	archiverspb "go.temporal.io/server/api/archiver/v1"
+	"go.temporal.io/server/common/archiver"
+	"go.temporal.io/server/common/codec"
+	"go.uber.org/multierr"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -107,10 +82,10 @@ func writeFile(filepath string, data []byte, fileMode os.FileMode) (retErr error
 // the user.
 func readFile(filepath string) ([]byte, error) {
 	// #nosec
-	return ioutil.ReadFile(filepath)
+	return os.ReadFile(filepath)
 }
 
-func listFiles(dirPath string) ([]string, error) {
+func listFiles(dirPath string) (fileNames []string, err error) {
 	if info, err := os.Stat(dirPath); err != nil {
 		return nil, err
 	} else if !info.IsDir() {
@@ -121,12 +96,10 @@ func listFiles(dirPath string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	fileNames, err := f.Readdirnames(-1)
-	f.Close()
-	if err != nil {
-		return nil, err
-	}
-	return fileNames, nil
+	defer func() {
+		err = multierr.Combine(err, f.Close())
+	}()
+	return f.Readdirnames(-1)
 }
 
 func listFilesByPrefix(dirPath string, prefix string) ([]string, error) {
@@ -151,13 +124,13 @@ func encode(message proto.Message) ([]byte, error) {
 	return encoder.Encode(message)
 }
 
-func encodeHistories(histories []*eventpb.History) ([]byte, error) {
+func encodeHistories(histories []*historypb.History) ([]byte, error) {
 	encoder := codec.NewJSONPBEncoder()
 	return encoder.EncodeHistories(histories)
 }
 
-func decodeVisibilityRecord(data []byte) (*archiverproto.ArchiveVisibilityRequest, error) {
-	record := &archiverproto.ArchiveVisibilityRequest{}
+func decodeVisibilityRecord(data []byte) (*archiverspb.VisibilityRecord, error) {
+	record := &archiverspb.VisibilityRecord{}
 	encoder := codec.NewJSONPBEncoder()
 	err := encoder.Decode(data, record)
 	if err != nil {
@@ -196,8 +169,8 @@ func constructHistoryFilenamePrefix(namespaceID, workflowID, runID string) strin
 	return strings.Join([]string{hash(namespaceID), hash(workflowID), hash(runID)}, "")
 }
 
-func constructVisibilityFilename(closeTimestamp int64, runID string) string {
-	return fmt.Sprintf("%v_%s.visibility", closeTimestamp, hash(runID))
+func constructVisibilityFilename(closeTimestamp time.Time, runID string) string {
+	return fmt.Sprintf("%v_%s.visibility", closeTimestamp.UnixNano(), hash(runID))
 }
 
 func hash(s string) string {
@@ -235,7 +208,7 @@ func extractCloseFailoverVersion(filename string) (int64, error) {
 	return strconv.ParseInt(filenameParts[1], 10, 64)
 }
 
-func historyMutated(request *archiver.ArchiveHistoryRequest, historyBatches []*eventpb.History, isLast bool) bool {
+func historyMutated(request *archiver.ArchiveHistoryRequest, historyBatches []*historypb.History, isLast bool) bool {
 	lastBatch := historyBatches[len(historyBatches)-1].Events
 	lastEvent := lastBatch[len(lastBatch)-1]
 	lastFailoverVersion := lastEvent.GetVersion()
@@ -248,13 +221,4 @@ func historyMutated(request *archiver.ArchiveHistoryRequest, historyBatches []*e
 	}
 	lastEventID := lastEvent.GetEventId()
 	return lastFailoverVersion != request.CloseFailoverVersion || lastEventID+1 != request.NextEventID
-}
-
-func contextExpired(ctx context.Context) bool {
-	select {
-	case <-ctx.Done():
-		return true
-	default:
-		return false
-	}
 }

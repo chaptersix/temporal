@@ -1,60 +1,39 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package headers
 
 import (
 	"context"
+	"strings"
 
 	"google.golang.org/grpc/metadata"
 )
 
+// Note the nexusoperations component references these headers and adds them to a list of disallowed headers for users to set.
+// If any other headers are added for internal use, they should be added to the disallowed headers list.
 const (
-	// ClientVersionHeaderName refers to the name of the gRPC metadata header that contains the client version.
-	ClientVersionHeaderName = "temporal-client-version"
+	ClientNameHeaderName              = "client-name"
+	ClientVersionHeaderName           = "client-version"
+	SupportedServerVersionsHeaderName = "supported-server-versions"
+	SupportedFeaturesHeaderName       = "supported-features"
+	SupportedFeaturesHeaderDelim      = ","
 
-	// ClientFeatureVersionHeaderName refers to the name of the gRPC metadata header that contains the client feature set version.
-	// The feature set version is sent from client represents the feature set of the client supports.
-	// This can be used for client capability check, on Temporal server, for backward compatibility.
-	ClientFeatureVersionHeaderName = "temporal-client-feature-version"
+	CallerNameHeaderName = "caller-name"
+	CallerTypeHeaderName = "caller-type"
+	CallOriginHeaderName = "call-initiation"
 
-	// ClientImplHeaderName refers to the name of the gRPC metadata header that contains the client implementation.
-	ClientImplHeaderName = "temporal-client-name"
+	ExperimentHeaderName = "temporal-experiment"
 )
 
 var (
-	versionHeaders = metadata.New(map[string]string{
-		ClientVersionHeaderName:        SupportedGoSDKVersion,
-		ClientFeatureVersionHeaderName: BaseFeaturesFeatureVersion,
-		ClientImplHeaderName:           GoSDK,
-	})
-
-	cliVersionHeaders = metadata.New(map[string]string{
-		ClientVersionHeaderName:        SupportedCLIVersion,
-		ClientFeatureVersionHeaderName: BaseFeaturesFeatureVersion,
-		ClientImplHeaderName:           CLI,
-	})
+	// propagateHeaders are the headers to propagate from the frontend to other services.
+	propagateHeaders = []string{
+		ClientNameHeaderName,
+		ClientVersionHeaderName,
+		SupportedServerVersionsHeaderName,
+		SupportedFeaturesHeaderName,
+		CallerNameHeaderName,
+		CallerTypeHeaderName,
+		CallOriginHeaderName,
+	}
 )
 
 // GetValues returns header values for passed header names.
@@ -62,68 +41,77 @@ var (
 func GetValues(ctx context.Context, headerNames ...string) []string {
 	headerValues := make([]string, len(headerNames))
 
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		for i, headerName := range headerNames {
-			headerValues[i] = getSingleHeaderValue(md, headerName)
+	for i, headerName := range headerNames {
+		if values := metadata.ValueFromIncomingContext(ctx, headerName); len(values) > 0 {
+			headerValues[i] = values[0]
 		}
 	}
 
 	return headerValues
 }
 
-// PropagateVersions propagates version headers from incoming context to outgoing context.
-// It copies all version headers to outgoing context only if they are exist in incoming context
+// Propagate propagates version headers from incoming context to outgoing context.
+// It copies all headers to outgoing context only if they are exist in incoming context
 // and doesn't exist in outgoing context already.
-func PropagateVersions(ctx context.Context) context.Context {
-	if mdIncoming, ok := metadata.FromIncomingContext(ctx); ok {
-		var headersToAppend []string
-		mdOutgoing, mdOutgoingExist := metadata.FromOutgoingContext(ctx)
-		for _, headerName := range []string{ClientVersionHeaderName, ClientFeatureVersionHeaderName, ClientImplHeaderName} {
-			if incomingValue := mdIncoming.Get(headerName); len(incomingValue) > 0 {
-				if mdOutgoingExist {
-					if outgoingValue := mdOutgoing.Get(headerName); len(outgoingValue) > 0 {
-						continue
-					}
-				}
-				headersToAppend = append(headersToAppend, headerName, incomingValue[0])
-			}
+func Propagate(ctx context.Context) context.Context {
+	headersToAppend := make([]string, 0, len(propagateHeaders)*2)
+	mdOutgoing, mdOutgoingExist := metadata.FromOutgoingContext(ctx)
+	for _, headerName := range propagateHeaders {
+		if incomingValue := metadata.ValueFromIncomingContext(ctx, headerName); len(incomingValue) > 0 && len(mdOutgoing.Get(headerName)) == 0 {
+			headersToAppend = append(headersToAppend, headerName, incomingValue[0])
 		}
-		if headersToAppend != nil {
-			if mdOutgoingExist {
-				ctx = metadata.AppendToOutgoingContext(ctx, headersToAppend...)
-			} else {
-				ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs(headersToAppend...))
-			}
+	}
+	if headersToAppend != nil {
+		if mdOutgoingExist {
+			ctx = metadata.AppendToOutgoingContext(ctx, headersToAppend...)
+		} else {
+			ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs(headersToAppend...))
 		}
 	}
 	return ctx
 }
 
-// SetVersions sets headers for internal communications.
-func SetVersions(ctx context.Context) context.Context {
-	return metadata.NewOutgoingContext(ctx, versionHeaders)
+// HeaderGetter is an interface for getting a single header value from a case insensitive key.
+type HeaderGetter interface {
+	Get(string) string
 }
 
-// SetCLIVersions sets headers for CLI requests.
-func SetCLIVersions(ctx context.Context) context.Context {
-	return metadata.NewOutgoingContext(ctx, cliVersionHeaders)
+// Wrapper for gRPC metadata that exposes a helper to extract a single metadata value.
+type GRPCHeaderGetter struct {
+	ctx context.Context
 }
 
-// SetVersionsForTests sets headers as they would be received from the client.
-// Must be used in tests only.
-func SetVersionsForTests(ctx context.Context, clientVersion, clientImpl, clientFeatureVersion string) context.Context {
-	return metadata.NewIncomingContext(ctx, metadata.New(map[string]string{
-		ClientVersionHeaderName:        clientVersion,
-		ClientFeatureVersionHeaderName: clientFeatureVersion,
-		ClientImplHeaderName:           clientImpl,
-	}))
+func NewGRPCHeaderGetter(ctx context.Context) GRPCHeaderGetter {
+	return GRPCHeaderGetter{ctx: ctx}
 }
 
-func getSingleHeaderValue(md metadata.MD, headerName string) string {
-	values := md.Get(headerName)
-	if len(values) == 0 {
-		return ""
+// Get a single value from the underlying gRPC metadata.
+// Returns an empty string if the metadata key is unset.
+func (h GRPCHeaderGetter) Get(key string) string {
+	if values := metadata.ValueFromIncomingContext(h.ctx, key); len(values) > 0 {
+		return values[0]
+	}
+	return ""
+}
+
+// IsExperimentRequested checks if a specific experiment is present in the temporal-experiment header.
+// Returns true if the experiment is explicitly listed or if "*" (wildcard) is present.
+// Headers exceeding a length of 100 will be skipped.
+func IsExperimentRequested(ctx context.Context, experiment string) bool {
+	experimentalValues := metadata.ValueFromIncomingContext(ctx, ExperimentHeaderName)
+
+	for _, headerValue := range experimentalValues {
+		// limit value size to prevent misuse
+		if len(headerValue) > 100 {
+			continue
+		}
+		for requested := range strings.SplitSeq(headerValue, ",") {
+			requested = strings.TrimSpace(requested)
+			if requested == "*" || requested == experiment {
+				return true
+			}
+		}
 	}
 
-	return values[0]
+	return false
 }

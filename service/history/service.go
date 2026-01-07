@@ -1,461 +1,165 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package history
 
 import (
 	"context"
-	"sync/atomic"
+	"net"
 	"time"
 
-	"go.temporal.io/temporal-proto/serviceerror"
+	"go.temporal.io/server/api/historyservice/v1"
+	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/membership"
+	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/persistence/visibility/manager"
+	"go.temporal.io/server/common/util"
+	"go.temporal.io/server/service/history/configs"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-
-	"github.com/temporalio/temporal/.gen/proto/historyservice"
-	"github.com/temporalio/temporal/common"
-	"github.com/temporalio/temporal/common/definition"
-	"github.com/temporalio/temporal/common/log"
-	"github.com/temporalio/temporal/common/log/tag"
-	"github.com/temporalio/temporal/common/persistence"
-	persistenceClient "github.com/temporalio/temporal/common/persistence/client"
-	espersistence "github.com/temporalio/temporal/common/persistence/elasticsearch"
-	"github.com/temporalio/temporal/common/resource"
-	"github.com/temporalio/temporal/common/service/config"
-	"github.com/temporalio/temporal/common/service/dynamicconfig"
+	"google.golang.org/grpc/reflection"
 )
-
-// Config represents configuration for history service
-type Config struct {
-	NumberOfShards int
-
-	EnableNDC                       dynamicconfig.BoolPropertyFnWithNamespaceFilter
-	RPS                             dynamicconfig.IntPropertyFn
-	MaxIDLengthLimit                dynamicconfig.IntPropertyFn
-	PersistenceMaxQPS               dynamicconfig.IntPropertyFn
-	EnableVisibilitySampling        dynamicconfig.BoolPropertyFn
-	EnableReadFromClosedExecutionV2 dynamicconfig.BoolPropertyFn
-	VisibilityOpenMaxQPS            dynamicconfig.IntPropertyFnWithNamespaceFilter
-	VisibilityClosedMaxQPS          dynamicconfig.IntPropertyFnWithNamespaceFilter
-	AdvancedVisibilityWritingMode   dynamicconfig.StringPropertyFn
-	EmitShardDiffLog                dynamicconfig.BoolPropertyFn
-	MaxAutoResetPoints              dynamicconfig.IntPropertyFnWithNamespaceFilter
-	ThrottledLogRPS                 dynamicconfig.IntPropertyFn
-	EnableStickyQuery               dynamicconfig.BoolPropertyFnWithNamespaceFilter
-
-	// HistoryCache settings
-	// Change of these configs require shard restart
-	HistoryCacheInitialSize dynamicconfig.IntPropertyFn
-	HistoryCacheMaxSize     dynamicconfig.IntPropertyFn
-	HistoryCacheTTL         dynamicconfig.DurationPropertyFn
-
-	// EventsCache settings
-	// Change of these configs require shard restart
-	EventsCacheInitialSize dynamicconfig.IntPropertyFn
-	EventsCacheMaxSize     dynamicconfig.IntPropertyFn
-	EventsCacheTTL         dynamicconfig.DurationPropertyFn
-
-	// ShardController settings
-	RangeSizeBits           uint
-	AcquireShardInterval    dynamicconfig.DurationPropertyFn
-	AcquireShardConcurrency dynamicconfig.IntPropertyFn
-
-	// the artificial delay added to standby cluster's view of active cluster's time
-	StandbyClusterDelay                  dynamicconfig.DurationPropertyFn
-	StandbyTaskMissingEventsResendDelay  dynamicconfig.DurationPropertyFn
-	StandbyTaskMissingEventsDiscardDelay dynamicconfig.DurationPropertyFn
-
-	// Task process settings
-	TaskProcessRPS dynamicconfig.IntPropertyFnWithNamespaceFilter
-
-	// TimerQueueProcessor settings
-	TimerTaskBatchSize                               dynamicconfig.IntPropertyFn
-	TimerTaskWorkerCount                             dynamicconfig.IntPropertyFn
-	TimerTaskMaxRetryCount                           dynamicconfig.IntPropertyFn
-	TimerProcessorGetFailureRetryCount               dynamicconfig.IntPropertyFn
-	TimerProcessorCompleteTimerFailureRetryCount     dynamicconfig.IntPropertyFn
-	TimerProcessorUpdateAckInterval                  dynamicconfig.DurationPropertyFn
-	TimerProcessorUpdateAckIntervalJitterCoefficient dynamicconfig.FloatPropertyFn
-	TimerProcessorCompleteTimerInterval              dynamicconfig.DurationPropertyFn
-	TimerProcessorFailoverMaxPollRPS                 dynamicconfig.IntPropertyFn
-	TimerProcessorMaxPollRPS                         dynamicconfig.IntPropertyFn
-	TimerProcessorMaxPollInterval                    dynamicconfig.DurationPropertyFn
-	TimerProcessorMaxPollIntervalJitterCoefficient   dynamicconfig.FloatPropertyFn
-	TimerProcessorMaxTimeShift                       dynamicconfig.DurationPropertyFn
-	TimerProcessorHistoryArchivalSizeLimit           dynamicconfig.IntPropertyFn
-	TimerProcessorArchivalTimeLimit                  dynamicconfig.DurationPropertyFn
-
-	// TransferQueueProcessor settings
-	TransferTaskBatchSize                               dynamicconfig.IntPropertyFn
-	TransferTaskWorkerCount                             dynamicconfig.IntPropertyFn
-	TransferTaskMaxRetryCount                           dynamicconfig.IntPropertyFn
-	TransferProcessorCompleteTransferFailureRetryCount  dynamicconfig.IntPropertyFn
-	TransferProcessorFailoverMaxPollRPS                 dynamicconfig.IntPropertyFn
-	TransferProcessorMaxPollRPS                         dynamicconfig.IntPropertyFn
-	TransferProcessorMaxPollInterval                    dynamicconfig.DurationPropertyFn
-	TransferProcessorMaxPollIntervalJitterCoefficient   dynamicconfig.FloatPropertyFn
-	TransferProcessorUpdateAckInterval                  dynamicconfig.DurationPropertyFn
-	TransferProcessorUpdateAckIntervalJitterCoefficient dynamicconfig.FloatPropertyFn
-	TransferProcessorCompleteTransferInterval           dynamicconfig.DurationPropertyFn
-	TransferProcessorVisibilityArchivalTimeLimit        dynamicconfig.DurationPropertyFn
-
-	// ReplicatorQueueProcessor settings
-	ReplicatorTaskBatchSize                               dynamicconfig.IntPropertyFn
-	ReplicatorTaskWorkerCount                             dynamicconfig.IntPropertyFn
-	ReplicatorTaskMaxRetryCount                           dynamicconfig.IntPropertyFn
-	ReplicatorProcessorMaxPollRPS                         dynamicconfig.IntPropertyFn
-	ReplicatorProcessorMaxPollInterval                    dynamicconfig.DurationPropertyFn
-	ReplicatorProcessorMaxPollIntervalJitterCoefficient   dynamicconfig.FloatPropertyFn
-	ReplicatorProcessorUpdateAckInterval                  dynamicconfig.DurationPropertyFn
-	ReplicatorProcessorUpdateAckIntervalJitterCoefficient dynamicconfig.FloatPropertyFn
-	ReplicatorProcessorFetchTasksBatchSize                dynamicconfig.IntPropertyFn
-
-	// Persistence settings
-	ExecutionMgrNumConns dynamicconfig.IntPropertyFn
-	HistoryMgrNumConns   dynamicconfig.IntPropertyFn
-
-	// System Limits
-	MaximumBufferedEventsBatch dynamicconfig.IntPropertyFn
-	MaximumSignalsPerExecution dynamicconfig.IntPropertyFnWithNamespaceFilter
-
-	// ShardUpdateMinInterval the minimal time interval which the shard info can be updated
-	ShardUpdateMinInterval dynamicconfig.DurationPropertyFn
-	// ShardSyncMinInterval the minimal time interval which the shard info should be sync to remote
-	ShardSyncMinInterval            dynamicconfig.DurationPropertyFn
-	ShardSyncTimerJitterCoefficient dynamicconfig.FloatPropertyFn
-
-	// Time to hold a poll request before returning an empty response
-	// right now only used by GetMutableState
-	LongPollExpirationInterval dynamicconfig.DurationPropertyFnWithNamespaceFilter
-
-	// encoding the history events
-	EventEncodingType dynamicconfig.StringPropertyFnWithNamespaceFilter
-	// whether or not using ParentClosePolicy
-	EnableParentClosePolicy dynamicconfig.BoolPropertyFnWithNamespaceFilter
-	// whether or not enable system workers for processing parent close policy task
-	EnableParentClosePolicyWorker dynamicconfig.BoolPropertyFn
-	// parent close policy will be processed by sys workers(if enabled) if
-	// the number of children greater than or equal to this threshold
-	ParentClosePolicyThreshold dynamicconfig.IntPropertyFnWithNamespaceFilter
-	// total number of parentClosePolicy system workflows
-	NumParentClosePolicySystemWorkflows dynamicconfig.IntPropertyFn
-
-	// Archival settings
-	NumArchiveSystemWorkflows dynamicconfig.IntPropertyFn
-	ArchiveRequestRPS         dynamicconfig.IntPropertyFn
-
-	// Size limit related settings
-	BlobSizeLimitError     dynamicconfig.IntPropertyFnWithNamespaceFilter
-	BlobSizeLimitWarn      dynamicconfig.IntPropertyFnWithNamespaceFilter
-	HistorySizeLimitError  dynamicconfig.IntPropertyFnWithNamespaceFilter
-	HistorySizeLimitWarn   dynamicconfig.IntPropertyFnWithNamespaceFilter
-	HistoryCountLimitError dynamicconfig.IntPropertyFnWithNamespaceFilter
-	HistoryCountLimitWarn  dynamicconfig.IntPropertyFnWithNamespaceFilter
-
-	// ValidSearchAttributes is legal indexed keys that can be used in list APIs
-	ValidSearchAttributes             dynamicconfig.MapPropertyFn
-	SearchAttributesNumberOfKeysLimit dynamicconfig.IntPropertyFnWithNamespaceFilter
-	SearchAttributesSizeOfValueLimit  dynamicconfig.IntPropertyFnWithNamespaceFilter
-	SearchAttributesTotalSizeLimit    dynamicconfig.IntPropertyFnWithNamespaceFilter
-
-	// Decision settings
-	// StickyTTL is to expire a sticky tasklist if no update more than this duration
-	// TODO https://github.com/temporalio/temporal/issues/2357
-	StickyTTL dynamicconfig.DurationPropertyFnWithNamespaceFilter
-	// DecisionHeartbeatTimeout is to timeout behavior of: RespondDecisionTaskComplete with ForceCreateNewDecisionTask == true without any decisions
-	// So that decision will be scheduled to another worker(by clear stickyness)
-	DecisionHeartbeatTimeout dynamicconfig.DurationPropertyFnWithNamespaceFilter
-	// MaxDecisionStartToCloseSeconds is the StartToCloseSeconds for decision
-	MaxDecisionStartToCloseSeconds dynamicconfig.IntPropertyFnWithNamespaceFilter
-
-	// The following is used by the new RPC replication stack
-	ReplicationTaskFetcherParallelism                dynamicconfig.IntPropertyFn
-	ReplicationTaskFetcherAggregationInterval        dynamicconfig.DurationPropertyFn
-	ReplicationTaskFetcherTimerJitterCoefficient     dynamicconfig.FloatPropertyFn
-	ReplicationTaskFetcherErrorRetryWait             dynamicconfig.DurationPropertyFn
-	ReplicationTaskProcessorErrorRetryWait           dynamicconfig.DurationPropertyFn
-	ReplicationTaskProcessorErrorRetryMaxAttempts    dynamicconfig.IntPropertyFn
-	ReplicationTaskProcessorNoTaskRetryWait          dynamicconfig.DurationPropertyFn
-	ReplicationTaskProcessorCleanupInterval          dynamicconfig.DurationPropertyFn
-	ReplicationTaskProcessorCleanupJitterCoefficient dynamicconfig.FloatPropertyFn
-
-	// The following are used by consistent query
-	EnableConsistentQuery            dynamicconfig.BoolPropertyFn
-	EnableConsistentQueryByNamespace dynamicconfig.BoolPropertyFnWithNamespaceFilter
-	MaxBufferedQueryCount            dynamicconfig.IntPropertyFn
-
-	// Data integrity check related config knobs
-	MutableStateChecksumGenProbability    dynamicconfig.IntPropertyFnWithNamespaceFilter
-	MutableStateChecksumVerifyProbability dynamicconfig.IntPropertyFnWithNamespaceFilter
-	MutableStateChecksumInvalidateBefore  dynamicconfig.FloatPropertyFn
-}
-
-const (
-	defaultHistoryMaxAutoResetPoints = 20
-)
-
-// NewConfig returns new service config with default values
-func NewConfig(dc *dynamicconfig.Collection, numberOfShards int, storeType string, isAdvancedVisConfigExist bool) *Config {
-	cfg := &Config{
-		NumberOfShards:                                        numberOfShards,
-		EnableNDC:                                             dc.GetBoolPropertyFnWithNamespaceFilter(dynamicconfig.EnableNDC, false),
-		RPS:                                                   dc.GetIntProperty(dynamicconfig.HistoryRPS, 3000),
-		MaxIDLengthLimit:                                      dc.GetIntProperty(dynamicconfig.MaxIDLengthLimit, 1000),
-		PersistenceMaxQPS:                                     dc.GetIntProperty(dynamicconfig.HistoryPersistenceMaxQPS, 9000),
-		EnableVisibilitySampling:                              dc.GetBoolProperty(dynamicconfig.EnableVisibilitySampling, true),
-		EnableReadFromClosedExecutionV2:                       dc.GetBoolProperty(dynamicconfig.EnableReadFromClosedExecutionV2, false),
-		VisibilityOpenMaxQPS:                                  dc.GetIntPropertyFilteredByNamespace(dynamicconfig.HistoryVisibilityOpenMaxQPS, 300),
-		VisibilityClosedMaxQPS:                                dc.GetIntPropertyFilteredByNamespace(dynamicconfig.HistoryVisibilityClosedMaxQPS, 300),
-		MaxAutoResetPoints:                                    dc.GetIntPropertyFilteredByNamespace(dynamicconfig.HistoryMaxAutoResetPoints, defaultHistoryMaxAutoResetPoints),
-		MaxDecisionStartToCloseSeconds:                        dc.GetIntPropertyFilteredByNamespace(dynamicconfig.MaxDecisionStartToCloseSeconds, 240),
-		AdvancedVisibilityWritingMode:                         dc.GetStringProperty(dynamicconfig.AdvancedVisibilityWritingMode, common.GetDefaultAdvancedVisibilityWritingMode(isAdvancedVisConfigExist)),
-		EmitShardDiffLog:                                      dc.GetBoolProperty(dynamicconfig.EmitShardDiffLog, false),
-		HistoryCacheInitialSize:                               dc.GetIntProperty(dynamicconfig.HistoryCacheInitialSize, 128),
-		HistoryCacheMaxSize:                                   dc.GetIntProperty(dynamicconfig.HistoryCacheMaxSize, 512),
-		HistoryCacheTTL:                                       dc.GetDurationProperty(dynamicconfig.HistoryCacheTTL, time.Hour),
-		EventsCacheInitialSize:                                dc.GetIntProperty(dynamicconfig.EventsCacheInitialSize, 128),
-		EventsCacheMaxSize:                                    dc.GetIntProperty(dynamicconfig.EventsCacheMaxSize, 512),
-		EventsCacheTTL:                                        dc.GetDurationProperty(dynamicconfig.EventsCacheTTL, time.Hour),
-		RangeSizeBits:                                         20, // 20 bits for sequencer, 2^20 sequence number for any range
-		AcquireShardInterval:                                  dc.GetDurationProperty(dynamicconfig.AcquireShardInterval, time.Minute),
-		AcquireShardConcurrency:                               dc.GetIntProperty(dynamicconfig.AcquireShardConcurrency, 1),
-		StandbyClusterDelay:                                   dc.GetDurationProperty(dynamicconfig.StandbyClusterDelay, 5*time.Minute),
-		StandbyTaskMissingEventsResendDelay:                   dc.GetDurationProperty(dynamicconfig.StandbyTaskMissingEventsResendDelay, 15*time.Minute),
-		StandbyTaskMissingEventsDiscardDelay:                  dc.GetDurationProperty(dynamicconfig.StandbyTaskMissingEventsDiscardDelay, 25*time.Minute),
-		TaskProcessRPS:                                        dc.GetIntPropertyFilteredByNamespace(dynamicconfig.TaskProcessRPS, 1000),
-		TimerTaskBatchSize:                                    dc.GetIntProperty(dynamicconfig.TimerTaskBatchSize, 100),
-		TimerTaskWorkerCount:                                  dc.GetIntProperty(dynamicconfig.TimerTaskWorkerCount, 10),
-		TimerTaskMaxRetryCount:                                dc.GetIntProperty(dynamicconfig.TimerTaskMaxRetryCount, 100),
-		TimerProcessorGetFailureRetryCount:                    dc.GetIntProperty(dynamicconfig.TimerProcessorGetFailureRetryCount, 5),
-		TimerProcessorCompleteTimerFailureRetryCount:          dc.GetIntProperty(dynamicconfig.TimerProcessorCompleteTimerFailureRetryCount, 10),
-		TimerProcessorUpdateAckInterval:                       dc.GetDurationProperty(dynamicconfig.TimerProcessorUpdateAckInterval, 30*time.Second),
-		TimerProcessorUpdateAckIntervalJitterCoefficient:      dc.GetFloat64Property(dynamicconfig.TimerProcessorUpdateAckIntervalJitterCoefficient, 0.15),
-		TimerProcessorCompleteTimerInterval:                   dc.GetDurationProperty(dynamicconfig.TimerProcessorCompleteTimerInterval, 60*time.Second),
-		TimerProcessorFailoverMaxPollRPS:                      dc.GetIntProperty(dynamicconfig.TimerProcessorFailoverMaxPollRPS, 1),
-		TimerProcessorMaxPollRPS:                              dc.GetIntProperty(dynamicconfig.TimerProcessorMaxPollRPS, 20),
-		TimerProcessorMaxPollInterval:                         dc.GetDurationProperty(dynamicconfig.TimerProcessorMaxPollInterval, 5*time.Minute),
-		TimerProcessorMaxPollIntervalJitterCoefficient:        dc.GetFloat64Property(dynamicconfig.TimerProcessorMaxPollIntervalJitterCoefficient, 0.15),
-		TimerProcessorMaxTimeShift:                            dc.GetDurationProperty(dynamicconfig.TimerProcessorMaxTimeShift, 1*time.Second),
-		TimerProcessorHistoryArchivalSizeLimit:                dc.GetIntProperty(dynamicconfig.TimerProcessorHistoryArchivalSizeLimit, 500*1024),
-		TimerProcessorArchivalTimeLimit:                       dc.GetDurationProperty(dynamicconfig.TimerProcessorArchivalTimeLimit, 1*time.Second),
-		TransferTaskBatchSize:                                 dc.GetIntProperty(dynamicconfig.TransferTaskBatchSize, 100),
-		TransferProcessorFailoverMaxPollRPS:                   dc.GetIntProperty(dynamicconfig.TransferProcessorFailoverMaxPollRPS, 1),
-		TransferProcessorMaxPollRPS:                           dc.GetIntProperty(dynamicconfig.TransferProcessorMaxPollRPS, 20),
-		TransferTaskWorkerCount:                               dc.GetIntProperty(dynamicconfig.TransferTaskWorkerCount, 10),
-		TransferTaskMaxRetryCount:                             dc.GetIntProperty(dynamicconfig.TransferTaskMaxRetryCount, 100),
-		TransferProcessorCompleteTransferFailureRetryCount:    dc.GetIntProperty(dynamicconfig.TransferProcessorCompleteTransferFailureRetryCount, 10),
-		TransferProcessorMaxPollInterval:                      dc.GetDurationProperty(dynamicconfig.TransferProcessorMaxPollInterval, 1*time.Minute),
-		TransferProcessorMaxPollIntervalJitterCoefficient:     dc.GetFloat64Property(dynamicconfig.TransferProcessorMaxPollIntervalJitterCoefficient, 0.15),
-		TransferProcessorUpdateAckInterval:                    dc.GetDurationProperty(dynamicconfig.TransferProcessorUpdateAckInterval, 30*time.Second),
-		TransferProcessorUpdateAckIntervalJitterCoefficient:   dc.GetFloat64Property(dynamicconfig.TransferProcessorUpdateAckIntervalJitterCoefficient, 0.15),
-		TransferProcessorCompleteTransferInterval:             dc.GetDurationProperty(dynamicconfig.TransferProcessorCompleteTransferInterval, 60*time.Second),
-		TransferProcessorVisibilityArchivalTimeLimit:          dc.GetDurationProperty(dynamicconfig.TransferProcessorVisibilityArchivalTimeLimit, 200*time.Millisecond),
-		ReplicatorTaskBatchSize:                               dc.GetIntProperty(dynamicconfig.ReplicatorTaskBatchSize, 100),
-		ReplicatorTaskWorkerCount:                             dc.GetIntProperty(dynamicconfig.ReplicatorTaskWorkerCount, 10),
-		ReplicatorTaskMaxRetryCount:                           dc.GetIntProperty(dynamicconfig.ReplicatorTaskMaxRetryCount, 100),
-		ReplicatorProcessorMaxPollRPS:                         dc.GetIntProperty(dynamicconfig.ReplicatorProcessorMaxPollRPS, 20),
-		ReplicatorProcessorMaxPollInterval:                    dc.GetDurationProperty(dynamicconfig.ReplicatorProcessorMaxPollInterval, 1*time.Minute),
-		ReplicatorProcessorMaxPollIntervalJitterCoefficient:   dc.GetFloat64Property(dynamicconfig.ReplicatorProcessorMaxPollIntervalJitterCoefficient, 0.15),
-		ReplicatorProcessorUpdateAckInterval:                  dc.GetDurationProperty(dynamicconfig.ReplicatorProcessorUpdateAckInterval, 5*time.Second),
-		ReplicatorProcessorUpdateAckIntervalJitterCoefficient: dc.GetFloat64Property(dynamicconfig.ReplicatorProcessorUpdateAckIntervalJitterCoefficient, 0.15),
-		ReplicatorProcessorFetchTasksBatchSize:                dc.GetIntProperty(dynamicconfig.ReplicatorTaskBatchSize, 25),
-		ExecutionMgrNumConns:                                  dc.GetIntProperty(dynamicconfig.ExecutionMgrNumConns, 50),
-		HistoryMgrNumConns:                                    dc.GetIntProperty(dynamicconfig.HistoryMgrNumConns, 50),
-		MaximumBufferedEventsBatch:                            dc.GetIntProperty(dynamicconfig.MaximumBufferedEventsBatch, 100),
-		MaximumSignalsPerExecution:                            dc.GetIntPropertyFilteredByNamespace(dynamicconfig.MaximumSignalsPerExecution, 0),
-		ShardUpdateMinInterval:                                dc.GetDurationProperty(dynamicconfig.ShardUpdateMinInterval, 5*time.Minute),
-		ShardSyncMinInterval:                                  dc.GetDurationProperty(dynamicconfig.ShardSyncMinInterval, 2*time.Minute),
-		ShardSyncTimerJitterCoefficient:                       dc.GetFloat64Property(dynamicconfig.TransferProcessorMaxPollIntervalJitterCoefficient, 0.15),
-
-		// history client: client/history/client.go set the client timeout 30s
-		LongPollExpirationInterval:          dc.GetDurationPropertyFilteredByNamespace(dynamicconfig.HistoryLongPollExpirationInterval, time.Second*20),
-		EventEncodingType:                   dc.GetStringPropertyFnWithNamespaceFilter(dynamicconfig.DefaultEventEncoding, string(common.EncodingTypeProto3)),
-		EnableParentClosePolicy:             dc.GetBoolPropertyFnWithNamespaceFilter(dynamicconfig.EnableParentClosePolicy, true),
-		NumParentClosePolicySystemWorkflows: dc.GetIntProperty(dynamicconfig.NumParentClosePolicySystemWorkflows, 10),
-		EnableParentClosePolicyWorker:       dc.GetBoolProperty(dynamicconfig.EnableParentClosePolicyWorker, true),
-		ParentClosePolicyThreshold:          dc.GetIntPropertyFilteredByNamespace(dynamicconfig.ParentClosePolicyThreshold, 10),
-
-		NumArchiveSystemWorkflows: dc.GetIntProperty(dynamicconfig.NumArchiveSystemWorkflows, 1000),
-		ArchiveRequestRPS:         dc.GetIntProperty(dynamicconfig.ArchiveRequestRPS, 300), // should be much smaller than frontend RPS
-
-		BlobSizeLimitError:     dc.GetIntPropertyFilteredByNamespace(dynamicconfig.BlobSizeLimitError, 2*1024*1024),
-		BlobSizeLimitWarn:      dc.GetIntPropertyFilteredByNamespace(dynamicconfig.BlobSizeLimitWarn, 512*1024),
-		HistorySizeLimitError:  dc.GetIntPropertyFilteredByNamespace(dynamicconfig.HistorySizeLimitError, 200*1024*1024),
-		HistorySizeLimitWarn:   dc.GetIntPropertyFilteredByNamespace(dynamicconfig.HistorySizeLimitWarn, 50*1024*1024),
-		HistoryCountLimitError: dc.GetIntPropertyFilteredByNamespace(dynamicconfig.HistoryCountLimitError, 200*1024),
-		HistoryCountLimitWarn:  dc.GetIntPropertyFilteredByNamespace(dynamicconfig.HistoryCountLimitWarn, 50*1024),
-
-		ThrottledLogRPS:   dc.GetIntProperty(dynamicconfig.HistoryThrottledLogRPS, 4),
-		EnableStickyQuery: dc.GetBoolPropertyFnWithNamespaceFilter(dynamicconfig.EnableStickyQuery, true),
-
-		ValidSearchAttributes:             dc.GetMapProperty(dynamicconfig.ValidSearchAttributes, definition.GetDefaultIndexedKeys()),
-		SearchAttributesNumberOfKeysLimit: dc.GetIntPropertyFilteredByNamespace(dynamicconfig.SearchAttributesNumberOfKeysLimit, 100),
-		SearchAttributesSizeOfValueLimit:  dc.GetIntPropertyFilteredByNamespace(dynamicconfig.SearchAttributesSizeOfValueLimit, 2*1024),
-		SearchAttributesTotalSizeLimit:    dc.GetIntPropertyFilteredByNamespace(dynamicconfig.SearchAttributesTotalSizeLimit, 40*1024),
-		StickyTTL:                         dc.GetDurationPropertyFilteredByNamespace(dynamicconfig.StickyTTL, time.Hour*24*365),
-		DecisionHeartbeatTimeout:          dc.GetDurationPropertyFilteredByNamespace(dynamicconfig.DecisionHeartbeatTimeout, time.Minute*30),
-
-		ReplicationTaskFetcherParallelism:                dc.GetIntProperty(dynamicconfig.ReplicationTaskFetcherParallelism, 1),
-		ReplicationTaskFetcherAggregationInterval:        dc.GetDurationProperty(dynamicconfig.ReplicationTaskFetcherAggregationInterval, 2*time.Second),
-		ReplicationTaskFetcherTimerJitterCoefficient:     dc.GetFloat64Property(dynamicconfig.ReplicationTaskFetcherTimerJitterCoefficient, 0.15),
-		ReplicationTaskFetcherErrorRetryWait:             dc.GetDurationProperty(dynamicconfig.ReplicationTaskFetcherErrorRetryWait, time.Second),
-		ReplicationTaskProcessorErrorRetryWait:           dc.GetDurationProperty(dynamicconfig.ReplicationTaskProcessorErrorRetryWait, time.Second),
-		ReplicationTaskProcessorErrorRetryMaxAttempts:    dc.GetIntProperty(dynamicconfig.ReplicationTaskProcessorErrorRetryMaxAttempts, 20),
-		ReplicationTaskProcessorNoTaskRetryWait:          dc.GetDurationProperty(dynamicconfig.ReplicationTaskProcessorNoTaskInitialWait, 2*time.Second),
-		ReplicationTaskProcessorCleanupInterval:          dc.GetDurationProperty(dynamicconfig.ReplicationTaskProcessorCleanupInterval, 1*time.Minute),
-		ReplicationTaskProcessorCleanupJitterCoefficient: dc.GetFloat64Property(dynamicconfig.ReplicationTaskProcessorCleanupJitterCoefficient, 0.15),
-
-		EnableConsistentQuery:                 dc.GetBoolProperty(dynamicconfig.EnableConsistentQuery, true),
-		EnableConsistentQueryByNamespace:      dc.GetBoolPropertyFnWithNamespaceFilter(dynamicconfig.EnableConsistentQueryByNamespace, false),
-		MaxBufferedQueryCount:                 dc.GetIntProperty(dynamicconfig.MaxBufferedQueryCount, 1),
-		MutableStateChecksumGenProbability:    dc.GetIntPropertyFilteredByNamespace(dynamicconfig.MutableStateChecksumGenProbability, 0),
-		MutableStateChecksumVerifyProbability: dc.GetIntPropertyFilteredByNamespace(dynamicconfig.MutableStateChecksumVerifyProbability, 0),
-		MutableStateChecksumInvalidateBefore:  dc.GetFloat64Property(dynamicconfig.MutableStateChecksumInvalidateBefore, 0),
-	}
-
-	return cfg
-}
-
-// GetShardID return the corresponding shard ID for a given workflow ID
-func (config *Config) GetShardID(workflowID string) int {
-	return common.WorkflowIDToHistoryShard(workflowID, config.NumberOfShards)
-}
 
 // Service represents the history service
-type Service struct {
-	resource.Resource
+type (
+	Service struct {
+		handler           *Handler
+		visibilityManager manager.VisibilityManager
+		config            *configs.Config
 
-	status  int32
-	handler *Handler
-	params  *resource.BootstrapParams
-	config  *Config
+		server            *grpc.Server
+		logger            log.Logger
+		grpcListener      net.Listener
+		membershipMonitor membership.Monitor
+		metricsHandler    metrics.Handler
+		healthServer      *health.Server
+		readinessCancel   context.CancelFunc
+		chasmRegistry     *chasm.Registry
+	}
+)
 
-	server *grpc.Server
-}
-
-// NewService builds a new history service
 func NewService(
-	params *resource.BootstrapParams,
-) (resource.Resource, error) {
-	serviceConfig := NewConfig(dynamicconfig.NewCollection(params.DynamicConfig, params.Logger),
-		params.PersistenceConfig.NumHistoryShards,
-		params.PersistenceConfig.DefaultStoreType(),
-		params.PersistenceConfig.IsAdvancedVisibilityConfigExist())
-
-	params.PersistenceConfig.HistoryMaxConns = serviceConfig.HistoryMgrNumConns()
-	params.PersistenceConfig.VisibilityConfig = &config.VisibilityConfig{
-		VisibilityOpenMaxQPS:            serviceConfig.VisibilityOpenMaxQPS,
-		VisibilityClosedMaxQPS:          serviceConfig.VisibilityClosedMaxQPS,
-		EnableSampling:                  serviceConfig.EnableVisibilitySampling,
-		EnableReadFromClosedExecutionV2: serviceConfig.EnableReadFromClosedExecutionV2,
-	}
-
-	visibilityManagerInitializer := func(
-		persistenceBean persistenceClient.Bean,
-		logger log.Logger,
-	) (persistence.VisibilityManager, error) {
-		visibilityFromDB := persistenceBean.GetVisibilityManager()
-
-		var visibilityFromES persistence.VisibilityManager
-		if params.ESConfig != nil {
-			visibilityProducer, err := params.MessagingClient.NewProducer(common.VisibilityAppName)
-			if err != nil {
-				logger.Fatal("Creating visibility producer failed", tag.Error(err))
-			}
-			visibilityFromES = espersistence.NewESVisibilityManager("", nil, nil, visibilityProducer,
-				params.MetricsClient, logger)
-		}
-		return persistence.NewVisibilityManagerWrapper(
-			visibilityFromDB,
-			visibilityFromES,
-			dynamicconfig.GetBoolPropertyFnFilteredByNamespace(false), // history visibility never read
-			serviceConfig.AdvancedVisibilityWritingMode,
-		), nil
-	}
-
-	serviceResource, err := resource.New(
-		params,
-		common.HistoryServiceName,
-		serviceConfig.PersistenceMaxQPS,
-		serviceConfig.ThrottledLogRPS,
-		visibilityManagerInitializer,
-	)
-	if err != nil {
-		return nil, err
-	}
-
+	server *grpc.Server,
+	serviceConfig *configs.Config,
+	visibilityMgr manager.VisibilityManager,
+	handler *Handler,
+	logger log.Logger,
+	grpcListener net.Listener,
+	membershipMonitor membership.Monitor,
+	metricsHandler metrics.Handler,
+	healthServer *health.Server,
+	chasmRegistry *chasm.Registry,
+) *Service {
 	return &Service{
-		Resource: serviceResource,
-		status:   common.DaemonStatusInitialized,
-		params:   params,
-		config:   serviceConfig,
-	}, nil
+		server:            server,
+		handler:           handler,
+		visibilityManager: visibilityMgr,
+		config:            serviceConfig,
+		logger:            logger,
+		grpcListener:      grpcListener,
+		membershipMonitor: membershipMonitor,
+		metricsHandler:    metricsHandler,
+		healthServer:      healthServer,
+		chasmRegistry:     chasmRegistry,
+	}
 }
 
 // Start starts the service
 func (s *Service) Start() {
-	if !atomic.CompareAndSwapInt32(&s.status, common.DaemonStatusInitialized, common.DaemonStatusStarted) {
-		return
-	}
+	s.logger.Info("history starting")
 
-	logger := s.GetLogger()
-	logger.Info("elastic search config", tag.ESConfig(s.params.ESConfig))
-	logger.Info("history starting")
+	metrics.RestartCount.With(s.metricsHandler).Record(1)
 
-	s.handler = NewHandler(s.Resource, s.config)
-
-	// must start resource first
-	s.Resource.Start()
 	s.handler.Start()
 
-	s.server = grpc.NewServer(grpc.UnaryInterceptor(interceptor))
-	nilCheckHandler := NewNilCheckHandler(s.handler)
-	historyservice.RegisterHistoryServiceServer(s.server, nilCheckHandler)
-	healthpb.RegisterHealthServer(s.server, s.handler)
+	historyservice.RegisterHistoryServiceServer(s.server, s.handler)
+	healthpb.RegisterHealthServer(s.server, s.healthServer)
+	s.chasmRegistry.RegisterServices(s.server)
 
-	listener := s.GetGRPCListener()
-	logger.Info("Starting to serve on history listener")
-	if err := s.server.Serve(listener); err != nil {
-		logger.Fatal("Failed to serve on history listener", tag.Error(err))
-	}
+	// start as NOT_SERVING, update to SERVING after initial shards acquired
+	s.healthServer.SetServingStatus(serviceName, healthpb.HealthCheckResponse_NOT_SERVING)
+	readinessCtx, readinessCancel := context.WithCancel(context.Background())
+	s.readinessCancel = readinessCancel
+	go func() {
+		if s.handler.controller.InitialShardsAcquired(readinessCtx) == nil {
+			// add a few seconds for stabilization
+			if util.InterruptibleSleep(readinessCtx, 5*time.Second) == nil {
+				s.healthServer.SetServingStatus(serviceName, healthpb.HealthCheckResponse_SERVING)
+			}
+		}
+	}()
+
+	reflection.Register(s.server)
+
+	go func() {
+		s.logger.Info("Starting to serve on history listener")
+		if err := s.server.Serve(s.grpcListener); err != nil {
+			s.logger.Fatal("Failed to serve on history listener", tag.Error(err))
+		}
+	}()
+
+	// As soon as we join membership, other hosts will send requests for shards that we own,
+	// so we should try to start this after starting the gRPC server.
+	go func() {
+		if delay := s.config.StartupMembershipJoinDelay(); delay > 0 {
+			// In some situations, like rolling upgrades of the history service,
+			// pausing before joining membership can help separate the shard movement
+			// caused by another history instance terminating with this instance starting.
+			s.logger.Info("history start: delaying before membership start",
+				tag.NewDurationTag("startupMembershipJoinDelay", delay))
+			time.Sleep(delay)
+		}
+		s.membershipMonitor.Start()
+	}()
 }
 
 // Stop stops the service
 func (s *Service) Stop() {
-	if !atomic.CompareAndSwapInt32(&s.status, common.DaemonStatusStarted, common.DaemonStatusStopped) {
-		return
+	s.readinessCancel()
+
+	// remove self from membership ring and wait for traffic to drain
+	var err error
+	var waitTime time.Duration
+	if align := s.config.AlignMembershipChange(); align > 0 {
+		propagation := s.membershipMonitor.ApproximateMaxPropagationTime()
+		asOf := util.NextAlignedTime(time.Now().Add(propagation), align)
+		s.logger.Info("ShutdownHandler: Evicting self from membership ring as of", tag.Timestamp(asOf))
+		waitTime, err = s.membershipMonitor.EvictSelfAt(asOf)
+	} else {
+		s.logger.Info("ShutdownHandler: Evicting self from membership ring immediately")
+		err = s.membershipMonitor.EvictSelf()
+	}
+	if err != nil {
+		s.logger.Error("ShutdownHandler: Failed to evict self from membership ring", tag.Error(err))
+	}
+	s.healthServer.SetServingStatus(serviceName, healthpb.HealthCheckResponse_NOT_SERVING)
+
+	s.logger.Info("ShutdownHandler: Waiting for drain")
+	if waitTime > 0 {
+		time.Sleep(
+			waitTime + // wait for membership change
+				s.config.ShardLingerTimeLimit() + // after membership change shards may linger before close
+				s.config.ShardFinalizerTimeout(), // and then take this long to run a finalizer
+		)
+	} else {
+		time.Sleep(s.config.ShutdownDrainDuration())
 	}
 
+	// Stop shard controller. We should have waited long enough for all shards to realize they
+	// lost ownership and close, but if not, this will definitely close them.
+	s.logger.Info("ShutdownHandler: Initiating shardController shutdown")
+	s.handler.controller.Stop()
+
+	// All grpc handlers should be cancelled now. Give them a little time to return.
+	t := time.AfterFunc(2*time.Second, func() {
+		s.logger.Info("ShutdownHandler: Drain time expired, stopping all traffic")
+		s.server.Stop()
+	})
 	s.server.GracefulStop()
+	t.Stop()
 
 	s.handler.Stop()
-	s.Resource.Stop()
+	s.visibilityManager.Close()
 
-	s.GetLogger().Info("history stopped")
-}
-
-func interceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	resp, err := handler(ctx, req)
-	return resp, serviceerror.ToStatus(err).Err()
+	s.logger.Info("history stopped")
 }

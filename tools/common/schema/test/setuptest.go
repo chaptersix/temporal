@@ -1,44 +1,17 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/urfave/cli"
-
-	"github.com/temporalio/temporal/common/log"
-	"github.com/temporalio/temporal/common/log/loggerimpl"
-	"github.com/temporalio/temporal/common/log/tag"
+	"go.temporal.io/server/common/convert"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/tests/testutils"
 )
 
 // SetupSchemaTestBase is the base test suite for all tests
@@ -46,25 +19,25 @@ import (
 type SetupSchemaTestBase struct {
 	suite.Suite
 	*require.Assertions
-	rand   *rand.Rand
-	Log    log.Logger
-	DBName string
-	db     DB
+	rand       *rand.Rand
+	Logger     log.Logger
+	DBName     string
+	db         DB
+	pluginName string
 }
 
 // SetupSuiteBase sets up the test suite
-func (tb *SetupSchemaTestBase) SetupSuiteBase(db DB) {
+func (tb *SetupSchemaTestBase) SetupSuiteBase(db DB, pluginName string) {
 	tb.Assertions = require.New(tb.T()) // Have to define our overridden assertions in the test setup. If we did it earlier, tb.T() will return nil
-	var err error
-	tb.Log, err = loggerimpl.NewDevelopment()
-	tb.Require().NoError(err)
+	tb.Logger = log.NewTestLogger()
 	tb.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 	tb.DBName = fmt.Sprintf("setup_test_%v", tb.rand.Int63())
-	err = db.CreateDatabase(tb.DBName)
+	err := db.CreateDatabase(tb.DBName)
 	if err != nil {
-		tb.Log.Fatal("error creating database, ", tag.Error(err))
+		tb.Logger.Fatal("error creating database, ", tag.Error(err))
 	}
 	tb.db = db
+	tb.pluginName = pluginName
 }
 
 // TearDownSuiteBase tears down the test suite
@@ -77,38 +50,60 @@ func (tb *SetupSchemaTestBase) TearDownSuiteBase() {
 func (tb *SetupSchemaTestBase) RunSetupTest(
 	app *cli.App, db DB, dbNameFlag string, sqlFileContent string, expectedTables []string) {
 	// test command fails without required arguments
-	tb.NoError(app.Run([]string{"./tool", dbNameFlag, tb.DBName, "-q", "setup-schema"}))
+	command := append(tb.getCommandBase(), []string{
+		dbNameFlag, tb.DBName,
+		"-q",
+		"setup-schema",
+	}...)
+	tb.NoError(app.Run(command))
 	tables, err := db.ListTables()
 	tb.Nil(err)
 	tb.Equal(0, len(tables))
 
-	tmpDir, err := ioutil.TempDir("", "setupSchemaTestDir")
-	tb.Nil(err)
-	defer os.Remove(tmpDir)
-
-	sqlFile, err := ioutil.TempFile(tmpDir, "setupSchema.cliOptionsTest")
-	tb.Nil(err)
-	defer os.Remove(sqlFile.Name())
+	tmpDir := testutils.MkdirTemp(tb.T(), "", "setupSchemaTestDir")
+	sqlFile := testutils.CreateTemp(tb.T(), tmpDir, "setupSchema.cliOptionsTest")
 
 	_, err = sqlFile.WriteString(sqlFileContent)
 	tb.NoError(err)
 
 	// make sure command doesn't succeed without version or disable-version
-	tb.NoError(app.Run([]string{"./tool", dbNameFlag, tb.DBName, "-q", "setup-schema", "-f", sqlFile.Name()}))
+	command = append(tb.getCommandBase(), []string{
+		dbNameFlag, tb.DBName,
+		"-q",
+		"setup-schema",
+		"-f", sqlFile.Name(),
+	}...)
+	tb.NoError(app.Run(command))
 	tables, err = db.ListTables()
 	tb.Nil(err)
 	tb.Equal(0, len(tables))
 
 	for i := 0; i < 4; i++ {
 
-		ver := strconv.Itoa(int(tb.rand.Int31()))
+		ver := convert.Int32ToString(tb.rand.Int31())
 		versioningEnabled := (i%2 == 0)
 
 		// test overwrite with versioning works
 		if versioningEnabled {
-			tb.NoError(app.Run([]string{"./tool", dbNameFlag, tb.DBName, "-q", "setup-schema", "-f", sqlFile.Name(), "-version", ver, "-o"}))
+			command = append(tb.getCommandBase(), []string{
+				dbNameFlag, tb.DBName,
+				"-q",
+				"setup-schema",
+				"-f", sqlFile.Name(),
+				"-version", ver,
+				"-o",
+			}...)
+			tb.NoError(app.Run(command))
 		} else {
-			tb.NoError(app.Run([]string{"./tool", dbNameFlag, tb.DBName, "-q", "setup-schema", "-f", sqlFile.Name(), "-d", "-o"}))
+			command = append(tb.getCommandBase(), []string{
+				dbNameFlag, tb.DBName,
+				"-q",
+				"setup-schema",
+				"-f", sqlFile.Name(),
+				"-d",
+				"-o",
+			}...)
+			tb.NoError(app.Run(command))
 		}
 
 		expectedTables := getExpectedTables(versioningEnabled, expectedTables)
@@ -133,10 +128,19 @@ func (tb *SetupSchemaTestBase) RunSetupTest(
 	}
 }
 
+func (tb *SetupSchemaTestBase) getCommandBase() []string {
+	command := []string{"./tool"}
+	if tb.pluginName != "" {
+		command = append(command, []string{
+			"-pl", tb.pluginName,
+		}...)
+	}
+	return command
+}
+
 func getExpectedTables(versioningEnabled bool, wantTables []string) map[string]struct{} {
 	expectedTables := make(map[string]struct{})
 	for _, tab := range wantTables {
-		expectedTables[tab] = struct{}{}
 		expectedTables[tab] = struct{}{}
 	}
 	if versioningEnabled {

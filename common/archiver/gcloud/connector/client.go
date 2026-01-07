@@ -1,26 +1,4 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination client_mock.go
 
 package connector
 
@@ -29,26 +7,19 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"os"
-	"regexp"
 
 	"cloud.google.com/go/storage"
+	"go.temporal.io/server/common/archiver"
+	"go.temporal.io/server/common/config"
+	"go.uber.org/multierr"
 	"google.golang.org/api/iterator"
-
-	"github.com/temporalio/temporal/common/archiver"
-	"github.com/temporalio/temporal/common/service/config"
-)
-
-const (
-	bucketNameRegExpRaw = "^gs:\\/\\/[^:\\/\n?]+"
 )
 
 var (
-	// ErrBucketNotFound is non retriable error that is thrown when the bucket doesn't exist
+	// ErrBucketNotFound is non retryable error that is thrown when the bucket doesn't exist
 	ErrBucketNotFound = errors.New("bucket not found")
 	errObjectNotFound = errors.New("object not found")
-	bucketNameRegExp  = regexp.MustCompile(bucketNameRegExpRaw)
 )
 
 type (
@@ -113,7 +84,6 @@ func (s *storageWrapper) Upload(ctx context.Context, URI archiver.URI, fileName 
 // Exist check if a bucket or an object exist
 // If fileName is empty, then 'Exist' function will only check if the given bucket exist.
 func (s *storageWrapper) Exist(ctx context.Context, URI archiver.URI, fileName string) (exists bool, err error) {
-	err = ErrBucketNotFound
 	bucket := s.client.Bucket(URI.Hostname())
 	if _, err := bucket.Attrs(ctx); err != nil {
 		return false, err
@@ -131,15 +101,16 @@ func (s *storageWrapper) Exist(ctx context.Context, URI archiver.URI, fileName s
 }
 
 // Get retrieve a file
-func (s *storageWrapper) Get(ctx context.Context, URI archiver.URI, fileName string) ([]byte, error) {
+func (s *storageWrapper) Get(ctx context.Context, URI archiver.URI, fileName string) (fileContent []byte, err error) {
 	bucket := s.client.Bucket(URI.Hostname())
 	reader, err := bucket.Object(formatSinkPath(URI.Path()) + "/" + fileName).NewReader(ctx)
-	if err == nil {
-		defer reader.Close()
-		return ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err
 	}
-
-	return nil, err
+	defer func() {
+		err = multierr.Combine(err, reader.Close())
+	}()
+	return io.ReadAll(reader)
 }
 
 // Query, retieves file names by provided storage query
@@ -161,7 +132,7 @@ func (s *storageWrapper) Query(ctx context.Context, URI archiver.URI, fileNamePr
 
 }
 
-// QueryWithFilter, retieves filenames that match filter parameters. PageSize is optional, 0 means all records.
+// QueryWithFilters, retieves filenames that match filter parameters. PageSize is optional, 0 means all records.
 func (s *storageWrapper) QueryWithFilters(ctx context.Context, URI archiver.URI, fileNamePrefix string, pageSize, offset int, filters []Precondition) ([]string, bool, int, error) {
 	var err error
 	currentPos := offset

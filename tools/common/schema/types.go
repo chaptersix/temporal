@@ -1,27 +1,3 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package schema
 
 import (
@@ -41,16 +17,19 @@ type (
 		DBName        string
 		TargetVersion string
 		SchemaDir     string
+		SchemaName    string
 		IsDryRun      bool
 	}
 	// SetupConfig holds the config
 	// params need by the SetupTask
 	SetupConfig struct {
 		SchemaFilePath    string
+		SchemaName        string
 		InitialVersion    string
 		Overwrite         bool // overwrite previous data
 		DisableVersioning bool // do not use schema versioning
 	}
+
 	// DB is the database interface that's required to be implemented
 	// for the schema-tool to work
 	DB interface {
@@ -68,6 +47,8 @@ type (
 		WriteSchemaUpdateLog(oldVersion string, newVersion string, manifestMD5 string, desc string) error
 		// Close gracefully closes the client object
 		Close()
+		// Type gives the type of db (e.g. "cassandra", "sql")
+		Type() string
 	}
 )
 
@@ -80,12 +61,16 @@ const (
 	CLIOptUser = "user"
 	// CLIOptPassword is the cli option for password
 	CLIOptPassword = "password"
+	// CLIOptAuthenticator is the cli option for allowed authenticator settings
+	CLIOptAllowedAuthenticators = "allowed-authenticators"
 	// CLIOptTimeout is the cli option for timeout
 	CLIOptTimeout = "timeout"
 	// CLIOptKeyspace is the cli option for keyspace
 	CLIOptKeyspace = "keyspace"
 	// CLIOptDatabase is the cli option for database
 	CLIOptDatabase = "database"
+	// CLIOptDefaultDb is the cli option used as defaultdb to connect to
+	CLIOptDefaultDb = "defaultdb"
 	// CLIOptPluginName is the cli option for plugin name
 	CLIOptPluginName = "plugin"
 	// CLIOptConnectAttributes is the cli option for connect attributes (key/values via a url query string)
@@ -100,14 +85,24 @@ const (
 	CLIOptDisableVersioning = "disable-versioning"
 	// CLIOptTargetVersion is the cli option for target version
 	CLIOptTargetVersion = "version"
-	// CLIOptDryrun is the cli option for enabling dryrun
-	CLIOptDryrun = "dryrun"
 	// CLIOptSchemaDir is the cli option for schema directory
 	CLIOptSchemaDir = "schema-dir"
+	// CLIOptSchemaName is the cli option for which pre-embedded schema to use
+	CLIOptSchemaName = "schema-name"
 	// CLIOptReplicationFactor is the cli option for replication factor
 	CLIOptReplicationFactor = "replication-factor"
+	// CLIOptDatacenter is the cli option for NetworkTopologyStrategy datacenter
+	CLIOptDatacenter = "datacenter"
+	// CLIOptConsistency is the cli option for consistency settings
+	CLIOptConsistency = "consistency"
+	// CLIOptAddressTranslator is the cli option for address translator for Cassandra
+	CLIOptAddressTranslator = "address-translator"
+	// CLIOptAddressTranslatorOptions is the cli option for options for address translator
+	CLIOptAddressTranslatorOptions = "address-translator-options"
 	// CLIOptQuiet is the cli option for quiet mode
 	CLIOptQuiet = "quiet"
+	// CLIOptForce is the cli option for force mode
+	CLIOptForce = "force"
 
 	// CLIFlagEndpoint is the cli flag for endpoint
 	CLIFlagEndpoint = CLIOptEndpoint + ", ep"
@@ -117,6 +112,8 @@ const (
 	CLIFlagUser = CLIOptUser + ", u"
 	// CLIFlagPassword is the cli flag for password
 	CLIFlagPassword = CLIOptPassword + ", pw"
+	// CLIFlagAllowedAuthenticators is the cli flag for allowed authenticators
+	CLIFlagAllowedAuthenticators = CLIOptAllowedAuthenticators + ", aa"
 	// CLIFlagTimeout is the cli flag for timeout
 	CLIFlagTimeout = CLIOptTimeout + ", t"
 	// CLIFlagKeyspace is the cli flag for keyspace
@@ -137,14 +134,24 @@ const (
 	CLIFlagDisableVersioning = CLIOptDisableVersioning + ", d"
 	// CLIFlagTargetVersion is the cli flag for target version
 	CLIFlagTargetVersion = CLIOptTargetVersion + ", v"
-	// CLIFlagDryrun is the cli flag for dryrun
-	CLIFlagDryrun = CLIOptDryrun + ", y"
 	// CLIFlagSchemaDir is the cli flag for schema directory
 	CLIFlagSchemaDir = CLIOptSchemaDir + ", d"
+	// CLIFlagSchemaName is the cli flag that says which pre-embedded schema to use
+	CLIFlagSchemaName = CLIOptSchemaName + ", s"
 	// CLIFlagReplicationFactor is the cli flag for replication factor
 	CLIFlagReplicationFactor = CLIOptReplicationFactor + ", rf"
+	// CLIFlagDatacenter is the cli option for NetworkTopologyStrategy datacenter
+	CLIFlagDatacenter = CLIOptDatacenter + ", dc"
+	// CLIFlagAddressTranslator is the cli option for address translator for Cassandra
+	CLIFlagAddressTranslator = CLIOptAddressTranslator + ", at"
+	// CLIFlagAddressTranslatorOptions is the cli option for address translator of Cassandra
+	CLIFlagAddressTranslatorOptions
 	// CLIFlagQuiet is the cli flag for quiet mode
 	CLIFlagQuiet = CLIOptQuiet + ", q"
+	// CLIFlagForce is the cli flag for force mode
+	CLIFlagForce = CLIOptForce + ", f"
+	// CLIFlagDisableInitialHostLookup is the cli flag for only using supplied hosts to connect to the database
+	CLIFlagDisableInitialHostLookup = "disable-initial-host-lookup"
 
 	// CLIFlagEnableTLS enables cassandra client TLS
 	CLIFlagEnableTLS = "tls"
@@ -154,12 +161,11 @@ const (
 	CLIFlagTLSKeyFile = "tls-key-file"
 	// CLIFlagTLSCaFile is the optional tls CA file (tls must be enabled)
 	CLIFlagTLSCaFile = "tls-ca-file"
-	// CLIFlagTLSEnableHostVerification enables tls host verification (tls must be enabled)
-	CLIFlagTLSEnableHostVerification = "tls-enable-host-verification"
+	// CLIFlagTLSDisableHostVerification disable tls host verification (tls must be enabled)
+	CLIFlagTLSDisableHostVerification = "tls-disable-host-verification"
+	// CLIFlagTLSHostName specifies the host name for host name verification
+	CLIFlagTLSHostName = "tls-server-name"
 )
-
-// DryrunDBName is the db name used for dryrun
-const DryrunDBName = "_temporal_dryrun_"
 
 var rmspaceRegex = regexp.MustCompile(`\s+`)
 

@@ -1,27 +1,3 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package checksum
 
 import (
@@ -30,27 +6,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gogo/protobuf/types"
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	executionpb "go.temporal.io/temporal-proto/execution"
-
-	"github.com/temporalio/temporal/common"
+	commonpb "go.temporal.io/api/common/v1"
+	workflowpb "go.temporal.io/api/workflow/v1"
+	"go.temporal.io/server/common"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func TestCRC32OverThrift(t *testing.T) {
+func TestCRC32OverProto(t *testing.T) {
 	// note: do not use a struct with map since
 	// iteration order is not guaranteed in Go and
 	// so, each call to thrift encode will result in
 	// different set of serialized bytes
-	obj := &executionpb.WorkflowExecutionInfo{
-		Execution: &executionpb.WorkflowExecution{
-			WorkflowId: uuid.New(),
-			RunId:      uuid.New(),
+	obj := &workflowpb.WorkflowExecutionInfo{
+		Execution: &commonpb.WorkflowExecution{
+			WorkflowId: uuid.NewString(),
+			RunId:      uuid.NewString(),
 		},
-		StartTime: &types.Int64Value{
-			Value: time.Now().UnixNano(),
-		},
+		StartTime:     timestamppb.New(time.Now().UTC()),
 		HistoryLength: 550,
 	}
 

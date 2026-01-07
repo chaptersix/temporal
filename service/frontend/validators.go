@@ -1,43 +1,94 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package frontend
 
 import (
-	"github.com/pborman/uuid"
-	executionpb "go.temporal.io/temporal-proto/execution"
+	"github.com/google/uuid"
+	commonpb "go.temporal.io/api/common/v1"
+	"go.temporal.io/api/serviceerror"
+	"go.temporal.io/api/workflowservice/v1"
+	"go.temporal.io/server/common/priorities"
 )
 
-func validateExecution(w *executionpb.WorkflowExecution) error {
+var (
+	errFairnessKeyEmpty = serviceerror.NewInvalidArgument("fairness weight override key must not be empty")
+)
+
+func validateExecution(w *commonpb.WorkflowExecution) error {
 	if w == nil {
 		return errExecutionNotSet
 	}
 	if w.GetWorkflowId() == "" {
 		return errWorkflowIDNotSet
 	}
-	if w.GetRunId() != "" && uuid.Parse(w.GetRunId()) == nil {
-		return errInvalidRunID
+	if w.GetRunId() != "" {
+		if err := uuid.Validate(w.GetRunId()); err != nil {
+			return errInvalidRunID
+		}
 	}
+	return nil
+}
+
+func validateRateLimit(update *workflowservice.UpdateTaskQueueConfigRequest_RateLimitUpdate, label string) error {
+	if update == nil || update.RateLimit == nil {
+		return nil
+	}
+	if update.RateLimit.GetRequestsPerSecond() < 0 {
+		return serviceerror.NewInvalidArgumentf("RequestsPerSecond for %s rate limit must be non-negative.", label)
+	}
+	return validateStringField(label+".Reason", update.GetReason(), maxReasonLength, false)
+}
+
+func validateStringField(fieldName string, value string, maxLen int, required bool) error {
+	if required && len(value) == 0 {
+		return serviceerror.NewInvalidArgumentf("%s field must be non-empty.", fieldName)
+	}
+	if len(value) > maxLen {
+		return serviceerror.NewInvalidArgumentf("%s field too long (max %d characters).", fieldName, maxLen)
+	}
+	return nil
+}
+
+func validateFairnessWeightUpdate(
+	set map[string]float32,
+	unset []string,
+	maxConfigLimit int,
+) error {
+	total := len(set) + len(unset)
+	if total > maxConfigLimit {
+		return serviceerror.NewInvalidArgumentf(
+			"too many fairness weight overrides in request: got %d, maximum %d",
+			total, maxConfigLimit,
+		)
+	}
+
+	for k, w := range set {
+		if k == "" {
+			return errFairnessKeyEmpty
+		}
+		if err := priorities.ValidateFairnessKey(k); err != nil {
+			return err
+		}
+		if err := priorities.ValidateFairnessWeight(w); err != nil {
+			return serviceerror.NewInvalidArgumentf(
+				"invalid fairness weight weight for key %q: %v", k, err,
+			)
+		}
+	}
+
+	for _, k := range unset {
+		if k == "" {
+			return errFairnessKeyEmpty
+		}
+		if err := priorities.ValidateFairnessKey(k); err != nil {
+			return err
+		}
+	}
+
+	for _, u := range unset {
+		if _, ok := set[u]; ok {
+			return serviceerror.NewInvalidArgumentf(
+				"fairness weight override key %q present in both set and unset lists", u)
+		}
+	}
+
 	return nil
 }

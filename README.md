@@ -1,39 +1,80 @@
-# Temporal  
-[![Build status](https://badge.buildkite.com/fc0e676d7bee1a159916af52ebdb541708d4b9f88b8a980f6b.svg)](https://buildkite.com/temporal/temporal-server)
-[![Coverage Status](https://coveralls.io/repos/github/temporalio/temporal/badge.svg?branch=master)](https://coveralls.io/github/temporalio/temporal?branch=master)
-[![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://join.slack.com/t/temporalio/shared_invite/zt-c1e99p8g-beF7~ZZW2HP6gGStXD8Nuw)
+<div class="title-block" style="text-align: center;" align="center">
 
-Visit [docs.temporal.io](https://docs.temporal.io) to learn about Temporal.
+# Temporal—durable execution platform
 
-This repo contains the source code of the Temporal server. To implement workflows, activities and worker use [Go SDK](https://github.com/temporalio/temporal-go-client) or [Java SDK](https://github.com/temporalio/temporal-java-client).
+<p><img title="temporal logo" src="https://avatars.githubusercontent.com/u/56493103?s=320" width="320" height="320"></p>
 
-See Maxim's talk at [Data@Scale Conference](https://atscaleconference.com/videos/cadence-microservice-architecture-beyond-requestreply) for an architectural overview of Temporal.
+[![GitHub Release](https://img.shields.io/github/v/release/temporalio/temporal)](https://github.com/temporalio/temporal/releases/latest)
+[![GitHub License](https://img.shields.io/github/license/temporalio/temporal)](https://github.com/temporalio/temporal/blob/main/LICENSE)
+[![Code Coverage](https://img.shields.io/badge/codecov-report-blue)](https://app.codecov.io/gh/temporalio/temporal)
+[![Community](https://img.shields.io/static/v1?label=community&message=get%20help&color=informational)](https://community.temporal.io)
+[![Go Report Card](https://goreportcard.com/badge/github.com/temporalio/temporal)](https://goreportcard.com/report/github.com/temporalio/temporal)
+
+**[Introduction](#introduction) &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
+**[Getting Started](#getting-started) &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
+**[Contributing](#contributing) &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
+**[Temporal Docs](https://docs.temporal.io/) &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
+**[Temporal 101](https://learn.temporal.io/courses/temporal_101/)**
+
+</div>
+
+## Introduction
+
+Temporal is a durable execution platform that enables developers to build scalable applications without sacrificing productivity or reliability.
+The Temporal server executes units of application logic called Workflows in a resilient manner that automatically handles intermittent failures, and retries failed operations.
+
+Temporal is a mature technology that originated as a fork of Uber's Cadence.
+It is developed by [Temporal Technologies](https://temporal.io/), a startup by the creators of Cadence.
+
+[![image](https://github.com/temporalio/temporal/assets/251288/693d18b5-01de-4a3b-b47b-96347b84f610)](https://youtu.be/wIpz4ioK0gI 'Getting to know Temporal')
 
 ## Getting Started
 
-### Start the temporal-server locally
+### Download and Start Temporal Server Locally
 
-We highly recommend that you use [Temporal service docker](docker/README.md) to run the service.
+Execute the following commands to start a pre-built image along with all the dependencies.
+
+```bash
+brew install temporal
+temporal server start-dev
+```
+
+Refer to [Temporal CLI](https://docs.temporal.io/cli/#installation) documentation for more installation options.
 
 ### Run the Samples
 
-Try out the sample recipes for [Go](https://github.com/temporalio/temporal-go-samples) or [Java](https://github.com/temporalio/temporal-java-samples) to get started.
+Clone or download samples for [Go](https://github.com/temporalio/samples-go) or [Java](https://github.com/temporalio/samples-java) and run them with the local Temporal server.
+We have a number of [HelloWorld type scenarios](https://github.com/temporalio/samples-java#helloworld) available, as well as more advanced ones. Note that the sets of samples are currently different between Go and Java.
 
 ### Use CLI
 
-Try out [Temporal command-line tool](tools/cli/README.md) to perform various tasks on Temporal
+Use [Temporal CLI](https://docs.temporal.io/cli/) to interact with the running Temporal server.
 
-### Use Temporal Web
+```bash
+temporal operator namespace list
+temporal workflow list
+```
 
-Try out [Temporal Web UI](https://github.com/temporalio/temporal-web) to view your workflows on Temporal.  
-(This is already available at localhost:8088 if you run Temporal with docker compose)
+### Use Temporal Web UI
+
+Try [Temporal Web UI](https://docs.temporal.io/web-ui) by opening [http://localhost:8233](http://localhost:8233) for viewing your sample workflows executing on Temporal.
+
+## Repository
+
+This repository contains the source code of the Temporal server. To implement Workflows, Activities and Workers, use one of the [supported languages](https://docs.temporal.io/dev-guide/).
 
 ## Contributing
 
-We'd love your help in making Temporal great. Please review our [contribution guide](CONTRIBUTING.md).
+We'd love your help in making Temporal great.
 
-If you'd like to propose a new feature, first join the Temporal [discussion group](https://groups.google.com/d/forum/cadence-discussion) and [Slack channel](https://join.slack.com/t/temporalio/shared_invite/zt-c1e99p8g-beF7~ZZW2HP6gGStXD8Nuw) to start a discussion and check if there are existing design discussions. Also peruse our [design docs](docs/design/index.md) in case a feature has been designed but not yet implemented. Once you're sure the proposal is not covered elsewhere, please follow our [proposal instructions](PROPOSALS.md).
+Helpful links to get started:
+
+- [work on or propose a new feature](https://github.com/temporalio/proposals)
+- [learn about the Temporal Server architecture](./docs/architecture/README.md)
+- [learn how to build and run the Temporal Server locally](./CONTRIBUTING.md)
+- [learn about Temporal Server testing tools and best practices](./docs/development/testing.md)
+- join the Temporal community [forum](https://community.temporal.io) and [Slack](https://t.mp/slack)
 
 ## License
 
-MIT License, please see [LICENSE](https://github.com/temporalio/temporal/blob/master/LICENSE) for details.
+[MIT License](https://github.com/temporalio/temporal/blob/main/LICENSE)

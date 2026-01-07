@@ -9,9 +9,9 @@ make
 
 then run:
 ``` 
-make install-schema
+make install-schema-cass
 ```
-to create schama in your `cassandra` instance.
+to create schema in your `cassandra` instance.
 
 ## For production
 
@@ -26,24 +26,17 @@ This uses Cassandra's SimpleStratagey for replication. For production, we recomm
 temporal-cassandra-tool --ep $CASSANDRA_SEEDS create -k $KEYSPACE --rf $RF
 ```
 
-See https://www.ecyrd.com/cassandracalculator for an easy way to determine how many nodes and what replication factor you will want to use.  Note that Temporal by default uses `Quorum` for read and write consistency.
+See https://www.ecyrd.com/cassandracalculator for an easy way to determine how many nodes and what replication factor you will want to use.  Note that Temporal by default uses `LOCAL_QUORUM` and `LOCAL_SERIAL` for read and write consistency.
 
 ```
 ./temporal-cassandra-tool -ep 127.0.0.1 -k temporal setup-schema -v 0.0 -- this sets up just the schema version tables with initial version of 0.0
 ./temporal-cassandra-tool -ep 127.0.0.1 -k temporal update-schema -d ./schema/cassandra/temporal/versioned -- upgrades your schema to the latest version
-
-./temporal-cassandra-tool -ep 127.0.0.1 -k temporal_visibility setup-schema -v 0.0 -- this sets up just the schema version tables with initial version of 0.0 for visibility
-./temporal-cassandra-tool -ep 127.0.0.1 -k temporal_visibility update-schema -d ./schema/cassandra/visibility/versioned -- upgrades your schema to the latest version for visibility
 ```
 
 ### Update schema as part of a release
 You can only upgrade to a new version after the initial setup done above.
 
 ```
-./temporal-cassandra-tool -ep 127.0.0.1 -k temporal update-schema -d ./schema/cassandra/temporal/versioned -v x.x -y -- executes a dryrun of upgrade to version x.x
-./temporal-cassandra-tool -ep 127.0.0.1 -k temporal update-schema -d ./schema/cassandra/temporal/versioned -v x.x    -- actually executes the upgrade to version x.x
-
-./temporal-cassandra-tool -ep 127.0.0.1 -k temporal_visibility update-schema -d ./schema/cassandra/visibility/versioned -v x.x -y -- executes a dryrun of upgrade to version x.x
-./temporal-cassandra-tool -ep 127.0.0.1 -k temporal_visibility update-schema -d ./schema/cassandra/visibility/versioned -v x.x    -- actually executes the upgrade to version x.x
+./temporal-cassandra-tool -ep 127.0.0.1 -k temporal update-schema -d ./schema/cassandra/temporal/versioned -v x.x    -- executes the upgrade to version x.x
 ```
 

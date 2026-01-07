@@ -1,223 +1,334 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package history
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"math"
 	"sync"
 	"sync/atomic"
 
-	"github.com/pborman/uuid"
-	eventpb "go.temporal.io/temporal-proto/event"
-	executionpb "go.temporal.io/temporal-proto/execution"
-	"go.temporal.io/temporal-proto/serviceerror"
+	"github.com/google/uuid"
+	"github.com/nexus-rpc/sdk-go/nexus"
+	"go.opentelemetry.io/otel/trace"
+	commonpb "go.temporal.io/api/common/v1"
+	enumspb "go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
+	enumsspb "go.temporal.io/server/api/enums/v1"
+	"go.temporal.io/server/api/historyservice/v1"
+	namespacespb "go.temporal.io/server/api/namespace/v1"
+	persistencespb "go.temporal.io/server/api/persistence/v1"
+	replicationspb "go.temporal.io/server/api/replication/v1"
+	tokenspb "go.temporal.io/server/api/token/v1"
+	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/client/history"
+	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/archiver"
+	"go.temporal.io/server/common/clock"
+	"go.temporal.io/server/common/cluster"
+	"go.temporal.io/server/common/convert"
+	"go.temporal.io/server/common/definition"
+	"go.temporal.io/server/common/headers"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/membership"
+	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/namespace"
+	commonnexus "go.temporal.io/server/common/nexus"
+	"go.temporal.io/server/common/persistence"
+	"go.temporal.io/server/common/persistence/serialization"
+	"go.temporal.io/server/common/persistence/visibility/manager"
+	"go.temporal.io/server/common/primitives/timestamp"
+	"go.temporal.io/server/common/rpc/interceptor"
+	"go.temporal.io/server/common/searchattribute"
+	serviceerrors "go.temporal.io/server/common/serviceerror"
+	"go.temporal.io/server/common/tasktoken"
+	"go.temporal.io/server/components/nexusoperations"
+	"go.temporal.io/server/service/history/api"
+	"go.temporal.io/server/service/history/api/deletedlqtasks"
+	"go.temporal.io/server/service/history/api/forcedeleteworkflowexecution"
+	"go.temporal.io/server/service/history/api/getdlqtasks"
+	"go.temporal.io/server/service/history/api/listqueues"
+	"go.temporal.io/server/service/history/configs"
+	"go.temporal.io/server/service/history/consts"
+	"go.temporal.io/server/service/history/events"
+	"go.temporal.io/server/service/history/hsm"
+	"go.temporal.io/server/service/history/replication"
+	"go.temporal.io/server/service/history/shard"
+	"go.temporal.io/server/service/history/tasks"
+	"go.uber.org/fx"
+	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-
-	"github.com/temporalio/temporal/.gen/proto/historyservice"
-	namespacegenpb "github.com/temporalio/temporal/.gen/proto/namespace"
-	replicationgenpb "github.com/temporalio/temporal/.gen/proto/replication"
-	tokengenpb "github.com/temporalio/temporal/.gen/proto/token"
-	"github.com/temporalio/temporal/common"
-	"github.com/temporalio/temporal/common/definition"
-	"github.com/temporalio/temporal/common/log"
-	"github.com/temporalio/temporal/common/log/tag"
-	"github.com/temporalio/temporal/common/messaging"
-	"github.com/temporalio/temporal/common/metrics"
-	"github.com/temporalio/temporal/common/persistence"
-	"github.com/temporalio/temporal/common/persistence/serialization"
-	"github.com/temporalio/temporal/common/primitives"
-	"github.com/temporalio/temporal/common/quotas"
-	"github.com/temporalio/temporal/common/resource"
 )
 
 type (
 
 	// Handler - gRPC handler interface for historyservice
 	Handler struct {
-		resource.Resource
+		historyservice.UnimplementedHistoryServiceServer
 
-		controller              *shardController
-		tokenSerializer         common.TaskTokenSerializer
-		startWG                 sync.WaitGroup
-		config                  *Config
-		historyEventNotifier    historyEventNotifier
-		publisher               messaging.Producer
-		rateLimiter             quotas.Limiter
-		replicationTaskFetchers ReplicationTaskFetchers
+		status int32
+
+		tokenSerializer              *tasktoken.Serializer
+		config                       *configs.Config
+		eventNotifier                events.Notifier
+		logger                       log.Logger
+		throttledLogger              log.Logger
+		persistenceExecutionManager  persistence.ExecutionManager
+		persistenceShardManager      persistence.ShardManager
+		persistenceVisibilityManager manager.VisibilityManager
+		persistenceHealthSignal      persistence.HealthSignalAggregator
+		healthServer                 *health.Server
+		historyHealthSignal          interceptor.HealthSignalAggregator
+		historyServiceResolver       membership.ServiceResolver
+		metricsHandler               metrics.Handler
+		payloadSerializer            serialization.Serializer
+		timeSource                   clock.TimeSource
+		namespaceRegistry            namespace.Registry
+		saProvider                   searchattribute.Provider
+		clusterMetadata              cluster.Metadata
+		archivalMetadata             archiver.ArchivalMetadata
+		hostInfoProvider             membership.HostInfoProvider
+		controller                   shard.Controller
+		tracer                       trace.Tracer
+		taskQueueManager             persistence.HistoryTaskQueueManager
+		taskCategoryRegistry         tasks.TaskCategoryRegistry
+		dlqMetricsEmitter            *persistence.DLQMetricsEmitter
+		chasmEngine                  chasm.Engine
+		chasmRegistry                *chasm.Registry
+
+		replicationTaskFetcherFactory    replication.TaskFetcherFactory
+		replicationTaskConverterProvider replication.SourceTaskConverterProvider
+		streamReceiverMonitor            replication.StreamReceiverMonitor
+		replicationServerRateLimiter     replication.ServerSchedulerRateLimiter
+	}
+
+	NewHandlerArgs struct {
+		fx.In
+
+		Config                       *configs.Config
+		Logger                       log.SnTaggedLogger
+		ThrottledLogger              log.ThrottledLogger
+		PersistenceExecutionManager  persistence.ExecutionManager
+		PersistenceShardManager      persistence.ShardManager
+		PersistenceHealthSignal      persistence.HealthSignalAggregator
+		HistoryHealthSignal          interceptor.HealthSignalAggregator
+		HealthServer                 *health.Server
+		PersistenceVisibilityManager manager.VisibilityManager
+		HistoryServiceResolver       membership.ServiceResolver
+		MetricsHandler               metrics.Handler
+		PayloadSerializer            serialization.Serializer
+		TimeSource                   clock.TimeSource
+		NamespaceRegistry            namespace.Registry
+		SaProvider                   searchattribute.Provider
+		ClusterMetadata              cluster.Metadata
+		ArchivalMetadata             archiver.ArchivalMetadata
+		HostInfoProvider             membership.HostInfoProvider
+		ShardController              shard.Controller
+		EventNotifier                events.Notifier
+		TracerProvider               trace.TracerProvider
+		TaskQueueManager             persistence.HistoryTaskQueueManager
+		TaskCategoryRegistry         tasks.TaskCategoryRegistry
+		DLQMetricsEmitter            *persistence.DLQMetricsEmitter
+		ChasmEngine                  chasm.Engine
+		ChasmRegistry                *chasm.Registry
+
+		ReplicationTaskFetcherFactory   replication.TaskFetcherFactory
+		ReplicationTaskConverterFactory replication.SourceTaskConverterProvider
+		StreamReceiverMonitor           replication.StreamReceiverMonitor
+		ReplicationServerRateLimiter    replication.ServerSchedulerRateLimiter
 	}
 )
 
+const (
+	serviceName = "temporal.api.workflowservice.v1.HistoryService"
+)
+
 var (
-	_ EngineFactory                       = (*Handler)(nil)
 	_ historyservice.HistoryServiceServer = (*Handler)(nil)
 
 	errNamespaceNotSet         = serviceerror.NewInvalidArgument("Namespace not set on request.")
 	errWorkflowExecutionNotSet = serviceerror.NewInvalidArgument("WorkflowExecution not set on request.")
-	errTaskListNotSet          = serviceerror.NewInvalidArgument("Task list not set.")
+	errTaskQueueNotSet         = serviceerror.NewInvalidArgument("Task queue not set.")
 	errWorkflowIDNotSet        = serviceerror.NewInvalidArgument("WorkflowId is not set on request.")
+	errBusinessIDNotSet        = serviceerror.NewInvalidArgument("Business ID is not set on request.")
 	errRunIDNotValid           = serviceerror.NewInvalidArgument("RunId is not valid UUID.")
 	errSourceClusterNotSet     = serviceerror.NewInvalidArgument("Source Cluster not set on request.")
 	errShardIDNotSet           = serviceerror.NewInvalidArgument("ShardId not set on request.")
 	errTimestampNotSet         = serviceerror.NewInvalidArgument("Timestamp not set on request.")
-	errDeserializeTaskToken    = serviceerror.NewInvalidArgument("Error to deserialize task token. Error: %v.")
 
-	errHistoryHostThrottle = serviceerror.NewResourceExhausted("History host RPS exceeded.")
+	errShuttingDown = serviceerror.NewUnavailable("Shutting down")
 )
-
-// NewHandler creates a thrift handler for the history service
-func NewHandler(
-	resource resource.Resource,
-	config *Config,
-) *Handler {
-	handler := &Handler{
-		Resource:        resource,
-		config:          config,
-		tokenSerializer: common.NewProtoTaskTokenSerializer(),
-		rateLimiter: quotas.NewDynamicRateLimiter(
-			func() float64 {
-				return float64(config.RPS())
-			},
-		),
-	}
-
-	// prevent us from trying to serve requests before shard controller is started and ready
-	handler.startWG.Add(1)
-	return handler
-}
 
 // Start starts the handler
 func (h *Handler) Start() {
-	if h.GetClusterMetadata().IsGlobalNamespaceEnabled() {
-		var err error
-		h.publisher, err = h.GetMessagingClient().NewProducerWithClusterName(h.GetClusterMetadata().GetCurrentClusterName())
-		if err != nil {
-			h.GetLogger().Fatal("Creating kafka producer failed", tag.Error(err))
-		}
+	if !atomic.CompareAndSwapInt32(
+		&h.status,
+		common.DaemonStatusInitialized,
+		common.DaemonStatusStarted,
+	) {
+		return
 	}
 
-	h.replicationTaskFetchers = NewReplicationTaskFetchers(
-		h.GetLogger(),
-		h.config,
-		h.GetClusterMetadata().GetReplicationConsumerConfig(),
-		h.GetClusterMetadata(),
-		h.GetClientBean())
-
-	h.replicationTaskFetchers.Start()
-
-	h.controller = newShardController(
-		h.Resource,
-		h,
-		h.config,
-	)
-	h.historyEventNotifier = newHistoryEventNotifier(h.GetTimeSource(), h.GetMetricsClient(), h.config.GetShardID)
+	h.replicationTaskFetcherFactory.Start()
+	h.streamReceiverMonitor.Start()
 	// events notifier must starts before controller
-	h.historyEventNotifier.Start()
+	h.eventNotifier.Start()
 	h.controller.Start()
-
-	h.startWG.Done()
+	h.dlqMetricsEmitter.Start()
 }
 
 // Stop stops the handler
 func (h *Handler) Stop() {
-	h.replicationTaskFetchers.Stop()
+	if !atomic.CompareAndSwapInt32(
+		&h.status,
+		common.DaemonStatusStarted,
+		common.DaemonStatusStopped,
+	) {
+		return
+	}
+
+	h.streamReceiverMonitor.Stop()
+	h.replicationTaskFetcherFactory.Stop()
 	h.controller.Stop()
-	h.historyEventNotifier.Stop()
+	h.eventNotifier.Stop()
+	h.dlqMetricsEmitter.Stop()
 }
 
-// CreateEngine is implementation for HistoryEngineFactory used for creating the engine instance for shard
-func (h *Handler) CreateEngine(
-	shardContext ShardContext,
-) Engine {
-	return NewEngineWithShardContext(
-		shardContext,
-		h.GetVisibilityManager(),
-		h.GetMatchingClient(),
-		h.GetHistoryClient(),
-		h.GetSDKClient(),
-		h.historyEventNotifier,
-		h.publisher,
-		h.config,
-		h.replicationTaskFetchers,
-		h.GetMatchingRawClient(),
-	)
+func (h *Handler) isStopped() bool {
+	return atomic.LoadInt32(&h.status) == common.DaemonStatusStopped
 }
 
-// https://github.com/grpc/grpc/blob/master/doc/health-checking.md
-func (h *Handler) Check(context.Context, *healthpb.HealthCheckRequest) (*healthpb.HealthCheckResponse, error) {
-	h.startWG.Wait()
-	h.GetLogger().Debug("History service health check endpoint (gRPC) reached.")
-	hs := &healthpb.HealthCheckResponse{
-		Status: healthpb.HealthCheckResponse_SERVING,
+func (h *Handler) DeepHealthCheck(
+	ctx context.Context,
+	_ *historyservice.DeepHealthCheckRequest,
+) (_ *historyservice.DeepHealthCheckResponse, retError error) {
+	defer log.CapturePanic(h.logger, &retError)
+
+	status, err := h.healthServer.Check(ctx, &healthpb.HealthCheckRequest{Service: serviceName})
+	if err != nil {
+		return nil, err
 	}
-	return hs, nil
+	if status.Status != healthpb.HealthCheckResponse_SERVING {
+		metrics.HistoryHostHealthGauge.With(h.metricsHandler).Record(float64(enumsspb.HEALTH_STATE_DECLINED_SERVING))
+		return &historyservice.DeepHealthCheckResponse{State: enumsspb.HEALTH_STATE_DECLINED_SERVING}, nil
+	}
+
+	rsp := h.checkHistoryHealthSignals()
+	if rsp != nil {
+		return rsp, nil
+	}
+
+	latency := h.persistenceHealthSignal.AverageLatency()
+	errRatio := h.persistenceHealthSignal.ErrorRatio()
+
+	if latency > h.config.HealthPersistenceLatencyFailure() || errRatio > h.config.HealthPersistenceErrorRatio() {
+		metrics.HistoryHostHealthGauge.With(h.metricsHandler).Record(float64(enumsspb.HEALTH_STATE_NOT_SERVING))
+		return &historyservice.DeepHealthCheckResponse{State: enumsspb.HEALTH_STATE_NOT_SERVING}, nil
+	}
+	metrics.HistoryHostHealthGauge.With(h.metricsHandler).Record(float64(enumsspb.HEALTH_STATE_SERVING))
+	return &historyservice.DeepHealthCheckResponse{State: enumsspb.HEALTH_STATE_SERVING}, nil
 }
-func (h *Handler) Watch(*healthpb.HealthCheckRequest, healthpb.Health_WatchServer) error {
-	return serviceerror.NewUnimplemented("Watch is not implemented.")
+
+// checkHistoryHealthSignals checks the history health signal that is captured by the interceptor.
+func (h *Handler) checkHistoryHealthSignals() *historyservice.DeepHealthCheckResponse {
+	// Check that the RPC latency doesn't exceed the threshold.
+	if h.historyHealthSignal.AverageLatency() > h.config.HealthRPCLatencyFailure() {
+		metrics.HistoryHostHealthGauge.With(h.metricsHandler).Record(float64(enumsspb.HEALTH_STATE_NOT_SERVING))
+		return &historyservice.DeepHealthCheckResponse{State: enumsspb.HEALTH_STATE_NOT_SERVING}
+	}
+
+	// Check if the RPC error ratio exceeds the threshold
+	if h.historyHealthSignal.ErrorRatio() > h.config.HealthRPCErrorRatio() {
+		metrics.HistoryHostHealthGauge.With(h.metricsHandler).Record(float64(enumsspb.HEALTH_STATE_NOT_SERVING))
+		return &historyservice.DeepHealthCheckResponse{State: enumsspb.HEALTH_STATE_NOT_SERVING}
+	}
+	return nil
 }
 
-// RecordActivityTaskHeartbeat - Record Activity Task Heart beat.
-func (h *Handler) RecordActivityTaskHeartbeat(ctx context.Context, request *historyservice.RecordActivityTaskHeartbeatRequest) (_ *historyservice.RecordActivityTaskHeartbeatResponse, retError error) {
+// IsWorkflowTaskValid - whether workflow task is still valid
+func (h *Handler) IsWorkflowTaskValid(ctx context.Context, request *historyservice.IsWorkflowTaskValidRequest) (_ *historyservice.IsWorkflowTaskValidResponse, retError error) {
+	defer log.CapturePanic(h.logger, &retError)
 
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
-
-	scope := metrics.HistoryRecordActivityTaskHeartbeatScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+	workflowID := request.Execution.WorkflowId
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	response, err := engine.IsWorkflowTaskValid(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return response, nil
+}
+
+// IsActivityTaskValid - whether activity task is still valid
+func (h *Handler) IsActivityTaskValid(ctx context.Context, request *historyservice.IsActivityTaskValidRequest) (_ *historyservice.IsActivityTaskValidResponse, retError error) {
+	defer log.CapturePanic(h.logger, &retError)
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+	workflowID := request.Execution.WorkflowId
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	response, err := engine.IsActivityTaskValid(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return response, nil
+}
+
+func (h *Handler) RecordActivityTaskHeartbeat(ctx context.Context, request *historyservice.RecordActivityTaskHeartbeatRequest) (_ *historyservice.RecordActivityTaskHeartbeatResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	heartbeatRequest := request.HeartbeatRequest
 	taskToken, err0 := h.tokenSerializer.Deserialize(heartbeatRequest.TaskToken)
 	if err0 != nil {
-		return nil, h.error(errDeserializeTaskToken.MessageArgs(err0), scope, namespaceID, "")
+		return nil, consts.ErrDeserializingToken
 	}
 
 	err0 = validateTaskToken(taskToken)
 	if err0 != nil {
-		return nil, h.error(err0, scope, namespaceID, "")
+		return nil, h.convertError(err0)
 	}
 	workflowID := taskToken.GetWorkflowId()
 
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	response, err2 := engine.RecordActivityTaskHeartbeat(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
 	return response, nil
@@ -225,766 +336,917 @@ func (h *Handler) RecordActivityTaskHeartbeat(ctx context.Context, request *hist
 
 // RecordActivityTaskStarted - Record Activity Task started.
 func (h *Handler) RecordActivityTaskStarted(ctx context.Context, request *historyservice.RecordActivityTaskStartedRequest) (_ *historyservice.RecordActivityTaskStartedResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
-
-	scope := metrics.HistoryRecordActivityTaskStartedScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	workflowExecution := request.WorkflowExecution
 	workflowID := workflowExecution.GetWorkflowId()
 	if request.GetNamespaceId() == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, workflowID)
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	response, err := engine.RecordActivityTaskStarted(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
-
-	response, err2 := engine.RecordActivityTaskStarted(ctx, request)
-	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+	response.Clock, err = shardContext.NewVectorClock()
+	if err != nil {
+		return nil, h.convertError(err)
 	}
-
 	return response, nil
 }
 
-// RecordDecisionTaskStarted - Record Decision Task started.
-func (h *Handler) RecordDecisionTaskStarted(ctx context.Context, request *historyservice.RecordDecisionTaskStartedRequest) (_ *historyservice.RecordDecisionTaskStartedResponse, retError error) {
+// RecordWorkflowTaskStarted - Record Workflow Task started.
+func (h *Handler) RecordWorkflowTaskStarted(ctx context.Context, request *historyservice.RecordWorkflowTaskStartedRequest) (_ *historyservice.RecordWorkflowTaskStartedResponseWithRawHistory, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
-	h.GetLogger().Debug("RecordDecisionTaskStarted",
-		tag.WorkflowNamespaceID(request.GetNamespaceId()),
-		tag.WorkflowID(request.WorkflowExecution.GetWorkflowId()),
-		tag.WorkflowRunID(request.WorkflowExecution.GetRunId()),
-		tag.WorkflowScheduleID(request.GetScheduleId()))
-
-	scope := metrics.HistoryRecordDecisionTaskStartedScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	workflowExecution := request.WorkflowExecution
 	workflowID := workflowExecution.GetWorkflowId()
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, workflowID)
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, workflowID)
+	if request.PollRequest == nil || request.PollRequest.TaskQueue.GetName() == "" {
+		return nil, h.convertError(errTaskQueueNotSet)
 	}
 
-	if request.PollRequest == nil || request.PollRequest.TaskList.GetName() == "" {
-		return nil, h.error(errTaskListNotSet, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
-
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		h.GetLogger().Error("RecordDecisionTaskStarted failed.",
-			tag.Error(err1),
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		h.logger.Error("RecordWorkflowTaskStarted failed.",
+			tag.Error(err),
 			tag.WorkflowID(request.WorkflowExecution.GetWorkflowId()),
 			tag.WorkflowRunID(request.WorkflowExecution.GetRunId()),
-			tag.WorkflowScheduleID(request.GetScheduleId()),
+			tag.WorkflowScheduledEventID(request.GetScheduledEventId()),
 		)
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+		return nil, h.convertError(err)
 	}
 
-	response, err2 := engine.RecordDecisionTaskStarted(ctx, request)
-	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+	response, err := engine.RecordWorkflowTaskStarted(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
-
+	response.Clock, err = shardContext.NewVectorClock()
+	if err != nil {
+		return nil, h.convertError(err)
+	}
 	return response, nil
 }
 
 // RespondActivityTaskCompleted - records completion of an activity task
 func (h *Handler) RespondActivityTaskCompleted(ctx context.Context, request *historyservice.RespondActivityTaskCompletedRequest) (_ *historyservice.RespondActivityTaskCompletedResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
-
-	scope := metrics.HistoryRespondActivityTaskCompletedScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
-	}
-
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	completeRequest := request.CompleteRequest
 	taskToken, err0 := h.tokenSerializer.Deserialize(completeRequest.TaskToken)
 	if err0 != nil {
-		return nil, h.error(errDeserializeTaskToken.MessageArgs(err0), scope, namespaceID, "")
+		return nil, consts.ErrDeserializingToken
 	}
 
 	err0 = validateTaskToken(taskToken)
 	if err0 != nil {
-		return nil, h.error(err0, scope, namespaceID, "")
+		return nil, h.convertError(err0)
 	}
 	workflowID := taskToken.GetWorkflowId()
 
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	err2 := engine.RespondActivityTaskCompleted(ctx, request)
+	resp, err2 := engine.RespondActivityTaskCompleted(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
-	return &historyservice.RespondActivityTaskCompletedResponse{}, nil
+	return resp, nil
 }
 
 // RespondActivityTaskFailed - records failure of an activity task
 func (h *Handler) RespondActivityTaskFailed(ctx context.Context, request *historyservice.RespondActivityTaskFailedRequest) (_ *historyservice.RespondActivityTaskFailedResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryRespondActivityTaskFailedScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
-	}
-
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	failRequest := request.FailedRequest
 	taskToken, err0 := h.tokenSerializer.Deserialize(failRequest.TaskToken)
 	if err0 != nil {
-		return nil, h.error(errDeserializeTaskToken.MessageArgs(err0), scope, namespaceID, "")
+		return nil, consts.ErrDeserializingToken
 	}
 
 	err0 = validateTaskToken(taskToken)
 	if err0 != nil {
-		return nil, h.error(err0, scope, namespaceID, "")
+		return nil, h.convertError(err0)
 	}
 	workflowID := taskToken.GetWorkflowId()
 
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	err2 := engine.RespondActivityTaskFailed(ctx, request)
+	resp, err2 := engine.RespondActivityTaskFailed(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
-	return &historyservice.RespondActivityTaskFailedResponse{}, nil
+	return resp, nil
 }
 
 // RespondActivityTaskCanceled - records failure of an activity task
 func (h *Handler) RespondActivityTaskCanceled(ctx context.Context, request *historyservice.RespondActivityTaskCanceledRequest) (_ *historyservice.RespondActivityTaskCanceledResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryRespondActivityTaskCanceledScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
-	}
-
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	cancelRequest := request.CancelRequest
 	taskToken, err0 := h.tokenSerializer.Deserialize(cancelRequest.TaskToken)
 	if err0 != nil {
-		return nil, h.error(errDeserializeTaskToken.MessageArgs(err0), scope, namespaceID, "")
+		return nil, consts.ErrDeserializingToken
 	}
 
 	err0 = validateTaskToken(taskToken)
 	if err0 != nil {
-		return nil, h.error(err0, scope, namespaceID, "")
+		return nil, h.convertError(err0)
 	}
 	workflowID := taskToken.GetWorkflowId()
 
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	err2 := engine.RespondActivityTaskCanceled(ctx, request)
+	resp, err2 := engine.RespondActivityTaskCanceled(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
-	return &historyservice.RespondActivityTaskCanceledResponse{}, nil
+	return resp, nil
 }
 
-// RespondDecisionTaskCompleted - records completion of a decision task
-func (h *Handler) RespondDecisionTaskCompleted(ctx context.Context, request *historyservice.RespondDecisionTaskCompletedRequest) (_ *historyservice.RespondDecisionTaskCompletedResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+// RespondWorkflowTaskCompleted - records completion of a workflow task
+func (h *Handler) RespondWorkflowTaskCompleted(ctx context.Context, request *historyservice.RespondWorkflowTaskCompletedRequest) (_ *historyservice.RespondWorkflowTaskCompletedResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryRespondDecisionTaskCompletedScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
-	}
-
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	completeRequest := request.CompleteRequest
-	if len(completeRequest.Decisions) == 0 {
-		h.GetMetricsClient().IncCounter(scope, metrics.EmptyCompletionDecisionsCounter)
-	}
 	token, err0 := h.tokenSerializer.Deserialize(completeRequest.TaskToken)
 	if err0 != nil {
-		return nil, h.error(errDeserializeTaskToken.MessageArgs(err0), scope, namespaceID, "")
+		return nil, consts.ErrDeserializingToken
 	}
 
-	h.GetLogger().Debug("RespondDecisionTaskCompleted",
-		tag.WorkflowNamespaceIDBytes(token.GetNamespaceId()),
+	h.logger.Debug("RespondWorkflowTaskCompleted",
+		tag.WorkflowNamespaceID(token.GetNamespaceId()),
 		tag.WorkflowID(token.GetWorkflowId()),
-		tag.WorkflowRunIDBytes(token.GetRunId()),
-		tag.WorkflowScheduleID(token.GetScheduleId()))
+		tag.WorkflowRunID(token.GetRunId()),
+		tag.WorkflowScheduledEventID(token.GetScheduledEventId()))
 
 	err0 = validateTaskToken(token)
 	if err0 != nil {
-		return nil, h.error(err0, scope, namespaceID, "")
+		return nil, h.convertError(err0)
 	}
 	workflowID := token.GetWorkflowId()
 
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	response, err2 := engine.RespondDecisionTaskCompleted(ctx, request)
+	response, err2 := engine.RespondWorkflowTaskCompleted(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
 	return response, nil
 }
 
-// RespondDecisionTaskFailed - failed response to decision task
-func (h *Handler) RespondDecisionTaskFailed(ctx context.Context, request *historyservice.RespondDecisionTaskFailedRequest) (_ *historyservice.RespondDecisionTaskFailedResponse, retError error) {
+// RespondWorkflowTaskFailed - failed response to workflow task
+func (h *Handler) RespondWorkflowTaskFailed(ctx context.Context, request *historyservice.RespondWorkflowTaskFailedRequest) (_ *historyservice.RespondWorkflowTaskFailedResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
-
-	scope := metrics.HistoryRespondDecisionTaskFailedScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
-	}
-
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	failedRequest := request.FailedRequest
 	token, err0 := h.tokenSerializer.Deserialize(failedRequest.TaskToken)
 	if err0 != nil {
-		return nil, h.error(errDeserializeTaskToken.MessageArgs(err0), scope, namespaceID, "")
+		return nil, consts.ErrDeserializingToken
 	}
 
-	h.GetLogger().Debug("RespondDecisionTaskFailed",
-		tag.WorkflowNamespaceIDBytes(token.GetNamespaceId()),
+	h.logger.Debug("RespondWorkflowTaskFailed",
+		tag.WorkflowNamespaceID(token.GetNamespaceId()),
 		tag.WorkflowID(token.GetWorkflowId()),
-		tag.WorkflowRunIDBytes(token.GetRunId()),
-		tag.WorkflowScheduleID(token.GetScheduleId()))
+		tag.WorkflowRunID(token.GetRunId()),
+		tag.WorkflowScheduledEventID(token.GetScheduledEventId()))
 
-	if failedRequest != nil && failedRequest.GetCause() == eventpb.DecisionTaskFailedCause_UnhandledDecision {
-		h.GetLogger().Info("Non-Deterministic Error", tag.WorkflowNamespaceIDBytes(token.GetNamespaceId()), tag.WorkflowID(token.GetWorkflowId()), tag.WorkflowRunIDBytes(token.GetRunId()))
-		namespace, err := h.GetNamespaceCache().GetNamespaceName(primitives.UUIDString(token.GetNamespaceId()))
-		var namespaceTag metrics.Tag
-
-		if err == nil {
-			namespaceTag = metrics.NamespaceTag(namespace)
-		} else {
-			namespaceTag = metrics.NamespaceUnknownTag()
-		}
-
-		h.GetMetricsClient().Scope(scope, namespaceTag).IncCounter(metrics.ServiceErrNonDeterministicCounter)
-	}
 	err0 = validateTaskToken(token)
 	if err0 != nil {
-		return nil, h.error(err0, scope, namespaceID, "")
+		return nil, h.convertError(err0)
 	}
 	workflowID := token.GetWorkflowId()
 
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	err2 := engine.RespondDecisionTaskFailed(ctx, request)
+	err2 := engine.RespondWorkflowTaskFailed(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
-	return &historyservice.RespondDecisionTaskFailedResponse{}, nil
+	return &historyservice.RespondWorkflowTaskFailedResponse{}, nil
 }
 
 // StartWorkflowExecution - creates a new workflow execution
 func (h *Handler) StartWorkflowExecution(ctx context.Context, request *historyservice.StartWorkflowExecutionRequest) (_ *historyservice.StartWorkflowExecutionResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
-
-	scope := metrics.HistoryStartWorkflowExecutionScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
-	}
-
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	startRequest := request.StartRequest
 	workflowID := startRequest.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	response, err2 := engine.StartWorkflowExecution(ctx, request)
-	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	response, err := engine.StartWorkflowExecution(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	if response.Clock == nil {
+		response.Clock, err = shardContext.NewVectorClock()
+		if err != nil {
+			return nil, h.convertError(err)
+		}
+	}
+	return response, nil
+}
+
+func (h *Handler) ExecuteMultiOperation(
+	ctx context.Context,
+	request *historyservice.ExecuteMultiOperationRequest,
+) (_ *historyservice.ExecuteMultiOperationResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, request.WorkflowId)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	response, err := engine.ExecuteMultiOperation(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	for _, opResp := range response.Responses {
+		if startResp := opResp.GetStartWorkflow(); startResp != nil {
+			if startResp.Clock == nil {
+				startResp.Clock, err = shardContext.NewVectorClock()
+				if err != nil {
+					return nil, h.convertError(err)
+				}
+			}
+		}
 	}
 
 	return response, nil
 }
 
 // DescribeHistoryHost returns information about the internal states of a history host
-func (h *Handler) DescribeHistoryHost(_ context.Context, _ *historyservice.DescribeHistoryHostRequest) (_ *historyservice.DescribeHistoryHostResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+func (h *Handler) DescribeHistoryHost(_ context.Context, req *historyservice.DescribeHistoryHostRequest) (_ *historyservice.DescribeHistoryHostResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	numOfItemsInCacheByID, numOfItemsInCacheByName := h.GetNamespaceCache().GetCacheSize()
-	status := ""
-	switch atomic.LoadInt32(&h.controller.status) {
-	case common.DaemonStatusInitialized:
-		status = "initialized"
-	case common.DaemonStatusStarted:
-		status = "started"
-	case common.DaemonStatusStopped:
-		status = "stopped"
+	// This API supports describe history host by 1. address 2. shard id 3. namespace id + workflow id
+	// if option 2/3 is provided, we want to check on the shard ownership to return the correct host address.
+	shardID := req.GetShardId()
+	if len(req.GetNamespaceId()) != 0 && req.GetWorkflowExecution() != nil {
+		shardID = common.WorkflowIDToHistoryShard(req.GetNamespaceId(), req.GetWorkflowExecution().GetWorkflowId(), h.config.NumberOfShards)
+	}
+	if shardID > 0 {
+		_, err := h.controller.GetShardByID(shardID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
+	itemsInRegistryByIDCount, itemsInRegistryByNameCount := h.namespaceRegistry.GetRegistrySize()
+	ownedShardIDs := h.controller.ShardIDs()
 	resp := &historyservice.DescribeHistoryHostResponse{
-		NumberOfShards: int32(h.controller.numShards()),
-		ShardIds:       h.controller.shardIDs(),
-		NamespaceCache: &namespacegenpb.NamespaceCacheInfo{
-			NumOfItemsInCacheById:   numOfItemsInCacheByID,
-			NumOfItemsInCacheByName: numOfItemsInCacheByName,
+		ShardsNumber: int32(len(ownedShardIDs)),
+		ShardIds:     ownedShardIDs,
+		NamespaceCache: &namespacespb.NamespaceCacheInfo{
+			ItemsInCacheByIdCount:   itemsInRegistryByIDCount,
+			ItemsInCacheByNameCount: itemsInRegistryByNameCount,
 		},
-		ShardControllerStatus: status,
-		Address:               h.GetHostInfo().GetAddress(),
+		Address: h.hostInfoProvider.HostInfo().GetAddress(),
 	}
 	return resp, nil
 }
 
 // RemoveTask returns information about the internal states of a history host
-func (h *Handler) RemoveTask(_ context.Context, request *historyservice.RemoveTaskRequest) (_ *historyservice.RemoveTaskResponse, retError error) {
-	executionMgr, err := h.GetExecutionManager(int(request.GetShardId()))
-	if err != nil {
-		return nil, err
+func (h *Handler) RemoveTask(ctx context.Context, request *historyservice.RemoveTaskRequest) (_ *historyservice.RemoveTaskResponse, retError error) {
+	var err error
+	category, ok := h.taskCategoryRegistry.GetCategoryByID(int(request.Category))
+	if !ok {
+		return nil, serviceerror.NewInvalidArgumentf("Invalid task category ID: %v", request.Category)
 	}
-	deleteTaskRequest := &persistence.DeleteTaskRequest{
-		TaskID:  request.GetTaskId(),
-		Type:    int(request.GetType()),
-		ShardID: int(request.GetShardId()),
+
+	key := tasks.NewKey(
+		timestamp.TimeValue(request.GetVisibilityTime()),
+		request.GetTaskId(),
+	)
+	if err := tasks.ValidateKey(key); err != nil {
+		return nil, serviceerror.NewInvalidArgumentf("Invalid task key: %v", err.Error())
 	}
-	err = executionMgr.DeleteTask(deleteTaskRequest)
+
+	err = h.persistenceExecutionManager.CompleteHistoryTask(ctx, &persistence.CompleteHistoryTaskRequest{
+		ShardID:      request.GetShardId(),
+		TaskCategory: category,
+		TaskKey:      key,
+	})
+
 	return &historyservice.RemoveTaskResponse{}, err
 }
 
-// CloseShard returns information about the internal states of a history host
+// CloseShard closes a shard hosted by this instance
 func (h *Handler) CloseShard(_ context.Context, request *historyservice.CloseShardRequest) (_ *historyservice.CloseShardResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.controller.removeEngineForShard(int(request.GetShardId()))
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+	h.controller.CloseShardByID(request.GetShardId())
 	return &historyservice.CloseShardResponse{}, nil
 }
 
-// DescribeMutableState - returns the internal analysis of workflow execution state
-func (h *Handler) DescribeMutableState(ctx context.Context, request *historyservice.DescribeMutableStateRequest) (_ *historyservice.DescribeMutableStateResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+// GetShard gets a shard hosted by this instance
+func (h *Handler) GetShard(ctx context.Context, request *historyservice.GetShardRequest) (_ *historyservice.GetShardResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+	resp, err := h.persistenceShardManager.GetOrCreateShard(ctx, &persistence.GetOrCreateShardRequest{
+		ShardID: request.ShardId,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &historyservice.GetShardResponse{ShardInfo: resp.ShardInfo}, nil
+}
 
-	scope := metrics.HistoryRecordActivityTaskHeartbeatScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
+// RebuildMutableState attempts to rebuild mutable state according to persisted history events
+func (h *Handler) RebuildMutableState(ctx context.Context, request *historyservice.RebuildMutableStateRequest) (_ *historyservice.RebuildMutableStateResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	namespaceID := request.GetNamespaceId()
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	workflowExecution := request.Execution
 	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	if err := engine.RebuildMutableState(ctx, namespaceID, &commonpb.WorkflowExecution{
+		WorkflowId: workflowExecution.WorkflowId,
+		RunId:      workflowExecution.RunId,
+	}); err != nil {
+		return nil, h.convertError(err)
+	}
+	return &historyservice.RebuildMutableStateResponse{}, nil
+}
+
+// ImportWorkflowExecution attempts to workflow execution according to persisted history events
+func (h *Handler) ImportWorkflowExecution(ctx context.Context, request *historyservice.ImportWorkflowExecutionRequest) (_ *historyservice.ImportWorkflowExecutionResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	workflowExecution := request.Execution
+	workflowID := workflowExecution.GetWorkflowId()
+	if workflowID == "" {
+		return nil, h.convertError(errWorkflowIDNotSet)
+	}
+	runID := workflowExecution.GetRunId()
+	if runID == "" {
+		return nil, h.convertError(errRunIDNotValid)
+	}
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	if !shardContext.GetClusterMetadata().IsGlobalNamespaceEnabled() {
+		return nil, serviceerror.NewUnimplemented("ImportWorkflowExecution must be used in global namespace mode")
+	}
+	resp, err := engine.ImportWorkflowExecution(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return resp, nil
+}
+
+// DescribeMutableState - returns the internal analysis of workflow execution state
+func (h *Handler) DescribeMutableState(ctx context.Context, request *historyservice.DescribeMutableStateRequest) (_ *historyservice.DescribeMutableStateResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	workflowExecution := request.Execution
+	workflowID := workflowExecution.GetWorkflowId()
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	resp, err2 := engine.DescribeMutableState(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 	return resp, nil
 }
 
 // GetMutableState - returns the id of the next event in the execution's history
 func (h *Handler) GetMutableState(ctx context.Context, request *historyservice.GetMutableStateRequest) (_ *historyservice.GetMutableStateResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryGetMutableStateScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	workflowExecution := request.Execution
 	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	resp, err2 := engine.GetMutableState(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 	return resp, nil
 }
 
 // PollMutableState - returns the id of the next event in the execution's history
 func (h *Handler) PollMutableState(ctx context.Context, request *historyservice.PollMutableStateRequest) (_ *historyservice.PollMutableStateResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryPollMutableStateScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	workflowExecution := request.Execution
 	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	resp, err2 := engine.PollMutableState(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 	return resp, nil
 }
 
 // DescribeWorkflowExecution returns information about the specified workflow execution.
 func (h *Handler) DescribeWorkflowExecution(ctx context.Context, request *historyservice.DescribeWorkflowExecutionRequest) (_ *historyservice.DescribeWorkflowExecutionResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryDescribeWorkflowExecutionScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	workflowExecution := request.Request.Execution
 	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	resp, err2 := engine.DescribeWorkflowExecution(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 	return resp, nil
 }
 
 // RequestCancelWorkflowExecution - requests cancellation of a workflow
 func (h *Handler) RequestCancelWorkflowExecution(ctx context.Context, request *historyservice.RequestCancelWorkflowExecutionRequest) (_ *historyservice.RequestCancelWorkflowExecutionResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryRequestCancelWorkflowExecutionScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" || request.CancelRequest.GetNamespace() == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" || request.CancelRequest.GetNamespace() == "" {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	cancelRequest := request.CancelRequest
-	h.GetLogger().Debug("RequestCancelWorkflowExecution",
+	h.logger.Debug("RequestCancelWorkflowExecution",
 		tag.WorkflowNamespace(cancelRequest.GetNamespace()),
 		tag.WorkflowNamespaceID(request.GetNamespaceId()),
 		tag.WorkflowID(cancelRequest.WorkflowExecution.GetWorkflowId()),
 		tag.WorkflowRunID(cancelRequest.WorkflowExecution.GetRunId()))
 
 	workflowID := cancelRequest.WorkflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	err2 := engine.RequestCancelWorkflowExecution(ctx, request)
+	resp, err2 := engine.RequestCancelWorkflowExecution(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
-	}
-
-	return &historyservice.RequestCancelWorkflowExecutionResponse{}, nil
-}
-
-// SignalWorkflowExecution is used to send a signal event to running workflow execution.  This results in
-// WorkflowExecutionSignaled event recorded in the history and a decision task being created for the execution.
-func (h *Handler) SignalWorkflowExecution(ctx context.Context, request *historyservice.SignalWorkflowExecutionRequest) (_ *historyservice.SignalWorkflowExecutionResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
-
-	scope := metrics.HistorySignalWorkflowExecutionScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
-	}
-
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
-	}
-
-	workflowExecution := request.SignalRequest.WorkflowExecution
-	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
-	}
-
-	err2 := engine.SignalWorkflowExecution(ctx, request)
-	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
-	}
-
-	return &historyservice.SignalWorkflowExecutionResponse{}, nil
-}
-
-// SignalWithStartWorkflowExecution is used to ensure sending a signal event to a workflow execution.
-// If workflow is running, this results in WorkflowExecutionSignaled event recorded in the history
-// and a decision task being created for the execution.
-// If workflow is not running or not found, this results in WorkflowExecutionStarted and WorkflowExecutionSignaled
-// event recorded in history, and a decision task being created for the execution
-func (h *Handler) SignalWithStartWorkflowExecution(ctx context.Context, request *historyservice.SignalWithStartWorkflowExecutionRequest) (_ *historyservice.SignalWithStartWorkflowExecutionResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
-
-	scope := metrics.HistorySignalWithStartWorkflowExecutionScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
-	}
-
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
-	}
-
-	signalWithStartRequest := request.SignalWithStartRequest
-	workflowID := signalWithStartRequest.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
-	}
-
-	resp, err2 := engine.SignalWithStartWorkflowExecution(ctx, request)
-	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
 	return resp, nil
 }
 
-// RemoveSignalMutableState is used to remove a signal request ID that was previously recorded.  This is currently
-// used to clean execution info when signal decision finished.
-func (h *Handler) RemoveSignalMutableState(ctx context.Context, request *historyservice.RemoveSignalMutableStateRequest) (_ *historyservice.RemoveSignalMutableStateResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+// SignalWorkflowExecution is used to send a signal event to running workflow execution.  This results in
+// WorkflowExecutionSignaled event recorded in the history and a workflow task being created for the execution.
+func (h *Handler) SignalWorkflowExecution(ctx context.Context, request *historyservice.SignalWorkflowExecutionRequest) (_ *historyservice.SignalWorkflowExecutionResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryRemoveSignalMutableStateScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	workflowExecution := request.SignalRequest.WorkflowExecution
+	workflowID := workflowExecution.GetWorkflowId()
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	resp, err2 := engine.SignalWorkflowExecution(ctx, request)
+	if err2 != nil {
+		return nil, h.convertError(err2)
+	}
+
+	return resp, nil
+}
+
+// SignalWithStartWorkflowExecution is used to ensure sending a signal event to a workflow execution.
+// If workflow is running, this results in WorkflowExecutionSignaled event recorded in the history
+// and a workflow task being created for the execution.
+// If workflow is not running or not found, this results in WorkflowExecutionStarted and WorkflowExecutionSignaled
+// event recorded in history, and a workflow task being created for the execution
+func (h *Handler) SignalWithStartWorkflowExecution(ctx context.Context, request *historyservice.SignalWithStartWorkflowExecutionRequest) (_ *historyservice.SignalWithStartWorkflowExecutionResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	signalWithStartRequest := request.SignalWithStartRequest
+	workflowID := signalWithStartRequest.GetWorkflowId()
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	for {
+		resp, err2 := engine.SignalWithStartWorkflowExecution(ctx, request)
+		if err2 == nil {
+			return resp, nil
+		}
+
+		// Two simultaneous SignalWithStart requests might try to start a workflow at the same time.
+		// This can result in one of the requests failing with one of two possible errors:
+		//    CurrentWorkflowConditionFailedError || WorkflowConditionFailedError
+		// If either error occurs, just go ahead and retry. It should succeed on the subsequent attempt.
+		// For simplicity, we keep trying unless the context finishes or we get an error that is not one of the
+		// two mentioned above.
+		_, isCurrentWorkflowConditionFailedErr := err2.(*persistence.CurrentWorkflowConditionFailedError)
+		_, isWorkflowConditionFailedErr := err2.(*persistence.WorkflowConditionFailedError)
+
+		isContextDone := false
+		select {
+		case <-ctx.Done():
+			isContextDone = true
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				err2 = ctxErr
+			}
+		default:
+		}
+
+		if (!isCurrentWorkflowConditionFailedErr && !isWorkflowConditionFailedErr) || isContextDone {
+			return nil, h.convertError(err2)
+		}
+	}
+}
+
+// RemoveSignalMutableState is used to remove a signal request ID that was previously recorded.  This is currently
+// used to clean execution info when signal workflow task finished.
+func (h *Handler) RemoveSignalMutableState(ctx context.Context, request *historyservice.RemoveSignalMutableStateRequest) (_ *historyservice.RemoveSignalMutableStateResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	workflowExecution := request.WorkflowExecution
 	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	err2 := engine.RemoveSignalMutableState(ctx, request)
+	resp, err2 := engine.RemoveSignalMutableState(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
-	return &historyservice.RemoveSignalMutableStateResponse{}, nil
+	return resp, nil
 }
 
 // TerminateWorkflowExecution terminates an existing workflow execution by recording WorkflowExecutionTerminated event
 // in the history and immediately terminating the execution instance.
 func (h *Handler) TerminateWorkflowExecution(ctx context.Context, request *historyservice.TerminateWorkflowExecutionRequest) (_ *historyservice.TerminateWorkflowExecutionResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryTerminateWorkflowExecutionScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	workflowExecution := request.TerminateRequest.WorkflowExecution
 	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	err2 := engine.TerminateWorkflowExecution(ctx, request)
+	resp, err2 := engine.TerminateWorkflowExecution(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
-	return &historyservice.TerminateWorkflowExecutionResponse{}, nil
+	return resp, nil
+}
+
+func (h *Handler) DeleteWorkflowExecution(ctx context.Context, request *historyservice.DeleteWorkflowExecutionRequest) (_ *historyservice.DeleteWorkflowExecutionResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	workflowExecution := request.WorkflowExecution
+	workflowID := workflowExecution.GetWorkflowId()
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	h.logger.Info("DeleteWorkflowExecution requested",
+		tag.WorkflowNamespaceID(request.GetNamespaceId()),
+		tag.WorkflowID(workflowExecution.GetWorkflowId()),
+		tag.WorkflowRunID(workflowExecution.GetRunId()))
+
+	resp, err := engine.DeleteWorkflowExecution(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return resp, nil
 }
 
 // ResetWorkflowExecution reset an existing workflow execution
 // in the history and immediately terminating the execution instance.
 func (h *Handler) ResetWorkflowExecution(ctx context.Context, request *historyservice.ResetWorkflowExecutionRequest) (_ *historyservice.ResetWorkflowExecutionResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryResetWorkflowExecutionScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	workflowExecution := request.ResetRequest.WorkflowExecution
 	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	resp, err2 := engine.ResetWorkflowExecution(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
+	}
+
+	return resp, nil
+}
+
+// UpdateWorkflowExecutionOptions updates the options of a workflow execution.
+// Can be used to set and unset versioning behavior override.
+func (h *Handler) UpdateWorkflowExecutionOptions(ctx context.Context, request *historyservice.UpdateWorkflowExecutionOptionsRequest) (_ *historyservice.UpdateWorkflowExecutionOptionsResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	workflowExecution := request.UpdateRequest.WorkflowExecution
+	workflowID := workflowExecution.GetWorkflowId()
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	resp, err2 := engine.UpdateWorkflowExecutionOptions(ctx, request)
+	if err2 != nil {
+		return nil, h.convertError(err2)
 	}
 
 	return resp, nil
@@ -992,294 +1254,316 @@ func (h *Handler) ResetWorkflowExecution(ctx context.Context, request *historyse
 
 // QueryWorkflow queries a workflow.
 func (h *Handler) QueryWorkflow(ctx context.Context, request *historyservice.QueryWorkflowRequest) (_ *historyservice.QueryWorkflowResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryQueryWorkflowScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	workflowID := request.GetRequest().GetExecution().GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	resp, err2 := engine.QueryWorkflow(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
 	return resp, nil
 }
 
-// ScheduleDecisionTask is used for creating a decision task for already started workflow execution.  This is mainly
+// ScheduleWorkflowTask is used for creating a workflow task for already started workflow execution.  This is mainly
 // used by transfer queue processor during the processing of StartChildWorkflowExecution task, where it first starts
-// child execution without creating the decision task and then calls this API after updating the mutable state of
+// child execution without creating the workflow task and then calls this API after updating the mutable state of
 // parent execution.
-func (h *Handler) ScheduleDecisionTask(ctx context.Context, request *historyservice.ScheduleDecisionTaskRequest) (_ *historyservice.ScheduleDecisionTaskResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+func (h *Handler) ScheduleWorkflowTask(ctx context.Context, request *historyservice.ScheduleWorkflowTaskRequest) (_ *historyservice.ScheduleWorkflowTaskResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryScheduleDecisionTaskScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	if request.WorkflowExecution == nil {
-		return nil, h.error(errWorkflowExecutionNotSet, scope, namespaceID, "")
+		return nil, h.convertError(errWorkflowExecutionNotSet)
 	}
 
 	workflowExecution := request.WorkflowExecution
 	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	err2 := engine.ScheduleDecisionTask(ctx, request)
+	err2 := engine.ScheduleWorkflowTask(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
-	return &historyservice.ScheduleDecisionTaskResponse{}, nil
+	return &historyservice.ScheduleWorkflowTaskResponse{}, nil
+}
+
+func (h *Handler) VerifyFirstWorkflowTaskScheduled(
+	ctx context.Context,
+	request *historyservice.VerifyFirstWorkflowTaskScheduledRequest,
+) (_ *historyservice.VerifyFirstWorkflowTaskScheduledResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	if request.WorkflowExecution == nil {
+		return nil, h.convertError(errWorkflowExecutionNotSet)
+	}
+
+	workflowExecution := request.WorkflowExecution
+	workflowID := workflowExecution.GetWorkflowId()
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	err2 := engine.VerifyFirstWorkflowTaskScheduled(ctx, request)
+	if err2 != nil {
+		return nil, h.convertError(err2)
+	}
+
+	return &historyservice.VerifyFirstWorkflowTaskScheduledResponse{}, nil
 }
 
 // RecordChildExecutionCompleted is used for reporting the completion of child workflow execution to parent.
 // This is mainly called by transfer queue processor during the processing of DeleteExecution task.
 func (h *Handler) RecordChildExecutionCompleted(ctx context.Context, request *historyservice.RecordChildExecutionCompletedRequest) (_ *historyservice.RecordChildExecutionCompletedResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryRecordChildExecutionCompletedScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
 
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	if request.GetParentExecution() == nil {
+		return nil, h.convertError(errWorkflowExecutionNotSet)
 	}
 
-	if request.WorkflowExecution == nil {
-		return nil, h.error(errWorkflowExecutionNotSet, scope, namespaceID, "")
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, request.GetParentExecution().WorkflowId)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	workflowExecution := request.WorkflowExecution
-	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
-	}
-
-	err2 := engine.RecordChildExecutionCompleted(ctx, request)
+	resp, err2 := engine.RecordChildExecutionCompleted(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
-	}
-
-	return &historyservice.RecordChildExecutionCompletedResponse{}, nil
-}
-
-// ResetStickyTaskList reset the volatile information in mutable state of a given workflow.
-// Volatile information are the information related to client, such as:
-// 1. StickyTaskList
-// 2. StickyScheduleToStartTimeout
-// 3. ClientLibraryVersion
-// 4. ClientFeatureVersion
-// 5. ClientImpl
-func (h *Handler) ResetStickyTaskList(ctx context.Context, request *historyservice.ResetStickyTaskListRequest) (_ *historyservice.ResetStickyTaskListResponse, retError error) {
-
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
-
-	scope := metrics.HistoryResetStickyTaskListScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
-	}
-
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
-	}
-
-	workflowID := request.Execution.GetWorkflowId()
-	engine, err := h.controller.GetEngine(workflowID)
-	if err != nil {
-		return nil, h.error(err, scope, namespaceID, workflowID)
-	}
-
-	resp, err := engine.ResetStickyTaskList(ctx, request)
-	if err != nil {
-		return nil, h.error(err, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
 	return resp, nil
 }
 
-// ReplicateEvents is called by processor to replicate history events for passive namespaces
-func (h *Handler) ReplicateEvents(ctx context.Context, request *historyservice.ReplicateEventsRequest) (_ *historyservice.ReplicateEventsResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+func (h *Handler) VerifyChildExecutionCompletionRecorded(
+	ctx context.Context,
+	request *historyservice.VerifyChildExecutionCompletionRecordedRequest,
+) (_ *historyservice.VerifyChildExecutionCompletionRecordedResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryReplicateEventsScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
 
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	if request.ParentExecution == nil {
+		return nil, h.convertError(errWorkflowExecutionNotSet)
 	}
 
-	workflowExecution := request.WorkflowExecution
-	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, request.ParentExecution.GetWorkflowId())
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	err2 := engine.ReplicateEvents(ctx, request)
+	resp, err2 := engine.VerifyChildExecutionCompletionRecorded(ctx, request)
 	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+		return nil, h.convertError(err2)
 	}
 
-	return &historyservice.ReplicateEventsResponse{}, nil
+	return resp, nil
 }
 
-// ReplicateRawEvents is called by processor to replicate history raw events for passive namespaces
-func (h *Handler) ReplicateRawEvents(ctx context.Context, request *historyservice.ReplicateRawEventsRequest) (_ *historyservice.ReplicateRawEventsResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+// ResetStickyTaskQueue reset the volatile information in mutable state of a given workflow.
+// Volatile information are the information related to client, such as:
+// 1. StickyTaskQueue
+// 2. StickyScheduleToStartTimeout
+func (h *Handler) ResetStickyTaskQueue(ctx context.Context, request *historyservice.ResetStickyTaskQueueRequest) (_ *historyservice.ResetStickyTaskQueueResponse, retError error) {
 
-	scope := metrics.HistoryReplicateRawEventsScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	namespaceID := request.GetNamespaceId()
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	workflowID := request.Execution.GetWorkflowId()
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	workflowExecution := request.WorkflowExecution
-	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	resp, err := engine.ResetStickyTaskQueue(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
-	err2 := engine.ReplicateRawEvents(ctx, request)
-	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
-	}
-
-	return &historyservice.ReplicateRawEventsResponse{}, nil
+	return resp, nil
 }
 
 // ReplicateEventsV2 is called by processor to replicate history events for passive namespaces
 func (h *Handler) ReplicateEventsV2(ctx context.Context, request *historyservice.ReplicateEventsV2Request) (_ *historyservice.ReplicateEventsV2Response, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryReplicateEventsV2Scope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if namespaceID == "" {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	if err := api.ValidateReplicationConfig(h.clusterMetadata); err != nil {
+		return nil, err
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	workflowExecution := request.WorkflowExecution
 	workflowID := workflowExecution.GetWorkflowId()
-	engine, err1 := h.controller.GetEngine(workflowID)
-	if err1 != nil {
-		return nil, h.error(err1, scope, namespaceID, workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	err2 := engine.ReplicateEventsV2(ctx, request)
-	if err2 != nil {
-		return nil, h.error(err2, scope, namespaceID, workflowID)
+	if err2 == nil || errors.Is(err2, consts.ErrDuplicate) {
+		return &historyservice.ReplicateEventsV2Response{}, nil
+	}
+	return nil, h.convertError(err2)
+}
+
+// ReplicateWorkflowState is called by processor to replicate workflow state for passive namespaces
+func (h *Handler) ReplicateWorkflowState(
+	ctx context.Context,
+	request *historyservice.ReplicateWorkflowStateRequest,
+) (_ *historyservice.ReplicateWorkflowStateResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	return &historyservice.ReplicateEventsV2Response{}, nil
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(
+		namespace.ID(request.GetWorkflowState().GetExecutionInfo().GetNamespaceId()),
+		request.GetWorkflowState().GetExecutionInfo().GetWorkflowId(),
+	)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	err = engine.ReplicateWorkflowState(ctx, request)
+	if err == nil || errors.Is(err, consts.ErrDuplicate) {
+		return &historyservice.ReplicateWorkflowStateResponse{}, nil
+	}
+	return nil, err
 }
 
 // SyncShardStatus is called by processor to sync history shard information from another cluster
 func (h *Handler) SyncShardStatus(ctx context.Context, request *historyservice.SyncShardStatusRequest) (_ *historyservice.SyncShardStatusResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistorySyncShardStatusScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, "", "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
 	if request.GetSourceCluster() == "" {
-		return nil, h.error(errSourceClusterNotSet, scope, "", "")
+		return nil, h.convertError(errSourceClusterNotSet)
 	}
 
 	if request.GetShardId() == 0 {
-		return nil, h.error(errShardIDNotSet, scope, "", "")
+		return nil, h.convertError(errShardIDNotSet)
 	}
 
-	if request.GetTimestamp() == 0 {
-		return nil, h.error(errTimestampNotSet, scope, "", "")
+	if timestamp.TimeValue(request.GetStatusTime()).IsZero() {
+		return nil, h.convertError(errTimestampNotSet)
 	}
 
-	// shard ID is already provided in the request
-	engine, err := h.controller.getEngineForShard(int(request.GetShardId()))
+	shardContext, err := h.controller.GetShardByID(request.GetShardId())
 	if err != nil {
-		return nil, h.error(err, scope, "", "")
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	err = engine.SyncShardStatus(ctx, request)
 	if err != nil {
-		return nil, h.error(err, scope, "", "")
+		return nil, h.convertError(err)
 	}
 
 	return &historyservice.SyncShardStatusResponse{}, nil
@@ -1287,40 +1571,42 @@ func (h *Handler) SyncShardStatus(ctx context.Context, request *historyservice.S
 
 // SyncActivity is called by processor to sync activity
 func (h *Handler) SyncActivity(ctx context.Context, request *historyservice.SyncActivityRequest) (_ *historyservice.SyncActivityResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistorySyncActivityScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	if request.GetNamespaceId() == "" || uuid.Parse(request.GetNamespaceId()) == nil {
-		return nil, h.error(errNamespaceNotSet, scope, namespaceID, "")
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	if ok := h.rateLimiter.Allow(); !ok {
-		return nil, h.error(errHistoryHostThrottle, scope, namespaceID, "")
+	if err := api.ValidateReplicationConfig(h.clusterMetadata); err != nil {
+		return nil, err
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if request.GetNamespaceId() == "" || uuid.Validate(request.GetNamespaceId()) != nil {
+		return nil, h.convertError(errNamespaceNotSet)
 	}
 
 	if request.GetWorkflowId() == "" {
-		return nil, h.error(errWorkflowIDNotSet, scope, namespaceID, "")
+		return nil, h.convertError(errWorkflowIDNotSet)
 	}
 
-	if request.GetRunId() == "" || uuid.Parse(request.GetRunId()) == nil {
-		return nil, h.error(errRunIDNotValid, scope, namespaceID, "")
+	if request.GetRunId() == "" || uuid.Validate(request.GetRunId()) != nil {
+		return nil, h.convertError(errRunIDNotValid)
 	}
 
 	workflowID := request.GetWorkflowId()
-	engine, err := h.controller.GetEngine(workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
 	if err != nil {
-		return nil, h.error(err, scope, namespaceID, workflowID)
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	err = engine.SyncActivity(ctx, request)
 	if err != nil {
-		return nil, h.error(err, scope, namespaceID, workflowID)
+		return nil, h.convertError(err)
 	}
 
 	return &historyservice.SyncActivityResponse{}, nil
@@ -1328,122 +1614,134 @@ func (h *Handler) SyncActivity(ctx context.Context, request *historyservice.Sync
 
 // GetReplicationMessages is called by remote peers to get replicated messages for cross DC replication
 func (h *Handler) GetReplicationMessages(ctx context.Context, request *historyservice.GetReplicationMessagesRequest) (_ *historyservice.GetReplicationMessagesResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	h.GetLogger().Debug("Received GetReplicationMessages call.")
-
-	scope := metrics.HistoryGetReplicationMessagesScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+	if err := api.ValidateReplicationConfig(h.clusterMetadata); err != nil {
+		return nil, err
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(len(request.Tokens))
 	result := new(sync.Map)
 
 	for _, token := range request.Tokens {
-		go func(token *replicationgenpb.ReplicationToken) {
+		go func(token *replicationspb.ReplicationToken) {
 			defer wg.Done()
 
-			engine, err := h.controller.getEngineForShard(int(token.GetShardId()))
+			shardContext, err := h.controller.GetShardByID(token.GetShardId())
 			if err != nil {
-				h.GetLogger().Warn("History engine not found for shard", tag.Error(err))
+				h.logger.Warn("History engine not found for shard", tag.Error(err))
 				return
 			}
-			tasks, err := engine.GetReplicationMessages(
+			engine, err := shardContext.GetEngine(ctx)
+			if err != nil {
+				h.logger.Warn("History engine not found for shard", tag.Error(err))
+				return
+			}
+
+			replicationTasks, err := engine.GetReplicationMessages(
 				ctx,
 				request.GetClusterName(),
+				token.GetLastProcessedMessageId(),
+				timestamp.TimeValue(token.LastProcessedVisibilityTime),
 				token.GetLastRetrievedMessageId(),
 			)
 			if err != nil {
-				h.GetLogger().Warn("Failed to get replication tasks for shard", tag.Error(err))
+				h.logger.Warn("Failed to get replication tasks for shard", tag.Error(err))
 				return
 			}
 
-			result.Store(token.GetShardId(), tasks)
+			result.Store(token.GetShardId(), replicationTasks)
 		}(token)
 	}
 
 	wg.Wait()
 
-	messagesByShard := make(map[int32]*replicationgenpb.ReplicationMessages)
+	messagesByShard := make(map[int32]*replicationspb.ReplicationMessages)
 	result.Range(func(key, value interface{}) bool {
 		shardID := key.(int32)
-		tasks := value.(*replicationgenpb.ReplicationMessages)
-		messagesByShard[shardID] = tasks
+		messagesByShard[shardID] = value.(*replicationspb.ReplicationMessages)
 		return true
 	})
 
-	h.GetLogger().Debug("GetReplicationMessages succeeded.")
+	h.logger.Debug("GetReplicationMessages succeeded.")
 
-	return &historyservice.GetReplicationMessagesResponse{MessagesByShard: messagesByShard}, nil
+	return &historyservice.GetReplicationMessagesResponse{ShardMessages: messagesByShard}, nil
 }
 
 // GetDLQReplicationMessages is called by remote peers to get replicated messages for DLQ merging
 func (h *Handler) GetDLQReplicationMessages(ctx context.Context, request *historyservice.GetDLQReplicationMessagesRequest) (_ *historyservice.GetDLQReplicationMessagesResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryGetDLQReplicationMessagesScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+	if err := api.ValidateReplicationConfig(h.clusterMetadata); err != nil {
+		return nil, err
+	}
 
-	taskInfoPerExecution := map[definition.WorkflowIdentifier][]*replicationgenpb.ReplicationTaskInfo{}
+	taskInfoPerShard := map[int32][]*replicationspb.ReplicationTaskInfo{}
 	// do batch based on workflow ID and run ID
 	for _, taskInfo := range request.GetTaskInfos() {
-		identity := definition.NewWorkflowIdentifier(
-			taskInfo.GetNamespaceId(),
+		shardID := h.config.GetShardID(
+			namespace.ID(taskInfo.GetNamespaceId()),
 			taskInfo.GetWorkflowId(),
-			taskInfo.GetRunId(),
 		)
-		if _, ok := taskInfoPerExecution[identity]; !ok {
-			taskInfoPerExecution[identity] = []*replicationgenpb.ReplicationTaskInfo{}
+		if _, ok := taskInfoPerShard[shardID]; !ok {
+			taskInfoPerShard[shardID] = []*replicationspb.ReplicationTaskInfo{}
 		}
-		taskInfoPerExecution[identity] = append(taskInfoPerExecution[identity], taskInfo)
+		taskInfoPerShard[shardID] = append(taskInfoPerShard[shardID], taskInfo)
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(len(taskInfoPerExecution))
-	tasksChan := make(chan *replicationgenpb.ReplicationTask, len(request.GetTaskInfos()))
-	handleTaskInfoPerExecution := func(taskInfos []*replicationgenpb.ReplicationTaskInfo) {
+	wg.Add(len(taskInfoPerShard))
+	tasksChan := make(chan *replicationspb.ReplicationTask, len(request.GetTaskInfos()))
+	handleTaskInfoPerShard := func(taskInfos []*replicationspb.ReplicationTaskInfo) {
 		defer wg.Done()
 		if len(taskInfos) == 0 {
 			return
 		}
 
-		engine, err := h.controller.GetEngine(
+		shardContext, err := h.controller.GetShardByNamespaceWorkflow(
+			namespace.ID(taskInfos[0].GetNamespaceId()),
 			taskInfos[0].GetWorkflowId(),
 		)
 		if err != nil {
-			h.GetLogger().Warn("History engine not found for workflow ID.", tag.Error(err))
+			h.logger.Warn("History engine not found for workflow ID.", tag.Error(err))
+			return
+		}
+		engine, err := shardContext.GetEngine(ctx)
+		if err != nil {
+			h.logger.Warn("History engine not found for workflow ID.", tag.Error(err))
 			return
 		}
 
-		tasks, err := engine.GetDLQReplicationMessages(
+		dlqTasks, err := engine.GetDLQReplicationMessages(
 			ctx,
 			taskInfos,
 		)
 		if err != nil {
-			h.GetLogger().Error("Failed to get dlq replication tasks.", tag.Error(err))
+			h.logger.Error("Failed to get dlq replication tasks.", tag.Error(err))
 			return
 		}
 
-		for _, task := range tasks {
-			tasksChan <- task
+		for _, t := range dlqTasks {
+			tasksChan <- t
 		}
 	}
 
-	for _, replicationTaskInfos := range taskInfoPerExecution {
-		go handleTaskInfoPerExecution(replicationTaskInfos)
+	for _, replicationTaskInfos := range taskInfoPerShard {
+		go handleTaskInfoPerShard(replicationTaskInfos)
 	}
 	wg.Wait()
 	close(tasksChan)
 
-	replicationTasks := make([]*replicationgenpb.ReplicationTask, len(tasksChan))
-	for task := range tasksChan {
-		replicationTasks = append(replicationTasks, task)
+	replicationTasks := make([]*replicationspb.ReplicationTask, 0, len(tasksChan))
+	for t := range tasksChan {
+		replicationTasks = append(replicationTasks, t)
 	}
 	return &historyservice.GetDLQReplicationMessagesResponse{
 		ReplicationTasks: replicationTasks,
@@ -1452,61 +1750,64 @@ func (h *Handler) GetDLQReplicationMessages(ctx context.Context, request *histor
 
 // ReapplyEvents applies stale events to the current workflow and the current run
 func (h *Handler) ReapplyEvents(ctx context.Context, request *historyservice.ReapplyEventsRequest) (_ *historyservice.ReapplyEventsResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
-	h.startWG.Wait()
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	scope := metrics.HistoryReapplyEventsScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	namespaceID := request.GetNamespaceId()
-	workflowID := request.GetRequest().GetWorkflowExecution().GetWorkflowId()
-	engine, err := h.controller.GetEngine(workflowID)
-	if err != nil {
-		return nil, h.error(err, scope, namespaceID, workflowID)
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	workflowID := request.GetRequest().GetWorkflowExecution().GetWorkflowId()
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
 	// deserialize history event object
-	historyEvents, err := h.GetPayloadSerializer().DeserializeBatchEvents(&serialization.DataBlob{
-		Encoding: common.EncodingTypeProto3,
-		Data:     request.GetRequest().GetEvents().GetData(),
+	historyEvents, err := h.payloadSerializer.DeserializeEvents(&commonpb.DataBlob{
+		EncodingType: enumspb.ENCODING_TYPE_PROTO3,
+		Data:         request.GetRequest().GetEvents().GetData(),
 	})
 	if err != nil {
-		return nil, h.error(err, scope, namespaceID, workflowID)
+		return nil, h.convertError(err)
 	}
 
 	execution := request.GetRequest().GetWorkflowExecution()
 	if err := engine.ReapplyEvents(
 		ctx,
-		request.GetNamespaceId(),
+		namespace.ID(request.GetNamespaceId()),
 		execution.GetWorkflowId(),
 		execution.GetRunId(),
 		historyEvents,
 	); err != nil {
-		return nil, h.error(err, scope, namespaceID, workflowID)
+		return nil, h.convertError(err)
 	}
 	return &historyservice.ReapplyEventsResponse{}, nil
 }
 
-func (h *Handler) ReadDLQMessages(ctx context.Context, request *historyservice.ReadDLQMessagesRequest) (_ *historyservice.ReadDLQMessagesResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
+func (h *Handler) GetDLQMessages(ctx context.Context, request *historyservice.GetDLQMessagesRequest) (_ *historyservice.GetDLQMessagesResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	h.startWG.Wait()
-
-	scope := metrics.HistoryReadDLQMessagesScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	engine, err := h.controller.getEngineForShard(int(request.GetShardId()))
-	if err != nil {
-		err = h.error(err, scope, "", "")
-		return nil, err
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	resp, err := engine.ReadDLQMessages(ctx, request)
+	shardContext, err := h.controller.GetShardByID(request.GetShardId())
 	if err != nil {
-		err = h.error(err, scope, "", "")
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	resp, err := engine.GetDLQMessages(ctx, request)
+	if err != nil {
+		err = h.convertError(err)
 		return nil, err
 	}
 
@@ -1514,48 +1815,47 @@ func (h *Handler) ReadDLQMessages(ctx context.Context, request *historyservice.R
 }
 
 func (h *Handler) PurgeDLQMessages(ctx context.Context, request *historyservice.PurgeDLQMessagesRequest) (_ *historyservice.PurgeDLQMessagesResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	h.startWG.Wait()
-
-	scope := metrics.HistoryPurgeDLQMessagesScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	engine, err := h.controller.getEngineForShard(int(request.GetShardId()))
-	if err != nil {
-		err = h.error(err, scope, "", "")
-		return nil, err
+	if h.isStopped() {
+		return nil, errShuttingDown
 	}
 
-	err = engine.PurgeDLQMessages(ctx, request)
+	shardContext, err := h.controller.GetShardByID(request.GetShardId())
 	if err != nil {
-		err = h.error(err, scope, "", "")
-		return nil, err
+		return nil, h.convertError(err)
 	}
-	return &historyservice.PurgeDLQMessagesResponse{}, nil
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	resp, err := engine.PurgeDLQMessages(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return resp, nil
 }
 
 func (h *Handler) MergeDLQMessages(ctx context.Context, request *historyservice.MergeDLQMessagesRequest) (_ *historyservice.MergeDLQMessagesResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	h.startWG.Wait()
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
 
-	scope := metrics.HistoryMergeDLQMessagesScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-
-	engine, err := h.controller.getEngineForShard(int(request.GetShardId()))
+	shardContext, err := h.controller.GetShardByID(request.GetShardId())
 	if err != nil {
-		err = h.error(err, scope, "", "")
-		return nil, err
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	resp, err := engine.MergeDLQMessages(ctx, request)
 	if err != nil {
-		err = h.error(err, scope, "", "")
+		err = h.convertError(err)
 		return nil, err
 	}
 
@@ -1563,154 +1863,816 @@ func (h *Handler) MergeDLQMessages(ctx context.Context, request *historyservice.
 }
 
 func (h *Handler) RefreshWorkflowTasks(ctx context.Context, request *historyservice.RefreshWorkflowTasksRequest) (_ *historyservice.RefreshWorkflowTasksResponse, retError error) {
-	defer log.CapturePanicGRPC(h.GetLogger(), &retError)
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
 
-	h.startWG.Wait()
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
 
-	scope := metrics.HistoryRefreshWorkflowTasksScope
-	h.GetMetricsClient().IncCounter(scope, metrics.ServiceRequests)
-	sw := h.GetMetricsClient().StartTimer(scope, metrics.ServiceLatency)
-	defer sw.Stop()
-	namespaceID := request.GetNamespaceId()
+	namespaceID := namespace.ID(request.GetNamespaceId())
 	execution := request.GetRequest().GetExecution()
 	workflowID := execution.GetWorkflowId()
-	engine, err := h.controller.GetEngine(workflowID)
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
 	if err != nil {
-		err = h.error(err, scope, namespaceID, workflowID)
-		return nil, err
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
 	}
 
 	err = engine.RefreshWorkflowTasks(
 		ctx,
 		namespaceID,
-		executionpb.WorkflowExecution{
-			WorkflowId: execution.WorkflowId,
-			RunId:      execution.RunId,
-		},
+		execution,
+		request.GetArchetypeId(),
 	)
 
 	if err != nil {
-		err = h.error(err, scope, namespaceID, workflowID)
+		err = h.convertError(err)
 		return nil, err
 	}
 
 	return &historyservice.RefreshWorkflowTasksResponse{}, nil
 }
 
+func (h *Handler) GenerateLastHistoryReplicationTasks(
+	ctx context.Context,
+	request *historyservice.GenerateLastHistoryReplicationTasksRequest,
+) (_ *historyservice.GenerateLastHistoryReplicationTasksResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	workflowID := request.GetExecution().GetWorkflowId()
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	resp, err := engine.GenerateLastHistoryReplicationTasks(ctx, request)
+
+	if err != nil {
+		err = h.convertError(err)
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (h *Handler) GetReplicationStatus(
+	ctx context.Context,
+	request *historyservice.GetReplicationStatusRequest,
+) (_ *historyservice.GetReplicationStatusResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+	if err := api.ValidateReplicationConfig(h.clusterMetadata); err != nil {
+		return nil, err
+	}
+
+	resp := &historyservice.GetReplicationStatusResponse{}
+	for _, shardID := range h.controller.ShardIDs() {
+		shardContext, err := h.controller.GetShardByID(shardID)
+		if err != nil {
+			return nil, h.convertError(err)
+		}
+		engine, err := shardContext.GetEngine(ctx)
+		if err != nil {
+			return nil, h.convertError(err)
+		}
+
+		status, err := engine.GetReplicationStatus(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+		resp.Shards = append(resp.Shards, status)
+	}
+	return resp, nil
+}
+
+func (h *Handler) DeleteWorkflowVisibilityRecord(
+	ctx context.Context,
+	request *historyservice.DeleteWorkflowVisibilityRecordRequest,
+) (_ *historyservice.DeleteWorkflowVisibilityRecordResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, errNamespaceNotSet
+	}
+
+	if request.Execution == nil {
+		return nil, errWorkflowExecutionNotSet
+	}
+
+	// NOTE: the deletion is best effort, for sql visibility implementation,
+	// we can't guarantee there's no update or record close request for this workflow since
+	// visibility queue processing is async. Operator can call this api (through admin workflow
+	// delete) again to delete again if this happens.
+	// For ES implementation, we used max int64 as the TaskID (version) to make sure deletion is
+	// the last operation applied for this workflow
+	err := h.persistenceVisibilityManager.DeleteWorkflowExecution(ctx, &manager.VisibilityDeleteWorkflowExecutionRequest{
+		NamespaceID: namespaceID,
+		WorkflowID:  request.Execution.GetWorkflowId(),
+		RunID:       request.Execution.GetRunId(),
+		TaskID:      math.MaxInt64,
+	})
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	return &historyservice.DeleteWorkflowVisibilityRecordResponse{}, nil
+}
+
+func (h *Handler) UpdateWorkflowExecution(
+	ctx context.Context,
+	request *historyservice.UpdateWorkflowExecutionRequest,
+) (_ *historyservice.UpdateWorkflowExecutionResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(
+		namespace.ID(request.GetNamespaceId()),
+		request.GetRequest().GetWorkflowExecution().GetWorkflowId(),
+	)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	return engine.UpdateWorkflowExecution(ctx, request)
+}
+
+func (h *Handler) PollWorkflowExecutionUpdate(
+	ctx context.Context,
+	request *historyservice.PollWorkflowExecutionUpdateRequest,
+) (_ *historyservice.PollWorkflowExecutionUpdateResponse, retErr error) {
+	defer log.CapturePanic(h.logger, &retErr)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(
+		namespace.ID(request.GetNamespaceId()),
+		request.GetRequest().GetUpdateRef().GetWorkflowExecution().GetWorkflowId(),
+	)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	return engine.PollWorkflowExecutionUpdate(ctx, request)
+}
+
+func (h *Handler) StreamWorkflowReplicationMessages(
+	server historyservice.HistoryService_StreamWorkflowReplicationMessagesServer,
+) (retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return errShuttingDown
+	}
+
+	getter := headers.NewGRPCHeaderGetter(server.Context())
+	clientClusterShardID, serverClusterShardID, err := history.DecodeClusterShardMD(getter)
+	if err != nil {
+		return err
+	}
+	if serverClusterShardID.ClusterID != int32(h.clusterMetadata.GetClusterID()) {
+		return serviceerror.NewInvalidArgumentf(
+			"wrong cluster: target: %v, current: %v",
+			serverClusterShardID.ClusterID,
+			h.clusterMetadata.GetClusterID(),
+		)
+	}
+	shardContext, err := h.controller.GetShardByID(serverClusterShardID.ShardID)
+	if err != nil {
+		return h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(server.Context())
+	if err != nil {
+		return h.convertError(err)
+	}
+	allClusterInfo := shardContext.GetClusterMetadata().GetAllClusterInfo()
+	clientClusterName, clientShardCount, err := replication.ClusterIDToClusterNameShardCount(allClusterInfo, clientClusterShardID.ClusterID)
+	if err != nil {
+		return h.convertError(err)
+	}
+	_, serverShardCount, err := replication.ClusterIDToClusterNameShardCount(allClusterInfo, int32(shardContext.GetClusterMetadata().GetClusterID()))
+	if err != nil {
+		return h.convertError(err)
+	}
+	err = common.VerifyShardIDMapping(clientShardCount, serverShardCount, clientClusterShardID.ShardID, serverClusterShardID.ShardID)
+	if err != nil {
+		return h.convertError(err)
+	}
+	streamSender := replication.NewStreamSender(
+		server,
+		shardContext,
+		engine,
+		h.replicationServerRateLimiter,
+		h.replicationTaskConverterProvider(
+			engine,
+			shardContext,
+			clientClusterName,
+			serialization.NewSerializer(),
+		),
+		clientClusterName,
+		clientShardCount,
+		replication.NewClusterShardKey(clientClusterShardID.ClusterID, clientClusterShardID.ShardID),
+		replication.NewClusterShardKey(serverClusterShardID.ClusterID, serverClusterShardID.ShardID),
+		h.config,
+	)
+	streamSender.Start()
+	h.streamReceiverMonitor.RegisterInboundStream(streamSender)
+	defer streamSender.Stop()
+	streamSender.Wait()
+	return nil
+}
+
+func (h *Handler) GetWorkflowExecutionHistory(
+	ctx context.Context,
+	request *historyservice.GetWorkflowExecutionHistoryRequest,
+) (_ *historyservice.GetWorkflowExecutionHistoryResponseWithRaw, retErr error) {
+	defer log.CapturePanic(h.logger, &retErr)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(
+		namespace.ID(request.GetNamespaceId()),
+		request.Request.GetExecution().GetWorkflowId(),
+	)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	return engine.GetWorkflowExecutionHistory(ctx, request)
+}
+
+func (h *Handler) GetWorkflowExecutionHistoryReverse(
+	ctx context.Context,
+	request *historyservice.GetWorkflowExecutionHistoryReverseRequest,
+) (_ *historyservice.GetWorkflowExecutionHistoryReverseResponse, retErr error) {
+	defer log.CapturePanic(h.logger, &retErr)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(
+		namespace.ID(request.GetNamespaceId()),
+		request.GetRequest().GetExecution().GetWorkflowId(),
+	)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	return engine.GetWorkflowExecutionHistoryReverse(ctx, request)
+}
+
+func (h *Handler) GetWorkflowExecutionRawHistory(
+	ctx context.Context,
+	request *historyservice.GetWorkflowExecutionRawHistoryRequest,
+) (_ *historyservice.GetWorkflowExecutionRawHistoryResponse, retErr error) {
+	defer log.CapturePanic(h.logger, &retErr)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(
+		namespace.ID(request.GetNamespaceId()),
+		request.GetRequest().GetExecution().GetWorkflowId(),
+	)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	return engine.GetWorkflowExecutionRawHistory(ctx, request)
+}
+
+func (h *Handler) GetWorkflowExecutionRawHistoryV2(
+	ctx context.Context,
+	request *historyservice.GetWorkflowExecutionRawHistoryV2Request,
+) (_ *historyservice.GetWorkflowExecutionRawHistoryV2Response, retErr error) {
+	defer log.CapturePanic(h.logger, &retErr)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(
+		namespace.ID(request.GetNamespaceId()),
+		request.GetRequest().GetExecution().GetWorkflowId(),
+	)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	return engine.GetWorkflowExecutionRawHistoryV2(ctx, request)
+}
+
+func (h *Handler) ForceDeleteWorkflowExecution(
+	ctx context.Context,
+	request *historyservice.ForceDeleteWorkflowExecutionRequest,
+) (_ *historyservice.ForceDeleteWorkflowExecutionResponse, retErr error) {
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	err := api.ValidateNamespaceUUID(namespaceID)
+	if err != nil {
+		return nil, err
+	}
+	shardID := common.WorkflowIDToHistoryShard(
+		namespaceID.String(),
+		request.Request.Execution.WorkflowId,
+		h.config.NumberOfShards,
+	)
+
+	workflowExecution := request.GetRequest().GetExecution()
+	h.logger.Info("ForceDeleteWorkflowExecution requested",
+		tag.WorkflowNamespaceID(request.GetNamespaceId()),
+		tag.WorkflowID(workflowExecution.GetWorkflowId()),
+		tag.WorkflowRunID(workflowExecution.GetRunId()))
+
+	return forcedeleteworkflowexecution.Invoke(
+		ctx,
+		request,
+		shardID,
+		h.chasmRegistry,
+		h.persistenceExecutionManager,
+		h.persistenceVisibilityManager,
+		h.logger,
+	)
+}
+
+func (h *Handler) GetDLQTasks(
+	ctx context.Context,
+	request *historyservice.GetDLQTasksRequest,
+) (*historyservice.GetDLQTasksResponse, error) {
+	return getdlqtasks.Invoke(ctx, h.taskQueueManager, h.taskCategoryRegistry, request)
+}
+
+func (h *Handler) DeleteDLQTasks(
+	ctx context.Context,
+	request *historyservice.DeleteDLQTasksRequest,
+) (*historyservice.DeleteDLQTasksResponse, error) {
+	return deletedlqtasks.Invoke(ctx, h.taskQueueManager, request, h.taskCategoryRegistry)
+}
+
+// AddTasks calls the [addtasks.Invoke] API with a [shard.Context] for the given shardID.
+func (h *Handler) AddTasks(
+	ctx context.Context,
+	request *historyservice.AddTasksRequest,
+) (*historyservice.AddTasksResponse, error) {
+	shardContext, err := h.controller.GetShardByID(request.ShardId)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return engine.AddTasks(ctx, request)
+}
+
+func (h *Handler) ListQueues(
+	ctx context.Context,
+	request *historyservice.ListQueuesRequest,
+) (*historyservice.ListQueuesResponse, error) {
+	return listqueues.Invoke(ctx, h.taskQueueManager, request)
+}
+
+func (h *Handler) ListTasks(
+	ctx context.Context,
+	request *historyservice.ListTasksRequest,
+) (_ *historyservice.ListTasksResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	shardContext, err := h.controller.GetShardByID(request.Request.GetShardId())
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	resp, err := engine.ListTasks(ctx, request)
+	if err != nil {
+		err = h.convertError(err)
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (h *Handler) CompleteNexusOperation(ctx context.Context, request *historyservice.CompleteNexusOperationRequest) (_ *historyservice.CompleteNexusOperationResponse, retErr error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retErr)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespace.ID(request.Completion.NamespaceId), request.Completion.WorkflowId)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	ref := hsm.Ref{
+		WorkflowKey:     definition.NewWorkflowKey(request.Completion.NamespaceId, request.Completion.WorkflowId, request.Completion.RunId),
+		StateMachineRef: request.Completion.Ref,
+	}
+	var opErr *nexus.OperationError
+	if request.State != string(nexus.OperationStateSucceeded) {
+		opErr = &nexus.OperationError{
+			State: nexus.OperationState(request.GetState()),
+			Cause: &nexus.FailureError{
+				Failure: commonnexus.ProtoFailureToNexusFailure(request.GetFailure()),
+			},
+		}
+	}
+	err = nexusoperations.CompletionHandler(
+		ctx,
+		engine.StateMachineEnvironment(metrics.OperationTag(metrics.HistoryCompleteNexusOperationScope)),
+		ref,
+		request.Completion.RequestId,
+		request.OperationToken,
+		request.StartTime,
+		request.Links,
+		request.GetSuccess(),
+		opErr,
+	)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return &historyservice.CompleteNexusOperationResponse{}, nil
+}
+
+func (h *Handler) CompleteNexusOperationChasm(
+	ctx context.Context,
+	request *historyservice.CompleteNexusOperationChasmRequest,
+) (_ *historyservice.CompleteNexusOperationChasmResponse, retErr error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retErr)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	completion := &persistencespb.ChasmNexusCompletion{
+		CloseTime: request.CloseTime,
+		RequestId: request.Completion.RequestId,
+	}
+	switch variant := request.Outcome.(type) {
+	case *historyservice.CompleteNexusOperationChasmRequest_Failure:
+		completion.Outcome = &persistencespb.ChasmNexusCompletion_Failure{
+			Failure: variant.Failure,
+		}
+	case *historyservice.CompleteNexusOperationChasmRequest_Success:
+		completion.Outcome = &persistencespb.ChasmNexusCompletion_Success{
+			Success: variant.Success,
+		}
+	default:
+		return nil, serviceerror.NewUnimplemented("unhandled Nexus operation outcome")
+	}
+
+	// Attempt to access the component and call its invocation method. We execute
+	// this similarly as we would a pure task (holding an exclusive lock), as the
+	// assumption is that the accessed component will be recording (or generating a
+	// task) based on this result.
+	_, _, err := chasm.UpdateComponent(
+		ctx,
+		request.GetCompletion().GetComponentRef(),
+		func(c chasm.NexusCompletionHandler, ctx chasm.MutableContext, completion *persistencespb.ChasmNexusCompletion) (chasm.NoValue, error) {
+			return nil, c.HandleNexusCompletion(ctx, completion)
+		},
+		completion)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	return &historyservice.CompleteNexusOperationChasmResponse{}, nil
+}
+
 // convertError is a helper method to convert ShardOwnershipLostError from persistence layer returned by various
 // HistoryEngine API calls to ShardOwnershipLost error return by HistoryService for client to be redirected to the
 // correct shard.
 func (h *Handler) convertError(err error) error {
-	switch err.(type) {
-	case *persistence.ShardOwnershipLostError:
-		shardID := err.(*persistence.ShardOwnershipLostError).ShardID
-		info, err := h.GetHistoryServiceResolver().Lookup(string(shardID))
-		if err == nil {
-			return createShardOwnershipLostError(h.GetHostInfo().GetAddress(), info.GetAddress())
-		}
-		return createShardOwnershipLostError(h.GetHostInfo().GetAddress(), "")
-	case *persistence.WorkflowExecutionAlreadyStartedError:
-		err := err.(*persistence.WorkflowExecutionAlreadyStartedError)
-		return serviceerror.NewInternal(err.Msg)
-	case *persistence.CurrentWorkflowConditionFailedError:
-		err := err.(*persistence.CurrentWorkflowConditionFailedError)
-		return serviceerror.NewInternal(err.Msg)
-	case *persistence.TransactionSizeLimitError:
-		err := err.(*persistence.TransactionSizeLimitError)
-		return serviceerror.NewInvalidArgument(err.Msg)
-	}
-
-	return err
-}
-
-func (h *Handler) updateErrorMetric(
-	scope int,
-	namespaceID string,
-	workflowID string,
-	err error,
-) {
-
-	if err == context.DeadlineExceeded || err == context.Canceled {
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrContextTimeoutCounter)
-		return
-	}
-
 	switch err := err.(type) {
-	case *serviceerror.ShardOwnershipLost:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrShardOwnershipLostCounter)
-	case *serviceerror.EventAlreadyStarted:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrEventAlreadyStartedCounter)
-	case *serviceerror.InvalidArgument:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrInvalidArgumentCounter)
-	case *serviceerror.NamespaceNotActive:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrInvalidArgumentCounter)
-	case *serviceerror.WorkflowExecutionAlreadyStarted:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrExecutionAlreadyStartedCounter)
-	case *serviceerror.NotFound:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrNotFoundCounter)
-	case *serviceerror.CancellationAlreadyRequested:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrCancellationAlreadyRequestedCounter)
-	case *serviceerror.ResourceExhausted:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrResourceExhaustedCounter)
-	case *serviceerror.RetryTask:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrRetryTaskCounter)
-	case *serviceerror.RetryTaskV2:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrRetryTaskCounter)
-	case *serviceerror.DeadlineExceeded:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceErrContextTimeoutCounter)
-	case *serviceerror.Internal:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceFailures)
-		h.GetLogger().Error("Internal service error",
-			tag.Error(err),
-			tag.WorkflowID(workflowID),
-			tag.WorkflowNamespaceID(namespaceID))
-	default:
-		h.GetMetricsClient().IncCounter(scope, metrics.ServiceFailures)
-		h.getLoggerWithTags(namespaceID, workflowID).Error("Uncategorized error", tag.Error(err))
+	case *persistence.ShardOwnershipLostError:
+		hostInfo := h.hostInfoProvider.HostInfo()
+		if ownerInfo, err := h.historyServiceResolver.Lookup(convert.Int32ToString(err.ShardID)); err == nil {
+			return serviceerrors.NewShardOwnershipLost(ownerInfo.GetAddress(), hostInfo.GetAddress())
+		}
+		return serviceerrors.NewShardOwnershipLost("", hostInfo.GetAddress())
+	case *persistence.AppendHistoryTimeoutError:
+		return serviceerror.NewUnavailable(err.Msg)
+	case *persistence.WorkflowConditionFailedError:
+		return serviceerror.NewUnavailable(err.Msg)
+	case *persistence.CurrentWorkflowConditionFailedError:
+		return serviceerror.NewUnavailable(err.Msg)
+	case *persistence.TransactionSizeLimitError:
+		return serviceerror.NewInvalidArgument(err.Msg)
+	case *persistence.TimeoutError:
+		return serviceerror.NewDeadlineExceeded(err.Msg)
 	}
-}
-
-func (h *Handler) error(
-	err error,
-	scope int,
-	namespaceID string,
-	workflowID string,
-) error {
-
-	err = h.convertError(err)
-	h.updateErrorMetric(scope, namespaceID, workflowID, err)
 
 	return err
 }
 
-func (h *Handler) getLoggerWithTags(
-	namespaceID string,
-	workflowID string,
-) log.Logger {
-
-	logger := h.GetLogger()
-	if namespaceID != "" {
-		logger = logger.WithTags(tag.WorkflowNamespaceID(namespaceID))
+func validateTaskToken(taskToken *tokenspb.Task) error {
+	if len(taskToken.GetComponentRef()) == 0 && taskToken.GetWorkflowId() == "" {
+		return errBusinessIDNotSet
 	}
 
-	if workflowID != "" {
-		logger = logger.WithTags(tag.WorkflowID(workflowID))
-	}
-
-	return logger
-}
-
-func createShardOwnershipLostError(
-	currentHost string,
-	ownerHost string,
-) *serviceerror.ShardOwnershipLost {
-
-	return serviceerror.NewShardOwnershipLost(fmt.Sprintf("Shard is not owned by host: %v", currentHost), ownerHost)
-}
-
-func validateTaskToken(taskToken *tokengenpb.Task) error {
-	if taskToken.GetWorkflowId() == "" {
-		return errWorkflowIDNotSet
-	}
 	return nil
+}
+
+func (h *Handler) InvokeStateMachineMethod(ctx context.Context, request *historyservice.InvokeStateMachineMethodRequest) (_ *historyservice.InvokeStateMachineMethodResponse, retErr error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retErr)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespace.ID(request.NamespaceId), request.WorkflowId)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	registry := shardContext.StateMachineRegistry()
+
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	ref := hsm.Ref{
+		WorkflowKey:     definition.NewWorkflowKey(request.NamespaceId, request.WorkflowId, request.RunId),
+		StateMachineRef: request.Ref,
+	}
+
+	bytes, err := registry.ExecuteRemoteMethod(
+		ctx,
+		engine.StateMachineEnvironment(metrics.OperationTag(request.MethodName)),
+		ref,
+		request.MethodName,
+		request.Input,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &historyservice.InvokeStateMachineMethodResponse{
+		Output: bytes,
+	}, nil
+}
+
+func (h *Handler) SyncWorkflowState(ctx context.Context, request *historyservice.SyncWorkflowStateRequest) (_ *historyservice.SyncWorkflowStateResponse, retError error) {
+	defer log.CapturePanic(h.logger, &retError)
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+	workflowID := request.Execution.WorkflowId
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	response, err := engine.SyncWorkflowState(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return response, nil
+}
+
+func (h *Handler) UpdateActivityOptions(
+	ctx context.Context, request *historyservice.UpdateActivityOptionsRequest,
+) (response *historyservice.UpdateActivityOptionsResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	workflowID := request.GetUpdateRequest().GetExecution().GetWorkflowId()
+	if request.GetNamespaceId() == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	response, err = engine.UpdateActivityOptions(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return response, nil
+}
+
+func (h *Handler) PauseActivity(
+	ctx context.Context, request *historyservice.PauseActivityRequest,
+) (response *historyservice.PauseActivityResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	workflowID := request.GetFrontendRequest().GetExecution().GetWorkflowId()
+	if request.GetNamespaceId() == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	response, err = engine.PauseActivity(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return response, nil
+}
+
+func (h *Handler) UnpauseActivity(
+	ctx context.Context, request *historyservice.UnpauseActivityRequest,
+) (response *historyservice.UnpauseActivityResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	workflowID := request.GetFrontendRequest().GetExecution().GetWorkflowId()
+	if request.GetNamespaceId() == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	response, err = engine.UnpauseActivity(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return response, nil
+}
+
+func (h *Handler) ResetActivity(
+	ctx context.Context, request *historyservice.ResetActivityRequest,
+) (response *historyservice.ResetActivityResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	workflowID := request.GetFrontendRequest().GetExecution().GetWorkflowId()
+	if request.GetNamespaceId() == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	response, err = engine.ResetActivity(ctx, request)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	return response, nil
+}
+
+// PauseWorkflowExecution is used to pause a running workflow execution. This results in
+// WorkflowExecutionPaused event recorded in the history.
+func (h *Handler) PauseWorkflowExecution(ctx context.Context, request *historyservice.PauseWorkflowExecutionRequest) (_ *historyservice.PauseWorkflowExecutionResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	workflowID := request.GetPauseRequest().GetWorkflowId()
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	resp, err2 := engine.PauseWorkflowExecution(ctx, request)
+	if err2 != nil {
+		return nil, h.convertError(err2)
+	}
+
+	return resp, nil
+}
+
+func (h *Handler) UnpauseWorkflowExecution(ctx context.Context, request *historyservice.UnpauseWorkflowExecutionRequest) (_ *historyservice.UnpauseWorkflowExecutionResponse, retError error) {
+	defer metrics.CapturePanic(h.logger, h.metricsHandler, &retError)
+
+	if h.isStopped() {
+		return nil, errShuttingDown
+	}
+
+	namespaceID := namespace.ID(request.GetNamespaceId())
+	if namespaceID == "" {
+		return nil, h.convertError(errNamespaceNotSet)
+	}
+
+	workflowID := request.GetUnpauseRequest().GetWorkflowId()
+	shardContext, err := h.controller.GetShardByNamespaceWorkflow(namespaceID, workflowID)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+	engine, err := shardContext.GetEngine(ctx)
+	if err != nil {
+		return nil, h.convertError(err)
+	}
+
+	unpauseResp, unpauseErr := engine.UnpauseWorkflowExecution(ctx, request)
+	if unpauseErr != nil {
+		return nil, h.convertError(unpauseErr)
+	}
+
+	return unpauseResp, nil
 }

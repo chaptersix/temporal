@@ -1,43 +1,17 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
-	"os"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/temporalio/temporal/common/log"
-	"github.com/temporalio/temporal/common/log/loggerimpl"
-	"github.com/temporalio/temporal/common/log/tag"
-	"github.com/temporalio/temporal/tools/common/schema"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/persistence"
+	"go.temporal.io/server/tests/testutils"
+	"go.temporal.io/server/tools/common/schema"
 )
 
 type (
@@ -62,12 +36,10 @@ type (
 // SetupSuiteBase sets up the test suite
 func (tb *DBTestBase) SetupSuiteBase(db DB) {
 	tb.Assertions = require.New(tb.T()) // Have to define our overridden assertions in the test setup. If we did it earlier, tb.T() will return nil
-	var err error
-	tb.Log, err = loggerimpl.NewDevelopment()
-	tb.Require().NoError(err)
+	tb.Log = log.NewTestLogger()
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	tb.DBName = fmt.Sprintf("db_client_test_%v", rand.Int63())
-	err = db.CreateDatabase(tb.DBName)
+	err := db.CreateDatabase(tb.DBName)
 	if err != nil {
 		tb.Log.Fatal("error creating database, ", tag.Error(err))
 	}
@@ -82,17 +54,12 @@ func (tb *DBTestBase) TearDownSuiteBase() {
 
 // RunParseFileTest runs a test against the ParseFile method
 func (tb *DBTestBase) RunParseFileTest(content string) {
-	rootDir, err := ioutil.TempDir("", "dbClientTestDir")
-	tb.Nil(err)
-	defer os.Remove(rootDir)
+	rootDir := testutils.MkdirTemp(tb.T(), "", "dbClientTestDir")
+	cqlFile := testutils.CreateTemp(tb.T(), rootDir, "parseCQLTest")
 
-	cqlFile, err := ioutil.TempFile(rootDir, "parseCQLTest")
-	tb.Nil(err)
-	defer os.Remove(cqlFile.Name())
-
-	_, err = cqlFile.WriteString(content)
+	_, err := cqlFile.WriteString(content)
 	tb.NoError(err)
-	stmts, err := schema.ParseFile(cqlFile.Name())
+	stmts, err := persistence.LoadAndSplitQuery([]string{cqlFile.Name()})
 	tb.Nil(err)
 	tb.Equal(2, len(stmts), "wrong number of sql statements")
 }

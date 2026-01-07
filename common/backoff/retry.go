@@ -1,120 +1,163 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package backoff
 
 import (
-	"sync"
+	"context"
+	"math"
 	"time"
+
+	commonpb "go.temporal.io/api/common/v1"
+	"go.temporal.io/api/serviceerror"
+	"go.temporal.io/server/common/clock"
+	"google.golang.org/protobuf/types/known/durationpb"
+)
+
+const (
+	throttleRetryInitialInterval    = time.Second
+	throttleRetryMaxInterval        = 10 * time.Second
+	throttleRetryExpirationInterval = NoInterval
+)
+
+var (
+	throttleRetryPolicy = NewExponentialRetryPolicy(throttleRetryInitialInterval).
+		WithMaximumInterval(throttleRetryMaxInterval).
+		WithExpirationInterval(throttleRetryExpirationInterval)
 )
 
 type (
 	// Operation to retry
 	Operation func() error
 
+	// OperationCtx plays the same role as Operation but for context-aware
+	// retryable functions.
+	OperationCtx func(context.Context) error
+
 	// IsRetryable handler can be used to exclude certain errors during retry
 	IsRetryable func(error) bool
-
-	// ConcurrentRetrier is used for client-side throttling. It determines whether to
-	// throttle outgoing traffic in case downstream backend server rejects
-	// requests due to out-of-quota or server busy errors.
-	ConcurrentRetrier struct {
-		sync.Mutex
-		retrier      Retrier // Backoff retrier
-		failureCount int64   // Number of consecutive failures seen
-	}
 )
 
-// Throttle Sleep if there were failures since the last success call.
-func (c *ConcurrentRetrier) Throttle() {
-	c.throttleInternal()
+// ThrottleRetry is a resource aware version of Retry.
+// Resource exhausted error will be retried using a different throttle retry policy, instead of the specified one.
+func ThrottleRetry(operation Operation, policy RetryPolicy, isRetryable IsRetryable) error {
+	ctxOp := func(context.Context) error { return operation() }
+	return ThrottleRetryContext(context.Background(), ctxOp, policy, isRetryable)
 }
 
-func (c *ConcurrentRetrier) throttleInternal() time.Duration {
-	next := done
-
-	// Check if we have failure count.
-	failureCount := c.failureCount
-	if failureCount > 0 {
-		defer c.Unlock()
-		c.Lock()
-		if c.failureCount > 0 {
-			next = c.retrier.NextBackOff()
-		}
-	}
-
-	if next != done {
-		time.Sleep(next)
-	}
-
-	return next
-}
-
-// Succeeded marks client request succeeded.
-func (c *ConcurrentRetrier) Succeeded() {
-	defer c.Unlock()
-	c.Lock()
-	c.failureCount = 0
-	c.retrier.Reset()
-}
-
-// Failed marks client request failed because backend is busy.
-func (c *ConcurrentRetrier) Failed() {
-	defer c.Unlock()
-	c.Lock()
-	c.failureCount++
-}
-
-// NewConcurrentRetrier returns an instance of concurrent backoff retrier.
-func NewConcurrentRetrier(retryPolicy RetryPolicy) *ConcurrentRetrier {
-	retrier := NewRetrier(retryPolicy, SystemClock)
-	return &ConcurrentRetrier{retrier: retrier}
-}
-
-// Retry function can be used to wrap any call with retry logic using the passed in policy
-func Retry(operation Operation, policy RetryPolicy, isRetryable IsRetryable) error {
+// ThrottleRetryContext is a context and resource aware version of Retry.
+// Context timeout/cancellation errors are never retried, regardless of IsRetryable.
+// Resource exhausted error will be retried using a different throttle retry policy, instead of the specified one.
+// TODO: allow customizing throttle retry policy and what kind of error are categorized as throttle error.
+func ThrottleRetryContext(
+	ctx context.Context,
+	operation OperationCtx,
+	policy RetryPolicy,
+	isRetryable IsRetryable,
+) error {
 	var err error
 	var next time.Duration
 
-	r := NewRetrier(policy, SystemClock)
-	for {
-		// operation completed successfully.  No need to retry.
-		if err = operation(); err == nil {
+	if isRetryable == nil {
+		isRetryable = func(error) bool { return true }
+	}
+
+	deadline, hasDeadline := ctx.Deadline()
+
+	timeSrc := clock.NewRealTimeSource()
+	r := NewRetrier(policy, timeSrc)
+	t := NewRetrier(throttleRetryPolicy, timeSrc)
+	for ctx.Err() == nil {
+		if err = operation(ctx); err == nil {
 			return nil
 		}
 
-		if next = r.NextBackOff(); next == done {
+		if next = r.NextBackOff(err); next == done {
 			return err
 		}
 
-		// Check if the error is retryable
-		if isRetryable != nil && !isRetryable(err) {
+		if err == ctx.Err() || !isRetryable(err) {
 			return err
 		}
 
-		time.Sleep(next)
+		if _, ok := err.(*serviceerror.ResourceExhausted); ok {
+			next = max(next, t.NextBackOff(err))
+		}
+
+		if hasDeadline && timeSrc.Now().Add(next).After(deadline) {
+			break
+		}
+
+		timer := time.NewTimer(next)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+		}
 	}
+	// always return the last error we got from operation, even if it is not useful
+	// this retry utility does not have enough information to do any filtering/mapping
+	if err != nil {
+		return err
+	}
+	return ctx.Err()
+}
+
+// ThrottleRetryContextWithReturn is a context and resource aware version of Retry.
+// Context timeout/cancellation errors are never retried, regardless of IsRetryable.
+// Resource exhausted error will be retried using a different throttle retry policy, instead of the specified one.
+// TODO: allow customizing throttle retry policy and what kind of error are categorized as throttle error.
+func ThrottleRetryContextWithReturn[T any](
+	ctx context.Context,
+	fn func(context.Context) (T, error),
+	policy RetryPolicy,
+	isRetryable IsRetryable,
+) (T, error) {
+	var zero T
+	var err error
+	var next time.Duration
+
+	if isRetryable == nil {
+		isRetryable = func(error) bool { return true }
+	}
+
+	deadline, hasDeadline := ctx.Deadline()
+
+	timeSrc := clock.NewRealTimeSource()
+	r := NewRetrier(policy, timeSrc)
+	t := NewRetrier(throttleRetryPolicy, timeSrc)
+	for ctx.Err() == nil {
+		result, err := fn(ctx)
+		if err == nil {
+			return result, nil
+		}
+
+		if next = r.NextBackOff(err); next == done {
+			return zero, err
+		}
+
+		if err == ctx.Err() || !isRetryable(err) {
+			return zero, err
+		}
+
+		if _, ok := err.(*serviceerror.ResourceExhausted); ok {
+			next = max(next, t.NextBackOff(err))
+		}
+
+		if hasDeadline && timeSrc.Now().Add(next).After(deadline) {
+			break
+		}
+
+		timer := time.NewTimer(next)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+		}
+	}
+	// always return the last error we got from operation, even if it is not useful
+	// this retry utility does not have enough information to do any filtering/mapping
+	if err != nil {
+		return zero, err
+	}
+	return zero, ctx.Err()
 }
 
 // IgnoreErrors can be used as IsRetryable handler for Retry function to exclude certain errors from the retry list
@@ -128,4 +171,41 @@ func IgnoreErrors(errorsToExclude []error) func(error) bool {
 
 		return true
 	}
+}
+
+// BackoffCalculatorAlgorithmFunc is a function type that calculates backoff duration based on
+// initial duration, coefficient, and current attempt number.
+type BackoffCalculatorAlgorithmFunc func(duration *durationpb.Duration, coefficient float64, currentAttempt int32) time.Duration
+
+// ExponentialBackoffAlgorithm calculates the backoff duration using exponential algorithm.
+// The result is initInterval * (backoffCoefficient ^ (currentAttempt - 1)).
+// If the calculation overflows int64, it returns the maximum possible duration. A negative result will also never be returned.
+func ExponentialBackoffAlgorithm(initInterval *durationpb.Duration, backoffCoefficient float64, currentAttempt int32) time.Duration {
+	result := float64(initInterval.AsDuration().Nanoseconds()) * math.Pow(backoffCoefficient, float64(currentAttempt-1))
+	return time.Duration(max(0, min(int64(result), math.MaxInt64)))
+}
+
+// MakeBackoffAlgorithm creates a BackoffCalculatorAlgorithmFunc that returns a fixed delay if requestedDelay is non-nil,
+// otherwise falls back to exponential backoff algorithm.
+func MakeBackoffAlgorithm(requestedDelay *time.Duration) BackoffCalculatorAlgorithmFunc {
+	return func(duration *durationpb.Duration, coefficient float64, currentAttempt int32) time.Duration {
+		if requestedDelay != nil {
+			return *requestedDelay
+		}
+		return ExponentialBackoffAlgorithm(duration, coefficient, currentAttempt)
+	}
+}
+
+// CalculateExponentialRetryInterval calculates the retry interval using exponential backoff algorithm
+func CalculateExponentialRetryInterval(retryPolicy *commonpb.RetryPolicy, attempt int32) time.Duration {
+	interval := ExponentialBackoffAlgorithm(retryPolicy.GetInitialInterval(), retryPolicy.GetBackoffCoefficient(), attempt)
+
+	maxInterval := retryPolicy.GetMaximumInterval()
+
+	// Cap interval to maximum if it's set
+	if maxInterval.AsDuration() != 0 && interval > maxInterval.AsDuration() {
+		interval = maxInterval.AsDuration()
+	}
+
+	return interval
 }

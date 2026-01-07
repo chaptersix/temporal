@@ -1,31 +1,6 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package filestore
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -33,12 +8,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	eventpb "go.temporal.io/temporal-proto/event"
-	executionpb "go.temporal.io/temporal-proto/execution"
-
-	"github.com/temporalio/temporal/common"
-	"github.com/temporalio/temporal/common/archiver"
-	"github.com/temporalio/temporal/common/codec"
+	enumspb "go.temporal.io/api/enums/v1"
+	historypb "go.temporal.io/api/history/v1"
+	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/archiver"
+	"go.temporal.io/server/common/codec"
+	"go.temporal.io/server/tests/testutils"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -60,9 +36,7 @@ func (s *UtilSuite) SetupTest() {
 }
 
 func (s *UtilSuite) TestFileExists() {
-	dir, err := ioutil.TempDir("", "TestFileExists")
-	s.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := testutils.MkdirTemp(s.T(), "", "TestFileExists")
 	s.assertDirectoryExists(dir)
 
 	exists, err := fileExists(dir)
@@ -81,9 +55,7 @@ func (s *UtilSuite) TestFileExists() {
 }
 
 func (s *UtilSuite) TestDirectoryExists() {
-	dir, err := ioutil.TempDir("", "TestDirectoryExists")
-	s.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := testutils.MkdirTemp(s.T(), "", "TestDirectoryExists")
 	s.assertDirectoryExists(dir)
 
 	subdir := "subdir"
@@ -100,9 +72,7 @@ func (s *UtilSuite) TestDirectoryExists() {
 }
 
 func (s *UtilSuite) TestMkdirAll() {
-	dir, err := ioutil.TempDir("", "TestMkdirAll")
-	s.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := testutils.MkdirTemp(s.T(), "", "TestMkdirAll")
 	s.assertDirectoryExists(dir)
 
 	s.NoError(mkdirAll(dir, testDirMode))
@@ -121,9 +91,7 @@ func (s *UtilSuite) TestMkdirAll() {
 }
 
 func (s *UtilSuite) TestWriteFile() {
-	dir, err := ioutil.TempDir("", "TestWriteFile")
-	s.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := testutils.MkdirTemp(s.T(), "", "TestWriteFile")
 	s.assertDirectoryExists(dir)
 
 	filename := "test-file-name"
@@ -141,9 +109,7 @@ func (s *UtilSuite) TestWriteFile() {
 }
 
 func (s *UtilSuite) TestReadFile() {
-	dir, err := ioutil.TempDir("", "TestReadFile")
-	s.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := testutils.MkdirTemp(s.T(), "", "TestReadFile")
 	s.assertDirectoryExists(dir)
 
 	filename := "test-file-name"
@@ -160,9 +126,7 @@ func (s *UtilSuite) TestReadFile() {
 }
 
 func (s *UtilSuite) TestListFilesByPrefix() {
-	dir, err := ioutil.TempDir("", "TestListFiles")
-	s.NoError(err)
-	defer os.Remove(dir)
+	dir := testutils.MkdirTemp(s.T(), "", "TestListFiles")
 	s.assertDirectoryExists(dir)
 
 	filename := "test-file-name"
@@ -187,9 +151,10 @@ func (s *UtilSuite) TestListFilesByPrefix() {
 }
 
 func (s *UtilSuite) TestEncodeDecodeHistoryBatches() {
-	historyBatches := []*eventpb.History{
+	now := time.Date(2020, 8, 22, 1, 2, 3, 4, time.UTC)
+	historyBatches := []*historypb.History{
 		{
-			Events: []*eventpb.HistoryEvent{
+			Events: []*historypb.HistoryEvent{
 				{
 					EventId: common.FirstEventID,
 					Version: 1,
@@ -197,16 +162,16 @@ func (s *UtilSuite) TestEncodeDecodeHistoryBatches() {
 			},
 		},
 		{
-			Events: []*eventpb.HistoryEvent{
+			Events: []*historypb.HistoryEvent{
 				{
 					EventId:   common.FirstEventID + 1,
-					Timestamp: time.Now().UnixNano(),
+					EventTime: timestamppb.New(now),
 					Version:   1,
 				},
 				{
 					EventId: common.FirstEventID + 2,
 					Version: 2,
-					Attributes: &eventpb.HistoryEvent_DecisionTaskStartedEventAttributes{DecisionTaskStartedEventAttributes: &eventpb.DecisionTaskStartedEventAttributes{
+					Attributes: &historypb.HistoryEvent_WorkflowTaskStartedEventAttributes{WorkflowTaskStartedEventAttributes: &historypb.WorkflowTaskStartedEventAttributes{
 						Identity: "some random identity",
 					}},
 				},
@@ -224,9 +189,7 @@ func (s *UtilSuite) TestEncodeDecodeHistoryBatches() {
 }
 
 func (s *UtilSuite) TestValidateDirPath() {
-	dir, err := ioutil.TempDir("", "TestValidateDirPath")
-	s.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := testutils.MkdirTemp(s.T(), "", "TestValidateDirPath")
 	s.assertDirectoryExists(dir)
 	filename := "test-file-name"
 	s.createFile(dir, filename)
@@ -330,15 +293,15 @@ func (s *UtilSuite) TestExtractCloseFailoverVersion() {
 
 func (s *UtilSuite) TestHistoryMutated() {
 	testCases := []struct {
-		historyBatches []*eventpb.History
+		historyBatches []*historypb.History
 		request        *archiver.ArchiveHistoryRequest
 		isLast         bool
 		isMutated      bool
 	}{
 		{
-			historyBatches: []*eventpb.History{
+			historyBatches: []*historypb.History{
 				{
-					Events: []*eventpb.HistoryEvent{
+					Events: []*historypb.HistoryEvent{
 						{
 							Version: 15,
 						},
@@ -351,9 +314,9 @@ func (s *UtilSuite) TestHistoryMutated() {
 			isMutated: true,
 		},
 		{
-			historyBatches: []*eventpb.History{
+			historyBatches: []*historypb.History{
 				{
-					Events: []*eventpb.HistoryEvent{
+					Events: []*historypb.HistoryEvent{
 						{
 							EventId: 33,
 							Version: 10,
@@ -361,7 +324,7 @@ func (s *UtilSuite) TestHistoryMutated() {
 					},
 				},
 				{
-					Events: []*eventpb.HistoryEvent{
+					Events: []*historypb.HistoryEvent{
 						{
 							EventId: 49,
 							Version: 10,
@@ -381,9 +344,9 @@ func (s *UtilSuite) TestHistoryMutated() {
 			isMutated: true,
 		},
 		{
-			historyBatches: []*eventpb.History{
+			historyBatches: []*historypb.History{
 				{
-					Events: []*eventpb.HistoryEvent{
+					Events: []*historypb.HistoryEvent{
 						{
 							Version: 9,
 						},
@@ -397,9 +360,9 @@ func (s *UtilSuite) TestHistoryMutated() {
 			isMutated: true,
 		},
 		{
-			historyBatches: []*eventpb.History{
+			historyBatches: []*historypb.History{
 				{
-					Events: []*eventpb.HistoryEvent{
+					Events: []*historypb.HistoryEvent{
 						{
 							EventId: 20,
 							Version: 10,
@@ -407,7 +370,7 @@ func (s *UtilSuite) TestHistoryMutated() {
 					},
 				},
 				{
-					Events: []*eventpb.HistoryEvent{
+					Events: []*historypb.HistoryEvent{
 						{
 							EventId: 33,
 							Version: 10,
@@ -443,7 +406,7 @@ func (s *UtilSuite) TestSerializeDeserializeGetHistoryToken() {
 }
 
 func (s *UtilSuite) createFile(dir string, filename string) {
-	err := ioutil.WriteFile(filepath.Join(dir, filename), []byte("file contents"), testFileMode)
+	err := os.WriteFile(filepath.Join(dir, filename), []byte("file contents"), testFileMode)
 	s.Nil(err)
 }
 
@@ -475,6 +438,6 @@ func (s *UtilSuite) assertCorrectFileMode(path string) {
 	s.Equal(mode, info.Mode())
 }
 
-func toWorkflowExecutionStatusPtr(in executionpb.WorkflowExecutionStatus) *executionpb.WorkflowExecutionStatus {
+func toWorkflowExecutionStatusPtr(in enumspb.WorkflowExecutionStatus) *enumspb.WorkflowExecutionStatus {
 	return &in
 }

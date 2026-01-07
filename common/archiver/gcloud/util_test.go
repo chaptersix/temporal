@@ -1,27 +1,3 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package gcloud
 
 import (
@@ -30,10 +6,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	eventpb "go.temporal.io/temporal-proto/event"
-
-	"github.com/temporalio/temporal/common"
-	"github.com/temporalio/temporal/common/codec"
+	historypb "go.temporal.io/api/history/v1"
+	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/codec"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (s *utilSuite) SetupTest() {
@@ -49,9 +25,10 @@ type utilSuite struct {
 }
 
 func (s *utilSuite) TestEncodeDecodeHistoryBatches() {
-	historyBatches := []*eventpb.History{
+	now := time.Date(2020, 8, 22, 1, 2, 3, 4, time.UTC)
+	historyBatches := []*historypb.History{
 		{
-			Events: []*eventpb.HistoryEvent{
+			Events: []*historypb.HistoryEvent{
 				{
 					EventId: common.FirstEventID,
 					Version: 1,
@@ -59,16 +36,16 @@ func (s *utilSuite) TestEncodeDecodeHistoryBatches() {
 			},
 		},
 		{
-			Events: []*eventpb.HistoryEvent{
+			Events: []*historypb.HistoryEvent{
 				{
 					EventId:   common.FirstEventID + 1,
-					Timestamp: time.Now().UnixNano(),
+					EventTime: timestamppb.New(now),
 					Version:   1,
 				},
 				{
 					EventId: common.FirstEventID + 2,
 					Version: 2,
-					Attributes: &eventpb.HistoryEvent_DecisionTaskStartedEventAttributes{DecisionTaskStartedEventAttributes: &eventpb.DecisionTaskStartedEventAttributes{
+					Attributes: &historypb.HistoryEvent_WorkflowTaskStartedEventAttributes{WorkflowTaskStartedEventAttributes: &historypb.WorkflowTaskStartedEventAttributes{
 						Identity: "some random identity",
 					}},
 				},
@@ -135,11 +112,12 @@ func (s *utilSuite) TestConstructVisibilityFilenamePrefix() {
 }
 
 func (s *utilSuite) TestConstructTimeBasedSearchKey() {
-	s.Equal("namespaceID/startTimeout_1970-01-01T", constructTimeBasedSearchKey("namespaceID", indexKeyStartTimeout, 1580819141, "Day"))
+	t, _ := time.Parse(time.RFC3339, "2019-10-04T11:00:00+00:00")
+	s.Equal("namespaceID/startTimeout_2019-10-04T", constructTimeBasedSearchKey("namespaceID", indexKeyStartTimeout, t, "Day"))
 }
 
 func (s *utilSuite) TestConstructVisibilityFilename() {
-	s.Equal("namespaceID/startTimeout_1970-01-01T00:24:32Z_4346151385925082125_8344541402884576509_131521284625246243.visibility", constructVisibilityFilename("namespaceID", "workflowTypeName", "workflowID", "runID", indexKeyStartTimeout, 1472313624305))
+	s.Equal("namespaceID/startTimeout_1970-01-01T00:24:32Z_4346151385925082125_8344541402884576509_131521284625246243.visibility", constructVisibilityFilename("namespaceID", "workflowTypeName", "workflowID", "runID", indexKeyStartTimeout, time.Date(1970, 01, 01, 0, 24, 32, 0, time.UTC)))
 }
 
 func (s *utilSuite) TestWorkflowIdPrecondition() {

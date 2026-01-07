@@ -1,60 +1,43 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"strings"
 
-	p "github.com/temporalio/temporal/common/persistence"
-
-	"github.com/temporalio/temporal/common/persistence/sql/sqlplugin"
+	p "go.temporal.io/server/common/persistence"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin"
 )
 
 const constMetadataPartition = 0
+const constMembershipPartition = 0
 const (
-	// ****** CLUSTER_METADATA TABLE ******
-	// One time only for the immutable data, so lets just use insert ignore
-	insertClusterMetadataOneTimeOnlyQry = `INSERT IGNORE INTO 
-cluster_metadata (metadata_partition, immutable_data, immutable_data_encoding)
-VALUES(?, ?, ?)`
+	// ****** CLUSTER_METADATA_INFO TABLE ******
+	insertClusterMetadataQry = `INSERT INTO cluster_metadata_info (metadata_partition, cluster_name, data, data_encoding, version) VALUES(?, ?, ?, ?, ?)`
 
-	getImmutableClusterMetadataQry = `SELECT immutable_data, immutable_data_encoding FROM 
-cluster_metadata WHERE metadata_partition = ?`
+	updateClusterMetadataQry = `UPDATE cluster_metadata_info SET data = ?, data_encoding = ?, version = ? WHERE metadata_partition = ? AND cluster_name = ?`
+
+	getClusterMetadataBase         = `SELECT data, data_encoding, version FROM cluster_metadata_info `
+	listClusterMetadataQry         = getClusterMetadataBase + `WHERE metadata_partition = ? ORDER BY cluster_name LIMIT ?`
+	listClusterMetadataRangeQry    = getClusterMetadataBase + `WHERE metadata_partition = ? AND cluster_name > ? ORDER BY cluster_name LIMIT ?`
+	getClusterMetadataQry          = getClusterMetadataBase + `WHERE metadata_partition = ? AND cluster_name = ?`
+	writeLockGetClusterMetadataQry = getClusterMetadataQry + ` FOR UPDATE`
+
+	deleteClusterMetadataQry = `DELETE FROM cluster_metadata_info WHERE metadata_partition = ? AND cluster_name = ?`
 
 	// ****** CLUSTER_MEMBERSHIP TABLE ******
-	templateUpsertActiveClusterMembership = `REPLACE INTO
-cluster_membership (host_id, rpc_address, rpc_port, role, session_start, last_heartbeat, record_expiry)
-VALUES(?, ?, ?, ?, ?, ?, ?)`
+	templateUpsertActiveClusterMembership = `INSERT INTO
+cluster_membership (membership_partition, host_id, rpc_address, rpc_port, role, session_start, last_heartbeat, record_expiry)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?) 
+ON DUPLICATE KEY UPDATE 
+session_start=VALUES(session_start), last_heartbeat=VALUES(last_heartbeat), record_expiry=VALUES(record_expiry)`
 
 	templatePruneStaleClusterMembership = `DELETE FROM
 cluster_membership 
-WHERE record_expiry < ? LIMIT ?`
+WHERE membership_partition = ? AND record_expiry < ?`
 
-	templateGetClusterMembership = `SELECT host_id, rpc_address, rpc_port, role, session_start, last_heartbeat, record_expiry, insertion_order FROM
-cluster_membership`
+	templateGetClusterMembership = `SELECT host_id, rpc_address, rpc_port, role, session_start, last_heartbeat, record_expiry FROM
+cluster_membership WHERE membership_partition = ?`
 
 	// ClusterMembership WHERE Suffixes
 	templateWithRoleSuffix           = ` AND role = ?`
@@ -62,33 +45,117 @@ cluster_membership`
 	templateWithRecordExpirySuffix   = ` AND record_expiry > ?`
 	templateWithRPCAddressSuffix     = ` AND rpc_address = ?`
 	templateWithHostIDSuffix         = ` AND host_id = ?`
-	templateWithSessionStartSuffix   = ` AND session_start > ?`
-	templateWithInsertionOrderSuffix = ` AND insertion_order > ?`
+	templateWithHostIDGreaterSuffix  = ` AND host_id > ?`
+	templateWithSessionStartSuffix   = ` AND session_start >= ?`
 
 	// Generic SELECT Suffixes
-	templateWithLimitSuffix            = ` LIMIT ?`
-	templateWithOrderByInsertionSuffix = ` ORDER BY insertion_order ASC`
+	templateWithLimitSuffix               = ` LIMIT ?`
+	templateWithOrderBySessionStartSuffix = ` ORDER BY membership_partition ASC, host_id ASC`
 )
 
-// Does not follow traditional lock, select, read, insert as we only expect a single row.
-func (mdb *db) InsertIfNotExistsIntoClusterMetadata(row *sqlplugin.ClusterMetadataRow) (sql.Result, error) {
-	return mdb.conn.Exec(insertClusterMetadataOneTimeOnlyQry,
+func (mdb *db) SaveClusterMetadata(
+	ctx context.Context,
+	row *sqlplugin.ClusterMetadataRow,
+) (sql.Result, error) {
+	if row.Version == 0 {
+		return mdb.ExecContext(ctx,
+			insertClusterMetadataQry,
+			constMetadataPartition,
+			row.ClusterName,
+			row.Data,
+			row.DataEncoding,
+			1,
+		)
+	}
+	return mdb.ExecContext(ctx,
+		updateClusterMetadataQry,
+		row.Data,
+		row.DataEncoding,
+		row.Version+1,
 		constMetadataPartition,
-		row.ImmutableData,
-		row.ImmutableDataEncoding)
+		row.ClusterName,
+	)
 }
 
-func (mdb *db) GetClusterMetadata() (*sqlplugin.ClusterMetadataRow, error) {
+func (mdb *db) ListClusterMetadata(
+	ctx context.Context,
+	filter *sqlplugin.ClusterMetadataFilter,
+) ([]sqlplugin.ClusterMetadataRow, error) {
+	var err error
+	var rows []sqlplugin.ClusterMetadataRow
+	switch {
+	case len(filter.ClusterName) != 0:
+		err = mdb.SelectContext(ctx,
+			&rows,
+			listClusterMetadataRangeQry,
+			constMetadataPartition,
+			filter.ClusterName,
+			filter.PageSize,
+		)
+	default:
+		err = mdb.SelectContext(ctx,
+			&rows,
+			listClusterMetadataQry,
+			constMetadataPartition,
+			filter.PageSize,
+		)
+	}
+	return rows, err
+}
+
+func (mdb *db) GetClusterMetadata(
+	ctx context.Context,
+	filter *sqlplugin.ClusterMetadataFilter,
+) (*sqlplugin.ClusterMetadataRow, error) {
 	var row sqlplugin.ClusterMetadataRow
-	err := mdb.conn.Get(&row, getImmutableClusterMetadataQry, constMetadataPartition)
+	err := mdb.GetContext(ctx,
+		&row,
+		getClusterMetadataQry,
+		constMetadataPartition,
+		filter.ClusterName,
+	)
 	if err != nil {
 		return nil, err
 	}
 	return &row, err
 }
 
-func (mdb *db) UpsertClusterMembership(row *sqlplugin.ClusterMembershipRow) (sql.Result, error) {
-	return mdb.conn.Exec(templateUpsertActiveClusterMembership,
+func (mdb *db) DeleteClusterMetadata(
+	ctx context.Context,
+	filter *sqlplugin.ClusterMetadataFilter,
+) (sql.Result, error) {
+
+	return mdb.ExecContext(ctx,
+		deleteClusterMetadataQry,
+		constMetadataPartition,
+		filter.ClusterName,
+	)
+}
+
+func (mdb *db) WriteLockGetClusterMetadata(
+	ctx context.Context,
+	filter *sqlplugin.ClusterMetadataFilter,
+) (*sqlplugin.ClusterMetadataRow, error) {
+	var row sqlplugin.ClusterMetadataRow
+	err := mdb.GetContext(ctx,
+		&row,
+		writeLockGetClusterMetadataQry,
+		constMetadataPartition,
+		filter.ClusterName,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &row, err
+}
+
+func (mdb *db) UpsertClusterMembership(
+	ctx context.Context,
+	row *sqlplugin.ClusterMembershipRow,
+) (sql.Result, error) {
+	return mdb.ExecContext(ctx,
+		templateUpsertActiveClusterMembership,
+		constMembershipPartition,
 		row.HostID,
 		row.RPCAddress,
 		row.RPCPort,
@@ -98,10 +165,14 @@ func (mdb *db) UpsertClusterMembership(row *sqlplugin.ClusterMembershipRow) (sql
 		mdb.converter.ToMySQLDateTime(row.RecordExpiry))
 }
 
-func (mdb *db) GetClusterMembers(filter *sqlplugin.ClusterMembershipFilter) ([]sqlplugin.ClusterMembershipRow, error) {
+func (mdb *db) GetClusterMembers(
+	ctx context.Context,
+	filter *sqlplugin.ClusterMembershipFilter,
+) ([]sqlplugin.ClusterMembershipRow, error) {
 	var queryString strings.Builder
 	var operands []interface{}
 	queryString.WriteString(templateGetClusterMembership)
+	operands = append(operands, constMembershipPartition)
 
 	if filter.HostIDEquals != nil {
 		queryString.WriteString(templateWithHostIDSuffix)
@@ -133,33 +204,43 @@ func (mdb *db) GetClusterMembers(filter *sqlplugin.ClusterMembershipFilter) ([]s
 		operands = append(operands, filter.SessionStartedAfter)
 	}
 
-	if filter.InsertionOrderGreaterThan > 0 {
-		queryString.WriteString(templateWithInsertionOrderSuffix)
-		operands = append(operands, filter.InsertionOrderGreaterThan)
+	if filter.HostIDGreaterThan != nil {
+		queryString.WriteString(templateWithHostIDGreaterSuffix)
+		operands = append(operands, filter.HostIDGreaterThan)
 	}
 
-	queryString.WriteString(templateWithOrderByInsertionSuffix)
+	queryString.WriteString(templateWithOrderBySessionStartSuffix)
 
 	if filter.MaxRecordCount > 0 {
 		queryString.WriteString(templateWithLimitSuffix)
 		operands = append(operands, filter.MaxRecordCount)
 	}
 
-	// All suffixes start with AND, replace the first occurrence with WHERE
-	compiledQryString := strings.Replace(queryString.String(), " AND ", " WHERE ", 1)
+	compiledQryString := queryString.String()
 
 	var rows []sqlplugin.ClusterMembershipRow
-	err := mdb.conn.Select(&rows,
+	if err := mdb.SelectContext(ctx,
+		&rows,
 		compiledQryString,
-		operands...)
-	if err != nil {
+		operands...,
+	); err != nil {
 		return nil, err
 	}
-	return rows, err
+	for i := range rows {
+		rows[i].SessionStart = mdb.converter.FromMySQLDateTime(rows[i].SessionStart)
+		rows[i].LastHeartbeat = mdb.converter.FromMySQLDateTime(rows[i].LastHeartbeat)
+		rows[i].RecordExpiry = mdb.converter.FromMySQLDateTime(rows[i].RecordExpiry)
+	}
+	return rows, nil
 }
 
-func (mdb *db) PruneClusterMembership(filter *sqlplugin.PruneClusterMembershipFilter) (sql.Result, error) {
-	return mdb.conn.Exec(templatePruneStaleClusterMembership,
+func (mdb *db) PruneClusterMembership(
+	ctx context.Context,
+	filter *sqlplugin.PruneClusterMembershipFilter,
+) (sql.Result, error) {
+	return mdb.ExecContext(ctx,
+		templatePruneStaleClusterMembership,
+		constMembershipPartition,
 		mdb.converter.ToMySQLDateTime(filter.PruneRecordsBefore),
-		filter.MaxRecordsAffected)
+	)
 }

@@ -1,34 +1,13 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package sql
 
 import (
-	"github.com/temporalio/temporal/common/persistence/sql"
-	"github.com/temporalio/temporal/common/persistence/sql/sqlplugin"
-	"github.com/temporalio/temporal/common/service/config"
-	"github.com/temporalio/temporal/tools/common/schema"
+	"go.temporal.io/server/common/config"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/persistence/sql"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin"
+	"go.temporal.io/server/common/resolver"
+	"go.temporal.io/server/tools/common/schema"
 )
 
 type (
@@ -39,11 +18,13 @@ type (
 	}
 )
 
+const dbType = "sql"
+
 var _ schema.DB = (*Connection)(nil)
 
 // NewConnection creates a new connection to database
-func NewConnection(cfg *config.SQL) (*Connection, error) {
-	db, err := sql.NewSQLAdminDB(cfg)
+func NewConnection(cfg *config.SQL, logger log.Logger) (*Connection, error) {
+	db, err := sql.NewSQLAdminDB(sqlplugin.DbKindUnknown, cfg, resolver.NewNoopResolver(), logger, metrics.NoopMetricsHandler)
 	if err != nil {
 		return nil, err
 	}
@@ -76,8 +57,7 @@ func (c *Connection) WriteSchemaUpdateLog(oldVersion string, newVersion string, 
 
 // Exec executes a sql statement
 func (c *Connection) Exec(stmt string, args ...interface{}) error {
-	err := c.adminDb.Exec(stmt, args...)
-	return err
+	return c.adminDb.Exec(stmt, args...)
 }
 
 // ListTables returns a list of tables in this database
@@ -122,4 +102,9 @@ func (c *Connection) Close() {
 			panic("cannot close connection")
 		}
 	}
+}
+
+// Type gives the type of db
+func (c *Connection) Type() string {
+	return dbType
 }

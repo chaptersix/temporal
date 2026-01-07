@@ -1,31 +1,6 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package gcloud
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,25 +9,19 @@ import (
 	"time"
 
 	"github.com/dgryski/go-farm"
-	"github.com/gogo/protobuf/proto"
-	"github.com/gogo/protobuf/types"
-	commonpb "go.temporal.io/temporal-proto/common"
-	executionpb "go.temporal.io/temporal-proto/execution"
-
-	archiverproto "github.com/temporalio/temporal/.gen/proto/archiver"
-	"github.com/temporalio/temporal/common/archiver"
-	"github.com/temporalio/temporal/common/archiver/gcloud/connector"
-	"github.com/temporalio/temporal/common/codec"
+	commonpb "go.temporal.io/api/common/v1"
+	workflowpb "go.temporal.io/api/workflow/v1"
+	archiverspb "go.temporal.io/server/api/archiver/v1"
+	"go.temporal.io/server/common/archiver"
+	"go.temporal.io/server/common/archiver/gcloud/connector"
+	"go.temporal.io/server/common/codec"
+	"go.temporal.io/server/common/searchattribute"
+	"google.golang.org/protobuf/proto"
 )
 
 func encode(message proto.Message) ([]byte, error) {
 	encoder := codec.NewJSONPBEncoder()
 	return encoder.Encode(message)
-}
-
-func constructHistoryFilename(namespaceID, workflowID, runID string, version int64) string {
-	combinedHash := constructHistoryFilenamePrefix(namespaceID, workflowID, runID)
-	return fmt.Sprintf("%s_%v.history", combinedHash, version)
 }
 
 func constructHistoryFilenameMultipart(namespaceID, workflowID, runID string, version int64, partNumber int) string {
@@ -68,8 +37,7 @@ func constructVisibilityFilenamePrefix(namespaceID, tag string) string {
 	return fmt.Sprintf("%s/%s", namespaceID, tag)
 }
 
-func constructTimeBasedSearchKey(namespaceID, tag string, timestamp int64, precision string) string {
-	t := time.Unix(0, timestamp).In(time.UTC)
+func constructTimeBasedSearchKey(namespaceID, tag string, t time.Time, precision string) string {
 	var timeFormat = ""
 	switch precision {
 	case PrecisionSecond:
@@ -93,15 +61,6 @@ func hash(s string) (result string) {
 		return fmt.Sprintf("%v", farm.Fingerprint64([]byte(s)))
 	}
 	return
-}
-
-func contextExpired(ctx context.Context) bool {
-	select {
-	case <-ctx.Done():
-		return true
-	default:
-		return false
-	}
 }
 
 func deserializeGetHistoryToken(bytes []byte) (*getHistoryToken, error) {
@@ -134,8 +93,8 @@ func serializeToken(token interface{}) ([]byte, error) {
 	return json.Marshal(token)
 }
 
-func decodeVisibilityRecord(data []byte) (*archiverproto.ArchiveVisibilityRequest, error) {
-	record := &archiverproto.ArchiveVisibilityRequest{}
+func decodeVisibilityRecord(data []byte) (*archiverspb.VisibilityRecord, error) {
+	record := &archiverspb.VisibilityRecord{}
 	encoder := codec.NewJSONPBEncoder()
 	err := encoder.Decode(data, record)
 	if err != nil {
@@ -144,8 +103,7 @@ func decodeVisibilityRecord(data []byte) (*archiverproto.ArchiveVisibilityReques
 	return record, nil
 }
 
-func constructVisibilityFilename(namespace, workflowTypeName, workflowID, runID, tag string, timestamp int64) string {
-	t := time.Unix(0, timestamp).In(time.UTC)
+func constructVisibilityFilename(namespace, workflowTypeName, workflowID, runID, tag string, t time.Time) string {
 	prefix := constructVisibilityFilenamePrefix(namespace, tag)
 	return fmt.Sprintf("%s_%s_%s_%s_%s.visibility", prefix, t.Format(time.RFC3339), hash(workflowTypeName), hash(workflowID), hash(runID))
 }
@@ -156,25 +114,29 @@ func deserializeQueryVisibilityToken(bytes []byte) (*queryVisibilityToken, error
 	return token, err
 }
 
-func convertToExecutionInfo(record *archiverproto.ArchiveVisibilityRequest) *executionpb.WorkflowExecutionInfo {
-	return &executionpb.WorkflowExecutionInfo{
-		Execution: &executionpb.WorkflowExecution{
+func convertToExecutionInfo(record *archiverspb.VisibilityRecord, saTypeMap searchattribute.NameTypeMap) (*workflowpb.WorkflowExecutionInfo, error) {
+	searchAttributes, err := searchattribute.Parse(record.SearchAttributes, &saTypeMap)
+	if err != nil {
+		return nil, err
+	}
+
+	return &workflowpb.WorkflowExecutionInfo{
+		Execution: &commonpb.WorkflowExecution{
 			WorkflowId: record.GetWorkflowId(),
 			RunId:      record.GetRunId(),
 		},
 		Type: &commonpb.WorkflowType{
 			Name: record.WorkflowTypeName,
 		},
-		StartTime:     &types.Int64Value{Value: record.StartTimestamp},
-		ExecutionTime: record.ExecutionTimestamp,
-		CloseTime:     &types.Int64Value{Value: record.CloseTimestamp},
-		Status:        record.Status,
-		HistoryLength: record.HistoryLength,
-		Memo:          record.Memo,
-		SearchAttributes: &commonpb.SearchAttributes{
-			IndexedFields: archiver.ConvertSearchAttrToBytes(record.SearchAttributes),
-		},
-	}
+		StartTime:         record.StartTime,
+		ExecutionTime:     record.ExecutionTime,
+		CloseTime:         record.CloseTime,
+		ExecutionDuration: record.ExecutionDuration,
+		Status:            record.Status,
+		HistoryLength:     record.HistoryLength,
+		Memo:              record.Memo,
+		SearchAttributes:  searchAttributes,
+	}, nil
 }
 
 func newRunIDPrecondition(runID string) connector.Precondition {
@@ -190,7 +152,7 @@ func newRunIDPrecondition(runID string) connector.Precondition {
 		}
 
 		if strings.Contains(fileName, runID) {
-			fileNameParts := strings.Split(fileName, "_")
+			fileNameParts := strings.SplitN(fileName, "_", 5)
 			if len(fileNameParts) != 5 {
 				return true
 			}
@@ -214,7 +176,7 @@ func newWorkflowIDPrecondition(workflowID string) connector.Precondition {
 		}
 
 		if strings.Contains(fileName, workflowID) {
-			fileNameParts := strings.Split(fileName, "_")
+			fileNameParts := strings.SplitN(fileName, "_", 5)
 			if len(fileNameParts) != 5 {
 				return true
 			}
@@ -238,7 +200,7 @@ func newWorkflowTypeNamePrecondition(workflowTypeName string) connector.Precondi
 		}
 
 		if strings.Contains(fileName, workflowTypeName) {
-			fileNameParts := strings.Split(fileName, "_")
+			fileNameParts := strings.SplitN(fileName, "_", 5)
 			if len(fileNameParts) != 5 {
 				return true
 			}

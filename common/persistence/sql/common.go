@@ -1,64 +1,55 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package sql
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/binary"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 
-	"go.temporal.io/temporal-proto/serviceerror"
-
-	"github.com/temporalio/temporal/common/log"
-	"github.com/temporalio/temporal/common/log/tag"
-	"github.com/temporalio/temporal/common/persistence"
-	"github.com/temporalio/temporal/common/persistence/sql/sqlplugin"
+	"go.temporal.io/api/serviceerror"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/persistence"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin"
 )
 
 // TODO: Rename all SQL Managers to Stores
-type sqlStore struct {
-	db     sqlplugin.DB
+type SqlStore struct {
+	DB     sqlplugin.DB
 	logger log.Logger
 }
 
-func (m *sqlStore) GetName() string {
-	return m.db.PluginName()
-}
-
-func (m *sqlStore) Close() {
-	if m.db != nil {
-		m.db.Close()
+func NewSqlStore(db sqlplugin.DB, logger log.Logger) SqlStore {
+	return SqlStore{
+		DB:     db,
+		logger: logger,
 	}
 }
 
-func (m *sqlStore) txExecute(operation string, f func(tx sqlplugin.Tx) error) error {
-	tx, err := m.db.BeginTx()
+func (m *SqlStore) GetName() string {
+	return m.DB.PluginName()
+}
+
+func (m *SqlStore) GetDbName() string {
+	return m.DB.DbName()
+}
+
+func (m *SqlStore) Close() {
+	if m.DB != nil {
+		err := m.DB.Close()
+		if err != nil {
+			m.logger.Error("Error closing SQL database", tag.Error(err))
+		}
+	}
+}
+
+func (m *SqlStore) txExecute(ctx context.Context, operation string, f func(tx sqlplugin.Tx) error) error {
+	tx, err := m.DB.BeginTx(ctx)
 	if err != nil {
-		return serviceerror.NewInternal(fmt.Sprintf("%s failed. Failed to start transaction. Error: %v", operation, err))
+		return serviceerror.NewUnavailablef("%s failed. Failed to start transaction. Error: %v", operation, err)
 	}
 	err = f(tx)
 	if err != nil {
@@ -70,17 +61,18 @@ func (m *sqlStore) txExecute(operation string, f func(tx sqlplugin.Tx) error) er
 		switch err.(type) {
 		case *persistence.ConditionFailedError,
 			*persistence.CurrentWorkflowConditionFailedError,
-			*serviceerror.Internal,
-			*persistence.WorkflowExecutionAlreadyStartedError,
+			*persistence.WorkflowConditionFailedError,
 			*serviceerror.NamespaceAlreadyExists,
-			*persistence.ShardOwnershipLostError:
+			*persistence.ShardOwnershipLostError,
+			*serviceerror.Unavailable,
+			*serviceerror.NotFound:
 			return err
 		default:
-			return serviceerror.NewInternal(fmt.Sprintf("%v: %v", operation, err))
+			return serviceerror.NewUnavailablef("%v: %v", operation, err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return serviceerror.NewInternal(fmt.Sprintf("%s operation failed. Failed to commit transaction. Error: %v", operation, err))
+		return serviceerror.NewUnavailablef("%s operation failed. Failed to commit transaction. Error: %v", operation, err)
 	}
 	return nil
 }
@@ -90,7 +82,7 @@ func gobSerialize(x interface{}) ([]byte, error) {
 	e := gob.NewEncoder(&b)
 	err := e.Encode(x)
 	if err != nil {
-		return nil, serviceerror.NewInternal(fmt.Sprintf("Error in serialization: %v", err))
+		return nil, serviceerror.NewInternalf("Error in serialization: %v", err)
 	}
 	return b.Bytes(), nil
 }
@@ -99,9 +91,8 @@ func gobDeserialize(a []byte, x interface{}) error {
 	b := bytes.NewBuffer(a)
 	d := gob.NewDecoder(b)
 	err := d.Decode(x)
-
 	if err != nil {
-		return serviceerror.NewInternal(fmt.Sprintf("Error in deserialization: %v", err))
+		return serviceerror.NewInternalf("Error in deserialization: %v", err)
 	}
 	return nil
 }
@@ -114,9 +105,21 @@ func serializePageToken(offset int64) []byte {
 
 func deserializePageToken(payload []byte) (int64, error) {
 	if len(payload) != 8 {
-		return 0, fmt.Errorf("Invalid token of %v length", len(payload))
+		return 0, fmt.Errorf("invalid token of %v length", len(payload))
 	}
 	return int64(binary.LittleEndian.Uint64(payload)), nil
+}
+
+func serializePageTokenJson[T any](token *T) ([]byte, error) {
+	return json.Marshal(token)
+}
+
+func deserializePageTokenJson[T any](payload []byte) (*T, error) {
+	var token T
+	if err := json.Unmarshal(payload, &token); err != nil {
+		return nil, err
+	}
+	return &token, nil
 }
 
 func convertCommonErrors(
@@ -124,8 +127,8 @@ func convertCommonErrors(
 	err error,
 ) error {
 	if err == sql.ErrNoRows {
-		return serviceerror.NewNotFound(fmt.Sprintf("%v failed. Error: %v ", operation, err))
+		return serviceerror.NewNotFoundf("%v failed. Error: %v ", operation, err)
 	}
 
-	return serviceerror.NewInternal(fmt.Sprintf("%v operation failed. Error: %v", operation, err))
+	return serviceerror.NewUnavailablef("%v operation failed. Error: %v", operation, err)
 }

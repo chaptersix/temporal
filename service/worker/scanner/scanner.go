@@ -1,99 +1,103 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package scanner
 
 import (
 	"context"
+	"sync"
 	"time"
 
-	"go.temporal.io/temporal-proto/serviceerror"
-	"go.temporal.io/temporal/activity"
-	sdkclient "go.temporal.io/temporal/client"
-	"go.temporal.io/temporal/worker"
-	"go.temporal.io/temporal/workflow"
-	"go.uber.org/zap"
-
-	"github.com/temporalio/temporal/common/backoff"
-	"github.com/temporalio/temporal/common/cluster"
-	"github.com/temporalio/temporal/common/log/tag"
-	"github.com/temporalio/temporal/common/resource"
-	"github.com/temporalio/temporal/common/service/config"
-	"github.com/temporalio/temporal/common/service/dynamicconfig"
-	"github.com/temporalio/temporal/service/worker/scanner/executions"
-)
-
-const (
-	// scannerStartUpDelay is to let services warm up
-	scannerStartUpDelay = time.Second * 4
-)
-
-var (
-	defaultExecutionsScannerParams = executions.ScannerWorkflowParams{
-		// fullExecutionsScanDefaultQuery indicates the visibility scanner should scan through all open workflows
-		VisibilityQuery: "SELECT * from elasticSearch.executions WHERE state IS open", // TODO: depending on if we go straight to ES or through frontend this query will look different
-	}
+	"go.temporal.io/api/serviceerror"
+	"go.temporal.io/sdk/activity"
+	sdkclient "go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/worker"
+	"go.temporal.io/sdk/workflow"
+	"go.temporal.io/server/api/adminservice/v1"
+	"go.temporal.io/server/api/historyservice/v1"
+	"go.temporal.io/server/api/matchingservice/v1"
+	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/backoff"
+	"go.temporal.io/server/common/config"
+	"go.temporal.io/server/common/dynamicconfig"
+	"go.temporal.io/server/common/headers"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/membership"
+	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/namespace"
+	"go.temporal.io/server/common/persistence"
+	"go.temporal.io/server/common/persistence/visibility/manager"
+	"go.temporal.io/server/common/sdk"
+	"go.temporal.io/server/service/worker/scanner/build_ids"
 )
 
 type (
 	// Config defines the configuration for scanner
 	Config struct {
+		MaxConcurrentActivityExecutionSize     dynamicconfig.IntPropertyFn
+		MaxConcurrentWorkflowTaskExecutionSize dynamicconfig.IntPropertyFn
+		MaxConcurrentActivityTaskPollers       dynamicconfig.IntPropertyFn
+		MaxConcurrentWorkflowTaskPollers       dynamicconfig.IntPropertyFn
+
 		// PersistenceMaxQPS the max rate of calls to persistence
 		PersistenceMaxQPS dynamicconfig.IntPropertyFn
 		// Persistence contains the persistence configuration
 		Persistence *config.Persistence
-		// ClusterMetadata contains the metadata for this cluster
-		ClusterMetadata cluster.Metadata
-		// TaskListScannerEnabled indicates if taskList scanner should be started as part of scanner
-		TaskListScannerEnabled dynamicconfig.BoolPropertyFn
+		// TaskQueueScannerEnabled indicates if taskQueue scanner should be started as part of scanner
+		TaskQueueScannerEnabled dynamicconfig.BoolPropertyFn
+		// BuildIdScavengerEnabled indicates if the build ID scavenger should be started as part of scanner
+		BuildIdScavengerEnabled dynamicconfig.BoolPropertyFn
 		// HistoryScannerEnabled indicates if history scanner should be started as part of scanner
 		HistoryScannerEnabled dynamicconfig.BoolPropertyFn
 		// ExecutionsScannerEnabled indicates if executions scanner should be started as part of scanner
 		ExecutionsScannerEnabled dynamicconfig.BoolPropertyFn
+		// HistoryScannerDataMinAge indicates the cleanup threshold of history branch data
+		// Only clean up history branches that older than this threshold
+		HistoryScannerDataMinAge dynamicconfig.DurationPropertyFn
+		// HistoryScannerVerifyRetention indicates if the history scavenger to do retention verification
+		HistoryScannerVerifyRetention dynamicconfig.BoolPropertyFn
+		// ExecutionScannerPerHostQPS the max rate of calls to scan execution data per host
+		ExecutionScannerPerHostQPS dynamicconfig.IntPropertyFn
+		// ExecutionScannerPerShardQPS the max rate of calls to scan execution data per shard
+		ExecutionScannerPerShardQPS dynamicconfig.IntPropertyFn
+		// ExecutionDataDurationBuffer is the data TTL duration buffer of execution data
+		ExecutionDataDurationBuffer dynamicconfig.DurationPropertyFn
+		// ExecutionScannerWorkerCount is the execution scavenger task worker number
+		ExecutionScannerWorkerCount dynamicconfig.IntPropertyFn
+		// ExecutionScannerHistoryEventIdValidator indicates if the execution scavenger to validate history event id.
+		ExecutionScannerHistoryEventIdValidator dynamicconfig.BoolPropertyFn
+
+		// RemovableBuildIdDurationSinceDefault is the minimum duration since a build ID was last default in its
+		// containing set for it to be considered for removal.
+		RemovableBuildIdDurationSinceDefault dynamicconfig.DurationPropertyFn
+		// BuildIdScavengerVisibilityRPS is the rate limit for visibility calls from the build ID scavenger
+		BuildIdScavengerVisibilityRPS dynamicconfig.FloatPropertyFn
 	}
 
-	// BootstrapParams contains the set of params needed to bootstrap
-	// the scanner sub-system
-	BootstrapParams struct {
-		// Config contains the configuration for scanner
-		Config Config
-		// TallyScope is an instance of tally metrics scope
-	}
-
-	// scannerContext is the context object that get's
+	// scannerContext is the context object that gets
 	// passed around within the scanner workflows / activities
 	scannerContext struct {
-		resource.Resource
-		cfg       Config
-		zapLogger *zap.Logger
+		cfg                *Config
+		logger             log.Logger
+		sdkClientFactory   sdk.ClientFactory
+		metricsHandler     metrics.Handler
+		executionManager   persistence.ExecutionManager
+		taskManager        persistence.TaskManager
+		visibilityManager  manager.VisibilityManager
+		metadataManager    persistence.MetadataManager
+		historyClient      historyservice.HistoryServiceClient
+		matchingClient     matchingservice.MatchingServiceClient
+		adminClient        adminservice.AdminServiceClient
+		namespaceRegistry  namespace.Registry
+		currentClusterName string
+		hostInfo           membership.HostInfo
 	}
 
 	// Scanner is the background sub-system that does full scans
 	// of database tables to cleanup resources, monitor anamolies
 	// and emit stats for analytics
 	Scanner struct {
-		context scannerContext
+		context         scannerContext
+		wg              sync.WaitGroup
+		lifecycleCancel context.CancelFunc
 	}
 )
 
@@ -103,57 +107,116 @@ type (
 // resources, monitor system anamolies and emit stats
 // for analysis and alerting
 func New(
-	resource resource.Resource,
-	params *BootstrapParams,
+	logger log.Logger,
+	cfg *Config,
+	sdkClientFactory sdk.ClientFactory,
+	metricsHandler metrics.Handler,
+	executionManager persistence.ExecutionManager,
+	metadataManager persistence.MetadataManager,
+	visibilityManager manager.VisibilityManager,
+	taskManager persistence.TaskManager,
+	historyClient historyservice.HistoryServiceClient,
+	adminClient adminservice.AdminServiceClient,
+	matchingClient matchingservice.MatchingServiceClient,
+	registry namespace.Registry,
+	currentClusterName string,
+	hostInfo membership.HostInfo,
 ) *Scanner {
-
-	cfg := params.Config
-	zapLogger, err := zap.NewProduction()
-	if err != nil {
-		resource.GetLogger().Fatal("failed to initialize zap logger", tag.Error(err))
-	}
 	return &Scanner{
 		context: scannerContext{
-			Resource:  resource,
-			cfg:       cfg,
-			zapLogger: zapLogger,
+			cfg:                cfg,
+			sdkClientFactory:   sdkClientFactory,
+			logger:             logger,
+			metricsHandler:     metricsHandler,
+			executionManager:   executionManager,
+			taskManager:        taskManager,
+			visibilityManager:  visibilityManager,
+			metadataManager:    metadataManager,
+			historyClient:      historyClient,
+			matchingClient:     matchingClient,
+			adminClient:        adminClient,
+			namespaceRegistry:  registry,
+			currentClusterName: currentClusterName,
+			hostInfo:           hostInfo,
 		},
 	}
 }
 
 // Start starts the scanner
 func (s *Scanner) Start() error {
+	ctx := context.WithValue(context.Background(), scannerContextKey, s.context)
+	ctx = headers.SetCallerInfo(ctx, headers.SystemBackgroundHighCallerInfo)
+	ctx, s.lifecycleCancel = context.WithCancel(ctx)
+
 	workerOpts := worker.Options{
-		Logger:                                 s.context.zapLogger,
-		MaxConcurrentActivityExecutionSize:     maxConcurrentActivityExecutionSize,
-		MaxConcurrentDecisionTaskExecutionSize: maxConcurrentDecisionTaskExecutionSize,
-		BackgroundActivityContext:              context.WithValue(context.Background(), scannerContextKey, s.context),
+		Identity:                               "temporal-system@" + s.context.hostInfo.Identity(),
+		MaxConcurrentActivityExecutionSize:     s.context.cfg.MaxConcurrentActivityExecutionSize(),
+		MaxConcurrentWorkflowTaskExecutionSize: s.context.cfg.MaxConcurrentWorkflowTaskExecutionSize(),
+		MaxConcurrentActivityTaskPollers:       s.context.cfg.MaxConcurrentActivityTaskPollers(),
+		MaxConcurrentWorkflowTaskPollers:       s.context.cfg.MaxConcurrentWorkflowTaskPollers(),
+
+		BackgroundActivityContext: ctx,
 	}
 
-	var workerTaskListNames []string
-	if s.context.cfg.ExecutionsScannerEnabled() {
-		workerTaskListNames = append(workerTaskListNames, executionsScannerTaskListName)
-		go s.startWorkflowWithRetry(executionsScannerWFStartOptions, executionsScannerWFTypeName, defaultExecutionsScannerParams)
+	var workerTaskQueueNames []string
+	if s.context.cfg.Persistence.DefaultStoreType() != config.StoreTypeSQL && s.context.cfg.ExecutionsScannerEnabled() {
+		s.wg.Add(1)
+		go s.startWorkflowWithRetry(ctx, executionsScannerWFStartOptions, executionsScannerWFTypeName)
+		workerTaskQueueNames = append(workerTaskQueueNames, executionsScannerTaskQueueName)
+	} else if s.context.cfg.ExecutionsScannerEnabled() {
+		s.context.logger.Info("ExecutionsScanner is not supported for SQL store")
 	}
 
-	if s.context.cfg.Persistence.DefaultStoreType() == config.StoreTypeSQL && s.context.cfg.TaskListScannerEnabled() {
-		go s.startWorkflowWithRetry(tlScannerWFStartOptions, tlScannerWFTypeName)
-		workerTaskListNames = append(workerTaskListNames, tlScannerTaskListName)
-	} else if s.context.cfg.Persistence.DefaultStoreType() == config.StoreTypeCassandra && s.context.cfg.HistoryScannerEnabled() {
-		go s.startWorkflowWithRetry(historyScannerWFStartOptions, historyScannerWFTypeName)
-		workerTaskListNames = append(workerTaskListNames, historyScannerTaskListName)
+	if s.context.cfg.Persistence.DefaultStoreType() == config.StoreTypeSQL && s.context.cfg.TaskQueueScannerEnabled() {
+		s.wg.Add(1)
+		go s.startWorkflowWithRetry(ctx, tlScannerWFStartOptions, tqScannerWFTypeName)
+		workerTaskQueueNames = append(workerTaskQueueNames, tqScannerTaskQueueName)
 	}
 
-	for _, tl := range workerTaskListNames {
-		work := worker.New(s.context.GetSDKClient(), tl, workerOpts)
+	if s.context.cfg.HistoryScannerEnabled() {
+		s.wg.Add(1)
+		go s.startWorkflowWithRetry(ctx, historyScannerWFStartOptions, historyScannerWFTypeName)
+		workerTaskQueueNames = append(workerTaskQueueNames, historyScannerTaskQueueName)
+	}
 
-		work.RegisterWorkflowWithOptions(TaskListScannerWorkflow, workflow.RegisterOptions{Name: tlScannerWFTypeName})
+	if s.context.cfg.BuildIdScavengerEnabled() {
+		s.wg.Add(1)
+		go s.startWorkflowWithRetry(ctx, build_ids.BuildIdScavengerWFStartOptions, build_ids.BuildIdScavangerWorkflowName)
+
+		buildIdsActivities := build_ids.NewActivities(
+			s.context.logger,
+			s.context.taskManager,
+			s.context.metadataManager,
+			s.context.visibilityManager,
+			s.context.namespaceRegistry,
+			s.context.matchingClient,
+			s.context.currentClusterName,
+			s.context.cfg.RemovableBuildIdDurationSinceDefault,
+			s.context.cfg.BuildIdScavengerVisibilityRPS,
+		)
+
+		work := s.context.sdkClientFactory.NewWorker(s.context.sdkClientFactory.GetSystemClient(), build_ids.BuildIdScavengerTaskQueueName, workerOpts)
+		work.RegisterWorkflowWithOptions(build_ids.BuildIdScavangerWorkflow, workflow.RegisterOptions{Name: build_ids.BuildIdScavangerWorkflowName})
+		work.RegisterActivityWithOptions(buildIdsActivities.ScavengeBuildIds, activity.RegisterOptions{Name: build_ids.BuildIdScavangerActivityName})
+
+		// TODO: Nothing is gracefully stopping these workers or listening for fatal errors.
+		if err := work.Start(); err != nil {
+			return err
+		}
+	}
+
+	// TODO: There's no reason to register all activities and workflows on every task queue.
+	for _, tl := range workerTaskQueueNames {
+		work := s.context.sdkClientFactory.NewWorker(s.context.sdkClientFactory.GetSystemClient(), tl, workerOpts)
+
+		work.RegisterWorkflowWithOptions(TaskQueueScannerWorkflow, workflow.RegisterOptions{Name: tqScannerWFTypeName})
 		work.RegisterWorkflowWithOptions(HistoryScannerWorkflow, workflow.RegisterOptions{Name: historyScannerWFTypeName})
 		work.RegisterWorkflowWithOptions(ExecutionsScannerWorkflow, workflow.RegisterOptions{Name: executionsScannerWFTypeName})
-		work.RegisterActivityWithOptions(TaskListScavengerActivity, activity.RegisterOptions{Name: taskListScavengerActivityName})
+		work.RegisterActivityWithOptions(TaskQueueScavengerActivity, activity.RegisterOptions{Name: taskQueueScavengerActivityName})
 		work.RegisterActivityWithOptions(HistoryScavengerActivity, activity.RegisterOptions{Name: historyScavengerActivityName})
 		work.RegisterActivityWithOptions(ExecutionsScavengerActivity, activity.RegisterOptions{Name: executionsScavengerActivityName})
 
+		// TODO: Nothing is gracefully stopping these workers or listening for fatal errors.
 		if err := work.Start(); err != nil {
 			return err
 		}
@@ -162,45 +225,51 @@ func (s *Scanner) Start() error {
 	return nil
 }
 
-func (s *Scanner) startWorkflowWithRetry(
-	options sdkclient.StartWorkflowOptions,
-	workflowType string,
-	workflowArgs ...interface{},
-) {
+func (s *Scanner) Stop() {
+	s.lifecycleCancel()
+	s.wg.Wait()
+}
 
-	// let history / matching service warm up
-	time.Sleep(scannerStartUpDelay)
+func (s *Scanner) startWorkflowWithRetry(ctx context.Context, options sdkclient.StartWorkflowOptions, workflowType string, workflowArgs ...interface{}) {
+	defer s.wg.Done()
 
-	policy := backoff.NewExponentialRetryPolicy(time.Second)
-	policy.SetMaximumInterval(time.Minute)
-	policy.SetExpirationInterval(backoff.NoInterval)
-	err := backoff.Retry(func() error {
-		return s.startWorkflow(s.context.GetSDKClient(), options, workflowType, workflowArgs)
+	policy := backoff.NewExponentialRetryPolicy(time.Second).
+		WithMaximumInterval(time.Minute).
+		WithExpirationInterval(backoff.NoInterval)
+	err := backoff.ThrottleRetryContext(ctx, func(ctx context.Context) error {
+		return s.startWorkflow(
+			ctx,
+			s.context.sdkClientFactory.GetSystemClient(),
+			options,
+			workflowType,
+			workflowArgs...,
+		)
 	}, policy, func(err error) bool {
 		return true
 	})
-	if err != nil {
-		s.context.GetLogger().Fatal("unable to start scanner", tag.WorkflowType(workflowType), tag.Error(err))
+	// if the scanner shuts down before the workflow is started, then the error will be context canceled
+	if err != nil && !common.IsContextCanceledErr(err) {
+		s.context.logger.Fatal("unable to start scanner", tag.WorkflowType(workflowType), tag.Error(err))
 	}
 }
 
 func (s *Scanner) startWorkflow(
+	ctx context.Context,
 	client sdkclient.Client,
 	options sdkclient.StartWorkflowOptions,
 	workflowType string,
 	workflowArgs ...interface{},
 ) error {
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	_, err := client.ExecuteWorkflow(ctx, options, workflowType, workflowArgs)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	_, err := client.ExecuteWorkflow(ctx, options, workflowType, workflowArgs...)
 	cancel()
 	if err != nil {
 		if _, ok := err.(*serviceerror.WorkflowExecutionAlreadyStarted); ok {
 			return nil
 		}
-		s.context.GetLogger().Error("error starting "+workflowType+" workflow", tag.Error(err))
+		s.context.logger.Error("error starting workflow", tag.WorkflowType(workflowType), tag.Error(err))
 		return err
 	}
-	s.context.GetLogger().Info(workflowType + " workflow successfully started")
+	s.context.logger.Info("workflow successfully started", tag.WorkflowType(workflowType))
 	return nil
 }

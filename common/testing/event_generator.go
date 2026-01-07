@@ -1,27 +1,3 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package testing
 
 import (
@@ -81,8 +57,6 @@ type (
 	// RevokeFunc is the condition inside edge
 	// The function used to check if the edge is accessible at a certain state
 	RevokeFunc struct {
-		methodName string        //nolint
-		input      []interface{} //nolint
 	}
 )
 
@@ -360,12 +334,6 @@ func (g *EventGenerator) pickRandomVertex(
 	return endVertex.DeepCopy()
 }
 
-func (g *EventGenerator) shouldBumpVersion() bool {
-	// 1//1000 to bump the version
-	//return g.dice.Intn(1000) == 500
-	return false
-}
-
 // NewHistoryEventEdge initials a new edge between two HistoryEventVertexes
 func NewHistoryEventEdge(
 	start Vertex,
@@ -419,7 +387,7 @@ func (c HistoryEventEdge) GetCondition() func(...interface{}) bool {
 }
 
 // SetAction sets an action to perform when the end vertex hits
-func (c HistoryEventEdge) SetAction(action func()) {
+func (c *HistoryEventEdge) SetAction(action func()) {
 
 	c.action = action
 }
@@ -468,12 +436,12 @@ func (he *HistoryEventVertex) SetName(
 }
 
 // Equals compares two vertex
-//func (he *HistoryEventVertex) Equals(
+// func (he *HistoryEventVertex) Equals(
 //	v Vertex,
-//) bool {
+// ) bool {
 //
 //	return strings.EqualFold(he.name, v.GetName()) && he.data == v.GetData()
-//}
+// }
 
 // SetIsStrictOnNextVertex sets if a vertex can be added between the current vertex and its child Vertices
 func (he *HistoryEventVertex) SetIsStrictOnNextVertex(

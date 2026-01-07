@@ -1,38 +1,17 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package sql
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/urfave/cli"
-
-	"github.com/temporalio/temporal/tools/common/schema"
+	"go.temporal.io/server/common/headers"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin/mysql"
+	dbschemas "go.temporal.io/server/schema"
+	"go.temporal.io/server/temporal/environment"
+	"go.temporal.io/server/tools/common/schema"
 )
-
-const defaultSQLPort = 3306
 
 // RunTool runs the temporal-sql-tool command line tool
 func RunTool(args []string) error {
@@ -41,9 +20,9 @@ func RunTool(args []string) error {
 }
 
 // root handler for all cli commands
-func cliHandler(c *cli.Context, handler func(c *cli.Context) error) {
+func cliHandler(c *cli.Context, handler func(c *cli.Context, logger log.Logger) error, logger log.Logger) {
 	quiet := c.GlobalBool(schema.CLIOptQuiet)
-	err := handler(c)
+	err := handler(c, logger)
 	if err != nil && !quiet {
 		os.Exit(1)
 	}
@@ -55,18 +34,20 @@ func BuildCLIOptions() *cli.App {
 	app := cli.NewApp()
 	app.Name = "temporal-sql-tool"
 	app.Usage = "Command line tool for temporal sql operations"
-	app.Version = "0.0.1"
+	app.Version = headers.ServerVersion
+
+	logger := log.NewCLILogger()
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   schema.CLIFlagEndpoint,
-			Value:  "127.0.0.1",
+			Value:  environment.GetMySQLAddress(),
 			Usage:  "hostname or ip address of sql host to connect to",
 			EnvVar: "SQL_HOST",
 		},
 		cli.IntFlag{
 			Name:   schema.CLIFlagPort,
-			Value:  defaultSQLPort,
+			Value:  environment.GetMySQLPort(),
 			Usage:  "port of sql host to connect to",
 			EnvVar: "SQL_PORT",
 		},
@@ -90,7 +71,7 @@ func BuildCLIOptions() *cli.App {
 		},
 		cli.StringFlag{
 			Name:   schema.CLIFlagPluginName,
-			Value:  "mysql",
+			Value:  mysql.PluginName,
 			Usage:  "name of the sql plugin",
 			EnvVar: "SQL_PLUGIN",
 		},
@@ -123,10 +104,16 @@ func BuildCLIOptions() *cli.App {
 			Usage:  "sql tls client ca file (tls must be enabled)",
 			EnvVar: "SQL_TLS_CA_FILE",
 		},
+		cli.StringFlag{
+			Name:   schema.CLIFlagTLSHostName,
+			Value:  "",
+			Usage:  "override for target server name",
+			EnvVar: "SQL_TLS_SERVER_NAME",
+		},
 		cli.BoolFlag{
-			Name:   schema.CLIFlagTLSEnableHostVerification,
-			Usage:  "sql tls verify hostname and server cert (tls must be enabled)",
-			EnvVar: "SQL_TLS_ENABLE_HOST_VERIFICATION",
+			Name:   schema.CLIFlagTLSDisableHostVerification,
+			Usage:  "disable tls host name verification (tls must be enabled)",
+			EnvVar: "SQL_TLS_DISABLE_HOST_VERIFICATION",
 		},
 	}
 
@@ -144,6 +131,11 @@ func BuildCLIOptions() *cli.App {
 					Name:  schema.CLIFlagSchemaFile,
 					Usage: "path to the .sql schema file; if un-specified, will just setup versioning tables",
 				},
+				cli.StringFlag{
+					Name: schema.CLIFlagSchemaName,
+					Usage: fmt.Sprintf("name of embedded schema directory with .sql file, one of: %v",
+						dbschemas.PathsByDB("sql")),
+				},
 				cli.BoolFlag{
 					Name:  schema.CLIFlagDisableVersioning,
 					Usage: "disable setup of schema versioning",
@@ -154,7 +146,7 @@ func BuildCLIOptions() *cli.App {
 				},
 			},
 			Action: func(c *cli.Context) {
-				cliHandler(c, setupSchema)
+				cliHandler(c, setupSchema, logger)
 			},
 		},
 		{
@@ -170,13 +162,14 @@ func BuildCLIOptions() *cli.App {
 					Name:  schema.CLIFlagSchemaDir,
 					Usage: "path to directory containing versioned schema",
 				},
-				cli.BoolFlag{
-					Name:  schema.CLIFlagDryrun,
-					Usage: "do a dryrun",
+				cli.StringFlag{
+					Name: schema.CLIFlagSchemaName,
+					Usage: fmt.Sprintf("name of embedded versioned schema, one of: %v",
+						dbschemas.PathsByDB("mysql")),
 				},
 			},
 			Action: func(c *cli.Context) {
-				cliHandler(c, updateSchema)
+				cliHandler(c, updateSchema, logger)
 			},
 		},
 		{
@@ -185,12 +178,42 @@ func BuildCLIOptions() *cli.App {
 			Usage:   "creates a database",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  schema.CLIFlagDatabase,
-					Usage: "name of the database",
+					Name:  schema.CLIOptDefaultDb,
+					Usage: "optional default db to connect to, this is not the db to be created",
 				},
 			},
 			Action: func(c *cli.Context) {
-				cliHandler(c, createDatabase)
+				cliHandler(c, createDatabase, logger)
+			},
+		},
+		{
+			Name:    "drop-database",
+			Aliases: []string{"drop"},
+			Usage:   "drops a database",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  schema.CLIOptDefaultDb,
+					Usage: "optional default db to connect to, not the db to be deleted",
+				},
+				cli.BoolFlag{
+					Name:  schema.CLIFlagForce,
+					Usage: "don't prompt for confirmation",
+				},
+			},
+			Action: func(c *cli.Context) {
+				drop := c.Bool(schema.CLIOptForce)
+				if !drop {
+					database := c.GlobalString(schema.CLIOptDatabase)
+					fmt.Printf("Are you sure you want to drop database %q (y/N)? ", database)
+					y := ""
+					_, _ = fmt.Scanln(&y)
+					if y == "y" || y == "Y" {
+						drop = true
+					}
+				}
+				if drop {
+					cliHandler(c, dropDatabase, logger)
+				}
 			},
 		},
 	}

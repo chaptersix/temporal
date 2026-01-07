@@ -1,6 +1,6 @@
 # Google Storage blobstore
 ## Configuration
-See https://cloud.google.com/docs/authentication/production to understand how is made the authentication against google cloud storage
+See https://cloud.google.com/docs/authentication#service-accounts to understand how is made the authentication against google cloud storage
 
 Nowdays we support three different ways in order to let Temporal know where your google keyfile credentials are located
 
@@ -21,13 +21,13 @@ Enabling archival is done by using the configuration below. `credentialsPath` is
 ```
 archival:
   history:
-    status: "enabled"
+    state: "enabled"
     enableRead: true
     provider:
       gstorage:
         credentialsPath: "/tmp/keyfile.json"
   visibility:
-    status: "enabled"
+    state: "enabled"
     enableRead: true
     provider:
       gstorage:
@@ -36,10 +36,10 @@ archival:
 namespaceDefaults:
   archival:
     history:
-      status: "enabled"
+      state: "enabled"
       URI: "gs://my-bucket-cad/temporal_archival/development"
     visibility:
-      status: "enabled"
+      state: "enabled"
       URI: "gs://my-bucket-cad/temporal_archival/visibility"
 ```
 

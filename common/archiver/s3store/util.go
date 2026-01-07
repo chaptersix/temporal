@@ -1,27 +1,3 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package s3store
 
 import (
@@ -29,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 	"time"
 
@@ -37,28 +13,27 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	"github.com/gogo/protobuf/proto"
-	"github.com/gogo/protobuf/types"
-	commonpb "go.temporal.io/temporal-proto/common"
-	eventpb "go.temporal.io/temporal-proto/event"
-	executionpb "go.temporal.io/temporal-proto/execution"
-	"go.temporal.io/temporal-proto/serviceerror"
+	commonpb "go.temporal.io/api/common/v1"
+	historypb "go.temporal.io/api/history/v1"
+	"go.temporal.io/api/serviceerror"
+	workflowpb "go.temporal.io/api/workflow/v1"
+	archiverspb "go.temporal.io/server/api/archiver/v1"
+	"go.temporal.io/server/common/archiver"
+	"go.temporal.io/server/common/codec"
+	"go.temporal.io/server/common/searchattribute"
 	"go.uber.org/multierr"
-
-	archiverproto "github.com/temporalio/temporal/.gen/proto/archiver"
-	"github.com/temporalio/temporal/common/archiver"
-	"github.com/temporalio/temporal/common/codec"
+	"google.golang.org/protobuf/proto"
 )
 
 // encoding & decoding util
 
-func encode(message proto.Message) ([]byte, error) {
+func Encode(message proto.Message) ([]byte, error) {
 	encoder := codec.NewJSONPBEncoder()
 	return encoder.Encode(message)
 }
 
-func decodeVisibilityRecord(data []byte) (*archiverproto.ArchiveVisibilityRequest, error) {
-	record := &archiverproto.ArchiveVisibilityRequest{}
+func decodeVisibilityRecord(data []byte) (*archiverspb.VisibilityRecord, error) {
+	record := &archiverspb.VisibilityRecord{}
 	encoder := codec.NewJSONPBEncoder()
 	err := encoder.Decode(data, record)
 	if err != nil {
@@ -67,7 +42,7 @@ func decodeVisibilityRecord(data []byte) (*archiverproto.ArchiveVisibilityReques
 	return record, nil
 }
 
-func serializeToken(token interface{}) ([]byte, error) {
+func SerializeToken(token interface{}) ([]byte, error) {
 	if token == nil {
 		return nil, nil
 	}
@@ -89,7 +64,7 @@ func serializeQueryVisibilityToken(token string) []byte {
 }
 
 // Only validates the scheme and buckets are passed
-func softValidateURI(URI archiver.URI) error {
+func SoftValidateURI(URI archiver.URI) error {
 	if URI.Scheme() != URIScheme {
 		return archiver.ErrURISchemeMismatch
 	}
@@ -99,7 +74,7 @@ func softValidateURI(URI archiver.URI) error {
 	return nil
 }
 
-func bucketExists(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI) error {
+func BucketExists(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI) error {
 	ctx, cancel := ensureContextTimeout(ctx)
 	defer cancel()
 	_, err := s3cli.HeadBucketWithContext(ctx, &s3.HeadBucketInput{
@@ -108,13 +83,13 @@ func bucketExists(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI) er
 	if err == nil {
 		return nil
 	}
-	if isNotFoundError(err) {
+	if IsNotFoundError(err) {
 		return errBucketNotExists
 	}
 	return err
 }
 
-func keyExists(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI, key string) (bool, error) {
+func KeyExists(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI, key string) (bool, error) {
 	ctx, cancel := ensureContextTimeout(ctx)
 	defer cancel()
 	_, err := s3cli.HeadObjectWithContext(ctx, &s3.HeadObjectInput{
@@ -122,7 +97,7 @@ func keyExists(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI, key s
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		if isNotFoundError(err) {
+		if IsNotFoundError(err) {
 			return false, nil
 		}
 		return false, err
@@ -130,7 +105,7 @@ func keyExists(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI, key s
 	return true, nil
 }
 
-func isNotFoundError(err error) bool {
+func IsNotFoundError(err error) bool {
 	aerr, ok := err.(awserr.Error)
 	return ok && (aerr.Code() == "NotFound")
 }
@@ -150,8 +125,7 @@ func constructHistoryKeyPrefix(path, namespaceID, workflowID, runID string) stri
 	return strings.TrimLeft(strings.Join([]string{path, namespaceID, "history", workflowID, runID}, "/"), "/")
 }
 
-func constructTimeBasedSearchKey(path, namespaceID, primaryIndexKey, primaryIndexValue, secondaryIndexKey string, timestamp int64, precision string) string {
-	t := time.Unix(0, timestamp).In(time.UTC)
+func constructTimeBasedSearchKey(path, namespaceID, primaryIndexKey, primaryIndexValue, secondaryIndexKey string, t time.Time, precision string) string {
 	var timeFormat = ""
 	switch precision {
 	case PrecisionSecond:
@@ -167,16 +141,40 @@ func constructTimeBasedSearchKey(path, namespaceID, primaryIndexKey, primaryInde
 		timeFormat = "2006-01-02T" + timeFormat
 	}
 
-	return fmt.Sprintf("%s/%s", constructVisibilitySearchPrefix(path, namespaceID, primaryIndexKey, primaryIndexValue, secondaryIndexKey), t.Format(timeFormat))
+	return fmt.Sprintf(
+		"%s/%s",
+		constructIndexedVisibilitySearchPrefix(path, namespaceID, primaryIndexKey, primaryIndexValue, secondaryIndexKey),
+		t.Format(timeFormat),
+	)
 }
 
-func constructTimestampIndex(path, namespaceID, primaryIndexKey, primaryIndexValue, secondaryIndexKey string, timestamp int64, runID string) string {
-	t := time.Unix(0, timestamp).In(time.UTC)
-	return fmt.Sprintf("%s/%s/%s", constructVisibilitySearchPrefix(path, namespaceID, primaryIndexKey, primaryIndexValue, secondaryIndexKey), t.Format(time.RFC3339), runID)
+func constructTimestampIndex(path, namespaceID, primaryIndexKey, primaryIndexValue, secondaryIndexKey string, secondaryIndexValue time.Time, runID string) string {
+	return fmt.Sprintf(
+		"%s/%s/%s",
+		constructIndexedVisibilitySearchPrefix(path, namespaceID, primaryIndexKey, primaryIndexValue, secondaryIndexKey),
+		secondaryIndexValue.Format(time.RFC3339),
+		runID,
+	)
 }
 
-func constructVisibilitySearchPrefix(path, namespaceID, primaryIndexKey, primaryIndexValue, secondaryIndexType string) string {
-	return strings.TrimLeft(strings.Join([]string{path, namespaceID, "visibility", primaryIndexKey, primaryIndexValue, secondaryIndexType}, "/"), "/")
+func constructIndexedVisibilitySearchPrefix(
+	path string,
+	namespaceID string,
+	primaryIndexKey string,
+	primaryIndexValue string,
+	secondaryIndexType string,
+) string {
+	return strings.TrimLeft(
+		strings.Join(
+			[]string{path, namespaceID, "visibility", primaryIndexKey, primaryIndexValue, secondaryIndexType},
+			"/",
+		),
+		"/",
+	)
+}
+
+func constructVisibilitySearchPrefix(path, namespaceID string) string {
+	return strings.TrimLeft(strings.Join([]string{path, namespaceID, "visibility"}, "/"), "/")
 }
 
 func ensureContextTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -185,7 +183,7 @@ func ensureContextTimeout(ctx context.Context) (context.Context, context.CancelF
 	}
 	return context.WithTimeout(ctx, defaultBlobstoreTimeout)
 }
-func upload(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI, key string, data []byte) error {
+func Upload(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI, key string, data []byte) error {
 	ctx, cancel := ensureContextTimeout(ctx)
 	defer cancel()
 
@@ -205,7 +203,7 @@ func upload(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI, key stri
 	return nil
 }
 
-func download(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI, key string) ([]byte, error) {
+func Download(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI, key string) ([]byte, error) {
 	ctx, cancel := ensureContextTimeout(ctx)
 	defer cancel()
 	result, err := s3cli.GetObjectWithContext(ctx, &s3.GetObjectInput{
@@ -232,14 +230,14 @@ func download(ctx context.Context, s3cli s3iface.S3API, URI archiver.URI, key st
 		}
 	}()
 
-	body, err := ioutil.ReadAll(result.Body)
+	body, err := io.ReadAll(result.Body)
 	if err != nil {
 		return nil, err
 	}
 	return body, nil
 }
 
-func historyMutated(request *archiver.ArchiveHistoryRequest, historyBatches []*eventpb.History, isLast bool) bool {
+func historyMutated(request *archiver.ArchiveHistoryRequest, historyBatches []*historypb.History, isLast bool) bool {
 	lastBatch := historyBatches[len(historyBatches)-1].Events
 	lastEvent := lastBatch[len(lastBatch)-1]
 	lastFailoverVersion := lastEvent.GetVersion()
@@ -254,34 +252,27 @@ func historyMutated(request *archiver.ArchiveHistoryRequest, historyBatches []*e
 	return lastFailoverVersion != request.CloseFailoverVersion || lastEventID+1 != request.NextEventID
 }
 
-func contextExpired(ctx context.Context) bool {
-	select {
-	case <-ctx.Done():
-		return true
-	default:
-		return false
+func convertToExecutionInfo(record *archiverspb.VisibilityRecord, saTypeMap searchattribute.NameTypeMap) (*workflowpb.WorkflowExecutionInfo, error) {
+	searchAttributes, err := searchattribute.Parse(record.SearchAttributes, &saTypeMap)
+	if err != nil {
+		return nil, err
 	}
-}
 
-func convertToExecutionInfo(record *archiverproto.ArchiveVisibilityRequest) *executionpb.WorkflowExecutionInfo {
-	return &executionpb.WorkflowExecutionInfo{
-		Execution: &executionpb.WorkflowExecution{
+	return &workflowpb.WorkflowExecutionInfo{
+		Execution: &commonpb.WorkflowExecution{
 			WorkflowId: record.GetWorkflowId(),
 			RunId:      record.GetRunId(),
 		},
 		Type: &commonpb.WorkflowType{
 			Name: record.WorkflowTypeName,
 		},
-		StartTime: &types.Int64Value{
-			Value: record.StartTimestamp},
-		ExecutionTime: record.ExecutionTimestamp,
-		CloseTime: &types.Int64Value{
-			Value: record.CloseTimestamp},
-		Status:        record.Status,
-		HistoryLength: record.HistoryLength,
-		Memo:          record.Memo,
-		SearchAttributes: &commonpb.SearchAttributes{
-			IndexedFields: archiver.ConvertSearchAttrToBytes(record.SearchAttributes),
-		},
-	}
+		StartTime:         record.StartTime,
+		ExecutionTime:     record.ExecutionTime,
+		CloseTime:         record.CloseTime,
+		ExecutionDuration: record.ExecutionDuration,
+		Status:            record.Status,
+		HistoryLength:     record.HistoryLength,
+		Memo:              record.Memo,
+		SearchAttributes:  searchAttributes,
+	}, nil
 }

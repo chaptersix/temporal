@@ -1,61 +1,13 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package metrics
 
 import (
 	"runtime"
-	"strconv"
 	"sync/atomic"
 	"time"
 
-	"github.com/uber-go/tally"
-
-	"github.com/temporalio/temporal/common/log"
-)
-
-var (
-	// Revision is the VCS revision associated with this build. Overridden using ldflags
-	// at compile time. Example:
-	// $ go build -ldflags "-X github.com/temporalio/temporal/common/metrics.Revision=abcdef" ...
-	// Adapted from: https://www.atatus.com/blog/golang-auto-build-versioning/
-	Revision = "unknown"
-
-	// Branch is the VCS branch associated with this build.
-	Branch = "unknown"
-
-	// Version is the version associated with this build.
-	Version = "unknown"
-
-	// BuildDate is the date this build was created.
-	BuildDate = "unknown"
-
-	// BuildTimeUnix is the seconds since epoch representing the date this build was created.
-	BuildTimeUnix = "0"
-
-	// goVersion is the current runtime version.
-	goVersion = runtime.Version()
+	"go.temporal.io/server/common/build"
+	"go.temporal.io/server/common/headers"
+	"go.temporal.io/server/common/log"
 )
 
 const (
@@ -68,54 +20,44 @@ const (
 
 // RuntimeMetricsReporter A struct containing the state of the RuntimeMetricsReporter.
 type RuntimeMetricsReporter struct {
-	scope          tally.Scope
-	buildInfoScope tally.Scope
-	reportInterval time.Duration
-	started        int32
-	quit           chan struct{}
-	logger         log.Logger
-	lastNumGC      uint32
-	buildTime      time.Time
+	handler          Handler
+	buildInfoHandler Handler
+	reportInterval   time.Duration
+	started          int32
+	quit             chan struct{}
+	logger           log.Logger
+	lastNumGC        uint32
+	buildTime        time.Time
 }
 
 // NewRuntimeMetricsReporter Creates a new RuntimeMetricsReporter.
 func NewRuntimeMetricsReporter(
-	scope tally.Scope,
+	handler Handler,
 	reportInterval time.Duration,
 	logger log.Logger,
 	instanceID string,
 ) *RuntimeMetricsReporter {
-	const (
-		base    = 10
-		bitSize = 64
-	)
 	if len(instanceID) > 0 {
-		scope = scope.Tagged(map[string]string{instance: instanceID})
+		handler = handler.WithTags(StringTag(instance, instanceID))
 	}
 	var memstats runtime.MemStats
 	runtime.ReadMemStats(&memstats)
-	rReporter := &RuntimeMetricsReporter{
-		scope:          scope,
+
+	return &RuntimeMetricsReporter{
+		handler:        handler,
 		reportInterval: reportInterval,
 		logger:         logger,
 		lastNumGC:      memstats.NumGC,
 		quit:           make(chan struct{}),
+		buildTime:      build.InfoData.GitTime,
+		buildInfoHandler: handler.WithTags(
+			StringTag(gitRevisionTag, build.InfoData.GitRevision),
+			StringTag(buildDateTag, build.InfoData.GitTime.Format(time.RFC3339)),
+			StringTag(buildPlatformTag, build.InfoData.GoArch),
+			StringTag(goVersionTag, build.InfoData.GoVersion),
+			StringTag(buildVersionTag, headers.ServerVersion),
+		),
 	}
-	rReporter.buildInfoScope = scope.Tagged(
-		map[string]string{
-			revisionTag:     Revision,
-			branchTag:       Branch,
-			buildDateTag:    BuildDate,
-			buildVersionTag: Version,
-			goVersionTag:    goVersion,
-		},
-	)
-	sec, err := strconv.ParseInt(BuildTimeUnix, base, bitSize)
-	if err != nil || sec < 0 {
-		sec = 0
-	}
-	rReporter.buildTime = time.Unix(sec, 0)
-	return rReporter
 }
 
 // report Sends runtime metrics to the local metrics collector.
@@ -123,34 +65,39 @@ func (r *RuntimeMetricsReporter) report() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	r.scope.Gauge(NumGoRoutinesGauge).Update(float64(runtime.NumGoroutine()))
-	r.scope.Gauge(GoMaxProcsGauge).Update(float64(runtime.GOMAXPROCS(0)))
-	r.scope.Gauge(MemoryAllocatedGauge).Update(float64(memStats.Alloc))
-	r.scope.Gauge(MemoryHeapGauge).Update(float64(memStats.HeapAlloc))
-	r.scope.Gauge(MemoryHeapIdleGauge).Update(float64(memStats.HeapIdle))
-	r.scope.Gauge(MemoryHeapInuseGauge).Update(float64(memStats.HeapInuse))
-	r.scope.Gauge(MemoryStackGauge).Update(float64(memStats.StackInuse))
+	NumGoRoutinesGauge.With(r.handler).Record(float64(runtime.NumGoroutine()))
+	GoMaxProcsGauge.With(r.handler).Record(float64(runtime.GOMAXPROCS(0)))
+	MemoryAllocatedGauge.With(r.handler).Record(float64(memStats.Alloc))
+	MemoryHeapGauge.With(r.handler).Record(float64(memStats.HeapAlloc))
+	MemoryHeapObjectsGauge.With(r.handler).Record(float64(memStats.HeapObjects))
+	MemoryHeapIdleGauge.With(r.handler).Record(float64(memStats.HeapIdle))
+	MemoryHeapInuseGauge.With(r.handler).Record(float64(memStats.HeapInuse))
+	MemoryHeapReleasedGauge.With(r.handler).Record(float64(memStats.HeapReleased))
+	MemoryStackGauge.With(r.handler).Record(float64(memStats.StackInuse))
+	MemoryMallocsGauge.With(r.handler).Record(float64(memStats.Mallocs))
+	MemoryFreesGauge.With(r.handler).Record(float64(memStats.Frees))
+
+	NumGCGauge.With(r.handler).Record(float64(memStats.NumGC))
+	GcPauseNsTotal.With(r.handler).Record(float64(memStats.PauseTotalNs))
 
 	// memStats.NumGC is a perpetually incrementing counter (unless it wraps at 2^32)
 	num := memStats.NumGC
 	lastNum := atomic.SwapUint32(&r.lastNumGC, num) // reset for the next iteration
 	if delta := num - lastNum; delta > 0 {
-		r.scope.Counter(NumGCCounter).Inc(int64(delta))
+		NumGCCounter.With(r.handler).Record(int64(delta))
 		if delta > 255 {
 			// too many GCs happened, the timestamps buffer got wrapped around. Report only the last 256
 			lastNum = num - 256
 		}
 		for i := lastNum; i != num; i++ {
 			pause := memStats.PauseNs[i%256]
-			r.scope.Timer(GcPauseMsTimer).Record(time.Duration(pause))
+			GcPauseMsTimer.With(r.handler).Record(time.Duration(pause))
 		}
 	}
 
 	// report build info
-	buildInfoGauge := r.buildInfoScope.Gauge(buildInfoMetricName)
-	buildAgeGauge := r.buildInfoScope.Gauge(buildAgeMetricName)
-	buildInfoGauge.Update(1.0)
-	buildAgeGauge.Update(float64(time.Since(r.buildTime)))
+	r.buildInfoHandler.Gauge(buildInfoMetricName).Record(1.0)
+	r.buildInfoHandler.Gauge(buildAgeMetricName).Record(float64(time.Since(r.buildTime)))
 }
 
 // Start Starts the reporter thread that periodically emits metrics.
@@ -158,6 +105,7 @@ func (r *RuntimeMetricsReporter) Start() {
 	if !atomic.CompareAndSwapInt32(&r.started, 0, 1) {
 		return
 	}
+	r.report()
 	go func() {
 		ticker := time.NewTicker(r.reportInterval)
 		for {

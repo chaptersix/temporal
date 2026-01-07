@@ -1,7 +1,7 @@
 CREATE TYPE serialized_event_batch (
   encoding_type text,
   version       int,
-  data          blob,
+  data          blob
 );
 
 CREATE TABLE executions (
@@ -43,8 +43,6 @@ CREATE TABLE executions (
   replication_metadata_encoding  text,
   workflow_last_write_version    bigint,
   workflow_state                 int,
-  version_histories              blob, -- the metadata of history branching
-  version_histories_encoding     text,
   checksum                       blob,
   checksum_encoding              text,
   PRIMARY KEY  (shard_id, type, namespace_id, workflow_id, run_id, visibility_ts, task_id)
@@ -78,30 +76,30 @@ CREATE TABLE history_tree (
 -- Stores activity or workflow tasks
 CREATE TABLE tasks (
   namespace_id             uuid,
-  task_list_name        text,
-  task_list_type        int, -- enum TaskListType {ActivityTask, DecisionTask}
-  type                  int, -- enum rowType {Task, TaskList}
+  task_queue_name        text,
+  task_queue_type        int, -- enum TaskQueueType {ActivityTask, WorkflowTask}
+  type                  int, -- enum rowType {Task, TaskQueue}
   task_id               bigint,  -- unique identifier for tasks, monotonically increasing
   range_id              bigint, -- Used to ensure that only one process can write to the table
   task                  blob,
   task_encoding         text,
-  task_list             blob,
-  task_list_encoding    text,
-  PRIMARY KEY ((namespace_id, task_list_name, task_list_type), type, task_id)
+  task_queue             blob,
+  task_queue_encoding    text,
+  PRIMARY KEY ((namespace_id, task_queue_name, task_queue_type), type, task_id)
 ) WITH COMPACTION = {
     'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
   };
 
 -- this table is only used for storage of mapping of namespace uuid to namespace name
-CREATE TABLE namespaces (
+CREATE TABLE namespaces_by_id (
   id     uuid,
   name   text,
   PRIMARY KEY (id)
 ) WITH COMPACTION = {
-    'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'
-  };
+    'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'  };
 
-CREATE TABLE namespaces_by_name_v2 (
+
+CREATE TABLE namespaces (
   namespaces_partition          int,
   name                          text,
   id                            uuid,
@@ -116,7 +114,7 @@ CREATE TABLE namespaces_by_name_v2 (
 
 CREATE TABLE queue (
   queue_type      int,
-  message_id      int,
+  message_id      bigint,
   message_payload blob,
   PRIMARY KEY  (queue_type, message_id)
 ) WITH COMPACTION = {

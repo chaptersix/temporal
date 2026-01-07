@@ -1,33 +1,10 @@
-// The MIT License
-//
-// Copyright (c) 2020 Temporal Technologies Inc.  All rights reserved.
-//
-// Copyright (c) 2020 Uber Technologies, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
 package mysql
 
 import (
+	"context"
 	"database/sql"
 
-	"github.com/temporalio/temporal/common/persistence/sql/sqlplugin"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin"
 )
 
 const (
@@ -47,19 +24,44 @@ const (
 )
 
 // InsertIntoShards inserts one or more rows into shards table
-func (mdb *db) InsertIntoShards(row *sqlplugin.ShardsRow) (sql.Result, error) {
-	return mdb.conn.Exec(createShardQry, row.ShardID, row.RangeID, row.Data, row.DataEncoding)
+func (mdb *db) InsertIntoShards(
+	ctx context.Context,
+	row *sqlplugin.ShardsRow,
+) (sql.Result, error) {
+	return mdb.ExecContext(ctx,
+		createShardQry,
+		row.ShardID,
+		row.RangeID,
+		row.Data,
+		row.DataEncoding,
+	)
 }
 
 // UpdateShards updates one or more rows into shards table
-func (mdb *db) UpdateShards(row *sqlplugin.ShardsRow) (sql.Result, error) {
-	return mdb.conn.Exec(updateShardQry, row.RangeID, row.Data, row.DataEncoding, row.ShardID)
+func (mdb *db) UpdateShards(
+	ctx context.Context,
+	row *sqlplugin.ShardsRow,
+) (sql.Result, error) {
+	return mdb.ExecContext(ctx,
+		updateShardQry,
+		row.RangeID,
+		row.Data,
+		row.DataEncoding,
+		row.ShardID,
+	)
 }
 
 // SelectFromShards reads one or more rows from shards table
-func (mdb *db) SelectFromShards(filter *sqlplugin.ShardsFilter) (*sqlplugin.ShardsRow, error) {
+func (mdb *db) SelectFromShards(
+	ctx context.Context,
+	filter sqlplugin.ShardsFilter,
+) (*sqlplugin.ShardsRow, error) {
 	var row sqlplugin.ShardsRow
-	err := mdb.conn.Get(&row, getShardQry, filter.ShardID)
+	err := mdb.GetContext(ctx,
+		&row,
+		getShardQry,
+		filter.ShardID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -67,15 +69,29 @@ func (mdb *db) SelectFromShards(filter *sqlplugin.ShardsFilter) (*sqlplugin.Shar
 }
 
 // ReadLockShards acquires a read lock on a single row in shards table
-func (mdb *db) ReadLockShards(filter *sqlplugin.ShardsFilter) (int, error) {
-	var rangeID int
-	err := mdb.conn.Get(&rangeID, readLockShardQry, filter.ShardID)
+func (mdb *db) ReadLockShards(
+	ctx context.Context,
+	filter sqlplugin.ShardsFilter,
+) (int64, error) {
+	var rangeID int64
+	err := mdb.GetContext(ctx,
+		&rangeID,
+		readLockShardQry,
+		filter.ShardID,
+	)
 	return rangeID, err
 }
 
 // WriteLockShards acquires a write lock on a single row in shards table
-func (mdb *db) WriteLockShards(filter *sqlplugin.ShardsFilter) (int, error) {
-	var rangeID int
-	err := mdb.conn.Get(&rangeID, lockShardQry, filter.ShardID)
+func (mdb *db) WriteLockShards(
+	ctx context.Context,
+	filter sqlplugin.ShardsFilter,
+) (int64, error) {
+	var rangeID int64
+	err := mdb.GetContext(ctx,
+		&rangeID,
+		lockShardQry,
+		filter.ShardID,
+	)
 	return rangeID, err
 }
