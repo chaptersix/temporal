@@ -132,11 +132,11 @@ func validateVersionWfParams(fieldName string, field string, maxIDLengthLimit in
 // GenerateDeploymentWorkflowID is a helper that generates a system accepted
 // workflowID which are used in our Worker Deployment workflows
 func GenerateDeploymentWorkflowID(deploymentName string) string {
-	return worker_versioning.WorkerDeploymentWorkflowIDPrefix + worker_versioning.WorkerDeploymentVersionWorkflowIDDelimeter + deploymentName
+	return worker_versioning.WorkerDeploymentWorkflowIDPrefix + worker_versioning.WorkerDeploymentVersionDelimiter + deploymentName
 }
 
 func GetDeploymentNameFromWorkflowID(workflowID string) string {
-	_, deploymentName, _ := strings.Cut(workflowID, worker_versioning.WorkerDeploymentVersionWorkflowIDDelimeter)
+	_, deploymentName, _ := strings.Cut(workflowID, worker_versioning.WorkerDeploymentVersionDelimiter)
 	return deploymentName
 }
 
@@ -147,16 +147,19 @@ func GenerateVersionWorkflowID(deploymentName string, buildID string) string {
 		DeploymentName: deploymentName,
 		BuildId:        buildID,
 	})
-	return worker_versioning.WorkerDeploymentVersionWorkflowIDPrefix + worker_versioning.WorkerDeploymentVersionWorkflowIDDelimeter + versionString
+	return worker_versioning.WorkerDeploymentVersionWorkflowIDPrefix + worker_versioning.WorkerDeploymentVersionDelimiter + versionString
 }
 
-func DecodeWorkerDeploymentMemo(memo *commonpb.Memo) *deploymentspb.WorkerDeploymentWorkflowMemo {
+func DecodeWorkerDeploymentMemo(memo *commonpb.Memo) (*deploymentspb.WorkerDeploymentWorkflowMemo, error) {
+	if memo == nil || memo.Fields == nil {
+		return nil, errors.New("decoding WorkerDeploymentMemo failed: Memo or it's fields are nil")
+	}
 	var workerDeploymentWorkflowMemo deploymentspb.WorkerDeploymentWorkflowMemo
 	err := sdk.PreferProtoDataConverter.FromPayload(memo.Fields[WorkerDeploymentMemoField], &workerDeploymentWorkflowMemo)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return &workerDeploymentWorkflowMemo
+	return &workerDeploymentWorkflowMemo, nil
 }
 
 func getSafeDurationConfig(ctx workflow.Context, id string, unsafeGetter func() time.Duration, defaultValue time.Duration) (time.Duration, error) {
@@ -379,6 +382,9 @@ func isRetryableUpdateError(err error) bool {
 	var errMultiOps *serviceerror.MultiOperationExecution
 	if errors.As(err, &errMultiOps) {
 		for _, e := range errMultiOps.OperationErrors() {
+			if e == nil {
+				continue
+			}
 			if errors.As(e, &errResourceExhausted) &&
 				(errResourceExhausted.Cause == enumspb.RESOURCE_EXHAUSTED_CAUSE_CONCURRENT_LIMIT ||
 					errResourceExhausted.Cause == enumspb.RESOURCE_EXHAUSTED_CAUSE_BUSY_WORKFLOW) {

@@ -10,7 +10,7 @@ import (
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	"go.temporal.io/server/common"
-	commonscheduler "go.temporal.io/server/common/scheduler"
+	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -173,7 +173,7 @@ func convertBufferedStartsLegacyToCHASM(
 
 		// Generate request_id if not present (V1 doesn't populate this)
 		if v2Start.RequestId == "" {
-			v2Start.RequestId = commonscheduler.GenerateRequestID(commonscheduler.RequestIDParams{
+			v2Start.RequestId = legacyscheduler.GenerateRequestID(legacyscheduler.RequestIDParams{
 				BackfillID:    "migrated",
 				NamespaceID:   namespaceID,
 				ScheduleID:    scheduleID,
@@ -185,7 +185,7 @@ func convertBufferedStartsLegacyToCHASM(
 
 		// Generate workflow_id if not present
 		if v2Start.WorkflowId == "" {
-			v2Start.WorkflowId = commonscheduler.GenerateWorkflowID(commonscheduler.WorkflowIDParams{
+			v2Start.WorkflowId = legacyscheduler.GenerateWorkflowID(legacyscheduler.WorkflowIDParams{
 				BaseWorkflowID: baseWorkflowID,
 				NominalTime:    v1Start.GetNominalTime().AsTime(),
 			})

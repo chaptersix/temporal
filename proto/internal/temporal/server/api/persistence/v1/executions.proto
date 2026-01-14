@@ -292,6 +292,12 @@ message WorkflowExecutionInfo {
 
 message ExecutionStats {
     int64 history_size = 1;
+    // Total size in bytes of all external payloads referenced in the entire history tree of the execution, not just the current branch.
+    // This number doesn't include payloads in buffered events.
+    int64 external_payload_size = 2;
+    // Total count of external payloads referenced in the entire history tree of the execution, not just the current branch.
+    // This number doesn't include payloads in buffered events.
+    int64 external_payload_count = 3;
 }
 
 // execution_state column
@@ -806,6 +812,19 @@ message NexusOperationInfo {
     // Endpoint ID, the name is also stored here (field 1) but we use the ID internally to avoid failing operation
     // requests when an endpoint is renamed.
     string endpoint_id = 15;
+
+    // Schedule-to-start timeout for this operation.
+    // (-- api-linter: core::0140::prepositions=disabled
+    //     aip.dev/not-precedent: "to" is used to indicate interval. --)
+    google.protobuf.Duration schedule_to_start_timeout = 16;
+
+    // Start-to-close timeout for this operation.
+    // (-- api-linter: core::0140::prepositions=disabled
+    //     aip.dev/not-precedent: "to" is used to indicate interval. --)
+    google.protobuf.Duration start_to_close_timeout = 17;
+
+    // Time the operation was started (only available for async operations).
+    google.protobuf.Timestamp started_time = 18;
 }
 
 // NexusOperationCancellationInfo contains the state of a nexus operation cancelation.
