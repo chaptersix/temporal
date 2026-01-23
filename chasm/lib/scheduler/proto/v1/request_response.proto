@@ -74,7 +74,7 @@ message ListScheduleMatchingTimesResponse {
     temporal.api.workflowservice.v1.ListScheduleMatchingTimesResponse frontend_response = 1;
 }
 
-message MigrateScheduleRequest {
+message ImportScheduleRequest {
     // Internal namespace ID (UUID).
     string namespace_id = 1;
 
@@ -96,4 +96,4 @@ message MigrateScheduleRequest {
     map<string, temporal.api.common.v1.Payload> memo = 10;
 }
 
-message MigrateScheduleResponse {}
+message ImportScheduleResponse {}

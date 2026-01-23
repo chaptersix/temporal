@@ -316,18 +316,18 @@ func (c *SchedulerServiceLayeredClient) ListScheduleMatchingTimes(
 	}
 	return backoff.ThrottleRetryContextWithReturn(ctx, call, c.retryPolicy, common.IsServiceClientTransientError)
 }
-func (c *SchedulerServiceLayeredClient) callMigrateScheduleNoRetry(
+func (c *SchedulerServiceLayeredClient) callImportScheduleNoRetry(
 	ctx context.Context,
-	request *MigrateScheduleRequest,
+	request *ImportScheduleRequest,
 	opts ...grpc.CallOption,
-) (*MigrateScheduleResponse, error) {
-	var response *MigrateScheduleResponse
+) (*ImportScheduleResponse, error) {
+	var response *ImportScheduleResponse
 	var err error
 	startTime := time.Now().UTC()
 	// the caller is a namespace, hence the tag below.
 	caller := headers.GetCallerInfo(ctx).CallerName
 	metricsHandler := c.metricsHandler.WithTags(
-		metrics.OperationTag("SchedulerService.MigrateSchedule"),
+		metrics.OperationTag("SchedulerService.ImportSchedule"),
 		metrics.NamespaceTag(caller),
 		metrics.ServiceRoleTag(metrics.HistoryRoleTagValue),
 	)
@@ -343,19 +343,19 @@ func (c *SchedulerServiceLayeredClient) callMigrateScheduleNoRetry(
 		var err error
 		ctx, cancel := context.WithTimeout(ctx, history.DefaultTimeout)
 		defer cancel()
-		response, err = client.MigrateSchedule(ctx, request, opts...)
+		response, err = client.ImportSchedule(ctx, request, opts...)
 		return err
 	}
 	err = c.redirector.Execute(ctx, shardID, op)
 	return response, err
 }
-func (c *SchedulerServiceLayeredClient) MigrateSchedule(
+func (c *SchedulerServiceLayeredClient) ImportSchedule(
 	ctx context.Context,
-	request *MigrateScheduleRequest,
+	request *ImportScheduleRequest,
 	opts ...grpc.CallOption,
-) (*MigrateScheduleResponse, error) {
-	call := func(ctx context.Context) (*MigrateScheduleResponse, error) {
-		return c.callMigrateScheduleNoRetry(ctx, request, opts...)
+) (*ImportScheduleResponse, error) {
+	call := func(ctx context.Context) (*ImportScheduleResponse, error) {
+		return c.callImportScheduleNoRetry(ctx, request, opts...)
 	}
 	return backoff.ThrottleRetryContextWithReturn(ctx, call, c.retryPolicy, common.IsServiceClientTransientError)
 }

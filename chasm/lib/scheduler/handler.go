@@ -125,3 +125,24 @@ func (h *handler) ListScheduleMatchingTimes(ctx context.Context, req *schedulerp
 		req,
 	)
 }
+
+// ImportSchedule creates a CHASM schedule from migrated V1 state.
+// Used during migration from workflow-backed schedules to CHASM schedules.
+func (h *handler) ImportSchedule(ctx context.Context, req *schedulerpb.ImportScheduleRequest) (resp *schedulerpb.ImportScheduleResponse, err error) {
+	defer log.CapturePanic(h.logger, &err)
+
+	result, err := chasm.NewExecution(
+		ctx,
+		chasm.ExecutionKey{
+			NamespaceID: req.NamespaceId,
+			BusinessID:  req.ScheduleId,
+		},
+		CreateSchedulerFromMigration,
+		req,
+		chasm.WithBusinessIDPolicy(
+			chasm.BusinessIDReusePolicyRejectDuplicate,
+			chasm.BusinessIDConflictPolicyFail,
+		),
+	)
+	return result.Output, err
+}

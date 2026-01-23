@@ -449,35 +449,35 @@ func (this *ListScheduleMatchingTimesResponse) Equal(that interface{}) bool {
 	return proto.Equal(this, that1)
 }
 
-// Marshal an object of type MigrateScheduleRequest to the protobuf v3 wire format
-func (val *MigrateScheduleRequest) Marshal() ([]byte, error) {
+// Marshal an object of type ImportScheduleRequest to the protobuf v3 wire format
+func (val *ImportScheduleRequest) Marshal() ([]byte, error) {
 	return proto.Marshal(val)
 }
 
-// Unmarshal an object of type MigrateScheduleRequest from the protobuf v3 wire format
-func (val *MigrateScheduleRequest) Unmarshal(buf []byte) error {
+// Unmarshal an object of type ImportScheduleRequest from the protobuf v3 wire format
+func (val *ImportScheduleRequest) Unmarshal(buf []byte) error {
 	return proto.Unmarshal(buf, val)
 }
 
 // Size returns the size of the object, in bytes, once serialized
-func (val *MigrateScheduleRequest) Size() int {
+func (val *ImportScheduleRequest) Size() int {
 	return proto.Size(val)
 }
 
-// Equal returns whether two MigrateScheduleRequest values are equivalent by recursively
+// Equal returns whether two ImportScheduleRequest values are equivalent by recursively
 // comparing the message's fields.
 // For more information see the documentation for
 // https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
-func (this *MigrateScheduleRequest) Equal(that interface{}) bool {
+func (this *ImportScheduleRequest) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
 	}
 
-	var that1 *MigrateScheduleRequest
+	var that1 *ImportScheduleRequest
 	switch t := that.(type) {
-	case *MigrateScheduleRequest:
+	case *ImportScheduleRequest:
 		that1 = t
-	case MigrateScheduleRequest:
+	case ImportScheduleRequest:
 		that1 = &t
 	default:
 		return false
@@ -486,35 +486,35 @@ func (this *MigrateScheduleRequest) Equal(that interface{}) bool {
 	return proto.Equal(this, that1)
 }
 
-// Marshal an object of type MigrateScheduleResponse to the protobuf v3 wire format
-func (val *MigrateScheduleResponse) Marshal() ([]byte, error) {
+// Marshal an object of type ImportScheduleResponse to the protobuf v3 wire format
+func (val *ImportScheduleResponse) Marshal() ([]byte, error) {
 	return proto.Marshal(val)
 }
 
-// Unmarshal an object of type MigrateScheduleResponse from the protobuf v3 wire format
-func (val *MigrateScheduleResponse) Unmarshal(buf []byte) error {
+// Unmarshal an object of type ImportScheduleResponse from the protobuf v3 wire format
+func (val *ImportScheduleResponse) Unmarshal(buf []byte) error {
 	return proto.Unmarshal(buf, val)
 }
 
 // Size returns the size of the object, in bytes, once serialized
-func (val *MigrateScheduleResponse) Size() int {
+func (val *ImportScheduleResponse) Size() int {
 	return proto.Size(val)
 }
 
-// Equal returns whether two MigrateScheduleResponse values are equivalent by recursively
+// Equal returns whether two ImportScheduleResponse values are equivalent by recursively
 // comparing the message's fields.
 // For more information see the documentation for
 // https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
-func (this *MigrateScheduleResponse) Equal(that interface{}) bool {
+func (this *ImportScheduleResponse) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
 	}
 
-	var that1 *MigrateScheduleResponse
+	var that1 *ImportScheduleResponse
 	switch t := that.(type) {
-	case *MigrateScheduleResponse:
+	case *ImportScheduleResponse:
 		that1 = t
-	case MigrateScheduleResponse:
+	case ImportScheduleResponse:
 		that1 = &t
 	default:
 		return false
