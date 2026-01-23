@@ -158,18 +158,3 @@ message NextTimeCache {
     bool completed = 5;
 }
 
-// MigrateScheduleRequest is the input for the MigrateSchedule activity.
-// It contains all the state needed to recreate the schedule in CHASM.
-message MigrateScheduleRequest {
-    // The schedule definition
-    temporal.api.schedule.v1.Schedule schedule = 1;
-    // Schedule metadata (action counts, etc.)
-    temporal.api.schedule.v1.ScheduleInfo info = 2;
-    // Internal state (namespace, buffered starts, conflict token, etc.)
-    InternalState state = 3;
-    // Custom search attributes set on the schedule
-    map<string, temporal.api.common.v1.Payload> search_attributes = 4;
-    // Custom memo set on the schedule
-    map<string, temporal.api.common.v1.Payload> memo = 5;
-}
-

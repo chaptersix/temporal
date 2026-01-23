@@ -32,9 +32,9 @@ service SchedulerService {
         option (temporal.server.api.routing.v1.routing).business_id = "frontend_request.schedule_id";
     }
 
-    // ImportSchedule creates a CHASM schedule from migrated V1 state.
+    // MigrateSchedule creates a CHASM schedule from migrated V1 state.
     // Used during migration from workflow-backed schedules to CHASM schedules.
-    rpc ImportSchedule(ImportScheduleRequest) returns (ImportScheduleResponse) {
+    rpc MigrateSchedule(MigrateScheduleRequest) returns (MigrateScheduleResponse) {
         option (temporal.server.api.routing.v1.routing).business_id = "schedule_id";
     }
 }

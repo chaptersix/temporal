@@ -19,6 +19,7 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
+	"go.temporal.io/server/chasm/lib/scheduler/migration"
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/payload"
@@ -981,7 +982,6 @@ func (s *scheduler) handleMigrateSignal(ch workflow.ReceiveChannel, _ bool) {
 // executeMigration runs the MigrateSchedule activity to create a CHASM schedule
 // from the current V1 state. Returns nil on success or the activity error.
 func (s *scheduler) executeMigration() error {
-	// Collect current state to send to the activity
 	workflowInfo := workflow.GetInfo(s.ctx)
 
 	// Get search attributes and memo from workflow info
@@ -999,14 +999,16 @@ func (s *scheduler) executeMigration() error {
 		}
 	}
 
-	req := &schedulespb.MigrateScheduleRequest{
-		Schedule:         s.Schedule,
-		Info:             s.Info,
-		State:            s.State,
-		SearchAttributes: searchAttributes,
-		Memo:             memo,
-	}
+	req := migration.LegacyToMigrateScheduleRequest(
+		s.Schedule,
+		s.Info,
+		s.State,
+		searchAttributes,
+		memo,
+		s.now(),
+	)
 
+	s.incSeqNo()
 	ctx := workflow.WithLocalActivityOptions(s.ctx, defaultLocalActivityOptions)
 	err := workflow.ExecuteLocalActivity(ctx, s.a.MigrateSchedule, req).Get(s.ctx, nil)
 	return err

@@ -90,9 +90,9 @@ func setupContextForMigrationTest(t *testing.T) (chasm.MutableContext, *chasm.No
 	return ctx, node
 }
 
-func testImportScheduleRequest() *schedulerpb.ImportScheduleRequest {
+func testMigrateScheduleRequest() *schedulerpb.MigrateScheduleRequest {
 	now := time.Now().UTC()
-	return &schedulerpb.ImportScheduleRequest{
+	return &schedulerpb.MigrateScheduleRequest{
 		NamespaceId: namespaceID,
 		Namespace:   namespace,
 		ScheduleId:  scheduleID,
@@ -145,7 +145,7 @@ func testImportScheduleRequest() *schedulerpb.ImportScheduleRequest {
 
 func TestCreateSchedulerFromMigration_InitializesComponents(t *testing.T) {
 	ctx, node := setupContextForMigrationTest(t)
-	req := testImportScheduleRequest()
+	req := testMigrateScheduleRequest()
 
 	sched, resp, err := scheduler.CreateSchedulerFromMigration(ctx, req)
 	require.NoError(t, err)
@@ -190,7 +190,7 @@ func TestCreateSchedulerFromMigration_InitializesComponents(t *testing.T) {
 
 func TestCreateSchedulerFromMigration_PreservesConflictToken(t *testing.T) {
 	ctx, node := setupContextForMigrationTest(t)
-	req := testImportScheduleRequest()
+	req := testMigrateScheduleRequest()
 	req.SchedulerState.ConflictToken = 99 // Specific conflict token to verify
 
 	sched, _, err := scheduler.CreateSchedulerFromMigration(ctx, req)
@@ -206,7 +206,7 @@ func TestCreateSchedulerFromMigration_PreservesConflictToken(t *testing.T) {
 
 func TestCreateSchedulerFromMigration_InitializesGenerator(t *testing.T) {
 	ctx, node := setupContextForMigrationTest(t)
-	req := testImportScheduleRequest()
+	req := testMigrateScheduleRequest()
 
 	sched, _, err := scheduler.CreateSchedulerFromMigration(ctx, req)
 	require.NoError(t, err)
@@ -228,7 +228,7 @@ func TestCreateSchedulerFromMigration_InitializesGenerator(t *testing.T) {
 
 func TestCreateSchedulerFromMigration_ProcessesBufferedStarts(t *testing.T) {
 	ctx, node := setupContextForMigrationTest(t)
-	req := testImportScheduleRequest()
+	req := testMigrateScheduleRequest()
 
 	// Add multiple buffered starts
 	now := time.Now().UTC()
@@ -270,7 +270,7 @@ func TestCreateSchedulerFromMigration_HandlesEmptyState(t *testing.T) {
 	ctx, node := setupContextForMigrationTest(t)
 
 	// Minimal request with empty optional fields
-	req := &schedulerpb.ImportScheduleRequest{
+	req := &schedulerpb.MigrateScheduleRequest{
 		NamespaceId: namespaceID,
 		Namespace:   namespace,
 		ScheduleId:  scheduleID,
