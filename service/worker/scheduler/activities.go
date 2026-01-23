@@ -16,6 +16,7 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/server/api/historyservice/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
+	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/dynamicconfig"
 	"go.temporal.io/server/common/log"
@@ -371,4 +372,32 @@ func (r responseBuilder) makeResponse(result *commonpb.Payloads, failure *failur
 		res.ResultFailure = &schedulespb.WatchWorkflowResponse_Failure{Failure: failure}
 	}
 	return res
+}
+
+// MigrateSchedule migrates a V1 workflow-backed schedule to a V2 CHASM-backed schedule.
+// This activity converts the legacy state to an MigrateScheduleRequest and calls the
+// MigrateSchedule API to create the CHASM schedule.
+//
+// The activity is idempotent: if the CHASM schedule already exists (WorkflowExecutionAlreadyStarted),
+// it returns success, allowing the V1 workflow to terminate gracefully.
+func (a *activities) MigrateSchedule(ctx context.Context, req *schedulerpb.MigrateScheduleRequest) error {
+	_, err := a.SchedulerClient.MigrateSchedule(ctx, req)
+	if err != nil {
+		// Treat "already exists" as success (idempotency)
+		var alreadyExists *serviceerror.WorkflowExecutionAlreadyStarted
+		if errors.As(err, &alreadyExists) {
+			a.Logger.Info("MigrateSchedule: CHASM schedule already exists, treating as success",
+				tag.WorkflowNamespace(req.Namespace),
+				tag.ScheduleID(req.ScheduleId),
+			)
+			return nil
+		}
+		return translateError(err, "MigrateSchedule")
+	}
+
+	a.Logger.Info("MigrateSchedule: successfully created CHASM schedule",
+		tag.WorkflowNamespace(req.Namespace),
+		tag.ScheduleID(req.ScheduleId),
+	)
+	return nil
 }
