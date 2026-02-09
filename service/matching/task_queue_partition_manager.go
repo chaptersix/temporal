@@ -643,7 +643,7 @@ func (pm *taskQueuePartitionManagerImpl) AddSpooledTask(
 	// may have changed after the task was spooled.
 	task.taskDispatchRevisionNumber = taskDispatchRevisionNumber
 
-	// set redirect info if spoolQueue and syncMatchQueue build ids are different
+	// set redirect info if spoolQueue and syncMatchQueue build ids are different (V2 versioning)
 	if assignedBuildId != syncMatchQueue.QueueKey().Version().BuildId() {
 		task.redirectInfo = &taskqueuespb.BuildIdRedirectInfo{
 			AssignedBuildId: assignedBuildId,
@@ -652,6 +652,8 @@ func (pm *taskQueuePartitionManagerImpl) AddSpooledTask(
 		// make sure to reset redirectInfo in case it was set in a previous loop cycle
 		task.redirectInfo = nil
 	}
+	// mark if task is being redirected from queue it was read from (V2 or V3 versioning)
+	task.redirectedFromBacklog = syncMatchQueue.QueueKey() != backlogQueue
 	if !backlogQueue.version.Deployment().Equal(newBacklogQueue.QueueKey().version.Deployment()) {
 		// Backlog queue has changed, spool to the new queue. This should happen rarely: when
 		// activity of pinned workflow was determined independent and sent to the default queue
@@ -668,8 +670,7 @@ func (pm *taskQueuePartitionManagerImpl) AddSpooledTask(
 		task.finish(nil, false)
 		return nil
 	}
-	syncMatchQueue.AddSpooledTaskToMatcher(task)
-	return nil
+	return syncMatchQueue.AddSpooledTaskToMatcher(task)
 }
 
 func (pm *taskQueuePartitionManagerImpl) DispatchQueryTask(
@@ -1123,6 +1124,8 @@ func (pm *taskQueuePartitionManagerImpl) ephemeralDataChanged(data *taskqueuespb
 	// for now, only sticky partitions act on ephemeral data, normal partitions ignore it.
 	if pm.partition.Kind() != enumspb.TASK_QUEUE_KIND_STICKY {
 		return
+	} else if !pm.defaultQueueFuture.Ready() {
+		return // not initialized yet
 	}
 
 	// transpose map to more useful form
@@ -1394,14 +1397,18 @@ func (pm *taskQueuePartitionManagerImpl) unloadPhysicalQueue(unloadedDbq physica
 
 	pm.versionedQueuesLock.Lock()
 	foundDbq, ok := pm.versionedQueues[version]
-	if !ok || foundDbq != unloadedDbq {
-		pm.versionedQueuesLock.Unlock()
-		unloadedDbq.Stop(unloadCause)
-		return
+	if ok && foundDbq == unloadedDbq {
+		delete(pm.versionedQueues, version)
 	}
-	delete(pm.versionedQueues, version)
 	pm.versionedQueuesLock.Unlock()
+
 	unloadedDbq.Stop(unloadCause)
+
+	// Here we're unloading a versioned queue but not unloading the whole partition. With new
+	// matcher, the matcher may be holding tasks that came from other versioned queues
+	// (including the default queue). We need to ensure we send those tasks back to get
+	// reprocessed (which may end up reloading a new instance of this queue).
+	unloadedDbq.ReprocessRedirectedTasksAfterStop()
 }
 
 func (pm *taskQueuePartitionManagerImpl) unloadFromEngine(unloadCause unloadCause) {
@@ -1842,6 +1849,14 @@ func (pm *taskQueuePartitionManagerImpl) checkQueryBlackholed(
 	deploymentData *persistencespb.DeploymentData,
 	deployment *deploymentpb.Deployment,
 ) error {
+
+	// Only perform this check on the root partition.
+	// Forwarding (polls/tasks/queries) moves “up” the partition tree, so the root is the convergence point.
+	// Checking non-root partitions can incorrectly conclude “no pollers” simply because the pollers are on
+	// a different partition and have not been forwarded here (yet), leading to false blackhole errors.
+	if !pm.partition.IsRoot() {
+		return nil
+	}
 	// Check old format
 	for _, versionData := range deploymentData.GetVersions() {
 		if versionData.GetVersion() != nil && worker_versioning.DeploymentVersionFromDeployment(deployment).Equal(versionData.GetVersion()) {
@@ -1859,6 +1874,7 @@ func (pm *taskQueuePartitionManagerImpl) checkQueryBlackholed(
 			return serviceerror.NewFailedPreconditionf(ErrBlackholedQuery, deployment.GetBuildId(), deployment.GetBuildId())
 		}
 	}
+
 	return nil
 }
 

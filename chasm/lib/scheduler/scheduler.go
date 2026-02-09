@@ -2,8 +2,6 @@ package scheduler
 
 import (
 	"bytes"
-	"encoding/binary"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -61,6 +59,14 @@ var (
 	_ (chasm.VisibilityMemoProvider)             = (*Scheduler)(nil)
 )
 
+var (
+	executionStatusRunning   = "Running"
+	executionStatusCompleted = "Completed"
+)
+
+var executionStatusSearchAttribute = chasm.NewSearchAttributeKeyword("ExecutionStatus", chasm.SearchAttributeFieldLowCardinalityKeyword01)
+var initialSerializedConflictToken = serializeConflictToken(scheduler.InitialConflictToken)
+
 const (
 	// How many recent actions to keep on the Info.RecentActions list.
 	recentActionCount = 10
@@ -78,7 +84,7 @@ const (
 var (
 	ErrConflictTokenMismatch = serviceerror.NewFailedPrecondition("mismatched conflict token")
 	ErrClosed                = serviceerror.NewFailedPrecondition("schedule closed")
-	ErrUnprocessable         = serviceerror.NewInternal("unprocessable schedule")
+	ErrInvalidQuery          = serviceerror.NewInvalidArgument("missing or invalid query")
 )
 
 // NewScheduler returns an initialized CHASM scheduler root component.
@@ -149,7 +155,7 @@ func (s *Scheduler) handlePatch(ctx chasm.MutableContext, patch *schedulepb.Sche
 func CreateScheduler(
 	ctx chasm.MutableContext,
 	req *schedulerpb.CreateScheduleRequest,
-) (*Scheduler, *schedulerpb.CreateScheduleResponse, error) {
+) (*Scheduler, error) {
 	sched := NewScheduler(
 		ctx,
 		req.FrontendRequest.Namespace,
@@ -164,11 +170,7 @@ func CreateScheduler(
 	visibility.MergeCustomSearchAttributes(ctx, req.FrontendRequest.GetSearchAttributes().GetIndexedFields())
 	visibility.MergeCustomMemo(ctx, req.FrontendRequest.GetMemo().GetFields())
 
-	return sched, &schedulerpb.CreateScheduleResponse{
-		FrontendResponse: &workflowservice.CreateScheduleResponse{
-			ConflictToken: sched.generateConflictToken(),
-		},
-	}, nil
+	return sched, nil
 }
 
 // CreateSchedulerFromMigration initializes a CHASM scheduler from migrated V1 state.
@@ -601,12 +603,12 @@ func (s *Scheduler) ListMatchingTimes(
 
 	frontendReq := req.FrontendRequest
 	if frontendReq == nil || frontendReq.StartTime == nil || frontendReq.EndTime == nil {
-		return nil, errors.New("missing or invalid query")
+		return nil, ErrInvalidQuery
 	}
 
 	cspec, err := s.getCompiledSpec(specBuilder)
 	if err != nil {
-		return nil, fmt.Errorf("invalid schedule: %w", err)
+		return nil, serviceerror.NewInvalidArgumentf("invalid schedule: %v", err)
 	}
 
 	var out []*timestamppb.Timestamp
@@ -705,9 +707,7 @@ func (s *Scheduler) Patch(
 }
 
 func (s *Scheduler) generateConflictToken() []byte {
-	token := make([]byte, 8)
-	binary.LittleEndian.PutUint64(token, uint64(s.ConflictToken))
-	return token
+	return serializeConflictToken(s.ConflictToken)
 }
 
 func (s *Scheduler) validateConflictToken(token []byte) bool {
@@ -720,9 +720,17 @@ func (s *Scheduler) validateConflictToken(token []byte) bool {
 	return bytes.Equal(current, token)
 }
 
+func (s *Scheduler) executionStatus() string {
+	if s.Closed {
+		return executionStatusCompleted
+	}
+	return executionStatusRunning
+}
+
 // SearchAttributes returns the Temporal-managed key values for visibility.
 func (s *Scheduler) SearchAttributes(chasm.Context) []chasm.SearchAttributeKeyValue {
 	return []chasm.SearchAttributeKeyValue{
+		executionStatusSearchAttribute.Value(s.executionStatus()),
 		chasm.SearchAttributeTemporalSchedulePaused.Value(s.Schedule.GetState().GetPaused()),
 	}
 }

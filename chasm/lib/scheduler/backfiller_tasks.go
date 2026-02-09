@@ -79,7 +79,7 @@ func (b *BackfillerTaskExecutor) Execute(
 		// Buffer is full, back off and retry later. Unlike the generator, the
 		// backfiller doesn't drop actions - it will retry after backoff.
 		logger.Debug("Buffer full, backing off backfill",
-			tag.NewStringTag("backfill-id", backfiller.GetBackfillId()))
+			tag.String("backfill-id", backfiller.GetBackfillId()))
 		b.rescheduleBackfill(ctx, backfiller)
 		return nil
 	}
@@ -107,7 +107,7 @@ func (b *BackfillerTaskExecutor) Execute(
 	// any more tasks.
 	if result.Complete {
 		logger.Debug("backfill complete, deleting Backfiller",
-			tag.NewStringTag("backfill-id", backfiller.GetBackfillId()))
+			tag.String("backfill-id", backfiller.GetBackfillId()))
 		delete(scheduler.Backfillers, backfiller.GetBackfillId())
 		return nil
 	}
@@ -194,14 +194,7 @@ func (b *BackfillerTaskExecutor) processTrigger(
 	// time determinism.
 	nowpb := backfiller.GetLastProcessedTime()
 	now := nowpb.AsTime()
-	requestID := schedulescommon.GenerateRequestID(
-		scheduler.NamespaceId,
-		scheduler.ScheduleId,
-		scheduler.ConflictToken,
-		backfiller.GetBackfillId(),
-		now,
-		now,
-	)
+	requestID := generateRequestID(scheduler, backfiller.GetBackfillId(), now, now)
 	workflowID := schedulescommon.GenerateWorkflowID(scheduler.WorkflowID(), now)
 	result.BufferedStarts = []*schedulespb.BufferedStart{
 		{

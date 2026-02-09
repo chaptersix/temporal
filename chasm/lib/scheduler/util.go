@@ -1,14 +1,35 @@
 package scheduler
 
 import (
+	"encoding/binary"
 	"time"
 
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/metrics"
+	schedulescommon "go.temporal.io/server/common/schedules"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func generateRequestID(scheduler *Scheduler, backfillID string, nominal, actual time.Time) string {
+	return schedulescommon.GenerateRequestID(
+		scheduler.NamespaceId,
+		scheduler.ScheduleId,
+		scheduler.ConflictToken,
+		backfillID,
+		nominal,
+		actual,
+	)
+}
+
+// serializeConflictToken serializes a conflict token as a byte slice.
+func serializeConflictToken(conflictToken int64) []byte {
+	token := make([]byte, 8)
+	binary.LittleEndian.PutUint64(token, uint64(conflictToken))
+	return token
+}
 
 // newTaggedLogger returns a logger tagged with the Scheduler's attributes.
 func newTaggedLogger(baseLogger log.Logger, scheduler *Scheduler) log.Logger {
@@ -16,6 +37,14 @@ func newTaggedLogger(baseLogger log.Logger, scheduler *Scheduler) log.Logger {
 		baseLogger,
 		tag.WorkflowNamespace(scheduler.Namespace),
 		tag.ScheduleID(scheduler.ScheduleId),
+	)
+}
+
+// newTaggedMetricsHandler returns a metrics handler tagged with the Scheduler's namespace and backend.
+func newTaggedMetricsHandler(baseHandler metrics.Handler, scheduler *Scheduler) metrics.Handler {
+	return baseHandler.WithTags(
+		metrics.NamespaceTag(scheduler.Namespace),
+		metrics.StringTag(metrics.ScheduleBackendTag, metrics.ScheduleBackendChasm),
 	)
 }
 
