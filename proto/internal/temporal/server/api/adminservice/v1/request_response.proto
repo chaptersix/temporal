@@ -670,4 +670,3 @@ message MigrateScheduleRequest {
 }
 
 message MigrateScheduleResponse {}
-

@@ -19,6 +19,7 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
+	"go.temporal.io/server/chasm/lib/scheduler/migration"
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/payload"
@@ -78,6 +79,7 @@ const (
 	SignalNamePatch    = "patch"
 	SignalNameRefresh  = "refresh"
 	SignalNameForceCAN = "force-continue-as-new"
+	SignalNameMigrate  = "migrate"
 
 	QueryNameDescribe          = "describe"
 	QueryNameListMatchingTimes = "listMatchingTimes"
@@ -123,9 +125,10 @@ type (
 		watchingFuture     workflow.Future
 
 		// Signal requests
-		pendingPatch  *schedulepb.SchedulePatch
-		pendingUpdate *schedulespb.FullUpdateRequest
-		forceCAN      bool
+		pendingPatch     *schedulepb.SchedulePatch
+		pendingUpdate    *schedulespb.FullUpdateRequest
+		forceCAN         bool
+		pendingMigration bool
 
 		uuidBatch []string
 
@@ -310,6 +313,19 @@ func (s *scheduler) run() error {
 				nil,
 			)
 		}
+
+		// Handle migration signal - migrate to CHASM and terminate
+		if s.pendingMigration {
+			err := s.executeMigration()
+			if err == nil {
+				s.logger.Info("Migration succeeded, terminating V1 workflow")
+				return nil
+			}
+			s.logger.Error("Migration failed, continuing V1 workflow", "error", err)
+			s.pendingMigration = false
+			// Continue running V1 workflow on failure
+		}
+
 		// process backfills if we have any too
 		s.processBackfills()
 		// try starting workflows in the buffer
@@ -714,6 +730,9 @@ func (s *scheduler) sleep(nextWakeup time.Time) {
 	forceCAN := workflow.GetSignalChannel(s.ctx, SignalNameForceCAN)
 	sel.AddReceive(forceCAN, s.handleForceCANSignal)
 
+	migrateCh := workflow.GetSignalChannel(s.ctx, SignalNameMigrate)
+	sel.AddReceive(migrateCh, s.handleMigrateSignal)
+
 	if s.hasMoreAllowAllBackfills() {
 		// if we have more allow-all backfills to do, do a short sleep and continue
 		nextWakeup = s.now().Add(1 * time.Second)
@@ -955,6 +974,47 @@ func (s *scheduler) handleForceCANSignal(ch workflow.ReceiveChannel, _ bool) {
 	ch.Receive(s.ctx, nil)
 	s.logger.Debug("got force-continue-as-new signal")
 	s.forceCAN = true
+}
+
+func (s *scheduler) handleMigrateSignal(ch workflow.ReceiveChannel, _ bool) {
+	ch.Receive(s.ctx, nil)
+	s.logger.Info("got migrate signal")
+	s.pendingMigration = true
+}
+
+// executeMigration runs the MigrateSchedule activity to create a CHASM schedule
+// from the current V1 state. Returns nil on success or the activity error.
+func (s *scheduler) executeMigration() error {
+	workflowInfo := workflow.GetInfo(s.ctx)
+
+	// Get search attributes and memo from workflow info
+	searchAttributes := make(map[string]*commonpb.Payload)
+	if workflowInfo.SearchAttributes != nil {
+		for k, v := range workflowInfo.SearchAttributes.IndexedFields {
+			searchAttributes[k] = v
+		}
+	}
+
+	memo := make(map[string]*commonpb.Payload)
+	if workflowInfo.Memo != nil {
+		for k, v := range workflowInfo.Memo.Fields {
+			memo[k] = v
+		}
+	}
+
+	req := migration.LegacyToMigrateScheduleRequest(
+		s.Schedule,
+		s.Info,
+		s.State,
+		searchAttributes,
+		memo,
+		s.now(),
+	)
+
+	s.incSeqNo()
+	ctx := workflow.WithLocalActivityOptions(s.ctx, defaultLocalActivityOptions)
+	err := workflow.ExecuteLocalActivity(ctx, s.a.MigrateSchedule, req).Get(s.ctx, nil)
+	return err
 }
 
 func (s *scheduler) processSignals() bool {

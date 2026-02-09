@@ -66,6 +66,7 @@ import (
 	"go.temporal.io/server/service/worker/addsearchattributes"
 	"go.temporal.io/server/service/worker/batcher"
 	"go.temporal.io/server/service/worker/dlq"
+	"go.temporal.io/server/service/worker/scheduler"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -2374,6 +2375,51 @@ func validateHistoryDLQKey(
 	// categoryID using task category registry
 
 	return nil
+}
+
+// MigrateSchedule migrates a V1 workflow-backed schedule to V2 CHASM.
+// It signals the V1 workflow to run the migration activity.
+func (adh *AdminHandler) MigrateSchedule(
+	ctx context.Context,
+	request *adminservice.MigrateScheduleRequest,
+) (_ *adminservice.MigrateScheduleResponse, retError error) {
+	defer log.CapturePanic(adh.logger, &retError)
+
+	if request == nil {
+		return nil, errRequestNotSet
+	}
+	if request.GetNamespace() == "" {
+		return nil, errNamespaceNotSet
+	}
+
+	namespaceID, err := adh.namespaceRegistry.GetNamespaceID(namespace.Name(request.GetNamespace()))
+	if err != nil {
+		return nil, err
+	}
+
+	workflowID := scheduler.WorkflowIDPrefix + request.GetScheduleId()
+
+	// Signal the V1 workflow to start migration
+	_, err = adh.historyClient.SignalWorkflowExecution(ctx, &historyservice.SignalWorkflowExecutionRequest{
+		NamespaceId: namespaceID.String(),
+		SignalRequest: &workflowservice.SignalWorkflowExecutionRequest{
+			Namespace:         request.Namespace,
+			WorkflowExecution: &commonpb.WorkflowExecution{WorkflowId: workflowID},
+			SignalName:        scheduler.SignalNameMigrate,
+			Identity:          request.Identity,
+			RequestId:         request.RequestId,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	adh.logger.Info("MigrateSchedule: sent migrate signal to V1 workflow",
+		tag.WorkflowNamespace(request.GetNamespace()),
+		tag.ScheduleID(request.GetScheduleId()),
+	)
+
+	return &adminservice.MigrateScheduleResponse{}, nil
 }
 
 func convertClusterReplicationConfigToProto(
