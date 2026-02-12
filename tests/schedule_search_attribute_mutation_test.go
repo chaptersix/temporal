@@ -32,7 +32,7 @@ import (
 func TestSchedule_SearchAttribute_TypeMutation(t *testing.T) {
 	s := testcore.NewEnv(t,
 		testcore.WithDynamicConfig(dynamicconfig.EnableChasm, true),
-		testcore.WithDynamicConfig(dynamicconfig.FrontendAllowedExperiments, []string{"*"}),
+		testcore.WithDynamicConfig(dynamicconfig.EnableCHASMSchedulerCreation, true),
 	)
 
 	newContext := func() context.Context {
