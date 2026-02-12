@@ -14,8 +14,6 @@ import (
 	workflowpb "go.temporal.io/api/workflow/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	sdkclient "go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/worker"
-	"go.temporal.io/sdk/workflow"
 	"go.temporal.io/server/common/dynamicconfig"
 	"go.temporal.io/server/common/headers"
 	"go.temporal.io/server/common/payload"
@@ -56,11 +54,6 @@ func TestSchedule_SearchAttribute_TypeMutation(t *testing.T) {
 	defer sdkClient.Close()
 
 	wt := "sched-sa-mutation-wt"
-	taskQueue := testcore.RandomizeStr("tq")
-	sdkWorker := worker.New(sdkClient, taskQueue, worker.Options{})
-	sdkWorker.RegisterWorkflowWithOptions(func(ctx workflow.Context) error { return nil }, workflow.RegisterOptions{Name: wt})
-	s.NoError(sdkWorker.Start())
-	defer sdkWorker.Stop()
 
 	sid := "sched-sa-mutation"
 	wid := "sched-sa-mutation-wf"
@@ -93,7 +86,7 @@ func TestSchedule_SearchAttribute_TypeMutation(t *testing.T) {
 				StartWorkflow: &workflowpb.NewWorkflowExecutionInfo{
 					WorkflowId:   wid,
 					WorkflowType: &commonpb.WorkflowType{Name: wt},
-					TaskQueue:    &taskqueuepb.TaskQueue{Name: taskQueue, Kind: enumspb.TASK_QUEUE_KIND_NORMAL},
+					TaskQueue:    &taskqueuepb.TaskQueue{Name: "unused", Kind: enumspb.TASK_QUEUE_KIND_NORMAL},
 					// Also set the attribute on the scheduled workflow so Describe can annotate types
 					SearchAttributes: &commonpb.SearchAttributes{
 						IndexedFields: map[string]*commonpb.Payload{
