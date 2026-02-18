@@ -21,6 +21,7 @@ import (
 	"go.temporal.io/server/common/dynamicconfig"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/namespace"
 	"go.temporal.io/server/common/quotas"
 	"go.temporal.io/server/common/util"
@@ -384,6 +385,7 @@ func (a *activities) MigrateSchedule(ctx context.Context, req *schedulerpb.Migra
 				tag.WorkflowNamespace(req.GetState().GetSchedulerState().GetNamespace()),
 				tag.ScheduleID(req.GetState().GetSchedulerState().GetScheduleId()),
 			)
+			a.MetricsHandler.Counter(metrics.ScheduleMigrationCompleted.Name()).Record(1)
 			return nil
 		}
 		return translateError(err, "MigrateSchedule")
@@ -393,5 +395,6 @@ func (a *activities) MigrateSchedule(ctx context.Context, req *schedulerpb.Migra
 		tag.WorkflowNamespace(req.GetState().GetSchedulerState().GetNamespace()),
 		tag.ScheduleID(req.GetState().GetSchedulerState().GetScheduleId()),
 	)
+	a.MetricsHandler.Counter(metrics.ScheduleMigrationCompleted.Name()).Record(1)
 	return nil
 }

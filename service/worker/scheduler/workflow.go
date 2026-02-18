@@ -991,6 +991,12 @@ func (s *scheduler) handleMigrateSignal(ch workflow.ReceiveChannel, _ bool) {
 }
 
 func (s *scheduler) executeMigration() error {
+	s.logger.Info("Starting migration to CHASM",
+		"namespace", s.State.Namespace,
+		"schedule-id", s.State.ScheduleId,
+	)
+	s.metrics.Counter(metrics.ScheduleMigrationStarted.Name()).Inc(1)
+
 	workflowInfo := workflow.GetInfo(s.ctx)
 
 	//nolint:staticcheck // SA1019 Migration needs raw proto format, not typed search attributes.
