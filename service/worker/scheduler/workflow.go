@@ -315,6 +315,13 @@ func (s *scheduler) run() error {
 		}
 
 		if s.pendingMigration {
+			// Pause the V1 scheduler to prevent it from starting new workflows
+			// while migration is in progress.
+			wasPaused := s.Schedule.State.Paused
+			previousNotes := s.Schedule.State.Notes
+			s.Schedule.State.Paused = true
+			s.Schedule.State.Notes = "paused for migration to CHASM"
+
 			err := s.executeMigration()
 			if err == nil {
 				s.logger.Info("Migration to CHASM succeeded, terminating V1 workflow",
@@ -328,6 +335,9 @@ func (s *scheduler) run() error {
 				"schedule-id", s.State.ScheduleId,
 				"error", err,
 			)
+			// Restore the original pause state on failure.
+			s.Schedule.State.Paused = wasPaused
+			s.Schedule.State.Notes = previousNotes
 			s.pendingMigration = false
 		}
 
@@ -1009,10 +1019,12 @@ func (s *scheduler) executeMigration() error {
 		s.now(),
 	)
 	migrateOptions := workflow.LocalActivityOptions{
-		ScheduleToCloseTimeout: 60 * time.Second,
+		ScheduleToCloseTimeout: 1 * time.Hour,
 		StartToCloseTimeout:    5 * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
-			MaximumAttempts: 1,
+			InitialInterval: 1 * time.Second,
+			MaximumInterval: 60 * time.Second,
+			MaximumAttempts: 10,
 		},
 	}
 	return workflow.ExecuteLocalActivity(
@@ -1020,7 +1032,6 @@ func (s *scheduler) executeMigration() error {
 		s.a.MigrateSchedule,
 		req).
 		Get(s.ctx, nil)
-
 }
 
 func (s *scheduler) processSignals() bool {
