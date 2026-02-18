@@ -166,6 +166,11 @@ func (h *handler) ListScheduleMatchingTimes(ctx context.Context, req *schedulerp
 
 // MigrateSchedule creates a CHASM schedule from migrated V1 state.
 // Used during migration from workflow-backed schedules to CHASM schedules.
+//
+// TODO: attach completion callbacks to running workflows migrated from V1.
+// TODO: handle sentinel key that may exist if EnableCHASMSchedulerCreation was
+// enabled when the schedule was originally created. The existing CHASM component
+// must be replaced with the migrated state.
 func (h *handler) MigrateSchedule(ctx context.Context, req *schedulerpb.MigrateScheduleRequest) (resp *schedulerpb.MigrateScheduleResponse, err error) {
 	defer log.CapturePanic(h.logger, &err)
 
