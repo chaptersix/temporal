@@ -6,7 +6,6 @@ package devtools
 
 import (
 	_ "fillmore-labs.com/errortype"
-	_ "github.com/bufbuild/buf/cmd/buf"
 	_ "github.com/daixiang0/gci"
 	_ "github.com/golangci/golangci-lint/v2/cmd/golangci-lint"
 	_ "github.com/google/yamlfmt/cmd/yamlfmt"

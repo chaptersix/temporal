@@ -43,7 +43,18 @@ func (Fmt) GoFix() error {
 // Imports formats imports using gci.
 func (Fmt) Imports() error {
 	color("Formatting imports...")
-	return devtool("gci", "write", "--skip-generated", "-s", "standard", "-s", "default", "./*")
+	// List top-level directories (excluding hidden dirs like .git).
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		return err
+	}
+	args := []string{"write", "--skip-generated", "-s", "standard", "-s", "default"}
+	for _, e := range entries {
+		if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+			args = append(args, e.Name())
+		}
+	}
+	return devtool("gci", args...)
 }
 
 // Yaml formats YAML files.

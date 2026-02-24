@@ -12,12 +12,8 @@
 //	go run mage.go test:unit
 package main
 
-import (
-	"os"
-
-	// mg is used by mage for namespace resolution.
-	_ "github.com/magefile/mage/mg"
-)
+// mg is used by mage for namespace resolution.
+import _ "github.com/magefile/mage/mg"
 
 // Default target when none is specified.
 var Default = Build.Server
@@ -31,9 +27,4 @@ var Aliases = map[string]any{
 	"proto":   Proto.All,
 	"clean":   Clean.All,
 	"start":   Server.Sqlite,
-}
-
-func init() {
-	// Use verbose output by default.
-	_ = os.Setenv("MAGEFILE_VERBOSE", "true")
 }

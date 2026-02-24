@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
@@ -59,7 +60,18 @@ func (l Lint) Api() error {
 		"--config=" + protoRoot + "/api-linter.yaml",
 	}
 	args = append(args, protoFiles...)
-	return devtool("api-linter", args...)
+	// Capture output and only show on failure (matches old silent_exec behavior).
+	bin, err := devtoolPath("api-linter")
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(bin, args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Print(string(out))
+		return err
+	}
+	return nil
 }
 
 // Protos runs buf lint on proto definitions.

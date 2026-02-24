@@ -143,14 +143,17 @@ func unitTestDirs() ([]string, error) {
 }
 
 // findProtoFiles returns all .proto files under proto/internal.
+// Paths are prefixed with "./" to match `find ./proto/internal` behavior,
+// which the api-linter requires for correct -I path resolution.
 func findProtoFiles() ([]string, error) {
+	root := "./" + filepath.Join(protoRoot, "internal")
 	var files []string
-	err := filepath.Walk(filepath.Join(protoRoot, "internal"), func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if !info.IsDir() && strings.HasSuffix(path, ".proto") {
-			files = append(files, path)
+			files = append(files, "./"+path)
 		}
 		return nil
 	})
