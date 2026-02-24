@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination bulk_processor_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination bulk_processor_mock.go
 
 package client
 

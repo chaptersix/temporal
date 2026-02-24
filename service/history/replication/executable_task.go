@@ -32,7 +32,7 @@ import (
 	"go.temporal.io/server/service/history/tasks"
 )
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination executable_task_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination executable_task_mock.go
 
 const (
 	taskStatePending = int32(ctasks.TaskStatePending)

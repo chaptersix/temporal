@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination consistency_checker_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination consistency_checker_mock.go
 
 package api
 

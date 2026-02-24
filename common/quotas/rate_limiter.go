@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination rate_limiter_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination rate_limiter_mock.go
 
 type (
 	// RateLimiter corresponds to basic rate limiting functionality.

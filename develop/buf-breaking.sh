@@ -18,9 +18,9 @@
 
 set -eu -o pipefail
 
-# These are passed in by the Makefile:
+# These can be overridden via environment variables:
 : "${MAKE:=make}"
-: "${BUF:=buf}"
+: "${BUF:=.bin/buf}"
 : "${API_BINPB:=proto/api.binpb}"
 : "${INTERNAL_BINPB:=proto/image.bin}"
 : "${CHASM_BINPB:=proto/chasm.bin}"

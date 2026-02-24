@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination conflict_resolver_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination conflict_resolver_mock.go
 
 package ndc
 

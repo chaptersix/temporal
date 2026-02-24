@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination dc_redirection_policy_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination dc_redirection_policy_mock.go
 
 package interceptor
 

@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination file_based_client_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination file_based_client_mock.go
 package dynamicconfig
 
 import (

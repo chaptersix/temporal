@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination buffer_event_flusher_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination buffer_event_flusher_mock.go
 
 package ndc
 

@@ -19,7 +19,7 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-//go:generate stringer -type Level -trimprefix Level -output testlogger.gen.go
+//go:generate go tool stringer -type Level -trimprefix Level -output testlogger.gen.go
 type Level int
 
 const (

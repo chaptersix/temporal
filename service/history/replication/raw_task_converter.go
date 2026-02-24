@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination raw_task_converter_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination raw_task_converter_mock.go
 
 package replication
 

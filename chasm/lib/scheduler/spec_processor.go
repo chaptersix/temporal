@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination spec_processor_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination spec_processor_mock.go
 
 type (
 	// SpecProcessor is used by the Generator and Backfiller to generate buffered

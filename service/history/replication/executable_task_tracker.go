@@ -13,7 +13,7 @@ import (
 	ctasks "go.temporal.io/server/common/tasks"
 )
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination executable_task_tracker_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination executable_task_tracker_mock.go
 
 const MarkPoisonPillMaxAttempts = 3
 

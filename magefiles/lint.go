@@ -1,0 +1,109 @@
+package main
+
+import (
+	"fmt"
+
+	"github.com/magefile/mage/mg"
+	"github.com/magefile/mage/sh"
+)
+
+// Lint contains targets for running linters.
+type Lint mg.Namespace
+
+// Code runs golangci-lint and errortype vet.
+func (Lint) Code() error {
+	color("Linting code...")
+	if err := devtool("golangci-lint",
+		"run",
+		"--verbose",
+		"--build-tags="+allTestTags(),
+		"--timeout=10m",
+		"--fix="+golangciLintFix,
+		"--new-from-rev="+golangciLintBaseRev,
+		"--config=.github/.golangci.yml",
+	); err != nil {
+		return err
+	}
+	errortypePath, err := devtoolPath("errortype")
+	if err != nil {
+		return fmt.Errorf("resolving errortype path: %w", err)
+	}
+	return sh.RunV("go", "vet",
+		"-tags="+allTestTags(),
+		"-vettool="+errortypePath,
+		"-style-check=false",
+		"./...",
+	)
+}
+
+// Actions runs actionlint on GitHub Actions workflows.
+func (Lint) Actions() error {
+	color("Linting GitHub actions...")
+	return devtool("actionlint")
+}
+
+// Api runs the API proto linter.
+func (l Lint) Api() error {
+	color("Linting proto API...")
+	mg.Deps(Proto.ApiBinpb)
+	protoFiles, err := findProtoFiles()
+	if err != nil {
+		return err
+	}
+	args := []string{
+		"--set-exit-status",
+		"-I=" + protoRoot + "/internal",
+		"--descriptor-set-in", apiBinpb,
+		"--config=" + protoRoot + "/api-linter.yaml",
+	}
+	args = append(args, protoFiles...)
+	return devtool("api-linter", args...)
+}
+
+// Protos runs buf lint on proto definitions.
+func (l Lint) Protos() error {
+	color("Linting proto definitions...")
+	mg.Deps(Proto.InternalBinpb, Proto.ChasmBinpb)
+	if err := devtool("buf", "lint", internalBinpb); err != nil {
+		return err
+	}
+	return devtool("buf", "lint", "--config", "chasm/lib/buf.yaml", chasmBinpb)
+}
+
+// Yaml checks YAML formatting.
+func (Lint) Yaml() error {
+	color("Checking YAML formatting...")
+	return devtool("yamlfmt", "-conf", ".github/.yamlfmt", "-lint", ".")
+}
+
+// ShellCheck runs shellcheck on all shell scripts.
+func (Lint) ShellCheck() error {
+	color("Run shellcheck for script files...")
+	scripts, err := findScripts()
+	if err != nil {
+		return err
+	}
+	args := append([]string{}, scripts...)
+	return sh.RunV("shellcheck", args...)
+}
+
+// WorkflowCheck runs workflowcheck on system workflows.
+func (Lint) WorkflowCheck() error {
+	color("Run workflowcheck for system workflows...")
+	dirs, err := findSystemWorkflowDirs()
+	if err != nil {
+		return err
+	}
+	for _, dir := range dirs {
+		fmt.Println("Running workflowcheck on", dir)
+		if err := devtool("workflowcheck", dir); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// All runs all linters.
+func (l Lint) All() {
+	mg.Deps(l.Code, l.Actions, l.Api, l.Protos, l.Yaml)
+}

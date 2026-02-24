@@ -1,6 +1,6 @@
 package interceptor
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination request_error_handler_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination request_error_handler_mock.go
 
 import (
 	"errors"

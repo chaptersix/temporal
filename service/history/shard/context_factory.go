@@ -23,7 +23,7 @@ import (
 	"go.uber.org/fx"
 )
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination context_factory_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination context_factory_mock.go
 
 type (
 	CloseCallback func(historyi.ControllableContext)

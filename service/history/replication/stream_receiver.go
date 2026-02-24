@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination stream_receiver_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination stream_receiver_mock.go
 
 package replication
 

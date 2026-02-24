@@ -1,4 +1,4 @@
-//go:generate mockgen -package mock -source $GOFILE -destination mock/store_mock.go -aux_files go.temporal.io/server/common/persistence=data_interfaces.go
+//go:generate go tool mockgen -package mock -source $GOFILE -destination mock/store_mock.go -aux_files go.temporal.io/server/common/persistence=data_interfaces.go
 
 package persistence
 

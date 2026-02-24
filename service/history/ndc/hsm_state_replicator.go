@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination hsm_state_replicator_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination hsm_state_replicator_mock.go
 
 package ndc
 

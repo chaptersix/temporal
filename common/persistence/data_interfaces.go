@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination data_interfaces_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination data_interfaces_mock.go
 
 package persistence
 

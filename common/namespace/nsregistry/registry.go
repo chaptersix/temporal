@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination registry_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination registry_mock.go
 
 // Package nsregistry provides a cached namespace registry that reduces load on persistence
 // by maintaining an in-memory cache of namespace information.

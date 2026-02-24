@@ -4,7 +4,7 @@
 
 package faultinjection
 
-//go:generate gowrap gen -p go.temporal.io/server/common/persistence -i QueueV2 -t gowrap_template -o queue_v2_gen.go -l ""
+//go:generate go tool gowrap gen -p go.temporal.io/server/common/persistence -i QueueV2 -t gowrap_template -o queue_v2_gen.go -l ""
 
 import (
 	"context"

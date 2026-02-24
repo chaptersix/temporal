@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination sync_state_retriever_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination sync_state_retriever_mock.go
 
 package replication
 

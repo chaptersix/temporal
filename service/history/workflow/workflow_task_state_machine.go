@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination workflow_task_state_machine_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination workflow_task_state_machine_mock.go
 
 package workflow
 

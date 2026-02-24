@@ -1,6 +1,6 @@
 package eventhandler
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination event_importer_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination event_importer_mock.go
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination task_validation_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination task_validation_mock.go
 package matching
 
 import (

@@ -12,7 +12,7 @@ import (
 	ctasks "go.temporal.io/server/common/tasks"
 )
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination batchable_task_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination batchable_task_mock.go
 
 type (
 	BatchableTask interface {

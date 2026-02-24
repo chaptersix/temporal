@@ -4,7 +4,7 @@ import (
 	"go.temporal.io/server/service/history/tasks"
 )
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination queue_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination queue_mock.go
 
 type (
 	Queue interface {

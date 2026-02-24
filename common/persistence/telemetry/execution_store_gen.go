@@ -4,7 +4,7 @@
 
 package telemetry
 
-//go:generate gowrap gen -p go.temporal.io/server/common/persistence -i ExecutionStore -t gowrap_template -o execution_store_gen.go -l ""
+//go:generate go tool gowrap gen -p go.temporal.io/server/common/persistence -i ExecutionStore -t gowrap_template -o execution_store_gen.go -l ""
 
 import (
 	"context"

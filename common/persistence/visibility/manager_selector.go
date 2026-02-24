@@ -1,6 +1,6 @@
 package visibility
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination manager_selector_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination manager_selector_mock.go
 
 import (
 	"go.temporal.io/api/serviceerror"

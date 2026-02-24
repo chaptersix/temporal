@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination namespace_replication_queue_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination namespace_replication_queue_mock.go
 
 package persistence
 

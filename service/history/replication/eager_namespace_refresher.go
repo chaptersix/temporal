@@ -16,7 +16,7 @@ import (
 	"go.temporal.io/server/common/persistence"
 )
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination eager_namespace_refresher_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination eager_namespace_refresher_mock.go
 
 type (
 	EagerNamespaceRefresher interface {

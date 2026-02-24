@@ -1,5 +1,5 @@
-//go:generate stringer -type loadCause -trimprefix loadCause -output loadcause_string_gen.go
-//go:generate stringer -type unloadCause -trimprefix unloadCause -output unloadcause_string_gen.go
+//go:generate go tool stringer -type loadCause -trimprefix loadCause -output loadcause_string_gen.go
+//go:generate go tool stringer -type unloadCause -trimprefix unloadCause -output unloadcause_string_gen.go
 
 package matching
 

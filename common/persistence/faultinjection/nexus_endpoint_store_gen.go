@@ -4,7 +4,7 @@
 
 package faultinjection
 
-//go:generate gowrap gen -p go.temporal.io/server/common/persistence -i NexusEndpointStore -t gowrap_template -o nexus_endpoint_store_gen.go -l ""
+//go:generate go tool gowrap gen -p go.temporal.io/server/common/persistence -i NexusEndpointStore -t gowrap_template -o nexus_endpoint_store_gen.go -l ""
 
 import (
 	"context"

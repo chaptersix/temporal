@@ -8,7 +8,7 @@ import (
 	historyi "go.temporal.io/server/service/history/interfaces"
 )
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination controller_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination controller_mock.go
 
 type (
 	Controller interface {

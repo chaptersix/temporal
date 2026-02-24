@@ -17,7 +17,7 @@ import (
 	"go.temporal.io/server/service/history/shard"
 )
 
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination history_events_handler_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination history_events_handler_mock.go
 
 // Local vs Remote
 // Local and Remote are introduced to handle the case:

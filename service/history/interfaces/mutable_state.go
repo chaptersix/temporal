@@ -1,4 +1,4 @@
-//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination mutable_state_mock.go
+//go:generate go tool mockgen -package $GOPACKAGE -source $GOFILE -destination mutable_state_mock.go
 
 package interfaces
 
