@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
@@ -126,21 +128,123 @@ func (Proto) Codegen() error {
 }
 
 // BufBreaking runs buf breaking change detection.
+//
+// Compares current proto images against the PR merge base to detect
+// backward-incompatible protobuf changes. In CI (PR_BASE_COMMIT set),
+// it clones the repo to a temp dir, checks out the base, builds its
+// proto images, and runs buf breaking against the current images.
 func (p Proto) BufBreaking() error {
 	mg.Deps(p.ApiBinpb, p.InternalBinpb, p.ChasmBinpb)
 	color("Run buf breaking proto changes check...")
+
+	// Check for uncommitted changes.
+	porcelain, err := sh.Output("git", "status", "--porcelain", "--untracked-files=no")
+	if err != nil {
+		return err
+	}
+	if porcelain != "" {
+		red("Commit all local changes before running buf-breaking")
+		_ = sh.RunV("git", "status")
+		// Exit cleanly: in CI, ensure-no-changes will catch this later.
+		return nil
+	}
+
 	bufPath, err := devtoolPath("buf")
 	if err != nil {
 		return err
 	}
-	env := map[string]string{
-		"BUF":            bufPath,
-		"API_BINPB":      apiBinpb,
-		"INTERNAL_BINPB": internalBinpb,
-		"CHASM_BINPB":    chasmBinpb,
-		"MAIN_BRANCH":    "main",
+
+	commit, err := sh.Output("git", "rev-parse", "HEAD")
+	if err != nil {
+		return err
 	}
-	return sh.RunWithV(env, "./develop/buf-breaking.sh")
+	commit = strings.TrimSpace(commit)
+
+	prBaseCommit := envOrDefault("PR_BASE_COMMIT", "")
+	if prBaseCommit == "" {
+		base, err := sh.Output("git", "merge-base", "HEAD", "main")
+		if err != nil {
+			return fmt.Errorf("finding merge base: %w", err)
+		}
+		prBaseCommit = strings.TrimSpace(base)
+	}
+
+	if prBaseCommit == commit {
+		color("HEAD is the merge base, nothing to compare")
+		return nil
+	}
+
+	// Fetch enough history for the merge base in shallow clones (CI).
+	color("Fetching more commits from %s...", prBaseCommit)
+	_ = sh.RunV("git", "fetch", "--no-tags", "--no-recurse-submodules", "--depth=100", "origin", prBaseCommit)
+
+	// Clone the repo to a temp directory.
+	tmp, err := os.MkdirTemp("", "temporal-buf-breaking.*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+
+	color("Cloning repo to temp dir...")
+	if err := sh.RunV("git", "clone", ".", tmp); err != nil {
+		return err
+	}
+
+	// Find the merge base in the clone.
+	if err := sh.RunV("git", "-C", tmp, "fetch", "origin", prBaseCommit); err != nil {
+		return err
+	}
+	base, err := sh.Output("git", "-C", tmp, "merge-base", "HEAD", prBaseCommit)
+	if err != nil {
+		yellow("Can't find merge base for breaking check, skipping")
+		return nil
+	}
+	base = strings.TrimSpace(base)
+
+	return bufBreakingCheck(bufPath, tmp, base, "merge base")
+}
+
+// bufBreakingCheck checks proto images against a specific commit.
+func bufBreakingCheck(bufPath, tmpRepo, commit, name string) error {
+	color("Breaking check against %s:", name)
+	if err := sh.RunV("git", "-C", tmpRepo, "checkout", "--detach", commit); err != nil {
+		return err
+	}
+
+	// Check if the base commit's Makefile supports the targets we need.
+	makefile, err := os.ReadFile(filepath.Join(tmpRepo, "Makefile"))
+	if err != nil {
+		return fmt.Errorf("reading base Makefile: %w", err)
+	}
+	makeContent := string(makefile)
+
+	if strings.Contains(makeContent, "INTERNAL_BINPB") {
+		if err := sh.RunV("make", "-C", tmpRepo, internalBinpb); err != nil {
+			return err
+		}
+		if err := sh.RunV(bufPath, "breaking", internalBinpb,
+			"--against", filepath.Join(tmpRepo, internalBinpb),
+			"--config", "proto/internal/buf.yaml"); err != nil {
+			return err
+		}
+	} else {
+		yellow("%s commit is too old to support breaking check for internal protos", name)
+	}
+
+	if strings.Contains(makeContent, "CHASM_BINPB") {
+		if err := sh.RunV("make", "-C", tmpRepo, chasmBinpb); err != nil {
+			return err
+		}
+		if err := sh.RunV(bufPath, "breaking", chasmBinpb,
+			"--against", filepath.Join(tmpRepo, chasmBinpb),
+			"--config", "chasm/lib/buf.yaml"); err != nil {
+			return err
+		}
+	} else {
+		yellow("%s commit is too old to support breaking check for chasm protos", name)
+	}
+
+	return nil
 }
 
 // All runs the full proto pipeline: lint, compile, and codegen.

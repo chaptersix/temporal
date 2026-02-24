@@ -53,6 +53,12 @@ func color(format string, args ...interface{}) {
 	fmt.Printf("\033[1;36m%s\033[0m\n", msg)
 }
 
+// yellow prints a yellow warning message.
+func yellow(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	fmt.Printf("\033[1;33m%s\033[0m\n", msg)
+}
+
 // red prints a red error message.
 func red(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
