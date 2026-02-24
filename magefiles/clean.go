@@ -22,7 +22,7 @@ func (Clean) Bins() error {
 		"temporal-elasticsearch-tool",
 	}
 	for _, b := range bins {
-		os.Remove(b)
+		_ = os.Remove(b)
 	}
 	return nil
 }
@@ -30,14 +30,14 @@ func (Clean) Bins() error {
 // TestOutput deletes test output and clears test cache.
 func (Clean) TestOutput() error {
 	color("Delete test output...")
-	os.RemoveAll(testOutputRoot)
+	_ = os.RemoveAll(testOutputRoot)
 	return sh.RunV("go", "clean", "-testcache")
 }
 
 // Tools deletes installed development tool binaries.
 func (Clean) Tools() error {
 	color("Delete tools...")
-	os.RemoveAll(localBin)
+	_ = os.RemoveAll(localBin)
 	return nil
 }
 

@@ -7,7 +7,9 @@
 # Under the hood:    go run mage.go <namespace>:<mageTarget>
 #################################################################################
 
-MAGE := go run mage.go
+# Run mage with the host OS/arch so `go run mage.go` produces a native binary,
+# even when cross-compiling (e.g. GOOS=windows make bins).
+MAGE := GOOS= GOARCH= go run mage.go
 
 # Forward environment variables that mage targets read.
 export CGO_ENABLED ?= 0

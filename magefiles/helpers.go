@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -48,27 +47,21 @@ func rootDir() string {
 }
 
 // color prints a colored header message.
-func color(format string, args ...interface{}) {
+func color(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	fmt.Printf("\033[1;36m%s\033[0m\n", msg)
 }
 
 // yellow prints a yellow warning message.
-func yellow(format string, args ...interface{}) {
+func yellow(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	fmt.Printf("\033[1;33m%s\033[0m\n", msg)
 }
 
 // red prints a red error message.
-func red(format string, args ...interface{}) {
+func red(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	fmt.Printf("\033[1;31m%s\033[0m\n", msg)
-}
-
-// goRun executes `go run <pkg> <args...>`.
-func goRun(pkg string, args ...string) error {
-	allArgs := append([]string{"run", pkg}, args...)
-	return sh.RunV("go", allArgs...)
 }
 
 // goBuild executes `go build` with standard flags.
@@ -209,17 +202,6 @@ func findScripts() ([]string, error) {
 		return nil
 	})
 	return scripts, err
-}
-
-// silentExec runs a command and only prints output if it fails.
-func silentExec(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Print(string(out))
-		return err
-	}
-	return nil
 }
 
 // coverpkgFlag returns the -coverpkg flag value listing all packages.

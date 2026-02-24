@@ -43,6 +43,8 @@ func (Lint) Actions() error {
 }
 
 // Api runs the API proto linter.
+//
+//nolint:revive,staticcheck // mage derives CLI target name from method name
 func (l Lint) Api() error {
 	color("Linting proto API...")
 	mg.Deps(Proto.ApiBinpb)
@@ -96,7 +98,9 @@ func (Lint) WorkflowCheck() error {
 	}
 	for _, dir := range dirs {
 		fmt.Println("Running workflowcheck on", dir)
-		if err := devtool("workflowcheck", dir); err != nil {
+		// Prefix with ./ so Go tooling treats it as a local package.
+		pkg := "./" + dir
+		if err := devtool("workflowcheck", pkg); err != nil {
 			return err
 		}
 	}

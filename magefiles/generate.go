@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/magefile/mage/mg"
@@ -36,7 +37,7 @@ func (Generate) EnsureNoChanges() error {
 	if out != "" {
 		color("========================================================================")
 		red("Above files are not regenerated properly. Regenerate them and try again.")
-		return fmt.Errorf("uncommitted changes detected")
+		return errors.New("uncommitted changes detected")
 	}
 	return nil
 }

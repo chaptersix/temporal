@@ -15,6 +15,8 @@ type Proto mg.Namespace
 
 // ApiBinpb generates the proto dependencies image.
 // Runs getproto in a loop until it resolves all imports.
+//
+//nolint:revive,staticcheck // mage derives CLI target name from method name
 func (Proto) ApiBinpb() error {
 	color("Generating proto dependencies image...")
 	for {
@@ -189,7 +191,7 @@ func (p Proto) BufBreaking() error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { _ = os.RemoveAll(tmp) }()
 
 	color("Cloning repo to temp dir...")
 	if err := sh.RunV("git", "clone", ".", tmp); err != nil {

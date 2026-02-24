@@ -32,12 +32,6 @@ func goTool(name string, args ...string) error {
 	return sh.RunV("go", allArgs...)
 }
 
-// goToolOutput runs `go tool <name> <args...>` and returns stdout.
-func goToolOutput(name string, args ...string) (string, error) {
-	allArgs := append([]string{"tool", name}, args...)
-	return sh.Output("go", allArgs...)
-}
-
 // goToolPath returns the filesystem path of a tool binary via `go tool -n <name>`.
 func goToolPath(name string) (string, error) {
 	out, err := sh.Output("go", "tool", "-n", name)
@@ -86,11 +80,3 @@ func devtool(name string, args ...string) error {
 	return sh.RunV(bin, args...)
 }
 
-// goAPIVersion returns the version of go.temporal.io/api from go.mod.
-func goAPIVersion() (string, error) {
-	out, err := sh.Output("go", "list", "-m", "-f", "{{.Version}}", "go.temporal.io/api")
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(out), nil
-}

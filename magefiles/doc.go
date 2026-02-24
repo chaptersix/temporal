@@ -23,7 +23,7 @@ import (
 var Default = Build.Server
 
 // Aliases provides short names for commonly used targets.
-var Aliases = map[string]interface{}{
+var Aliases = map[string]any{
 	"install": Build.Bins,
 	"lint":    Lint.All,
 	"fmt":     Fmt.All,
@@ -35,5 +35,5 @@ var Aliases = map[string]interface{}{
 
 func init() {
 	// Use verbose output by default.
-	os.Setenv("MAGEFILE_VERBOSE", "true")
+	_ = os.Setenv("MAGEFILE_VERBOSE", "true")
 }

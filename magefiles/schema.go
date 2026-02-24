@@ -150,7 +150,7 @@ func (Schema) Xdc() error {
 		"temporal_visibility_v1_dev_cluster_c",
 	} {
 		// Drop silently (may not exist).
-		sh.RunV(esTool, "-ep", "http://127.0.0.1:9200", "drop-index", "--index", idx, "--fail")
+		_ = sh.RunV(esTool, "-ep", "http://127.0.0.1:9200", "drop-index", "--index", idx, "--fail")
 		if err := sh.RunV(esTool, "-ep", "http://127.0.0.1:9200", "create-index", "--index", idx); err != nil {
 			return err
 		}

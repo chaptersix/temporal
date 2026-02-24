@@ -102,7 +102,8 @@ func (t Test) UnitCoverage() error {
 	args = append(args, compiledTestArgs()...)
 	args = append(args, "-coverprofile="+newCoverProfile())
 	args = append(args, dirs...)
-	return sh.RunV("go", args...)
+	env := map[string]string{"CGO_ENABLED": testCgoEnabled()}
+	return sh.RunWithV(env, "go", args...)
 }
 
 // IntegrationCoverage runs integration tests with coverage and retries.
@@ -125,7 +126,8 @@ func (t Test) IntegrationCoverage() error {
 	args = append(args, compiledTestArgs()...)
 	args = append(args, "-coverprofile="+newCoverProfile())
 	args = append(args, integrationTestDirs...)
-	return sh.RunV("go", args...)
+	env := map[string]string{"CGO_ENABLED": testCgoEnabled()}
+	return sh.RunWithV(env, "go", args...)
 }
 
 // FunctionalCoverage runs functional tests with coverage and retries.
@@ -155,7 +157,8 @@ func (t Test) FunctionalCoverage() error {
 		"-persistenceType="+persistenceType,
 		"-persistenceDriver="+persistenceDriver,
 	)
-	return sh.RunV("go", args...)
+	env := map[string]string{"CGO_ENABLED": testCgoEnabled()}
+	return sh.RunWithV(env, "go", args...)
 }
 
 // FunctionalXDCCoverage runs functional XDC tests with coverage and retries.
@@ -185,7 +188,8 @@ func (t Test) FunctionalXDCCoverage() error {
 		"-persistenceType="+persistenceType,
 		"-persistenceDriver="+persistenceDriver,
 	)
-	return sh.RunV("go", args...)
+	env := map[string]string{"CGO_ENABLED": testCgoEnabled()}
+	return sh.RunWithV(env, "go", args...)
 }
 
 // FunctionalNDCCoverage runs functional NDC tests with coverage and retries.
@@ -215,7 +219,8 @@ func (t Test) FunctionalNDCCoverage() error {
 		"-persistenceType="+persistenceType,
 		"-persistenceDriver="+persistenceDriver,
 	)
-	return sh.RunV("go", args...)
+	env := map[string]string{"CGO_ENABLED": testCgoEnabled()}
+	return sh.RunWithV(env, "go", args...)
 }
 
 // PreBuildFunctionalCoverage pre-compiles functional tests with coverage.

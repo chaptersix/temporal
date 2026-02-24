@@ -42,10 +42,10 @@ func testTagFlag() string {
 
 // Test configuration.
 var (
-	testTimeout  = envOrDefault("TEST_TIMEOUT", "35m")
-	maxAttempts  = envOrDefault("MAX_TEST_ATTEMPTS", "3")
-	testRace     = envOrDefault("TEST_RACE_FLAG", "on")
-	testShuffle  = envOrDefault("TEST_SHUFFLE_FLAG", "on")
+	testTimeout = envOrDefault("TEST_TIMEOUT", "35m")
+	maxAttempts = envOrDefault("MAX_TEST_ATTEMPTS", "3")
+	testRace    = envOrDefault("TEST_RACE_FLAG", "on")
+	testShuffle = envOrDefault("TEST_SHUFFLE_FLAG", "on")
 )
 
 // Persistence configuration.
@@ -76,22 +76,22 @@ var (
 
 // Paths.
 const (
-	protoRoot    = "proto"
-	protoOut     = "api"
-	apiBinpb     = protoRoot + "/api.binpb"
+	protoRoot     = "proto"
+	protoOut      = "api"
+	apiBinpb      = protoRoot + "/api.binpb"
 	internalBinpb = protoRoot + "/image.bin"
-	chasmBinpb   = protoRoot + "/chasm.bin"
+	chasmBinpb    = protoRoot + "/chasm.bin"
 )
 
 // Test directories.
 const (
-	functionalTestRoot       = "./tests"
-	functionalTestXDCRoot    = "./tests/xdc"
-	functionalTestNDCRoot    = "./tests/ndc"
-	dbIntegrationTestRoot    = "./common/persistence/tests"
+	functionalTestRoot        = "./tests"
+	functionalTestXDCRoot     = "./tests/xdc"
+	functionalTestNDCRoot     = "./tests/ndc"
+	dbIntegrationTestRoot     = "./common/persistence/tests"
 	dbToolIntegrationTestRoot = "./tools/tests"
-	testOutputRoot           = "./.testoutput"
-	systemWorkflowsRoot      = "./service/worker"
+	testOutputRoot            = "./.testoutput"
+	systemWorkflowsRoot       = "./service/worker"
 )
 
 var integrationTestDirs = []string{
@@ -130,7 +130,3 @@ func compiledTestArgs() []string {
 	return args
 }
 
-// moduleRoot returns the module path from go.mod.
-func moduleRoot() string {
-	return "go.temporal.io/server"
-}

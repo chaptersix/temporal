@@ -31,6 +31,8 @@ func (Build) CassandraTool() error {
 }
 
 // SqlTool builds the temporal-sql-tool binary.
+//
+//nolint:revive,staticcheck // mage derives CLI target name from method name
 func (Build) SqlTool() error {
 	return goBuild("temporal-sql-tool", "./cmd/tools/sql")
 }
