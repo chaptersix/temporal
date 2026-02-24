@@ -14,9 +14,15 @@ import (
 type Proto mg.Namespace
 
 // ApiBinpb generates the proto dependencies image.
+// Runs getproto in a loop until it resolves all imports.
 func (Proto) ApiBinpb() error {
 	color("Generating proto dependencies image...")
-	return sh.RunV("./cmd/tools/getproto/run.sh", "--out", apiBinpb)
+	for {
+		out, err := sh.Output("go", "run", "./cmd/tools/getproto", "--out", apiBinpb)
+		if strings.TrimSpace(out) != "<rerun>" {
+			return err
+		}
+	}
 }
 
 // InternalBinpb generates the internal proto image.
