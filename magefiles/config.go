@@ -100,6 +100,15 @@ var integrationTestDirs = []string{
 	"./temporaltest",
 }
 
+// testCgoEnabled returns the CGO_ENABLED value for tests.
+// Race detection requires cgo, so force it on when race is enabled.
+func testCgoEnabled() string {
+	if isTruthy(testRace) {
+		return "1"
+	}
+	return cgoEnabled
+}
+
 // compiledTestArgs returns the common test flags.
 func compiledTestArgs() []string {
 	args := []string{

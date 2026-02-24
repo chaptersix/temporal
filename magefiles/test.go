@@ -19,7 +19,7 @@ func (Test) Unit() error {
 	if err != nil {
 		return err
 	}
-	env := map[string]string{"CGO_ENABLED": cgoEnabled}
+	env := map[string]string{"CGO_ENABLED": testCgoEnabled()}
 	args := append([]string{"test"}, dirs...)
 	args = append(args, compiledTestArgs()...)
 	return sh.RunWithV(env, "go", args...)
@@ -29,7 +29,7 @@ func (Test) Unit() error {
 func (Test) Integration() error {
 	mg.Deps(Clean.TestOutput)
 	color("Run integration tests...")
-	env := map[string]string{"CGO_ENABLED": cgoEnabled}
+	env := map[string]string{"CGO_ENABLED": testCgoEnabled()}
 	args := append([]string{"test"}, integrationTestDirs...)
 	args = append(args, compiledTestArgs()...)
 	return sh.RunWithV(env, "go", args...)
@@ -39,7 +39,7 @@ func (Test) Integration() error {
 func (Test) Functional() error {
 	mg.Deps(Clean.TestOutput)
 	color("Run functional tests...")
-	env := map[string]string{"CGO_ENABLED": cgoEnabled}
+	env := map[string]string{"CGO_ENABLED": testCgoEnabled()}
 	tArgs := compiledTestArgs()
 	persistenceArgs := []string{
 		"-persistenceType=" + persistenceType,
@@ -60,7 +60,7 @@ func (Test) Functional() error {
 func (Test) FunctionalFaultInjection() error {
 	mg.Deps(Clean.TestOutput)
 	color("Run integration tests with fault injection...")
-	env := map[string]string{"CGO_ENABLED": cgoEnabled}
+	env := map[string]string{"CGO_ENABLED": testCgoEnabled()}
 	tArgs := compiledTestArgs()
 	persistenceArgs := []string{
 		"-enableFaultInjection=true",
