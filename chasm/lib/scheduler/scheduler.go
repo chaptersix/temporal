@@ -250,6 +250,15 @@ func CreateSchedulerFromMigration(
 	visibility.MergeCustomSearchAttributes(ctx, state.GetSearchAttributes())
 	visibility.MergeCustomMemo(ctx, state.GetMemo())
 
+	// Schedule a task to attach completion callbacks to any running workflows
+	// that were migrated from V1, so the CHASM scheduler receives completion
+	// notifications for them.
+	if len(sched.Invoker.Get(ctx).runningWorkflowExecutions()) > 0 {
+		ctx.AddTask(sched, chasm.TaskAttributes{
+			ScheduledTime: chasm.TaskScheduledTimeImmediate,
+		}, &schedulerpb.MigrationCallbackTask{})
+	}
+
 	return sched, nil
 }
 

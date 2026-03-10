@@ -26,3 +26,8 @@ message InvokerExecuteTask {}
 
 // Buffers actions based on a manually-requested backfill.
 message BackfillerTask {}
+
+// Attaches completion callbacks to running workflows that were migrated from
+// V1 (workflow-backed) schedulers. This ensures the CHASM scheduler receives
+// completion notifications for workflows that were started before migration.
+message MigrationCallbackTask {}

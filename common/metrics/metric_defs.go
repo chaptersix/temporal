@@ -1357,6 +1357,10 @@ var (
 		"schedule_migration_failed",
 		WithDescription("The number of times a V1 schedule fails migration to CHASM"),
 	)
+	ScheduleMigrationCallbackErrors = NewCounterDef(
+		"schedule_migration_callback_errors",
+		WithDescription("The number of failures attaching completion callbacks to running workflows during migration"),
+	)
 
 	// Worker Versioning
 	WorkerDeploymentCreated                           = NewCounterDef("worker_deployment_created")

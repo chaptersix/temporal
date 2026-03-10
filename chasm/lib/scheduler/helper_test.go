@@ -107,6 +107,10 @@ func newTestLibrary(logger log.Logger, specProcessor scheduler.SpecProcessor) *s
 			BaseLogger:     logger,
 			SpecProcessor:  specProcessor,
 		}),
+		scheduler.NewMigrationCallbackTaskExecutor(scheduler.MigrationCallbackTaskExecutorOptions{
+			MetricsHandler: metrics.NoopMetricsHandler,
+			BaseLogger:     logger,
+		}),
 	)
 }
 

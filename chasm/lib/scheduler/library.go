@@ -17,6 +17,7 @@ type (
 		InvokerExecuteTaskExecutor       *InvokerExecuteTaskExecutor
 		InvokerProcessBufferTaskExecutor *InvokerProcessBufferTaskExecutor
 		BackfillerTaskExecutor           *BackfillerTaskExecutor
+		MigrationCallbackTaskExecutor    *MigrationCallbackTaskExecutor
 	}
 )
 
@@ -27,6 +28,7 @@ func NewLibrary(
 	InvokerExecuteTaskExecutor *InvokerExecuteTaskExecutor,
 	InvokerProcessBufferTaskExecutor *InvokerProcessBufferTaskExecutor,
 	BackfillerTaskExecutor *BackfillerTaskExecutor,
+	MigrationCallbackTaskExecutor *MigrationCallbackTaskExecutor,
 ) *Library {
 	return &Library{
 		handler:                          handler,
@@ -35,6 +37,7 @@ func NewLibrary(
 		InvokerExecuteTaskExecutor:       InvokerExecuteTaskExecutor,
 		InvokerProcessBufferTaskExecutor: InvokerProcessBufferTaskExecutor,
 		BackfillerTaskExecutor:           BackfillerTaskExecutor,
+		MigrationCallbackTaskExecutor:    MigrationCallbackTaskExecutor,
 	}
 }
 
@@ -81,6 +84,11 @@ func (l *Library) Tasks() []*chasm.RegistrableTask {
 			"backfill",
 			l.BackfillerTaskExecutor,
 			l.BackfillerTaskExecutor,
+		),
+		chasm.NewRegistrableSideEffectTask(
+			"migrationCallback",
+			l.MigrationCallbackTaskExecutor,
+			l.MigrationCallbackTaskExecutor,
 		),
 	}
 }

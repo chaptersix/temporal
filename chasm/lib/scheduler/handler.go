@@ -78,7 +78,6 @@ func (h *handler) CreateSchedule(ctx context.Context, req *schedulerpb.CreateSch
 // CreateFromMigrationState creates a CHASM schedule from migrated V1 state.
 // Used during migration from workflow-backed schedules to CHASM schedules.
 //
-// TODO: attach completion callbacks to running workflows migrated from V1.
 // TODO: handle sentinel key that may exist if EnableCHASMSchedulerCreation was
 // enabled when the schedule was originally created. The existing CHASM component
 // must be replaced with the migrated state.
