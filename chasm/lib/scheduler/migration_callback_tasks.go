@@ -2,10 +2,12 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	commonpb "go.temporal.io/api/common/v1"
+	"go.temporal.io/api/serviceerror"
 	enumspb "go.temporal.io/api/enums/v1"
 	workflowpb "go.temporal.io/api/workflow/v1"
 	"go.temporal.io/api/workflowservice/v1"
@@ -61,7 +63,7 @@ func (e *MigrationCallbackTaskExecutor) Execute(
 ) error {
 	var scheduler *Scheduler
 	var callback *commonpb.Callback
-	var runningWorkflows []*commonpb.WorkflowExecution
+	var workflows []runningWorkflow
 
 	// Read the scheduler state and generate a callback.
 	_, err := chasm.ReadComponent(
@@ -74,7 +76,7 @@ func (e *MigrationCallbackTaskExecutor) Execute(
 			}
 
 			invoker := s.Invoker.Get(ctx)
-			runningWorkflows = invoker.runningWorkflowExecutions()
+			workflows = invoker.runningWorkflows()
 
 			cb, err := chasm.GenerateNexusCallback(ctx, s)
 			if err != nil {
@@ -90,19 +92,24 @@ func (e *MigrationCallbackTaskExecutor) Execute(
 		return fmt.Errorf("failed to read scheduler component: %w", err)
 	}
 
-	if len(runningWorkflows) == 0 {
+	if len(workflows) == 0 {
 		return nil
 	}
 
 	logger := newTaggedLogger(e.baseLogger, scheduler)
 	metricsHandler := newTaggedMetricsHandler(e.metricsHandler, scheduler)
 
+	logger.Info("migration callback task executing",
+		tag.NewInt("running-workflow-count", len(workflows)),
+		tag.NewStringTag("callback-url", callback.GetNexus().GetUrl()),
+	)
+
 	// Attach completion callbacks to all running workflows concurrently.
 	var wg sync.WaitGroup
 	var errCount int
 	var mu sync.Mutex
 
-	for _, wf := range runningWorkflows {
+	for _, wf := range workflows {
 		wg.Go(func() {
 			if err := e.attachCallback(ctx, logger, scheduler, wf, callback); err != nil {
 				logger.Warn("failed to attach migration callback to running workflow",
@@ -125,7 +132,7 @@ func (e *MigrationCallbackTaskExecutor) Execute(
 
 	if errCount > 0 {
 		metricsHandler.Counter(metrics.ScheduleMigrationCallbackErrors.Name()).Record(int64(errCount))
-		return fmt.Errorf("failed to attach callbacks to %d of %d running workflows", errCount, len(runningWorkflows))
+		return fmt.Errorf("failed to attach callbacks to %d of %d running workflows", errCount, len(workflows))
 	}
 
 	return nil
@@ -133,15 +140,46 @@ func (e *MigrationCallbackTaskExecutor) Execute(
 
 // attachCallback attaches a CHASM completion callback to an already-running
 // workflow by sending a StartWorkflowExecution request with USE_EXISTING
-// conflict policy and AttachCompletionCallbacks set.
+// conflict policy, REJECT_DUPLICATE reuse policy, and AttachCompletionCallbacks
+// set. It uses the BufferedStart's RequestId so that the callback completion
+// can be matched back to the correct running workflow in HandleNexusCompletion.
 func (e *MigrationCallbackTaskExecutor) attachCallback(
 	ctx context.Context,
 	logger log.Logger,
 	scheduler *Scheduler,
-	wf *commonpb.WorkflowExecution,
+	wf runningWorkflow,
 	callback *commonpb.Callback,
 ) error {
+	execution := &commonpb.WorkflowExecution{
+		WorkflowId: wf.WorkflowId,
+		RunId:      wf.RunId,
+	}
+
+	// Verify the workflow exists before attempting to attach.
+	_, err := e.frontendClient.DescribeWorkflowExecution(ctx, &workflowservice.DescribeWorkflowExecutionRequest{
+		Namespace: scheduler.Namespace,
+		Execution: execution,
+	})
+	if err != nil {
+		var notFound *serviceerror.NotFound
+		if errors.As(err, &notFound) {
+			logger.Warn("workflow not found, skipping callback attachment",
+				tag.WorkflowID(wf.WorkflowId),
+				tag.WorkflowRunID(wf.RunId),
+			)
+			return nil
+		}
+		return fmt.Errorf("failed to describe workflow %s/%s: %w", wf.WorkflowId, wf.RunId, err)
+	}
+
 	requestSpec := scheduler.Schedule.GetAction().GetStartWorkflow()
+
+	logger.Info("attaching callback to workflow",
+		tag.WorkflowID(wf.WorkflowId),
+		tag.WorkflowRunID(wf.RunId),
+		tag.NewStringTag("callback-url", callback.GetNexus().GetUrl()),
+		tag.NewStringTag("request-id", wf.RequestId),
+	)
 
 	request := &workflowservice.StartWorkflowExecutionRequest{
 		Namespace:                scheduler.Namespace,
@@ -150,7 +188,8 @@ func (e *MigrationCallbackTaskExecutor) attachCallback(
 		TaskQueue:                requestSpec.GetTaskQueue(),
 		Identity:                 scheduler.identity(),
 		WorkflowIdConflictPolicy: enumspb.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING,
-		RequestId:                fmt.Sprintf("migration-callback-%s-%s", scheduler.ScheduleId, wf.RunId),
+		WorkflowIdReusePolicy:    enumspb.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		RequestId:                wf.RequestId,
 		CompletionCallbacks:      []*commonpb.Callback{callback},
 		OnConflictOptions: &workflowpb.OnConflictOptions{
 			AttachRequestId:           true,
@@ -160,28 +199,17 @@ func (e *MigrationCallbackTaskExecutor) attachCallback(
 
 	resp, err := e.frontendClient.StartWorkflowExecution(ctx, request)
 	if err != nil {
+		logger.Error("failed to attach callback via StartWorkflowExecution",
+			tag.Error(err),
+			tag.WorkflowID(wf.WorkflowId),
+			tag.WorkflowRunID(wf.RunId),
+		)
 		return err
 	}
-	if resp.Started {
-		// The workflow had already completed, so USE_EXISTING started a new
-		// one instead of attaching to the existing run. Terminate it
-		// immediately.
-		//
-		// TODO: replace with an API that can attach callbacks without this
-		// race (e.g. UpdateWorkflow with callback attachment).
-		logger.Warn("migration callback started unintended workflow, terminating",
-			tag.WorkflowID(wf.WorkflowId),
-			tag.WorkflowRunID(resp.RunId),
-		)
-		_, _ = e.frontendClient.TerminateWorkflowExecution(ctx, &workflowservice.TerminateWorkflowExecutionRequest{
-			Namespace: scheduler.Namespace,
-			WorkflowExecution: &commonpb.WorkflowExecution{
-				WorkflowId: wf.WorkflowId,
-				RunId:      resp.RunId,
-			},
-			Reason:   "migration callback task: workflow started unintentionally",
-			Identity: scheduler.identity(),
-		})
-	}
+	logger.Info("StartWorkflowExecution response for callback attachment",
+		tag.WorkflowID(wf.WorkflowId),
+		tag.WorkflowRunID(wf.RunId),
+		tag.NewBoolTag("started", resp.GetStarted()),
+	)
 	return nil
 }

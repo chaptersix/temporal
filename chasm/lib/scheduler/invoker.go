@@ -316,6 +316,13 @@ func (i *Invoker) isWorkflowStarted(workflowID string) bool {
 	return false
 }
 
+// runningWorkflow holds identifying info for a running workflow tracked by the Invoker.
+type runningWorkflow struct {
+	WorkflowId string
+	RunId      string
+	RequestId  string
+}
+
 // runningWorkflowExecutions returns the list of workflow executions that
 // have been started but not yet completed.
 func (i *Invoker) runningWorkflowExecutions() []*commonpb.WorkflowExecution {
@@ -325,6 +332,22 @@ func (i *Invoker) runningWorkflowExecutions() []*commonpb.WorkflowExecution {
 			running = append(running, &commonpb.WorkflowExecution{
 				WorkflowId: start.GetWorkflowId(),
 				RunId:      start.GetRunId(),
+			})
+		}
+	}
+	return running
+}
+
+// runningWorkflows returns running workflow info including the request ID
+// needed for callback attachment during migration.
+func (i *Invoker) runningWorkflows() []runningWorkflow {
+	var running []runningWorkflow
+	for _, start := range i.GetBufferedStarts() {
+		if start.GetRunId() != "" && start.GetCompleted() == nil {
+			running = append(running, runningWorkflow{
+				WorkflowId: start.GetWorkflowId(),
+				RunId:      start.GetRunId(),
+				RequestId:  start.GetRequestId(),
 			})
 		}
 	}
