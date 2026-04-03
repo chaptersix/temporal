@@ -102,7 +102,7 @@ func TestValidateMainBranchPseudoVersionOnDefault(t *testing.T) {
 		[]moduleSpec{testAPIModule},
 		func(context.Context, string, string) (bool, error) { return false, nil },
 		func(context.Context, string, string) (*moduleOrigin, error) {
-			return &moduleOrigin{ref: "refs/heads/master", defaultBranch: "master"}, nil
+			return &moduleOrigin{hash: "dbc016f3811d", url: "https://github.com/temporalio/api-go", defaultBranch: "master", onDefault: true}, nil
 		},
 	)
 	require.NoError(t, err)
@@ -124,13 +124,12 @@ func TestValidateMainBranchPseudoVersionNotOnDefault(t *testing.T) {
 		[]moduleSpec{testAPIModule},
 		func(context.Context, string, string) (bool, error) { return false, nil },
 		func(context.Context, string, string) (*moduleOrigin, error) {
-			return &moduleOrigin{ref: "refs/heads/serverless", defaultBranch: "master"}, nil
+			return &moduleOrigin{hash: "dbc016f3811d", url: "https://github.com/temporalio/api-go", defaultBranch: "master", onDefault: false}, nil
 		},
 	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "main branch dependency validation failed")
-	require.Contains(t, err.Error(), "must be on the default branch")
-	require.Contains(t, err.Error(), "refs/heads/serverless")
+	require.Contains(t, err.Error(), "is not on the default branch")
 }
 
 func TestValidateMainBranchSDKPseudoVersionOnDefault(t *testing.T) {
@@ -151,7 +150,7 @@ func TestValidateMainBranchSDKPseudoVersionOnDefault(t *testing.T) {
 			return modulePath == "go.temporal.io/api", nil
 		},
 		func(context.Context, string, string) (*moduleOrigin, error) {
-			return &moduleOrigin{ref: "refs/heads/master", defaultBranch: "master"}, nil
+			return &moduleOrigin{hash: "abcdef123456", url: "https://github.com/temporalio/sdk-go", defaultBranch: "master", onDefault: true}, nil
 		},
 	)
 	require.NoError(t, err)

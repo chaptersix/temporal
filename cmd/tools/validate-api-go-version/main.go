@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/mod/modfile"
@@ -190,10 +191,9 @@ func validateMainModule(
 		return fmt.Sprintf("%s@%s: failed to resolve module origin: %v", mod.modulePath, version, err)
 	}
 
-	expectedRef := "refs/heads/" + origin.defaultBranch
-	if origin.ref != expectedRef {
-		return fmt.Sprintf("%s@%s: pseudo-version resolved to branch %q but must be on the default branch %q; use a tagged release or a pseudo-version from %s",
-			mod.modulePath, version, origin.ref, expectedRef, origin.defaultBranch)
+	if !origin.onDefault {
+		return fmt.Sprintf("%s@%s: commit %s is not on the default branch (%s) of %s",
+			mod.modulePath, version, origin.hash, origin.defaultBranch, origin.url)
 	}
 
 	_, _ = fmt.Fprintf(out, "  - %s@%s is on %s (ok)\n", mod.modulePath, version, origin.defaultBranch)
@@ -201,21 +201,20 @@ func validateMainModule(
 }
 
 type moduleOrigin struct {
-	ref           string // e.g. "refs/heads/master"
+	hash          string // full commit hash
+	url           string // VCS repository URL
 	defaultBranch string // e.g. "master"
+	onDefault     bool   // whether the commit is on the default branch
 }
 
-// resolveModuleOrigin uses go mod download with GOPROXY=direct to get the
-// Origin.Ref and Origin.URL from the VCS repository directly, then uses
-// git ls-remote to determine the default branch.
+// resolveModuleOrigin uses go mod download with GOPROXY=direct to clone the
+// VCS repository, then checks if the pseudo-version commit is on the default branch.
 func resolveModuleOrigin(ctx context.Context, modulePath string, version string) (*moduleOrigin, error) {
 	if !module.IsPseudoVersion(version) {
 		return nil, fmt.Errorf("version %q is not a pseudo-version", version)
 	}
 
-	// Use a temporary module cache so Go fetches directly from VCS.
-	// The Origin.Ref field is only populated on a fresh git fetch;
-	// a warm cache omits it.
+	// Use a temporary module cache so go mod download clones the VCS repo fresh.
 	tmpCache, err := os.MkdirTemp("", "validate-api-go-version-*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp cache dir: %w", err)
@@ -231,18 +230,18 @@ func resolveModuleOrigin(ctx context.Context, modulePath string, version string)
 
 	var payload struct {
 		Origin struct {
-			URL string `json:"URL"`
-			Ref string `json:"Ref"`
+			URL  string `json:"URL"`
+			Hash string `json:"Hash"`
 		} `json:"Origin"`
 	}
 	if err := json.Unmarshal(out, &payload); err != nil {
 		return nil, fmt.Errorf("failed to decode go mod download output: %w", err)
 	}
-	if payload.Origin.Ref == "" {
-		return nil, fmt.Errorf("go mod download did not return an origin ref for %s@%s", modulePath, version)
-	}
 	if payload.Origin.URL == "" {
 		return nil, fmt.Errorf("go mod download did not return an origin URL for %s@%s", modulePath, version)
+	}
+	if payload.Origin.Hash == "" {
+		return nil, fmt.Errorf("go mod download did not return an origin hash for %s@%s", modulePath, version)
 	}
 
 	defaultBranch, err := gitDefaultBranch(ctx, payload.Origin.URL)
@@ -250,10 +249,55 @@ func resolveModuleOrigin(ctx context.Context, modulePath string, version string)
 		return nil, fmt.Errorf("failed to determine default branch for %s: %w", payload.Origin.URL, err)
 	}
 
+	// The VCS cache from go mod download is a bare git repo. Find it and
+	// use git branch --contains to check if the commit is on the default branch.
+	vcsDir, err := findVCSCache(tmpCache)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find VCS cache: %w", err)
+	}
+
+	onDefault, err := gitCommitOnBranch(ctx, vcsDir, payload.Origin.Hash, defaultBranch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check branch containment: %w", err)
+	}
+
 	return &moduleOrigin{
-		ref:           payload.Origin.Ref,
+		hash:          payload.Origin.Hash,
+		url:           payload.Origin.URL,
 		defaultBranch: defaultBranch,
+		onDefault:     onDefault,
 	}, nil
+}
+
+// findVCSCache finds the bare git repo directory inside the go module VCS cache.
+func findVCSCache(modCache string) (string, error) {
+	vcsRoot := filepath.Join(modCache, "cache", "vcs")
+	entries, err := os.ReadDir(vcsRoot)
+	if err != nil {
+		return "", fmt.Errorf("failed to read VCS cache dir: %w", err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			return filepath.Join(vcsRoot, entry.Name()), nil
+		}
+	}
+	return "", errors.New("no VCS cache directory found")
+}
+
+// gitCommitOnBranch checks if a commit is reachable from a branch in a bare git repo.
+func gitCommitOnBranch(ctx context.Context, repoDir string, commitHash string, branch string) (bool, error) {
+	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "branch", "--contains", commitHash)
+	out, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("git branch --contains failed: %w", err)
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		name := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "* "))
+		if name == branch {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // gitDefaultBranch uses git ls-remote to determine the default branch of a
