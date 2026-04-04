@@ -25,5 +25,5 @@ jobs:
 
       - name: Validate dependency versions for PR base branch
         run: >-
-          go run ./cmd/tools/validate-api-go-version
+          go run ./cmd/tools/check-dependencies
           --base-branch "${{ github.event.pull_request.base.ref }}"
