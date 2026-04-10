@@ -96,7 +96,11 @@ temp directory and exits without applying changes.
   schedutil -namespace prod dedup --execute
 
   # Force CAN
-  schedutil -namespace prod force-can --schedule-id my-sched --execute`
+  schedutil -namespace prod force-can --schedule-id my-sched --execute
+
+  # Recreate a schedule whose workflow is too degraded to process an update
+  schedutil -namespace prod dedup --schedule-id my-sched --recreate           # dry run
+  schedutil -namespace prod dedup --schedule-id my-sched --recreate --execute`
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:    tdbg.FlagAddress,
