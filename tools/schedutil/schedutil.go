@@ -284,7 +284,7 @@ func deduplicateCalendars(entries []sdkclient.ScheduleCalendarSpec) []sdkclient.
 // (int64 aliases) and are directly comparable as a map key.
 func deduplicateIntervals(entries []sdkclient.ScheduleIntervalSpec) []sdkclient.ScheduleIntervalSpec {
 	seen := make(map[sdkclient.ScheduleIntervalSpec]struct{}, len(entries))
-	out := make([]sdkclient.ScheduleIntervalSpec, 0, len(entries))
+	out := make([]sdkclient.ScheduleIntervalSpec)
 	for _, e := range entries {
 		if _, ok := seen[e]; !ok {
 			seen[e] = struct{}{}
