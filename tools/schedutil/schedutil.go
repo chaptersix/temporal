@@ -3,46 +3,36 @@
 //
 // # Targeting
 //
-// Exactly one of three targeting modes must be used:
-//
-//	--schedule-id <id>     operate on a single schedule
-//	--ids-file <file>      read IDs from a file, one per line ("-" for stdin)
-//	(neither)              operate on all schedules in the namespace
+//   - --schedule-id <id>   operate on a single schedule
+//   - stdin pipe           read one ID per line from piped input
+//   - (neither)            operate on all schedules in the namespace
 //
 // # Dry-run vs execute
 //
-// Without --execute the command always describes each schedule, writes before/
-// after JSON files to a temp directory, and exits without applying any changes.
+// Without --execute the command describes each schedule, writes before/after
+// JSON files to a temp directory, and exits without applying any changes.
 // With --execute the changes are applied and the same files are written.
 //
 // # Commands
 //
-//	dedup      Deduplicate StructuredCalendar and Interval entries in a
-//	           schedule spec. Writes before/after JSON to a temp directory.
+//	dedup      Deduplicate StructuredCalendar and Interval entries.
 //	force-can  Send a force-continue-as-new signal to the scheduler workflow.
-//	           Dry-run prints what would be signalled; --execute sends it.
 //
 // # Examples
 //
-//	# Single schedule — dry run (writes files, no update sent)
+//	# Single schedule — dry run (writes JSON, no update sent)
 //	schedutil -namespace prod dedup --schedule-id my-sched
 //
 //	# Single schedule — apply
 //	schedutil -namespace prod dedup --schedule-id my-sched --execute
 //
-//	# Explicit list from a file
-//	schedutil -namespace prod dedup --ids-file affected.txt --execute
-//
-//	# Piped from another tool ("-" reads stdin)
+//	# Subset piped from another tool
 //	temporal schedule list -n prod -o json | jq -r '.[].scheduleId' | \
-//	    schedutil -namespace prod dedup --ids-file - --execute
+//	    schedutil -namespace prod dedup --execute
 //
 //	# Whole namespace — dry run first, then execute
 //	schedutil -namespace prod dedup
 //	schedutil -namespace prod dedup --execute
-//
-//	# Force CAN on a single schedule
-//	schedutil -namespace prod force-can --schedule-id my-sched --execute
 //
 // Global flags mirror tdbg (address, namespace, TLS, context-timeout) and
 // honour the same environment variables (TEMPORAL_CLI_ADDRESS, etc.).
@@ -72,7 +62,6 @@ import (
 
 const (
 	defaultContextTimeoutSeconds = 30
-	flagIDsFile                  = "ids-file"
 	flagExecute                  = "execute"
 )
 
@@ -81,24 +70,21 @@ func Run(args []string) error {
 	app := cli.NewApp()
 	app.Name = "schedutil"
 	app.Usage = "Operations on individual Temporal schedules"
-	app.Description = `Target a single schedule, a file of IDs, or an entire namespace.
+	app.Description = `Without --schedule-id, reads IDs from stdin if piped, otherwise targets all
+schedules in the namespace. Without --execute, writes before/after JSON to a
+temp directory and exits without applying changes.
 
-Without --execute the command describes each schedule, writes before/after JSON
-to a temp directory, and exits without applying any changes.
-
-  # Dry run (writes files, no changes applied)
+  # Single schedule
   schedutil -namespace prod dedup --schedule-id my-sched
-  schedutil -namespace prod dedup --ids-file affected.txt
-  schedutil -namespace prod dedup
-
-  # Apply
   schedutil -namespace prod dedup --schedule-id my-sched --execute
-  schedutil -namespace prod dedup --ids-file affected.txt --execute
-  schedutil -namespace prod dedup --execute
 
-  # Piped ("-" reads stdin)
+  # Subset via pipe
   temporal schedule list -n prod -o json | jq -r '.[].scheduleId' | \
-      schedutil -namespace prod dedup --ids-file - --execute
+      schedutil -namespace prod dedup --execute
+
+  # Whole namespace
+  schedutil -namespace prod dedup
+  schedutil -namespace prod dedup --execute
 
   # Force CAN
   schedutil -namespace prod force-can --schedule-id my-sched --execute`
@@ -156,11 +142,7 @@ to a temp directory, and exits without applying any changes.
 	scheduleIDFlag := &cli.StringFlag{
 		Name:    tdbg.FlagScheduleID,
 		Aliases: []string{"s"},
-		Usage:   "Schedule ID. Omit to target all schedules in the namespace.",
-	}
-	idsFileFlag := &cli.StringFlag{
-		Name:  flagIDsFile,
-		Usage: `File of schedule IDs, one per line. Use "-" to read from stdin. Mutually exclusive with --schedule-id.`,
+		Usage:   "Schedule ID. Omit to read IDs from stdin (if piped) or target all schedules in the namespace.",
 	}
 	executeFlag := &cli.BoolFlag{
 		Name:  flagExecute,
@@ -170,7 +152,7 @@ to a temp directory, and exits without applying any changes.
 		{
 			Name:  "dedup",
 			Usage: "Deduplicate StructuredCalendar entries in a schedule spec",
-			Flags: []cli.Flag{scheduleIDFlag, idsFileFlag, executeFlag},
+			Flags: []cli.Flag{scheduleIDFlag, executeFlag},
 			Action: func(c *cli.Context) error {
 				outDir, err := os.MkdirTemp("", "schedutil-*")
 				if err != nil {
@@ -183,7 +165,7 @@ to a temp directory, and exits without applying any changes.
 					if sid := c.String(tdbg.FlagScheduleID); sid != "" {
 						return RunDedup(ctx, cl, ns, sid, outDir, execute)
 					}
-					return ForEachSchedule(ctx, cl, ns, c.String(flagIDsFile), func(sid string) error {
+					return ForEachSchedule(ctx, cl, ns, func(sid string) error {
 						return RunDedup(ctx, cl, ns, sid, outDir, execute)
 					})
 				})
@@ -192,7 +174,7 @@ to a temp directory, and exits without applying any changes.
 		{
 			Name:  "force-can",
 			Usage: "Send a force-continue-as-new signal to the scheduler workflow",
-			Flags: []cli.Flag{scheduleIDFlag, idsFileFlag, executeFlag},
+			Flags: []cli.Flag{scheduleIDFlag, executeFlag},
 			Action: func(c *cli.Context) error {
 				ns := c.String(tdbg.FlagNamespace)
 				execute := c.Bool(flagExecute)
@@ -200,7 +182,7 @@ to a temp directory, and exits without applying any changes.
 					if sid := c.String(tdbg.FlagScheduleID); sid != "" {
 						return RunForceCAN(ctx, cl, sid, execute)
 					}
-					return ForEachSchedule(ctx, cl, ns, c.String(flagIDsFile), func(sid string) error {
+					return ForEachSchedule(ctx, cl, ns, func(sid string) error {
 						return RunForceCAN(ctx, cl, sid, execute)
 					})
 				})
@@ -319,17 +301,24 @@ func RunForceCAN(ctx context.Context, cl sdkclient.Client, scheduleID string, ex
 	return nil
 }
 
-// ForEachSchedule resolves the schedule ID set (from idsFile or namespace list)
-// and calls fn for each, continuing on per-schedule errors and reporting a
-// combined failure at the end.
-func ForEachSchedule(ctx context.Context, cl sdkclient.Client, namespace, idsFile string, fn func(string) error) error {
+// ForEachSchedule resolves the schedule ID set and calls fn for each,
+// continuing on per-schedule errors and reporting a combined failure at the end.
+// If stdin is a pipe, IDs are read from it one per line; otherwise all
+// schedules in the namespace are listed.
+func ForEachSchedule(ctx context.Context, cl sdkclient.Client, namespace string, fn func(string) error) error {
 	var scheduleIDs []string
-	if idsFile != "" {
-		ids, err := readScheduleIDs(idsFile)
-		if err != nil {
-			return err
+	if stdinIsPipe() {
+		sc := bufio.NewScanner(os.Stdin)
+		for sc.Scan() {
+			line := strings.TrimSpace(sc.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			scheduleIDs = append(scheduleIDs, line)
 		}
-		scheduleIDs = ids
+		if err := sc.Err(); err != nil {
+			return fmt.Errorf("read stdin: %w", err)
+		}
 	} else {
 		iter, err := cl.ScheduleClient().List(ctx, sdkclient.ScheduleListOptions{})
 		if err != nil {
@@ -413,31 +402,14 @@ func deduplicateIntervals(entries []sdkclient.ScheduleIntervalSpec) []sdkclient.
 	return out
 }
 
-// readScheduleIDs reads one schedule ID per line from path, or from stdin when
-// path is "-". Empty lines and lines beginning with "#" are ignored.
-func readScheduleIDs(path string) ([]string, error) {
-	var r io.Reader
-	if path == "-" {
-		r = os.Stdin
-	} else {
-		f, err := os.Open(path)
-		if err != nil {
-			return nil, fmt.Errorf("open %s: %w", path, err)
-		}
-		defer f.Close()
-		r = f
+// stdinIsPipe reports whether stdin is connected to a pipe or redirect rather
+// than an interactive terminal.
+func stdinIsPipe() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
 	}
-
-	var ids []string
-	sc := bufio.NewScanner(r)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		ids = append(ids, line)
-	}
-	return ids, sc.Err()
+	return fi.Mode()&os.ModeCharDevice == 0
 }
 
 // buildTLSConfig mirrors tdbg's createTLSConfig: reads cert/key/CA flags and

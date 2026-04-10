@@ -180,7 +180,7 @@ func testSchedUtilDedupNamespaceExecute(t *testing.T) {
 	}
 
 	outDir := t.TempDir()
-	require.NoError(t, schedutil.ForEachSchedule(ctx, s.SdkClient(), s.Namespace().String(), "", func(sid string) error {
+	require.NoError(t, schedutil.ForEachSchedule(ctx, s.SdkClient(), s.Namespace().String(), func(sid string) error {
 		return schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, true)
 	}))
 
