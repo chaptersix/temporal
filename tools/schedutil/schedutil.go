@@ -232,26 +232,26 @@ func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, o
 		return fmt.Errorf("describe schedule: %w", err)
 	}
 
-	beforeJSON, err := json.MarshalIndent(desc.Schedule.Spec, "", "  ")
+	beforeJSON, err := json.MarshalIndent(desc.Schedule, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshal spec: %w", err)
+		return fmt.Errorf("marshal schedule: %w", err)
 	}
 	key := fileKey(namespace, scheduleID)
 	beforePath := outDir + "/" + key + "-before.json"
 	if err := os.WriteFile(beforePath, beforeJSON, 0o644); err != nil {
-		return fmt.Errorf("write before spec: %w", err)
+		return fmt.Errorf("write before: %w", err)
 	}
 
-	// Compute the deduplicated spec and write the after file. The DoUpdate
+	// Compute the deduplicated schedule and write the after file. The DoUpdate
 	// closure captures the result so we can write it before deciding whether
 	// to actually send the update.
 	sched := desc.Schedule
 	sched.Spec.Calendars = deduplicateCalendars(sched.Spec.Calendars)
 	sched.Spec.Intervals = deduplicateIntervals(sched.Spec.Intervals)
 
-	afterJSON, err := json.MarshalIndent(sched.Spec, "", "  ")
+	afterJSON, err := json.MarshalIndent(sched, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshal deduped spec: %w", err)
+		return fmt.Errorf("marshal deduped schedule: %w", err)
 	}
 	afterPath := outDir + "/" + key + "-after.json"
 	if err := os.WriteFile(afterPath, afterJSON, 0o644); err != nil {
