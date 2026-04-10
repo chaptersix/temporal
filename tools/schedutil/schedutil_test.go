@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	schedulepb "go.temporal.io/api/schedule/v1"
 	sdkclient "go.temporal.io/sdk/client"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestDeduplicateCalendars(t *testing.T) {
@@ -107,6 +109,64 @@ func TestDeduplicateIntervals(t *testing.T) {
 			} else {
 				assert.Equal(t, tc.want, got)
 			}
+		})
+	}
+}
+
+func TestDeduplicateStructuredCalendarsProto(t *testing.T) {
+	hourly := &schedulepb.StructuredCalendarSpec{
+		Second:     []*schedulepb.Range{{Start: 0}},
+		Minute:     []*schedulepb.Range{{Start: 0}},
+		Hour:       []*schedulepb.Range{{Start: 0, End: 23}},
+		DayOfMonth: []*schedulepb.Range{{Start: 1, End: 31}},
+		Month:      []*schedulepb.Range{{Start: 1, End: 12}},
+		DayOfWeek:  []*schedulepb.Range{{}},
+	}
+	daily := &schedulepb.StructuredCalendarSpec{
+		Second:     []*schedulepb.Range{{Start: 0}},
+		Minute:     []*schedulepb.Range{{Start: 0}},
+		Hour:       []*schedulepb.Range{{Start: 9}},
+		DayOfMonth: []*schedulepb.Range{{Start: 1, End: 31}},
+		Month:      []*schedulepb.Range{{Start: 1, End: 12}},
+		DayOfWeek:  []*schedulepb.Range{{}},
+	}
+
+	tests := []struct {
+		name  string
+		input []*schedulepb.StructuredCalendarSpec
+		want  int
+	}{
+		{name: "empty", input: nil, want: 0},
+		{name: "no duplicates preserved", input: []*schedulepb.StructuredCalendarSpec{hourly, daily}, want: 2},
+		{name: "all duplicates collapsed to one", input: []*schedulepb.StructuredCalendarSpec{hourly, hourly, hourly}, want: 1},
+		{name: "first occurrence wins", input: []*schedulepb.StructuredCalendarSpec{hourly, daily, hourly}, want: 2},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Len(t, deduplicateStructuredCalendarsProto(tc.input), tc.want)
+		})
+	}
+}
+
+func TestDeduplicateIntervalsProto(t *testing.T) {
+	hourly := &schedulepb.IntervalSpec{Interval: durationpb.New(time.Hour)}
+	daily := &schedulepb.IntervalSpec{Interval: durationpb.New(24 * time.Hour)}
+
+	tests := []struct {
+		name  string
+		input []*schedulepb.IntervalSpec
+		want  int
+	}{
+		{name: "empty", input: nil, want: 0},
+		{name: "no duplicates preserved", input: []*schedulepb.IntervalSpec{hourly, daily}, want: 2},
+		{name: "all duplicates collapsed to one", input: []*schedulepb.IntervalSpec{hourly, hourly, hourly}, want: 1},
+		{name: "first occurrence wins", input: []*schedulepb.IntervalSpec{hourly, daily, hourly}, want: 2},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Len(t, deduplicateIntervalsProto(tc.input), tc.want)
 		})
 	}
 }

@@ -25,6 +25,8 @@ func TestSchedUtil(t *testing.T) {
 	t.Run("TestForceCAN", testSchedUtilForceCAN)
 	t.Run("TestForceCANDryRun", testSchedUtilForceCANDryRun)
 	t.Run("TestDedupNamespaceExecute", testSchedUtilDedupNamespaceExecute)
+	t.Run("TestDedupRecreateDryRun", testSchedUtilDedupRecreateDryRun)
+	t.Run("TestDedupRecreateExecute", testSchedUtilDedupRecreateExecute)
 }
 
 // testSchedUtilDedupIdempotent verifies that running dedup on a schedule with
@@ -189,6 +191,80 @@ func testSchedUtilDedupNamespaceExecute(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, len(after.Schedule.Spec.Calendars), "schedule %s should have 1 entry after dedup", sid)
 	}
+}
+
+// testSchedUtilDedupRecreateDryRun verifies that --recreate without --execute
+// reads from history, writes before/after files, and does not modify the schedule.
+func testSchedUtilDedupRecreateDryRun(t *testing.T) {
+	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+	ctx := s.Context()
+	sid := "schedutil-recreate-dry-" + uuid.NewString()[:8]
+	cron := "0 * * * *"
+
+	createSchedule(t, s, ctx, sid, cron)
+
+	handle := s.SdkClient().ScheduleClient().GetHandle(ctx, sid)
+	for i := range 5 {
+		err := handle.Update(ctx, sdkclient.ScheduleUpdateOptions{
+			DoUpdate: func(input sdkclient.ScheduleUpdateInput) (*sdkclient.ScheduleUpdate, error) {
+				sched := input.Description.Schedule
+				sched.Spec.CronExpressions = []string{cron}
+				return &sdkclient.ScheduleUpdate{Schedule: &sched}, nil
+			},
+		})
+		require.NoError(t, err, "update round %d", i+1)
+	}
+
+	outDir := t.TempDir()
+	require.NoError(t, schedutil.RunDedupRecreate(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, false))
+
+	// Schedule must be unchanged.
+	after, err := handle.Describe(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 6, len(after.Schedule.Spec.Calendars), "dry run must not modify the schedule")
+
+	// Before/after files must have been written.
+	entries, err := os.ReadDir(outDir)
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+}
+
+// testSchedUtilDedupRecreateExecute accumulates duplicates, runs --recreate
+// --execute, and verifies the schedule is recreated with a clean spec while
+// preserving the original action.
+func testSchedUtilDedupRecreateExecute(t *testing.T) {
+	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+	ctx := s.Context()
+	sid := "schedutil-recreate-exec-" + uuid.NewString()[:8]
+	cron := "0 * * * *"
+
+	createSchedule(t, s, ctx, sid, cron)
+
+	handle := s.SdkClient().ScheduleClient().GetHandle(ctx, sid)
+	const rounds = 20
+	for i := range rounds {
+		err := handle.Update(ctx, sdkclient.ScheduleUpdateOptions{
+			DoUpdate: func(input sdkclient.ScheduleUpdateInput) (*sdkclient.ScheduleUpdate, error) {
+				sched := input.Description.Schedule
+				sched.Spec.CronExpressions = []string{cron}
+				return &sdkclient.ScheduleUpdate{Schedule: &sched}, nil
+			},
+		})
+		require.NoError(t, err, "update round %d", i+1)
+	}
+
+	desc, err := handle.Describe(ctx)
+	require.NoError(t, err)
+	require.Equal(t, rounds+1, len(desc.Schedule.Spec.Calendars))
+
+	outDir := t.TempDir()
+	require.NoError(t, schedutil.RunDedupRecreate(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, true))
+
+	// Schedule was deleted and recreated — re-acquire the handle and describe.
+	after, err := s.SdkClient().ScheduleClient().GetHandle(ctx, sid).Describe(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(after.Schedule.Spec.Calendars), "recreated schedule should have 1 calendar entry")
+	require.NotNil(t, after.Schedule.Action, "action should be preserved after recreate")
 }
 
 func createSchedule(t *testing.T, s *testcore.TestEnv, ctx context.Context, sid, cron string) {

@@ -53,16 +53,25 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/urfave/cli/v2"
+	commonpb "go.temporal.io/api/common/v1"
+	schedulepb "go.temporal.io/api/schedule/v1"
+	"go.temporal.io/api/workflowservice/v1"
 	sdkclient "go.temporal.io/sdk/client"
+	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/common/auth"
+	"go.temporal.io/server/common/payloads"
 	"go.temporal.io/server/service/worker/scheduler"
 	"go.temporal.io/server/tools/tdbg"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
 	defaultContextTimeoutSeconds = 30
 	flagExecute                  = "execute"
+	flagRecreate                 = "recreate"
 )
 
 // Run is the entry point for the schedutil tool.
@@ -152,7 +161,14 @@ temp directory and exits without applying changes.
 		{
 			Name:  "dedup",
 			Usage: "Deduplicate StructuredCalendar entries in a schedule spec",
-			Flags: []cli.Flag{scheduleIDFlag, executeFlag},
+			Flags: []cli.Flag{
+				scheduleIDFlag,
+				executeFlag,
+				&cli.BoolFlag{
+					Name:  flagRecreate,
+					Usage: "Read schedule state from workflow history, deduplicate, then delete and recreate the schedule. Use when the workflow is too degraded to process an update.",
+				},
+			},
 			Action: func(c *cli.Context) error {
 				outDir, err := os.MkdirTemp("", "schedutil-*")
 				if err != nil {
@@ -161,13 +177,18 @@ temp directory and exits without applying changes.
 				fmt.Printf("Output directory: %s\n\n", outDir)
 				ns := c.String(tdbg.FlagNamespace)
 				execute := c.Bool(flagExecute)
+				recreate := c.Bool(flagRecreate)
 				return withClient(c, func(ctx context.Context, cl sdkclient.Client) error {
-					if sid := c.String(tdbg.FlagScheduleID); sid != "" {
+					fn := func(sid string) error {
+						if recreate {
+							return RunDedupRecreate(ctx, cl, ns, sid, outDir, execute)
+						}
 						return RunDedup(ctx, cl, ns, sid, outDir, execute)
 					}
-					return ForEachSchedule(ctx, cl, ns, func(sid string) error {
-						return RunDedup(ctx, cl, ns, sid, outDir, execute)
-					})
+					if sid := c.String(tdbg.FlagScheduleID); sid != "" {
+						return fn(sid)
+					}
+					return ForEachSchedule(ctx, cl, ns, fn)
 				})
 			},
 		},
@@ -299,6 +320,129 @@ func RunForceCAN(ctx context.Context, cl sdkclient.Client, scheduleID string, ex
 	}
 	fmt.Printf("  %s: signalled %q\n", scheduleID, scheduler.SignalNameForceCAN)
 	return nil
+}
+
+// RunDedupRecreate reads the schedule state from workflow history (bypassing the
+// query size limit), deduplicates the spec, and (if execute) deletes the broken
+// schedule and recreates it with the clean spec. Use when the workflow is too
+// degraded to process an update signal.
+func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, outDir string, execute bool) error {
+	workflowID := scheduler.WorkflowIDPrefix + scheduleID
+	resp, err := cl.WorkflowService().GetWorkflowExecutionHistory(ctx, &workflowservice.GetWorkflowExecutionHistoryRequest{
+		Namespace: namespace,
+		Execution: &commonpb.WorkflowExecution{WorkflowId: workflowID},
+		MaximumPageSize: 1,
+	})
+	if err != nil {
+		return fmt.Errorf("get workflow history: %w", err)
+	}
+	if len(resp.History.Events) == 0 {
+		return fmt.Errorf("no history events found for %s", workflowID)
+	}
+	attrs := resp.History.Events[0].GetWorkflowExecutionStartedEventAttributes()
+	if attrs == nil {
+		return fmt.Errorf("first event is not WorkflowExecutionStarted")
+	}
+
+	var args schedulespb.StartScheduleArgs
+	if err := payloads.Decode(attrs.Input, &args); err != nil {
+		return fmt.Errorf("decode StartScheduleArgs: %w", err)
+	}
+
+	beforeJSON, err := protojson.MarshalOptions{Multiline: true}.Marshal(args.Schedule)
+	if err != nil {
+		return fmt.Errorf("marshal before schedule: %w", err)
+	}
+	key := fileKey(namespace, scheduleID)
+	beforePath := outDir + "/" + key + "-before.json"
+	if err := os.WriteFile(beforePath, beforeJSON, 0o644); err != nil {
+		return fmt.Errorf("write before: %w", err)
+	}
+
+	spec := args.Schedule.Spec
+	nCalBefore := len(spec.StructuredCalendar)
+	nIntBefore := len(spec.Interval)
+	spec.StructuredCalendar = deduplicateStructuredCalendarsProto(spec.StructuredCalendar)
+	spec.Interval = deduplicateIntervalsProto(spec.Interval)
+	nCalAfter := len(spec.StructuredCalendar)
+	nIntAfter := len(spec.Interval)
+
+	afterJSON, err := protojson.MarshalOptions{Multiline: true}.Marshal(args.Schedule)
+	if err != nil {
+		return fmt.Errorf("marshal after schedule: %w", err)
+	}
+	afterPath := outDir + "/" + key + "-after.json"
+	if err := os.WriteFile(afterPath, afterJSON, 0o644); err != nil {
+		return fmt.Errorf("write after: %w", err)
+	}
+
+	if !execute {
+		fmt.Printf("  %s: %d→%d calendars, %d→%d intervals (dry run, would recreate)\n",
+			scheduleID, nCalBefore, nCalAfter, nIntBefore, nIntAfter)
+		fmt.Printf("    before: %s\n", beforePath)
+		fmt.Printf("    after:  %s\n", afterPath)
+		return nil
+	}
+
+	if _, err := cl.WorkflowService().DeleteSchedule(ctx, &workflowservice.DeleteScheduleRequest{
+		Namespace:  namespace,
+		ScheduleId: scheduleID,
+		Identity:   "schedutil",
+	}); err != nil {
+		return fmt.Errorf("delete schedule: %w", err)
+	}
+	if _, err := cl.WorkflowService().CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
+		Namespace:  namespace,
+		ScheduleId: scheduleID,
+		Schedule:   args.Schedule,
+		Identity:   "schedutil",
+		RequestId:  uuid.NewString(),
+	}); err != nil {
+		return fmt.Errorf("recreate schedule: %w", err)
+	}
+	fmt.Printf("  %s: %d→%d calendars, %d→%d intervals (recreated)\n",
+		scheduleID, nCalBefore, nCalAfter, nIntBefore, nIntAfter)
+	fmt.Printf("    before: %s\n", beforePath)
+	fmt.Printf("    after:  %s\n", afterPath)
+	return nil
+}
+
+// deduplicateStructuredCalendarsProto removes duplicate StructuredCalendarSpec
+// entries using proto.Equal. Entries read from workflow history are in identical
+// wire form so no normalization is needed before comparison.
+func deduplicateStructuredCalendarsProto(entries []*schedulepb.StructuredCalendarSpec) []*schedulepb.StructuredCalendarSpec {
+	out := make([]*schedulepb.StructuredCalendarSpec, 0, len(entries))
+	for _, e := range entries {
+		duplicate := false
+		for _, seen := range out {
+			if proto.Equal(e, seen) {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// deduplicateIntervalsProto removes duplicate IntervalSpec entries using proto.Equal.
+func deduplicateIntervalsProto(entries []*schedulepb.IntervalSpec) []*schedulepb.IntervalSpec {
+	out := make([]*schedulepb.IntervalSpec, 0, len(entries))
+	for _, e := range entries {
+		duplicate := false
+		for _, seen := range out {
+			if proto.Equal(e, seen) {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // ForEachSchedule resolves the schedule ID set and calls fn for each,
