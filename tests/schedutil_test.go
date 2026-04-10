@@ -2,7 +2,9 @@ package tests
 
 import (
 	"context"
+	"os"
 	"testing"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	commonpb "go.temporal.io/api/common/v1"
@@ -19,9 +21,10 @@ import (
 func TestSchedUtil(t *testing.T) {
 	t.Run("TestDedupIdempotent", testSchedUtilDedupIdempotent)
 	t.Run("TestDedupRemovesDuplicates", testSchedUtilDedupRemovesDuplicates)
+	t.Run("TestDedupDryRun", testSchedUtilDedupDryRun)
 	t.Run("TestForceCAN", testSchedUtilForceCAN)
-	t.Run("TestDedupNamespaceDryRun", testSchedUtilDedupNamespaceDryRun)
-	t.Run("TestDedupNamespaceWithYes", testSchedUtilDedupNamespaceWithYes)
+	t.Run("TestForceCANDryRun", testSchedUtilForceCANDryRun)
+	t.Run("TestDedupNamespaceExecute", testSchedUtilDedupNamespaceExecute)
 }
 
 // testSchedUtilDedupIdempotent verifies that running dedup on a schedule with
@@ -38,7 +41,8 @@ func testSchedUtilDedupIdempotent(t *testing.T) {
 	nBefore := len(desc.Schedule.Spec.Calendars)
 	require.Greater(t, nBefore, 0)
 
-	require.NoError(t, schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid))
+	outDir := t.TempDir()
+	require.NoError(t, schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, true))
 
 	after, err := s.SdkClient().ScheduleClient().GetHandle(ctx, sid).Describe(ctx)
 	require.NoError(t, err)
@@ -46,11 +50,7 @@ func testSchedUtilDedupIdempotent(t *testing.T) {
 }
 
 // testSchedUtilDedupRemovesDuplicates reproduces the describe-then-update
-// accumulation bug: the update callback re-applies CronExpressions on top of
-// the Calendars already present in the described schedule, causing the server
-// to append a duplicate StructuredCalendar entry on each call. After 20 rounds
-// the schedule has 21 identical entries. RunDedup is then called and must
-// collapse them to 1 without relying on any server-side fix.
+// accumulation bug, then verifies RunDedup collapses the entries.
 func testSchedUtilDedupRemovesDuplicates(t *testing.T) {
 	s := testcore.NewEnv(t, scheduleCommonOpts()...)
 	ctx := s.Context()
@@ -61,10 +61,6 @@ func testSchedUtilDedupRemovesDuplicates(t *testing.T) {
 
 	handle := s.SdkClient().ScheduleClient().GetHandle(ctx, sid)
 
-	// Simulate the customer pattern: each update reads the described schedule
-	// and re-applies CronExpressions from its own config on top of whatever
-	// Calendars the describe returned. Without a server-side fix, each round
-	// appends one more identical StructuredCalendar entry.
 	const rounds = 20
 	for i := range rounds {
 		err := handle.Update(ctx, sdkclient.ScheduleUpdateOptions{
@@ -77,22 +73,56 @@ func testSchedUtilDedupRemovesDuplicates(t *testing.T) {
 		require.NoError(t, err, "update round %d", i+1)
 	}
 
-	// Verify duplicates have accumulated (rounds+1 entries: 1 original + 20 appended).
 	desc, err := handle.Describe(ctx)
 	require.NoError(t, err)
-	require.Equal(t, rounds+1, len(desc.Schedule.Spec.Calendars),
-		"expected %d duplicate Calendar entries after %d describe-then-update rounds", rounds+1, rounds)
+	require.Equal(t, rounds+1, len(desc.Schedule.Spec.Calendars))
 
-	require.NoError(t, schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid))
+	outDir := t.TempDir()
+	require.NoError(t, schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, true))
 
 	after, err := handle.Describe(ctx)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(after.Schedule.Spec.Calendars),
-		"RunDedup should collapse %d duplicates to 1", rounds+1)
+	require.Equal(t, 1, len(after.Schedule.Spec.Calendars))
 }
 
-// testSchedUtilForceCAN verifies that RunForceCAN signals the scheduler
-// workflow without error. The workflow must exist (created by createSchedule).
+// testSchedUtilDedupDryRun verifies that without execute the schedule is not
+// modified but before/after JSON files are still written.
+func testSchedUtilDedupDryRun(t *testing.T) {
+	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+	ctx := s.Context()
+	sid := "schedutil-dedup-dry-" + uuid.NewString()[:8]
+	cron := "0 * * * *"
+
+	createSchedule(t, s, ctx, sid, cron)
+
+	handle := s.SdkClient().ScheduleClient().GetHandle(ctx, sid)
+	for i := range 5 {
+		err := handle.Update(ctx, sdkclient.ScheduleUpdateOptions{
+			DoUpdate: func(input sdkclient.ScheduleUpdateInput) (*sdkclient.ScheduleUpdate, error) {
+				sched := input.Description.Schedule
+				sched.Spec.CronExpressions = []string{cron}
+				return &sdkclient.ScheduleUpdate{Schedule: &sched}, nil
+			},
+		})
+		require.NoError(t, err, "update round %d", i+1)
+	}
+
+	outDir := t.TempDir()
+	require.NoError(t, schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, false))
+
+	// Schedule must be unchanged.
+	after, err := handle.Describe(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 6, len(after.Schedule.Spec.Calendars), "dry run must not modify the schedule")
+
+	// Before/after files must exist.
+	entries, err := os.ReadDir(outDir)
+	require.NoError(t, err)
+	require.Len(t, entries, 2, "expected before and after JSON files")
+}
+
+// testSchedUtilForceCAN verifies that RunForceCAN with execute=true signals
+// the scheduler workflow without error.
 func testSchedUtilForceCAN(t *testing.T) {
 	s := testcore.NewEnv(t, scheduleCommonOpts()...)
 	ctx := s.Context()
@@ -100,28 +130,26 @@ func testSchedUtilForceCAN(t *testing.T) {
 
 	createSchedule(t, s, ctx, sid, "0 * * * *")
 
-	require.NoError(t, schedutil.RunForceCAN(ctx, s.SdkClient(), sid))
+	require.NoError(t, schedutil.RunForceCAN(ctx, s.SdkClient(), sid, true))
 }
 
-// testSchedUtilDedupNamespaceDryRun verifies that omitting --yes never invokes
-// the operation callback, regardless of how many schedules exist.
-func testSchedUtilDedupNamespaceDryRun(t *testing.T) {
+// testSchedUtilForceCANDryRun verifies that RunForceCAN with execute=false
+// does not signal the workflow.
+func testSchedUtilForceCANDryRun(t *testing.T) {
 	s := testcore.NewEnv(t, scheduleCommonOpts()...)
 	ctx := s.Context()
+	sid := "schedutil-force-can-dry-" + uuid.NewString()[:8]
 
-	createSchedule(t, s, ctx, "schedutil-ns-dry-a-"+uuid.NewString()[:8], "0 * * * *")
-	createSchedule(t, s, ctx, "schedutil-ns-dry-b-"+uuid.NewString()[:8], "0 12 * * *")
+	createSchedule(t, s, ctx, sid, "0 * * * *")
 
-	// yes=false: fn must never be called.
-	require.NoError(t, schedutil.ForEachSchedule(ctx, s.SdkClient(), s.Namespace().String(), "", false, func(sid string) error {
-		t.Errorf("ForEachSchedule invoked fn for %q despite yes=false", sid)
-		return nil
-	}))
+	// Dry run must not error and must not send a signal (no observable
+	// side-effect to assert, but the call itself must succeed).
+	require.NoError(t, schedutil.RunForceCAN(ctx, s.SdkClient(), sid, false))
 }
 
-// testSchedUtilDedupNamespaceWithYes accumulates duplicates on two schedules
-// then runs dedup across the whole namespace, verifying both are cleaned up.
-func testSchedUtilDedupNamespaceWithYes(t *testing.T) {
+// testSchedUtilDedupNamespaceExecute accumulates duplicates on two schedules
+// then runs dedup across the whole namespace with execute=true.
+func testSchedUtilDedupNamespaceExecute(t *testing.T) {
 	s := testcore.NewEnv(t, scheduleCommonOpts()...)
 	ctx := s.Context()
 	cron := "0 * * * *"
@@ -131,7 +159,6 @@ func testSchedUtilDedupNamespaceWithYes(t *testing.T) {
 	createSchedule(t, s, ctx, sid1, cron)
 	createSchedule(t, s, ctx, sid2, cron)
 
-	// Accumulate duplicates on both schedules.
 	for _, sid := range []string{sid1, sid2} {
 		handle := s.SdkClient().ScheduleClient().GetHandle(ctx, sid)
 		for i := range 5 {
@@ -146,19 +173,17 @@ func testSchedUtilDedupNamespaceWithYes(t *testing.T) {
 		}
 	}
 
-	// Verify duplicates accumulated on both.
 	for _, sid := range []string{sid1, sid2} {
 		desc, err := s.SdkClient().ScheduleClient().GetHandle(ctx, sid).Describe(ctx)
 		require.NoError(t, err)
 		require.Equal(t, 6, len(desc.Schedule.Spec.Calendars), "schedule %s should have 6 entries before dedup", sid)
 	}
 
-	// Run namespace-wide dedup.
-	require.NoError(t, schedutil.ForEachSchedule(ctx, s.SdkClient(), s.Namespace().String(), "", true, func(sid string) error {
-		return schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid)
+	outDir := t.TempDir()
+	require.NoError(t, schedutil.ForEachSchedule(ctx, s.SdkClient(), s.Namespace().String(), "", func(sid string) error {
+		return schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, true)
 	}))
 
-	// Both schedules should now have exactly 1 entry.
 	for _, sid := range []string{sid1, sid2} {
 		after, err := s.SdkClient().ScheduleClient().GetHandle(ctx, sid).Describe(ctx)
 		require.NoError(t, err)

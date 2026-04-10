@@ -9,39 +9,47 @@
 //	--ids-file <file>      read IDs from a file, one per line ("-" for stdin)
 //	(neither)              operate on all schedules in the namespace
 //
-// The namespace-wide and file modes require --yes to execute; without it the
-// command prints the affected IDs and exits.
+// # Dry-run vs execute
+//
+// Without --execute the command always describes each schedule, writes before/
+// after JSON files to a temp directory, and exits without applying any changes.
+// With --execute the changes are applied and the same files are written.
 //
 // # Commands
 //
-//	dedup      Print the current spec as JSON, then send an UpdateSchedule that
-//	           removes duplicate StructuredCalendar entries client-side.
+//	dedup      Deduplicate StructuredCalendar and Interval entries in a
+//	           schedule spec. Writes before/after JSON to a temp directory.
 //	force-can  Send a force-continue-as-new signal to the scheduler workflow.
+//	           Dry-run prints what would be signalled; --execute sends it.
 //
 // # Examples
 //
-//	# Single schedule
+//	# Single schedule — dry run (writes files, no update sent)
 //	schedutil -namespace prod dedup --schedule-id my-sched
 //
+//	# Single schedule — apply
+//	schedutil -namespace prod dedup --schedule-id my-sched --execute
+//
 //	# Explicit list from a file
-//	schedutil -namespace prod dedup --ids-file affected.txt --yes
+//	schedutil -namespace prod dedup --ids-file affected.txt --execute
 //
-//	# Piped from another tool
+//	# Piped from another tool ("-" reads stdin)
 //	temporal schedule list -n prod -o json | jq -r '.[].scheduleId' | \
-//	    schedutil -namespace prod dedup --ids-file - --yes
+//	    schedutil -namespace prod dedup --ids-file - --execute
 //
-//	# Whole namespace (dry run first, then execute)
+//	# Whole namespace — dry run first, then execute
 //	schedutil -namespace prod dedup
-//	schedutil -namespace prod dedup --yes
+//	schedutil -namespace prod dedup --execute
 //
 //	# Force CAN on a single schedule
-//	schedutil -namespace prod force-can --schedule-id my-sched
+//	schedutil -namespace prod force-can --schedule-id my-sched --execute
 //
 // Global flags mirror tdbg (address, namespace, TLS, context-timeout) and
 // honour the same environment variables (TEMPORAL_CLI_ADDRESS, etc.).
 package schedutil
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -51,7 +59,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"bufio"
 	"os"
 	"reflect"
 	"strings"
@@ -66,29 +73,35 @@ import (
 const (
 	defaultContextTimeoutSeconds = 30
 	flagIDsFile                  = "ids-file"
+	flagExecute                  = "execute"
 )
 
 // Run is the entry point for the schedutil tool.
 func Run(args []string) error {
 	app := cli.NewApp()
-	app.Name  = "schedutil"
+	app.Name = "schedutil"
 	app.Usage = "Operations on individual Temporal schedules"
-	app.Description = `Target a single schedule, a file of IDs, or an entire namespace:
+	app.Description = `Target a single schedule, a file of IDs, or an entire namespace.
 
-  Single schedule:
-    schedutil -namespace prod dedup --schedule-id my-sched
-    schedutil -namespace prod force-can --schedule-id my-sched
+Without --execute the command describes each schedule, writes before/after JSON
+to a temp directory, and exits without applying any changes.
 
-  Explicit list from a file (one ID per line; "#" lines and blanks ignored):
-    schedutil -namespace prod dedup --ids-file affected.txt --yes
+  # Dry run (writes files, no changes applied)
+  schedutil -namespace prod dedup --schedule-id my-sched
+  schedutil -namespace prod dedup --ids-file affected.txt
+  schedutil -namespace prod dedup
 
-  Piped from another tool ("-" reads stdin):
-    temporal schedule list -n prod -o json | jq -r '.[].scheduleId' | \
-        schedutil -namespace prod dedup --ids-file - --yes
+  # Apply
+  schedutil -namespace prod dedup --schedule-id my-sched --execute
+  schedutil -namespace prod dedup --ids-file affected.txt --execute
+  schedutil -namespace prod dedup --execute
 
-  Whole namespace (omit both flags; dry-run first, then execute):
-    schedutil -namespace prod dedup
-    schedutil -namespace prod dedup --yes`
+  # Piped ("-" reads stdin)
+  temporal schedule list -n prod -o json | jq -r '.[].scheduleId' | \
+      schedutil -namespace prod dedup --ids-file - --execute
+
+  # Force CAN
+  schedutil -namespace prod force-can --schedule-id my-sched --execute`
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:    tdbg.FlagAddress,
@@ -147,25 +160,31 @@ func Run(args []string) error {
 	}
 	idsFileFlag := &cli.StringFlag{
 		Name:  flagIDsFile,
-		Usage: `File of schedule IDs to operate on, one per line. Use "-" to read from stdin. Mutually exclusive with --schedule-id.`,
+		Usage: `File of schedule IDs, one per line. Use "-" to read from stdin. Mutually exclusive with --schedule-id.`,
 	}
-	yesFlag := &cli.BoolFlag{
-		Name:  tdbg.FlagYes,
-		Usage: "Required when no --schedule-id is given; without it the command lists affected schedules and exits.",
+	executeFlag := &cli.BoolFlag{
+		Name:  flagExecute,
+		Usage: "Apply changes. Without this flag the command runs in dry-run mode: describes each schedule, writes before/after JSON, and exits without modifying anything.",
 	}
 	app.Commands = []*cli.Command{
 		{
 			Name:  "dedup",
-			Usage: "Remove duplicate StructuredCalendar entries from a schedule spec",
-			Flags: []cli.Flag{scheduleIDFlag, idsFileFlag, yesFlag},
+			Usage: "Deduplicate StructuredCalendar entries in a schedule spec",
+			Flags: []cli.Flag{scheduleIDFlag, idsFileFlag, executeFlag},
 			Action: func(c *cli.Context) error {
+				outDir, err := os.MkdirTemp("", "schedutil-*")
+				if err != nil {
+					return fmt.Errorf("create output dir: %w", err)
+				}
+				fmt.Printf("Output directory: %s\n\n", outDir)
+				ns := c.String(tdbg.FlagNamespace)
+				execute := c.Bool(flagExecute)
 				return withClient(c, func(ctx context.Context, cl sdkclient.Client) error {
-					ns := c.String(tdbg.FlagNamespace)
 					if sid := c.String(tdbg.FlagScheduleID); sid != "" {
-						return RunDedup(ctx, cl, ns, sid)
+						return RunDedup(ctx, cl, ns, sid, outDir, execute)
 					}
-					return ForEachSchedule(ctx, cl, ns, c.String(flagIDsFile), c.Bool(tdbg.FlagYes), func(sid string) error {
-						return RunDedup(ctx, cl, ns, sid)
+					return ForEachSchedule(ctx, cl, ns, c.String(flagIDsFile), func(sid string) error {
+						return RunDedup(ctx, cl, ns, sid, outDir, execute)
 					})
 				})
 			},
@@ -173,15 +192,16 @@ func Run(args []string) error {
 		{
 			Name:  "force-can",
 			Usage: "Send a force-continue-as-new signal to the scheduler workflow",
-			Flags: []cli.Flag{scheduleIDFlag, idsFileFlag, yesFlag},
+			Flags: []cli.Flag{scheduleIDFlag, idsFileFlag, executeFlag},
 			Action: func(c *cli.Context) error {
+				ns := c.String(tdbg.FlagNamespace)
+				execute := c.Bool(flagExecute)
 				return withClient(c, func(ctx context.Context, cl sdkclient.Client) error {
-					ns := c.String(tdbg.FlagNamespace)
 					if sid := c.String(tdbg.FlagScheduleID); sid != "" {
-						return RunForceCAN(ctx, cl, sid)
+						return RunForceCAN(ctx, cl, sid, execute)
 					}
-					return ForEachSchedule(ctx, cl, ns, c.String(flagIDsFile), c.Bool(tdbg.FlagYes), func(sid string) error {
-						return RunForceCAN(ctx, cl, sid)
+					return ForEachSchedule(ctx, cl, ns, c.String(flagIDsFile), func(sid string) error {
+						return RunForceCAN(ctx, cl, sid, execute)
 					})
 				})
 			},
@@ -191,8 +211,7 @@ func Run(args []string) error {
 }
 
 // withClient creates an SDK client from the CLI flags and calls fn with an
-// unbounded context. Individual RPCs should derive per-call timeouts from
-// --context-timeout; the session itself is not deadline-bounded so bulk
+// unbounded context. The session itself is not deadline-bounded so bulk
 // namespace operations are not cut off mid-run.
 func withClient(c *cli.Context, fn func(context.Context, sdkclient.Client) error) error {
 	address := c.String(tdbg.FlagAddress)
@@ -220,10 +239,10 @@ func withClient(c *cli.Context, fn func(context.Context, sdkclient.Client) error
 	return fn(context.Background(), cl)
 }
 
-// RunDedup fetches the current schedule, prints its spec as JSON, deduplicates
-// calendar and interval entries client-side, then issues an UpdateSchedule with
-// the clean spec. This does not rely on any server-side deduplication fix.
-func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID string) error {
+// RunDedup describes the schedule, writes before/after JSON files to outDir,
+// and (if execute) sends an UpdateSchedule with duplicates removed. The files
+// are written regardless of the execute flag so dry-run output is verifiable.
+func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, outDir string, execute bool) error {
 	handle := cl.ScheduleClient().GetHandle(ctx, scheduleID)
 
 	desc, err := handle.Describe(ctx)
@@ -231,87 +250,79 @@ func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID st
 		return fmt.Errorf("describe schedule: %w", err)
 	}
 
-	specJSON, err := json.MarshalIndent(desc.Schedule.Spec, "", "  ")
+	beforeJSON, err := json.MarshalIndent(desc.Schedule.Spec, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal spec: %w", err)
 	}
-	fmt.Printf("Current spec for schedule %q (namespace %q):\n%s\n\n", scheduleID, namespace, specJSON)
-	fmt.Printf("Calendar entries before: %d\n", len(desc.Schedule.Spec.Calendars))
-	fmt.Printf("Interval entries before: %d\n", len(desc.Schedule.Spec.Intervals))
+	key := fileKey(namespace, scheduleID)
+	beforePath := outDir + "/" + key + "-before.json"
+	if err := os.WriteFile(beforePath, beforeJSON, 0o644); err != nil {
+		return fmt.Errorf("write before spec: %w", err)
+	}
 
-	var nCalAfter, nIntAfter int
+	// Compute the deduplicated spec and write the after file. The DoUpdate
+	// closure captures the result so we can write it before deciding whether
+	// to actually send the update.
+	sched := desc.Schedule
+	sched.Spec.Calendars = deduplicateCalendars(sched.Spec.Calendars)
+	sched.Spec.Intervals = deduplicateIntervals(sched.Spec.Intervals)
+
+	afterJSON, err := json.MarshalIndent(sched.Spec, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal deduped spec: %w", err)
+	}
+	afterPath := outDir + "/" + key + "-after.json"
+	if err := os.WriteFile(afterPath, afterJSON, 0o644); err != nil {
+		return fmt.Errorf("write after spec: %w", err)
+	}
+
+	nCalBefore := len(desc.Schedule.Spec.Calendars)
+	nCalAfter := len(sched.Spec.Calendars)
+	nIntBefore := len(desc.Schedule.Spec.Intervals)
+	nIntAfter := len(sched.Spec.Intervals)
+
+	if !execute {
+		fmt.Printf("  %s: %d→%d calendars, %d→%d intervals (dry run)\n",
+			scheduleID, nCalBefore, nCalAfter, nIntBefore, nIntAfter)
+		fmt.Printf("    before: %s\n", beforePath)
+		fmt.Printf("    after:  %s\n", afterPath)
+		return nil
+	}
+
 	err = handle.Update(ctx, sdkclient.ScheduleUpdateOptions{
 		DoUpdate: func(input sdkclient.ScheduleUpdateInput) (*sdkclient.ScheduleUpdate, error) {
-			sched := input.Description.Schedule
-			sched.Spec.Calendars = deduplicateCalendars(sched.Spec.Calendars)
-			sched.Spec.Intervals = deduplicateIntervals(sched.Spec.Intervals)
-			nCalAfter = len(sched.Spec.Calendars)
-			nIntAfter = len(sched.Spec.Intervals)
 			return &sdkclient.ScheduleUpdate{Schedule: &sched}, nil
 		},
 	})
 	if err != nil {
 		return fmt.Errorf("update schedule: %w", err)
 	}
-	fmt.Printf("Calendar entries after:  %d\n", nCalAfter)
-	fmt.Printf("Interval entries after:  %d\n", nIntAfter)
+	fmt.Printf("  %s: %d→%d calendars, %d→%d intervals\n",
+		scheduleID, nCalBefore, nCalAfter, nIntBefore, nIntAfter)
+	fmt.Printf("    before: %s\n", beforePath)
+	fmt.Printf("    after:  %s\n", afterPath)
 	return nil
 }
 
-// deduplicateCalendars removes duplicate ScheduleCalendarSpec entries,
-// preserving first occurrence. ScheduleCalendarSpec contains slice fields so
-// it is not directly comparable; reflect.DeepEqual is used instead. n is
-// always small so the O(n²) scan is fine.
-func deduplicateCalendars(entries []sdkclient.ScheduleCalendarSpec) []sdkclient.ScheduleCalendarSpec {
-	out := make([]sdkclient.ScheduleCalendarSpec, 0, len(entries))
-	for _, e := range entries {
-		duplicate := false
-		for _, seen := range out {
-			if reflect.DeepEqual(e, seen) {
-				duplicate = true
-				break
-			}
-		}
-		if !duplicate {
-			out = append(out, e)
-		}
-	}
-	return out
-}
-
-// deduplicateIntervals removes duplicate ScheduleIntervalSpec entries,
-// preserving first occurrence. ScheduleIntervalSpec fields are time.Duration
-// (int64 aliases) and are directly comparable as a map key.
-func deduplicateIntervals(entries []sdkclient.ScheduleIntervalSpec) []sdkclient.ScheduleIntervalSpec {
-	seen := make(map[sdkclient.ScheduleIntervalSpec]struct{}, len(entries))
-	out := make([]sdkclient.ScheduleIntervalSpec)
-	for _, e := range entries {
-		if _, ok := seen[e]; !ok {
-			seen[e] = struct{}{}
-			out = append(out, e)
-		}
-	}
-	return out
-}
-
-// RunForceCAN sends a force-continue-as-new signal to the scheduler workflow
-// for the given schedule ID.
-func RunForceCAN(ctx context.Context, cl sdkclient.Client, scheduleID string) error {
+// RunForceCAN sends (or in dry-run mode, prints) a force-continue-as-new
+// signal for the scheduler workflow of the given schedule ID.
+func RunForceCAN(ctx context.Context, cl sdkclient.Client, scheduleID string, execute bool) error {
 	workflowID := scheduler.WorkflowIDPrefix + scheduleID
-	fmt.Printf("Signaling %s with %q...\n", workflowID, scheduler.SignalNameForceCAN)
+	if !execute {
+		fmt.Printf("  %s: would signal %q (dry run)\n", scheduleID, scheduler.SignalNameForceCAN)
+		return nil
+	}
 	if err := cl.SignalWorkflow(ctx, workflowID, "", scheduler.SignalNameForceCAN, nil); err != nil {
 		return fmt.Errorf("signal workflow: %w", err)
 	}
-	fmt.Println("Signal sent.")
+	fmt.Printf("  %s: signalled %q\n", scheduleID, scheduler.SignalNameForceCAN)
 	return nil
 }
 
-// ForEachSchedule operates on a set of schedule IDs. If idsFile is non-empty
-// the IDs are read from that file ("-" means stdin); otherwise all schedules in
-// the namespace are listed. Without yes it prints the IDs and returns; with yes
-// it calls fn for each, continuing on per-schedule errors and reporting a
+// ForEachSchedule resolves the schedule ID set (from idsFile or namespace list)
+// and calls fn for each, continuing on per-schedule errors and reporting a
 // combined failure at the end.
-func ForEachSchedule(ctx context.Context, cl sdkclient.Client, namespace, idsFile string, yes bool, fn func(string) error) error {
+func ForEachSchedule(ctx context.Context, cl sdkclient.Client, namespace, idsFile string, fn func(string) error) error {
 	var scheduleIDs []string
 	if idsFile != "" {
 		ids, err := readScheduleIDs(idsFile)
@@ -338,20 +349,11 @@ func ForEachSchedule(ctx context.Context, cl sdkclient.Client, namespace, idsFil
 		return nil
 	}
 
-	if !yes {
-		fmt.Printf("Schedules in namespace %q that would be affected (%d):\n", namespace, len(scheduleIDs))
-		for _, sid := range scheduleIDs {
-			fmt.Printf("  %s\n", sid)
-		}
-		fmt.Println("\nRe-run with --yes to execute.")
-		return nil
-	}
-
+	fmt.Printf("Processing %d schedule(s) in namespace %q:\n", len(scheduleIDs), namespace)
 	var failed []string
 	for _, sid := range scheduleIDs {
-		fmt.Printf("\n--- %s ---\n", sid)
 		if err := fn(sid); err != nil {
-			fmt.Printf("ERROR: %v\n", err)
+			fmt.Printf("  ERROR %s: %v\n", sid, err)
 			failed = append(failed, sid)
 		}
 	}
@@ -359,6 +361,56 @@ func ForEachSchedule(ctx context.Context, cl sdkclient.Client, namespace, idsFil
 		return fmt.Errorf("%d schedule(s) failed: %v", len(failed), failed)
 	}
 	return nil
+}
+
+// fileKey returns a filesystem-safe key for a namespace+scheduleID pair.
+func fileKey(namespace, scheduleID string) string {
+	sanitize := func(s string) string {
+		var b strings.Builder
+		for _, r := range s {
+			if r == '-' || r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+				b.WriteRune(r)
+			} else {
+				b.WriteRune('_')
+			}
+		}
+		return b.String()
+	}
+	return sanitize(namespace) + "_" + sanitize(scheduleID)
+}
+
+// deduplicateCalendars removes duplicate ScheduleCalendarSpec entries,
+// preserving first occurrence. ScheduleCalendarSpec contains slice fields so
+// it is not directly comparable; reflect.DeepEqual is used instead.
+func deduplicateCalendars(entries []sdkclient.ScheduleCalendarSpec) []sdkclient.ScheduleCalendarSpec {
+	out := make([]sdkclient.ScheduleCalendarSpec, 0, len(entries))
+	for _, e := range entries {
+		duplicate := false
+		for _, seen := range out {
+			if reflect.DeepEqual(e, seen) {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// deduplicateIntervals removes duplicate ScheduleIntervalSpec entries,
+// preserving first occurrence.
+func deduplicateIntervals(entries []sdkclient.ScheduleIntervalSpec) []sdkclient.ScheduleIntervalSpec {
+	seen := make(map[sdkclient.ScheduleIntervalSpec]struct{}, len(entries))
+	out := make([]sdkclient.ScheduleIntervalSpec, 0, len(entries))
+	for _, e := range entries {
+		if _, ok := seen[e]; !ok {
+			seen[e] = struct{}{}
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // readScheduleIDs reads one schedule ID per line from path, or from stdin when
