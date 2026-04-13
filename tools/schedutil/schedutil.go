@@ -332,6 +332,11 @@ func RunForceCAN(ctx context.Context, cl sdkclient.Client, scheduleID string, ex
 // degraded to process an update signal.
 func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, outDir string, execute bool) error {
 	workflowID := scheduler.WorkflowIDPrefix + scheduleID
+	// Omitting RunId causes the server to resolve the latest run. The first
+	// event of that run is WorkflowExecutionStarted, whose Input carries the
+	// full StartScheduleArgs — including the accumulated spec — as of the most
+	// recent continue-as-new. This is the most current durable state available
+	// for a schedule whose workflow is too degraded to answer queries.
 	resp, err := cl.WorkflowService().GetWorkflowExecutionHistory(ctx, &workflowservice.GetWorkflowExecutionHistoryRequest{
 		Namespace:       namespace,
 		Execution:       &commonpb.WorkflowExecution{WorkflowId: workflowID},
@@ -346,6 +351,11 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 	attrs := resp.History.Events[0].GetWorkflowExecutionStartedEventAttributes()
 	if attrs == nil {
 		return errors.New("first event is not WorkflowExecutionStarted")
+	}
+	// Verify this is a scheduler workflow before attempting to decode its input.
+	if attrs.WorkflowType.GetName() != scheduler.WorkflowType {
+		return fmt.Errorf("workflow %s has unexpected type %q (expected %q); not a schedule workflow",
+			workflowID, attrs.WorkflowType.GetName(), scheduler.WorkflowType)
 	}
 
 	var args schedulespb.StartScheduleArgs
@@ -390,6 +400,12 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 		return nil
 	}
 
+	// The server blocks external API calls from starting workflows on internal
+	// task queues, so we cannot replicate continue-as-new exactly. CreateSchedule
+	// is the only client-accessible path. It preserves the spec (after dedup),
+	// paused state, notes, and policies, but resets the high watermark
+	// (LastProcessedTime) to now. Whether missed actions fire on the new run
+	// depends on MissedCatchupWindow and OverlapPolicy.
 	if _, err := cl.WorkflowService().DeleteSchedule(ctx, &workflowservice.DeleteScheduleRequest{
 		Namespace:  namespace,
 		ScheduleId: scheduleID,
@@ -418,8 +434,8 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 // The scheduler workflow may contain calendars that differ only by proto-default
 // representation (e.g. Step 0 vs 1, End unset vs End==Start).
 func deduplicateStructuredCalendarsProto(entries []*schedulepb.StructuredCalendarSpec) []*schedulepb.StructuredCalendarSpec {
-	out := make([]*schedulepb.StructuredCalendarSpec, 0, len(entries))
-	seenNormalized := make([]*schedulepb.StructuredCalendarSpec, 0, len(entries))
+	out := make([]*schedulepb.StructuredCalendarSpec, 0)
+	seenNormalized := make([]*schedulepb.StructuredCalendarSpec, 0)
 	for _, e := range entries {
 		normalized := normalizeStructuredCalendarProtoForCompare(e)
 		duplicate := false
@@ -437,6 +453,10 @@ func deduplicateStructuredCalendarsProto(entries []*schedulepb.StructuredCalenda
 	return out
 }
 
+// normalizeStructuredCalendarProtoForCompare applies the same Range defaulting
+// as cleanSpec in service/worker/scheduler/spec.go: End defaults to Start when
+// unset, and Step defaults to 1 when unset. This ensures entries that differ
+// only in proto default representation compare as equal.
 func normalizeStructuredCalendarProtoForCompare(in *schedulepb.StructuredCalendarSpec) *schedulepb.StructuredCalendarSpec {
 	if in == nil {
 		return nil
@@ -537,7 +557,7 @@ func fileKey(namespace, scheduleID string) string {
 // preserving first occurrence. ScheduleCalendarSpec contains slice fields so
 // it is not directly comparable; reflect.DeepEqual is used instead.
 func deduplicateCalendars(entries []sdkclient.ScheduleCalendarSpec) []sdkclient.ScheduleCalendarSpec {
-	out := make([]sdkclient.ScheduleCalendarSpec, 0, len(entries))
+	out := make([]sdkclient.ScheduleCalendarSpec, 0)
 	for _, e := range entries {
 		duplicate := false
 		for _, seen := range out {
