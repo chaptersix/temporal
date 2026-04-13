@@ -261,32 +261,37 @@ func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, o
 	if err != nil {
 		return fmt.Errorf("marshal schedule: %w", err)
 	}
-	key := fileKey(namespace, scheduleID)
-	beforePath := outDir + "/" + key + "-before.json"
-	if err := os.WriteFile(beforePath, beforeJSON, 0o644); err != nil {
-		return fmt.Errorf("write before: %w", err)
-	}
 
-	// Compute the deduplicated schedule and write the after file. The DoUpdate
-	// closure captures the result so we can write it before deciding whether
-	// to actually send the update.
+	nCalBefore := len(desc.Schedule.Spec.Calendars)
+	nIntBefore := len(desc.Schedule.Spec.Intervals)
+
+	// Schedule.Spec is a pointer so sched and desc.Schedule share it; dedup in place.
 	sched := desc.Schedule
 	sched.Spec.Calendars = deduplicateCalendars(sched.Spec.Calendars)
 	sched.Spec.Intervals = deduplicateIntervals(sched.Spec.Intervals)
+
+	nCalAfter := len(sched.Spec.Calendars)
+	nIntAfter := len(sched.Spec.Intervals)
 
 	afterJSON, err := json.MarshalIndent(sched, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal deduped schedule: %w", err)
 	}
-	afterPath := outDir + "/" + key + "-after.json"
-	if err := os.WriteFile(afterPath, afterJSON, 0o644); err != nil {
-		return fmt.Errorf("write after spec: %w", err)
+
+	if nCalBefore == nCalAfter && nIntBefore == nIntAfter {
+		fmt.Printf("  %s: no duplicates found\n", scheduleID)
+		return nil
 	}
 
-	nCalBefore := len(desc.Schedule.Spec.Calendars)
-	nCalAfter := len(sched.Spec.Calendars)
-	nIntBefore := len(desc.Schedule.Spec.Intervals)
-	nIntAfter := len(sched.Spec.Intervals)
+	key := fileKey(namespace, scheduleID)
+	beforePath := outDir + "/" + key + "-before.json"
+	if err := os.WriteFile(beforePath, beforeJSON, 0o644); err != nil {
+		return fmt.Errorf("write before: %w", err)
+	}
+	afterPath := outDir + "/" + key + "-after.json"
+	if err := os.WriteFile(afterPath, afterJSON, 0o644); err != nil {
+		return fmt.Errorf("write after: %w", err)
+	}
 
 	if !execute {
 		fmt.Printf("  %s: %d→%d calendars, %d→%d intervals (dry run)\n",
@@ -333,8 +338,8 @@ func RunForceCAN(ctx context.Context, cl sdkclient.Client, scheduleID string, ex
 func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, outDir string, execute bool) error {
 	workflowID := scheduler.WorkflowIDPrefix + scheduleID
 	resp, err := cl.WorkflowService().GetWorkflowExecutionHistory(ctx, &workflowservice.GetWorkflowExecutionHistoryRequest{
-		Namespace: namespace,
-		Execution: &commonpb.WorkflowExecution{WorkflowId: workflowID},
+		Namespace:       namespace,
+		Execution:       &commonpb.WorkflowExecution{WorkflowId: workflowID},
 		MaximumPageSize: 1,
 	})
 	if err != nil {
@@ -345,7 +350,7 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 	}
 	attrs := resp.History.Events[0].GetWorkflowExecutionStartedEventAttributes()
 	if attrs == nil {
-		return fmt.Errorf("first event is not WorkflowExecutionStarted")
+		return errors.New("first event is not WorkflowExecutionStarted")
 	}
 
 	var args schedulespb.StartScheduleArgs
@@ -357,11 +362,6 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 	if err != nil {
 		return fmt.Errorf("marshal before schedule: %w", err)
 	}
-	key := fileKey(namespace, scheduleID)
-	beforePath := outDir + "/" + key + "-before.json"
-	if err := os.WriteFile(beforePath, beforeJSON, 0o644); err != nil {
-		return fmt.Errorf("write before: %w", err)
-	}
 
 	spec := args.Schedule.Spec
 	nCalBefore := len(spec.StructuredCalendar)
@@ -371,9 +371,20 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 	nCalAfter := len(spec.StructuredCalendar)
 	nIntAfter := len(spec.Interval)
 
+	if nCalBefore == nCalAfter && nIntBefore == nIntAfter {
+		fmt.Printf("  %s: no duplicates found\n", scheduleID)
+		return nil
+	}
+
 	afterJSON, err := protojson.MarshalOptions{Multiline: true}.Marshal(args.Schedule)
 	if err != nil {
 		return fmt.Errorf("marshal after schedule: %w", err)
+	}
+
+	key := fileKey(namespace, scheduleID)
+	beforePath := outDir + "/" + key + "-before.json"
+	if err := os.WriteFile(beforePath, beforeJSON, 0o644); err != nil {
+		return fmt.Errorf("write before: %w", err)
 	}
 	afterPath := outDir + "/" + key + "-after.json"
 	if err := os.WriteFile(afterPath, afterJSON, 0o644); err != nil {
@@ -412,22 +423,56 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 }
 
 // deduplicateStructuredCalendarsProto removes duplicate StructuredCalendarSpec
-// entries using proto.Equal. Entries read from workflow history are in identical
-// wire form so no normalization is needed before comparison.
+// entries using semantic comparison that matches SDK Calendar behavior.
+//
+// The scheduler workflow may contain calendars that differ only by proto-default
+// representation (e.g. Step 0 vs 1, End unset vs End==Start).
 func deduplicateStructuredCalendarsProto(entries []*schedulepb.StructuredCalendarSpec) []*schedulepb.StructuredCalendarSpec {
 	out := make([]*schedulepb.StructuredCalendarSpec, 0, len(entries))
+	seenNormalized := make([]*schedulepb.StructuredCalendarSpec, 0, len(entries))
 	for _, e := range entries {
+		normalized := normalizeStructuredCalendarProtoForCompare(e)
 		duplicate := false
-		for _, seen := range out {
-			if proto.Equal(e, seen) {
+		for _, seen := range seenNormalized {
+			if proto.Equal(normalized, seen) {
 				duplicate = true
 				break
 			}
 		}
 		if !duplicate {
 			out = append(out, e)
+			seenNormalized = append(seenNormalized, normalized)
 		}
 	}
+	return out
+}
+
+func normalizeStructuredCalendarProtoForCompare(in *schedulepb.StructuredCalendarSpec) *schedulepb.StructuredCalendarSpec {
+	if in == nil {
+		return nil
+	}
+	out := &schedulepb.StructuredCalendarSpec{}
+	proto.Merge(out, in)
+	normalizeRanges := func(ranges []*schedulepb.Range) {
+		for _, r := range ranges {
+			if r == nil {
+				continue
+			}
+			if r.End < r.Start {
+				r.End = r.Start
+			}
+			if r.Step == 0 {
+				r.Step = 1
+			}
+		}
+	}
+	normalizeRanges(out.Second)
+	normalizeRanges(out.Minute)
+	normalizeRanges(out.Hour)
+	normalizeRanges(out.DayOfMonth)
+	normalizeRanges(out.Month)
+	normalizeRanges(out.Year)
+	normalizeRanges(out.DayOfWeek)
 	return out
 }
 
@@ -623,7 +668,9 @@ func fetchCACert(pathOrURL string) (*x509.CertPool, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer resp.Body.Close()
+		defer func() {
+			_ = resp.Body.Close()
+		}()
 		caBytes, err = io.ReadAll(resp.Body)
 	} else {
 		caBytes, err = os.ReadFile(pathOrURL)
