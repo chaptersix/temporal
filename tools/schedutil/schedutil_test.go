@@ -1,6 +1,7 @@
 package schedutil
 
 import (
+	"iter"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,15 +16,13 @@ import (
 
 // --- helpers ----------------------------------------------------------------
 
-func iterEvents(events ...*historypb.HistoryEvent) func() (*historypb.HistoryEvent, error) {
-	i := 0
-	return func() (*historypb.HistoryEvent, error) {
-		if i >= len(events) {
-			return nil, nil
+func iterEvents(events ...*historypb.HistoryEvent) iter.Seq2[*historypb.HistoryEvent, error] {
+	return func(yield func(*historypb.HistoryEvent, error) bool) {
+		for _, e := range events {
+			if !yield(e, nil) {
+				return
+			}
 		}
-		e := events[i]
-		i++
-		return e, nil
 	}
 }
 

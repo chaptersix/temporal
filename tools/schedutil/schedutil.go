@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"iter"
 	"os"
 	"strings"
 
@@ -194,64 +195,56 @@ func RunDedupRecreate(ctx context.Context, cl workflowservice.WorkflowServiceCli
 // reconstructScheduleFromHistory fetches the current run's history via the
 // gRPC client and delegates to replayScheduleHistory to reconstruct the spec.
 func reconstructScheduleFromHistory(ctx context.Context, cl workflowservice.WorkflowServiceClient, namespace, workflowID string) (*schedulepb.Schedule, error) {
-	var pageToken []byte
-	var pending []*historypb.HistoryEvent
-	done := false
-
-	next := func() (*historypb.HistoryEvent, error) {
-		for len(pending) == 0 && !done {
+	events := func(yield func(*historypb.HistoryEvent, error) bool) {
+		var pageToken []byte
+		for {
 			resp, err := cl.GetWorkflowExecutionHistory(ctx, &workflowservice.GetWorkflowExecutionHistoryRequest{
 				Namespace:     namespace,
 				Execution:     &commonpb.WorkflowExecution{WorkflowId: workflowID},
 				NextPageToken: pageToken,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("get workflow history: %w", err)
+				yield(nil, fmt.Errorf("get workflow history: %w", err))
+				return
 			}
-			pending = resp.History.Events
+			for _, event := range resp.History.Events {
+				if !yield(event, nil) {
+					return
+				}
+			}
 			pageToken = resp.NextPageToken
 			if len(pageToken) == 0 {
-				done = true
+				return
 			}
 		}
-		if len(pending) == 0 {
-			return nil, nil
-		}
-		event := pending[0]
-		pending = pending[1:]
-		return event, nil
 	}
-
-	return replayScheduleHistory(workflowID, next)
+	return replayScheduleHistory(workflowID, events)
 }
 
-// replayScheduleHistory consumes events from next() one at a time and returns
-// the reconstructed Schedule. The iterator signals exhaustion by returning a
-// nil event with a nil error.
+// replayScheduleHistory consumes events from the iterator and returns the
+// reconstructed Schedule.
 //
 // State reconstruction:
 //   - WorkflowExecutionStarted provides the baseline (state at last CAN).
 //   - The last "update" signal supersedes the baseline with a more recent spec.
 //   - "patch" signals after the last update are replayed for pause/unpause only.
-func replayScheduleHistory(workflowID string, next func() (*historypb.HistoryEvent, error)) (*schedulepb.Schedule, error) {
+func replayScheduleHistory(workflowID string, events iter.Seq2[*historypb.HistoryEvent, error]) (*schedulepb.Schedule, error) {
 	var baseArgs schedulespb.StartScheduleArgs
 	var lastUpdate *schedulespb.FullUpdateRequest
 	var patchesAfterUpdate []*schedulepb.SchedulePatch
 
-	for {
-		event, err := next()
+	for event, err := range events {
 		if err != nil {
 			return nil, err
-		}
-		if event == nil {
-			break
 		}
 		if started := event.GetWorkflowExecutionStartedEventAttributes(); started != nil {
 			if err := applyStartedEvent(workflowID, started.WorkflowType.GetName(), started.Input, &baseArgs); err != nil {
 				return nil, err
 			}
 		} else if signaled := event.GetWorkflowExecutionSignaledEventAttributes(); signaled != nil {
-			applySignaledEvent(signaled.GetSignalName(), signaled.Input, &lastUpdate, &patchesAfterUpdate)
+			if err := applySignaledEvent(signaled.GetSignalName(), signaled.Input, &lastUpdate, &patchesAfterUpdate); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -283,24 +276,25 @@ func applySignaledEvent(
 	input *commonpb.Payloads,
 	lastUpdate **schedulespb.FullUpdateRequest,
 	patchesAfterUpdate *[]*schedulepb.SchedulePatch,
-) {
+) error {
 	switch signalName {
 	case scheduler.SignalNameUpdate:
 		var req schedulespb.FullUpdateRequest
-		if err := payloads.Decode(input, &req); err == nil {
-			*lastUpdate = &req
-			*patchesAfterUpdate = nil
+		if err := payloads.Decode(input, &req); err != nil {
+			return fmt.Errorf("decode update signal: %w", err)
 		}
+		*lastUpdate = &req
+		*patchesAfterUpdate = nil
 	case scheduler.SignalNamePatch:
 		if *lastUpdate == nil {
-			return
+			return nil
 		}
 		var patch schedulepb.SchedulePatch
 		if err := payloads.Decode(input, &patch); err == nil {
 			*patchesAfterUpdate = append(*patchesAfterUpdate, &patch)
 		}
-	default:
 	}
+	return nil
 }
 
 func applySchedulePatches(schedule *schedulepb.Schedule, patches []*schedulepb.SchedulePatch) {
