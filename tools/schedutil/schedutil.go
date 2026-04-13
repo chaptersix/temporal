@@ -15,6 +15,7 @@ import (
 	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
+	"golang.org/x/term"
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/payloads"
 	"go.temporal.io/server/service/worker/scheduler"
@@ -339,9 +340,5 @@ func normalizeStructuredCalendarProtoForCompare(in *schedulepb.StructuredCalenda
 // stdinIsPipe reports whether stdin is connected to a pipe or redirect rather
 // than an interactive terminal.
 func stdinIsPipe() bool {
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return fi.Mode()&os.ModeCharDevice == 0
+	return !term.IsTerminal(int(os.Stdin.Fd()))
 }
