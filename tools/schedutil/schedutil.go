@@ -293,6 +293,7 @@ func applySignaledEvent(
 		if err := payloads.Decode(input, &patch); err == nil {
 			*patchesAfterUpdate = append(*patchesAfterUpdate, &patch)
 		}
+	default:
 	}
 	return nil
 }
