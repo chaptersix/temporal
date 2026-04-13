@@ -5,7 +5,6 @@ package schedutil
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -15,10 +14,10 @@ import (
 	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
-	"golang.org/x/term"
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/payloads"
 	"go.temporal.io/server/service/worker/scheduler"
+	"golang.org/x/term"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -109,55 +108,39 @@ func RunForceCAN(ctx context.Context, cl workflowservice.WorkflowServiceClient, 
 // query size limit), deduplicates the spec, and (if execute) deletes the broken
 // schedule and recreates it with the clean spec. Use when the workflow is too
 // degraded to process an update signal.
+//
+// State reconstruction scans the full current run's history:
+//   - The WorkflowExecutionStarted input provides the baseline (state at last CAN).
+//   - The last "update" signal, if present, contains a more recent FullUpdateRequest
+//     whose Schedule supersedes the baseline.
+//   - "patch" signals after the last update are replayed to carry forward
+//     pause/unpause state. TriggerImmediately and BackfillRequest are skipped —
+//     those are one-time side effects that should not be re-fired.
 func RunDedupRecreate(ctx context.Context, cl workflowservice.WorkflowServiceClient, namespace, scheduleID, outDir string, execute bool) error {
 	workflowID := scheduler.WorkflowIDPrefix + scheduleID
-	// Omitting RunId causes the server to resolve the latest run. The first
-	// event of that run is WorkflowExecutionStarted, whose Input carries the
-	// full StartScheduleArgs — including the accumulated spec — as of the most
-	// recent continue-as-new. This is the most current durable state available
-	// for a schedule whose workflow is too degraded to answer queries.
-	resp, err := cl.GetWorkflowExecutionHistory(ctx, &workflowservice.GetWorkflowExecutionHistoryRequest{
-		Namespace:       namespace,
-		Execution:       &commonpb.WorkflowExecution{WorkflowId: workflowID},
-		MaximumPageSize: 1,
-	})
+
+	// Page through the entire current run's history. Omitting RunId causes the
+	// server to resolve the latest run.
+	schedule, err := reconstructScheduleFromHistory(ctx, cl, namespace, workflowID)
 	if err != nil {
-		return fmt.Errorf("get workflow history: %w", err)
-	}
-	if len(resp.History.Events) == 0 {
-		return fmt.Errorf("no history events found for %s", workflowID)
-	}
-	attrs := resp.History.Events[0].GetWorkflowExecutionStartedEventAttributes()
-	if attrs == nil {
-		return errors.New("first event is not WorkflowExecutionStarted")
-	}
-	// Verify this is a scheduler workflow before attempting to decode its input.
-	if attrs.WorkflowType.GetName() != scheduler.WorkflowType {
-		return fmt.Errorf("workflow %s has unexpected type %q (expected %q); not a schedule workflow",
-			workflowID, attrs.WorkflowType.GetName(), scheduler.WorkflowType)
+		return err
 	}
 
-	var args schedulespb.StartScheduleArgs
-	if err := payloads.Decode(attrs.Input, &args); err != nil {
-		return fmt.Errorf("decode StartScheduleArgs: %w", err)
-	}
-
-	beforeJSON, err := protojson.Marshal(args.Schedule)
+	beforeJSON, err := protojson.Marshal(schedule)
 	if err != nil {
 		return fmt.Errorf("marshal before schedule: %w", err)
 	}
 
-	spec := args.Schedule.Spec
-	nCalBefore := len(spec.StructuredCalendar)
-	spec.StructuredCalendar = deduplicateStructuredCalendarsProto(spec.StructuredCalendar)
-	nCalAfter := len(spec.StructuredCalendar)
+	nCalBefore := len(schedule.Spec.StructuredCalendar)
+	schedule.Spec.StructuredCalendar = deduplicateStructuredCalendarsProto(schedule.Spec.StructuredCalendar)
+	nCalAfter := len(schedule.Spec.StructuredCalendar)
 
 	if nCalBefore == nCalAfter {
 		fmt.Printf("  %s: no duplicates found\n", scheduleID)
 		return nil
 	}
 
-	afterJSON, err := protojson.Marshal(args.Schedule)
+	afterJSON, err := protojson.Marshal(schedule)
 	if err != nil {
 		return fmt.Errorf("marshal after schedule: %w", err)
 	}
@@ -195,7 +178,7 @@ func RunDedupRecreate(ctx context.Context, cl workflowservice.WorkflowServiceCli
 	if _, err := cl.CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
 		Namespace:  namespace,
 		ScheduleId: scheduleID,
-		Schedule:   args.Schedule,
+		Schedule:   schedule,
 		Identity:   "schedutil",
 		RequestId:  uuid.NewString(),
 	}); err != nil {
@@ -205,6 +188,128 @@ func RunDedupRecreate(ctx context.Context, cl workflowservice.WorkflowServiceCli
 	fmt.Printf("    before: %s\n", beforePath)
 	fmt.Printf("    after:  %s\n", afterPath)
 	return nil
+}
+
+// reconstructScheduleFromHistory pages through the current run's workflow history
+// and reconstructs the most current schedule state:
+//   - WorkflowExecutionStarted provides the baseline (state at last CAN).
+//   - The last "update" signal supersedes the baseline with a more recent spec.
+//   - "patch" signals after the last update are replayed for pause/unpause only;
+//     TriggerImmediately and BackfillRequest are skipped as one-time side effects.
+func reconstructScheduleFromHistory(ctx context.Context, cl workflowservice.WorkflowServiceClient, namespace, workflowID string) (*schedulepb.Schedule, error) {
+	baseArgs, lastUpdate, patchesAfterUpdate, err := replayScheduleHistory(ctx, cl, namespace, workflowID)
+	if err != nil {
+		return nil, err
+	}
+	if baseArgs.Schedule == nil {
+		return nil, fmt.Errorf("no WorkflowExecutionStarted event found for %s", workflowID)
+	}
+
+	schedule := baseArgs.Schedule
+	if lastUpdate != nil && lastUpdate.Schedule != nil {
+		schedule = lastUpdate.Schedule
+	}
+	applySchedulePatches(schedule, patchesAfterUpdate)
+	return schedule, nil
+}
+
+func replayScheduleHistory(
+	ctx context.Context,
+	cl workflowservice.WorkflowServiceClient,
+	namespace string,
+	workflowID string,
+) (*schedulespb.StartScheduleArgs, *schedulespb.FullUpdateRequest, []*schedulepb.SchedulePatch, error) {
+	var baseArgs schedulespb.StartScheduleArgs
+	var lastUpdate *schedulespb.FullUpdateRequest
+	var patchesAfterUpdate []*schedulepb.SchedulePatch
+
+	var pageToken []byte
+	for {
+		resp, err := cl.GetWorkflowExecutionHistory(ctx, &workflowservice.GetWorkflowExecutionHistoryRequest{
+			Namespace:     namespace,
+			Execution:     &commonpb.WorkflowExecution{WorkflowId: workflowID},
+			NextPageToken: pageToken,
+		})
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("get workflow history: %w", err)
+		}
+
+		for _, event := range resp.History.Events {
+			started := event.GetWorkflowExecutionStartedEventAttributes()
+			if started != nil {
+				if err := applyStartedEvent(workflowID, started.WorkflowType.GetName(), started.Input, &baseArgs); err != nil {
+					return nil, nil, nil, err
+				}
+				continue
+			}
+
+			signaled := event.GetWorkflowExecutionSignaledEventAttributes()
+			if signaled == nil {
+				continue
+			}
+			applySignaledEvent(signaled.GetSignalName(), signaled.Input, &lastUpdate, &patchesAfterUpdate)
+		}
+
+		pageToken = resp.NextPageToken
+		if len(pageToken) == 0 {
+			break
+		}
+	}
+
+	return &baseArgs, lastUpdate, patchesAfterUpdate, nil
+}
+
+func applyStartedEvent(workflowID, workflowType string, input *commonpb.Payloads, baseArgs *schedulespb.StartScheduleArgs) error {
+	if workflowType != scheduler.WorkflowType {
+		return fmt.Errorf("workflow %s has unexpected type %q (expected %q); not a schedule workflow",
+			workflowID, workflowType, scheduler.WorkflowType)
+	}
+	if err := payloads.Decode(input, baseArgs); err != nil {
+		return fmt.Errorf("decode StartScheduleArgs: %w", err)
+	}
+	return nil
+}
+
+func applySignaledEvent(
+	signalName string,
+	input *commonpb.Payloads,
+	lastUpdate **schedulespb.FullUpdateRequest,
+	patchesAfterUpdate *[]*schedulepb.SchedulePatch,
+) {
+	switch signalName {
+	case scheduler.SignalNameUpdate:
+		var req schedulespb.FullUpdateRequest
+		if err := payloads.Decode(input, &req); err == nil {
+			*lastUpdate = &req
+			*patchesAfterUpdate = nil
+		}
+	case scheduler.SignalNamePatch:
+		if *lastUpdate == nil {
+			return
+		}
+		var patch schedulepb.SchedulePatch
+		if err := payloads.Decode(input, &patch); err == nil {
+			*patchesAfterUpdate = append(*patchesAfterUpdate, &patch)
+		}
+	default:
+	}
+}
+
+func applySchedulePatches(schedule *schedulepb.Schedule, patches []*schedulepb.SchedulePatch) {
+	if schedule.State == nil {
+		schedule.State = &schedulepb.ScheduleState{}
+	}
+	for _, patch := range patches {
+		if patch.Pause != "" {
+			schedule.State.Paused = true
+			schedule.State.Notes = patch.Pause
+			continue
+		}
+		if patch.Unpause != "" {
+			schedule.State.Paused = false
+			schedule.State.Notes = patch.Unpause
+		}
+	}
 }
 
 // ForEachSchedule resolves the schedule ID set and calls fn for each,

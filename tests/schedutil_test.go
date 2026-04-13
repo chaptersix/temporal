@@ -36,12 +36,12 @@ func TestSchedUtil(t *testing.T) {
 // testSchedUtilDedupIdempotent verifies that running dedup on a schedule with
 // no duplicates leaves the spec unchanged.
 func testSchedUtilDedupIdempotent(t *testing.T) {
-	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+	s := testcore.NewEnv(t)
 	ctx := s.Context()
 	sid := "schedutil-dedup-idempotent-" + uuid.NewString()[:8]
 	ns := s.Namespace().String()
 
-	createSchedule(t, s, ctx, sid, "0 * * * *")
+	createSchedule(ctx, t, s, sid, "0 * * * *")
 
 	desc, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
 		Namespace:  ns,
@@ -70,13 +70,13 @@ func testSchedUtilDedupIdempotent(t *testing.T) {
 // testSchedUtilDedupRemovesDuplicates reproduces the describe-then-update
 // accumulation bug, then verifies RunDedup collapses the entries.
 func testSchedUtilDedupRemovesDuplicates(t *testing.T) {
-	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+	s := testcore.NewEnv(t)
 	ctx := s.Context()
 	sid := "schedutil-dedup-dups-" + uuid.NewString()[:8]
 	ns := s.Namespace().String()
 	cron := "0 * * * *"
 
-	createSchedule(t, s, ctx, sid, cron)
+	createSchedule(ctx, t, s, sid, cron)
 
 	handle := s.SdkClient().ScheduleClient().GetHandle(ctx, sid)
 
@@ -113,13 +113,13 @@ func testSchedUtilDedupRemovesDuplicates(t *testing.T) {
 // testSchedUtilDedupDryRun verifies that without execute the schedule is not
 // modified but before/after JSON files are still written.
 func testSchedUtilDedupDryRun(t *testing.T) {
-	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+	s := testcore.NewEnv(t)
 	ctx := s.Context()
 	sid := "schedutil-dedup-dry-" + uuid.NewString()[:8]
 	ns := s.Namespace().String()
 	cron := "0 * * * *"
 
-	createSchedule(t, s, ctx, sid, cron)
+	createSchedule(ctx, t, s, sid, cron)
 
 	handle := s.SdkClient().ScheduleClient().GetHandle(ctx, sid)
 	for i := range 5 {
@@ -153,11 +153,11 @@ func testSchedUtilDedupDryRun(t *testing.T) {
 // testSchedUtilForceCAN verifies that RunForceCAN with execute=true signals
 // the scheduler workflow without error.
 func testSchedUtilForceCAN(t *testing.T) {
-	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+	s := testcore.NewEnv(t)
 	ctx := s.Context()
 	sid := "schedutil-force-can-" + uuid.NewString()[:8]
 
-	createSchedule(t, s, ctx, sid, "0 * * * *")
+	createSchedule(ctx, t, s, sid, "0 * * * *")
 
 	require.NoError(t, schedutil.RunForceCAN(ctx, s.FrontendClient(), s.Namespace().String(), sid, true))
 }
@@ -165,11 +165,11 @@ func testSchedUtilForceCAN(t *testing.T) {
 // testSchedUtilForceCANDryRun verifies that RunForceCAN with execute=false
 // does not signal the workflow.
 func testSchedUtilForceCANDryRun(t *testing.T) {
-	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+	s := testcore.NewEnv(t)
 	ctx := s.Context()
 	sid := "schedutil-force-can-dry-" + uuid.NewString()[:8]
 
-	createSchedule(t, s, ctx, sid, "0 * * * *")
+	createSchedule(ctx, t, s, sid, "0 * * * *")
 
 	require.NoError(t, schedutil.RunForceCAN(ctx, s.FrontendClient(), s.Namespace().String(), sid, false))
 }
@@ -177,15 +177,15 @@ func testSchedUtilForceCANDryRun(t *testing.T) {
 // testSchedUtilDedupNamespaceExecute accumulates duplicates on two schedules
 // then runs dedup across the whole namespace with execute=true.
 func testSchedUtilDedupNamespaceExecute(t *testing.T) {
-	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+	s := testcore.NewEnv(t)
 	ctx := s.Context()
 	ns := s.Namespace().String()
 	cron := "0 * * * *"
 
 	sid1 := "schedutil-ns-yes-a-" + uuid.NewString()[:8]
 	sid2 := "schedutil-ns-yes-b-" + uuid.NewString()[:8]
-	createSchedule(t, s, ctx, sid1, cron)
-	createSchedule(t, s, ctx, sid2, cron)
+	createSchedule(ctx, t, s, sid1, cron)
+	createSchedule(ctx, t, s, sid2, cron)
 
 	for _, sid := range []string{sid1, sid2} {
 		handle := s.SdkClient().ScheduleClient().GetHandle(ctx, sid)
@@ -211,9 +211,9 @@ func testSchedUtilDedupNamespaceExecute(t *testing.T) {
 	}
 
 	outDir := t.TempDir()
-	require.NoError(t, schedutil.ForEachSchedule(ctx, s.FrontendClient(), ns, func(sid string) error {
-		return schedutil.RunDedup(ctx, s.FrontendClient(), ns, sid, outDir, true)
-	}))
+	for _, sid := range []string{sid1, sid2} {
+		require.NoError(t, schedutil.RunDedup(ctx, s.FrontendClient(), ns, sid, outDir, true))
+	}
 
 	for _, sid := range []string{sid1, sid2} {
 		after, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
@@ -230,13 +230,13 @@ func testSchedUtilDedupNamespaceExecute(t *testing.T) {
 // (the current run's StartScheduleArgs). Without a prior CAN the history holds
 // the initial clean spec, so no files are written and the schedule is unchanged.
 func testSchedUtilDedupRecreateDryRun(t *testing.T) {
-	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+	s := testcore.NewEnv(t)
 	ctx := s.Context()
 	sid := "schedutil-recreate-dry-" + uuid.NewString()[:8]
 	ns := s.Namespace().String()
 	cron := "0 * * * *"
 
-	createSchedule(t, s, ctx, sid, cron)
+	createSchedule(ctx, t, s, sid, cron)
 
 	handle := s.SdkClient().ScheduleClient().GetHandle(ctx, sid)
 	for i := range 5 {
@@ -267,13 +267,13 @@ func testSchedUtilDedupRecreateDryRun(t *testing.T) {
 // WorkflowExecutionStarted input, then calls --recreate --execute and verifies
 // the schedule is recreated with a clean spec and the original action preserved.
 func testSchedUtilDedupRecreateExecute(t *testing.T) {
-	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+	s := testcore.NewEnv(t)
 	ctx := s.Context()
 	sid := "schedutil-recreate-exec-" + uuid.NewString()[:8]
 	ns := s.Namespace().String()
 	cron := "0 * * * *"
 
-	createSchedule(t, s, ctx, sid, cron)
+	createSchedule(ctx, t, s, sid, cron)
 
 	handle := s.SdkClient().ScheduleClient().GetHandle(ctx, sid)
 	const rounds = 20
@@ -334,7 +334,7 @@ func testSchedUtilDedupRecreateExecute(t *testing.T) {
 	require.NotNil(t, after.Schedule.Action, "action should be preserved after recreate")
 }
 
-func createSchedule(t *testing.T, s *testcore.TestEnv, ctx context.Context, sid, cron string) {
+func createSchedule(ctx context.Context, t *testing.T, s *testcore.TestEnv, sid, cron string) {
 	t.Helper()
 	_, err := s.FrontendClient().CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
 		Namespace:  s.Namespace().String(),

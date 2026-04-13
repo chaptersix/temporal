@@ -3,7 +3,7 @@ package schedutil
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	schedulepb "go.temporal.io/api/schedule/v1"
 )
 
@@ -57,7 +57,7 @@ func TestDeduplicateStructuredCalendarsProto(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Len(t, deduplicateStructuredCalendarsProto(tc.input), tc.want)
+			require.Len(t, deduplicateStructuredCalendarsProto(tc.input), tc.want)
 		})
 	}
 }
