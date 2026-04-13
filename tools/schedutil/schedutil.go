@@ -5,7 +5,6 @@ package schedutil
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -16,6 +15,7 @@ import (
 	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
+	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/payloads"
 	"go.temporal.io/server/service/worker/scheduler"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -34,7 +34,7 @@ func RunDedup(ctx context.Context, cl workflowservice.WorkflowServiceClient, nam
 		return fmt.Errorf("describe schedule: %w", err)
 	}
 
-	beforeJSON, err := json.MarshalIndent(desc.Schedule, "", "  ")
+	beforeJSON, err := protojson.Marshal(desc.Schedule)
 	if err != nil {
 		return fmt.Errorf("marshal schedule: %w", err)
 	}
@@ -43,7 +43,7 @@ func RunDedup(ctx context.Context, cl workflowservice.WorkflowServiceClient, nam
 	desc.Schedule.Spec.StructuredCalendar = deduplicateStructuredCalendarsProto(desc.Schedule.Spec.StructuredCalendar)
 	nCalAfter := len(desc.Schedule.Spec.StructuredCalendar)
 
-	afterJSON, err := json.MarshalIndent(desc.Schedule, "", "  ")
+	afterJSON, err := protojson.Marshal(desc.Schedule)
 	if err != nil {
 		return fmt.Errorf("marshal deduped schedule: %w", err)
 	}
@@ -141,7 +141,7 @@ func RunDedupRecreate(ctx context.Context, cl workflowservice.WorkflowServiceCli
 		return fmt.Errorf("decode StartScheduleArgs: %w", err)
 	}
 
-	beforeJSON, err := protojson.MarshalOptions{Multiline: true}.Marshal(args.Schedule)
+	beforeJSON, err := protojson.Marshal(args.Schedule)
 	if err != nil {
 		return fmt.Errorf("marshal before schedule: %w", err)
 	}
@@ -156,7 +156,7 @@ func RunDedupRecreate(ctx context.Context, cl workflowservice.WorkflowServiceCli
 		return nil
 	}
 
-	afterJSON, err := protojson.MarshalOptions{Multiline: true}.Marshal(args.Schedule)
+	afterJSON, err := protojson.Marshal(args.Schedule)
 	if err != nil {
 		return fmt.Errorf("marshal after schedule: %w", err)
 	}
@@ -312,8 +312,7 @@ func normalizeStructuredCalendarProtoForCompare(in *schedulepb.StructuredCalenda
 	if in == nil {
 		return nil
 	}
-	out := &schedulepb.StructuredCalendarSpec{}
-	proto.Merge(out, in)
+	out := common.CloneProto(in)
 	normalizeRanges := func(ranges []*schedulepb.Range) {
 		for _, r := range ranges {
 			if r == nil {
