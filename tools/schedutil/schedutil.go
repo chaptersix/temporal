@@ -170,7 +170,7 @@ temp directory and exits without applying changes.
 				executeFlag,
 				&cli.BoolFlag{
 					Name:  flagRecreate,
-					Usage: "Read schedule state from workflow history, deduplicate, then delete and recreate the schedule. Use when the workflow is too degraded to process an update.",
+					Usage: "Read schedule state from workflow history, deduplicate, then delete and recreate the schedule. Use when the workflow is too degraded to process an update. NOTE: resets the high watermark to now; actions that would have fired during the degraded period will not fire.",
 				},
 			},
 			Action: func(c *cli.Context) error {
@@ -246,9 +246,9 @@ func withClient(c *cli.Context, fn func(context.Context, sdkclient.Client) error
 	return fn(context.Background(), cl)
 }
 
-// RunDedup describes the schedule, writes before/after JSON files to outDir,
-// and (if execute) sends an UpdateSchedule with duplicates removed. The files
-// are written regardless of the execute flag so dry-run output is verifiable.
+// RunDedup describes the schedule and, if duplicates are found, writes
+// before/after JSON files to outDir and (if execute) sends an UpdateSchedule
+// with duplicates removed. Files are written in both dry-run and execute mode.
 func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, outDir string, execute bool) error {
 	handle := cl.ScheduleClient().GetHandle(ctx, scheduleID)
 
@@ -264,7 +264,6 @@ func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, o
 
 	nCalBefore := len(desc.Schedule.Spec.Calendars)
 
-	// Schedule.Spec is a pointer so sched and desc.Schedule share it; dedup in place.
 	sched := desc.Schedule
 	sched.Spec.Calendars = deduplicateCalendars(sched.Spec.Calendars)
 
@@ -404,8 +403,8 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 	// task queues, so we cannot replicate continue-as-new exactly. CreateSchedule
 	// is the only client-accessible path. It preserves the spec (after dedup),
 	// paused state, notes, and policies, but resets the high watermark
-	// (LastProcessedTime) to now. Whether missed actions fire on the new run
-	// depends on MissedCatchupWindow and OverlapPolicy.
+	// (LastProcessedTime) to now. Actions that would have fired during the
+	// degraded period will not fire on the recreated schedule.
 	if _, err := cl.WorkflowService().DeleteSchedule(ctx, &workflowservice.DeleteScheduleRequest{
 		Namespace:  namespace,
 		ScheduleId: scheduleID,
