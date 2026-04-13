@@ -15,7 +15,7 @@
 //
 // # Commands
 //
-//	dedup      Deduplicate StructuredCalendar and Interval entries.
+//	dedup      Deduplicate StructuredCalendar entries.
 //	force-can  Send a force-continue-as-new signal to the scheduler workflow.
 //
 // # Examples
@@ -263,22 +263,19 @@ func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, o
 	}
 
 	nCalBefore := len(desc.Schedule.Spec.Calendars)
-	nIntBefore := len(desc.Schedule.Spec.Intervals)
 
 	// Schedule.Spec is a pointer so sched and desc.Schedule share it; dedup in place.
 	sched := desc.Schedule
 	sched.Spec.Calendars = deduplicateCalendars(sched.Spec.Calendars)
-	sched.Spec.Intervals = deduplicateIntervals(sched.Spec.Intervals)
 
 	nCalAfter := len(sched.Spec.Calendars)
-	nIntAfter := len(sched.Spec.Intervals)
 
 	afterJSON, err := json.MarshalIndent(sched, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal deduped schedule: %w", err)
 	}
 
-	if nCalBefore == nCalAfter && nIntBefore == nIntAfter {
+	if nCalBefore == nCalAfter {
 		fmt.Printf("  %s: no duplicates found\n", scheduleID)
 		return nil
 	}
@@ -294,8 +291,7 @@ func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, o
 	}
 
 	if !execute {
-		fmt.Printf("  %s: %d→%d calendars, %d→%d intervals (dry run)\n",
-			scheduleID, nCalBefore, nCalAfter, nIntBefore, nIntAfter)
+		fmt.Printf("  %s: %d→%d calendars (dry run)\n", scheduleID, nCalBefore, nCalAfter)
 		fmt.Printf("    before: %s\n", beforePath)
 		fmt.Printf("    after:  %s\n", afterPath)
 		return nil
@@ -309,8 +305,7 @@ func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, o
 	if err != nil {
 		return fmt.Errorf("update schedule: %w", err)
 	}
-	fmt.Printf("  %s: %d→%d calendars, %d→%d intervals\n",
-		scheduleID, nCalBefore, nCalAfter, nIntBefore, nIntAfter)
+	fmt.Printf("  %s: %d→%d calendars\n", scheduleID, nCalBefore, nCalAfter)
 	fmt.Printf("    before: %s\n", beforePath)
 	fmt.Printf("    after:  %s\n", afterPath)
 	return nil
@@ -365,13 +360,10 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 
 	spec := args.Schedule.Spec
 	nCalBefore := len(spec.StructuredCalendar)
-	nIntBefore := len(spec.Interval)
 	spec.StructuredCalendar = deduplicateStructuredCalendarsProto(spec.StructuredCalendar)
-	spec.Interval = deduplicateIntervalsProto(spec.Interval)
 	nCalAfter := len(spec.StructuredCalendar)
-	nIntAfter := len(spec.Interval)
 
-	if nCalBefore == nCalAfter && nIntBefore == nIntAfter {
+	if nCalBefore == nCalAfter {
 		fmt.Printf("  %s: no duplicates found\n", scheduleID)
 		return nil
 	}
@@ -392,8 +384,7 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 	}
 
 	if !execute {
-		fmt.Printf("  %s: %d→%d calendars, %d→%d intervals (dry run, would recreate)\n",
-			scheduleID, nCalBefore, nCalAfter, nIntBefore, nIntAfter)
+		fmt.Printf("  %s: %d→%d calendars (dry run, would recreate)\n", scheduleID, nCalBefore, nCalAfter)
 		fmt.Printf("    before: %s\n", beforePath)
 		fmt.Printf("    after:  %s\n", afterPath)
 		return nil
@@ -415,8 +406,7 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 	}); err != nil {
 		return fmt.Errorf("recreate schedule: %w", err)
 	}
-	fmt.Printf("  %s: %d→%d calendars, %d→%d intervals (recreated)\n",
-		scheduleID, nCalBefore, nCalAfter, nIntBefore, nIntAfter)
+	fmt.Printf("  %s: %d→%d calendars (recreated)\n", scheduleID, nCalBefore, nCalAfter)
 	fmt.Printf("    before: %s\n", beforePath)
 	fmt.Printf("    after:  %s\n", afterPath)
 	return nil
@@ -473,24 +463,6 @@ func normalizeStructuredCalendarProtoForCompare(in *schedulepb.StructuredCalenda
 	normalizeRanges(out.Month)
 	normalizeRanges(out.Year)
 	normalizeRanges(out.DayOfWeek)
-	return out
-}
-
-// deduplicateIntervalsProto removes duplicate IntervalSpec entries using proto.Equal.
-func deduplicateIntervalsProto(entries []*schedulepb.IntervalSpec) []*schedulepb.IntervalSpec {
-	out := make([]*schedulepb.IntervalSpec, 0, len(entries))
-	for _, e := range entries {
-		duplicate := false
-		for _, seen := range out {
-			if proto.Equal(e, seen) {
-				duplicate = true
-				break
-			}
-		}
-		if !duplicate {
-			out = append(out, e)
-		}
-	}
 	return out
 }
 
@@ -575,20 +547,6 @@ func deduplicateCalendars(entries []sdkclient.ScheduleCalendarSpec) []sdkclient.
 			}
 		}
 		if !duplicate {
-			out = append(out, e)
-		}
-	}
-	return out
-}
-
-// deduplicateIntervals removes duplicate ScheduleIntervalSpec entries,
-// preserving first occurrence.
-func deduplicateIntervals(entries []sdkclient.ScheduleIntervalSpec) []sdkclient.ScheduleIntervalSpec {
-	seen := make(map[sdkclient.ScheduleIntervalSpec]struct{}, len(entries))
-	out := make([]sdkclient.ScheduleIntervalSpec, 0, len(entries))
-	for _, e := range entries {
-		if _, ok := seen[e]; !ok {
-			seen[e] = struct{}{}
 			out = append(out, e)
 		}
 	}
