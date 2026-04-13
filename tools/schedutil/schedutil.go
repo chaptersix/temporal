@@ -9,14 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/google/uuid"
 	commonpb "go.temporal.io/api/common/v1"
 	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/workflowservice/v1"
-	sdkclient "go.temporal.io/sdk/client"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/common/payloads"
 	"go.temporal.io/server/service/worker/scheduler"
@@ -27,10 +25,11 @@ import (
 // RunDedup describes the schedule and, if duplicates are found, writes
 // before/after JSON files to outDir and (if execute) sends an UpdateSchedule
 // with duplicates removed. Files are written in both dry-run and execute mode.
-func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, outDir string, execute bool) error {
-	handle := cl.ScheduleClient().GetHandle(ctx, scheduleID)
-
-	desc, err := handle.Describe(ctx)
+func RunDedup(ctx context.Context, cl workflowservice.WorkflowServiceClient, namespace, scheduleID, outDir string, execute bool) error {
+	desc, err := cl.DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  namespace,
+		ScheduleId: scheduleID,
+	})
 	if err != nil {
 		return fmt.Errorf("describe schedule: %w", err)
 	}
@@ -40,14 +39,11 @@ func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, o
 		return fmt.Errorf("marshal schedule: %w", err)
 	}
 
-	nCalBefore := len(desc.Schedule.Spec.Calendars)
+	nCalBefore := len(desc.Schedule.Spec.StructuredCalendar)
+	desc.Schedule.Spec.StructuredCalendar = deduplicateStructuredCalendarsProto(desc.Schedule.Spec.StructuredCalendar)
+	nCalAfter := len(desc.Schedule.Spec.StructuredCalendar)
 
-	sched := desc.Schedule
-	sched.Spec.Calendars = deduplicateCalendars(sched.Spec.Calendars)
-
-	nCalAfter := len(sched.Spec.Calendars)
-
-	afterJSON, err := json.MarshalIndent(sched, "", "  ")
+	afterJSON, err := json.MarshalIndent(desc.Schedule, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal deduped schedule: %w", err)
 	}
@@ -74,12 +70,13 @@ func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, o
 		return nil
 	}
 
-	err = handle.Update(ctx, sdkclient.ScheduleUpdateOptions{
-		DoUpdate: func(input sdkclient.ScheduleUpdateInput) (*sdkclient.ScheduleUpdate, error) {
-			return &sdkclient.ScheduleUpdate{Schedule: &sched}, nil
-		},
-	})
-	if err != nil {
+	if _, err := cl.UpdateSchedule(ctx, &workflowservice.UpdateScheduleRequest{
+		Namespace:     namespace,
+		ScheduleId:    scheduleID,
+		Schedule:      desc.Schedule,
+		ConflictToken: desc.ConflictToken,
+		RequestId:     uuid.NewString(),
+	}); err != nil {
 		return fmt.Errorf("update schedule: %w", err)
 	}
 	fmt.Printf("  %s: %d→%d calendars\n", scheduleID, nCalBefore, nCalAfter)
@@ -90,13 +87,17 @@ func RunDedup(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, o
 
 // RunForceCAN sends (or in dry-run mode, prints) a force-continue-as-new
 // signal for the scheduler workflow of the given schedule ID.
-func RunForceCAN(ctx context.Context, cl sdkclient.Client, scheduleID string, execute bool) error {
+func RunForceCAN(ctx context.Context, cl workflowservice.WorkflowServiceClient, namespace, scheduleID string, execute bool) error {
 	workflowID := scheduler.WorkflowIDPrefix + scheduleID
 	if !execute {
 		fmt.Printf("  %s: would signal %q (dry run)\n", scheduleID, scheduler.SignalNameForceCAN)
 		return nil
 	}
-	if err := cl.SignalWorkflow(ctx, workflowID, "", scheduler.SignalNameForceCAN, nil); err != nil {
+	if _, err := cl.SignalWorkflowExecution(ctx, &workflowservice.SignalWorkflowExecutionRequest{
+		Namespace:         namespace,
+		WorkflowExecution: &commonpb.WorkflowExecution{WorkflowId: workflowID},
+		SignalName:        scheduler.SignalNameForceCAN,
+	}); err != nil {
 		return fmt.Errorf("signal workflow: %w", err)
 	}
 	fmt.Printf("  %s: signalled %q\n", scheduleID, scheduler.SignalNameForceCAN)
@@ -107,14 +108,14 @@ func RunForceCAN(ctx context.Context, cl sdkclient.Client, scheduleID string, ex
 // query size limit), deduplicates the spec, and (if execute) deletes the broken
 // schedule and recreates it with the clean spec. Use when the workflow is too
 // degraded to process an update signal.
-func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, scheduleID, outDir string, execute bool) error {
+func RunDedupRecreate(ctx context.Context, cl workflowservice.WorkflowServiceClient, namespace, scheduleID, outDir string, execute bool) error {
 	workflowID := scheduler.WorkflowIDPrefix + scheduleID
 	// Omitting RunId causes the server to resolve the latest run. The first
 	// event of that run is WorkflowExecutionStarted, whose Input carries the
 	// full StartScheduleArgs — including the accumulated spec — as of the most
 	// recent continue-as-new. This is the most current durable state available
 	// for a schedule whose workflow is too degraded to answer queries.
-	resp, err := cl.WorkflowService().GetWorkflowExecutionHistory(ctx, &workflowservice.GetWorkflowExecutionHistoryRequest{
+	resp, err := cl.GetWorkflowExecutionHistory(ctx, &workflowservice.GetWorkflowExecutionHistoryRequest{
 		Namespace:       namespace,
 		Execution:       &commonpb.WorkflowExecution{WorkflowId: workflowID},
 		MaximumPageSize: 1,
@@ -183,14 +184,14 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 	// paused state, notes, and policies, but resets the high watermark
 	// (LastProcessedTime) to now. Actions that would have fired during the
 	// degraded period will not fire on the recreated schedule.
-	if _, err := cl.WorkflowService().DeleteSchedule(ctx, &workflowservice.DeleteScheduleRequest{
+	if _, err := cl.DeleteSchedule(ctx, &workflowservice.DeleteScheduleRequest{
 		Namespace:  namespace,
 		ScheduleId: scheduleID,
 		Identity:   "schedutil",
 	}); err != nil {
 		return fmt.Errorf("delete schedule: %w", err)
 	}
-	if _, err := cl.WorkflowService().CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
+	if _, err := cl.CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
 		Namespace:  namespace,
 		ScheduleId: scheduleID,
 		Schedule:   args.Schedule,
@@ -209,7 +210,7 @@ func RunDedupRecreate(ctx context.Context, cl sdkclient.Client, namespace, sched
 // continuing on per-schedule errors and reporting a combined failure at the end.
 // If stdin is a pipe, IDs are read from it one per line; otherwise all
 // schedules in the namespace are listed.
-func ForEachSchedule(ctx context.Context, cl sdkclient.Client, namespace string, fn func(string) error) error {
+func ForEachSchedule(ctx context.Context, cl workflowservice.WorkflowServiceClient, namespace string, fn func(string) error) error {
 	var scheduleIDs []string
 	if stdinIsPipe() {
 		sc := bufio.NewScanner(os.Stdin)
@@ -224,16 +225,23 @@ func ForEachSchedule(ctx context.Context, cl sdkclient.Client, namespace string,
 			return fmt.Errorf("read stdin: %w", err)
 		}
 	} else {
-		iter, err := cl.ScheduleClient().List(ctx, sdkclient.ScheduleListOptions{})
-		if err != nil {
-			return fmt.Errorf("list schedules: %w", err)
-		}
-		for iter.HasNext() {
-			entry, err := iter.Next()
+		var pageToken []byte
+		for {
+			resp, err := cl.ListSchedules(ctx, &workflowservice.ListSchedulesRequest{
+				Namespace:       namespace,
+				MaximumPageSize: 1000,
+				NextPageToken:   pageToken,
+			})
 			if err != nil {
 				return fmt.Errorf("list schedules: %w", err)
 			}
-			scheduleIDs = append(scheduleIDs, entry.ID)
+			for _, entry := range resp.Schedules {
+				scheduleIDs = append(scheduleIDs, entry.ScheduleId)
+			}
+			pageToken = resp.NextPageToken
+			if len(pageToken) == 0 {
+				break
+			}
 		}
 	}
 
@@ -270,26 +278,6 @@ func fileKey(namespace, scheduleID string) string {
 		return b.String()
 	}
 	return sanitize(namespace) + "_" + sanitize(scheduleID)
-}
-
-// deduplicateCalendars removes duplicate ScheduleCalendarSpec entries,
-// preserving first occurrence. ScheduleCalendarSpec contains slice fields so
-// it is not directly comparable; reflect.DeepEqual is used instead.
-func deduplicateCalendars(entries []sdkclient.ScheduleCalendarSpec) []sdkclient.ScheduleCalendarSpec {
-	out := make([]sdkclient.ScheduleCalendarSpec, 0)
-	for _, e := range entries {
-		duplicate := false
-		for _, seen := range out {
-			if reflect.DeepEqual(e, seen) {
-				duplicate = true
-				break
-			}
-		}
-		if !duplicate {
-			out = append(out, e)
-		}
-	}
-	return out
 }
 
 // deduplicateStructuredCalendarsProto removes duplicate StructuredCalendarSpec

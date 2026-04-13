@@ -39,25 +39,32 @@ func testSchedUtilDedupIdempotent(t *testing.T) {
 	s := testcore.NewEnv(t, scheduleCommonOpts()...)
 	ctx := s.Context()
 	sid := "schedutil-dedup-idempotent-" + uuid.NewString()[:8]
+	ns := s.Namespace().String()
 
 	createSchedule(t, s, ctx, sid, "0 * * * *")
 
-	desc, err := s.SdkClient().ScheduleClient().GetHandle(ctx, sid).Describe(ctx)
+	desc, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  ns,
+		ScheduleId: sid,
+	})
 	require.NoError(t, err)
-	nBefore := len(desc.Schedule.Spec.Calendars)
+	nBefore := len(desc.Schedule.Spec.StructuredCalendar)
 	require.Positive(t, nBefore)
 
 	outDir := t.TempDir()
-	require.NoError(t, schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, true))
+	require.NoError(t, schedutil.RunDedup(ctx, s.FrontendClient(), ns, sid, outDir, true))
 
 	// No duplicates: no files should have been written.
 	entries, err := os.ReadDir(outDir)
 	require.NoError(t, err)
 	require.Empty(t, entries, "no files should be written when there are no duplicates")
 
-	after, err := s.SdkClient().ScheduleClient().GetHandle(ctx, sid).Describe(ctx)
+	after, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  ns,
+		ScheduleId: sid,
+	})
 	require.NoError(t, err)
-	require.Len(t, after.Schedule.Spec.Calendars, nBefore, "dedup should be idempotent when no duplicates exist")
+	require.Len(t, after.Schedule.Spec.StructuredCalendar, nBefore, "dedup should be idempotent when no duplicates exist")
 }
 
 // testSchedUtilDedupRemovesDuplicates reproduces the describe-then-update
@@ -66,6 +73,7 @@ func testSchedUtilDedupRemovesDuplicates(t *testing.T) {
 	s := testcore.NewEnv(t, scheduleCommonOpts()...)
 	ctx := s.Context()
 	sid := "schedutil-dedup-dups-" + uuid.NewString()[:8]
+	ns := s.Namespace().String()
 	cron := "0 * * * *"
 
 	createSchedule(t, s, ctx, sid, cron)
@@ -84,16 +92,22 @@ func testSchedUtilDedupRemovesDuplicates(t *testing.T) {
 		require.NoError(t, err, "update round %d", i+1)
 	}
 
-	desc, err := handle.Describe(ctx)
+	desc, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  ns,
+		ScheduleId: sid,
+	})
 	require.NoError(t, err)
-	require.Len(t, desc.Schedule.Spec.Calendars, rounds+1)
+	require.Len(t, desc.Schedule.Spec.StructuredCalendar, rounds+1)
 
 	outDir := t.TempDir()
-	require.NoError(t, schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, true))
+	require.NoError(t, schedutil.RunDedup(ctx, s.FrontendClient(), ns, sid, outDir, true))
 
-	after, err := handle.Describe(ctx)
+	after, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  ns,
+		ScheduleId: sid,
+	})
 	require.NoError(t, err)
-	require.Len(t, after.Schedule.Spec.Calendars, 1)
+	require.Len(t, after.Schedule.Spec.StructuredCalendar, 1)
 }
 
 // testSchedUtilDedupDryRun verifies that without execute the schedule is not
@@ -102,6 +116,7 @@ func testSchedUtilDedupDryRun(t *testing.T) {
 	s := testcore.NewEnv(t, scheduleCommonOpts()...)
 	ctx := s.Context()
 	sid := "schedutil-dedup-dry-" + uuid.NewString()[:8]
+	ns := s.Namespace().String()
 	cron := "0 * * * *"
 
 	createSchedule(t, s, ctx, sid, cron)
@@ -119,12 +134,15 @@ func testSchedUtilDedupDryRun(t *testing.T) {
 	}
 
 	outDir := t.TempDir()
-	require.NoError(t, schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, false))
+	require.NoError(t, schedutil.RunDedup(ctx, s.FrontendClient(), ns, sid, outDir, false))
 
 	// Schedule must be unchanged.
-	after, err := handle.Describe(ctx)
+	after, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  ns,
+		ScheduleId: sid,
+	})
 	require.NoError(t, err)
-	require.Len(t, after.Schedule.Spec.Calendars, 6, "dry run must not modify the schedule")
+	require.Len(t, after.Schedule.Spec.StructuredCalendar, 6, "dry run must not modify the schedule")
 
 	// Before/after files must exist.
 	entries, err := os.ReadDir(outDir)
@@ -141,7 +159,7 @@ func testSchedUtilForceCAN(t *testing.T) {
 
 	createSchedule(t, s, ctx, sid, "0 * * * *")
 
-	require.NoError(t, schedutil.RunForceCAN(ctx, s.SdkClient(), sid, true))
+	require.NoError(t, schedutil.RunForceCAN(ctx, s.FrontendClient(), s.Namespace().String(), sid, true))
 }
 
 // testSchedUtilForceCANDryRun verifies that RunForceCAN with execute=false
@@ -153,9 +171,7 @@ func testSchedUtilForceCANDryRun(t *testing.T) {
 
 	createSchedule(t, s, ctx, sid, "0 * * * *")
 
-	// Dry run must not error and must not send a signal (no observable
-	// side-effect to assert, but the call itself must succeed).
-	require.NoError(t, schedutil.RunForceCAN(ctx, s.SdkClient(), sid, false))
+	require.NoError(t, schedutil.RunForceCAN(ctx, s.FrontendClient(), s.Namespace().String(), sid, false))
 }
 
 // testSchedUtilDedupNamespaceExecute accumulates duplicates on two schedules
@@ -163,6 +179,7 @@ func testSchedUtilForceCANDryRun(t *testing.T) {
 func testSchedUtilDedupNamespaceExecute(t *testing.T) {
 	s := testcore.NewEnv(t, scheduleCommonOpts()...)
 	ctx := s.Context()
+	ns := s.Namespace().String()
 	cron := "0 * * * *"
 
 	sid1 := "schedutil-ns-yes-a-" + uuid.NewString()[:8]
@@ -185,20 +202,26 @@ func testSchedUtilDedupNamespaceExecute(t *testing.T) {
 	}
 
 	for _, sid := range []string{sid1, sid2} {
-		desc, err := s.SdkClient().ScheduleClient().GetHandle(ctx, sid).Describe(ctx)
+		desc, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+			Namespace:  ns,
+			ScheduleId: sid,
+		})
 		require.NoError(t, err)
-		require.Len(t, desc.Schedule.Spec.Calendars, 6, "schedule %s should have 6 entries before dedup", sid)
+		require.Len(t, desc.Schedule.Spec.StructuredCalendar, 6, "schedule %s should have 6 entries before dedup", sid)
 	}
 
 	outDir := t.TempDir()
-	require.NoError(t, schedutil.ForEachSchedule(ctx, s.SdkClient(), s.Namespace().String(), func(sid string) error {
-		return schedutil.RunDedup(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, true)
+	require.NoError(t, schedutil.ForEachSchedule(ctx, s.FrontendClient(), ns, func(sid string) error {
+		return schedutil.RunDedup(ctx, s.FrontendClient(), ns, sid, outDir, true)
 	}))
 
 	for _, sid := range []string{sid1, sid2} {
-		after, err := s.SdkClient().ScheduleClient().GetHandle(ctx, sid).Describe(ctx)
+		after, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+			Namespace:  ns,
+			ScheduleId: sid,
+		})
 		require.NoError(t, err)
-		require.Len(t, after.Schedule.Spec.Calendars, 1, "schedule %s should have 1 entry after dedup", sid)
+		require.Len(t, after.Schedule.Spec.StructuredCalendar, 1, "schedule %s should have 1 entry after dedup", sid)
 	}
 }
 
@@ -210,6 +233,7 @@ func testSchedUtilDedupRecreateDryRun(t *testing.T) {
 	s := testcore.NewEnv(t, scheduleCommonOpts()...)
 	ctx := s.Context()
 	sid := "schedutil-recreate-dry-" + uuid.NewString()[:8]
+	ns := s.Namespace().String()
 	cron := "0 * * * *"
 
 	createSchedule(t, s, ctx, sid, cron)
@@ -227,12 +251,15 @@ func testSchedUtilDedupRecreateDryRun(t *testing.T) {
 	}
 
 	outDir := t.TempDir()
-	require.NoError(t, schedutil.RunDedupRecreate(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, false))
+	require.NoError(t, schedutil.RunDedupRecreate(ctx, s.FrontendClient(), ns, sid, outDir, false))
 
 	// Schedule must be unchanged.
-	after, err := handle.Describe(ctx)
+	after, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  ns,
+		ScheduleId: sid,
+	})
 	require.NoError(t, err)
-	require.Len(t, after.Schedule.Spec.Calendars, 6, "dry run must not modify the schedule")
+	require.Len(t, after.Schedule.Spec.StructuredCalendar, 6, "dry run must not modify the schedule")
 }
 
 // testSchedUtilDedupRecreateExecute accumulates duplicates, forces a
@@ -243,6 +270,7 @@ func testSchedUtilDedupRecreateExecute(t *testing.T) {
 	s := testcore.NewEnv(t, scheduleCommonOpts()...)
 	ctx := s.Context()
 	sid := "schedutil-recreate-exec-" + uuid.NewString()[:8]
+	ns := s.Namespace().String()
 	cron := "0 * * * *"
 
 	createSchedule(t, s, ctx, sid, cron)
@@ -260,20 +288,23 @@ func testSchedUtilDedupRecreateExecute(t *testing.T) {
 		require.NoError(t, err, "update round %d", i+1)
 	}
 
-	desc, err := handle.Describe(ctx)
+	desc, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  ns,
+		ScheduleId: sid,
+	})
 	require.NoError(t, err)
-	require.Len(t, desc.Schedule.Spec.Calendars, rounds+1)
+	require.Len(t, desc.Schedule.Spec.StructuredCalendar, rounds+1)
 
 	// Force a CAN so the duplicated spec becomes the input of the next workflow
 	// run — that is what RunDedupRecreate reads from history.
-	require.NoError(t, schedutil.RunForceCAN(ctx, s.SdkClient(), sid, true))
+	require.NoError(t, schedutil.RunForceCAN(ctx, s.FrontendClient(), ns, sid, true))
 
-	// Wait for the new run to start (scheduler responds quickly to the signal).
+	// Wait for the new run to start with the accumulated spec.
 	require.Eventually(t, func() bool {
 		wid := scheduler.WorkflowIDPrefix + sid
-		resp, err := s.SdkClient().WorkflowService().GetWorkflowExecutionHistory(ctx,
+		resp, err := s.FrontendClient().GetWorkflowExecutionHistory(ctx,
 			&workflowservice.GetWorkflowExecutionHistoryRequest{
-				Namespace:       s.Namespace().String(),
+				Namespace:       ns,
 				Execution:       &commonpb.WorkflowExecution{WorkflowId: wid},
 				MaximumPageSize: 1,
 			})
@@ -292,11 +323,14 @@ func testSchedUtilDedupRecreateExecute(t *testing.T) {
 	}, 10*time.Second, 200*time.Millisecond, "new run should start with accumulated spec")
 
 	outDir := t.TempDir()
-	require.NoError(t, schedutil.RunDedupRecreate(ctx, s.SdkClient(), s.Namespace().String(), sid, outDir, true))
+	require.NoError(t, schedutil.RunDedupRecreate(ctx, s.FrontendClient(), ns, sid, outDir, true))
 
-	after, err := s.SdkClient().ScheduleClient().GetHandle(ctx, sid).Describe(ctx)
+	after, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  ns,
+		ScheduleId: sid,
+	})
 	require.NoError(t, err)
-	require.Len(t, after.Schedule.Spec.Calendars, 1, "recreated schedule should have 1 calendar entry")
+	require.Len(t, after.Schedule.Spec.StructuredCalendar, 1, "recreated schedule should have 1 calendar entry")
 	require.NotNil(t, after.Schedule.Action, "action should be preserved after recreate")
 }
 
