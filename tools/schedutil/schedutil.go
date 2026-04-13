@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	commonpb "go.temporal.io/api/common/v1"
+	historypb "go.temporal.io/api/history/v1"
 	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
@@ -190,17 +191,70 @@ func RunDedupRecreate(ctx context.Context, cl workflowservice.WorkflowServiceCli
 	return nil
 }
 
-// reconstructScheduleFromHistory pages through the current run's workflow history
-// and reconstructs the most current schedule state:
+// reconstructScheduleFromHistory fetches the current run's history via the
+// gRPC client and delegates to replayScheduleHistory to reconstruct the spec.
+func reconstructScheduleFromHistory(ctx context.Context, cl workflowservice.WorkflowServiceClient, namespace, workflowID string) (*schedulepb.Schedule, error) {
+	var pageToken []byte
+	var pending []*historypb.HistoryEvent
+	done := false
+
+	next := func() (*historypb.HistoryEvent, error) {
+		for len(pending) == 0 && !done {
+			resp, err := cl.GetWorkflowExecutionHistory(ctx, &workflowservice.GetWorkflowExecutionHistoryRequest{
+				Namespace:     namespace,
+				Execution:     &commonpb.WorkflowExecution{WorkflowId: workflowID},
+				NextPageToken: pageToken,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("get workflow history: %w", err)
+			}
+			pending = resp.History.Events
+			pageToken = resp.NextPageToken
+			if len(pageToken) == 0 {
+				done = true
+			}
+		}
+		if len(pending) == 0 {
+			return nil, nil
+		}
+		event := pending[0]
+		pending = pending[1:]
+		return event, nil
+	}
+
+	return replayScheduleHistory(workflowID, next)
+}
+
+// replayScheduleHistory consumes events from next() one at a time and returns
+// the reconstructed Schedule. The iterator signals exhaustion by returning a
+// nil event with a nil error.
+//
+// State reconstruction:
 //   - WorkflowExecutionStarted provides the baseline (state at last CAN).
 //   - The last "update" signal supersedes the baseline with a more recent spec.
-//   - "patch" signals after the last update are replayed for pause/unpause only;
-//     TriggerImmediately and BackfillRequest are skipped as one-time side effects.
-func reconstructScheduleFromHistory(ctx context.Context, cl workflowservice.WorkflowServiceClient, namespace, workflowID string) (*schedulepb.Schedule, error) {
-	baseArgs, lastUpdate, patchesAfterUpdate, err := replayScheduleHistory(ctx, cl, namespace, workflowID)
-	if err != nil {
-		return nil, err
+//   - "patch" signals after the last update are replayed for pause/unpause only.
+func replayScheduleHistory(workflowID string, next func() (*historypb.HistoryEvent, error)) (*schedulepb.Schedule, error) {
+	var baseArgs schedulespb.StartScheduleArgs
+	var lastUpdate *schedulespb.FullUpdateRequest
+	var patchesAfterUpdate []*schedulepb.SchedulePatch
+
+	for {
+		event, err := next()
+		if err != nil {
+			return nil, err
+		}
+		if event == nil {
+			break
+		}
+		if started := event.GetWorkflowExecutionStartedEventAttributes(); started != nil {
+			if err := applyStartedEvent(workflowID, started.WorkflowType.GetName(), started.Input, &baseArgs); err != nil {
+				return nil, err
+			}
+		} else if signaled := event.GetWorkflowExecutionSignaledEventAttributes(); signaled != nil {
+			applySignaledEvent(signaled.GetSignalName(), signaled.Input, &lastUpdate, &patchesAfterUpdate)
+		}
 	}
+
 	if baseArgs.Schedule == nil {
 		return nil, fmt.Errorf("no WorkflowExecutionStarted event found for %s", workflowID)
 	}
@@ -211,52 +265,6 @@ func reconstructScheduleFromHistory(ctx context.Context, cl workflowservice.Work
 	}
 	applySchedulePatches(schedule, patchesAfterUpdate)
 	return schedule, nil
-}
-
-func replayScheduleHistory(
-	ctx context.Context,
-	cl workflowservice.WorkflowServiceClient,
-	namespace string,
-	workflowID string,
-) (*schedulespb.StartScheduleArgs, *schedulespb.FullUpdateRequest, []*schedulepb.SchedulePatch, error) {
-	var baseArgs schedulespb.StartScheduleArgs
-	var lastUpdate *schedulespb.FullUpdateRequest
-	var patchesAfterUpdate []*schedulepb.SchedulePatch
-
-	var pageToken []byte
-	for {
-		resp, err := cl.GetWorkflowExecutionHistory(ctx, &workflowservice.GetWorkflowExecutionHistoryRequest{
-			Namespace:     namespace,
-			Execution:     &commonpb.WorkflowExecution{WorkflowId: workflowID},
-			NextPageToken: pageToken,
-		})
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("get workflow history: %w", err)
-		}
-
-		for _, event := range resp.History.Events {
-			started := event.GetWorkflowExecutionStartedEventAttributes()
-			if started != nil {
-				if err := applyStartedEvent(workflowID, started.WorkflowType.GetName(), started.Input, &baseArgs); err != nil {
-					return nil, nil, nil, err
-				}
-				continue
-			}
-
-			signaled := event.GetWorkflowExecutionSignaledEventAttributes()
-			if signaled == nil {
-				continue
-			}
-			applySignaledEvent(signaled.GetSignalName(), signaled.Input, &lastUpdate, &patchesAfterUpdate)
-		}
-
-		pageToken = resp.NextPageToken
-		if len(pageToken) == 0 {
-			break
-		}
-	}
-
-	return &baseArgs, lastUpdate, patchesAfterUpdate, nil
 }
 
 func applyStartedEvent(workflowID, workflowType string, input *commonpb.Payloads, baseArgs *schedulespb.StartScheduleArgs) error {
