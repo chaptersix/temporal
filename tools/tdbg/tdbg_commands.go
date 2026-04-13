@@ -298,6 +298,15 @@ func newAdminExecutionCommands(clientFactory ClientFactory, prompterFactory Prom
 }
 
 func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
+	scheduleIDFlag := &cli.StringFlag{
+		Name:    FlagScheduleID,
+		Aliases: FlagScheduleIDAlias,
+		Usage:   "Schedule ID. Omit to read IDs from stdin (if piped) or target all schedules in the namespace.",
+	}
+	executeFlag := &cli.BoolFlag{
+		Name:  FlagExecute,
+		Usage: "Apply changes. Without this flag the command runs in dry-run mode: writes before/after JSON and exits without modifying anything.",
+	}
 	return []*cli.Command{
 		{
 			Name:  "migrate",
@@ -317,6 +326,29 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 			},
 			Action: func(c *cli.Context) error {
 				return AdminMigrateSchedule(c, clientFactory)
+			},
+		},
+		{
+			Name:  "dedup",
+			Usage: "Deduplicate StructuredCalendar entries in a schedule spec",
+			Flags: []cli.Flag{
+				scheduleIDFlag,
+				executeFlag,
+				&cli.BoolFlag{
+					Name:  FlagRecreate,
+					Usage: "Read schedule state from workflow history, deduplicate, then delete and recreate the schedule. Use when the workflow is too degraded to process an update. NOTE: resets the high watermark to now; actions that would have fired during the degraded period will not fire.",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				return AdminScheduleDedup(c, clientFactory)
+			},
+		},
+		{
+			Name:  "force-can",
+			Usage: "Send a force-continue-as-new signal to the scheduler workflow",
+			Flags: []cli.Flag{scheduleIDFlag, executeFlag},
+			Action: func(c *cli.Context) error {
+				return AdminScheduleForceCAN(c, clientFactory)
 			},
 		},
 	}
