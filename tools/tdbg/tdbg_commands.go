@@ -340,7 +340,7 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				return AdminScheduleDedup(c, clientFactory)
+				return ScheduleDedup(c, clientFactory)
 			},
 		},
 		{
@@ -348,7 +348,7 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 			Usage: "Send a force-continue-as-new signal to the scheduler workflow",
 			Flags: []cli.Flag{scheduleIDFlag, executeFlag},
 			Action: func(c *cli.Context) error {
-				return AdminScheduleForceCAN(c, clientFactory)
+				return ScheduleForceCAN(c, clientFactory)
 			},
 		},
 	}
