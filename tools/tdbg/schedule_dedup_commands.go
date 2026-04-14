@@ -1,6 +1,7 @@
 package tdbg
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -24,19 +25,27 @@ func ScheduleDedup(c *cli.Context, clientFactory ClientFactory) error {
 	recreate := c.Bool(FlagRecreate)
 	cl := clientFactory.WorkflowClient(c)
 
-	ctx, cancel := newContext(c)
-	defer cancel()
-
-	fn := func(sid string) error {
+	// Single-schedule: one context for the whole operation.
+	if sid := c.String(FlagScheduleID); sid != "" {
+		ctx, cancel := newContext(c)
+		defer cancel()
 		if recreate {
 			return schedutil.RunDedupRecreate(ctx, cl, ns, sid, outDir, execute)
 		}
 		return schedutil.RunDedup(ctx, cl, ns, sid, outDir, execute)
 	}
-	if sid := c.String(FlagScheduleID); sid != "" {
-		return fn(sid)
+
+	// Namespace-wide: use a background context for listing so the session is
+	// not cut short, and give each schedule its own per-operation timeout.
+	fn := func(sid string) error {
+		ctx, cancel := newContext(c)
+		defer cancel()
+		if recreate {
+			return schedutil.RunDedupRecreate(ctx, cl, ns, sid, outDir, execute)
+		}
+		return schedutil.RunDedup(ctx, cl, ns, sid, outDir, execute)
 	}
-	return schedutil.ForEachSchedule(ctx, cl, ns, fn)
+	return schedutil.ForEachSchedule(context.Background(), cl, ns, fn)
 }
 
 // ScheduleForceCAN sends a force-continue-as-new signal to the scheduler workflow.
@@ -46,13 +55,17 @@ func ScheduleForceCAN(c *cli.Context, clientFactory ClientFactory) error {
 	execute := c.Bool(FlagExecute)
 	cl := clientFactory.WorkflowClient(c)
 
-	ctx, cancel := newContext(c)
-	defer cancel()
-
+	// Single-schedule: one context for the whole operation.
 	if sid := c.String(FlagScheduleID); sid != "" {
+		ctx, cancel := newContext(c)
+		defer cancel()
 		return schedutil.RunForceCAN(ctx, cl, ns, sid, execute)
 	}
-	return schedutil.ForEachSchedule(ctx, cl, ns, func(sid string) error {
+
+	// Namespace-wide: per-operation timeout per schedule.
+	return schedutil.ForEachSchedule(context.Background(), cl, ns, func(sid string) error {
+		ctx, cancel := newContext(c)
+		defer cancel()
 		return schedutil.RunForceCAN(ctx, cl, ns, sid, execute)
 	})
 }
