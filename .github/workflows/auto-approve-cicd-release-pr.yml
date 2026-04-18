@@ -8,7 +8,7 @@ permissions:
   pull-requests: write
 jobs:
   auto_approve:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: ${{ github.actor == 'temporal-cicd[bot]' }}
     steps:
       - name: Approve PR

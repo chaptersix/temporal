@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   validate-pr-description:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Validate PR description for placeholder lines or empty sections
