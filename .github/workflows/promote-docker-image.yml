@@ -23,7 +23,7 @@ on:
 
 jobs:
   validate-inputs:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       source-tag-safe: ${{ steps.validate.outputs.source-tag }}
       target-tags-safe: ${{ steps.validate.outputs.target-tags }}
@@ -80,7 +80,7 @@ jobs:
 
   promote:
     needs: [validate-inputs]
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3

@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build-and-push-docker:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 90
     # Only push for main, cloud, release branches (not feature)
     if: |
@@ -42,7 +42,7 @@ jobs:
 
   # For feature branches, just build (no push)
   build-docker-feature:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: startsWith(github.ref, 'refs/heads/feature/')
     steps:
       - name: Checkout code

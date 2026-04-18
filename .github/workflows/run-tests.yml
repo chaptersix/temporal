@@ -29,7 +29,7 @@ env:
 jobs:
   test-setup:
     name: Test setup
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       job_matrix: ${{ steps.build_matrix.outputs.job_matrix }}
       full_test_reason: ${{ steps.determine_scope.outputs.full_test_reason }}
@@ -100,11 +100,11 @@ jobs:
       - name: Configure runners
         id: configure_runners
         run: |
-          # Use 8-core runners for temporalio org, standard runners for forks
+          # Use 8-core runners for temporalio org, self-hosted runners for forks.
           if [[ "${{ github.repository_owner }}" == "temporalio" ]]; then
             runner_arm="ubuntu-24.04-arm64-8-cores"
           else
-            runner_arm="ubuntu-24.04-arm"
+            runner_arm="self-hosted"
           fi
           echo "runner_arm=$runner_arm" >> "$GITHUB_OUTPUT"
 
@@ -675,7 +675,7 @@ jobs:
       - unit-test
       - integration-test
       - functional-test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       RESULTS: ${{ toJSON(needs.*.result) }}
     steps:
@@ -693,7 +693,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       needs.test-status.result == 'failure'
     needs: test-status
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
       actions: read

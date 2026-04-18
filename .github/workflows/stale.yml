@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   stale_prs:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: label stale pull requests
         uses: actions/stale@v9
