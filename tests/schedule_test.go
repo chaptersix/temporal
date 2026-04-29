@@ -111,6 +111,12 @@ func runSharedScheduleTests(t *testing.T, newContext contextFactory) {
 	t.Run("TestSchedule_InternalTaskQueue", func(t *testing.T) { testScheduleInternalTaskQueue(t, newContext) })
 	t.Run("TestDeletedScheduleOperations", func(t *testing.T) { testDeletedScheduleOperations(t, newContext) })
 	t.Run("TestUnpauseResumesProcessing", func(t *testing.T) { testCHASMUnpauseResumesProcessing(t, newContext) })
+	t.Run("TestUpdateScheduleRequestIDTooLong", func(t *testing.T) { testUpdateScheduleRequestIDTooLong(t, newContext) })
+	t.Run("TestUpdateScheduleBlobSizeLimit", func(t *testing.T) { testUpdateScheduleBlobSizeLimit(t, newContext) })
+	t.Run("TestListSchedulesPagination", func(t *testing.T) { testListSchedulesPagination(t, newContext) })
+	t.Run("TestListSchedulesFilterAndEntryFields", func(t *testing.T) { testListSchedulesFilterAndEntryFields(t, newContext) })
+	t.Run("TestUpdateDeduplicatesCalendars", func(t *testing.T) { testUpdateDeduplicatesCalendars(t, newContext) })
+	t.Run("TestCreateDeduplicatesCalendars", func(t *testing.T) { testCreateDeduplicatesCalendars(t, newContext) })
 }
 
 func testDeletedScheduleOperations(t *testing.T, newContext contextFactory) {
@@ -1086,6 +1092,170 @@ func testCountSchedules(t *testing.T, newContext contextFactory) {
 		})
 		return err == nil && countResp.Count >= 2
 	}, 15*time.Second, 1*time.Second, "Expected at least 2 non-paused schedules")
+}
+
+func testListSchedulesPagination(t *testing.T, newContext contextFactory) {
+	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+
+	const numSchedules = 4
+	sidPrefix := "sched-test-pagination-"
+
+	for i := range numSchedules {
+		sid := fmt.Sprintf("%s%d", sidPrefix, i)
+		schedule := &schedulepb.Schedule{
+			Spec: &schedulepb.ScheduleSpec{
+				Interval: []*schedulepb.IntervalSpec{
+					{Interval: durationpb.New(1 * time.Hour)},
+				},
+			},
+			Action: &schedulepb.ScheduleAction{
+				Action: &schedulepb.ScheduleAction_StartWorkflow{
+					StartWorkflow: &workflowpb.NewWorkflowExecutionInfo{
+						WorkflowId:   fmt.Sprintf("wf-pagination-%d", i),
+						WorkflowType: &commonpb.WorkflowType{Name: "action"},
+						TaskQueue:    &taskqueuepb.TaskQueue{Name: s.WorkerTaskQueue(), Kind: enumspb.TASK_QUEUE_KIND_NORMAL},
+					},
+				},
+			},
+		}
+		_, err := s.FrontendClient().CreateSchedule(newContext(s.Context()), &workflowservice.CreateScheduleRequest{
+			Namespace:  s.Namespace().String(),
+			ScheduleId: sid,
+			Schedule:   schedule,
+			Identity:   "test",
+			RequestId:  uuid.NewString(),
+		})
+		s.NoError(err)
+	}
+
+	// Wait for all schedules to be visible.
+	s.Eventually(func() bool {
+		countResp, err := s.FrontendClient().CountSchedules(newContext(s.Context()), &workflowservice.CountSchedulesRequest{
+			Namespace: s.Namespace().String(),
+		})
+		return err == nil && countResp.Count >= numSchedules
+	}, 15*time.Second, 1*time.Second, "Expected all schedules to be visible")
+
+	// Paginate with page size 2 and collect all schedule IDs.
+	ctx := newContext(s.Context())
+	var allIDs []string
+	var nextPageToken []byte
+	for {
+		resp, err := s.FrontendClient().ListSchedules(ctx, &workflowservice.ListSchedulesRequest{
+			Namespace:       s.Namespace().String(),
+			MaximumPageSize: 2,
+			NextPageToken:   nextPageToken,
+		})
+		s.NoError(err)
+		for _, entry := range resp.Schedules {
+			allIDs = append(allIDs, entry.ScheduleId)
+		}
+		nextPageToken = resp.NextPageToken
+		if len(nextPageToken) == 0 {
+			break
+		}
+		// Each page except possibly the last should have entries.
+		s.NotEmpty(resp.Schedules)
+	}
+
+	// Verify we found all created schedules.
+	for i := range numSchedules {
+		sid := fmt.Sprintf("%s%d", sidPrefix, i)
+		s.Contains(allIDs, sid, "Expected schedule %s in paginated results", sid)
+	}
+}
+
+func testListSchedulesFilterAndEntryFields(t *testing.T, newContext contextFactory) {
+	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+
+	sid := "sched-test-list-fields"
+	wt := "sched-test-list-fields-wt"
+
+	schMemo, _ := payload.Encode("memo value")
+	csaKeyword := "CustomKeywordField"
+	schSAValue, _ := payload.Encode("sa-val")
+
+	// Create a paused schedule with memo and custom search attributes.
+	schedule := &schedulepb.Schedule{
+		Spec: &schedulepb.ScheduleSpec{
+			Interval: []*schedulepb.IntervalSpec{
+				{Interval: durationpb.New(1 * time.Hour)},
+			},
+		},
+		Action: &schedulepb.ScheduleAction{
+			Action: &schedulepb.ScheduleAction_StartWorkflow{
+				StartWorkflow: &workflowpb.NewWorkflowExecutionInfo{
+					WorkflowId:   "wf-" + sid,
+					WorkflowType: &commonpb.WorkflowType{Name: wt},
+					TaskQueue:    &taskqueuepb.TaskQueue{Name: s.WorkerTaskQueue(), Kind: enumspb.TASK_QUEUE_KIND_NORMAL},
+				},
+			},
+		},
+		State: &schedulepb.ScheduleState{
+			Paused: true,
+			Notes:  "paused for test",
+		},
+	}
+
+	ctx := newContext(s.Context())
+	_, err := s.FrontendClient().CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+		Schedule:   schedule,
+		Identity:   "test",
+		RequestId:  uuid.NewString(),
+		Memo: &commonpb.Memo{
+			Fields: map[string]*commonpb.Payload{
+				"schedmemo1": schMemo,
+			},
+		},
+		SearchAttributes: &commonpb.SearchAttributes{
+			IndexedFields: map[string]*commonpb.Payload{
+				csaKeyword: schSAValue,
+			},
+		},
+	})
+	s.NoError(err)
+
+	// Wait for the schedule to appear with correct paused state.
+	entry := getScheduleEntryFromVisibility(s, sid, newContext, func(e *schedulepb.ScheduleListEntry) bool {
+		return e.Info.Paused
+	})
+
+	// Verify entry-level fields.
+	s.Equal(schMemo.Data, entry.Memo.Fields["schedmemo1"].Data)
+	s.Equal(schSAValue.Data, entry.SearchAttributes.IndexedFields[csaKeyword].Data)
+	s.Equal(wt, entry.Info.WorkflowType.Name)
+	s.True(entry.Info.Paused)
+	s.Equal("paused for test", entry.Info.Notes)
+
+	// Filter by TemporalSchedulePaused should find this schedule.
+	s.EventuallyWithT(func(c *assert.CollectT) {
+		listResp, err := s.FrontendClient().ListSchedules(ctx, &workflowservice.ListSchedulesRequest{
+			Namespace:       s.Namespace().String(),
+			MaximumPageSize: 10,
+			Query:           fmt.Sprintf("%s = true", sadefs.TemporalSchedulePaused),
+		})
+		require.NoError(c, err)
+		var ids []string
+		for _, e := range listResp.Schedules {
+			ids = append(ids, e.ScheduleId)
+		}
+		require.Contains(c, ids, sid)
+	}, 15*time.Second, 1*time.Second)
+
+	// Filter for paused=false should not include this schedule.
+	s.EventuallyWithT(func(c *assert.CollectT) {
+		listResp, err := s.FrontendClient().ListSchedules(ctx, &workflowservice.ListSchedulesRequest{
+			Namespace:       s.Namespace().String(),
+			MaximumPageSize: 10,
+			Query:           fmt.Sprintf("%s = false", sadefs.TemporalSchedulePaused),
+		})
+		require.NoError(c, err)
+		for _, e := range listResp.Schedules {
+			require.NotEqual(c, sid, e.ScheduleId)
+		}
+	}, 15*time.Second, 1*time.Second)
 }
 
 func testScheduleInternalTaskQueue(t *testing.T, newContext contextFactory) {
@@ -2733,4 +2903,233 @@ func testCHASMUnpauseResumesProcessing(t *testing.T, newContext contextFactory) 
 		500*time.Millisecond,
 		"schedule should resume processing after unpause",
 	)
+}
+func testUpdateScheduleRequestIDTooLong(t *testing.T, newContext contextFactory) {
+	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+
+	sid := "sched-test-update-reqid-too-long"
+	wid := "sched-test-update-reqid-too-long-wf"
+	wt := "sched-test-update-reqid-too-long-wt"
+
+	s.SdkWorker().RegisterWorkflowWithOptions(
+		func(ctx workflow.Context) error { return nil },
+		workflow.RegisterOptions{Name: wt},
+	)
+
+	schedule := &schedulepb.Schedule{
+		Spec: &schedulepb.ScheduleSpec{
+			Interval: []*schedulepb.IntervalSpec{
+				{Interval: durationpb.New(1 * time.Hour)},
+			},
+		},
+		Action: &schedulepb.ScheduleAction{
+			Action: &schedulepb.ScheduleAction_StartWorkflow{
+				StartWorkflow: &workflowpb.NewWorkflowExecutionInfo{
+					WorkflowId:   wid,
+					WorkflowType: &commonpb.WorkflowType{Name: wt},
+					TaskQueue:    &taskqueuepb.TaskQueue{Name: s.WorkerTaskQueue(), Kind: enumspb.TASK_QUEUE_KIND_NORMAL},
+				},
+			},
+		},
+	}
+
+	// Create schedule.
+	ctx := newContext(s.Context())
+	_, err := s.FrontendClient().CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+		Schedule:   schedule,
+		Identity:   "test",
+		RequestId:  uuid.NewString(),
+	})
+	require.NoError(t, err)
+
+	// Update with an oversized request ID.
+	_, err = s.FrontendClient().UpdateSchedule(newContext(s.Context()), &workflowservice.UpdateScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+		Schedule:   schedule,
+		Identity:   "test",
+		RequestId:  strings.Repeat("x", 1001),
+	})
+	var invalidArgReqID *serviceerror.InvalidArgument
+	require.ErrorAs(t, err, &invalidArgReqID)
+}
+
+func testUpdateScheduleBlobSizeLimit(t *testing.T, newContext contextFactory) {
+	s := testcore.NewEnv(t,
+		append(scheduleCommonOpts(),
+			testcore.WithDynamicConfig(dynamicconfig.BlobSizeLimitError, 1000),
+			testcore.WithDynamicConfig(dynamicconfig.BlobSizeLimitWarn, 500),
+		)...,
+	)
+
+	sid := "sched-test-update-blob-limit"
+	wid := "sched-test-update-blob-limit-wf"
+	wt := "sched-test-update-blob-limit-wt"
+
+	s.SdkWorker().RegisterWorkflowWithOptions(
+		func(ctx workflow.Context) error { return nil },
+		workflow.RegisterOptions{Name: wt},
+	)
+
+	schedule := &schedulepb.Schedule{
+		Spec: &schedulepb.ScheduleSpec{
+			Interval: []*schedulepb.IntervalSpec{
+				{Interval: durationpb.New(1 * time.Hour)},
+			},
+		},
+		Action: &schedulepb.ScheduleAction{
+			Action: &schedulepb.ScheduleAction_StartWorkflow{
+				StartWorkflow: &workflowpb.NewWorkflowExecutionInfo{
+					WorkflowId:   wid,
+					WorkflowType: &commonpb.WorkflowType{Name: wt},
+					TaskQueue:    &taskqueuepb.TaskQueue{Name: s.WorkerTaskQueue(), Kind: enumspb.TASK_QUEUE_KIND_NORMAL},
+				},
+			},
+		},
+	}
+
+	// Create schedule.
+	ctx := newContext(s.Context())
+	_, err := s.FrontendClient().CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+		Schedule:   schedule,
+		Identity:   "test",
+		RequestId:  uuid.NewString(),
+	})
+	require.NoError(t, err)
+
+	// Update with an oversized memo that exceeds the blob size limit.
+	largeMemo := &commonpb.Memo{
+		Fields: map[string]*commonpb.Payload{
+			"key": {Data: make([]byte, 1001)},
+		},
+	}
+	_, err = s.FrontendClient().UpdateSchedule(newContext(s.Context()), &workflowservice.UpdateScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+		Schedule:   schedule,
+		Identity:   "test",
+		RequestId:  uuid.NewString(),
+		Memo:       largeMemo,
+	})
+	var invalidArgBlob *serviceerror.InvalidArgument
+	require.ErrorAs(t, err, &invalidArgBlob)
+}
+
+// testUpdateDeduplicatesCalendars reproduces the describe-then-update
+// accumulation pattern where repeated SDK updates with the same cron expression
+// would previously cause StructuredCalendar entries to accumulate. With
+// server-side dedup in canonicalizeSpec, the count should stay at 1.
+func testUpdateDeduplicatesCalendars(t *testing.T, newContext contextFactory) {
+	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+
+	sid := testcore.RandomizeStr("sched-test-update-dedup")
+
+	schedule := &schedulepb.Schedule{
+		Spec: &schedulepb.ScheduleSpec{
+			CronString: []string{"0 * * * *"},
+		},
+		Action: &schedulepb.ScheduleAction{
+			Action: &schedulepb.ScheduleAction_StartWorkflow{
+				StartWorkflow: &workflowpb.NewWorkflowExecutionInfo{
+					WorkflowId:   "wf-" + sid,
+					WorkflowType: &commonpb.WorkflowType{Name: "myworkflow"},
+					TaskQueue:    &taskqueuepb.TaskQueue{Name: s.WorkerTaskQueue(), Kind: enumspb.TASK_QUEUE_KIND_NORMAL},
+				},
+			},
+		},
+	}
+
+	ctx := newContext(s.Context())
+	_, err := s.FrontendClient().CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+		Schedule:   schedule,
+		Identity:   testcore.RandomizeStr("identity"),
+		RequestId:  testcore.RandomizeStr("request-id"),
+	})
+	require.NoError(t, err)
+
+	// Simulate the SDK describe-then-update pattern: read the current schedule
+	// (which has StructuredCalendar entries from the original cron), then send
+	// an update that includes both the existing StructuredCalendar entries and
+	// the same cron string again. Without server-side dedup this would
+	// accumulate one extra entry per round.
+	const rounds = 5
+	for i := range rounds {
+		desc, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+			Namespace:  s.Namespace().String(),
+			ScheduleId: sid,
+		})
+		require.NoError(t, err, "describe round %d", i+1)
+
+		// Re-add the same cron on top of existing StructuredCalendar entries,
+		// mimicking what the SDK does when the user sets CronExpressions.
+		desc.Schedule.Spec.CronString = []string{"0 * * * *"}
+
+		_, err = s.FrontendClient().UpdateSchedule(ctx, &workflowservice.UpdateScheduleRequest{
+			Namespace:     s.Namespace().String(),
+			ScheduleId:    sid,
+			Schedule:      desc.Schedule,
+			ConflictToken: desc.ConflictToken,
+			Identity:      testcore.RandomizeStr("identity"),
+			RequestId:     testcore.RandomizeStr("request-id"),
+		})
+		require.NoError(t, err, "update round %d", i+1)
+	}
+
+	after, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+	})
+	require.NoError(t, err)
+	require.Len(t, after.Schedule.Spec.StructuredCalendar, 1,
+		"server-side dedup should prevent calendar accumulation across %d update rounds", rounds)
+}
+
+// testCreateDeduplicatesCalendars verifies that CreateSchedule deduplicates
+// StructuredCalendar entries when the same calendar is specified multiple times
+// in the initial request (e.g. via both CronString and StructuredCalendar).
+func testCreateDeduplicatesCalendars(t *testing.T, newContext contextFactory) {
+	s := testcore.NewEnv(t, scheduleCommonOpts()...)
+
+	sid := testcore.RandomizeStr("sched-test-create-dedup")
+
+	// Send the same cron string twice to verify dedup on create. Both get
+	// parsed into identical StructuredCalendarSpec entries.
+	schedule := &schedulepb.Schedule{
+		Spec: &schedulepb.ScheduleSpec{
+			CronString: []string{"0 * * * *", "0 * * * *"},
+		},
+		Action: &schedulepb.ScheduleAction{
+			Action: &schedulepb.ScheduleAction_StartWorkflow{
+				StartWorkflow: &workflowpb.NewWorkflowExecutionInfo{
+					WorkflowId:   "wf-" + sid,
+					WorkflowType: &commonpb.WorkflowType{Name: "myworkflow"},
+					TaskQueue:    &taskqueuepb.TaskQueue{Name: s.WorkerTaskQueue(), Kind: enumspb.TASK_QUEUE_KIND_NORMAL},
+				},
+			},
+		},
+	}
+
+	ctx := newContext(s.Context())
+	_, err := s.FrontendClient().CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+		Schedule:   schedule,
+		Identity:   testcore.RandomizeStr("identity"),
+		RequestId:  testcore.RandomizeStr("request-id"),
+	})
+	require.NoError(t, err)
+
+	desc, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+	})
+	require.NoError(t, err)
+	require.Len(t, desc.Schedule.Spec.StructuredCalendar, 1,
+		"create should deduplicate identical cron-derived structured calendar entries")
 }
