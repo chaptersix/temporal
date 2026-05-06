@@ -2905,7 +2905,7 @@ instead of the existing (V1) implementation.`,
 
 	EnableCHASMSchedulerRouting = NewNamespaceBoolSetting(
 		"history.enableCHASMSchedulerRouting",
-		false,
+		true,
 		`EnableCHASMSchedulerRouting controls whether schedule RPCs are routed to the CHASM (V2) implementation
 first (with fallback to V1), excluding CreateSchedule.`,
 	)
@@ -2919,7 +2919,7 @@ to the CHASM (V2) implementation on active scheduler workflows.`,
 
 	EnableCHASMSchedulerSentinels = NewNamespaceBoolSetting(
 		"history.enableCHASMSchedulerSentinels",
-		false,
+		true,
 		`EnableCHASMSchedulerSentinels enables ID-space collision sentinels, and must be enabled and propagated in advance of EnableCHASMSchedulerCreation.`,
 	)
 
