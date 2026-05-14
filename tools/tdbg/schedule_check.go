@@ -91,8 +91,13 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		close(results)
 	}()
 
+	exclude := c.String("exclude")
+
 	enc := json.NewEncoder(c.App.Writer)
 	for r := range results {
+		if shouldExclude(r, exclude) {
+			continue
+		}
 		if err := enc.Encode(r); err != nil {
 			return err
 		}
@@ -234,4 +239,18 @@ func checkScheduleTasks(
 	}
 
 	return result
+}
+
+// shouldExclude returns true if the result should be excluded from output.
+//   - "healthy": exclude schedules that have both generator and idle tasks
+//   - "unhealthy": exclude schedules that are missing any task
+func shouldExclude(r scheduleCheckResult, exclude string) bool {
+	switch strings.ToLower(exclude) {
+	case "healthy":
+		return r.HasGenerator && r.HasIdle && r.Error == ""
+	case "unhealthy":
+		return len(r.MissingTasks) > 0 || r.Error != ""
+	default:
+		return false
+	}
 }

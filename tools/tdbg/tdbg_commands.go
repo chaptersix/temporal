@@ -338,6 +338,10 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 					Value: 0,
 					Usage: "Max schedules to check (0 = unlimited)",
 				},
+				&cli.StringFlag{
+					Name:  "exclude",
+					Usage: "Exclude results: 'healthy' (has all tasks) or 'unhealthy' (missing tasks)",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				return AdminCheckSchedules(c, clientFactory)
