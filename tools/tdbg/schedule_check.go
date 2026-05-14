@@ -29,6 +29,7 @@ var chasmScheduleQuery = fmt.Sprintf(
 )
 
 type scheduleCheckResult struct {
+	Namespace      string   `json:"namespace"`
 	ScheduleID     string   `json:"scheduleId"`
 	HasGenerator   bool     `json:"hasGenerator"`
 	HasIdle        bool     `json:"hasIdle"`
@@ -176,6 +177,7 @@ func checkScheduleTasks(
 	scheduleID string,
 ) scheduleCheckResult {
 	result := scheduleCheckResult{
+		Namespace:  namespace,
 		ScheduleID: scheduleID,
 	}
 
