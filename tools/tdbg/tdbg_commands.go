@@ -330,21 +330,17 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 				},
 				&cli.IntFlag{
 					Name:  "parallelism",
-					Value: 3,
-					Usage: "Concurrent describe calls per page per namespace",
+					Value: 10,
+					Usage: "Concurrent describe calls per page per namespace (env: TDBG_CHECK_PARALLELISM)",
 				},
 				&cli.IntFlag{
 					Name:  "ns-parallelism",
-					Value: 3,
-					Usage: "Concurrent namespaces to process",
+					Value: 10,
+					Usage: "Concurrent namespaces to process (env: TDBG_CHECK_NS_PARALLELISM)",
 				},
 &cli.StringFlag{
 					Name:  "output-dir",
 					Usage: "Write per-namespace .jsonl files and a summary.txt to this directory",
-				},
-				&cli.BoolFlag{
-					Name:  "only-missing",
-					Usage: "Only output schedules that are missing expected tasks",
 				},
 			},
 			Action: func(c *cli.Context) error {

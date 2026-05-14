@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,9 +26,9 @@ const (
 	fqnGeneratorTask     = "scheduler.generate"
 	fqnSchedulerIdleTask = "scheduler.idle"
 
-	scheduleCheckPageSize      = 100
-	scheduleCheckParallelism   = 3
-	scheduleCheckNsParallelism = 3
+	scheduleCheckPageSize            = 100
+	defaultScheduleCheckParallelism  = 10
+	defaultScheduleCheckNsParallel   = 10
 )
 
 var chasmScheduleBaseQuery = fmt.Sprintf(
@@ -47,6 +48,15 @@ type scheduleCheckResult struct {
 
 func isMissingTasks(r scheduleCheckResult) bool {
 	return (!r.HasGenerator && !r.HasIdle) || r.Error != ""
+}
+
+func intFromEnv(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return fallback
 }
 
 type threadSafeEncoder struct {
@@ -83,13 +93,12 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 
 	parallelism := c.Int("parallelism")
 	if parallelism <= 0 {
-		parallelism = scheduleCheckParallelism
+		parallelism = intFromEnv("TDBG_CHECK_PARALLELISM", defaultScheduleCheckParallelism)
 	}
 	nsParallelism := c.Int("ns-parallelism")
 	if nsParallelism <= 0 {
-		nsParallelism = scheduleCheckNsParallelism
+		nsParallelism = intFromEnv("TDBG_CHECK_NS_PARALLELISM", defaultScheduleCheckNsParallel)
 	}
-	onlyMissing := c.Bool("only-missing")
 	query := chasmScheduleBaseQuery
 	outputDir := c.String("output-dir")
 	ts := time.Now().UTC().Format("20060102T150405Z")
@@ -100,13 +109,10 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		return fmt.Errorf("failed to create CHASM registry: %w", err)
 	}
 
-	// If --schedule-id is provided, check just that one (stdout only).
+	// If --schedule-id is provided, check just that one (stdout only, no filter).
 	if sid := c.String(FlagScheduleID); sid != "" {
 		enc := &threadSafeEncoder{enc: json.NewEncoder(c.App.Writer)}
 		emit := func(r scheduleCheckResult) error {
-			if onlyMissing && !isMissingTasks(r) {
-				return nil
-			}
 			return enc.Encode(r)
 		}
 		fmt.Fprintf(c.App.ErrWriter, "Checking schedule %s in %s...\n", sid, nsInputs[0].Namespace)
@@ -141,7 +147,7 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 			nsSem <- struct{}{}
 			defer func() { <-nsSem }()
 
-			nsResult, err := runNamespaceCheck(c, wfClient, adminClient, registry, input, query, parallelism, onlyMissing, outputDir, ts)
+			nsResult, err := runNamespaceCheck(c, wfClient, adminClient, registry, input, query, parallelism, outputDir, ts)
 			if err != nil {
 				errCh <- fmt.Errorf("%s: %w", input.Namespace, err)
 				if summaryWriter != nil {
@@ -183,7 +189,6 @@ func runNamespaceCheck(
 	input namespaceInput,
 	query string,
 	parallelism int,
-	onlyMissing bool,
 	outputDir string,
 	ts string,
 ) (namespaceSummary, error) {
@@ -217,7 +222,7 @@ func runNamespaceCheck(
 		}
 		mu.Unlock()
 
-		if onlyMissing && !isMissingTasks(r) {
+		if !isMissingTasks(r) {
 			return nil
 		}
 		return enc.Encode(r)
