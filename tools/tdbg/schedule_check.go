@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -23,9 +24,9 @@ const (
 	fqnGeneratorTask     = "scheduler.generate"
 	fqnSchedulerIdleTask = "scheduler.idle"
 
-	scheduleCheckPageSize       = 100
-	scheduleCheckParallelism    = 3
-	scheduleCheckNsParallelism  = 3
+	scheduleCheckPageSize      = 100
+	scheduleCheckParallelism   = 3
+	scheduleCheckNsParallelism = 3
 )
 
 var chasmScheduleBaseQuery = fmt.Sprintf(
@@ -33,16 +34,6 @@ var chasmScheduleBaseQuery = fmt.Sprintf(
 	chasm.SchedulerArchetypeID,
 )
 
-func buildScheduleQuery(after, before string) string {
-	q := chasmScheduleBaseQuery
-	if after != "" {
-		q += fmt.Sprintf(" AND StartTime >= '%s'", after)
-	}
-	if before != "" {
-		q += fmt.Sprintf(" AND StartTime <= '%s'", before)
-	}
-	return q
-}
 
 type scheduleCheckResult struct {
 	Namespace    string   `json:"namespace"`
@@ -68,13 +59,25 @@ func (e *threadSafeEncoder) Encode(v any) error {
 	return e.enc.Encode(v)
 }
 
+type threadSafeWriter struct {
+	mu sync.Mutex
+	f  *os.File
+}
+
+func (w *threadSafeWriter) WriteString(s string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	_, err := w.f.WriteString(s)
+	return err
+}
+
 func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 	adminClient := clientFactory.AdminClient(c)
 	wfClient := clientFactory.WorkflowClient(c)
 
 	namespaces := getNamespaces(c)
 	if len(namespaces) == 0 {
-		return fmt.Errorf("no namespaces provided; pass via -n flag, positional args, or piped stdin")
+		return fmt.Errorf("no namespaces provided; pass via -n flag or piped stdin")
 	}
 
 	parallelism := c.Int("parallelism")
@@ -86,7 +89,9 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		nsParallelism = scheduleCheckNsParallelism
 	}
 	onlyMissing := c.Bool("only-missing")
-	query := buildScheduleQuery(c.String("after"), c.String("before"))
+	query := chasmScheduleBaseQuery
+	outputDir := c.String("output-dir")
+	ts := time.Now().UTC().Format("20060102T150405Z")
 
 	logger := log.NewNoopLogger()
 	registry, err := newChasmRegistry(logger)
@@ -94,18 +99,33 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		return fmt.Errorf("failed to create CHASM registry: %w", err)
 	}
 
-	enc := &threadSafeEncoder{enc: json.NewEncoder(c.App.Writer)}
-	emit := func(r scheduleCheckResult) error {
-		if onlyMissing && !isMissingTasks(r) {
-			return nil
-		}
-		return enc.Encode(r)
-	}
-
-	// If --schedule-id is provided, check just that one across the first namespace.
+	// If --schedule-id is provided, check just that one (stdout only).
 	if sid := c.String(FlagScheduleID); sid != "" {
+		enc := &threadSafeEncoder{enc: json.NewEncoder(c.App.Writer)}
+		emit := func(r scheduleCheckResult) error {
+			if onlyMissing && !isMissingTasks(r) {
+				return nil
+			}
+			return enc.Encode(r)
+		}
 		fmt.Fprintf(c.App.ErrWriter, "Checking schedule %s in %s...\n", sid, namespaces[0])
 		return processPage(c, adminClient, registry, namespaces[0], []string{sid}, parallelism, emit)
+	}
+
+	// Set up output dir if requested.
+	var summaryWriter *threadSafeWriter
+	if outputDir != "" {
+		if err := os.MkdirAll(outputDir, 0o755); err != nil {
+			return fmt.Errorf("creating output dir: %w", err)
+		}
+		summaryPath := filepath.Join(outputDir, fmt.Sprintf("summary_%s.txt", ts))
+		sf, err := os.Create(summaryPath)
+		if err != nil {
+			return fmt.Errorf("creating summary file: %w", err)
+		}
+		defer sf.Close()
+		summaryWriter = &threadSafeWriter{f: sf}
+		fmt.Fprintf(c.App.ErrWriter, "Writing output to %s\n", outputDir)
 	}
 
 	// Fan out across namespaces.
@@ -120,8 +140,20 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 			nsSem <- struct{}{}
 			defer func() { <-nsSem }()
 
-			if err := checkNamespace(c, wfClient, adminClient, registry, ns, query, parallelism, emit); err != nil {
+			nsResult, err := runNamespaceCheck(c, wfClient, adminClient, registry, ns, query, parallelism, onlyMissing, outputDir, ts)
+			if err != nil {
 				errCh <- fmt.Errorf("%s: %w", ns, err)
+				if summaryWriter != nil {
+					_ = summaryWriter.WriteString(fmt.Sprintf("[%s] ERROR: %v\n", ns, err))
+				}
+				return
+			}
+
+			line := fmt.Sprintf("[%s] Done. %d checked, %d missing, %d errors\n",
+				ns, nsResult.total, nsResult.missing, nsResult.errors)
+			fmt.Fprint(c.App.ErrWriter, line)
+			if summaryWriter != nil {
+				_ = summaryWriter.WriteString(line)
 			}
 		}(ns)
 	}
@@ -136,13 +168,72 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 	return nil
 }
 
-func getNamespaces(c *cli.Context) []string {
-	// Positional args first.
-	if c.Args().Len() > 0 {
-		return c.Args().Slice()
+type namespaceSummary struct {
+	total   int
+	missing int
+	errors  int
+}
+
+func runNamespaceCheck(
+	c *cli.Context,
+	wfClient workflowservice.WorkflowServiceClient,
+	adminClient adminservice.AdminServiceClient,
+	registry *chasm.Registry,
+	namespace string,
+	query string,
+	parallelism int,
+	onlyMissing bool,
+	outputDir string,
+	ts string,
+) (namespaceSummary, error) {
+	var summary namespaceSummary
+	var enc *threadSafeEncoder
+	var nsFile *os.File
+
+	if outputDir != "" {
+		path := filepath.Join(outputDir, fmt.Sprintf("%s_%s.jsonl", namespace, ts))
+		f, err := os.Create(path)
+		if err != nil {
+			return summary, fmt.Errorf("creating output file: %w", err)
+		}
+		defer f.Close()
+		nsFile = f
+		enc = &threadSafeEncoder{enc: json.NewEncoder(f)}
+	} else {
+		enc = &threadSafeEncoder{enc: json.NewEncoder(c.App.Writer)}
 	}
 
-	// Piped stdin.
+	var mu sync.Mutex
+	emit := func(r scheduleCheckResult) error {
+		mu.Lock()
+		summary.total++
+		if isMissingTasks(r) {
+			summary.missing++
+		}
+		if r.Error != "" {
+			summary.errors++
+		}
+		mu.Unlock()
+
+		if onlyMissing && !isMissingTasks(r) {
+			return nil
+		}
+		return enc.Encode(r)
+	}
+
+	if err := checkNamespace(c, wfClient, adminClient, registry, namespace, query, parallelism, emit); err != nil {
+		return summary, err
+	}
+
+	if nsFile != nil {
+		_ = nsFile.Sync()
+	}
+
+	return summary, nil
+}
+
+func getNamespaces(c *cli.Context) []string {
+	// Piped stdin first.
 	if stat, _ := os.Stdin.Stat(); (stat.Mode() & os.ModeCharDevice) == 0 {
 		var namespaces []string
 		scanner := bufio.NewScanner(os.Stdin)
@@ -175,7 +266,7 @@ func checkNamespace(
 	parallelism int,
 	emit func(scheduleCheckResult) error,
 ) error {
-	fmt.Fprintf(c.App.ErrWriter, "Listing unpaused CHASM schedules in %s...\n", namespace)
+	fmt.Fprintf(c.App.ErrWriter, "[%s] Listing unpaused CHASM schedules...\n", namespace)
 
 	var nextPageToken []byte
 	total := 0
@@ -207,7 +298,11 @@ func checkNamespace(
 		if len(ids) > 0 {
 			pageNum++
 			total += len(ids)
-			fmt.Fprintf(c.App.ErrWriter, "[%s] Page %d: checking %d schedules (%d total)...\n", namespace, pageNum, len(ids), total)
+			tokenStr := ""
+			if len(nextPageToken) > 0 {
+				tokenStr = fmt.Sprintf(" pageToken=%x", nextPageToken)
+			}
+			fmt.Fprintf(c.App.ErrWriter, "[%s] Page %d: checking %d schedules (%d total)%s\n", namespace, pageNum, len(ids), total, tokenStr)
 
 			if err := processPage(c, adminClient, registry, namespace, ids, parallelism, emit); err != nil {
 				return err

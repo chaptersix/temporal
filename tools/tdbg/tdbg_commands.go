@@ -338,13 +338,9 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 					Value: 3,
 					Usage: "Concurrent namespaces to process",
 				},
-				&cli.StringFlag{
-					Name:  "after",
-					Usage: "Only check schedules created after this time (RFC3339, e.g. 2026-05-14T00:00:00Z)",
-				},
-				&cli.StringFlag{
-					Name:  "before",
-					Usage: "Only check schedules created before this time (RFC3339, e.g. 2026-05-15T00:00:00Z)",
+&cli.StringFlag{
+					Name:  "output-dir",
+					Usage: "Write per-namespace .jsonl files and a summary.txt to this directory",
 				},
 				&cli.BoolFlag{
 					Name:  "only-missing",
