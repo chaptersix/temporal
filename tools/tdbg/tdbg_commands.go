@@ -330,8 +330,8 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 				},
 				&cli.IntFlag{
 					Name:  "parallelism",
-					Value: 10,
-					Usage: "Concurrent describe calls",
+					Value: 3,
+					Usage: "Concurrent describe calls per page",
 				},
 				&cli.BoolFlag{
 					Name:  "only-missing",

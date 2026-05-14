@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/urfave/cli/v2"
 	commonpb "go.temporal.io/api/common/v1"
@@ -14,11 +15,17 @@ import (
 	"go.temporal.io/server/api/adminservice/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/common/log"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
 	fqnGeneratorTask     = "scheduler.generate"
 	fqnSchedulerIdleTask = "scheduler.idle"
+
+	scheduleCheckPageSize    = 100
+	scheduleCheckParallelism = 3
+	scheduleCheckPageDelay   = time.Second
 )
 
 var chasmScheduleQuery = fmt.Sprintf(
@@ -49,8 +56,9 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 
 	parallelism := c.Int("parallelism")
 	if parallelism <= 0 {
-		parallelism = 10
+		parallelism = scheduleCheckParallelism
 	}
+	onlyMissing := c.Bool("only-missing")
 
 	logger := log.NewNoopLogger()
 	registry, err := newChasmRegistry(logger)
@@ -58,59 +66,82 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		return fmt.Errorf("failed to create CHASM registry: %w", err)
 	}
 
-	// Determine schedule IDs: explicit flag, piped stdin, or list from server.
-	ids, err := getScheduleIDs(c, clientFactory, ns)
-	if err != nil {
-		return err
-	}
-
-	if len(ids) == 0 {
-		fmt.Fprintln(c.App.ErrWriter, "No schedules to check.")
-		return nil
-	}
-
-	fmt.Fprintf(c.App.ErrWriter, "Checking %d schedules...\n", len(ids))
-
-	results := make(chan scheduleCheckResult, len(ids))
-	sem := make(chan struct{}, parallelism)
-	var wg sync.WaitGroup
-
-	for _, id := range ids {
-		wg.Add(1)
-		go func(id string) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			r := checkScheduleTasks(c, adminClient, registry, ns, id)
-			results <- r
-		}(id)
-	}
-
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	onlyMissing := c.Bool("only-missing")
-
 	enc := json.NewEncoder(c.App.Writer)
-	for r := range results {
+	emit := func(r scheduleCheckResult) error {
 		if onlyMissing && !isMissingTasks(r) {
-			continue
+			return nil
 		}
-		if err := enc.Encode(r); err != nil {
-			return err
+		return enc.Encode(r)
+	}
+
+	// If IDs come from flag or stdin, process them as a single batch.
+	if ids, ok, err := getExplicitScheduleIDs(c); err != nil {
+		return err
+	} else if ok {
+		fmt.Fprintf(c.App.ErrWriter, "Checking %d schedules...\n", len(ids))
+		return processPage(c, adminClient, registry, ns, ids, parallelism, emit)
+	}
+
+	// Otherwise, list from server page by page, processing each page before fetching the next.
+	wfClient := clientFactory.WorkflowClient(c)
+	fmt.Fprintf(c.App.ErrWriter, "Listing unpaused CHASM schedules in %s...\n", ns)
+
+	var nextPageToken []byte
+	total := 0
+	pageNum := 0
+
+	for {
+		ctx, cancel := newContext(c)
+		resp, err := wfClient.ListWorkflowExecutions(ctx, &workflowservice.ListWorkflowExecutionsRequest{
+			Namespace:     ns,
+			PageSize:      scheduleCheckPageSize,
+			Query:         chasmScheduleQuery,
+			NextPageToken: nextPageToken,
+		})
+		cancel()
+		if err != nil {
+			if retryAfter, ok := retryableRateLimit(err); ok {
+				fmt.Fprintf(c.App.ErrWriter, "Rate limited, retrying in %v...\n", retryAfter)
+				time.Sleep(retryAfter)
+				continue
+			}
+			return fmt.Errorf("listing workflows: %w", err)
 		}
+
+		var ids []string
+		for _, exec := range resp.Executions {
+			ids = append(ids, exec.Execution.WorkflowId)
+		}
+
+		if len(ids) > 0 {
+			pageNum++
+			total += len(ids)
+			fmt.Fprintf(c.App.ErrWriter, "Page %d: checking %d schedules (%d total)...\n", pageNum, len(ids), total)
+
+			if err := processPage(c, adminClient, registry, ns, ids, parallelism, emit); err != nil {
+				return err
+			}
+		}
+
+		nextPageToken = resp.NextPageToken
+		if len(nextPageToken) == 0 {
+			break
+		}
+
+		time.Sleep(scheduleCheckPageDelay)
+	}
+
+	if total == 0 {
+		fmt.Fprintln(c.App.ErrWriter, "No unpaused CHASM schedules found.")
 	}
 
 	return nil
 }
 
-func getScheduleIDs(c *cli.Context, clientFactory ClientFactory, namespace string) ([]string, error) {
+func getExplicitScheduleIDs(c *cli.Context) ([]string, bool, error) {
 	// If --schedule-id is provided, check just that one.
 	if sid := c.String(FlagScheduleID); sid != "" {
-		return []string{sid}, nil
+		return []string{sid}, true, nil
 	}
 
 	// If stdin is piped, read schedule IDs from it.
@@ -124,42 +155,49 @@ func getScheduleIDs(c *cli.Context, clientFactory ClientFactory, namespace strin
 			}
 		}
 		if len(ids) > 0 {
-			return ids, nil
+			return ids, true, nil
 		}
 	}
 
-	// Otherwise, list all unpaused CHASM schedules from the server.
-	wfClient := clientFactory.WorkflowClient(c)
-	fmt.Fprintf(c.App.ErrWriter, "Listing unpaused CHASM schedules in %s...\n", namespace)
-	return listChasmScheduleIDs(c, wfClient, namespace)
+	return nil, false, nil
 }
 
-func listChasmScheduleIDs(c *cli.Context, wfClient workflowservice.WorkflowServiceClient, namespace string) ([]string, error) {
-	var ids []string
-	var nextPageToken []byte
+func processPage(
+	c *cli.Context,
+	adminClient adminservice.AdminServiceClient,
+	registry *chasm.Registry,
+	namespace string,
+	ids []string,
+	parallelism int,
+	emit func(scheduleCheckResult) error,
+) error {
+	results := make(chan scheduleCheckResult, len(ids))
+	sem := make(chan struct{}, parallelism)
+	var wg sync.WaitGroup
 
-	ctx, cancel := newContext(c)
-	defer cancel()
+	for _, id := range ids {
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
-	for {
-		resp, err := wfClient.ListWorkflowExecutions(ctx, &workflowservice.ListWorkflowExecutionsRequest{
-			Namespace:     namespace,
-			Query:         chasmScheduleQuery,
-			NextPageToken: nextPageToken,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("listing workflows: %w", err)
-		}
-		for _, exec := range resp.Executions {
-			ids = append(ids, exec.Execution.WorkflowId)
-		}
-		nextPageToken = resp.NextPageToken
-		if len(nextPageToken) == 0 {
-			break
+			results <- checkScheduleTasks(c, adminClient, registry, namespace, id)
+		}(id)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	for r := range results {
+		if err := emit(r); err != nil {
+			return err
 		}
 	}
 
-	return ids, nil
+	return nil
 }
 
 func checkScheduleTasks(
@@ -227,4 +265,11 @@ func checkScheduleTasks(
 	}
 
 	return result
+}
+
+func retryableRateLimit(err error) (time.Duration, bool) {
+	if s, ok := status.FromError(err); ok && s.Code() == codes.ResourceExhausted {
+		return time.Second, true
+	}
+	return 0, false
 }
