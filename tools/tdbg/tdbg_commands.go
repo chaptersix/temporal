@@ -331,7 +331,12 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 				&cli.IntFlag{
 					Name:  "parallelism",
 					Value: 3,
-					Usage: "Concurrent describe calls per page",
+					Usage: "Concurrent describe calls per page per namespace",
+				},
+				&cli.IntFlag{
+					Name:  "ns-parallelism",
+					Value: 3,
+					Usage: "Concurrent namespaces to process",
 				},
 				&cli.StringFlag{
 					Name:  "after",

@@ -23,9 +23,9 @@ const (
 	fqnGeneratorTask     = "scheduler.generate"
 	fqnSchedulerIdleTask = "scheduler.idle"
 
-	scheduleCheckPageSize    = 100
-	scheduleCheckParallelism = 3
-	scheduleCheckPageDelay   = time.Second
+	scheduleCheckPageSize       = 100
+	scheduleCheckParallelism    = 3
+	scheduleCheckNsParallelism  = 3
 )
 
 var chasmScheduleBaseQuery = fmt.Sprintf(
@@ -57,19 +57,36 @@ func isMissingTasks(r scheduleCheckResult) bool {
 	return (!r.HasGenerator && !r.HasIdle) || r.Error != ""
 }
 
+type threadSafeEncoder struct {
+	mu  sync.Mutex
+	enc *json.Encoder
+}
+
+func (e *threadSafeEncoder) Encode(v any) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.enc.Encode(v)
+}
+
 func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 	adminClient := clientFactory.AdminClient(c)
+	wfClient := clientFactory.WorkflowClient(c)
 
-	ns, err := getRequiredOption(c, FlagNamespace)
-	if err != nil {
-		return err
+	namespaces := getNamespaces(c)
+	if len(namespaces) == 0 {
+		return fmt.Errorf("no namespaces provided; pass via -n flag, positional args, or piped stdin")
 	}
 
 	parallelism := c.Int("parallelism")
 	if parallelism <= 0 {
 		parallelism = scheduleCheckParallelism
 	}
+	nsParallelism := c.Int("ns-parallelism")
+	if nsParallelism <= 0 {
+		nsParallelism = scheduleCheckNsParallelism
+	}
 	onlyMissing := c.Bool("only-missing")
+	query := buildScheduleQuery(c.String("after"), c.String("before"))
 
 	logger := log.NewNoopLogger()
 	registry, err := newChasmRegistry(logger)
@@ -77,7 +94,7 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		return fmt.Errorf("failed to create CHASM registry: %w", err)
 	}
 
-	enc := json.NewEncoder(c.App.Writer)
+	enc := &threadSafeEncoder{enc: json.NewEncoder(c.App.Writer)}
 	emit := func(r scheduleCheckResult) error {
 		if onlyMissing && !isMissingTasks(r) {
 			return nil
@@ -85,18 +102,80 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		return enc.Encode(r)
 	}
 
-	// If IDs come from flag or stdin, process them as a single batch.
-	if ids, ok, err := getExplicitScheduleIDs(c); err != nil {
-		return err
-	} else if ok {
-		fmt.Fprintf(c.App.ErrWriter, "Checking %d schedules...\n", len(ids))
-		return processPage(c, adminClient, registry, ns, ids, parallelism, emit)
+	// If --schedule-id is provided, check just that one across the first namespace.
+	if sid := c.String(FlagScheduleID); sid != "" {
+		fmt.Fprintf(c.App.ErrWriter, "Checking schedule %s in %s...\n", sid, namespaces[0])
+		return processPage(c, adminClient, registry, namespaces[0], []string{sid}, parallelism, emit)
 	}
 
-	// Otherwise, list from server page by page, processing each page before fetching the next.
-	wfClient := clientFactory.WorkflowClient(c)
-	query := buildScheduleQuery(c.String("after"), c.String("before"))
-	fmt.Fprintf(c.App.ErrWriter, "Listing unpaused CHASM schedules in %s...\n", ns)
+	// Fan out across namespaces.
+	nsSem := make(chan struct{}, nsParallelism)
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(namespaces))
+
+	for _, ns := range namespaces {
+		wg.Add(1)
+		go func(ns string) {
+			defer wg.Done()
+			nsSem <- struct{}{}
+			defer func() { <-nsSem }()
+
+			if err := checkNamespace(c, wfClient, adminClient, registry, ns, query, parallelism, emit); err != nil {
+				errCh <- fmt.Errorf("%s: %w", ns, err)
+			}
+		}(ns)
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		fmt.Fprintf(c.App.ErrWriter, "ERROR: %v\n", err)
+	}
+
+	return nil
+}
+
+func getNamespaces(c *cli.Context) []string {
+	// Positional args first.
+	if c.Args().Len() > 0 {
+		return c.Args().Slice()
+	}
+
+	// Piped stdin.
+	if stat, _ := os.Stdin.Stat(); (stat.Mode() & os.ModeCharDevice) == 0 {
+		var namespaces []string
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line != "" {
+				namespaces = append(namespaces, line)
+			}
+		}
+		if len(namespaces) > 0 {
+			return namespaces
+		}
+	}
+
+	// Fall back to -n flag.
+	if ns := c.String(FlagNamespace); ns != "" && ns != "default" {
+		return []string{ns}
+	}
+
+	return nil
+}
+
+func checkNamespace(
+	c *cli.Context,
+	wfClient workflowservice.WorkflowServiceClient,
+	adminClient adminservice.AdminServiceClient,
+	registry *chasm.Registry,
+	namespace string,
+	query string,
+	parallelism int,
+	emit func(scheduleCheckResult) error,
+) error {
+	fmt.Fprintf(c.App.ErrWriter, "Listing unpaused CHASM schedules in %s...\n", namespace)
 
 	var nextPageToken []byte
 	total := 0
@@ -105,7 +184,7 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 	for {
 		ctx, cancel := newContext(c)
 		resp, err := wfClient.ListWorkflowExecutions(ctx, &workflowservice.ListWorkflowExecutionsRequest{
-			Namespace:     ns,
+			Namespace:     namespace,
 			PageSize:      scheduleCheckPageSize,
 			Query:         query,
 			NextPageToken: nextPageToken,
@@ -113,7 +192,7 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		cancel()
 		if err != nil {
 			if retryAfter, ok := retryableRateLimit(err); ok {
-				fmt.Fprintf(c.App.ErrWriter, "Rate limited, retrying in %v...\n", retryAfter)
+				fmt.Fprintf(c.App.ErrWriter, "[%s] Rate limited, retrying in %v...\n", namespace, retryAfter)
 				time.Sleep(retryAfter)
 				continue
 			}
@@ -128,9 +207,9 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		if len(ids) > 0 {
 			pageNum++
 			total += len(ids)
-			fmt.Fprintf(c.App.ErrWriter, "Page %d: checking %d schedules (%d total)...\n", pageNum, len(ids), total)
+			fmt.Fprintf(c.App.ErrWriter, "[%s] Page %d: checking %d schedules (%d total)...\n", namespace, pageNum, len(ids), total)
 
-			if err := processPage(c, adminClient, registry, ns, ids, parallelism, emit); err != nil {
+			if err := processPage(c, adminClient, registry, namespace, ids, parallelism, emit); err != nil {
 				return err
 			}
 		}
@@ -139,39 +218,13 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		if len(nextPageToken) == 0 {
 			break
 		}
-
-		time.Sleep(scheduleCheckPageDelay)
 	}
 
 	if total == 0 {
-		fmt.Fprintln(c.App.ErrWriter, "No unpaused CHASM schedules found.")
+		fmt.Fprintf(c.App.ErrWriter, "[%s] No unpaused CHASM schedules found.\n", namespace)
 	}
 
 	return nil
-}
-
-func getExplicitScheduleIDs(c *cli.Context) ([]string, bool, error) {
-	// If --schedule-id is provided, check just that one.
-	if sid := c.String(FlagScheduleID); sid != "" {
-		return []string{sid}, true, nil
-	}
-
-	// If stdin is piped, read schedule IDs from it.
-	if stat, _ := os.Stdin.Stat(); (stat.Mode() & os.ModeCharDevice) == 0 {
-		var ids []string
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line != "" {
-				ids = append(ids, line)
-			}
-		}
-		if len(ids) > 0 {
-			return ids, true, nil
-		}
-	}
-
-	return nil, false, nil
 }
 
 func processPage(
