@@ -319,6 +319,30 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 				return AdminMigrateSchedule(c, clientFactory)
 			},
 		},
+		{
+			Name:  "check",
+			Usage: "Check unpaused CHASM schedules for missing tasks (GeneratorTask, SchedulerIdleTask)",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    FlagScheduleID,
+					Aliases: FlagScheduleIDAlias,
+					Usage:   "Check a single schedule ID (optional, otherwise lists all unpaused CHASM schedules; also accepts piped stdin)",
+				},
+				&cli.IntFlag{
+					Name:  "parallelism",
+					Value: 10,
+					Usage: "Concurrent describe calls",
+				},
+				&cli.IntFlag{
+					Name:  "limit",
+					Value: 0,
+					Usage: "Max schedules to check (0 = unlimited)",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				return AdminCheckSchedules(c, clientFactory)
+			},
+		},
 	}
 }
 
