@@ -43,7 +43,7 @@ type scheduleCheckResult struct {
 }
 
 func isMissingTasks(r scheduleCheckResult) bool {
-	return !r.HasGenerator || !r.HasIdle || r.Error != ""
+	return (!r.HasGenerator && !r.HasIdle) || r.Error != ""
 }
 
 func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
