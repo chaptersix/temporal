@@ -2,6 +2,7 @@ package tdbg
 
 import (
 	"bufio"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -75,8 +76,8 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 	adminClient := clientFactory.AdminClient(c)
 	wfClient := clientFactory.WorkflowClient(c)
 
-	namespaces := getNamespaces(c)
-	if len(namespaces) == 0 {
+	nsInputs := getNamespaceInputs(c)
+	if len(nsInputs) == 0 {
 		return fmt.Errorf("no namespaces provided; pass via -n flag or piped stdin")
 	}
 
@@ -108,8 +109,8 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 			}
 			return enc.Encode(r)
 		}
-		fmt.Fprintf(c.App.ErrWriter, "Checking schedule %s in %s...\n", sid, namespaces[0])
-		return processPage(c, adminClient, registry, namespaces[0], []string{sid}, parallelism, emit)
+		fmt.Fprintf(c.App.ErrWriter, "Checking schedule %s in %s...\n", sid, nsInputs[0].Namespace)
+		return processPage(c, adminClient, registry, nsInputs[0].Namespace, []string{sid}, parallelism, emit)
 	}
 
 	// Set up output dir if requested.
@@ -131,31 +132,31 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 	// Fan out across namespaces.
 	nsSem := make(chan struct{}, nsParallelism)
 	var wg sync.WaitGroup
-	errCh := make(chan error, len(namespaces))
+	errCh := make(chan error, len(nsInputs))
 
-	for _, ns := range namespaces {
+	for _, nsInput := range nsInputs {
 		wg.Add(1)
-		go func(ns string) {
+		go func(input namespaceInput) {
 			defer wg.Done()
 			nsSem <- struct{}{}
 			defer func() { <-nsSem }()
 
-			nsResult, err := runNamespaceCheck(c, wfClient, adminClient, registry, ns, query, parallelism, onlyMissing, outputDir, ts)
+			nsResult, err := runNamespaceCheck(c, wfClient, adminClient, registry, input, query, parallelism, onlyMissing, outputDir, ts)
 			if err != nil {
-				errCh <- fmt.Errorf("%s: %w", ns, err)
+				errCh <- fmt.Errorf("%s: %w", input.Namespace, err)
 				if summaryWriter != nil {
-					_ = summaryWriter.WriteString(fmt.Sprintf("[%s] ERROR: %v\n", ns, err))
+					_ = summaryWriter.WriteString(fmt.Sprintf("[%s] ERROR: %v\n", input.Namespace, err))
 				}
 				return
 			}
 
 			line := fmt.Sprintf("[%s] Done. %d checked, %d missing, %d errors\n",
-				ns, nsResult.total, nsResult.missing, nsResult.errors)
+				input.Namespace, nsResult.total, nsResult.missing, nsResult.errors)
 			fmt.Fprint(c.App.ErrWriter, line)
 			if summaryWriter != nil {
 				_ = summaryWriter.WriteString(line)
 			}
-		}(ns)
+		}(nsInput)
 	}
 
 	wg.Wait()
@@ -179,7 +180,7 @@ func runNamespaceCheck(
 	wfClient workflowservice.WorkflowServiceClient,
 	adminClient adminservice.AdminServiceClient,
 	registry *chasm.Registry,
-	namespace string,
+	input namespaceInput,
 	query string,
 	parallelism int,
 	onlyMissing bool,
@@ -189,6 +190,7 @@ func runNamespaceCheck(
 	var summary namespaceSummary
 	var enc *threadSafeEncoder
 	var nsFile *os.File
+	namespace := input.Namespace
 
 	if outputDir != "" {
 		path := filepath.Join(outputDir, fmt.Sprintf("%s_%s.jsonl", namespace, ts))
@@ -221,7 +223,7 @@ func runNamespaceCheck(
 		return enc.Encode(r)
 	}
 
-	if err := checkNamespace(c, wfClient, adminClient, registry, namespace, query, parallelism, emit); err != nil {
+	if err := checkNamespace(c, wfClient, adminClient, registry, namespace, query, parallelism, input.pageTokenBytes(), emit); err != nil {
 		return summary, err
 	}
 
@@ -232,25 +234,51 @@ func runNamespaceCheck(
 	return summary, nil
 }
 
-func getNamespaces(c *cli.Context) []string {
+type namespaceInput struct {
+	Namespace string `json:"namespace"`
+	PageToken string `json:"pageToken,omitempty"`
+}
+
+func (n namespaceInput) pageTokenBytes() []byte {
+	if n.PageToken == "" {
+		return nil
+	}
+	b, err := hex.DecodeString(n.PageToken)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+func getNamespaceInputs(c *cli.Context) []namespaceInput {
 	// Piped stdin first.
 	if stat, _ := os.Stdin.Stat(); (stat.Mode() & os.ModeCharDevice) == 0 {
-		var namespaces []string
+		var inputs []namespaceInput
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
-			if line != "" {
-				namespaces = append(namespaces, line)
+			if line == "" {
+				continue
 			}
+			// Try jsonl first.
+			if strings.HasPrefix(line, "{") {
+				var input namespaceInput
+				if json.Unmarshal([]byte(line), &input) == nil && input.Namespace != "" {
+					inputs = append(inputs, input)
+					continue
+				}
+			}
+			// Plain string.
+			inputs = append(inputs, namespaceInput{Namespace: line})
 		}
-		if len(namespaces) > 0 {
-			return namespaces
+		if len(inputs) > 0 {
+			return inputs
 		}
 	}
 
 	// Fall back to -n flag.
 	if ns := c.String(FlagNamespace); ns != "" && ns != "default" {
-		return []string{ns}
+		return []namespaceInput{{Namespace: ns}}
 	}
 
 	return nil
@@ -264,11 +292,16 @@ func checkNamespace(
 	namespace string,
 	query string,
 	parallelism int,
+	startPageToken []byte,
 	emit func(scheduleCheckResult) error,
 ) error {
-	fmt.Fprintf(c.App.ErrWriter, "[%s] Listing unpaused CHASM schedules...\n", namespace)
+	if len(startPageToken) > 0 {
+		fmt.Fprintf(c.App.ErrWriter, "[%s] Resuming from pageToken=%x\n", namespace, startPageToken)
+	} else {
+		fmt.Fprintf(c.App.ErrWriter, "[%s] Listing unpaused CHASM schedules...\n", namespace)
+	}
 
-	var nextPageToken []byte
+	nextPageToken := startPageToken
 	total := 0
 	pageNum := 0
 
