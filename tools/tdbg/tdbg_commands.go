@@ -333,6 +333,14 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 					Value: 3,
 					Usage: "Concurrent describe calls per page",
 				},
+				&cli.StringFlag{
+					Name:  "after",
+					Usage: "Only check schedules created after this time (RFC3339, e.g. 2026-05-14T00:00:00Z)",
+				},
+				&cli.StringFlag{
+					Name:  "before",
+					Usage: "Only check schedules created before this time (RFC3339, e.g. 2026-05-15T00:00:00Z)",
+				},
 				&cli.BoolFlag{
 					Name:  "only-missing",
 					Usage: "Only output schedules that are missing expected tasks",

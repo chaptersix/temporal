@@ -28,10 +28,21 @@ const (
 	scheduleCheckPageDelay   = time.Second
 )
 
-var chasmScheduleQuery = fmt.Sprintf(
+var chasmScheduleBaseQuery = fmt.Sprintf(
 	"TemporalNamespaceDivision = '%d' AND ExecutionStatus = 'Running' AND TemporalSchedulePaused = false",
 	chasm.SchedulerArchetypeID,
 )
+
+func buildScheduleQuery(after, before string) string {
+	q := chasmScheduleBaseQuery
+	if after != "" {
+		q += fmt.Sprintf(" AND StartTime >= '%s'", after)
+	}
+	if before != "" {
+		q += fmt.Sprintf(" AND StartTime <= '%s'", before)
+	}
+	return q
+}
 
 type scheduleCheckResult struct {
 	Namespace    string   `json:"namespace"`
@@ -84,6 +95,7 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 
 	// Otherwise, list from server page by page, processing each page before fetching the next.
 	wfClient := clientFactory.WorkflowClient(c)
+	query := buildScheduleQuery(c.String("after"), c.String("before"))
 	fmt.Fprintf(c.App.ErrWriter, "Listing unpaused CHASM schedules in %s...\n", ns)
 
 	var nextPageToken []byte
@@ -95,7 +107,7 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		resp, err := wfClient.ListWorkflowExecutions(ctx, &workflowservice.ListWorkflowExecutionsRequest{
 			Namespace:     ns,
 			PageSize:      scheduleCheckPageSize,
-			Query:         chasmScheduleQuery,
+			Query:         query,
 			NextPageToken: nextPageToken,
 		})
 		cancel()
