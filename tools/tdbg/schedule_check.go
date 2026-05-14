@@ -17,25 +17,26 @@ import (
 )
 
 const (
-	chasmDivision = "403648407"
-
 	fqnGeneratorTask     = "scheduler.generate"
 	fqnSchedulerIdleTask = "scheduler.idle"
 )
 
 var chasmScheduleQuery = fmt.Sprintf(
-	"TemporalNamespaceDivision = '%s' AND ExecutionStatus = 'Running' AND TemporalSchedulePaused = false",
-	chasmDivision,
+	"TemporalNamespaceDivision = '%d' AND ExecutionStatus = 'Running' AND TemporalSchedulePaused = false",
+	chasm.SchedulerArchetypeID,
 )
 
 type scheduleCheckResult struct {
-	Namespace      string   `json:"namespace"`
-	ScheduleID     string   `json:"scheduleId"`
-	HasGenerator   bool     `json:"hasGenerator"`
-	HasIdle        bool     `json:"hasIdle"`
-	MissingTasks   []string `json:"missingTasks,omitempty"`
-	Error          string   `json:"error,omitempty"`
-	TaskFQNs       []string `json:"taskFQNs,omitempty"`
+	Namespace    string   `json:"namespace"`
+	ScheduleID   string   `json:"scheduleId"`
+	HasGenerator bool     `json:"hasGenerator"`
+	HasIdle      bool     `json:"hasIdle"`
+	Error        string   `json:"error,omitempty"`
+	TaskFQNs     []string `json:"taskFQNs,omitempty"`
+}
+
+func isMissingTasks(r scheduleCheckResult) bool {
+	return !r.HasGenerator || !r.HasIdle || r.Error != ""
 }
 
 func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
@@ -50,7 +51,6 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 	if parallelism <= 0 {
 		parallelism = 10
 	}
-	limit := c.Int("limit")
 
 	logger := log.NewNoopLogger()
 	registry, err := newChasmRegistry(logger)
@@ -59,7 +59,7 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 	}
 
 	// Determine schedule IDs: explicit flag, piped stdin, or list from server.
-	ids, err := getScheduleIDs(c, clientFactory, ns, limit)
+	ids, err := getScheduleIDs(c, clientFactory, ns)
 	if err != nil {
 		return err
 	}
@@ -92,11 +92,11 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 		close(results)
 	}()
 
-	exclude := c.String("exclude")
+	onlyMissing := c.Bool("only-missing")
 
 	enc := json.NewEncoder(c.App.Writer)
 	for r := range results {
-		if shouldExclude(r, exclude) {
+		if onlyMissing && !isMissingTasks(r) {
 			continue
 		}
 		if err := enc.Encode(r); err != nil {
@@ -107,7 +107,7 @@ func AdminCheckSchedules(c *cli.Context, clientFactory ClientFactory) error {
 	return nil
 }
 
-func getScheduleIDs(c *cli.Context, clientFactory ClientFactory, namespace string, limit int) ([]string, error) {
+func getScheduleIDs(c *cli.Context, clientFactory ClientFactory, namespace string) ([]string, error) {
 	// If --schedule-id is provided, check just that one.
 	if sid := c.String(FlagScheduleID); sid != "" {
 		return []string{sid}, nil
@@ -124,9 +124,6 @@ func getScheduleIDs(c *cli.Context, clientFactory ClientFactory, namespace strin
 			}
 		}
 		if len(ids) > 0 {
-			if limit > 0 && len(ids) > limit {
-				ids = ids[:limit]
-			}
 			return ids, nil
 		}
 	}
@@ -134,10 +131,10 @@ func getScheduleIDs(c *cli.Context, clientFactory ClientFactory, namespace strin
 	// Otherwise, list all unpaused CHASM schedules from the server.
 	wfClient := clientFactory.WorkflowClient(c)
 	fmt.Fprintf(c.App.ErrWriter, "Listing unpaused CHASM schedules in %s...\n", namespace)
-	return listChasmScheduleIDs(c, wfClient, namespace, limit)
+	return listChasmScheduleIDs(c, wfClient, namespace)
 }
 
-func listChasmScheduleIDs(c *cli.Context, wfClient workflowservice.WorkflowServiceClient, namespace string, limit int) ([]string, error) {
+func listChasmScheduleIDs(c *cli.Context, wfClient workflowservice.WorkflowServiceClient, namespace string) ([]string, error) {
 	var ids []string
 	var nextPageToken []byte
 
@@ -158,10 +155,6 @@ func listChasmScheduleIDs(c *cli.Context, wfClient workflowservice.WorkflowServi
 		}
 		nextPageToken = resp.NextPageToken
 		if len(nextPageToken) == 0 {
-			break
-		}
-		if limit > 0 && len(ids) >= limit {
-			ids = ids[:limit]
 			break
 		}
 	}
@@ -233,26 +226,5 @@ func checkScheduleTasks(
 		}
 	}
 
-	if !result.HasGenerator {
-		result.MissingTasks = append(result.MissingTasks, "GeneratorTask")
-	}
-	if !result.HasIdle {
-		result.MissingTasks = append(result.MissingTasks, "SchedulerIdleTask")
-	}
-
 	return result
-}
-
-// shouldExclude returns true if the result should be excluded from output.
-//   - "healthy": exclude schedules that have both generator and idle tasks
-//   - "unhealthy": exclude schedules that are missing any task
-func shouldExclude(r scheduleCheckResult, exclude string) bool {
-	switch strings.ToLower(exclude) {
-	case "healthy":
-		return r.HasGenerator && r.HasIdle && r.Error == ""
-	case "unhealthy":
-		return len(r.MissingTasks) > 0 || r.Error != ""
-	default:
-		return false
-	}
 }

@@ -333,14 +333,9 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 					Value: 10,
 					Usage: "Concurrent describe calls",
 				},
-				&cli.IntFlag{
-					Name:  "limit",
-					Value: 0,
-					Usage: "Max schedules to check (0 = unlimited)",
-				},
-				&cli.StringFlag{
-					Name:  "exclude",
-					Usage: "Exclude results: 'healthy' (has all tasks) or 'unhealthy' (missing tasks)",
+				&cli.BoolFlag{
+					Name:  "only-missing",
+					Usage: "Only output schedules that are missing expected tasks",
 				},
 			},
 			Action: func(c *cli.Context) error {
