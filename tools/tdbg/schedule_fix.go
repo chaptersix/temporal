@@ -17,6 +17,7 @@ import (
 	"go.temporal.io/server/api/adminservice/v1"
 	"go.temporal.io/server/chasm"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
+	"go.temporal.io/server/common/codec"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/persistence/serialization"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -30,17 +31,25 @@ const (
 )
 
 type scheduleFixResult struct {
-	Namespace      string `json:"namespace"`
-	ScheduleID     string `json:"scheduleId"`
-	Action         string `json:"action"` // "fixed", "skipped", "error"
-	Reason         string `json:"reason,omitempty"`
-	Error          string `json:"error,omitempty"`
-	HighWatermark  string `json:"highWatermark,omitempty"`
-	BackfillStart  string `json:"backfillStart,omitempty"`
-	BackfillEnd    string `json:"backfillEnd,omitempty"`
-	Backfilled     bool   `json:"backfilled"`
-	CatchupWindow  string `json:"catchupWindow,omitempty"`
-	OverlapPolicy  string `json:"overlapPolicy,omitempty"`
+	Namespace     string          `json:"namespace"`
+	ScheduleID    string          `json:"scheduleId"`
+	Action        string          `json:"action"`
+	Reason        string          `json:"reason"`
+	Error         string          `json:"error"`
+	Paused        bool            `json:"paused"`
+	Notes         string          `json:"notes"`
+	HighWatermark string          `json:"highWatermark"`
+	BackfillStart string          `json:"backfillStart"`
+	BackfillEnd   string          `json:"backfillEnd"`
+	Backfilled    bool            `json:"backfilled"`
+	WithinCatchup bool            `json:"withinCatchup"`
+	CatchupWindow string          `json:"catchupWindow"`
+	OverlapPolicy string          `json:"overlapPolicy"`
+	Spec          json.RawMessage `json:"spec"`
+	UnpauseTime   string          `json:"unpauseTime"`
+	HasGenerator  bool            `json:"hasGenerator"`
+	HasIdle       bool            `json:"hasIdle"`
+	TaskFQNs      []string        `json:"taskFQNs"`
 }
 
 type fixInput struct {
@@ -58,10 +67,10 @@ type fixSummary struct {
 func (s *fixSummary) record(action string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	switch action {
-	case "fixed":
+	switch {
+	case strings.HasPrefix(action, "fixed"):
 		s.fixed++
-	case "skipped":
+	case strings.HasPrefix(action, "skipped"):
 		s.skipped++
 	default:
 		s.errors++
@@ -192,7 +201,7 @@ func fixSchedule(
 	// policies, task presence, and generator high watermark.
 	inspection, err := inspectSchedule(c, adminClient, registry, namespace, scheduleID)
 	if err != nil {
-		result.Action = "error"
+		result.Action = "error-inspect"
 		result.Error = err.Error()
 		return result
 	}
@@ -201,7 +210,8 @@ func fixSchedule(
 	if inspection.highWatermark != nil {
 		hwmStr = inspection.highWatermark.AsTime().UTC().Format(time.RFC3339)
 	}
-	fmt.Fprintf(c.App.ErrWriter, "[%s/%s] paused=%v notes=%q catchupWindow=%s overlapPolicy=%s hwm=%s hasGenerator=%v hasIdle=%v taskFQNs=%v\n",
+	specJSON, _ := codec.NewJSONPBEncoder().Encode(inspection.spec)
+	fmt.Fprintf(c.App.ErrWriter, "[%s/%s] paused=%v notes=%q catchupWindow=%s overlapPolicy=%s hwm=%s hasGenerator=%v hasIdle=%v taskFQNs=%v spec=%s\n",
 		namespace, scheduleID,
 		inspection.isPaused,
 		inspection.notes,
@@ -211,11 +221,19 @@ func fixSchedule(
 		inspection.checkResult.HasGenerator,
 		inspection.checkResult.HasIdle,
 		inspection.checkResult.TaskFQNs,
+		specJSON,
 	)
+
+	result.Paused = inspection.isPaused
+	result.Notes = inspection.notes
+	result.HasGenerator = inspection.checkResult.HasGenerator
+	result.HasIdle = inspection.checkResult.HasIdle
+	result.TaskFQNs = inspection.checkResult.TaskFQNs
+	result.Spec = json.RawMessage(specJSON)
 
 	// If paused by someone else (note doesn't contain our marker), skip.
 	if inspection.isPaused && !strings.Contains(inspection.notes, fixPauseNote) {
-		result.Action = "skipped"
+		result.Action = "skipped-paused"
 		result.Reason = fmt.Sprintf("already paused (notes: %q)", inspection.notes)
 		return result
 	}
@@ -223,8 +241,7 @@ func fixSchedule(
 	// Check task presence (unless --force or resuming from our own pause).
 	if !inspection.isPaused && !c.Bool("force") {
 		if inspection.checkResult.HasGenerator || inspection.checkResult.HasIdle {
-			result.Action = "skipped"
-			result.Reason = "not missing tasks"
+			result.Action = "skipped-not-missing"
 			return result
 		}
 	}
@@ -253,7 +270,7 @@ func fixSchedule(
 		})
 		cancel()
 		if err != nil {
-			result.Action = "error"
+			result.Action = "error-pause"
 			result.Error = fmt.Sprintf("pause: %v", err)
 			return result
 		}
@@ -265,6 +282,10 @@ func fixSchedule(
 	// Note: this will overwrite the schedule's existing pause note.
 	unpausePatch := &schedulepb.SchedulePatch{
 		Unpause: " ",
+	}
+
+	if highWatermark != nil && catchupWindow > 0 {
+		result.WithinCatchup = now.Sub(highWatermark.AsTime()) <= catchupWindow
 	}
 
 	if !c.Bool("no-backfill") && highWatermark != nil {
@@ -288,6 +309,7 @@ func fixSchedule(
 		}
 	}
 
+	unpauseTime := time.Now().UTC()
 	ctx, cancel := newContext(c)
 	_, err = wfClient.PatchSchedule(ctx, &workflowservice.PatchScheduleRequest{
 		Namespace:  namespace,
@@ -296,12 +318,19 @@ func fixSchedule(
 	})
 	cancel()
 	if err != nil {
-		result.Action = "error"
+		result.Action = "error-unpause"
 		result.Error = fmt.Sprintf("unpause: %v", err)
 		return result
 	}
+	result.UnpauseTime = unpauseTime.Format(time.RFC3339)
+	fmt.Fprintf(c.App.ErrWriter, "[%s/%s] unpaused at %s backfilled=%v\n",
+		namespace, scheduleID, result.UnpauseTime, result.Backfilled)
 
-	result.Action = "fixed"
+	if result.Backfilled {
+		result.Action = "fixed-with-backfill"
+	} else {
+		result.Action = "fixed-no-backfill"
+	}
 	return result
 }
 
@@ -311,6 +340,7 @@ type scheduleInspection struct {
 	catchupWindow time.Duration
 	overlapPolicy enumspb.ScheduleOverlapPolicy
 	highWatermark *timestamppb.Timestamp
+	spec          *schedulepb.ScheduleSpec
 	checkResult   scheduleCheckResult
 }
 
@@ -372,6 +402,7 @@ func inspectSchedule(
 					policies := schedState.GetSchedule().GetPolicies()
 					inspection.catchupWindow = policies.GetCatchupWindow().AsDuration()
 					inspection.overlapPolicy = policies.GetOverlapPolicy()
+					inspection.spec = schedState.GetSchedule().GetSpec()
 				}
 			}
 
