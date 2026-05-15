@@ -24,7 +24,6 @@ import (
 )
 
 const (
-	fixPauseNote           = "tdbg-fix: temporarily paused to regenerate tasks"
 	fqnGeneratorComponent  = "scheduler.generator"
 	fqnSchedulerComponent  = "scheduler.scheduler"
 	defaultFixParallelism  = 10
@@ -231,15 +230,15 @@ func fixSchedule(
 	result.TaskFQNs = inspection.checkResult.TaskFQNs
 	result.Spec = json.RawMessage(specJSON)
 
-	// If paused by someone else (note doesn't contain our marker), skip.
-	if inspection.isPaused && !strings.Contains(inspection.notes, fixPauseNote) {
+	// If paused by someone else, skip.
+	if inspection.isPaused {
 		result.Action = "skipped-paused"
 		result.Reason = fmt.Sprintf("already paused (notes: %q)", inspection.notes)
 		return result
 	}
 
-	// Check task presence (unless --force or resuming from our own pause).
-	if !inspection.isPaused && !c.Bool("force") {
+	// Check task presence (unless --force).
+	if !c.Bool("force") {
 		if inspection.checkResult.HasGenerator || inspection.checkResult.HasIdle {
 			result.Action = "skipped-not-missing"
 			return result
@@ -258,30 +257,13 @@ func fixSchedule(
 	result.CatchupWindow = catchupWindow.String()
 	result.OverlapPolicy = overlapPolicy.String()
 
-	// Pause with marker note (skip if we already paused it).
-	if !inspection.isPaused {
-		ctx, cancel := newContext(c)
-		_, err = wfClient.PatchSchedule(ctx, &workflowservice.PatchScheduleRequest{
-			Namespace:  namespace,
-			ScheduleId: scheduleID,
-			Patch: &schedulepb.SchedulePatch{
-				Pause: fixPauseNote,
-			},
-		})
-		cancel()
-		if err != nil {
-			result.Action = "error-pause"
-			result.Error = fmt.Sprintf("pause: %v", err)
-			return result
-		}
-	}
-
-	// Unpause with backfill. By default, backfill from max(HWM, now-catchupWindow)
-	// to now — only covering the range the generator would naturally process.
+	// Send unpause patch with backfill. The unpause triggers Generator.Generate()
+	// regardless of current pause state, which regenerates missing tasks.
+	// By default, backfill from max(HWM, now-catchupWindow) to now.
 	// With --skip-catchup-window, backfill from HWM to now regardless.
-	// Note: this will overwrite the schedule's existing pause note.
+	// Note: this will overwrite the schedule's notes.
 	unpausePatch := &schedulepb.SchedulePatch{
-		Unpause: " ",
+		Unpause: "Unpaused via tdbg schedule fix",
 	}
 
 	if highWatermark != nil && catchupWindow > 0 {
@@ -318,8 +300,8 @@ func fixSchedule(
 	})
 	cancel()
 	if err != nil {
-		result.Action = "error-unpause"
-		result.Error = fmt.Sprintf("unpause: %v", err)
+		result.Action = "error-patch"
+		result.Error = fmt.Sprintf("patch: %v", err)
 		return result
 	}
 	result.UnpauseTime = unpauseTime.Format(time.RFC3339)
