@@ -267,7 +267,7 @@ func fixSchedule(
 		Unpause: " ",
 	}
 
-	if highWatermark != nil {
+	if !c.Bool("no-backfill") && highWatermark != nil {
 		hwmTime := highWatermark.AsTime()
 		backfillStart := hwmTime
 

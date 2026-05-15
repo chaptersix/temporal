@@ -374,6 +374,10 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 					Name:  "force",
 					Usage: "Skip the missing-tasks check and always pause/unpause with backfill (used for testing)",
 				},
+				&cli.BoolFlag{
+					Name:  "no-backfill",
+					Usage: "Skip backfill on unpause (only pause/unpause to regenerate tasks)",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				return AdminFixSchedule(c, clientFactory)
