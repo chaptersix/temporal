@@ -26,7 +26,7 @@ import (
 const (
 	fqnGeneratorComponent  = "scheduler.generator"
 	fqnSchedulerComponent  = "scheduler.scheduler"
-	defaultFixParallelism  = 10
+	defaultFixParallelism  = 5
 )
 
 type scheduleFixResult struct {
@@ -156,7 +156,12 @@ func fixSchedule(
 
 	// Single DescribeMutableState call to get everything: pause status, notes,
 	// policies, task presence, and generator high watermark.
-	inspection, err := inspectSchedule(c, adminClient, registry, namespace, scheduleID)
+	var inspection *scheduleInspection
+	err := retryOnResourceExhausted(c, namespace, scheduleID, "inspect", func() error {
+		var inspectErr error
+		inspection, inspectErr = inspectSchedule(c, adminClient, registry, namespace, scheduleID)
+		return inspectErr
+	})
 	if err != nil {
 		result.Action = "error-inspect"
 		result.Error = err.Error()
@@ -250,13 +255,16 @@ func fixSchedule(
 	}
 
 	unpauseTime := time.Now().UTC()
-	ctx, cancel := newContext(c)
-	_, err = wfClient.PatchSchedule(ctx, &workflowservice.PatchScheduleRequest{
-		Namespace:  namespace,
-		ScheduleId: scheduleID,
-		Patch:      unpausePatch,
+	err = retryOnResourceExhausted(c, namespace, scheduleID, "patch", func() error {
+		ctx, cancel := newContext(c)
+		defer cancel()
+		_, patchErr := wfClient.PatchSchedule(ctx, &workflowservice.PatchScheduleRequest{
+			Namespace:  namespace,
+			ScheduleId: scheduleID,
+			Patch:      unpausePatch,
+		})
+		return patchErr
 	})
-	cancel()
 	if err != nil {
 		result.Action = "error-patch"
 		result.Error = fmt.Sprintf("patch: %v", err)
@@ -272,6 +280,29 @@ func fixSchedule(
 		result.Action = "fixed-no-backfill"
 	}
 	return result
+}
+
+const (
+	fixMaxRetries      = 3
+	fixInitialBackoff  = 2 * time.Second
+)
+
+func retryOnResourceExhausted(c *cli.Context, namespace, scheduleID, op string, fn func() error) error {
+	backoff := fixInitialBackoff
+	for attempt := 1; attempt <= fixMaxRetries; attempt++ {
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		if _, ok := retryableRateLimit(err); !ok || attempt == fixMaxRetries {
+			return err
+		}
+		fmt.Fprintf(c.App.ErrWriter, "[%s/%s] %s: rate limited, retrying in %v (attempt %d/%d)...\n",
+			namespace, scheduleID, op, backoff, attempt, fixMaxRetries)
+		time.Sleep(backoff)
+		backoff *= 2
+	}
+	return nil
 }
 
 type scheduleInspection struct {

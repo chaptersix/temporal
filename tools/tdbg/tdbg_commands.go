@@ -358,7 +358,7 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 				},
 				&cli.IntFlag{
 					Name:  "parallelism",
-					Value: 10,
+					Value: 5,
 					Usage: "Concurrent fix operations (env: TDBG_FIX_PARALLELISM)",
 				},
 				&cli.BoolFlag{
