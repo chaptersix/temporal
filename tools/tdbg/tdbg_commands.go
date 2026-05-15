@@ -347,6 +347,38 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 				return AdminCheckSchedules(c, clientFactory)
 			},
 		},
+		{
+			Name:  "fix",
+			Usage: "Fix CHASM schedules missing tasks by pause/unpause cycling with backfill",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    FlagScheduleID,
+					Aliases: FlagScheduleIDAlias,
+					Usage:   "Schedule ID to fix (or pipe JSONL with namespace and scheduleId fields)",
+				},
+				&cli.IntFlag{
+					Name:  "parallelism",
+					Value: 10,
+					Usage: "Concurrent fix operations per namespace (env: TDBG_FIX_PARALLELISM)",
+				},
+				&cli.IntFlag{
+					Name:  "ns-parallelism",
+					Value: 10,
+					Usage: "Concurrent namespaces to process (env: TDBG_FIX_NS_PARALLELISM)",
+				},
+				&cli.BoolFlag{
+					Name:  "skip-catchup-window",
+					Usage: "Backfill from high watermark regardless of catchup window (default: respects catchup window)",
+				},
+				&cli.BoolFlag{
+					Name:  "force",
+					Usage: "Skip the missing-tasks check and always pause/unpause with backfill (used for testing)",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				return AdminFixSchedule(c, clientFactory)
+			},
+		},
 	}
 }
 
