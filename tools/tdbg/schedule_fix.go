@@ -11,6 +11,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 	commonpb "go.temporal.io/api/common/v1"
+	enumspb "go.temporal.io/api/enums/v1"
 	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/api/adminservice/v1"
@@ -22,9 +23,10 @@ import (
 )
 
 const (
-	fixPauseNote          = "tdbg-fix: temporarily paused to regenerate tasks"
-	fqnGeneratorComponent = "scheduler.generator"
-	defaultFixParallelism = 10
+	fixPauseNote           = "tdbg-fix: temporarily paused to regenerate tasks"
+	fqnGeneratorComponent  = "scheduler.generator"
+	fqnSchedulerComponent  = "scheduler.scheduler"
+	defaultFixParallelism  = 10
 )
 
 type scheduleFixResult struct {
@@ -186,65 +188,62 @@ func fixSchedule(
 		ScheduleID: scheduleID,
 	}
 
-	// Step 1: Describe schedule to check pause status.
-	ctx, cancel := newContext(c)
-	descResp, err := wfClient.DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
-		Namespace:  namespace,
-		ScheduleId: scheduleID,
-	})
-	cancel()
+	// Single DescribeMutableState call to get everything: pause status, notes,
+	// policies, task presence, and generator high watermark.
+	inspection, err := inspectSchedule(c, adminClient, registry, namespace, scheduleID)
 	if err != nil {
 		result.Action = "error"
-		result.Error = fmt.Sprintf("describe schedule: %v", err)
+		result.Error = err.Error()
 		return result
 	}
 
-	state := descResp.GetSchedule().GetState()
-	isPaused := state.GetPaused()
-	notes := state.GetNotes()
+	hwmStr := "<nil>"
+	if inspection.highWatermark != nil {
+		hwmStr = inspection.highWatermark.AsTime().UTC().Format(time.RFC3339)
+	}
+	fmt.Fprintf(c.App.ErrWriter, "[%s/%s] paused=%v notes=%q catchupWindow=%s overlapPolicy=%s hwm=%s hasGenerator=%v hasIdle=%v taskFQNs=%v\n",
+		namespace, scheduleID,
+		inspection.isPaused,
+		inspection.notes,
+		inspection.catchupWindow,
+		inspection.overlapPolicy,
+		hwmStr,
+		inspection.checkResult.HasGenerator,
+		inspection.checkResult.HasIdle,
+		inspection.checkResult.TaskFQNs,
+	)
 
 	// If paused by someone else (note doesn't contain our marker), skip.
-	if isPaused && !strings.Contains(notes, fixPauseNote) {
+	if inspection.isPaused && !strings.Contains(inspection.notes, fixPauseNote) {
 		result.Action = "skipped"
-		result.Reason = fmt.Sprintf("already paused (notes: %q)", notes)
+		result.Reason = fmt.Sprintf("already paused (notes: %q)", inspection.notes)
 		return result
 	}
 
-	// Step 2: Check CHASM tasks and extract generator high watermark.
-	var highWatermark *timestamppb.Timestamp
-	skipTaskCheck := c.Bool("force")
-	if !isPaused {
-		checkResult, hwm := checkScheduleTasksWithWatermark(c, adminClient, registry, namespace, scheduleID)
-		if checkResult.Error != "" {
-			result.Action = "error"
-			result.Error = fmt.Sprintf("check tasks: %s", checkResult.Error)
-			return result
-		}
-		if !skipTaskCheck && !isMissingTasks(checkResult) {
+	// Check task presence (unless --force or resuming from our own pause).
+	if !inspection.isPaused && !c.Bool("force") {
+		if inspection.checkResult.HasGenerator || inspection.checkResult.HasIdle {
 			result.Action = "skipped"
 			result.Reason = "not missing tasks"
 			return result
 		}
-		highWatermark = hwm
-	} else {
-		// Already paused by us from a prior run — still need the watermark.
-		_, hwm := checkScheduleTasksWithWatermark(c, adminClient, registry, namespace, scheduleID)
-		highWatermark = hwm
 	}
 
 	now := time.Now().UTC()
-	policies := descResp.GetSchedule().GetPolicies()
-	catchupWindow := policies.GetCatchupWindow().AsDuration()
-	overlapPolicy := policies.GetOverlapPolicy()
+	catchupWindow := inspection.catchupWindow
+	overlapPolicy := inspection.overlapPolicy
+	highWatermark := inspection.highWatermark
 
 	if highWatermark != nil {
 		result.HighWatermark = highWatermark.AsTime().UTC().Format(time.RFC3339)
 	}
 	result.BackfillEnd = now.Format(time.RFC3339)
+	result.CatchupWindow = catchupWindow.String()
+	result.OverlapPolicy = overlapPolicy.String()
 
-	// Step 3: Pause with marker note (skip if we already paused it).
-	if !isPaused {
-		ctx, cancel = newContext(c)
+	// Pause with marker note (skip if we already paused it).
+	if !inspection.isPaused {
+		ctx, cancel := newContext(c)
 		_, err = wfClient.PatchSchedule(ctx, &workflowservice.PatchScheduleRequest{
 			Namespace:  namespace,
 			ScheduleId: scheduleID,
@@ -263,11 +262,10 @@ func fixSchedule(
 	// Unpause with backfill. By default, backfill from max(HWM, now-catchupWindow)
 	// to now — only covering the range the generator would naturally process.
 	// With --skip-catchup-window, backfill from HWM to now regardless.
+	// Note: this will overwrite the schedule's existing pause note.
 	unpausePatch := &schedulepb.SchedulePatch{
 		Unpause: " ",
 	}
-	result.CatchupWindow = catchupWindow.String()
-	result.OverlapPolicy = overlapPolicy.String()
 
 	if highWatermark != nil {
 		hwmTime := highWatermark.AsTime()
@@ -290,7 +288,7 @@ func fixSchedule(
 		}
 	}
 
-	ctx, cancel = newContext(c)
+	ctx, cancel := newContext(c)
 	_, err = wfClient.PatchSchedule(ctx, &workflowservice.PatchScheduleRequest{
 		Namespace:  namespace,
 		ScheduleId: scheduleID,
@@ -303,37 +301,28 @@ func fixSchedule(
 		return result
 	}
 
-	// Step 5: Verify tasks were regenerated.
-	verifyResult, _ := checkScheduleTasksWithWatermark(c, adminClient, registry, namespace, scheduleID)
-	if verifyResult.Error != "" {
-		result.Action = "error"
-		result.Error = fmt.Sprintf("verify after fix: %s", verifyResult.Error)
-		return result
-	}
-	if isMissingTasks(verifyResult) {
-		result.Action = "error"
-		result.Error = "still missing tasks after pause/unpause cycle"
-		return result
-	}
-
 	result.Action = "fixed"
 	return result
 }
 
-// checkScheduleTasksWithWatermark extends checkScheduleTasks to also extract
-// the generator's LastProcessedTime (high watermark) from the CHASM tree.
-func checkScheduleTasksWithWatermark(
+type scheduleInspection struct {
+	isPaused      bool
+	notes         string
+	catchupWindow time.Duration
+	overlapPolicy enumspb.ScheduleOverlapPolicy
+	highWatermark *timestamppb.Timestamp
+	checkResult   scheduleCheckResult
+}
+
+// inspectSchedule uses a single DescribeMutableState call to extract pause
+// status, notes, policies, task presence, and generator high watermark.
+func inspectSchedule(
 	c *cli.Context,
 	adminClient adminservice.AdminServiceClient,
 	registry *chasm.Registry,
 	namespace string,
 	scheduleID string,
-) (scheduleCheckResult, *timestamppb.Timestamp) {
-	result := scheduleCheckResult{
-		Namespace:  namespace,
-		ScheduleID: scheduleID,
-	}
-
+) (*scheduleInspection, error) {
 	ctx, cancel := newContext(c)
 	defer cancel()
 
@@ -345,17 +334,20 @@ func checkScheduleTasksWithWatermark(
 		Archetype: chasm.SchedulerArchetype,
 	})
 	if err != nil {
-		result.Error = err.Error()
-		return result, nil
+		return nil, fmt.Errorf("describe mutable state: %w", err)
 	}
 
 	chasmNodes := resp.GetDatabaseMutableState().GetChasmNodes()
 	if len(chasmNodes) == 0 {
-		result.Error = "no CHASM nodes found"
-		return result, nil
+		return nil, fmt.Errorf("no CHASM nodes found")
 	}
 
-	var highWatermark *timestamppb.Timestamp
+	inspection := &scheduleInspection{}
+	inspection.checkResult = scheduleCheckResult{
+		Namespace:  namespace,
+		ScheduleID: scheduleID,
+	}
+
 	var allTaskFQNs []string
 
 	for _, node := range chasmNodes {
@@ -364,18 +356,37 @@ func checkScheduleTasksWithWatermark(
 			continue
 		}
 
-		// Check if this is the generator component and extract its state.
 		componentFQN, _ := registry.ComponentFqnByID(componentAttr.GetTypeId())
-		if componentFQN == fqnGeneratorComponent {
+
+		switch componentFQN {
+		case fqnSchedulerComponent:
+			// Decode root scheduler state for pause status, notes, policies.
+			dataBlob := node.GetData()
+			if dataBlob != nil && len(dataBlob.GetData()) > 0 {
+				var schedState schedulerpb.SchedulerState
+				if err := serialization.Decode(dataBlob, &schedState); err == nil {
+					scheduleState := schedState.GetSchedule().GetState()
+					inspection.isPaused = scheduleState.GetPaused()
+					inspection.notes = scheduleState.GetNotes()
+
+					policies := schedState.GetSchedule().GetPolicies()
+					inspection.catchupWindow = policies.GetCatchupWindow().AsDuration()
+					inspection.overlapPolicy = policies.GetOverlapPolicy()
+				}
+			}
+
+		case fqnGeneratorComponent:
+			// Decode generator state for high watermark.
 			dataBlob := node.GetData()
 			if dataBlob != nil && len(dataBlob.GetData()) > 0 {
 				var genState schedulerpb.GeneratorState
 				if err := serialization.Decode(dataBlob, &genState); err == nil {
-					highWatermark = genState.LastProcessedTime
+					inspection.highWatermark = genState.LastProcessedTime
 				}
 			}
 		}
 
+		// Collect task FQNs from all component nodes.
 		for _, task := range componentAttr.GetSideEffectTasks() {
 			taskFQN, _ := registry.TaskFqnByID(task.GetTypeId())
 			if taskFQN != "" {
@@ -390,15 +401,16 @@ func checkScheduleTasksWithWatermark(
 		}
 	}
 
-	result.TaskFQNs = allTaskFQNs
+	inspection.checkResult.TaskFQNs = allTaskFQNs
 	for _, taskFQN := range allTaskFQNs {
 		switch taskFQN {
 		case fqnGeneratorTask:
-			result.HasGenerator = true
+			inspection.checkResult.HasGenerator = true
 		case fqnSchedulerIdleTask:
-			result.HasIdle = true
+			inspection.checkResult.HasIdle = true
 		}
 	}
 
-	return result, highWatermark
+	return inspection, nil
 }
+
