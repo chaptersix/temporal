@@ -99,27 +99,28 @@ func AdminFixSchedule(c *cli.Context, clientFactory ClientFactory) error {
 	}
 
 	// Streaming piped input — assumes sorted by namespace.
-	// Group consecutive lines by namespace, dispatch each group with ns-parallelism.
+	// Each namespace gets one worker goroutine with its own schedule-level
+	// semaphore, so --parallelism is the true cap per namespace.
+	// nsSem gates how many namespace workers run concurrently.
 	summary := &fixSummary{}
 	nsSem := make(chan struct{}, nsParallelism)
 	var nsWg sync.WaitGroup
 
-	scanner := bufio.NewScanner(os.Stdin)
-	var currentNS string
-	var batch []string
-
-	flushBatch := func(ns string, ids []string) {
+	// startNSWorker spins up a single goroutine for a namespace that drains
+	// schedule IDs from the returned channel.
+	startNSWorker := func(ns string) chan<- string {
+		ch := make(chan string, 100)
 		nsWg.Add(1)
-		nsSem <- struct{}{}
 		go func() {
 			defer nsWg.Done()
+			nsSem <- struct{}{}
 			defer func() { <-nsSem }()
-
-			fmt.Fprintf(c.App.ErrWriter, "[%s] Fixing %d schedules (parallelism=%d)...\n", ns, len(ids), parallelism)
 
 			sem := make(chan struct{}, parallelism)
 			var wg sync.WaitGroup
-			for _, sid := range ids {
+			total := 0
+			for sid := range ch {
+				total++
 				wg.Add(1)
 				go func(id string) {
 					defer wg.Done()
@@ -132,9 +133,14 @@ func AdminFixSchedule(c *cli.Context, clientFactory ClientFactory) error {
 				}(sid)
 			}
 			wg.Wait()
-			fmt.Fprintf(c.App.ErrWriter, "[%s] Done.\n", ns)
+			fmt.Fprintf(c.App.ErrWriter, "[%s] Done. %d processed.\n", ns, total)
 		}()
+		return ch
 	}
+
+	scanner := bufio.NewScanner(os.Stdin)
+	var currentNS string
+	var nsCh chan<- string
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -147,20 +153,17 @@ func AdminFixSchedule(c *cli.Context, clientFactory ClientFactory) error {
 		}
 
 		if input.Namespace != currentNS {
-			if len(batch) > 0 {
-				flushBatch(currentNS, batch)
-				batch = nil
+			if nsCh != nil {
+				close(nsCh)
 			}
 			currentNS = input.Namespace
+			nsCh = startNSWorker(currentNS)
+			fmt.Fprintf(c.App.ErrWriter, "[%s] Starting fix (parallelism=%d)...\n", currentNS, parallelism)
 		}
-		batch = append(batch, input.ScheduleID)
-		if len(batch) >= 100 {
-			flushBatch(currentNS, batch)
-			batch = nil
-		}
+		nsCh <- input.ScheduleID
 	}
-	if len(batch) > 0 {
-		flushBatch(currentNS, batch)
+	if nsCh != nil {
+		close(nsCh)
 	}
 
 	nsWg.Wait()
