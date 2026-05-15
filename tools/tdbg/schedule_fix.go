@@ -90,10 +90,6 @@ func AdminFixSchedule(c *cli.Context, clientFactory ClientFactory) error {
 	if parallelism <= 0 {
 		parallelism = intFromEnv("TDBG_FIX_PARALLELISM", defaultFixParallelism)
 	}
-	nsParallelism := c.Int("ns-parallelism")
-	if nsParallelism <= 0 {
-		nsParallelism = intFromEnv("TDBG_FIX_NS_PARALLELISM", defaultScheduleCheckNsParallel)
-	}
 
 	enc := &threadSafeEncoder{enc: json.NewEncoder(c.App.Writer)}
 
@@ -108,50 +104,13 @@ func AdminFixSchedule(c *cli.Context, clientFactory ClientFactory) error {
 		return enc.Encode(result)
 	}
 
-	// Streaming piped input — assumes sorted by namespace.
-	// Each namespace gets one worker goroutine with its own schedule-level
-	// semaphore, so --parallelism is the true cap per namespace.
-	// nsSem gates how many namespace workers run concurrently.
+	// Streaming piped input with a single worker pool.
 	summary := &fixSummary{}
-	nsSem := make(chan struct{}, nsParallelism)
-	var nsWg sync.WaitGroup
-
-	// startNSWorker spins up a single goroutine for a namespace that drains
-	// schedule IDs from the returned channel.
-	startNSWorker := func(ns string) chan<- string {
-		ch := make(chan string, 100)
-		nsWg.Add(1)
-		go func() {
-			defer nsWg.Done()
-			nsSem <- struct{}{}
-			defer func() { <-nsSem }()
-
-			sem := make(chan struct{}, parallelism)
-			var wg sync.WaitGroup
-			total := 0
-			for sid := range ch {
-				total++
-				wg.Add(1)
-				go func(id string) {
-					defer wg.Done()
-					sem <- struct{}{}
-					defer func() { <-sem }()
-
-					result := fixSchedule(c, wfClient, adminClient, registry, ns, id)
-					_ = enc.Encode(result)
-					summary.record(result.Action)
-				}(sid)
-			}
-			wg.Wait()
-			fmt.Fprintf(c.App.ErrWriter, "[%s] Done. %d processed.\n", ns, total)
-		}()
-		return ch
-	}
+	sem := make(chan struct{}, parallelism)
+	var wg sync.WaitGroup
 
 	scanner := bufio.NewScanner(os.Stdin)
-	var currentNS string
-	var nsCh chan<- string
-
+	total := 0
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -162,24 +121,23 @@ func AdminFixSchedule(c *cli.Context, clientFactory ClientFactory) error {
 			continue
 		}
 
-		if input.Namespace != currentNS {
-			if nsCh != nil {
-				close(nsCh)
-			}
-			currentNS = input.Namespace
-			nsCh = startNSWorker(currentNS)
-			fmt.Fprintf(c.App.ErrWriter, "[%s] Starting fix (parallelism=%d)...\n", currentNS, parallelism)
-		}
-		nsCh <- input.ScheduleID
-	}
-	if nsCh != nil {
-		close(nsCh)
+		total++
+		wg.Add(1)
+		go func(ns, sid string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			result := fixSchedule(c, wfClient, adminClient, registry, ns, sid)
+			_ = enc.Encode(result)
+			summary.record(result.Action)
+		}(input.Namespace, input.ScheduleID)
 	}
 
-	nsWg.Wait()
+	wg.Wait()
 
-	fmt.Fprintf(c.App.ErrWriter, "Done. %d fixed, %d skipped, %d errors\n",
-		summary.fixed, summary.skipped, summary.errors)
+	fmt.Fprintf(c.App.ErrWriter, "Done. %d total, %d fixed, %d skipped, %d errors\n",
+		total, summary.fixed, summary.skipped, summary.errors)
 	return nil
 }
 

@@ -359,12 +359,7 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 				&cli.IntFlag{
 					Name:  "parallelism",
 					Value: 10,
-					Usage: "Concurrent fix operations per namespace (env: TDBG_FIX_PARALLELISM)",
-				},
-				&cli.IntFlag{
-					Name:  "ns-parallelism",
-					Value: 10,
-					Usage: "Concurrent namespaces to process (env: TDBG_FIX_NS_PARALLELISM)",
+					Usage: "Concurrent fix operations (env: TDBG_FIX_PARALLELISM)",
 				},
 				&cli.BoolFlag{
 					Name:  "skip-catchup-window",
