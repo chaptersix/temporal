@@ -104,10 +104,22 @@ func AdminFixSchedule(c *cli.Context, clientFactory ClientFactory) error {
 		return enc.Encode(result)
 	}
 
-	// Streaming piped input with a single worker pool.
+	// Streaming piped input with a fixed worker pool.
 	summary := &fixSummary{}
-	sem := make(chan struct{}, parallelism)
+	work := make(chan fixInput)
+
 	var wg sync.WaitGroup
+	for range parallelism {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for input := range work {
+				result := fixSchedule(c, wfClient, adminClient, registry, input.Namespace, input.ScheduleID)
+				_ = enc.Encode(result)
+				summary.record(result.Action)
+			}
+		}()
+	}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	total := 0
@@ -120,19 +132,10 @@ func AdminFixSchedule(c *cli.Context, clientFactory ClientFactory) error {
 		if json.Unmarshal([]byte(line), &input) != nil || input.Namespace == "" || input.ScheduleID == "" {
 			continue
 		}
-
 		total++
-		wg.Add(1)
-		go func(ns, sid string) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			result := fixSchedule(c, wfClient, adminClient, registry, ns, sid)
-			_ = enc.Encode(result)
-			summary.record(result.Action)
-		}(input.Namespace, input.ScheduleID)
+		work <- input
 	}
+	close(work)
 
 	wg.Wait()
 
