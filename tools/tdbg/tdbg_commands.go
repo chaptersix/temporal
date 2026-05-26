@@ -319,6 +319,65 @@ func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 				return AdminMigrateSchedule(c, clientFactory)
 			},
 		},
+		{
+			Name:  "check",
+			Usage: "Check unpaused CHASM schedules for missing tasks (GeneratorTask, SchedulerIdleTask)",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    FlagScheduleID,
+					Aliases: FlagScheduleIDAlias,
+					Usage:   "Check a single schedule ID (optional, otherwise lists all unpaused CHASM schedules; also accepts piped stdin)",
+				},
+				&cli.IntFlag{
+					Name:  "parallelism",
+					Value: 10,
+					Usage: "Concurrent describe calls per page per namespace (env: TDBG_CHECK_PARALLELISM)",
+				},
+				&cli.IntFlag{
+					Name:  "ns-parallelism",
+					Value: 10,
+					Usage: "Concurrent namespaces to process (env: TDBG_CHECK_NS_PARALLELISM)",
+				},
+&cli.StringFlag{
+					Name:  "output-dir",
+					Usage: "Write per-namespace .jsonl files and a summary.txt to this directory",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				return AdminCheckSchedules(c, clientFactory)
+			},
+		},
+		{
+			Name:  "fix",
+			Usage: "Fix CHASM schedules missing tasks by pause/unpause cycling with backfill",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    FlagScheduleID,
+					Aliases: FlagScheduleIDAlias,
+					Usage:   "Schedule ID to fix (or pipe JSONL with namespace and scheduleId fields)",
+				},
+				&cli.IntFlag{
+					Name:  "parallelism",
+					Value: 5,
+					Usage: "Concurrent fix operations (env: TDBG_FIX_PARALLELISM)",
+				},
+				&cli.BoolFlag{
+					Name:  "skip-catchup-window",
+					Usage: "Backfill from high watermark regardless of catchup window (default: respects catchup window)",
+				},
+				&cli.BoolFlag{
+					Name:  "force",
+					Usage: "Skip the missing-tasks check and always pause/unpause with backfill (used for testing)",
+				},
+				&cli.BoolFlag{
+					Name:  "no-backfill",
+					Usage: "Skip backfill on unpause (only pause/unpause to regenerate tasks)",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				return AdminFixSchedule(c, clientFactory)
+			},
+		},
 	}
 }
 
