@@ -530,7 +530,7 @@ func (s *scheduler) getNextTimeV1(after time.Time) GetNextTimeResult {
 		for t := after; !t.IsZero() && len(results) < nextTimeCacheV1Size; {
 			// This (pre-cache-v2) path can't represent the compute limit distinctly, so a
 			// limit-exceeded result is treated as end-of-schedule (zero Next stops the loop).
-			next, _ := s.cspec.GetNextTime(s.jitterSeed(), t)
+			next, _ := s.computeNextTime(t)
 			results[t] = next
 			t = next.Next
 		}
@@ -607,7 +607,7 @@ func (s *scheduler) fillNextTimeCacheV2(start time.Time) {
 			NominalTimes: make([]int64, 0, s.tweakables.NextTimeCacheV2Size),
 		}
 		for t := start; len(cache.NextTimes) < s.tweakables.NextTimeCacheV2Size; {
-			next, err := s.cspec.GetNextTime(s.jitterSeed(), t)
+			next, err := s.computeNextTime(t)
 			if errors.Is(err, ErrComputeLimitExceeded) {
 				// Surface the bounded search and stop. Mark the cache completed so an
 				// identical automatic retry does not repeatedly consume the limit.
@@ -666,10 +666,18 @@ func (s *scheduler) getNextTime(after time.Time) GetNextTimeResult {
 	// existing schedule workflows.
 	var next GetNextTimeResult
 	panicIfErr(workflow.SideEffect(s.ctx, func(ctx workflow.Context) any {
-		res, _ := s.cspec.GetNextTime(s.jitterSeed(), after)
+		res, _ := s.computeNextTime(after)
 		return res
 	}).Get(&next))
 	return next
+}
+
+func (s *scheduler) computeNextTime(after time.Time) (GetNextTimeResult, error) {
+	result, err := s.cspec.GetNextTime(s.jitterSeed(), after)
+	if s.metrics != nil {
+		s.metrics.Counter(metrics.ScheduleComputeIterations.Name()).Inc(int64(result.ComputeIterations))
+	}
+	return result, err
 }
 
 func (s *scheduler) processTimeRange(
@@ -1107,7 +1115,7 @@ func (s *scheduler) getFutureActionTimes(inWorkflowContext bool, n int) []*times
 
 	// Pure version not using workflow context
 	next := func(t time.Time) time.Time {
-		res, _ := s.cspec.GetNextTime(s.jitterSeed(), t)
+		res, _ := s.computeNextTime(t)
 		return res.Next
 	}
 
@@ -1168,7 +1176,7 @@ func (s *scheduler) handleListMatchingTimesQuery(req *workflowservice.ListSchedu
 	t1 := timestamp.TimeValue(req.StartTime)
 	for range maxListMatchingTimesCount {
 		// don't need to call GetNextTime in SideEffect because this is just a query
-		res, err := s.cspec.GetNextTime(s.jitterSeed(), t1)
+		res, err := s.computeNextTime(t1)
 		if err != nil {
 			// An identical retry would re-burn the same compute bound.
 			return nil, serviceerror.NewFailedPrecondition(err.Error())

@@ -4805,8 +4805,8 @@ func TestMirroredIncludeExcludeSpec(t *testing.T) {
 
 	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
 	excludeEverySecond := []*schedulepb.CalendarSpec{
-		{Second: "0-58", Minute: "*", Hour: "*"},
-		{Second: "59", Minute: "*", Hour: "*"},
+		{Second: "0-58", Minute: "*", Hour: "*", Year: "2025-2100"},
+		{Second: "59", Minute: "*", Hour: "*", Year: "2025-2100"},
 	}
 
 	ctx, cancel := context.WithTimeout(chasmContextFactory(s.Context()), 10*time.Second)
@@ -4848,8 +4848,8 @@ func TestMirroredIncludeExcludeSpecOnUpdate(t *testing.T) {
 
 	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
 	excludeEverySecond := []*schedulepb.CalendarSpec{
-		{Second: "0-58", Minute: "*", Hour: "*"},
-		{Second: "59", Minute: "*", Hour: "*"},
+		{Second: "0-58", Minute: "*", Hour: "*", Year: "2025-2100"},
+		{Second: "59", Minute: "*", Hour: "*", Year: "2025-2100"},
 	}
 	updateCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -4878,6 +4878,44 @@ func TestMirroredIncludeExcludeSpecOnUpdate(t *testing.T) {
 		})
 		return lmErr != nil
 	}, awaitTimeout, pollInterval, "ListMatchingTimes should error once the mirrored spec is applied")
+}
+
+func TestGloballyEmptyScheduleRejected(t *testing.T) {
+	s := testcore.NewEnv(t, scheduleCommonOpts(t)...)
+	ctx := chasmContextFactory(s.Context())
+	globallyEmptySpec := func() *schedulepb.ScheduleSpec {
+		return &schedulepb.ScheduleSpec{
+			Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}},
+			ExcludeCalendar: []*schedulepb.CalendarSpec{
+				{Second: "0-58", Minute: "*", Hour: "*"},
+				{Second: "59", Minute: "*", Hour: "*"},
+			},
+		}
+	}
+
+	_, err := s.FrontendClient().CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: testcore.RandomizeStr("sched-empty-create"),
+		Schedule:   &schedulepb.Schedule{Spec: globallyEmptySpec()},
+		Identity:   "test",
+		RequestId:  uuid.NewString(),
+	})
+	var invalidArgument *serviceerror.InvalidArgument
+	require.ErrorAs(t, err, &invalidArgument)
+
+	sid := testcore.RandomizeStr("sched-empty-update")
+	createSchedule(ctx, t, s, sid, &schedulepb.Schedule{
+		Spec:   intervalSpec(time.Hour),
+		Action: startWorkflowAction(s, testcore.RandomizeStr("sched-empty-update-wf"), testcore.RandomizeStr("sched-empty-update-wt")),
+	})
+	_, err = s.FrontendClient().UpdateSchedule(ctx, &workflowservice.UpdateScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+		Schedule:   &schedulepb.Schedule{Spec: globallyEmptySpec()},
+		Identity:   "test",
+		RequestId:  uuid.NewString(),
+	})
+	require.ErrorAs(t, err, &invalidArgument)
 }
 
 // TestScheduleFarFutureActionTimes verifies that a schedule firing far beyond the compute

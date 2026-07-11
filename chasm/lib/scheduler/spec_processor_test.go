@@ -257,8 +257,8 @@ func TestProcessTimeRange_ComputeLimitExceeded(t *testing.T) {
 	schedule.Spec = &schedulepb.ScheduleSpec{
 		Calendar: []*schedulepb.CalendarSpec{everySecond},
 		ExcludeCalendar: []*schedulepb.CalendarSpec{
-			{Second: "0-58", Minute: "*", Hour: "*"},
-			{Second: "59", Minute: "*", Hour: "*"},
+			{Second: "0-58", Minute: "*", Hour: "*", Year: "2025-2100"},
+			{Second: "59", Minute: "*", Hour: "*", Year: "2025-2100"},
 		},
 	}
 	sched, err := scheduler.NewScheduler(ctx, namespace, namespaceID, scheduleID, schedule, nil)
@@ -295,4 +295,9 @@ func TestProcessTimeRange_ComputeLimitExceeded(t *testing.T) {
 
 	recorded := capture.Snapshot()[metrics.ScheduleComputeLimitExceeded.Name()]
 	require.Len(t, recorded, 2, "expected the compute-limit counter to fire on both the active and paused paths")
+	iterations := capture.Snapshot()[metrics.ScheduleComputeIterations.Name()]
+	require.Len(t, iterations, 2)
+	for _, recording := range iterations {
+		require.Equal(t, int64(10_000), recording.Value)
+	}
 }

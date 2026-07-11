@@ -369,58 +369,91 @@ func (s *specSuite) TestSpecExclude() {
 	)
 }
 
-func (s *specSuite) TestExcludeAll() {
-	cs, err := s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
-		Interval: []*schedulepb.IntervalSpec{
-			{Interval: durationpb.New(7 * 24 * time.Hour)},
+func (s *specSuite) TestRejectsSpecsWithNoMatchingTime() {
+	second := durationpb.New(time.Second)
+	tests := map[string]*schedulepb.ScheduleSpec{
+		"impossible civil date": {
+			Calendar: []*schedulepb.CalendarSpec{{Month: "2", DayOfMonth: "30"}},
 		},
-		ExcludeCalendar: []*schedulepb.CalendarSpec{
-			&schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"},
+		"inverted bounds": {
+			Interval:  []*schedulepb.IntervalSpec{{Interval: second}},
+			StartTime: timestamppb.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)),
+			EndTime:   timestamppb.New(time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)),
 		},
+		"universal exclusion": {
+			Interval:        []*schedulepb.IntervalSpec{{Interval: second}},
+			ExcludeCalendar: []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
+		},
+		"partitioned universal exclusion": {
+			Interval: []*schedulepb.IntervalSpec{{Interval: second}},
+			ExcludeCalendar: []*schedulepb.CalendarSpec{
+				{Second: "0-58", Minute: "*", Hour: "*"},
+				{Second: "59", Minute: "*", Hour: "*"},
+			},
+		},
+	}
+	for name, spec := range tests {
+		s.Run(name, func() {
+			_, err := s.specBuilder.NewCompiledSpec(spec)
+			s.Require().ErrorIs(err, ErrNoMatchingTimes)
+		})
+	}
+
+	_, err := s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{})
+	s.Require().NoError(err, "an empty inclusion set is a supported manual-only schedule")
+
+	_, err = s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Calendar: []*schedulepb.CalendarSpec{{Month: "2", DayOfMonth: "30"}},
+		Interval: []*schedulepb.IntervalSpec{{Interval: second}},
 	})
-	s.NoError(err)
-	result, err := cs.GetNextTime("", time.Date(2022, 3, 23, 12, 53, 2, 9, time.UTC))
-	s.Require().NoError(err)
-	s.Zero(result)
+	s.Require().NoError(err, "one impossible union member does not make the effective set empty")
+
+	_, err = s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Calendar: []*schedulepb.CalendarSpec{{
+			Second: "0", Minute: "30", Hour: "1", DayOfMonth: "5", Month: "4", Year: "2020",
+		}},
+		StartTime:    timestamppb.New(time.Date(2020, 4, 4, 14, 29, 59, 0, time.UTC)),
+		EndTime:      timestamppb.New(time.Date(2020, 4, 4, 14, 30, 0, 0, time.UTC)),
+		TimezoneName: "Australia/Lord_Howe",
+	})
+	s.Require().NoError(err, "validation must not inherit next-time search false negatives")
 }
 
 func (s *specSuite) TestGetNextTimeComputeLimitExceeded() {
-	// Two calendars collectively exclude every candidate without either one being universal, so
-	// the fallback search bound is still exercised.
+	// The exclusions cover a finite year, so a result exists after that year even though this
+	// search cannot reach it before exhausting the fallback bound.
 	const iterations = 10_000
 	builder := NewSpecBuilder()
 	builder.SetMaxIterations(func() int { return iterations })
 	cs, err := builder.NewCompiledSpec(&schedulepb.ScheduleSpec{
 		Calendar: []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
 		ExcludeCalendar: []*schedulepb.CalendarSpec{
-			{Second: "0-58", Minute: "*", Hour: "*"},
-			{Second: "59", Minute: "*", Hour: "*"},
+			{Second: "0-58", Minute: "*", Hour: "*", Year: "2025"},
+			{Second: "59", Minute: "*", Hour: "*", Year: "2025"},
 		},
 	})
 	s.Require().NoError(err)
 
-	after := time.Date(2022, 3, 23, 12, 0, 0, 0, time.UTC)
+	after := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	result, err := cs.GetNextTime("", after)
 
 	s.Require().ErrorIs(err, ErrComputeLimitExceeded)
-	s.Zero(result)
+	s.True(result.Nominal.IsZero())
+	s.True(result.Next.IsZero())
+	s.Equal(iterations, result.ComputeIterations)
 }
 
-func (s *specSuite) TestGetNextTimeUniversalExclusionShortCircuits() {
+func (s *specSuite) TestUniversalExclusionValidationShortCircuits() {
 	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
-	cs, err := NewSpecBuilder().NewCompiledSpec(&schedulepb.ScheduleSpec{
+	started := time.Now()
+	_, err := NewSpecBuilder().NewCompiledSpec(&schedulepb.ScheduleSpec{
 		Calendar:        []*schedulepb.CalendarSpec{everySecond},
 		ExcludeCalendar: []*schedulepb.CalendarSpec{everySecond},
 	})
-	s.Require().NoError(err)
-
-	started := time.Now()
-	result, err := cs.GetNextTime("", time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC))
 	elapsed := time.Since(started)
-	s.T().Logf("universal exclusion returned without walking the default %d-candidate limit in %s", DefaultMaxIterations, elapsed)
+	s.T().Logf("universal exclusion was rejected without walking the default %d-candidate limit in %s", DefaultMaxIterations, elapsed)
 
-	s.Require().NoError(err)
-	s.Zero(result)
+	s.Require().ErrorIs(err, ErrNoMatchingTimes)
 }
 
 func (s *specSuite) TestGetNextTimeYearBoundedExclusionIsNotUniversal() {
@@ -461,7 +494,9 @@ func (s *specSuite) TestGetNextTimeDefaultComputeLimitCanRejectValidBlackout() {
 	s.T().Logf("valid finite-blackout search reached the default %d-candidate limit in %s", DefaultMaxIterations, elapsed)
 
 	s.Require().ErrorIs(err, ErrComputeLimitExceeded)
-	s.Zero(result)
+	s.True(result.Nominal.IsZero())
+	s.True(result.Next.IsZero())
+	s.Equal(DefaultMaxIterations, result.ComputeIterations)
 	s.Equal(time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC), boundary)
 	s.Equal(expected, cs.rawNextTime(boundary))
 	s.False(cs.excluded(expected), "the schedule has an allowed occurrence one second beyond the default limit")
