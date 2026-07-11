@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://temporal.io/schedule-property-analysis/campaign-v1.schema.json",
+  "title": "Schedule Property Analysis Campaign",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "plan",
+    "name",
+    "started_at",
+    "completed_at",
+    "complete",
+    "provenance",
+    "population",
+    "commands",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": { "const": "campaign-v1" },
+    "campaign_id": { "type": "string", "minLength": 1 },
+    "plan": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": ["string", "null"], "format": "date-time" },
+    "complete": { "type": "boolean" },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "git_revision",
+        "dirty_worktree",
+        "go_version",
+        "rapid_version",
+        "temporal_api_version",
+        "timezone_version",
+        "work_definition_version",
+        "generator_version",
+        "profile_version",
+        "os",
+        "architecture",
+        "cpu_count"
+      ],
+      "properties": {
+        "git_revision": { "type": "string" },
+        "dirty_worktree": { "type": "boolean" },
+        "patch_sha256": { "type": ["string", "null"] },
+        "go_version": { "type": "string" },
+        "rapid_version": { "type": "string" },
+        "temporal_api_version": { "type": "string" },
+        "timezone_version": { "type": "string" },
+        "work_definition_version": { "type": "string" },
+        "generator_version": { "type": "string" },
+        "profile_version": { "type": "string" },
+        "os": { "type": "string" },
+        "architecture": { "type": "string" },
+        "cpu_count": { "type": "integer", "minimum": 1 },
+        "cpu_model": { "type": "string" },
+        "memory_bytes": { "type": "integer", "minimum": 0 },
+        "race_enabled": { "type": "boolean" },
+        "cache_mode": { "type": "string" }
+      }
+    },
+    "population": {
+      "enum": ["curated", "uniform-generated", "coverage-fuzz", "adversarial", "production-derived", "invalid-abuse"]
+    },
+    "planned_cases": { "type": ["integer", "null"], "minimum": 0 },
+    "completed_cases": { "type": "integer", "minimum": 0 },
+    "seeds": { "type": "array", "items": { "type": "string" } },
+    "commands": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "environment": { "type": "object", "additionalProperties": { "type": "string" } },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "bytes", "sha256"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    }
+  }
+}

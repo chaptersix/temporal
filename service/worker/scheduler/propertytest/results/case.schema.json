@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://temporal.io/schedule-property-analysis/case-v1.schema.json",
+  "title": "Schedule Property Analysis Case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_id",
+    "campaign_id",
+    "source",
+    "input",
+    "classification",
+    "outcome",
+    "work",
+    "reproduction"
+  ],
+  "properties": {
+    "schema_version": { "const": "case-v1" },
+    "case_id": { "type": "string", "minLength": 1 },
+    "campaign_id": { "type": "string", "minLength": 1 },
+    "source": {
+      "enum": ["curated", "uniform-generated", "coverage-fuzz", "adversarial", "production-derived", "invalid-abuse"]
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["original_spec_json", "serialized_bytes", "query_start", "query_end", "result_limit", "jitter_seed", "representation"],
+      "properties": {
+        "original_spec_json": { "type": "object" },
+        "minimized_spec_json": { "type": ["object", "null"] },
+        "semantic_model": { "type": ["object", "null"] },
+        "serialized_bytes": { "type": "integer", "minimum": 0 },
+        "query_start": { "type": "string", "format": "date-time" },
+        "query_end": { "type": "string", "format": "date-time" },
+        "result_limit": { "type": "integer", "minimum": 1 },
+        "jitter_seed": { "type": "string" },
+        "timezone": { "type": "string" },
+        "representation": { "enum": ["calendar", "structured-calendar", "cron", "interval", "mixed"] }
+      }
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["validity", "production_reachable"],
+      "properties": {
+        "validity": {
+          "enum": ["valid", "invalid-structural", "invalid-component-unsatisfiable", "invalid-effective-set-empty", "indeterminate-validation-budget"]
+        },
+        "reason": { "type": "string" },
+        "witness": { "type": ["string", "null"], "format": "date-time" },
+        "proof_category": { "type": ["string", "null"] },
+        "production_reachable": { "type": "boolean" }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "result_count", "partial_result_count"],
+      "properties": {
+        "status": {
+          "enum": ["valid-success", "valid-empty-query-result", "invalid", "validation-budget-exhausted", "matching-budget-exhausted", "cancelled", "deadline-exceeded", "panic"]
+        },
+        "error_type": { "type": ["string", "null"] },
+        "error_message": { "type": ["string", "null"] },
+        "result_count": { "type": "integer", "minimum": 0 },
+        "partial_result_count": { "type": "integer", "minimum": 0 },
+        "first_result": { "type": ["string", "null"], "format": "date-time" },
+        "last_result": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "work": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["work_definition_version", "validation_total", "matching_total", "matching_breakdown"],
+      "properties": {
+        "work_definition_version": { "type": "string" },
+        "validation_total": { "type": "integer", "minimum": 0 },
+        "matching_total": { "type": "integer", "minimum": 0 },
+        "work_before_first_result": { "type": ["integer", "null"], "minimum": 0 },
+        "matching_breakdown": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "largest_failing": { "type": ["integer", "null"], "minimum": 0 },
+        "smallest_successful": { "type": ["integer", "null"], "minimum": 0 },
+        "exact_required": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "latency_ns": { "type": "integer", "minimum": 0 },
+        "cpu_ns": { "type": ["integer", "null"], "minimum": 0 },
+        "allocations": { "type": ["integer", "null"], "minimum": 0 },
+        "allocated_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "peak_memory_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "concurrency": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "property": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "property_id": { "type": "string" },
+        "hypothesis": { "type": "string" },
+        "classification": { "enum": ["passed", "implementation-defect", "model-defect", "generator-defect", "property-too-strong", "expected-edge-case"] },
+        "revision": { "type": ["string", "null"] },
+        "mutations_killed": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "reproduction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "seed": { "type": ["string", "null"] },
+        "failfile": { "type": ["string", "null"] },
+        "artifact_sha256": { "type": "array", "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+      }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  }
+}
