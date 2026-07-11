@@ -2,9 +2,9 @@
 
 ## Status
 
-Plan 1 validity and property hardening is complete for the test-only analysis harness.
-Plans 2 and 3 have not started. Reviewed Plan 1 evidence is stored under campaign
-`20260710-plan1-validity-hardening-0e0638d11`.
+Plans 1 and 2 are complete for the test-only analysis harness. Plan 3 has not started.
+Reviewed evidence is stored under campaign `20260710-plan1-validity-hardening-0e0638d11`
+and the four Plan 2 campaigns listed below.
 
 ## Iteration Definition
 
@@ -179,6 +179,129 @@ killed by the named semantic property in `TestMutationKillMatrix`.
 - Legacy scheduler package: passed unchanged.
 - CHASM scheduler package: passed unchanged.
 - Repository-wide lint was not run, as explicitly deferred for this plan.
+
+## Plan 2 Reviewed Findings
+
+### OBSERVATION: Every Computational Attack Track Completed
+
+- Campaign: `20260710-plan2-computational-red-team-872e129a8-adversarial`
+- Retained valid cases: `plan2-dense-sparse-seed-g00-m00-g01-m00`,
+  `plan2-exclusion-seed-g00-m00-g01-m00`,
+  `plan2-sparse-first-seed-g00-m00-g01-m00`, `plan2-result-count-seed`,
+  `plan2-horizon-seed-g00-m00`, and `plan2-input-size-seed`.
+- Six fixed-seed searches covered dense result plus sparse union, exclusion
+  amplification, sparse first result, result-count amplification, horizon
+  amplification, and input-size amplification. Each search evaluated eight bounded
+  candidates over two generations and retained Pareto elites.
+- Every retained valid-cost case passed validator-v1 and carried a witness accepted by
+  the independent semantic model. The separately reviewed validation-abuse case never
+  entered matching computation.
+- The checked-in replay corpus is grouped by track under `testdata/redteam/v1/` and
+  validates against `candidate-v1.schema.json`.
+
+### OBSERVATION: The Full Budget Matrix Completed Through Ten Million
+
+- Campaign: `20260710-plan2-computational-red-team-872e129a8-adversarial`
+- The matrix contains 96 retained-case/profile/result-limit combinations: six cases,
+  four query profiles, and result limits 1, 10, 100, and 1,000.
+- Every matrix recorded all tiers from 10 through 10,000,000, partial result counts,
+  the largest failing and smallest successful tier, exact required work, and successful
+  `N` versus matching exhaustion at `N-1`.
+- Case `plan2-input-size-seed` had the largest reviewed exact matching requirement:
+  9,552,072 work for realistic and boundary profiles at result limit 1,000.
+- The same case retains a deterministic 150,054-byte synthetic UTC TZif payload and 24
+  redundant calendar components; its bounded replay JSON is 222,053 bytes.
+- Case `plan2-dense-sparse-seed-g00-m00-g01-m00` required 618,000 work for realistic
+  and boundary profiles at result limit 1,000.
+- No lower operational ceiling replaced the required 10,000,000 tier.
+
+### NEGATIVE EVIDENCE: Larger Budgets Did Not Change Completed Results
+
+- Campaign: `20260710-plan2-computational-red-team-872e129a8-adversarial`
+- Finite population: 96 matrices over six reviewed adversarial candidates.
+- Every larger budget after the exact success boundary returned identical times and an
+  identical work vector. No retained case exceeded 10,000,000 matching work, panicked,
+  lost witness soundness, or reported a partial response as complete.
+
+### OBSERVATION: Validation Abuse Has A Separate Exact Boundary
+
+- Campaign: `20260710-plan2-computational-red-team-872e129a8-invalid-abuse`
+- Case: `plan2-validation-abuse-seed`
+- Two overlapping exclusions collectively remove a seven-day dense interval without
+  either exclusion individually covering the complete horizon.
+- Validation is indeterminate through budget 500,000, classifies the effective set as
+  empty at exact work 777,917, succeeds at `N`, and remains indeterminate at `N-1`.
+- Matching work is zero at every validation tier. This population is excluded from all
+  valid matching-cost distributions.
+
+### OBSERVATION: Uniform And Adversarial Frequencies Remain Separate
+
+- Campaign: `20260710-plan2-uniform-distribution-872e129a8`
+- A finite uniform grid enumerated 72 seed/mutation pairs. Seventy-one passed Plan 1
+  validity and one invalid or unsupported mutation was excluded from valid-cost
+  distributions.
+- Matching-work distribution in this grid: P50 12,000, P90 9,551,810, and P99 and
+  maximum 9,949,825. Validation-work distribution: P50 35,271, P90 222,698, and P99
+  and maximum 259,352.
+- These are generator frequencies, not customer frequencies. Curated benchmark,
+  objective-driven adversarial, uniform-generated, and invalid-abuse evidence remain
+  separate in their manifests and summaries.
+
+### OBSERVATION: Work Categories Have Different Host Costs
+
+- Campaign: `20260710-plan2-work-calibration-872e129a8`
+- All nine required microbenchmark categories recorded three repetitions of `ns/op`,
+  `B/op`, and `allocs/op`. Five candidate benchmarks cover low, median,
+  budget-transition, P99-like, and maximum-work cases and retain raw iteration-v1
+  vectors.
+- On the recorded Apple M4 Max host, interval modular calculation was approximately
+  3.7-3.9 ns/op, calendar outer search approximately 56-57 ns/op, excluded-candidate
+  retry approximately 2.0 microseconds/op with one allocation, and canonicalization
+  plus validation approximately 6.0-6.1 milliseconds/op for the input-size case.
+- Across the five candidate classes, Pearson correlations with the recorded CPU proxy
+  were 0.999 for total matching work, 0.999 for calendar search, -0.207 for excluded
+  retries, and 0.773 for validation work.
+
+### INFERENCE: Raw Work Must Remain Available Beside CPU Calibration
+
+- Campaign: `20260710-plan2-work-calibration-872e129a8`
+- The correlation sample is small and host-specific. It shows that iteration-v1
+  categories are not interchangeable CPU units; it does not justify replacing the
+  deterministic budget with elapsed time.
+- Weighted model `cpu-correlation-v1` is versioned separately from iteration definition
+  `v1` and is not selected or enforced as a production model.
+
+### OBSERVATION: Static Guard Proxies Reject Valid Cases
+
+- Campaign: `20260710-plan2-computational-red-team-872e129a8-adversarial`
+- At illustrative, non-selected thresholds, a 10,000 cumulative matching-work cap
+  rejected four of six reviewed valid cases; a 100,000 validation-work cap rejected
+  four; a 30-day query-window cap rejected two; a result-count cap of 100 rejected
+  three; and component/range caps rejected the valid input-size case.
+- A combined 4,096-byte plus 10,000-work example threshold rejected the valid bounded
+  timezone-data/input-size case, while leaving five other reviewed valid cases
+  unaffected; this is a false positive and incomplete coverage rather than safety.
+- The durable `DECISIONS.md` records valid false positives, observed CPU/allocation
+  avoided at each illustrative threshold, retry semantics, client error information,
+  and the Plan 3 tenfold-load gap for every evaluated guard.
+
+### RECOMMENDATION: Defer Dynamic Guards And Reject Static Cost Substitutes
+
+- Deferred for Plan 3 evidence: cumulative matching work, separate validation work,
+  maximum result count, combined serialized-size/work, and cancellation/deadline
+  checks at work ticks.
+- Rejected as Plan 2 production candidates: maximum query window, component and range
+  caps, per-next-time work, per-calendar work, elapsed wall-clock budget, and estimates
+  based only on the densest or sparsest source.
+- No production budget or guard was selected or enforced.
+
+### NEGATIVE EVIDENCE: Known Lord Howe Divergence Was Preserved
+
+- Campaigns: all four reviewed Plan 2 campaigns.
+- Case: `plan1-lord-howe-repeated-half-hour`
+- Plan 2 made no production scheduler changes and did not weaken Plan 1 validity or
+  oracle semantics. The dedicated copied/production parity divergence remains a
+  regression and production follow-up, not a computational-guard fix.
 
 ## Production Implementation Handoff
 

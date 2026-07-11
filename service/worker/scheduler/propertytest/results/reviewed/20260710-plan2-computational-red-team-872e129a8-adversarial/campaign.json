@@ -1,0 +1,66 @@
+{
+  "schema_version": "campaign-v1",
+  "campaign_id": "20260710-plan2-computational-red-team-872e129a8-adversarial",
+  "plan": "plan2",
+  "name": "computational-red-team-valid-cost",
+  "started_at": "2026-07-11T03:45:38.939562Z",
+  "completed_at": "2026-07-11T03:45:40.064328Z",
+  "complete": true,
+  "provenance": {
+    "architecture": "arm64",
+    "cache_mode": "count=1",
+    "cpu_count": 14,
+    "cpu_model": "Apple M4 Max",
+    "dirty_worktree": true,
+    "generator_version": "plan2-objective-search-v1",
+    "git_revision": "872e129a827d88ce442dadcd24338013ebc052a6",
+    "go_version": "go1.26.4",
+    "os": "darwin",
+    "patch_sha256": "9a0abe5205f28186899f1cfc6983b708679e4efb4ba38359e393cfb7c6544e01",
+    "profile_version": "plan2-query-profiles-v1",
+    "race_enabled": false,
+    "rapid_version": "v1.3.0",
+    "temporal_api_version": "v1.63.3",
+    "timezone_version": "tzcode-2022g-host-data",
+    "work_definition_version": "v1/validator-v1"
+  },
+  "population": "adversarial",
+  "planned_cases": 6,
+  "completed_cases": 6,
+  "seeds": [
+    "20260710"
+  ],
+  "commands": [
+    "timeout 900s go test -tags test_dep ./service/worker/scheduler/propertytest -run '^TestPlan2RedTeamCampaign$' -count=1"
+  ],
+  "environment": {
+    "SCHEDULE_PROPERTY_CAMPAIGN_ID": "20260710-plan2-computational-red-team-872e129a8",
+    "SCHEDULE_PROPERTY_REDTEAM": "1",
+    "SCHEDULE_PROPERTY_REDTEAM_GENERATIONS": "2",
+    "SCHEDULE_PROPERTY_REDTEAM_POPULATION": "4",
+    "SCHEDULE_PROPERTY_RESULTS_DIR": "/tmp/schedule-property-plan2",
+    "weighted_cost_model": "cpu-correlation-v1"
+  },
+  "artifacts": [
+    {
+      "path": "cases.jsonl",
+      "bytes": 638619,
+      "sha256": "4d8a1ccdf0ada410d2786c28312d2f2ea9c4fa848177ebd957779e92d47a258f"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 254051,
+      "sha256": "de2153d74cab0b278eb8e59eb51295eca6c5ba274e76144ead06b84970ea594e"
+    },
+    {
+      "path": "RESULTS.md",
+      "bytes": 1310,
+      "sha256": "6443b22fc836495e6c7bf75b96d1d0de221647bd92432db82870361468592010"
+    },
+    {
+      "path": "DECISIONS.md",
+      "bytes": 5532,
+      "sha256": "6423b5ebc2d761c74a7a65059c057dd83f3612ed1e4c9c22e26fd4e72eb422ea"
+    }
+  ]
+}

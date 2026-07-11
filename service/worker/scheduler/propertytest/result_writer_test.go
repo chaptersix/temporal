@@ -71,6 +71,8 @@ type campaignWriter struct {
 	finalized bool
 }
 
+const materialCaseRecordMaxBytes = 1 << 20
+
 func newCampaignWriter(directory string, manifest campaignManifest) (*campaignWriter, error) {
 	if err := validateCampaignManifest(manifest, false); err != nil {
 		return nil, err
@@ -115,6 +117,15 @@ func (w *campaignWriter) addCase(record materialCaseRecord) error {
 }
 
 func (w *campaignWriter) finalize(summary map[string]any, results string, decisions string) error {
+	return w.finalizeWithArtifacts(summary, results, decisions, nil)
+}
+
+func (w *campaignWriter) finalizeWithArtifacts(
+	summary map[string]any,
+	results string,
+	decisions string,
+	extraArtifacts []string,
+) error {
 	if w.finalized {
 		return errors.New("campaign already finalized")
 	}
@@ -139,6 +150,12 @@ func (w *campaignWriter) finalize(summary map[string]any, results string, decisi
 			return err
 		}
 		artifactNames = append(artifactNames, "DECISIONS.md")
+	}
+	for _, name := range extraArtifacts {
+		if filepath.Base(name) != name {
+			return fmt.Errorf("extra artifact %q must be a bounded basename", name)
+		}
+		artifactNames = append(artifactNames, name)
 	}
 	artifacts, err := collectArtifacts(w.directory, artifactNames)
 	if err != nil {
@@ -207,6 +224,13 @@ func validateMaterialCase(record materialCaseRecord) error {
 	if timezone, ok := record.Input["timezone"].(string); ok && len(timezone) > 128 {
 		return errors.New("case timezone exceeds bounded diagnostic length")
 	}
+	encoded, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+	if len(encoded) > materialCaseRecordMaxBytes {
+		return fmt.Errorf("case record exceeds %d bytes", materialCaseRecordMaxBytes)
+	}
 	return nil
 }
 
@@ -228,6 +252,7 @@ func verifyCampaignBundle(directory string) error {
 	}
 	defer casesFile.Close()
 	scanner := bufio.NewScanner(casesFile)
+	scanner.Buffer(make([]byte, 64<<10), materialCaseRecordMaxBytes)
 	caseCount := 0
 	for scanner.Scan() {
 		var record materialCaseRecord

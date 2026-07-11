@@ -1,0 +1,62 @@
+{
+  "schema_version": "campaign-v1",
+  "campaign_id": "20260710-plan2-work-calibration-872e129a8",
+  "plan": "plan2",
+  "name": "work-category-and-candidate-benchmarks",
+  "started_at": "2026-07-11T03:45:59.45849Z",
+  "completed_at": "2026-07-11T03:46:14.737136Z",
+  "complete": true,
+  "provenance": {
+    "architecture": "arm64",
+    "cache_mode": "count=1",
+    "cpu_count": 14,
+    "cpu_model": "Apple M4 Max",
+    "dirty_worktree": true,
+    "generator_version": "plan2-objective-search-v1",
+    "git_revision": "872e129a827d88ce442dadcd24338013ebc052a6",
+    "go_version": "go1.26.4",
+    "os": "darwin",
+    "patch_sha256": "9a0abe5205f28186899f1cfc6983b708679e4efb4ba38359e393cfb7c6544e01",
+    "profile_version": "plan2-query-profiles-v1",
+    "race_enabled": false,
+    "rapid_version": "v1.3.0",
+    "temporal_api_version": "v1.63.3",
+    "timezone_version": "tzcode-2022g-host-data",
+    "work_definition_version": "v1/validator-v1"
+  },
+  "population": "curated",
+  "planned_cases": 5,
+  "completed_cases": 5,
+  "commands": [
+    "timeout 300s go test -tags test_dep ./service/worker/scheduler/propertytest -run '^$' -bench '^(BenchmarkPlan2WorkCategory|BenchmarkPlan2Candidate)$' -benchmem -benchtime=200ms -count=3"
+  ],
+  "environment": {
+    "GOMAXPROCS": "1",
+    "SCHEDULE_PROPERTY_BENCHMARK_CAMPAIGN": "1",
+    "SCHEDULE_PROPERTY_CAMPAIGN_ID": "20260710-plan2-work-calibration-872e129a8",
+    "SCHEDULE_PROPERTY_RESULTS_DIR": "/tmp/schedule-property-plan2",
+    "weighted_cost_model": "cpu-correlation-v1"
+  },
+  "artifacts": [
+    {
+      "path": "cases.jsonl",
+      "bytes": 636067,
+      "sha256": "fa75aea25cdc462610356304184d793d693ca543277ec1caaad5345bc8797471"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 3082,
+      "sha256": "caeaf23e75b369824bcf421c11f3aa7ff22c64b1f99e964160f914c3a7a7d830"
+    },
+    {
+      "path": "RESULTS.md",
+      "bytes": 837,
+      "sha256": "15b0ccd860290bc2cd2f7d21d9992b10607746c92fcbbae2da76cc25a3751764"
+    },
+    {
+      "path": "benchmark.txt",
+      "bytes": 7151,
+      "sha256": "00f5dd17aa6b932dc4b0af1c58cd1b1fdb71d14b76de1e4a558ce36927627663"
+    }
+  ]
+}

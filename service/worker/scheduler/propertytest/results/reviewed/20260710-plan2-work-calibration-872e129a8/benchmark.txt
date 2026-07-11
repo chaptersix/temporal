@@ -1,0 +1,48 @@
+goos: darwin
+goarch: arm64
+pkg: go.temporal.io/server/service/worker/scheduler/propertytest
+cpu: Apple M4 Max
+BenchmarkPlan2WorkCategory/calendar-outer-search-step         	 4185906	        56.69 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/calendar-outer-search-step         	 4257592	        56.28 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/calendar-outer-search-step         	 4366705	        55.57 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/calendar-field-advancement         	 1301172	       183.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/calendar-field-advancement         	 1310503	       183.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/calendar-field-advancement         	 1310607	       182.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/inclusion-source-check             	  535917	       454.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/inclusion-source-check             	  523993	       455.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/inclusion-source-check             	  537192	       445.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/interval-modular-calculation       	62514912	         3.857 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/interval-modular-calculation       	65966541	         3.934 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/interval-modular-calculation       	66090667	         3.732 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/exclusion-match                    	12736402	        19.15 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/exclusion-match                    	12548390	        19.09 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/exclusion-match                    	12845472	        18.97 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/excluded-candidate-retry           	  118606	      1989 ns/op	      32 B/op	       1 allocs/op
+BenchmarkPlan2WorkCategory/excluded-candidate-retry           	  119728	      2004 ns/op	      32 B/op	       1 allocs/op
+BenchmarkPlan2WorkCategory/excluded-candidate-retry           	  119695	      1994 ns/op	      32 B/op	       1 allocs/op
+BenchmarkPlan2WorkCategory/jitter-following-nominal           	  251155	       982.9 ns/op	      32 B/op	       1 allocs/op
+BenchmarkPlan2WorkCategory/jitter-following-nominal           	  250688	       977.7 ns/op	      32 B/op	       1 allocs/op
+BenchmarkPlan2WorkCategory/jitter-following-nominal           	  249854	       980.8 ns/op	      32 B/op	       1 allocs/op
+BenchmarkPlan2WorkCategory/timezone-conversion-dst            	13275130	        18.15 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/timezone-conversion-dst            	13276998	        18.42 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/timezone-conversion-dst            	13380692	        18.01 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlan2WorkCategory/canonicalization-validation        	      39	   6117284 ns/op	  712397 B/op	     878 allocs/op
+BenchmarkPlan2WorkCategory/canonicalization-validation        	      40	   6047101 ns/op	  711916 B/op	     878 allocs/op
+BenchmarkPlan2WorkCategory/canonicalization-validation        	      42	   5980714 ns/op	  711019 B/op	     877 allocs/op
+BenchmarkPlan2Candidate/low                                   	    1038	    233629 ns/op	         4.000 calendar-work/op	         0 excluded-retries/op	        12.00 matching-work/op	      9282 validation-work/op	    5745 B/op	     104 allocs/op
+BenchmarkPlan2Candidate/low                                   	    1052	    232179 ns/op	         4.000 calendar-work/op	         0 excluded-retries/op	        12.00 matching-work/op	      9282 validation-work/op	    5745 B/op	     104 allocs/op
+BenchmarkPlan2Candidate/low                                   	    1053	    233458 ns/op	         4.000 calendar-work/op	         0 excluded-retries/op	        12.00 matching-work/op	      9282 validation-work/op	    5745 B/op	     104 allocs/op
+BenchmarkPlan2Candidate/median                                	      62	   5650295 ns/op	         0 calendar-work/op	       589.0 excluded-retries/op	      2426 matching-work/op	    172951 validation-work/op	 3499851 B/op	   86509 allocs/op
+BenchmarkPlan2Candidate/median                                	      61	   5535797 ns/op	         0 calendar-work/op	       589.0 excluded-retries/op	      2426 matching-work/op	    172951 validation-work/op	 3499850 B/op	   86509 allocs/op
+BenchmarkPlan2Candidate/median                                	      60	   5411924 ns/op	         0 calendar-work/op	       589.0 excluded-retries/op	      2426 matching-work/op	    172951 validation-work/op	 3499855 B/op	   86509 allocs/op
+BenchmarkPlan2Candidate/budget-transition                     	     246	    970600 ns/op	     20200 calendar-work/op	         0 excluded-retries/op	     21000 matching-work/op	     35272 validation-work/op	   11581 B/op	     203 allocs/op
+BenchmarkPlan2Candidate/budget-transition                     	     247	    971783 ns/op	     20200 calendar-work/op	         0 excluded-retries/op	     21000 matching-work/op	     35272 validation-work/op	   11581 B/op	     203 allocs/op
+BenchmarkPlan2Candidate/budget-transition                     	     247	    969620 ns/op	     20200 calendar-work/op	         0 excluded-retries/op	     21000 matching-work/op	     35272 validation-work/op	   11581 B/op	     203 allocs/op
+BenchmarkPlan2Candidate/p99-like                              	       6	  41196458 ns/op	   9498072 calendar-work/op	         0 excluded-retries/op	   9552072 matching-work/op	    222698 validation-work/op	 1443077 B/op	    2692 allocs/op
+BenchmarkPlan2Candidate/p99-like                              	       6	  41309840 ns/op	   9498072 calendar-work/op	         0 excluded-retries/op	   9552072 matching-work/op	    222698 validation-work/op	 1443077 B/op	    2692 allocs/op
+BenchmarkPlan2Candidate/p99-like                              	       6	  40480264 ns/op	   9498072 calendar-work/op	         0 excluded-retries/op	   9552072 matching-work/op	    222698 validation-work/op	 1443077 B/op	    2692 allocs/op
+BenchmarkPlan2Candidate/maximum-work                          	     127	   1880752 ns/op	    202000 calendar-work/op	         0 excluded-retries/op	    210000 matching-work/op	     35272 validation-work/op	   62276 B/op	    1103 allocs/op
+BenchmarkPlan2Candidate/maximum-work                          	     129	   1875381 ns/op	    202000 calendar-work/op	         0 excluded-retries/op	    210000 matching-work/op	     35272 validation-work/op	   62275 B/op	    1103 allocs/op
+BenchmarkPlan2Candidate/maximum-work                          	     130	   1863406 ns/op	    202000 calendar-work/op	         0 excluded-retries/op	    210000 matching-work/op	     35272 validation-work/op	   62275 B/op	    1103 allocs/op
+PASS
+ok  	go.temporal.io/server/service/worker/scheduler/propertytest	13.385s

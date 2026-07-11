@@ -1,0 +1,85 @@
+{
+  "budget_matrix": {
+    "profile": "validation-abuse",
+    "result_limit": 1,
+    "query_start": "2025-01-01T00:00:00Z",
+    "query_end": "2025-01-01T01:00:00Z",
+    "attempts": [
+      {
+        "budget": 10,
+        "status": "indeterminate-validation-budget",
+        "validation_work": 10,
+        "matching_work": 0,
+        "partial_results": 0
+      },
+      {
+        "budget": 100,
+        "status": "indeterminate-validation-budget",
+        "validation_work": 100,
+        "matching_work": 0,
+        "partial_results": 0
+      },
+      {
+        "budget": 1000,
+        "status": "indeterminate-validation-budget",
+        "validation_work": 1000,
+        "matching_work": 0,
+        "partial_results": 0
+      },
+      {
+        "budget": 10000,
+        "status": "indeterminate-validation-budget",
+        "validation_work": 10000,
+        "matching_work": 0,
+        "partial_results": 0
+      },
+      {
+        "budget": 100000,
+        "status": "indeterminate-validation-budget",
+        "validation_work": 100000,
+        "matching_work": 0,
+        "partial_results": 0
+      },
+      {
+        "budget": 500000,
+        "status": "indeterminate-validation-budget",
+        "validation_work": 500000,
+        "matching_work": 0,
+        "partial_results": 0
+      },
+      {
+        "budget": 1000000,
+        "status": "invalid-empty-effective-set",
+        "validation_work": 777917,
+        "matching_work": 0,
+        "partial_results": 0
+      },
+      {
+        "budget": 5000000,
+        "status": "invalid-empty-effective-set",
+        "validation_work": 777917,
+        "matching_work": 0,
+        "partial_results": 0
+      },
+      {
+        "budget": 10000000,
+        "status": "invalid-empty-effective-set",
+        "validation_work": 777917,
+        "matching_work": 0,
+        "partial_results": 0
+      }
+    ],
+    "largest_failing": 500000,
+    "smallest_successful": 1000000,
+    "exact_required": 777917,
+    "n_outcome": "invalid-empty-effective-set",
+    "n_minus_one_outcome": "indeterminate-validation-budget",
+    "exhaustion_phase": "validation"
+  },
+  "campaign_id": "20260710-plan2-computational-red-team-872e129a8-invalid-abuse",
+  "completed_cases": 1,
+  "matching_work": 0,
+  "population": "invalid-abuse",
+  "schema_version": "summary-v1",
+  "validation_and_matching_work_aggregated": false
+}

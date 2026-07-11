@@ -1,0 +1,117 @@
+{
+  "schema_version": "redteam-candidate-v1",
+  "candidate_id": "plan2-validation-abuse-seed",
+  "attack_track": "validation-abuse",
+  "model": {
+    "calendars": [],
+    "intervals": [
+      {
+        "interval_seconds": 1,
+        "phase_seconds": 0
+      }
+    ],
+    "exclusions": [
+      {
+        "second": [
+          {
+            "start": 0,
+            "end": 58,
+            "step": 1
+          }
+        ],
+        "minute": [
+          {
+            "start": 0,
+            "end": 59,
+            "step": 1
+          }
+        ],
+        "hour": [
+          {
+            "start": 0,
+            "end": 23,
+            "step": 1
+          }
+        ],
+        "day_of_month": [
+          {
+            "start": 1,
+            "end": 31,
+            "step": 1
+          }
+        ],
+        "month": [
+          {
+            "start": 1,
+            "end": 12,
+            "step": 1
+          }
+        ],
+        "year": [],
+        "day_of_week": [
+          {
+            "start": 0,
+            "end": 6,
+            "step": 1
+          }
+        ]
+      },
+      {
+        "second": [
+          {
+            "start": 59,
+            "end": 59,
+            "step": 1
+          }
+        ],
+        "minute": [
+          {
+            "start": 0,
+            "end": 59,
+            "step": 1
+          }
+        ],
+        "hour": [
+          {
+            "start": 0,
+            "end": 23,
+            "step": 1
+          }
+        ],
+        "day_of_month": [
+          {
+            "start": 1,
+            "end": 31,
+            "step": 1
+          }
+        ],
+        "month": [
+          {
+            "start": 1,
+            "end": 12,
+            "step": 1
+          }
+        ],
+        "year": [],
+        "day_of_week": [
+          {
+            "start": 0,
+            "end": 6,
+            "step": 1
+          }
+        ]
+      }
+    ],
+    "witness": null,
+    "start_time": "2025-01-01T00:00:00Z",
+    "end_time": "2025-01-07T23:59:59Z",
+    "jitter_ns": 0,
+    "timezone": "UTC",
+    "timezone_data": null
+  },
+  "query_start": "2025-01-01T00:00:00Z",
+  "query_end": "2025-01-01T01:00:00Z",
+  "result_limit": 1,
+  "jitter_seed": "plan2-fixed-seed",
+  "representation": "structured-calendar"
+}

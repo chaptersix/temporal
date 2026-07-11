@@ -7,6 +7,7 @@ red-team results. It intentionally does not contain bulk generated output.
 
 - `campaign.schema.json`: required campaign provenance and artifact manifest.
 - `case.schema.json`: required material per-case record.
+- `candidate-v1.schema.json`: bounded replay contract for deterministic Plan 2 candidates.
 - `RESULTS.template.md`: human-readable findings template.
 - `DECISIONS.template.md`: guard and behavior decision template.
 
@@ -60,3 +61,15 @@ when `SCHEDULE_PROPERTY_RESULTS_DIR` and campaign provenance variables are suppl
 - `reviewed/20260710-plan1-validity-hardening-0e0638d11/`: Plan 1 validity contract,
   validation-budget, minimized timezone-boundary, property, fuzz, mutation, and package
   verification evidence.
+- `reviewed/20260710-plan2-computational-red-team-872e129a8-adversarial/`: six valid-cost
+  attack tracks, Pareto objective groups, 96 budget matrices, and guard decisions.
+- `reviewed/20260710-plan2-computational-red-team-872e129a8-invalid-abuse/`: validation-only
+  exhaustion and exact classification boundary evidence.
+- `reviewed/20260710-plan2-uniform-distribution-872e129a8/`: finite uniform mutation-grid
+  distributions, kept separate from adversarial and customer populations.
+- `reviewed/20260710-plan2-work-calibration-872e129a8/`: work-category and retained-case
+  benchmark output, raw work vectors, and host-specific work/CPU correlations.
+
+The minimized replay corpus is grouped by attack and fitness track under
+`testdata/redteam/v1/`. It validates against `candidate-v1.schema.json` and remains
+bounded to 256 KiB per candidate.

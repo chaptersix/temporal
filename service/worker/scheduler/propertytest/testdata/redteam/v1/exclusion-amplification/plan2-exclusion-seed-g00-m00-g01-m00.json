@@ -1,0 +1,80 @@
+{
+  "schema_version": "redteam-candidate-v1",
+  "candidate_id": "plan2-exclusion-seed-g00-m00-g01-m00",
+  "attack_track": "exclusion-amplification",
+  "model": {
+    "calendars": [],
+    "intervals": [
+      {
+        "interval_seconds": 1,
+        "phase_seconds": 0
+      },
+      {
+        "interval_seconds": 1,
+        "phase_seconds": 0
+      },
+      {
+        "interval_seconds": 1,
+        "phase_seconds": 0
+      }
+    ],
+    "exclusions": [
+      {
+        "second": [
+          {
+            "start": 0,
+            "end": 58,
+            "step": 1
+          }
+        ],
+        "minute": [
+          {
+            "start": 0,
+            "end": 59,
+            "step": 1
+          }
+        ],
+        "hour": [
+          {
+            "start": 0,
+            "end": 23,
+            "step": 1
+          }
+        ],
+        "day_of_month": [
+          {
+            "start": 1,
+            "end": 31,
+            "step": 1
+          }
+        ],
+        "month": [
+          {
+            "start": 1,
+            "end": 12,
+            "step": 1
+          }
+        ],
+        "year": [],
+        "day_of_week": [
+          {
+            "start": 0,
+            "end": 6,
+            "step": 1
+          }
+        ]
+      }
+    ],
+    "witness": "2000-01-01T00:00:59Z",
+    "start_time": null,
+    "end_time": null,
+    "jitter_ns": 0,
+    "timezone": "UTC",
+    "timezone_data": null
+  },
+  "query_start": "2025-01-01T00:00:00Z",
+  "query_end": "2025-01-01T01:00:00Z",
+  "result_limit": 100,
+  "jitter_seed": "plan2-fixed-seed",
+  "representation": "structured-calendar"
+}

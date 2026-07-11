@@ -1,0 +1,175 @@
+{
+  "schema_version": "redteam-candidate-v1",
+  "candidate_id": "plan2-sparse-first-seed-g00-m00-g01-m00",
+  "attack_track": "sparse-first-result",
+  "model": {
+    "calendars": [
+      {
+        "second": [
+          {
+            "start": 0,
+            "end": 0,
+            "step": 1
+          }
+        ],
+        "minute": [
+          {
+            "start": 0,
+            "end": 0,
+            "step": 1
+          }
+        ],
+        "hour": [
+          {
+            "start": 0,
+            "end": 0,
+            "step": 1
+          }
+        ],
+        "day_of_month": [
+          {
+            "start": 29,
+            "end": 29,
+            "step": 1
+          }
+        ],
+        "month": [
+          {
+            "start": 2,
+            "end": 2,
+            "step": 1
+          }
+        ],
+        "year": [
+          {
+            "start": 2096,
+            "end": 2096,
+            "step": 1
+          }
+        ],
+        "day_of_week": [
+          {
+            "start": 0,
+            "end": 6,
+            "step": 1
+          }
+        ]
+      },
+      {
+        "second": [
+          {
+            "start": 0,
+            "end": 0,
+            "step": 1
+          }
+        ],
+        "minute": [
+          {
+            "start": 0,
+            "end": 0,
+            "step": 1
+          }
+        ],
+        "hour": [
+          {
+            "start": 0,
+            "end": 0,
+            "step": 1
+          }
+        ],
+        "day_of_month": [
+          {
+            "start": 29,
+            "end": 29,
+            "step": 1
+          }
+        ],
+        "month": [
+          {
+            "start": 2,
+            "end": 2,
+            "step": 1
+          }
+        ],
+        "year": [
+          {
+            "start": 2096,
+            "end": 2096,
+            "step": 1
+          }
+        ],
+        "day_of_week": [
+          {
+            "start": 0,
+            "end": 6,
+            "step": 1
+          }
+        ]
+      },
+      {
+        "second": [
+          {
+            "start": 0,
+            "end": 0,
+            "step": 1
+          }
+        ],
+        "minute": [
+          {
+            "start": 0,
+            "end": 0,
+            "step": 1
+          }
+        ],
+        "hour": [
+          {
+            "start": 0,
+            "end": 0,
+            "step": 1
+          }
+        ],
+        "day_of_month": [
+          {
+            "start": 29,
+            "end": 29,
+            "step": 1
+          }
+        ],
+        "month": [
+          {
+            "start": 2,
+            "end": 2,
+            "step": 1
+          }
+        ],
+        "year": [
+          {
+            "start": 2096,
+            "end": 2096,
+            "step": 1
+          }
+        ],
+        "day_of_week": [
+          {
+            "start": 0,
+            "end": 6,
+            "step": 1
+          }
+        ]
+      }
+    ],
+    "intervals": [],
+    "exclusions": [],
+    "witness": "2096-02-29T00:00:00Z",
+    "start_time": null,
+    "end_time": null,
+    "jitter_ns": 0,
+    "timezone": "UTC",
+    "timezone_data": null
+  },
+  "query_start": "2025-01-01T00:00:00Z",
+  "query_end": "2100-12-31T23:59:59Z",
+  "result_limit": 1,
+  "jitter_seed": "plan2-fixed-seed",
+  "representation": "structured-calendar"
+}

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://temporal.io/schedule-property-analysis/redteam-candidate-v1.schema.json",
+  "title": "Schedule Property Red-Team Candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate_id",
+    "attack_track",
+    "model",
+    "query_start",
+    "query_end",
+    "result_limit",
+    "jitter_seed",
+    "representation"
+  ],
+  "properties": {
+    "schema_version": { "const": "redteam-candidate-v1" },
+    "candidate_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "attack_track": {
+      "enum": [
+        "dense-result-sparse-union",
+        "exclusion-amplification",
+        "sparse-first-result",
+        "result-count-amplification",
+        "horizon-amplification",
+        "input-size-amplification",
+        "validation-abuse"
+      ]
+    },
+    "model": { "$ref": "#/$defs/model" },
+    "query_start": { "type": "string", "format": "date-time" },
+    "query_end": { "type": "string", "format": "date-time" },
+    "result_limit": { "enum": [1, 10, 100, 1000] },
+    "jitter_seed": { "type": "string", "maxLength": 128 },
+    "representation": { "enum": ["structured-calendar", "calendar", "cron", "mixed"] }
+  },
+  "$defs": {
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "step"],
+      "properties": {
+        "start": { "type": "integer" },
+        "end": { "type": "integer" },
+        "step": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "calendar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["second", "minute", "hour", "day_of_month", "month", "year", "day_of_week"],
+      "properties": {
+        "second": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/range" } },
+        "minute": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/range" } },
+        "hour": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/range" } },
+        "day_of_month": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/range" } },
+        "month": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/range" } },
+        "year": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/range" } },
+        "day_of_week": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/range" } }
+      }
+    },
+    "interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["interval_seconds", "phase_seconds"],
+      "properties": {
+        "interval_seconds": { "type": "integer", "minimum": 1 },
+        "phase_seconds": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calendars", "intervals", "exclusions", "witness", "start_time", "end_time", "jitter_ns", "timezone", "timezone_data"],
+      "properties": {
+        "calendars": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/calendar" } },
+        "intervals": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/interval" } },
+        "exclusions": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/calendar" } },
+        "witness": { "type": ["string", "null"], "format": "date-time" },
+        "start_time": { "type": ["string", "null"], "format": "date-time" },
+        "end_time": { "type": ["string", "null"], "format": "date-time" },
+        "jitter_ns": { "type": "integer", "minimum": 0 },
+        "timezone": { "type": "string", "maxLength": 128 },
+        "timezone_data": { "type": ["string", "null"], "contentEncoding": "base64", "maxLength": 262144 }
+      }
+    }
+  }
+}

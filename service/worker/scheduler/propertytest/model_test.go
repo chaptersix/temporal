@@ -111,19 +111,21 @@ func (i intervalModel) render() *schedulepb.IntervalSpec {
 }
 
 type scheduleModel struct {
-	calendars  []calendarModel
-	intervals  []intervalModel
-	exclusions []calendarModel
-	witness    time.Time
-	startTime  *time.Time
-	endTime    *time.Time
-	jitter     time.Duration
-	timezone   string
+	calendars    []calendarModel
+	intervals    []intervalModel
+	exclusions   []calendarModel
+	witness      time.Time
+	startTime    *time.Time
+	endTime      *time.Time
+	jitter       time.Duration
+	timezone     string
+	timezoneData []byte
 }
 
 func (m scheduleModel) renderStructured() *schedulepb.ScheduleSpec {
 	spec := &schedulepb.ScheduleSpec{
 		TimezoneName: m.timezone,
+		TimezoneData: m.timezoneData,
 		Jitter:       durationpb.New(m.jitter),
 	}
 	for _, calendar := range m.calendars {
@@ -145,6 +147,9 @@ func (m scheduleModel) renderStructured() *schedulepb.ScheduleSpec {
 }
 
 func (m scheduleModel) location() (*time.Location, error) {
+	if len(m.timezoneData) > 0 {
+		return time.LoadLocationFromTZData(m.timezone, m.timezoneData)
+	}
 	if m.timezone == "" {
 		return time.UTC, nil
 	}

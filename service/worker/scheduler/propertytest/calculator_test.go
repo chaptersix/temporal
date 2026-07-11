@@ -1,6 +1,7 @@
 package propertytest
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -23,6 +24,7 @@ type ComputeOptions struct {
 	MaxResults              int
 	MaxIterations           int
 	MaxValidationIterations int
+	Context                 context.Context
 	faults                  analysisFaults
 }
 
@@ -81,10 +83,15 @@ type iterationBudget struct {
 	limit    int
 	lastTime time.Time
 	work     WorkBreakdown
+	context  context.Context
 }
 
-func newIterationBudget(limit int) *iterationBudget {
-	return &iterationBudget{limit: limit}
+func newIterationBudget(limit int, contexts ...context.Context) *iterationBudget {
+	var ctx context.Context
+	if len(contexts) > 0 {
+		ctx = contexts[0]
+	}
+	return &iterationBudget{limit: limit, context: ctx}
 }
 
 func (b *iterationBudget) at(t time.Time) {
@@ -92,6 +99,13 @@ func (b *iterationBudget) at(t time.Time) {
 }
 
 func (b *iterationBudget) tick(kind workKind) error {
+	if b.context != nil {
+		select {
+		case <-b.context.Done():
+			return b.context.Err()
+		default:
+		}
+	}
 	if b.work.Total >= b.limit {
 		return &IterationLimitError{
 			Limit:    b.limit,
@@ -149,6 +163,7 @@ func ComputeMatchingTimes(
 	}
 	validation, err := ValidateSchedule(spec, ValidationOptions{
 		MaxIterations: validationLimit,
+		Context:       options.Context,
 		faults:        options.faults,
 	})
 	if err != nil {
@@ -164,7 +179,7 @@ func ComputeMatchingTimes(
 	}
 	compiled.faults = options.faults
 
-	budget := newIterationBudget(options.MaxIterations)
+	budget := newIterationBudget(options.MaxIterations, options.Context)
 	result := ComputeResult{
 		Times:      make([]time.Time, 0, options.MaxResults),
 		Validation: validation,

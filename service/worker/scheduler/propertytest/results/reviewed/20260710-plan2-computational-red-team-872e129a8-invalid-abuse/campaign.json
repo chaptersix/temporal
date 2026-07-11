@@ -1,0 +1,60 @@
+{
+  "schema_version": "campaign-v1",
+  "campaign_id": "20260710-plan2-computational-red-team-872e129a8-invalid-abuse",
+  "plan": "plan2",
+  "name": "validation-abuse",
+  "started_at": "2026-07-11T03:45:40.221194Z",
+  "completed_at": "2026-07-11T03:45:40.241984Z",
+  "complete": true,
+  "provenance": {
+    "architecture": "arm64",
+    "cache_mode": "count=1",
+    "cpu_count": 14,
+    "cpu_model": "Apple M4 Max",
+    "dirty_worktree": true,
+    "generator_version": "plan2-objective-search-v1",
+    "git_revision": "872e129a827d88ce442dadcd24338013ebc052a6",
+    "go_version": "go1.26.4",
+    "os": "darwin",
+    "patch_sha256": "9a0abe5205f28186899f1cfc6983b708679e4efb4ba38359e393cfb7c6544e01",
+    "profile_version": "plan2-query-profiles-v1",
+    "race_enabled": false,
+    "rapid_version": "v1.3.0",
+    "temporal_api_version": "v1.63.3",
+    "timezone_version": "tzcode-2022g-host-data",
+    "work_definition_version": "v1/validator-v1"
+  },
+  "population": "invalid-abuse",
+  "planned_cases": 1,
+  "completed_cases": 1,
+  "seeds": [
+    "20260710"
+  ],
+  "commands": [
+    "timeout 900s go test -tags test_dep ./service/worker/scheduler/propertytest -run '^TestPlan2RedTeamCampaign$' -count=1"
+  ],
+  "environment": {
+    "SCHEDULE_PROPERTY_CAMPAIGN_ID": "20260710-plan2-computational-red-team-872e129a8",
+    "SCHEDULE_PROPERTY_REDTEAM": "1",
+    "SCHEDULE_PROPERTY_REDTEAM_GENERATIONS": "2",
+    "SCHEDULE_PROPERTY_REDTEAM_POPULATION": "4",
+    "SCHEDULE_PROPERTY_RESULTS_DIR": "/tmp/schedule-property-plan2"
+  },
+  "artifacts": [
+    {
+      "path": "cases.jsonl",
+      "bytes": 4447,
+      "sha256": "5fe4b34ec320ad9a131d5bb472554847e857f8d17c085f4e7dce487577f0c234"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 2350,
+      "sha256": "2c80c4931b361cc9f60b71b53ddac617824c3f564b1f2916ce75d54612eb8e98"
+    },
+    {
+      "path": "RESULTS.md",
+      "bytes": 410,
+      "sha256": "0fdbdd78c4b9607159ce1f565f5550b575a14f4444787def5d55e30a1bc0b6b1"
+    }
+  ]
+}

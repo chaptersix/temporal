@@ -1,0 +1,43 @@
+{
+  "campaign_id": "20260710-plan2-uniform-distribution-872e129a8",
+  "completed_cases": 6,
+  "customer_frequency_claim": false,
+  "distributions": {
+    "allocated_bytes": {
+      "maximum": 6271688,
+      "p50": 62264,
+      "p90": 3503864,
+      "p99": 6271688
+    },
+    "allocations": {
+      "maximum": 172975,
+      "p50": 1103,
+      "p90": 86559,
+      "p99": 172975
+    },
+    "cpu_ns": {
+      "maximum": 80280833,
+      "p50": 1145417,
+      "p90": 74714417,
+      "p99": 80280833
+    },
+    "matching_work": {
+      "maximum": 9949825,
+      "p50": 12000,
+      "p90": 9551810,
+      "p99": 9949825
+    },
+    "validation_work": {
+      "maximum": 259352,
+      "p50": 35271,
+      "p90": 222698,
+      "p99": 259352
+    }
+  },
+  "planned_candidates": 72,
+  "population": "uniform-generated",
+  "rejected_mutations": 1,
+  "schema_version": "summary-v1",
+  "valid_candidates": 71,
+  "validation_and_matching_work_aggregated": false
+}

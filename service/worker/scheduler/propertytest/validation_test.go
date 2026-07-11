@@ -1,6 +1,7 @@
 package propertytest
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -62,6 +63,7 @@ type ValidationResult struct {
 
 type ValidationOptions struct {
 	MaxIterations int
+	Context       context.Context
 	faults        analysisFaults
 }
 
@@ -140,6 +142,7 @@ type validationBudget struct {
 	lastTime  time.Time
 	component string
 	work      ValidationWorkBreakdown
+	context   context.Context
 }
 
 func (b *validationBudget) at(component string, at time.Time) {
@@ -148,6 +151,13 @@ func (b *validationBudget) at(component string, at time.Time) {
 }
 
 func (b *validationBudget) tick(kind validationWorkKind) error {
+	if b.context != nil {
+		select {
+		case <-b.context.Done():
+			return b.context.Err()
+		default:
+		}
+	}
 	if b.work.Total >= b.limit {
 		return &ValidationLimitError{
 			Limit:     b.limit,
@@ -184,7 +194,7 @@ func ValidateSchedule(spec *schedulepb.ScheduleSpec, options ValidationOptions) 
 		return ValidationResult{Status: ValidationInvalidStructural, Reason: "validation limit must be positive"},
 			fmt.Errorf("%w: validation limit must be positive", ErrInvalidOptions)
 	}
-	budget := &validationBudget{limit: options.MaxIterations}
+	budget := &validationBudget{limit: options.MaxIterations, context: options.Context}
 	if spec == nil {
 		return invalidValidationResult(budget, ValidationInvalidStructural, "schedule", "schedule spec is nil", ErrInvalidSpec)
 	}

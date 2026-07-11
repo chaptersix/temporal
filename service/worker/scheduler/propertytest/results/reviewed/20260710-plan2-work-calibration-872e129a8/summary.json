@@ -1,0 +1,97 @@
+{
+  "campaign_id": "20260710-plan2-work-calibration-872e129a8",
+  "candidate_classes": [
+    "low",
+    "median",
+    "budget-transition",
+    "p99-like",
+    "maximum-work"
+  ],
+  "completed_cases": 5,
+  "microbenchmark_categories": [
+    "calendar-outer-search-step",
+    "calendar-field-advancement",
+    "inclusion-source-check",
+    "interval-modular-calculation",
+    "exclusion-match",
+    "excluded-candidate-retry",
+    "jitter-following-nominal",
+    "timezone-conversion-dst",
+    "canonicalization-validation"
+  ],
+  "raw_work_vectors": {
+    "plan2-benchmark-low": {
+      "total_matching_work": 12,
+      "calendar_search_work": 4,
+      "excluded_candidate_retries": 0,
+      "work_before_first_result": 12,
+      "work_per_returned_result_milli": 12000,
+      "empty_proof_work": 0,
+      "cpu_nanoseconds": 327625,
+      "allocations": 104,
+      "allocated_bytes": 5744,
+      "work_per_serialized_byte_milli": 190,
+      "validation_proof_work": 9282
+    },
+    "plan2-benchmark-maximum-work": {
+      "total_matching_work": 210000,
+      "calendar_search_work": 202000,
+      "excluded_candidate_retries": 0,
+      "work_before_first_result": 210,
+      "work_per_returned_result_milli": 210000,
+      "empty_proof_work": 0,
+      "cpu_nanoseconds": 2749958,
+      "allocations": 1103,
+      "allocated_bytes": 62264,
+      "work_per_serialized_byte_milli": 3333333,
+      "validation_proof_work": 35272
+    },
+    "plan2-benchmark-median": {
+      "total_matching_work": 2426,
+      "calendar_search_work": 0,
+      "excluded_candidate_retries": 589,
+      "work_before_first_result": 239,
+      "work_per_returned_result_milli": 242600,
+      "empty_proof_work": 0,
+      "cpu_nanoseconds": 4715625,
+      "allocations": 86508,
+      "allocated_bytes": 3499784,
+      "work_per_serialized_byte_milli": 42561,
+      "validation_proof_work": 172951
+    },
+    "plan2-benchmark-p99-like": {
+      "total_matching_work": 9552072,
+      "calendar_search_work": 9498072,
+      "excluded_candidate_retries": 0,
+      "work_before_first_result": 12654,
+      "work_per_returned_result_milli": 9552072,
+      "empty_proof_work": 0,
+      "cpu_nanoseconds": 75446250,
+      "allocations": 2630,
+      "allocated_bytes": 1414008,
+      "work_per_serialized_byte_milli": 63161,
+      "validation_proof_work": 222698
+    },
+    "plan2-benchmark-transition": {
+      "total_matching_work": 21000,
+      "calendar_search_work": 20200,
+      "excluded_candidate_retries": 0,
+      "work_before_first_result": 210,
+      "work_per_returned_result_milli": 210000,
+      "empty_proof_work": 0,
+      "cpu_nanoseconds": 1107667,
+      "allocations": 203,
+      "allocated_bytes": 11576,
+      "work_per_serialized_byte_milli": 333333,
+      "validation_proof_work": 35272
+    }
+  },
+  "schema_version": "summary-v1",
+  "weighted_cost_model_version": "cpu-correlation-v1",
+  "work_cpu_correlations": {
+    "calendar_search": 0.9986306740828984,
+    "excluded_retries": -0.20721134715099127,
+    "matching_total": 0.998634561088815,
+    "validation_total": 0.7731981123310991
+  }
+}
