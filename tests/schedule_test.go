@@ -4791,10 +4791,10 @@ func TestScheduleNextActionTimeVisibility(t *testing.T) {
 		v2Sid, query)
 }
 
-// TestMirroredIncludeExcludeSpec sets identical interval and exclusion
-// specifications that match every 1s, effectively cancelling each other out.
+// TestMirroredIncludeExcludeSpec sets inclusion and exclusion specifications that collectively
+// match every second, effectively cancelling each other out.
 func TestMirroredIncludeExcludeSpec(t *testing.T) {
-	// A tiny compute bound trips the mirrored spec near-instantly; the default (~1.2M candidate
+	// A tiny compute bound trips the cancelling spec near-instantly; the default (~1.2M candidate
 	// scans per GetNextTime) makes this test burn seconds of CPU on every scheduler code path.
 	opts := append(scheduleCommonOpts(t), testcore.WithDynamicConfig(dynamicconfig.SchedulerSpecMaxIterations, 1000))
 	s := testcore.NewEnv(t, opts...)
@@ -4804,13 +4804,17 @@ func TestMirroredIncludeExcludeSpec(t *testing.T) {
 	wt := testcore.RandomizeStr("sched-cancelling-spec-wt")
 
 	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
+	excludeEverySecond := []*schedulepb.CalendarSpec{
+		{Second: "0-58", Minute: "*", Hour: "*"},
+		{Second: "59", Minute: "*", Hour: "*"},
+	}
 
 	ctx, cancel := context.WithTimeout(chasmContextFactory(s.Context()), 10*time.Second)
 	defer cancel()
 	createSchedule(ctx, t, s, sid, &schedulepb.Schedule{
 		Spec: &schedulepb.ScheduleSpec{
 			Calendar:        []*schedulepb.CalendarSpec{everySecond},
-			ExcludeCalendar: []*schedulepb.CalendarSpec{everySecond},
+			ExcludeCalendar: excludeEverySecond,
 		},
 		Action: startWorkflowAction(s, wid, wt),
 	})
@@ -4843,6 +4847,10 @@ func TestMirroredIncludeExcludeSpecOnUpdate(t *testing.T) {
 	})
 
 	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
+	excludeEverySecond := []*schedulepb.CalendarSpec{
+		{Second: "0-58", Minute: "*", Hour: "*"},
+		{Second: "59", Minute: "*", Hour: "*"},
+	}
 	updateCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	_, err := s.FrontendClient().UpdateSchedule(updateCtx, &workflowservice.UpdateScheduleRequest{
@@ -4851,7 +4859,7 @@ func TestMirroredIncludeExcludeSpecOnUpdate(t *testing.T) {
 		Schedule: &schedulepb.Schedule{
 			Spec: &schedulepb.ScheduleSpec{
 				Calendar:        []*schedulepb.CalendarSpec{everySecond},
-				ExcludeCalendar: []*schedulepb.CalendarSpec{everySecond},
+				ExcludeCalendar: excludeEverySecond,
 			},
 			Action: startWorkflowAction(s, wid, wt),
 		},

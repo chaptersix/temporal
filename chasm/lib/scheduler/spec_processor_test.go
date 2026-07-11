@@ -255,8 +255,11 @@ func TestProcessTimeRange_ComputeLimitExceeded(t *testing.T) {
 	schedule := defaultSchedule()
 	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
 	schedule.Spec = &schedulepb.ScheduleSpec{
-		Calendar:        []*schedulepb.CalendarSpec{everySecond},
-		ExcludeCalendar: []*schedulepb.CalendarSpec{everySecond},
+		Calendar: []*schedulepb.CalendarSpec{everySecond},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{
+			{Second: "0-58", Minute: "*", Hour: "*"},
+			{Second: "59", Minute: "*", Hour: "*"},
+		},
 	}
 	sched, err := scheduler.NewScheduler(ctx, namespace, namespaceID, scheduleID, schedule, nil)
 	require.NoError(t, err)

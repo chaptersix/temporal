@@ -756,8 +756,7 @@ func (s *Scheduler) ListMatchingTimes(
 	for range maxListMatchingTimesCount {
 		res, err := cspec.GetNextTime(s.jitterSeed(), t1)
 		if err != nil {
-			// An over-excluded spec won't resolve until it's edited, so return a
-			// non-retryable code: retrying would just re-burn the compute bound each call.
+			// An identical retry would re-burn the same compute bound.
 			return nil, serviceerror.NewFailedPrecondition(err.Error())
 		}
 		t1 = res.Next

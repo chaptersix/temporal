@@ -17,9 +17,9 @@ import (
 
 // DefaultMaxIterations is the fallback bound on how many excluded candidate times GetNextTime
 // will consider before giving up, used when no dynamic-config accessor is injected into the
-// SpecBuilder. It is two weeks' worth of one-second ticks: enough that no well-formed spec ever
-// reaches it, small enough that an adversarial spec (calendar matches every second, exclude
-// cancels every second).
+// SpecBuilder. It is two weeks' worth of one-second ticks. A valid schedule with a longer dense
+// exclusion window can reach the bound, so exhaustion must not be treated as proof that the
+// schedule has no future match.
 const DefaultMaxIterations = 2 * 7 * 24 * 60 * 60
 
 type (
@@ -28,6 +28,7 @@ type (
 		tz            *time.Location
 		calendar      []*compiledCalendar
 		excludes      []*compiledCalendar
+		excludesAll   bool
 		maxIterations int
 	}
 
@@ -53,10 +54,9 @@ type (
 )
 
 // ErrComputeLimitExceeded is returned by GetNextTime when the search for the next matching time
-// hits the compute iteration bound before finding a non-excluded time. It indicates an
-// over-excluded (e.g. a calendar and exclude that cancel each other out).
-// Callers should surface it (metric + log) and stop scheduling; the schedule takes no further
-// action until its spec is changed.
+// hits the compute iteration bound before finding a non-excluded time. An identical retry from
+// the same starting point will repeat the work, but changing the start, spec, or limit may find a
+// future match.
 var ErrComputeLimitExceeded = errors.New("schedule spec next-time search exceeded the compute iteration limit")
 
 func NewSpecBuilder() *SpecBuilder {
@@ -106,8 +106,10 @@ func (b *SpecBuilder) NewCompiledSpec(spec *schedulepb.ScheduleSpec) (*CompiledS
 
 	// compile excludes
 	excludes := make([]*compiledCalendar, len(spec.ExcludeStructuredCalendar))
+	excludesAll := false
 	for i, excal := range spec.ExcludeStructuredCalendar {
 		excludes[i] = newCompiledCalendar(excal, tz)
+		excludesAll = excludesAll || excludes[i].matchesAllTimes(len(excal.Year) == 0)
 	}
 
 	cspec := &CompiledSpec{
@@ -115,6 +117,7 @@ func (b *SpecBuilder) NewCompiledSpec(spec *schedulepb.ScheduleSpec) (*CompiledS
 		tz:            tz,
 		calendar:      ccs,
 		excludes:      excludes,
+		excludesAll:   excludesAll,
 		maxIterations: b.MaxIterations(),
 	}
 
@@ -311,6 +314,12 @@ func (cs *CompiledSpec) CanonicalForm() *schedulepb.ScheduleSpec {
 // Returns: Nominal is the time that matches, pre-jitter. Next is the nominal time with
 // jitter applied. If there is no matching time, Nominal and Next will be the zero time.
 func (cs *CompiledSpec) GetNextTime(jitterSeed string, after time.Time) (GetNextTimeResult, error) {
+	// A single universal exclusion proves that the effective set is empty. Avoid walking every
+	// inclusion candidate to the compute limit when the result is already known.
+	if cs.excludesAll {
+		return GetNextTimeResult{}, nil
+	}
+
 	// If we're starting before the schedule's allowed time range, jump up to right before
 	// it (so that we can still return the first second of the range if it happens to match).
 	// note: AsTime returns unix epoch on nil StartTime

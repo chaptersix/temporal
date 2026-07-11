@@ -86,7 +86,7 @@ func (g *Generator) UpdateFutureActionTimes(
 	for len(futureTimes) < count {
 		res, err := spec.GetNextTime(sched.jitterSeed(), t)
 		if err != nil || res.Next.IsZero() {
-			// Over-excluded spec (limit) or end of schedule: return a partial list.
+			// Bounded search or end of schedule: return a partial list.
 			break
 		}
 		t = res.Next

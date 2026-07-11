@@ -110,6 +110,32 @@ func (cc *compiledCalendar) matches(ts time.Time) bool {
 		cc.second(s)
 }
 
+func (cc *compiledCalendar) matchesAllTimes(unboundedYear bool) bool {
+	if !unboundedYear {
+		return false
+	}
+	fields := []struct {
+		matcher func(int) bool
+		start   int
+		end     int
+	}{
+		{cc.month, 1, 12},
+		{cc.dayOfMonth, 1, 31},
+		{cc.dayOfWeek, 0, 6},
+		{cc.hour, 0, 23},
+		{cc.minute, 0, 59},
+		{cc.second, 0, 59},
+	}
+	for _, field := range fields {
+		for value := field.start; value <= field.end; value++ {
+			if !field.matcher(value) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // Returns the earliest time that matches this calendar spec that is after the given time.
 // All times are considered to have 1 second resolution.
 func (cc *compiledCalendar) next(ts time.Time) time.Time {

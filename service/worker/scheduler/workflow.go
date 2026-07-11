@@ -609,10 +609,10 @@ func (s *scheduler) fillNextTimeCacheV2(start time.Time) {
 		for t := start; len(cache.NextTimes) < s.tweakables.NextTimeCacheV2Size; {
 			next, err := s.cspec.GetNextTime(s.jitterSeed(), t)
 			if errors.Is(err, ErrComputeLimitExceeded) {
-				// Over-excluded spec: surface it and stop. Mark the cache
-				// completed so the schedule takes no further action until its spec changes.
+				// Surface the bounded search and stop. Mark the cache completed so an
+				// identical automatic retry does not repeatedly consume the limit.
 				s.metrics.Counter(metrics.ScheduleComputeLimitExceeded.Name()).Inc(1)
-				s.logger.Warn("schedule spec next-time search hit the compute limit; taking no further action until the spec is changed")
+				s.logger.Warn("schedule spec next-time search hit the compute limit; update the spec or limit to resume")
 				cache.Completed = true
 				break
 			}
@@ -1170,8 +1170,7 @@ func (s *scheduler) handleListMatchingTimesQuery(req *workflowservice.ListSchedu
 		// don't need to call GetNextTime in SideEffect because this is just a query
 		res, err := s.cspec.GetNextTime(s.jitterSeed(), t1)
 		if err != nil {
-			// An over-excluded spec won't resolve until it's edited, so return a
-			// non-retryable code: retrying would just re-burn the compute bound each call.
+			// An identical retry would re-burn the same compute bound.
 			return nil, serviceerror.NewFailedPrecondition(err.Error())
 		}
 		t1 = res.Next
