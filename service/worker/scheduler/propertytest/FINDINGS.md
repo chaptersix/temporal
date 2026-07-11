@@ -180,6 +180,87 @@ killed by the named semantic property in `TestMutationKillMatrix`.
 - CHASM scheduler package: passed unchanged.
 - Repository-wide lint was not run, as explicitly deferred for this plan.
 
+## Production Implementation Handoff
+
+This section is a handoff for a separate production implementation project after the
+analysis exercise is complete. Plans 1 through 3 remain analysis-only and must not use
+these notes as authorization to change production behavior.
+
+### OBSERVATION: Repeated-Hour Matching Assumes A One-Hour Rollback
+
+- Campaign: `20260710-plan1-validity-hardening-0e0638d11`
+- Case: `plan1-lord-howe-repeated-half-hour`
+- The shared legacy `SpecBuilder` calendar search omits the first repeated local 01:30
+  occurrence during Lord Howe's 30-minute rollback. CHASM receives that same builder,
+  so the defect can affect both legacy and CHASM matching paths.
+
+### RECOMMENDATION: Fix Repeated-Time Search Using The Actual Offset Transition
+
+- Add the retained Lord Howe case as a production regression before changing the
+  algorithm.
+- Derive the alternative occurrence from the timezone's actual UTC-offset change; do
+  not assume all rollbacks are one hour.
+- Verify legacy and CHASM list-matching behavior with 30-minute and one-hour repeated
+  periods, schedule bounds selecting either occurrence, and query boundaries around
+  both occurrences.
+
+### OBSERVATION: Production Canonicalization Has Validation Gaps
+
+- Campaign: `20260710-plan1-validity-hardening-0e0638d11`
+- Structured inclusion calendars are field-validated, while structured exclusions are
+  not validated by the same production canonicalization loop.
+- Negative jitter is later clamped to zero rather than rejected, which silently changes
+  caller input semantics.
+- The analysis also found that raw nil repeated-message elements must be rejected before
+  protobuf cloning normalizes them into empty messages.
+
+### RECOMMENDATION: Audit Production Validation As One Compatibility-Sensitive Change
+
+- Evaluate symmetric inclusion/exclusion validation, negative and malformed duration
+  rejection, invalid timestamp rejection, and raw nil element handling.
+- Add create, update, replay, legacy, and CHASM compatibility tests before enforcement.
+- Decide how existing stored schedules that violate the proposed rules are read,
+  listed, updated, or migrated. Do not introduce stricter rejection without an explicit
+  compatibility policy.
+
+### OPEN QUESTION: Should The Exercise's Global Validity Contract Become Production Policy?
+
+- Empty inclusion sets, impossible components, inverted bounds, and globally empty
+  effective sets are invalid by exercise policy, but production currently accepts some
+  of these shapes.
+- A production change would affect schedule creation/update validation and possibly
+  existing persisted schedules. The final decision requires compatibility evidence
+  from the complete exercise and a migration design.
+- Query-local empty success must remain distinct from global unsatisfiability regardless
+  of the policy decision.
+
+### RECOMMENDATION: Preserve Separate Validation And Matching Outcomes
+
+- Any production design should distinguish structural invalidity, proven global
+  unsatisfiability, validation-budget indeterminacy, matching-budget exhaustion, and a
+  valid query-local empty result.
+- Budget exhaustion must not be returned as successful emptiness or guessed
+  invalidity. Error mapping must tell clients whether changing the query, result limit,
+  or schedule can help and whether retry is meaningful.
+- Bound diagnostic strings and timezone information in errors and telemetry.
+
+### RECOMMENDATION: Do Not Select A Production Work Limit Before Plans 2 And 3
+
+- Existing evidence already shows that 10,000 matching-work units reject legitimate
+  dense-plus-sparse schedules.
+- Plan 2 must calibrate deterministic work against CPU and allocations and evaluate
+  valid false positives. Plan 3 must add cancellation, concurrency, and tenfold-load
+  evidence.
+- A later implementation should prefer cumulative request accounting and ensure both
+  legacy and CHASM use the same work definition and client-visible outcome.
+
+### RECOMMENDATION: Create A Separate Production Decision Record After Plan 3
+
+- Carry forward the Lord Howe defect, validation audit, compatibility policy, error
+  taxonomy, selected or rejected guards, cancellation placement, and migration plan.
+- Reference reviewed cases and campaigns rather than generator frequency, and preserve
+  rejected guards with their valid counterexamples.
+
 ## Historical Pre-Plan-1 Context
 
 The following observations predate the Plan 4 bundle contract. They remain as context
