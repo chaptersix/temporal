@@ -1,0 +1,1035 @@
+{
+  "campaign_id": "20260711-plan3-operational-red-team-b960841d9-cancellation-deadline",
+  "cancellation_poll_interval_work_boundaries": 1,
+  "check_order": [
+    "context cancellation or deadline",
+    "active validation budget",
+    "active matching budget"
+  ],
+  "completed_cases": 28,
+  "deadline_wall_clock_environment_specific": true,
+  "iteration_v1_conversion": "project away non-budgeted cancellation_checks; all budgeted categories were rerun unchanged",
+  "maximum_post_observation_budget_ticks": 0,
+  "observations": [
+    {
+      "candidate_id": "plan2-dense-sparse-seed",
+      "case_id": "cancel-before-validation",
+      "class": "cancellation",
+      "complete": false,
+      "latency_ns": 43375,
+      "matching_work": {
+        "Total": 0,
+        "NextTimeCalls": 0,
+        "InclusionSourceChecks": 0,
+        "CalendarSearchSteps": 0,
+        "IntervalChecks": 0,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 0,
+        "CancellationChecks": 0
+      },
+      "notes": [
+        "validation-work=0"
+      ],
+      "partial_results": 0,
+      "typed_outcome": "cancelled",
+      "validation_status": "cancelled",
+      "validation_work": {
+        "Total": 0,
+        "Canonicalization": 0,
+        "ComponentChecks": 0,
+        "CivilDays": 0,
+        "CalendarTupleChecks": 0,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 1
+      }
+    },
+    {
+      "candidate_id": "plan2-sparse-first-seed",
+      "case_id": "cancel-component-satisfiability",
+      "class": "cancellation",
+      "complete": false,
+      "latency_ns": 393125,
+      "matching_work": {
+        "Total": 0,
+        "NextTimeCalls": 0,
+        "InclusionSourceChecks": 0,
+        "CalendarSearchSteps": 0,
+        "IntervalChecks": 0,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 0,
+        "CancellationChecks": 0
+      },
+      "notes": null,
+      "partial_results": 0,
+      "typed_outcome": "cancelled",
+      "validation_status": "cancelled",
+      "validation_work": {
+        "Total": 146,
+        "Canonicalization": 1,
+        "ComponentChecks": 1,
+        "CivilDays": 0,
+        "CalendarTupleChecks": 144,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 147
+      }
+    },
+    {
+      "candidate_id": "plan2-validation-abuse-seed",
+      "case_id": "cancel-effective-set-proof",
+      "class": "cancellation",
+      "complete": false,
+      "latency_ns": 2225125,
+      "matching_work": {
+        "Total": 0,
+        "NextTimeCalls": 0,
+        "InclusionSourceChecks": 0,
+        "CalendarSearchSteps": 0,
+        "IntervalChecks": 0,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 0,
+        "CancellationChecks": 0
+      },
+      "notes": null,
+      "partial_results": 0,
+      "typed_outcome": "cancelled",
+      "validation_status": "cancelled",
+      "validation_work": {
+        "Total": 173096,
+        "Canonicalization": 1,
+        "ComponentChecks": 3,
+        "CivilDays": 2,
+        "CalendarTupleChecks": 173090,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 173097
+      }
+    },
+    {
+      "candidate_id": "plan2-result-count-seed",
+      "case_id": "cancel-before-first-result",
+      "class": "cancellation",
+      "complete": false,
+      "latency_ns": 287709,
+      "matching_work": {
+        "Total": 0,
+        "NextTimeCalls": 0,
+        "InclusionSourceChecks": 0,
+        "CalendarSearchSteps": 0,
+        "IntervalChecks": 0,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 0,
+        "CancellationChecks": 1
+      },
+      "notes": null,
+      "partial_results": 0,
+      "typed_outcome": "cancelled",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 9282,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 9134,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 9282
+      }
+    },
+    {
+      "candidate_id": "plan2-result-count-seed",
+      "case_id": "cancel-after-one-result",
+      "class": "cancellation",
+      "complete": false,
+      "latency_ns": 293458,
+      "matching_work": {
+        "Total": 12,
+        "NextTimeCalls": 1,
+        "InclusionSourceChecks": 4,
+        "CalendarSearchSteps": 4,
+        "IntervalChecks": 2,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 1,
+        "CancellationChecks": 13
+      },
+      "notes": [
+        "stable-prefix-results=1"
+      ],
+      "partial_results": 1,
+      "typed_outcome": "cancelled",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 9282,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 9134,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 9282
+      }
+    },
+    {
+      "candidate_id": "plan2-exclusion-seed",
+      "case_id": "cancel-exclusion-retry",
+      "class": "cancellation",
+      "complete": false,
+      "latency_ns": 5432459,
+      "matching_work": {
+        "Total": 53,
+        "NextTimeCalls": 1,
+        "InclusionSourceChecks": 13,
+        "CalendarSearchSteps": 0,
+        "IntervalChecks": 13,
+        "ExclusionChecks": 13,
+        "ExcludedCandidateRetries": 12,
+        "ResultLoopSteps": 1,
+        "CancellationChecks": 54
+      },
+      "notes": null,
+      "partial_results": 0,
+      "typed_outcome": "cancelled",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 172951,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 1,
+        "CalendarTupleChecks": 86545,
+        "IntervalOccurrences": 86400,
+        "EffectiveDays": 1,
+        "ExclusionChecks": 1,
+        "CancellationChecks": 172951
+      }
+    },
+    {
+      "candidate_id": "plan2-dense-sparse-seed",
+      "case_id": "cancel-one-before-limit",
+      "class": "cancellation",
+      "complete": false,
+      "latency_ns": 1129916,
+      "matching_work": {
+        "Total": 999,
+        "NextTimeCalls": 5,
+        "InclusionSourceChecks": 19,
+        "CalendarSearchSteps": 961,
+        "IntervalChecks": 9,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 5,
+        "CancellationChecks": 1000
+      },
+      "notes": null,
+      "partial_results": 4,
+      "typed_outcome": "cancelled",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 35272,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 35124,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 35272
+      }
+    },
+    {
+      "candidate_id": "plan2-result-count-seed",
+      "case_id": "cancel-simultaneous-ten-workers",
+      "class": "cancellation",
+      "complete": false,
+      "latency_ns": 632791,
+      "matching_work": {
+        "Total": 0,
+        "NextTimeCalls": 0,
+        "InclusionSourceChecks": 0,
+        "CalendarSearchSteps": 0,
+        "IntervalChecks": 0,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 0,
+        "CancellationChecks": 1
+      },
+      "notes": [
+        "workers=10",
+        "all-work-vectors-identical=true"
+      ],
+      "partial_results": 0,
+      "typed_outcome": "cancelled",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 9282,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 9134,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 9282
+      }
+    },
+    {
+      "candidate_id": "plan3-low-cost-valid",
+      "case_id": "deadline-low-cost-valid-expired",
+      "class": "deadline",
+      "complete": false,
+      "latency_ns": 3833,
+      "matching_work": {
+        "Total": 0,
+        "NextTimeCalls": 0,
+        "InclusionSourceChecks": 0,
+        "CalendarSearchSteps": 0,
+        "IntervalChecks": 0,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 0,
+        "CancellationChecks": 0
+      },
+      "notes": [
+        "deadline=expired",
+        "winner=deadline",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 0,
+      "typed_outcome": "deadline",
+      "validation_status": "deadline-exceeded",
+      "validation_work": {
+        "Total": 0,
+        "Canonicalization": 0,
+        "ComponentChecks": 0,
+        "CivilDays": 0,
+        "CalendarTupleChecks": 0,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 1
+      }
+    },
+    {
+      "candidate_id": "plan3-low-cost-valid",
+      "case_id": "deadline-low-cost-valid-1ms",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 260709,
+      "matching_work": {
+        "Total": 12,
+        "NextTimeCalls": 1,
+        "InclusionSourceChecks": 4,
+        "CalendarSearchSteps": 4,
+        "IntervalChecks": 2,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 1,
+        "CancellationChecks": 12
+      },
+      "notes": [
+        "deadline=1ms",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 1,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 9282,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 9134,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 9282
+      }
+    },
+    {
+      "candidate_id": "plan3-low-cost-valid",
+      "case_id": "deadline-low-cost-valid-10ms",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 247875,
+      "matching_work": {
+        "Total": 12,
+        "NextTimeCalls": 1,
+        "InclusionSourceChecks": 4,
+        "CalendarSearchSteps": 4,
+        "IntervalChecks": 2,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 1,
+        "CancellationChecks": 12
+      },
+      "notes": [
+        "deadline=10ms",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 1,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 9282,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 9134,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 9282
+      }
+    },
+    {
+      "candidate_id": "plan3-low-cost-valid",
+      "case_id": "deadline-low-cost-valid-100ms",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 244375,
+      "matching_work": {
+        "Total": 12,
+        "NextTimeCalls": 1,
+        "InclusionSourceChecks": 4,
+        "CalendarSearchSteps": 4,
+        "IntervalChecks": 2,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 1,
+        "CancellationChecks": 12
+      },
+      "notes": [
+        "deadline=100ms",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 1,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 9282,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 9134,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 9282
+      }
+    },
+    {
+      "candidate_id": "plan3-low-cost-valid",
+      "case_id": "deadline-low-cost-valid-1s",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 244666,
+      "matching_work": {
+        "Total": 12,
+        "NextTimeCalls": 1,
+        "InclusionSourceChecks": 4,
+        "CalendarSearchSteps": 4,
+        "IntervalChecks": 2,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 1,
+        "CancellationChecks": 12
+      },
+      "notes": [
+        "deadline=1s",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 1,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 9282,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 9134,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 9282
+      }
+    },
+    {
+      "candidate_id": "plan3-low-cost-valid",
+      "case_id": "deadline-low-cost-valid-sufficient",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 254041,
+      "matching_work": {
+        "Total": 12,
+        "NextTimeCalls": 1,
+        "InclusionSourceChecks": 4,
+        "CalendarSearchSteps": 4,
+        "IntervalChecks": 2,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 1,
+        "CancellationChecks": 12
+      },
+      "notes": [
+        "deadline=sufficient",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 1,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 9282,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 9134,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 9282
+      }
+    },
+    {
+      "candidate_id": "plan3-exact-budget-transition",
+      "case_id": "deadline-exact-budget-transition-expired",
+      "class": "deadline",
+      "complete": false,
+      "latency_ns": 667,
+      "matching_work": {
+        "Total": 0,
+        "NextTimeCalls": 0,
+        "InclusionSourceChecks": 0,
+        "CalendarSearchSteps": 0,
+        "IntervalChecks": 0,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 0,
+        "CancellationChecks": 0
+      },
+      "notes": [
+        "deadline=expired",
+        "winner=deadline",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 0,
+      "typed_outcome": "deadline",
+      "validation_status": "deadline-exceeded",
+      "validation_work": {
+        "Total": 0,
+        "Canonicalization": 0,
+        "ComponentChecks": 0,
+        "CivilDays": 0,
+        "CalendarTupleChecks": 0,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 1
+      }
+    },
+    {
+      "candidate_id": "plan3-exact-budget-transition",
+      "case_id": "deadline-exact-budget-transition-1ms",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 950750,
+      "matching_work": {
+        "Total": 2100,
+        "NextTimeCalls": 10,
+        "InclusionSourceChecks": 40,
+        "CalendarSearchSteps": 2020,
+        "IntervalChecks": 20,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 10,
+        "CancellationChecks": 2100
+      },
+      "notes": [
+        "deadline=1ms",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 10,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 35272,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 35124,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 35272
+      }
+    },
+    {
+      "candidate_id": "plan3-exact-budget-transition",
+      "case_id": "deadline-exact-budget-transition-10ms",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 956417,
+      "matching_work": {
+        "Total": 2100,
+        "NextTimeCalls": 10,
+        "InclusionSourceChecks": 40,
+        "CalendarSearchSteps": 2020,
+        "IntervalChecks": 20,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 10,
+        "CancellationChecks": 2100
+      },
+      "notes": [
+        "deadline=10ms",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 10,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 35272,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 35124,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 35272
+      }
+    },
+    {
+      "candidate_id": "plan3-exact-budget-transition",
+      "case_id": "deadline-exact-budget-transition-100ms",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 967333,
+      "matching_work": {
+        "Total": 2100,
+        "NextTimeCalls": 10,
+        "InclusionSourceChecks": 40,
+        "CalendarSearchSteps": 2020,
+        "IntervalChecks": 20,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 10,
+        "CancellationChecks": 2100
+      },
+      "notes": [
+        "deadline=100ms",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 10,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 35272,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 35124,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 35272
+      }
+    },
+    {
+      "candidate_id": "plan3-exact-budget-transition",
+      "case_id": "deadline-exact-budget-transition-1s",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 976208,
+      "matching_work": {
+        "Total": 2100,
+        "NextTimeCalls": 10,
+        "InclusionSourceChecks": 40,
+        "CalendarSearchSteps": 2020,
+        "IntervalChecks": 20,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 10,
+        "CancellationChecks": 2100
+      },
+      "notes": [
+        "deadline=1s",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 10,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 35272,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 35124,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 35272
+      }
+    },
+    {
+      "candidate_id": "plan3-exact-budget-transition",
+      "case_id": "deadline-exact-budget-transition-sufficient",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 988458,
+      "matching_work": {
+        "Total": 2100,
+        "NextTimeCalls": 10,
+        "InclusionSourceChecks": 40,
+        "CalendarSearchSteps": 2020,
+        "IntervalChecks": 20,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 10,
+        "CancellationChecks": 2100
+      },
+      "notes": [
+        "deadline=sufficient",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 10,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 35272,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 35124,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 35272
+      }
+    },
+    {
+      "candidate_id": "plan3-maximum-matching-work",
+      "case_id": "deadline-maximum-matching-work-expired",
+      "class": "deadline",
+      "complete": false,
+      "latency_ns": 8375,
+      "matching_work": {
+        "Total": 0,
+        "NextTimeCalls": 0,
+        "InclusionSourceChecks": 0,
+        "CalendarSearchSteps": 0,
+        "IntervalChecks": 0,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 0,
+        "CancellationChecks": 0
+      },
+      "notes": [
+        "deadline=expired",
+        "winner=deadline",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 0,
+      "typed_outcome": "deadline",
+      "validation_status": "deadline-exceeded",
+      "validation_work": {
+        "Total": 0,
+        "Canonicalization": 0,
+        "ComponentChecks": 0,
+        "CivilDays": 0,
+        "CalendarTupleChecks": 0,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 1
+      }
+    },
+    {
+      "candidate_id": "plan3-maximum-matching-work",
+      "case_id": "deadline-maximum-matching-work-1ms",
+      "class": "deadline",
+      "complete": false,
+      "latency_ns": 1272542,
+      "matching_work": {
+        "Total": 0,
+        "NextTimeCalls": 0,
+        "InclusionSourceChecks": 0,
+        "CalendarSearchSteps": 0,
+        "IntervalChecks": 0,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 0,
+        "CancellationChecks": 0
+      },
+      "notes": [
+        "deadline=1ms",
+        "winner=deadline",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 0,
+      "typed_outcome": "deadline",
+      "validation_status": "deadline-exceeded",
+      "validation_work": {
+        "Total": 38934,
+        "Canonicalization": 1,
+        "ComponentChecks": 5,
+        "CivilDays": 38204,
+        "CalendarTupleChecks": 724,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 38935
+      }
+    },
+    {
+      "candidate_id": "plan3-maximum-matching-work",
+      "case_id": "deadline-maximum-matching-work-10ms",
+      "class": "deadline",
+      "complete": false,
+      "latency_ns": 12013000,
+      "matching_work": {
+        "Total": 670870,
+        "NextTimeCalls": 60,
+        "InclusionSourceChecks": 2983,
+        "CalendarSearchSteps": 667648,
+        "IntervalChecks": 119,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 60,
+        "CancellationChecks": 670871
+      },
+      "notes": [
+        "deadline=10ms",
+        "winner=deadline",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 59,
+      "typed_outcome": "deadline",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 222698,
+        "Canonicalization": 1,
+        "ComponentChecks": 25,
+        "CivilDays": 219192,
+        "CalendarTupleChecks": 3480,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 222698
+      }
+    },
+    {
+      "candidate_id": "plan3-maximum-matching-work",
+      "case_id": "deadline-maximum-matching-work-100ms",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 81985667,
+      "matching_work": {
+        "Total": 9552072,
+        "NextTimeCalls": 1000,
+        "InclusionSourceChecks": 50000,
+        "CalendarSearchSteps": 9498072,
+        "IntervalChecks": 2000,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 1000,
+        "CancellationChecks": 9552072
+      },
+      "notes": [
+        "deadline=100ms",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 1000,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 222698,
+        "Canonicalization": 1,
+        "ComponentChecks": 25,
+        "CivilDays": 219192,
+        "CalendarTupleChecks": 3480,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 222698
+      }
+    },
+    {
+      "candidate_id": "plan3-maximum-matching-work",
+      "case_id": "deadline-maximum-matching-work-1s",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 80794292,
+      "matching_work": {
+        "Total": 9552072,
+        "NextTimeCalls": 1000,
+        "InclusionSourceChecks": 50000,
+        "CalendarSearchSteps": 9498072,
+        "IntervalChecks": 2000,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 1000,
+        "CancellationChecks": 9552072
+      },
+      "notes": [
+        "deadline=1s",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 1000,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 222698,
+        "Canonicalization": 1,
+        "ComponentChecks": 25,
+        "CivilDays": 219192,
+        "CalendarTupleChecks": 3480,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 222698
+      }
+    },
+    {
+      "candidate_id": "plan3-maximum-matching-work",
+      "case_id": "deadline-maximum-matching-work-sufficient",
+      "class": "deadline",
+      "complete": true,
+      "latency_ns": 81587958,
+      "matching_work": {
+        "Total": 9552072,
+        "NextTimeCalls": 1000,
+        "InclusionSourceChecks": 50000,
+        "CalendarSearchSteps": 9498072,
+        "IntervalChecks": 2000,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 1000,
+        "CancellationChecks": 9552072
+      },
+      "notes": [
+        "deadline=sufficient",
+        "winner=complete",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 1000,
+      "typed_outcome": "complete",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 222698,
+        "Canonicalization": 1,
+        "ComponentChecks": 25,
+        "CivilDays": 219192,
+        "CalendarTupleChecks": 3480,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 222698
+      }
+    },
+    {
+      "candidate_id": "plan3-maximum-validation-work",
+      "case_id": "deadline-boundary-validation-budget-wins",
+      "class": "deadline-boundary",
+      "complete": false,
+      "latency_ns": 38458,
+      "matching_work": {
+        "Total": 0,
+        "NextTimeCalls": 0,
+        "InclusionSourceChecks": 0,
+        "CalendarSearchSteps": 0,
+        "IntervalChecks": 0,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 0,
+        "CancellationChecks": 0
+      },
+      "notes": [
+        "deadline=1s",
+        "winner=validation-budget",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 0,
+      "typed_outcome": "validation-budget",
+      "validation_status": "indeterminate-validation-budget",
+      "validation_work": {
+        "Total": 1000,
+        "Canonicalization": 1,
+        "ComponentChecks": 3,
+        "CivilDays": 2,
+        "CalendarTupleChecks": 994,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 1001
+      }
+    },
+    {
+      "candidate_id": "plan3-exact-budget-transition",
+      "case_id": "deadline-boundary-matching-budget-wins",
+      "class": "deadline-boundary",
+      "complete": false,
+      "latency_ns": 997791,
+      "matching_work": {
+        "Total": 100,
+        "NextTimeCalls": 1,
+        "InclusionSourceChecks": 1,
+        "CalendarSearchSteps": 97,
+        "IntervalChecks": 0,
+        "ExclusionChecks": 0,
+        "ExcludedCandidateRetries": 0,
+        "ResultLoopSteps": 1,
+        "CancellationChecks": 101
+      },
+      "notes": [
+        "deadline=1s",
+        "winner=matching-budget",
+        "wall-clock-environment-specific=true"
+      ],
+      "partial_results": 0,
+      "typed_outcome": "matching-budget",
+      "validation_status": "valid",
+      "validation_work": {
+        "Total": 35272,
+        "Canonicalization": 1,
+        "ComponentChecks": 2,
+        "CivilDays": 35124,
+        "CalendarTupleChecks": 145,
+        "IntervalOccurrences": 0,
+        "EffectiveDays": 0,
+        "ExclusionChecks": 0,
+        "CancellationChecks": 35272
+      }
+    }
+  ],
+  "population": "curated-operational",
+  "schema_version": "summary-v1",
+  "typed_outcomes": {
+    "cancelled": 8,
+    "complete": 13,
+    "deadline": 5,
+    "matching-budget": 1,
+    "validation-budget": 1
+  }
+}

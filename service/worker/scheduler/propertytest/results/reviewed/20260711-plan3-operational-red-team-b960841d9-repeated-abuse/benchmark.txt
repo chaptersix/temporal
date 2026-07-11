@@ -1,0 +1,14 @@
+goos: darwin
+goarch: arm64
+pkg: go.temporal.io/server/service/worker/scheduler/propertytest
+cpu: Apple M4 Max
+BenchmarkOperationalMaximumResultSlice-14           	     248	    451320 ns/op	   64668 B/op	    1104 allocs/op
+BenchmarkOperationalValidationDayBuffers-14         	       4	  27619021 ns/op	21077134 B/op	  604990 allocs/op
+BenchmarkOperationalManyCalendarRanges-14           	      20	   5835344 ns/op	  730910 B/op	     893 allocs/op
+BenchmarkOperationalLargeTimezoneData-14            	      19	   6077182 ns/op	 1397402 B/op	    1663 allocs/op
+BenchmarkOperationalRapidCancellation-14            	 1000000	       107.7 ns/op	      96 B/op	       2 allocs/op
+BenchmarkOperationalRepeatedValidationCache/uncached-14         	       4	  27539292 ns/op	    777917 executed-validation-work/op	20931866 B/op	  604924 allocs/op
+BenchmarkOperationalRepeatedValidationCache/cached-14           	  105114	      1089 ns/op	         0 executed-validation-work/op	     535 B/op	       7 allocs/op
+BenchmarkOperationalAlternatingCheapExpensive-14                	     204	    588280 ns/op	    587520 mixed-ns/op	   13173 B/op	     137 allocs/op
+PASS
+ok  	go.temporal.io/server/service/worker/scheduler/propertytest	2.616s

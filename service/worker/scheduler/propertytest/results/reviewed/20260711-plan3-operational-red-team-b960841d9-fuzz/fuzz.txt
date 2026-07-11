@@ -1,0 +1,43 @@
+TARGET FuzzOperationalRawScheduleDecodeAndValidate
+fuzz: elapsed: 0s, gathering baseline coverage: 0/83 completed
+fuzz: elapsed: 2s, gathering baseline coverage: 83/83 completed, now fuzzing with 1 workers
+fuzz: elapsed: 3s, execs: 2570 (856/sec), new interesting: 2 (total: 85)
+fuzz: elapsed: 5s, execs: 7349 (2362/sec), new interesting: 6 (total: 89)
+PASS
+ok  	go.temporal.io/server/service/worker/scheduler/propertytest	6.020s
+TARGET FuzzOperationalMalformedTimezoneData
+fuzz: elapsed: 0s, gathering baseline coverage: 0/4 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 4/4 completed, now fuzzing with 1 workers
+fuzz: elapsed: 3s, execs: 6893 (2296/sec), new interesting: 0 (total: 4)
+fuzz: elapsed: 5s, execs: 11846 (2444/sec), new interesting: 0 (total: 4)
+PASS
+ok  	go.temporal.io/server/service/worker/scheduler/propertytest	5.951s
+TARGET FuzzOperationalExtremeTimestampsAndDurations
+fuzz: elapsed: 0s, gathering baseline coverage: 0/18 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 18/18 completed, now fuzzing with 1 workers
+fuzz: elapsed: 3s, execs: 6040 (2012/sec), new interesting: 1 (total: 19)
+fuzz: elapsed: 5s, execs: 10981 (2431/sec), new interesting: 1 (total: 19)
+PASS
+ok  	go.temporal.io/server/service/worker/scheduler/propertytest	5.949s
+TARGET FuzzOperationalLargeRepeatedFields
+fuzz: elapsed: 0s, gathering baseline coverage: 0/77 completed
+fuzz: elapsed: 2s, gathering baseline coverage: 77/77 completed, now fuzzing with 1 workers
+fuzz: elapsed: 3s, execs: 1851 (617/sec), new interesting: 3 (total: 80)
+fuzz: elapsed: 5s, execs: 4918 (1485/sec), new interesting: 3 (total: 80)
+PASS
+ok  	go.temporal.io/server/service/worker/scheduler/propertytest	5.994s
+TARGET FuzzOperationalUnicodeCronAndComments
+fuzz: elapsed: 0s, gathering baseline coverage: 0/65 completed
+fuzz: elapsed: 2s, gathering baseline coverage: 65/65 completed, now fuzzing with 1 workers
+fuzz: elapsed: 3s, execs: 3336 (1112/sec), new interesting: 6 (total: 71)
+fuzz: elapsed: 5s, execs: 8179 (2329/sec), new interesting: 15 (total: 80)
+PASS
+ok  	go.temporal.io/server/service/worker/scheduler/propertytest	6.003s
+TARGET FuzzOperationalCancellationRacingParsingAndValidation
+fuzz: elapsed: 0s, gathering baseline coverage: 0/99 completed
+fuzz: elapsed: 2s, gathering baseline coverage: 99/99 completed, now fuzzing with 1 workers
+fuzz: elapsed: 3s, execs: 1307 (436/sec), new interesting: 3 (total: 102)
+fuzz: elapsed: 6s, execs: 2306 (333/sec), new interesting: 6 (total: 105)
+fuzz: elapsed: 6s, execs: 2306 (0/sec), new interesting: 6 (total: 105)
+PASS
+ok  	go.temporal.io/server/service/worker/scheduler/propertytest	6.948s

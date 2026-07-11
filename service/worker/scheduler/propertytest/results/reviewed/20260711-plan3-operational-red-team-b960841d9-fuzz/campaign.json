@@ -1,0 +1,62 @@
+{
+  "schema_version": "campaign-v1",
+  "campaign_id": "20260711-plan3-operational-red-team-b960841d9-fuzz",
+  "plan": "plan3",
+  "name": "hostile-input-fuzz",
+  "started_at": "2026-07-11T06:00:07.156098Z",
+  "completed_at": "2026-07-11T06:00:58.445175Z",
+  "complete": true,
+  "provenance": {
+    "architecture": "arm64",
+    "cache_mode": "count=1",
+    "cpu_count": 14,
+    "cpu_model": "Apple M4 Max",
+    "dirty_worktree": true,
+    "generator_version": "plan3-hostile-input-v1",
+    "git_revision": "b960841d9",
+    "go_version": "go1.26.4",
+    "os": "darwin",
+    "patch_sha256": "67c18a41711679774a5d70176f263105c77ef3e15b8192b3e796f443ab863812",
+    "profile_version": "plan3-operational-v1",
+    "race_enabled": false,
+    "rapid_version": "v1.3.0",
+    "temporal_api_version": "v1.63.3",
+    "timezone_version": "tzcode-2022g-host-data",
+    "work_definition_version": "v1/validator-v1/context-check-v1"
+  },
+  "population": "coverage-fuzz",
+  "planned_cases": 6,
+  "completed_cases": 6,
+  "commands": [
+    "timeout 120s env GOMEMLIMIT=512MiB go test -tags test_dep ./service/worker/scheduler/propertytest -run '^$' -fuzz '^FuzzOperational\u003cTarget\u003e$' -fuzztime=5s -parallel=1"
+  ],
+  "environment": {
+    "fuzztime": "5s-per-target",
+    "max_input_bytes": "262144",
+    "outer_timeout": "120s-per-target",
+    "parallel": "1",
+    "validation_work_limit": "100000"
+  },
+  "artifacts": [
+    {
+      "path": "cases.jsonl",
+      "bytes": 10311,
+      "sha256": "7ec4eb440d9965686a8bbf57c9ad182d24627b5edde08df3f5954bdbdc40bfb4"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 595,
+      "sha256": "e2d173483ca9a46e5277a937e41d930b0b8edcfabd2a6eae6e9c63d37eff0193"
+    },
+    {
+      "path": "RESULTS.md",
+      "bytes": 290,
+      "sha256": "1ea80d25bc169b80de609cfe169114e4e612ed10224582f27d54692bfcd10ca2"
+    },
+    {
+      "path": "fuzz.txt",
+      "bytes": 2643,
+      "sha256": "e222be845a6aaa9700b3b1c55f56ddc31ae1d2cdde6ade9bf3b215378b9073ff"
+    }
+  ]
+}

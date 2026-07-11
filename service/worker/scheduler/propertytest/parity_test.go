@@ -70,10 +70,11 @@ func TestCopiedCalculatorParity(t *testing.T) {
 			require.NoError(t, err)
 			expected := productionMatchingTimes(productionSpec, start, tt.end, tt.seed, 100)
 
-			actual, err := ComputeMatchingTimes(tt.spec, start, tt.end, tt.seed, ComputeOptions{
+			actual, err := ComputeMatchingTimes(backgroundContext, tt.spec, start, tt.end, tt.seed, ComputeOptions{
 				MaxResults:    100,
 				MaxIterations: 1_000_000,
 			})
+
 			require.NoError(t, err)
 			require.Equal(t, expected, actual.Times)
 		})

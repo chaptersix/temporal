@@ -23,6 +23,8 @@ const (
 	ValidationInvalidComponentUnsatisfiable
 	ValidationInvalidEffectiveSetEmpty
 	ValidationIndeterminateBudget
+	ValidationCancelled
+	ValidationDeadlineExceeded
 )
 
 func (s ValidationStatus) String() string {
@@ -37,6 +39,10 @@ func (s ValidationStatus) String() string {
 		return "invalid-empty-effective-set"
 	case ValidationIndeterminateBudget:
 		return "indeterminate-validation-budget"
+	case ValidationCancelled:
+		return "cancelled"
+	case ValidationDeadlineExceeded:
+		return "deadline-exceeded"
 	default:
 		return "unknown"
 	}
@@ -51,6 +57,7 @@ type ValidationWorkBreakdown struct {
 	IntervalOccurrences int
 	EffectiveDays       int
 	ExclusionChecks     int
+	CancellationChecks  int
 }
 
 type ValidationResult struct {
@@ -59,11 +66,12 @@ type ValidationResult struct {
 	Witness   time.Time
 	Component string
 	Reason    string
+	Complete  bool
 }
 
 type ValidationOptions struct {
 	MaxIterations int
-	Context       context.Context
+	WorkTickHook  WorkTickHook
 	faults        analysisFaults
 }
 
@@ -143,6 +151,7 @@ type validationBudget struct {
 	component string
 	work      ValidationWorkBreakdown
 	context   context.Context
+	hook      WorkTickHook
 }
 
 func (b *validationBudget) at(component string, at time.Time) {
@@ -151,12 +160,20 @@ func (b *validationBudget) at(component string, at time.Time) {
 }
 
 func (b *validationBudget) tick(kind validationWorkKind) error {
-	if b.context != nil {
-		select {
-		case <-b.context.Done():
-			return b.context.Err()
-		default:
-		}
+	if b.hook != nil {
+		b.hook(WorkTick{
+			Phase: WorkPhaseValidation, Kind: kind.String(), Total: b.work.Total,
+			LastTime: b.lastTime, Component: b.component,
+		})
+	}
+	b.work.CancellationChecks++
+	if b.context == nil {
+		b.context = backgroundContext
+	}
+	select {
+	case <-b.context.Done():
+		return b.context.Err()
+	default:
 	}
 	if b.work.Total >= b.limit {
 		return &ValidationLimitError{
@@ -189,12 +206,37 @@ func (b *validationBudget) tick(kind validationWorkKind) error {
 	return nil
 }
 
-func ValidateSchedule(spec *schedulepb.ScheduleSpec, options ValidationOptions) (ValidationResult, error) {
+func (k validationWorkKind) String() string {
+	switch k {
+	case validationCanonicalization:
+		return "canonicalization"
+	case validationComponent:
+		return "component"
+	case validationCivilDay:
+		return "civil-day"
+	case validationCalendarTuple:
+		return "calendar-tuple"
+	case validationIntervalOccurrence:
+		return "interval-occurrence"
+	case validationEffectiveDay:
+		return "effective-day"
+	case validationExclusion:
+		return "exclusion"
+	default:
+		return "unknown"
+	}
+}
+
+func ValidateSchedule(ctx context.Context, spec *schedulepb.ScheduleSpec, options ValidationOptions) (ValidationResult, error) {
 	if options.MaxIterations <= 0 {
 		return ValidationResult{Status: ValidationInvalidStructural, Reason: "validation limit must be positive"},
 			fmt.Errorf("%w: validation limit must be positive", ErrInvalidOptions)
 	}
-	budget := &validationBudget{limit: options.MaxIterations, context: options.Context}
+	if ctx == nil {
+		return ValidationResult{Status: ValidationInvalidStructural, Reason: "context must not be nil"},
+			fmt.Errorf("%w: context must not be nil", ErrInvalidOptions)
+	}
+	budget := &validationBudget{limit: options.MaxIterations, context: ctx, hook: options.WorkTickHook}
 	if spec == nil {
 		return invalidValidationResult(budget, ValidationInvalidStructural, "schedule", "schedule spec is nil", ErrInvalidSpec)
 	}
@@ -343,10 +385,11 @@ func ValidateSchedule(spec *schedulepb.ScheduleSpec, options ValidationOptions) 
 	for _, witness := range inclusionWitnesses {
 		if options.faults.ignoreExclusions || !matchesAnyCalendar(exclusions, witness) {
 			return ValidationResult{
-				Status:  ValidationValid,
-				Work:    budget.work,
-				Witness: witness,
-				Reason:  "effective timestamp witness found",
+				Status:   ValidationValid,
+				Work:     budget.work,
+				Witness:  witness,
+				Reason:   "effective timestamp witness found",
+				Complete: true,
 			}, nil
 		}
 	}
@@ -387,19 +430,29 @@ func ValidateSchedule(spec *schedulepb.ScheduleSpec, options ValidationOptions) 
 		)
 	}
 	return ValidationResult{
-		Status:  ValidationValid,
-		Work:    budget.work,
-		Witness: witness,
-		Reason:  "effective timestamp witness found",
+		Status:   ValidationValid,
+		Work:     budget.work,
+		Witness:  witness,
+		Reason:   "effective timestamp witness found",
+		Complete: true,
 	}, nil
 }
 
 func validationLimitResult(budget *validationBudget, err error) (ValidationResult, error) {
+	status := ValidationIndeterminateBudget
+	reason := "validation proof budget exhausted before classification"
+	if errors.Is(err, context.Canceled) {
+		status = ValidationCancelled
+		reason = "validation cancelled before classification"
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		status = ValidationDeadlineExceeded
+		reason = "validation deadline exceeded before classification"
+	}
 	return ValidationResult{
-		Status:    ValidationIndeterminateBudget,
+		Status:    status,
 		Work:      budget.work,
 		Component: budget.component,
-		Reason:    "validation proof budget exhausted before classification",
+		Reason:    reason,
 	}, err
 }
 

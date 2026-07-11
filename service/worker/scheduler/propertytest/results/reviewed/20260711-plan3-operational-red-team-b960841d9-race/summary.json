@@ -1,0 +1,9 @@
+{
+  "campaign_id": "20260711-plan3-operational-red-team-b960841d9-race",
+  "completed_cases": 5,
+  "failures": 0,
+  "finite_suite": true,
+  "population": "race",
+  "race_enabled": true,
+  "schema_version": "summary-v1"
+}

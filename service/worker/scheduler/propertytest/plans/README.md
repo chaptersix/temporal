@@ -89,3 +89,32 @@ go test -tags test_dep ./chasm/lib/scheduler
 ```
 
 Repository-wide lint is deferred until explicitly requested.
+
+## Operational Context Check Order
+
+Plan 3 retains iteration definition `v1` and validator definition `v1`. Context polling
+is separately versioned as `context-check-v1` and does not contribute to either work
+total. The analysis API bounds result-slice capacity at the documented 10,000-result
+analysis maximum; the reviewed Plan 2/3 replay corpus remains bounded to 1,000 results.
+This is a test-harness allocation bound, not a proposed production guard.
+
+Plan 3 campaign manifests use the composite work definition
+`v1/validator-v1/context-check-v1`. Comparisons with Plan 2 use a documented projection
+that removes the new non-budgeted cancellation-check fields, and the complete Plan 2
+corpus is rerun under Plan 3. No aggregate silently mixes the composite and Plan 2
+definitions.
+
+After static option and query-range checks, each existing validation or matching work
+boundary performs these operations in order:
+
+1. Invoke the deterministic test hook, when configured.
+2. Increment the separately reported cancellation-check count.
+3. Return `context.Canceled` or `context.DeadlineExceeded` when the context is done.
+4. Check the active validation or matching budget.
+5. Consume the existing `v1` work tick.
+
+Validation completes before matching begins, so a validation budget can win only in
+the validation phase and a matching budget can win only after valid classification.
+An observable cancellation or deadline therefore stops with zero additional budgeted
+ticks. Error results may expose a stable prefix for analysis, but `Complete` remains
+false and the prefix is never presented as a complete response.

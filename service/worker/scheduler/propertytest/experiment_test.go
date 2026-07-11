@@ -93,11 +93,12 @@ func TestAllExcludedDenseIntervalValidationClassification(t *testing.T) {
 			DayOfWeek:  []*schedulepb.Range{{Start: 0, End: 6, Step: 1}},
 		}},
 	}
-	lowBudget, err := ComputeMatchingTimes(spec, start, start.Add(time.Minute), "", ComputeOptions{
+	lowBudget, err := ComputeMatchingTimes(backgroundContext, spec, start, start.Add(time.Minute), "", ComputeOptions{
 		MaxResults:              1,
 		MaxIterations:           10_000,
 		MaxValidationIterations: 100,
 	})
+
 	if !errors.Is(err, ErrValidationLimit) || lowBudget.Validation.Status != ValidationIndeterminateBudget {
 		t.Fatalf("expected low-budget validation to remain indeterminate, result=%+v error=%v", lowBudget, err)
 	}
@@ -105,11 +106,12 @@ func TestAllExcludedDenseIntervalValidationClassification(t *testing.T) {
 		t.Fatalf("matching computation ran after indeterminate validation, work=%+v", lowBudget.Work)
 	}
 
-	provedEmpty, err := ComputeMatchingTimes(spec, start, start.Add(time.Minute), "", ComputeOptions{
+	provedEmpty, err := ComputeMatchingTimes(backgroundContext, spec, start, start.Add(time.Minute), "", ComputeOptions{
 		MaxResults:              1,
 		MaxIterations:           10_000,
 		MaxValidationIterations: 500_000,
 	})
+
 	if !errors.Is(err, ErrUnsatisfiableSpec) || provedEmpty.Validation.Status != ValidationInvalidEffectiveSetEmpty {
 		t.Fatalf("expected effective-set unsatisfiability with sufficient proof budget, result=%+v error=%v", provedEmpty, err)
 	}
@@ -138,10 +140,11 @@ func runBudgetMatrix(tc scheduleCase, maxResults int, budgets []int) (budgetMatr
 	var matrix budgetMatrixResult
 	var successful ComputeResult
 	for _, budget := range budgets {
-		result, err := ComputeMatchingTimes(tc.spec, tc.start, tc.end, tc.seed, ComputeOptions{
+		result, err := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, tc.seed, ComputeOptions{
 			MaxResults:    maxResults,
 			MaxIterations: budget,
 		})
+
 		if errors.Is(err, ErrIterationLimit) {
 			if matrix.succeeded {
 				return matrix, errors.New("larger budget failed after smaller budget succeeded")
@@ -194,18 +197,20 @@ func TestDenseIntervalAndSparseCalendarBudgetTransition(t *testing.T) {
 	}
 	tc := scheduleCase{spec: spec, start: start, end: start.Add(time.Hour)}
 
-	atTenThousand, err := ComputeMatchingTimes(spec, tc.start, tc.end, "", ComputeOptions{
+	atTenThousand, err := ComputeMatchingTimes(backgroundContext, spec, tc.start, tc.end, "", ComputeOptions{
 		MaxResults:    1_000,
 		MaxIterations: 10_000,
 	})
+
 	if !errors.Is(err, ErrIterationLimit) || atTenThousand.Work.Total != 10_000 {
 		t.Fatalf("expected 10,000 budget exhaustion, result=%+v error=%v", atTenThousand, err)
 	}
 
-	atOneMillion, err := ComputeMatchingTimes(spec, tc.start, tc.end, "", ComputeOptions{
+	atOneMillion, err := ComputeMatchingTimes(backgroundContext, spec, tc.start, tc.end, "", ComputeOptions{
 		MaxResults:    1_000,
 		MaxIterations: 1_000_000,
 	})
+
 	if err != nil {
 		t.Fatalf("expected case to succeed at 1,000,000: %v", err)
 	}

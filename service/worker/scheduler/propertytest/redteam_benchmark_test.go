@@ -109,7 +109,7 @@ func BenchmarkPlan2WorkCategory(b *testing.B) {
 		rendered := renderRedTeamCandidate(candidate)
 		b.ReportAllocs()
 		for range b.N {
-			if _, err := ValidateSchedule(rendered, ValidationOptions{MaxIterations: redTeamDefaultValidationWork}); err != nil {
+			if _, err := ValidateSchedule(backgroundContext, rendered, ValidationOptions{MaxIterations: redTeamDefaultValidationWork}); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -124,10 +124,11 @@ func BenchmarkPlan2Candidate(b *testing.B) {
 			b.ReportAllocs()
 			var last ComputeResult
 			for range b.N {
-				result, err := ComputeMatchingTimes(spec, named.candidate.QueryStart, named.candidate.QueryEnd, named.candidate.JitterSeed, ComputeOptions{
+				result, err := ComputeMatchingTimes(backgroundContext, spec, named.candidate.QueryStart, named.candidate.QueryEnd, named.candidate.JitterSeed, ComputeOptions{
 					MaxResults: named.candidate.ResultLimit, MaxIterations: redTeamCampaignMatchingWork,
 					MaxValidationIterations: redTeamDefaultValidationWork,
 				})
+
 				if err != nil {
 					b.Fatal(err)
 				}

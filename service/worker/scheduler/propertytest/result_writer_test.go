@@ -640,7 +640,7 @@ func makePlan1Case(
 	propertyID string,
 	testName string,
 ) materialCaseRecord {
-	result, err := ComputeMatchingTimes(spec, queryStart, queryEnd, "", options)
+	result, err := ComputeMatchingTimes(backgroundContext, spec, queryStart, queryEnd, "", options)
 	specJSON := map[string]any{}
 	data, marshalErr := protojson.MarshalOptions{UseProtoNames: true}.Marshal(spec)
 	if marshalErr == nil {

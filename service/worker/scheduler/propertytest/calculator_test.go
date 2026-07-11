@@ -4,12 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	schedulepb "go.temporal.io/api/schedule/v1"
 )
 
 const iterationDefinitionVersion = "v1"
+
+const operationalCheckDefinitionVersion = "context-check-v1"
+
+const maxAnalysisResults = 10_000
+
+var backgroundContext = context.Background()
 
 var (
 	ErrInvalidSpec       = errors.New("invalid schedule spec")
@@ -24,9 +31,26 @@ type ComputeOptions struct {
 	MaxResults              int
 	MaxIterations           int
 	MaxValidationIterations int
-	Context                 context.Context
+	WorkTickHook            WorkTickHook
 	faults                  analysisFaults
 }
+
+type WorkPhase string
+
+const (
+	WorkPhaseValidation WorkPhase = "validation"
+	WorkPhaseMatching   WorkPhase = "matching"
+)
+
+type WorkTick struct {
+	Phase     WorkPhase
+	Kind      string
+	Total     int
+	LastTime  time.Time
+	Component string
+}
+
+type WorkTickHook func(WorkTick)
 
 type WorkBreakdown struct {
 	Total                    int
@@ -37,12 +61,14 @@ type WorkBreakdown struct {
 	ExclusionChecks          int
 	ExcludedCandidateRetries int
 	ResultLoopSteps          int
+	CancellationChecks       int
 }
 
 type ComputeResult struct {
 	Times      []time.Time
 	Work       WorkBreakdown
 	Validation ValidationResult
+	Complete   bool
 }
 
 type IterationLimitError struct {
@@ -84,14 +110,21 @@ type iterationBudget struct {
 	lastTime time.Time
 	work     WorkBreakdown
 	context  context.Context
+	hook     WorkTickHook
 }
 
 func newIterationBudget(limit int, contexts ...context.Context) *iterationBudget {
-	var ctx context.Context
-	if len(contexts) > 0 {
+	ctx := backgroundContext
+	if len(contexts) > 0 && contexts[0] != nil {
 		ctx = contexts[0]
 	}
 	return &iterationBudget{limit: limit, context: ctx}
+}
+
+func newIterationBudgetWithHook(limit int, ctx context.Context, hook WorkTickHook) *iterationBudget {
+	budget := newIterationBudget(limit, ctx)
+	budget.hook = hook
+	return budget
 }
 
 func (b *iterationBudget) at(t time.Time) {
@@ -99,12 +132,19 @@ func (b *iterationBudget) at(t time.Time) {
 }
 
 func (b *iterationBudget) tick(kind workKind) error {
-	if b.context != nil {
-		select {
-		case <-b.context.Done():
-			return b.context.Err()
-		default:
-		}
+	if b.hook != nil {
+		b.hook(WorkTick{
+			Phase: WorkPhaseMatching, Kind: kind.String(), Total: b.work.Total, LastTime: b.lastTime,
+		})
+	}
+	b.work.CancellationChecks++
+	if b.context == nil {
+		b.context = backgroundContext
+	}
+	select {
+	case <-b.context.Done():
+		return b.context.Err()
+	default:
 	}
 	if b.work.Total >= b.limit {
 		return &IterationLimitError{
@@ -136,34 +176,60 @@ func (b *iterationBudget) tick(kind workKind) error {
 	return nil
 }
 
+func (k workKind) String() string {
+	switch k {
+	case workNextTime:
+		return "next-time"
+	case workInclusionSource:
+		return "inclusion-source"
+	case workCalendarSearch:
+		return "calendar-search"
+	case workInterval:
+		return "interval"
+	case workExclusion:
+		return "exclusion"
+	case workExcludedRetry:
+		return "excluded-retry"
+	case workResultLoop:
+		return "result-loop"
+	default:
+		return "unknown"
+	}
+}
+
 func (b *iterationBudget) snapshot() WorkBreakdown {
 	return b.work
 }
 
 func ComputeMatchingTimes(
+	ctx context.Context,
 	spec *schedulepb.ScheduleSpec,
 	start time.Time,
 	end time.Time,
 	jitterSeed string,
 	options ComputeOptions,
 ) (ComputeResult, error) {
-	if options.MaxResults <= 0 || options.MaxIterations <= 0 || options.MaxValidationIterations < 0 {
+	if options.MaxResults <= 0 || options.MaxResults > maxAnalysisResults || options.MaxIterations <= 0 || options.MaxValidationIterations < 0 {
 		return ComputeResult{}, fmt.Errorf(
-			"%w: result and matching limits must be positive and validation limit must not be negative",
+			"%w: result limit must be in [1,%d], matching limit must be positive, and validation limit must not be negative",
 			ErrInvalidOptions,
+			maxAnalysisResults,
 		)
 	}
 	if end.Before(start) {
 		return ComputeResult{}, fmt.Errorf("%w: end is before start", ErrInvalidQueryRange)
+	}
+	if ctx == nil {
+		return ComputeResult{}, fmt.Errorf("%w: context must not be nil", ErrInvalidOptions)
 	}
 
 	validationLimit := options.MaxValidationIterations
 	if validationLimit == 0 {
 		validationLimit = defaultValidationIterations
 	}
-	validation, err := ValidateSchedule(spec, ValidationOptions{
+	validation, err := ValidateSchedule(ctx, spec, ValidationOptions{
 		MaxIterations: validationLimit,
-		Context:       options.Context,
+		WorkTickHook:  options.WorkTickHook,
 		faults:        options.faults,
 	})
 	if err != nil {
@@ -179,7 +245,7 @@ func ComputeMatchingTimes(
 	}
 	compiled.faults = options.faults
 
-	budget := newIterationBudget(options.MaxIterations, options.Context)
+	budget := newIterationBudgetWithHook(options.MaxIterations, ctx, options.WorkTickHook)
 	result := ComputeResult{
 		Times:      make([]time.Time, 0, options.MaxResults),
 		Validation: validation,
@@ -206,6 +272,7 @@ func ComputeMatchingTimes(
 		}
 	}
 	result.Work = budget.snapshot()
+	result.Complete = true
 	return result, nil
 }
 
@@ -214,5 +281,6 @@ func matchingBudgetOutcome(result ComputeResult, err error, faults analysisFault
 		result.Times = nil
 		return result, nil
 	}
+	result.Times = slices.Clip(result.Times)
 	return result, err
 }

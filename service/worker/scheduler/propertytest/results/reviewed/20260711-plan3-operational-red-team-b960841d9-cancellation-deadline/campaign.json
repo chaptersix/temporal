@@ -1,0 +1,61 @@
+{
+  "schema_version": "campaign-v1",
+  "campaign_id": "20260711-plan3-operational-red-team-b960841d9-cancellation-deadline",
+  "plan": "plan3",
+  "name": "cancellation-and-deadline",
+  "started_at": "2026-07-11T05:59:28.734383Z",
+  "completed_at": "2026-07-11T05:59:29.062846Z",
+  "complete": true,
+  "provenance": {
+    "architecture": "arm64",
+    "cache_mode": "count=1",
+    "cpu_count": 14,
+    "cpu_model": "Apple M4 Max",
+    "dirty_worktree": true,
+    "generator_version": "plan3-deterministic-cancellation-v1",
+    "git_revision": "b960841d9",
+    "go_version": "go1.26.4",
+    "os": "darwin",
+    "patch_sha256": "67c18a41711679774a5d70176f263105c77ef3e15b8192b3e796f443ab863812",
+    "profile_version": "plan3-operational-v1",
+    "race_enabled": false,
+    "rapid_version": "v1.3.0",
+    "temporal_api_version": "v1.63.3",
+    "timezone_version": "tzcode-2022g-host-data",
+    "work_definition_version": "v1/validator-v1/context-check-v1"
+  },
+  "population": "curated",
+  "planned_cases": 28,
+  "completed_cases": 28,
+  "commands": [
+    "timeout 900s env SCHEDULE_PROPERTY_PLAN3_CANCELLATION_CAMPAIGN=1 go test -tags test_dep ./service/worker/scheduler/propertytest -run '^TestPlan3CancellationDeadlineCampaign$' -count=1"
+  ],
+  "environment": {
+    "SCHEDULE_PROPERTY_CAMPAIGN_ID": "20260711-plan3-operational-red-team-b960841d9-cancellation-deadline",
+    "SCHEDULE_PROPERTY_RESULTS_DIR": "/tmp/schedule-property-plan3-frozen",
+    "cancellation_trigger": "work-count-hook",
+    "deadline_ladder": "expired,1ms,10ms,100ms,1s,sufficient"
+  },
+  "artifacts": [
+    {
+      "path": "cases.jsonl",
+      "bytes": 1295956,
+      "sha256": "3fd3e19adcfd3fe2633b19a9100eaa069518e29d9be558d24604ea442d28fed8"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 29667,
+      "sha256": "512f0bdf90b3038e23ca68576f15fa94eece77d167dcb9782d48712795e8bce2"
+    },
+    {
+      "path": "RESULTS.md",
+      "bytes": 1209,
+      "sha256": "dffd38f8dad415d94c772bcedd95796409e7be1a1fa317f3fb102970caec3fda"
+    },
+    {
+      "path": "DECISIONS.md",
+      "bytes": 4024,
+      "sha256": "0fc96a0a91ef8bfa182d7c310219d0b688997ae589ec3995544939fcbb2ff9b1"
+    }
+  ]
+}

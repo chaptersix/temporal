@@ -1,0 +1,79 @@
+{
+  "schema_version": "campaign-v1",
+  "campaign_id": "20260711-plan3-operational-red-team-b960841d9-repeated-abuse",
+  "plan": "plan3",
+  "name": "repeated-abuse-cache-memory-retry",
+  "started_at": "2026-07-11T05:59:46.640047Z",
+  "completed_at": "2026-07-11T05:59:51.666596Z",
+  "complete": true,
+  "provenance": {
+    "architecture": "arm64",
+    "cache_mode": "explicit-cached-and-uncached",
+    "cpu_count": 14,
+    "cpu_model": "Apple M4 Max",
+    "dirty_worktree": true,
+    "generator_version": "plan3-repeated-abuse-v1",
+    "git_revision": "b960841d9",
+    "go_version": "go1.26.4",
+    "os": "darwin",
+    "patch_sha256": "67c18a41711679774a5d70176f263105c77ef3e15b8192b3e796f443ab863812",
+    "profile_version": "plan3-operational-v1",
+    "race_enabled": false,
+    "rapid_version": "v1.3.0",
+    "temporal_api_version": "v1.63.3",
+    "timezone_version": "tzcode-2022g-host-data",
+    "work_definition_version": "v1/validator-v1/context-check-v1"
+  },
+  "population": "adversarial",
+  "planned_cases": 10,
+  "completed_cases": 10,
+  "commands": [
+    "timeout 900s env SCHEDULE_PROPERTY_PLAN3_ABUSE_CAMPAIGN=1 go test -tags test_dep ./service/worker/scheduler/propertytest -run '^TestPlan3RepeatedAbuseMemoryCampaign$' -count=1",
+    "timeout 600s go test -tags test_dep ./service/worker/scheduler/propertytest -run '^$' -bench '^BenchmarkOperational' -benchmem -benchtime=100ms -count=1 -memprofile operational.heap",
+    "timeout 120s go tool pprof -top -sample_index=inuse_space -nodecount=20 operational.heap"
+  ],
+  "environment": {
+    "SCHEDULE_PROPERTY_CAMPAIGN_ID": "20260711-plan3-operational-red-team-b960841d9-repeated-abuse",
+    "SCHEDULE_PROPERTY_RESULTS_DIR": "/tmp/schedule-property-plan3-frozen",
+    "cache_modes": "cached,uncached",
+    "profile": "heap",
+    "requests_per_scenario": "10"
+  },
+  "artifacts": [
+    {
+      "path": "cases.jsonl",
+      "bytes": 23291,
+      "sha256": "d0a98a34c6efce0a4d6be0caa5748a7d4bbeeecac3358bf51f5728991de8142a"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 5347,
+      "sha256": "e0789eb26d332ac0576854b73cf9ac45c9366dacddd297c7ec47a11129882360"
+    },
+    {
+      "path": "RESULTS.md",
+      "bytes": 1366,
+      "sha256": "04358304d642560c79c1242bc6dd30dddba28fcf51dd7605d9da883a6d0bfea8"
+    },
+    {
+      "path": "DECISIONS.md",
+      "bytes": 4017,
+      "sha256": "4d7c9a6baf0630aa1136b1f66d43590896d2732f77d4235cee7e23f691dac55c"
+    },
+    {
+      "path": "benchmark.txt",
+      "bytes": 1222,
+      "sha256": "a6519be6110eb44be2e19ad217cf749a19ce7fd3937c2e40ca6872fb4b193334"
+    },
+    {
+      "path": "operational.heap",
+      "bytes": 9425,
+      "sha256": "8cf2ca130f9847180fb7091aebb4426e27610171bb71e454fedcd350e8f2f18b"
+    },
+    {
+      "path": "heap-top.txt",
+      "bytes": 2366,
+      "sha256": "bdade2087848d89e9d98ae248221f3783f4b5c332ae9f717f2cf419f93bb8a0a"
+    }
+  ]
+}

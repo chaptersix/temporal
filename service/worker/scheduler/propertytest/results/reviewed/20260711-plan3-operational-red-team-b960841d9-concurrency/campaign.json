@@ -1,0 +1,62 @@
+{
+  "schema_version": "campaign-v1",
+  "campaign_id": "20260711-plan3-operational-red-team-b960841d9-concurrency",
+  "plan": "plan3",
+  "name": "operational-concurrency-matrix",
+  "started_at": "2026-07-11T05:59:35.380076Z",
+  "completed_at": "2026-07-11T05:59:36.333414Z",
+  "complete": true,
+  "provenance": {
+    "architecture": "arm64",
+    "cache_mode": "uncached",
+    "cpu_count": 14,
+    "cpu_model": "Apple M4 Max",
+    "dirty_worktree": true,
+    "generator_version": "plan3-corpus-v1",
+    "git_revision": "b960841d9",
+    "go_version": "go1.26.4",
+    "os": "darwin",
+    "patch_sha256": "67c18a41711679774a5d70176f263105c77ef3e15b8192b3e796f443ab863812",
+    "profile_version": "plan3-operational-v1",
+    "race_enabled": false,
+    "rapid_version": "v1.3.0",
+    "temporal_api_version": "v1.63.3",
+    "timezone_version": "tzcode-2022g-host-data",
+    "work_definition_version": "v1/validator-v1/context-check-v1"
+  },
+  "population": "adversarial",
+  "planned_cases": 20,
+  "completed_cases": 20,
+  "commands": [
+    "timeout 900s env SCHEDULE_PROPERTY_PLAN3_CONCURRENCY_CAMPAIGN=1 go test -tags test_dep ./service/worker/scheduler/propertytest -run '^TestPlan3ConcurrencyCampaign$' -count=1"
+  ],
+  "environment": {
+    "100_worker_tier": "opt-in-stress",
+    "SCHEDULE_PROPERTY_CAMPAIGN_ID": "20260711-plan3-operational-red-team-b960841d9-concurrency",
+    "SCHEDULE_PROPERTY_RESULTS_DIR": "/tmp/schedule-property-plan3-frozen",
+    "workers": "1,2,10,20,100",
+    "workloads": "homogeneous,mixed"
+  },
+  "artifacts": [
+    {
+      "path": "cases.jsonl",
+      "bytes": 863018,
+      "sha256": "593a44d61f2b55b43649d3b17f81ab6c4051ea3a5d80bf2e43d457499ccdbc91"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 106112,
+      "sha256": "a35d931ace92bfcf488c8bf7e57a4612dd0c918e140d0373e978834050b78706"
+    },
+    {
+      "path": "RESULTS.md",
+      "bytes": 1220,
+      "sha256": "ec65acdb1b627d709ef9c6c882deeb0a0c32f4d7d094b140c864d9c7e806abe6"
+    },
+    {
+      "path": "DECISIONS.md",
+      "bytes": 4014,
+      "sha256": "118cfe04afab777610f8adf7b6b698c7412d728975e13815a1c16f2586f38ddf"
+    }
+  ]
+}

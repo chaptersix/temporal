@@ -1,0 +1,3924 @@
+{
+  "campaign_id": "20260711-plan3-operational-red-team-b960841d9-concurrency",
+  "completed_cases": 20,
+  "cpu_utilization": null,
+  "cpu_utilization_unavailable_reason": "portable test runner did not sample process CPU utilization",
+  "iteration_v1_conversion": "project away non-budgeted cancellation_checks; all budgeted categories were rerun unchanged",
+  "mandatory_comparison": "one-worker-versus-ten-worker-per-corpus-class",
+  "matrix": [
+    {
+      "allocated_bytes": 27749040,
+      "goroutines_after": 2,
+      "goroutines_before": 2,
+      "latency_ns": {
+        "maximum": 58224208,
+        "p50": 509292,
+        "p90": 26709500,
+        "p99": 58224208
+      },
+      "mixed": false,
+      "observations": [
+        {
+          "Class": "low-cost-valid",
+          "Latency": 509292,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 4563166,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 926709,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 58224208,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 26709500,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 248833,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 105250,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 1625,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 311125,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 6000208,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        }
+      ],
+      "peak_heap_bytes": 28737536,
+      "requests": 10,
+      "throughput_per_second": 102.4161684487063,
+      "typed_outcomes": {
+        "complete": 7,
+        "invalid": 3
+      },
+      "workers": 1
+    },
+    {
+      "allocated_bytes": 7592,
+      "goroutines_after": 2,
+      "goroutines_before": 2,
+      "latency_ns": {
+        "maximum": 261834,
+        "p50": 261834,
+        "p90": 261834,
+        "p99": 261834
+      },
+      "mixed": true,
+      "observations": [
+        {
+          "Class": "low-cost-valid",
+          "Latency": 261834,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        }
+      ],
+      "peak_heap_bytes": 28737536,
+      "requests": 1,
+      "throughput_per_second": 3749.995312505859,
+      "typed_outcomes": {
+        "complete": 1
+      },
+      "workers": 1
+    },
+    {
+      "allocated_bytes": 55286576,
+      "goroutines_after": 2,
+      "goroutines_before": 2,
+      "latency_ns": {
+        "maximum": 59972958,
+        "p50": 343667,
+        "p90": 30372667,
+        "p99": 59972958
+      },
+      "mixed": false,
+      "observations": [
+        {
+          "Class": "low-cost-valid",
+          "Latency": 241333,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 257334,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 4727125,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 5034458,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 928750,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 923500,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 59972958,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 59915958,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 29685042,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 242500,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 236375,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 98792,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 44375,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 1250,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 1125,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 30372667,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 343667,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 339333,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 6049459,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 6100083,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        }
+      ],
+      "peak_heap_bytes": 28704768,
+      "requests": 20,
+      "throughput_per_second": 194.2685908970595,
+      "typed_outcomes": {
+        "complete": 14,
+        "invalid": 6
+      },
+      "workers": 2
+    },
+    {
+      "allocated_bytes": 3511952,
+      "goroutines_after": 2,
+      "goroutines_before": 2,
+      "latency_ns": {
+        "maximum": 4715916,
+        "p50": 242291,
+        "p90": 4715916,
+        "p99": 4715916
+      },
+      "mixed": true,
+      "observations": [
+        {
+          "Class": "low-cost-valid",
+          "Latency": 242291,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 4715916,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        }
+      ],
+      "peak_heap_bytes": 28704768,
+      "requests": 2,
+      "throughput_per_second": 422.1004181115691,
+      "typed_outcomes": {
+        "complete": 2
+      },
+      "workers": 2
+    },
+    {
+      "allocated_bytes": 276427056,
+      "goroutines_after": 2,
+      "goroutines_before": 2,
+      "latency_ns": {
+        "maximum": 67580541,
+        "p50": 974500,
+        "p90": 63008208,
+        "p99": 67007791
+      },
+      "mixed": false,
+      "observations": [
+        {
+          "Class": "low-cost-valid",
+          "Latency": 272583,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 271625,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 275083,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 265708,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 264708,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 301000,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 333959,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 280500,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 278125,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 295584,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8159917,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8199625,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8157792,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8095334,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8141667,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8339792,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8621792,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8751625,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8586250,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8880833,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 981875,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 977834,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 991167,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 982166,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 978917,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 976959,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 975500,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1171750,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1250125,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1304708,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 63008208,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 63115167,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 62324292,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 63306958,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 62786458,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 62601084,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 64602625,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 67007791,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 66199958,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 67580541,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 47546375,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 485917,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 257000,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 255375,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 259334,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 258875,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 253875,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 475416,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 974500,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 253708,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 255875,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 105000,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 45083,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 33208,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 31125,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 31458,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 30041,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 31083,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 30083,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 36375,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 30583,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 1125,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 708,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 583,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 584,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 625,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 541,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 541,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 541,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 541,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 583,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 353458,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 329208,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 332792,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 578959,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 926791,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 340875,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 338250,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 341834,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 342041,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 344667,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 57791333,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 59025209,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 59767792,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 57697584,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 63490583,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 8300916,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 60366958,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 64890500,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 8620875,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 65934833,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 8379625,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 7989209,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 64691250,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 7286208,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 7011666,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 7081125,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 6950375,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 7172667,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 6267791,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        }
+      ],
+      "peak_heap_bytes": 49577984,
+      "requests": 100,
+      "throughput_per_second": 688.6724273610189,
+      "typed_outcomes": {
+        "complete": 70,
+        "invalid": 30
+      },
+      "workers": 10
+    },
+    {
+      "allocated_bytes": 27647552,
+      "goroutines_after": 2,
+      "goroutines_before": 2,
+      "latency_ns": {
+        "maximum": 65298167,
+        "p50": 387000,
+        "p90": 31426209,
+        "p99": 65298167
+      },
+      "mixed": true,
+      "observations": [
+        {
+          "Class": "unsatisfiable",
+          "Latency": 4709,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 80750,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 276917,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 266334,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 387000,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 984584,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 5501583,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 6921250,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 31426209,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 65298167,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        }
+      ],
+      "peak_heap_bytes": 49577984,
+      "requests": 10,
+      "throughput_per_second": 153.00414145489924,
+      "typed_outcomes": {
+        "complete": 7,
+        "invalid": 3
+      },
+      "workers": 10
+    },
+    {
+      "allocated_bytes": 552784016,
+      "goroutines_after": 2,
+      "goroutines_before": 2,
+      "latency_ns": {
+        "maximum": 177585459,
+        "p50": 1241500,
+        "p90": 107804334,
+        "p99": 144993042
+      },
+      "mixed": false,
+      "observations": [
+        {
+          "Class": "low-cost-valid",
+          "Latency": 334542,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 363833,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 572417,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 580709,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 414000,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 499000,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 693875,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 568917,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 338083,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 321708,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 941958,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 719250,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 848042,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 369958,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 824667,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 447667,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 1328208,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 1630958,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 720666,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 1524875,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8506166,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1301375,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1426583,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1413583,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 13037250,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 13491542,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1103458,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 13580083,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1002083,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1031833,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 15459000,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 15247542,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 15851042,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 15798666,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1384667,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1431042,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1241500,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1782000,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 16610417,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 2498083,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 18137041,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1865042,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1195166,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 18874917,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1193500,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 18099875,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 18959958,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 2770000,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 2800875,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1418042,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1457750,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1383083,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 5066166,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 21552875,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 21586708,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 22208875,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 26575125,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 30311959,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 31487458,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 71488667,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 77511792,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 81593750,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 101479500,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 88589625,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 87470500,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 89269333,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 90052958,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 99484792,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 104571459,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 106155541,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 115233417,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 114172958,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 111866875,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 115442125,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 123207542,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 129468208,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 133623917,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 97274958,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 169368375,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 91701000,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 85880084,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 509375,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 321250,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 304375,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 258667,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 266042,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 896375,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 587583,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 477542,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 475250,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 471667,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 466625,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 463209,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 504500,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 652333,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 263042,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 255709,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 255792,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 92731084,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 292000,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 576333,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 146417,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 42542,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 34333,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 30834,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 29917,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 32417,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 31125,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 29083,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 30000,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 35250,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 32125,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 30416,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 28416,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 30750,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 31792,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 28791,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 34750,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 260833,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 33125,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 53000,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 1208,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 750,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 792,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 500,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 542,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 459,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 542,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 417,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 1083,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 3167,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 1167,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 458,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 100167,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 417,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 1333,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 792,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 1500,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 666,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 458,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 875,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 11041,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 371708,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 340792,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 352834,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 1688750,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 588250,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 1914042,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 374083,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 376666,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 177585459,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 377167,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 369084,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 944667,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 474500,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 373709,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 336250,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 810708,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 588000,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 426542,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 932750,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 811833,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 1259500,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 118046208,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 9649416,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 9245500,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 9857375,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 112758958,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 115964500,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 9326333,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 9488250,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 10326041,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 10602791,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 12078500,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 9275334,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 8123709,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 117835125,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 114315750,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 7889042,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 12614541,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 8842333,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 9792459,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 10762625,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 12995542,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 123936459,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 9855709,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 8268041,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 10109708,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 116178667,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 11652958,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 144993042,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 118896916,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 103446333,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 103604709,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 119846541,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 107804334,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 134256292,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 83586375,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 83964958,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 85665791,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        }
+      ],
+      "peak_heap_bytes": 70549504,
+      "requests": 200,
+      "throughput_per_second": 717.6813518337806,
+      "typed_outcomes": {
+        "complete": 140,
+        "invalid": 60
+      },
+      "workers": 20
+    },
+    {
+      "allocated_bytes": 55290592,
+      "goroutines_after": 2,
+      "goroutines_before": 2,
+      "latency_ns": {
+        "maximum": 68176166,
+        "p50": 1359583,
+        "p90": 34163333,
+        "p99": 68176166
+      },
+      "mixed": true,
+      "observations": [
+        {
+          "Class": "unsatisfiable",
+          "Latency": 8083,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 118625,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 54000,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 41166,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 491458,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 776750,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 890459,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 912417,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1359583,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 1456333,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 1042250,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 2291084,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 6158167,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 6334166,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 7081708,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 7476166,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 34163333,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 34133625,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 67090417,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 68176166,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        }
+      ],
+      "peak_heap_bytes": 70549504,
+      "requests": 20,
+      "throughput_per_second": 292.6424194083262,
+      "typed_outcomes": {
+        "complete": 14,
+        "invalid": 6
+      },
+      "workers": 20
+    },
+    {
+      "allocated_bytes": 276443744,
+      "goroutines_after": 2,
+      "goroutines_before": 2,
+      "latency_ns": {
+        "maximum": 142566667,
+        "p50": 19113209,
+        "p90": 110130792,
+        "p99": 142391417
+      },
+      "mixed": true,
+      "observations": [
+        {
+          "Class": "unsatisfiable",
+          "Latency": 51167,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 54542,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 93458,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 104875,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 40583,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 2292,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 59125,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 54834,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 707625,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 404083,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 344500,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 1006417,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 891417,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 321541,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 417583,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 1106333,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 570333,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 607458,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 1029041,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 1413875,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 2108875,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 1271667,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 1638625,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 1470041,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 1398792,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 1591917,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 1643084,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 1742417,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 2104875,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 2102000,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 3510709,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 2840125,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 2850625,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 3236125,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 3089375,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 4142792,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 8716959,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 9075583,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 10638958,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 10524167,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 11222625,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 11403083,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 11773792,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 11910583,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 12307917,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 12256083,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 13180833,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 16527625,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 18217416,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 19113209,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 20043916,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 20753417,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 20484167,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 22632209,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 25093750,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 25409000,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 26782500,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 27651958,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 27630750,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "structural-invalid",
+          "Latency": 27531042,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "query-local-empty",
+          "Latency": 28057917,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 0
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 28318083,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 29829791,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 30098125,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 32819625,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 34418375,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 33853084,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 35280250,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 38900625,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "low-cost-valid",
+          "Latency": 43207417,
+          "Outcome": "complete",
+          "ValidationWork": 9282,
+          "MatchingWork": 12,
+          "ResultCount": 1
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 33064250,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "timezone-dst",
+          "Latency": 43877958,
+          "Outcome": "complete",
+          "ValidationWork": 7548,
+          "MatchingWork": 466,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 44464791,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 67020708,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "exact-budget-transition",
+          "Latency": 69448542,
+          "Outcome": "complete",
+          "ValidationWork": 35272,
+          "MatchingWork": 2100,
+          "ResultCount": 10
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 70154542,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 74851375,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 93139959,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 94267833,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 96932167,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 97406209,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 97679125,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 97869833,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "unsatisfiable",
+          "Latency": 32780292,
+          "Outcome": "invalid",
+          "ValidationWork": 1,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "large-timezone-data",
+          "Latency": 101522042,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 12654,
+          "ResultCount": 1
+        },
+        {
+          "Class": "typical-uniform-generated",
+          "Latency": 103665041,
+          "Outcome": "complete",
+          "ValidationWork": 172951,
+          "MatchingWork": 2426,
+          "ResultCount": 10
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 106085000,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 107771334,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 110037834,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 110181542,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 110130792,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 111841250,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 114392458,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 122410750,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 123386084,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 124650459,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 127839000,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-matching-work",
+          "Latency": 131272500,
+          "Outcome": "complete",
+          "ValidationWork": 222698,
+          "MatchingWork": 9552072,
+          "ResultCount": 1000
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 142391417,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        },
+        {
+          "Class": "maximum-validation-work",
+          "Latency": 142566667,
+          "Outcome": "invalid",
+          "ValidationWork": 777917,
+          "MatchingWork": 0,
+          "ResultCount": 0
+        }
+      ],
+      "peak_heap_bytes": 74711040,
+      "requests": 100,
+      "throughput_per_second": 696.5619443830116,
+      "typed_outcomes": {
+        "complete": 70,
+        "invalid": 30
+      },
+      "workers": 100
+    }
+  ],
+  "peak_resident_memory_bytes": null,
+  "peak_resident_memory_unavailable_reason": "portable test runner recorded peak heap reservation instead",
+  "population": "concurrency",
+  "schema_version": "summary-v1",
+  "validation_and_matching_work_aggregated": false,
+  "wall_clock_environment_specific": true,
+  "work_vectors_deterministic": true,
+  "worker_tiers": [
+    1,
+    2,
+    10,
+    20,
+    100
+  ]
+}

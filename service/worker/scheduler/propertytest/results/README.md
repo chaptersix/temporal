@@ -69,6 +69,18 @@ when `SCHEDULE_PROPERTY_RESULTS_DIR` and campaign provenance variables are suppl
   distributions, kept separate from adversarial and customer populations.
 - `reviewed/20260710-plan2-work-calibration-872e129a8/`: work-category and retained-case
   benchmark output, raw work vectors, and host-specific work/CPU correlations.
+- `reviewed/20260711-plan3-operational-red-team-b960841d9-cancellation-deadline/`:
+  deterministic cancellation points, deadline ladder, phase-budget boundary wins, and
+  incomplete-prefix evidence.
+- `reviewed/20260711-plan3-operational-red-team-b960841d9-concurrency/`: homogeneous and
+  mixed 1/2/10/20 matrices, opt-in 100-worker stress, work determinism, and the Plan 2
+  tenfold-load decision follow-up.
+- `reviewed/20260711-plan3-operational-red-team-b960841d9-repeated-abuse/`: explicit
+  cached/uncached abuse scenarios, retry matrix, benchmem, and retained heap profile.
+- `reviewed/20260711-plan3-operational-red-team-b960841d9-race/`: finite race-enabled
+  shared-state and cancellation evidence.
+- `reviewed/20260711-plan3-operational-red-team-b960841d9-fuzz/`: six separately bounded
+  hostile-input fuzz populations and raw execution output.
 
 The minimized replay corpus is grouped by attack and fitness track under
 `testdata/redteam/v1/`. It validates against `candidate-v1.schema.json` and remains

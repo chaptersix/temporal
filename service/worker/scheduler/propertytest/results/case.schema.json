@@ -59,7 +59,7 @@
       "required": ["status", "result_count", "partial_result_count"],
       "properties": {
         "status": {
-          "enum": ["valid-success", "valid-empty-query-result", "invalid", "validation-budget-exhausted", "matching-budget-exhausted", "cancelled", "deadline-exceeded", "panic"]
+          "enum": ["valid-success", "valid-empty-query-result", "invalid", "validation-budget-exhausted", "matching-budget-exhausted", "matching-computation-budget-exhausted", "cancelled", "deadline-exceeded", "panic"]
         },
         "error_type": { "type": ["string", "null"] },
         "error_message": { "type": ["string", "null"] },

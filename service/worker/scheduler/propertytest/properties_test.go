@@ -25,8 +25,8 @@ func checkSafetyOrderingAndDeterminism(t *rapid.T) {
 	tc := scheduleCaseGenerator(365*24*time.Hour, true).Draw(t, "case")
 	options := ComputeOptions{MaxResults: 100, MaxIterations: propertyAnalysisMaxIterations}
 
-	first, firstErr := ComputeMatchingTimes(tc.spec, tc.start, tc.end, tc.seed, options)
-	second, secondErr := ComputeMatchingTimes(tc.spec, tc.start, tc.end, tc.seed, options)
+	first, firstErr := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, tc.seed, options)
+	second, secondErr := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, tc.seed, options)
 
 	if fmt.Sprint(firstErr) != fmt.Sprint(secondErr) || !slices.Equal(first.Times, second.Times) || first.Work != second.Work {
 		t.Fatalf("nondeterministic result for %s\nfirst=%+v err=%v\nsecond=%+v err=%v", describeCase(tc), first, firstErr, second, secondErr)
@@ -60,10 +60,11 @@ func TestPropertyBudgetBoundary(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		tc := scheduleCaseGenerator(30*24*time.Hour, false).Draw(t, "case")
-		baseline, err := ComputeMatchingTimes(tc.spec, tc.start, tc.end, tc.seed, ComputeOptions{
+		baseline, err := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, tc.seed, ComputeOptions{
 			MaxResults:    10,
 			MaxIterations: propertyAnalysisMaxIterations,
 		})
+
 		if errors.Is(err, ErrIterationLimit) {
 			return
 		}
@@ -74,18 +75,20 @@ func TestPropertyBudgetBoundary(t *testing.T) {
 			t.Fatalf("successful computation reported no work for %s", describeCase(tc))
 		}
 
-		exact, err := ComputeMatchingTimes(tc.spec, tc.start, tc.end, tc.seed, ComputeOptions{
+		exact, err := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, tc.seed, ComputeOptions{
 			MaxResults:    10,
 			MaxIterations: baseline.Work.Total,
 		})
+
 		if err != nil || !slices.Equal(exact.Times, baseline.Times) || exact.Work != baseline.Work {
 			t.Fatalf("exact budget changed result: baseline=%+v exact=%+v err=%v for %s", baseline, exact, err, describeCase(tc))
 		}
 
-		short, err := ComputeMatchingTimes(tc.spec, tc.start, tc.end, tc.seed, ComputeOptions{
+		short, err := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, tc.seed, ComputeOptions{
 			MaxResults:    10,
 			MaxIterations: baseline.Work.Total - 1,
 		})
+
 		if !errors.Is(err, ErrIterationLimit) || short.Work.Total != baseline.Work.Total-1 {
 			t.Fatalf("budget N-1 did not fail exactly: required=%d short=%+v err=%v for %s", baseline.Work.Total, short, err, describeCase(tc))
 		}
@@ -96,13 +99,13 @@ func TestPropertyInvalidSpecsReturnErrors(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		invalid := invalidStructuralScheduleCaseGenerator().Draw(t, "case")
-		_, err := ComputeMatchingTimes(
+		_, err := ComputeMatchingTimes(backgroundContext,
 			invalid.spec,
 			time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 			time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
 			"",
-			ComputeOptions{MaxResults: 10, MaxIterations: 10_000},
-		)
+			ComputeOptions{MaxResults: 10, MaxIterations: 10_000})
+
 		if !errors.Is(err, ErrInvalidSpec) {
 			t.Fatalf("invalid mutation %q returned %v, want ErrInvalidSpec; spec=%s", invalid.label, err, formatSpec(invalid.spec))
 		}
@@ -113,10 +116,11 @@ func TestPropertyProductionParity(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		tc := scheduleCaseGenerator(30*24*time.Hour, true).Draw(t, "case")
-		copied, err := ComputeMatchingTimes(tc.spec, tc.start, tc.end, tc.seed, ComputeOptions{
+		copied, err := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, tc.seed, ComputeOptions{
 			MaxResults:    20,
 			MaxIterations: propertyAnalysisMaxIterations,
 		})
+
 		if errors.Is(err, ErrIterationLimit) {
 			return
 		}
@@ -142,10 +146,11 @@ func TestPropertySmallWindowOracle(t *testing.T) {
 func checkSmallWindowOracle(t *rapid.T) {
 	tc := scheduleCaseGenerator(time.Minute, false).Draw(t, "case")
 	const maxResults = 1_000
-	actual, err := ComputeMatchingTimes(tc.spec, tc.start, tc.end, "", ComputeOptions{
+	actual, err := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, "", ComputeOptions{
 		MaxResults:    maxResults,
 		MaxIterations: propertyAnalysisMaxIterations,
 	})
+
 	if err != nil {
 		t.Fatalf("calculator failed: %v for %s", err, describeCase(tc))
 	}
@@ -169,9 +174,9 @@ func TestPropertyRepresentationEquivalence(t *testing.T) {
 		cronSpec.CronString = []string{calendar.renderCron()}
 		options := ComputeOptions{MaxResults: 10, MaxIterations: propertyAnalysisMaxIterations}
 
-		structuredResult, structuredErr := ComputeMatchingTimes(structured, tc.start, tc.end, "", options)
-		calendarResult, calendarErr := ComputeMatchingTimes(calendarSpec, tc.start, tc.end, "", options)
-		cronResult, cronErr := ComputeMatchingTimes(cronSpec, tc.start, tc.end, "", options)
+		structuredResult, structuredErr := ComputeMatchingTimes(backgroundContext, structured, tc.start, tc.end, "", options)
+		calendarResult, calendarErr := ComputeMatchingTimes(backgroundContext, calendarSpec, tc.start, tc.end, "", options)
+		cronResult, cronErr := ComputeMatchingTimes(backgroundContext, cronSpec, tc.start, tc.end, "", options)
 		if structuredErr != nil || calendarErr != nil || cronErr != nil {
 			t.Fatalf("equivalent representations returned errors: structured=%v calendar=%v cron=%v model=%+v", structuredErr, calendarErr, cronErr, tc.model)
 		}
@@ -192,8 +197,8 @@ func TestPropertyResultPrefixAndSuffix(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		tc := scheduleCaseGenerator(24*time.Hour, false).Draw(t, "case")
-		short, shortErr := ComputeMatchingTimes(tc.spec, tc.start, tc.end, "", ComputeOptions{MaxResults: 5, MaxIterations: propertyAnalysisMaxIterations})
-		long, longErr := ComputeMatchingTimes(tc.spec, tc.start, tc.end, "", ComputeOptions{MaxResults: 20, MaxIterations: propertyAnalysisMaxIterations})
+		short, shortErr := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, "", ComputeOptions{MaxResults: 5, MaxIterations: propertyAnalysisMaxIterations})
+		long, longErr := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, "", ComputeOptions{MaxResults: 20, MaxIterations: propertyAnalysisMaxIterations})
 		if shortErr != nil || longErr != nil {
 			t.Fatalf("prefix computation failed: short=%v long=%v for %s", shortErr, longErr, describeCase(tc))
 		}
@@ -203,7 +208,7 @@ func TestPropertyResultPrefixAndSuffix(t *testing.T) {
 		if len(long.Times) == 0 {
 			return
 		}
-		suffix, err := ComputeMatchingTimes(tc.spec, long.Times[0], tc.end, "", ComputeOptions{MaxResults: 20, MaxIterations: propertyAnalysisMaxIterations})
+		suffix, err := ComputeMatchingTimes(backgroundContext, tc.spec, long.Times[0], tc.end, "", ComputeOptions{MaxResults: 20, MaxIterations: propertyAnalysisMaxIterations})
 		if err != nil {
 			t.Fatalf("suffix computation failed: %v for %s", err, describeCase(tc))
 		}
@@ -222,9 +227,9 @@ func TestPropertyRangeDecomposition(t *testing.T) {
 		split := tc.start.Add(time.Duration(splitSeconds) * time.Second)
 		options := ComputeOptions{MaxResults: 5_000, MaxIterations: propertyAnalysisMaxIterations}
 
-		full, fullErr := ComputeMatchingTimes(tc.spec, tc.start, tc.end, "", options)
-		left, leftErr := ComputeMatchingTimes(tc.spec, tc.start, split, "", options)
-		right, rightErr := ComputeMatchingTimes(tc.spec, split, tc.end, "", options)
+		full, fullErr := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, "", options)
+		left, leftErr := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, split, "", options)
+		right, rightErr := ComputeMatchingTimes(backgroundContext, tc.spec, split, tc.end, "", options)
 		if fullErr != nil || leftErr != nil || rightErr != nil {
 			t.Fatalf("range decomposition failed: full=%v left=%v right=%v for %s", fullErr, leftErr, rightErr, describeCase(tc))
 		}
@@ -243,8 +248,8 @@ func TestPropertyJitterBounds(t *testing.T) {
 		withoutJitter.Jitter = nil
 		options := ComputeOptions{MaxResults: 10, MaxIterations: propertyAnalysisMaxIterations}
 
-		nominal, nominalErr := ComputeMatchingTimes(withoutJitter, tc.start, tc.end, tc.seed, options)
-		jittered, jitterErr := ComputeMatchingTimes(tc.spec, tc.start, tc.end, tc.seed, options)
+		nominal, nominalErr := ComputeMatchingTimes(backgroundContext, withoutJitter, tc.start, tc.end, tc.seed, options)
+		jittered, jitterErr := ComputeMatchingTimes(backgroundContext, tc.spec, tc.start, tc.end, tc.seed, options)
 		if nominalErr != nil || jitterErr != nil {
 			t.Fatalf("jitter comparison failed: nominal=%v jittered=%v for %s", nominalErr, jitterErr, describeCase(tc))
 		}
@@ -280,9 +285,9 @@ func TestPropertyIntervalUnion(t *testing.T) {
 		}}
 		options := ComputeOptions{MaxResults: 10_000, MaxIterations: propertyAnalysisMaxIterations}
 
-		firstResult, firstErr := ComputeMatchingTimes(first.renderStructured(), start, end, "", options)
-		secondResult, secondErr := ComputeMatchingTimes(second.renderStructured(), start, end, "", options)
-		combinedResult, combinedErr := ComputeMatchingTimes(combined.renderStructured(), start, end, "", options)
+		firstResult, firstErr := ComputeMatchingTimes(backgroundContext, first.renderStructured(), start, end, "", options)
+		secondResult, secondErr := ComputeMatchingTimes(backgroundContext, second.renderStructured(), start, end, "", options)
+		combinedResult, combinedErr := ComputeMatchingTimes(backgroundContext, combined.renderStructured(), start, end, "", options)
 		if firstErr != nil || secondErr != nil || combinedErr != nil {
 			t.Fatalf("interval union failed: first=%v second=%v combined=%v", firstErr, secondErr, combinedErr)
 		}
@@ -307,8 +312,8 @@ func TestPropertyExclusionIsSetSubtraction(t *testing.T) {
 		excludedModel.exclusions = []calendarModel{exclusion}
 		options := ComputeOptions{MaxResults: 10_000, MaxIterations: propertyAnalysisMaxIterations}
 
-		base, baseErr := ComputeMatchingTimes(baseModel.renderStructured(), start, end, "", options)
-		excluded, excludedErr := ComputeMatchingTimes(excludedModel.renderStructured(), start, end, "", options)
+		base, baseErr := ComputeMatchingTimes(backgroundContext, baseModel.renderStructured(), start, end, "", options)
+		excluded, excludedErr := ComputeMatchingTimes(backgroundContext, excludedModel.renderStructured(), start, end, "", options)
 		if baseErr != nil || excludedErr != nil {
 			t.Fatalf("exclusion comparison failed: base=%v excluded=%v", baseErr, excludedErr)
 		}

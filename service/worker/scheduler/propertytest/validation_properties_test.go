@@ -19,7 +19,7 @@ func TestPropertyValidClassificationHasSoundWitness(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		tc := validSatisfiableScheduleCaseGenerator(24*time.Hour, false).Draw(t, "case")
-		result, err := ValidateSchedule(tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
+		result, err := ValidateSchedule(backgroundContext, tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
 		if err != nil {
 			t.Fatalf("valid generated schedule failed validation: %v for %s", err, describeCase(tc))
 		}
@@ -39,7 +39,7 @@ func TestPropertyStructuralInvalidClassification(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		tc := invalidStructuralScheduleCaseGenerator().Draw(t, "case")
-		result, err := ValidateSchedule(tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
+		result, err := ValidateSchedule(backgroundContext, tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
 		if !errors.Is(err, ErrInvalidSpec) || result.Status != ValidationInvalidStructural {
 			t.Fatalf("structural mutation %q classified as status=%s err=%v spec=%s", tc.label, result.Status, err, formatSpec(tc.spec))
 		}
@@ -50,7 +50,7 @@ func TestPropertyUnsatisfiableComponentClassification(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		tc := invalidComponentScheduleCaseGenerator().Draw(t, "case")
-		result, err := ValidateSchedule(tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
+		result, err := ValidateSchedule(backgroundContext, tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
 		if !errors.Is(err, ErrUnsatisfiableSpec) || !errors.Is(err, ErrInvalidSpec) || result.Status != tc.expected {
 			t.Fatalf("component mutation %q classified as status=%s err=%v spec=%s", tc.label, result.Status, err, formatSpec(tc.spec))
 		}
@@ -61,7 +61,7 @@ func TestPropertyEmptyEffectiveSetClassification(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		tc := invalidEffectiveSetScheduleCaseGenerator().Draw(t, "case")
-		result, err := ValidateSchedule(tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
+		result, err := ValidateSchedule(backgroundContext, tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
 		if !errors.Is(err, ErrUnsatisfiableSpec) || result.Status != tc.expected {
 			t.Fatalf("empty effective set %q classified as status=%s err=%v spec=%s", tc.label, result.Status, err, formatSpec(tc.spec))
 		}
@@ -72,18 +72,18 @@ func TestPropertyValidationBudgetBoundaryAndMonotonicity(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		tc := reducedValidationCaseGenerator().Draw(t, "case")
-		baseline, baselineErr := ValidateSchedule(tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
+		baseline, baselineErr := ValidateSchedule(backgroundContext, tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
 		if errors.Is(baselineErr, ErrValidationLimit) {
 			t.Fatalf("baseline validation exhausted for %s", tc.label)
 		}
-		exact, exactErr := ValidateSchedule(tc.spec, ValidationOptions{MaxIterations: baseline.Work.Total})
+		exact, exactErr := ValidateSchedule(backgroundContext, tc.spec, ValidationOptions{MaxIterations: baseline.Work.Total})
 		if exact.Status != baseline.Status || exact.Witness != baseline.Witness || !sameErrorClass(exactErr, baselineErr) {
 			t.Fatalf("classification changed at exact budget: baseline=%+v err=%v exact=%+v err=%v", baseline, baselineErr, exact, exactErr)
 		}
 		if baseline.Work.Total <= 1 {
 			return
 		}
-		short, shortErr := ValidateSchedule(tc.spec, ValidationOptions{MaxIterations: baseline.Work.Total - 1})
+		short, shortErr := ValidateSchedule(backgroundContext, tc.spec, ValidationOptions{MaxIterations: baseline.Work.Total - 1})
 		if !errors.Is(shortErr, ErrValidationLimit) || short.Status != ValidationIndeterminateBudget {
 			t.Fatalf("N-1 budget did not remain indeterminate: required=%d result=%+v err=%v", baseline.Work.Total, short, shortErr)
 		}
@@ -98,11 +98,11 @@ func TestPropertyQueryRangeDoesNotChangeValidation(t *testing.T) {
 	spec := model.renderStructured()
 	options := ComputeOptions{MaxResults: 10, MaxIterations: 100_000}
 
-	empty, err := ComputeMatchingTimes(spec, witness.Add(24*time.Hour), witness.Add(25*time.Hour), "", options)
+	empty, err := ComputeMatchingTimes(backgroundContext, spec, witness.Add(24*time.Hour), witness.Add(25*time.Hour), "", options)
 	require.NoError(t, err)
 	require.Empty(t, empty.Times)
 
-	included, err := ComputeMatchingTimes(spec, witness.Add(-time.Second), witness, "", options)
+	included, err := ComputeMatchingTimes(backgroundContext, spec, witness.Add(-time.Second), witness, "", options)
 	require.NoError(t, err)
 	require.Equal(t, []time.Time{witness}, included.Times)
 	require.Equal(t, empty.Validation, included.Validation)
@@ -113,7 +113,7 @@ func TestInvalidImpossibleUnionMemberIsNotExcusedByInterval(t *testing.T) {
 
 	spec := impossibleFebruary30Spec()
 	spec.Interval = []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Hour)}}
-	result, err := ValidateSchedule(spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
+	result, err := ValidateSchedule(backgroundContext, spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
 	require.ErrorIs(t, err, ErrUnsatisfiableSpec)
 	require.Equal(t, ValidationInvalidComponentUnsatisfiable, result.Status)
 }
@@ -128,7 +128,7 @@ func TestInvalidExclusionRepresentations(t *testing.T) {
 	calendar.ExcludeCalendar = []*schedulepb.CalendarSpec{{Month: "13"}}
 	for name, spec := range map[string]*schedulepb.ScheduleSpec{"structured": structured, "calendar": calendar} {
 		t.Run(name, func(t *testing.T) {
-			result, err := ValidateSchedule(spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
+			result, err := ValidateSchedule(backgroundContext, spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
 			require.ErrorIs(t, err, ErrInvalidSpec)
 			require.Equal(t, ValidationInvalidStructural, result.Status)
 		})
@@ -147,7 +147,7 @@ func TestValidationAcceptsEitherRepeatedHourOccurrence(t *testing.T) {
 		endTime:   &witness,
 		timezone:  "Australia/Lord_Howe",
 	}
-	result, err := ValidateSchedule(model.renderStructured(), ValidationOptions{MaxIterations: validationPropertyMaxIterations})
+	result, err := ValidateSchedule(backgroundContext, model.renderStructured(), ValidationOptions{MaxIterations: validationPropertyMaxIterations})
 	require.NoError(t, err)
 	require.Equal(t, ValidationValid, result.Status)
 	require.Equal(t, witness, result.Witness)
@@ -165,9 +165,10 @@ func TestCopiedCalculatorLordHoweRepeatedHalfHourDivergence(t *testing.T) {
 		calendars: []calendarModel{exactCalendarModel(witness.In(location))},
 		timezone:  "Australia/Lord_Howe",
 	}
-	actual, err := ComputeMatchingTimes(model.renderStructured(), start, end, "", ComputeOptions{
+	actual, err := ComputeMatchingTimes(backgroundContext, model.renderStructured(), start, end, "", ComputeOptions{
 		MaxResults: 10, MaxIterations: propertyAnalysisMaxIterations,
 	})
+
 	require.NoError(t, err)
 	require.Empty(t, actual.Times)
 	require.Equal(t, []time.Time{witness}, bruteForceMatchingTimes(model, start, end, 10))
@@ -183,7 +184,7 @@ func checkReducedDomainValidatorDifferential(t *rapid.T) {
 	start := tc.spec.StartTime.AsTime()
 	end := tc.spec.EndTime.AsTime()
 	referenceWitness := bruteForceValidationWitness(tc.model, start, end)
-	actual, err := ValidateSchedule(tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
+	actual, err := ValidateSchedule(backgroundContext, tc.spec, ValidationOptions{MaxIterations: validationPropertyMaxIterations})
 	if actual.Status != tc.expected {
 		t.Fatalf("validator/reference classification mismatch: expected=%s actual=%+v err=%v label=%s spec=%s", tc.expected, actual, err, tc.label, formatSpec(tc.spec))
 	}
@@ -206,9 +207,10 @@ func TestMutationKillMatrix(t *testing.T) {
 	t.Run("PROP-ORDERING-START-EXCLUSIVE", func(t *testing.T) {
 		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		spec := &schedulepb.ScheduleSpec{Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Hour)}}}
-		mutant, err := ComputeMatchingTimes(spec, start, start.Add(2*time.Hour), "", ComputeOptions{
+		mutant, err := ComputeMatchingTimes(backgroundContext, spec, start, start.Add(2*time.Hour), "", ComputeOptions{
 			MaxResults: 2, MaxIterations: 100, faults: analysisFaults{queryStartInclusive: true},
 		})
+
 		require.NoError(t, err)
 		require.False(t, strictlyOrderedWithin(mutant.Times, start, start.Add(2*time.Hour)))
 	})
@@ -222,7 +224,7 @@ func TestMutationKillMatrix(t *testing.T) {
 			timezone:   "UTC",
 		}
 		options := ComputeOptions{MaxResults: 2, MaxIterations: 1_000, faults: analysisFaults{ignoreExclusions: true}}
-		mutant, err := ComputeMatchingTimes(model.renderStructured(), start, start.Add(3*time.Second), "", options)
+		mutant, err := ComputeMatchingTimes(backgroundContext, model.renderStructured(), start, start.Add(3*time.Second), "", options)
 		require.NoError(t, err)
 		require.Contains(t, mutant.Times, excluded)
 	})
@@ -235,23 +237,23 @@ func TestMutationKillMatrix(t *testing.T) {
 				DayOfMonth: allRanges(1, 31), Month: []*schedulepb.Range{{Start: 13}}, DayOfWeek: allRanges(0, 6),
 			}},
 		}
-		mutant, err := ValidateSchedule(spec, ValidationOptions{MaxIterations: 100_000, faults: analysisFaults{stopValidatingExclusions: true}})
+		mutant, err := ValidateSchedule(backgroundContext, spec, ValidationOptions{MaxIterations: 100_000, faults: analysisFaults{stopValidatingExclusions: true}})
 		require.NoError(t, err)
 		require.Equal(t, ValidationValid, mutant.Status)
 	})
 
 	t.Run("PROP-EMPTY-STRUCTURED-INCLUSION", func(t *testing.T) {
-		mutant, err := ValidateSchedule(
+		mutant, err := ValidateSchedule(backgroundContext,
 			&schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{}}},
-			ValidationOptions{MaxIterations: 100_000, faults: analysisFaults{acceptEmptyStructuredInclusion: true}},
-		)
+			ValidationOptions{MaxIterations: 100_000, faults: analysisFaults{acceptEmptyStructuredInclusion: true}})
+
 		require.NoError(t, err)
 		require.Equal(t, ValidationValid, mutant.Status)
 	})
 
 	t.Run("PROP-REDUCED-COMPLETENESS-FEBRUARY-30", func(t *testing.T) {
 		spec := impossibleFebruary30Spec()
-		mutant, err := ValidateSchedule(spec, ValidationOptions{MaxIterations: 100_000, faults: analysisFaults{treatFebruary30AsSatisfiable: true}})
+		mutant, err := ValidateSchedule(backgroundContext, spec, ValidationOptions{MaxIterations: 100_000, faults: analysisFaults{treatFebruary30AsSatisfiable: true}})
 		require.NoError(t, err)
 		require.Equal(t, ValidationValid, mutant.Status)
 	})
@@ -261,7 +263,7 @@ func TestMutationKillMatrix(t *testing.T) {
 		calendar := exactCalendarModel(day)
 		calendar.dayOfWeek[0] = rangeModel{start: int((day.Weekday() + 1) % 7), end: int((day.Weekday() + 1) % 7), step: 1}
 		model := scheduleModel{calendars: []calendarModel{calendar}, startTime: &day, endTime: &day, timezone: "UTC"}
-		mutant, err := ValidateSchedule(model.renderStructured(), ValidationOptions{MaxIterations: 100_000, faults: analysisFaults{ignoreDayOfWeek: true}})
+		mutant, err := ValidateSchedule(backgroundContext, model.renderStructured(), ValidationOptions{MaxIterations: 100_000, faults: analysisFaults{ignoreDayOfWeek: true}})
 		require.NoError(t, err)
 		require.False(t, model.matchesNominal(mutant.Witness))
 	})
@@ -272,16 +274,17 @@ func TestMutationKillMatrix(t *testing.T) {
 			Interval:  []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Hour)}},
 			StartTime: timestamppb.New(start), EndTime: timestamppb.New(start.Add(-time.Hour)),
 		}
-		mutant, _ := ValidateSchedule(spec, ValidationOptions{MaxIterations: 100_000, faults: analysisFaults{permitInvertedScheduleBounds: true}})
+		mutant, _ := ValidateSchedule(backgroundContext, spec, ValidationOptions{MaxIterations: 100_000, faults: analysisFaults{permitInvertedScheduleBounds: true}})
 		require.NotEqual(t, ValidationInvalidStructural, mutant.Status)
 	})
 
 	t.Run("PROP-MATCHING-BUDGET-TAXONOMY", func(t *testing.T) {
 		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		spec := &schedulepb.ScheduleSpec{Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}}}
-		mutant, err := ComputeMatchingTimes(spec, start, start.Add(time.Minute), "", ComputeOptions{
+		mutant, err := ComputeMatchingTimes(backgroundContext, spec, start, start.Add(time.Minute), "", ComputeOptions{
 			MaxResults: 10, MaxIterations: 1, faults: analysisFaults{iterationLimitIsEmpty: true},
 		})
+
 		require.NoError(t, err)
 		require.Empty(t, mutant.Times)
 	})
@@ -291,9 +294,10 @@ func TestMutationKillMatrix(t *testing.T) {
 		spec := &schedulepb.ScheduleSpec{Interval: []*schedulepb.IntervalSpec{
 			{Interval: durationpb.New(time.Second)}, {Interval: durationpb.New(time.Second)},
 		}}
-		mutant, err := ComputeMatchingTimes(spec, start, start.Add(time.Minute), "", ComputeOptions{
+		mutant, err := ComputeMatchingTimes(backgroundContext, spec, start, start.Add(time.Minute), "", ComputeOptions{
 			MaxResults: 2, MaxIterations: 100, faults: analysisFaults{allowDuplicateUnionResults: true},
 		})
+
 		require.NoError(t, err)
 		require.False(t, strictlyOrderedWithin(mutant.Times, start, start.Add(time.Minute)))
 	})
@@ -306,9 +310,10 @@ func TestMutationKillMatrix(t *testing.T) {
 		}
 		killed := false
 		for _, seed := range []string{"a", "b", "mutation", "jitter-cross"} {
-			mutant, err := ComputeMatchingTimes(spec, start, start.Add(2*time.Hour), seed, ComputeOptions{
+			mutant, err := ComputeMatchingTimes(backgroundContext, spec, start, start.Add(2*time.Hour), seed, ComputeOptions{
 				MaxResults: 1, MaxIterations: 100, faults: analysisFaults{jitterCrossesNextNominal: true},
 			})
+
 			require.NoError(t, err)
 			if len(mutant.Times) == 1 && mutant.Times[0].After(start.Add(2*time.Second)) {
 				killed = true
@@ -321,10 +326,11 @@ func TestMutationKillMatrix(t *testing.T) {
 	t.Run("PROP-VALIDATION-BUDGET-IS-INDETERMINATE", func(t *testing.T) {
 		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		spec := &schedulepb.ScheduleSpec{Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Hour)}}}
-		mutant, err := ComputeMatchingTimes(spec, start, start.Add(time.Hour), "", ComputeOptions{
+		mutant, err := ComputeMatchingTimes(backgroundContext, spec, start, start.Add(time.Hour), "", ComputeOptions{
 			MaxResults: 1, MaxIterations: 100, MaxValidationIterations: 1,
 			faults: analysisFaults{validationIndeterminateIsInvalid: true},
 		})
+
 		require.ErrorIs(t, err, ErrInvalidSpec)
 		require.NotErrorIs(t, err, ErrValidationLimit)
 		require.Equal(t, ValidationIndeterminateBudget, mutant.Validation.Status)

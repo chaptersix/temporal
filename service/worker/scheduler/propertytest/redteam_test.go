@@ -258,7 +258,7 @@ func evaluateRedTeamCandidate(config redTeamSearchConfig, candidate RedTeamCandi
 	spec := renderRedTeamCandidate(candidate)
 	ctx, cancel := context.WithTimeout(context.Background(), config.CandidateWallLimit)
 	defer cancel()
-	validation, validationErr := ValidateSchedule(spec, ValidationOptions{MaxIterations: config.MaxValidationWork, Context: ctx})
+	validation, validationErr := ValidateSchedule(ctx, spec, ValidationOptions{MaxIterations: config.MaxValidationWork})
 	if candidate.AttackTrack == "validation-abuse" {
 		if validation.Status == ValidationValid || (!errors.Is(validationErr, ErrUnsatisfiableSpec) && !errors.Is(validationErr, ErrValidationLimit)) {
 			return redTeamEvaluation{}, fmt.Errorf("validation-abuse candidate classified %s: %w", validation.Status, validationErr)
@@ -278,12 +278,12 @@ func evaluateRedTeamCandidate(config redTeamSearchConfig, candidate RedTeamCandi
 	}
 	options := ComputeOptions{
 		MaxResults: candidate.ResultLimit, MaxIterations: config.MaxMatchingWork,
-		MaxValidationIterations: config.MaxValidationWork, Context: ctx,
+		MaxValidationIterations: config.MaxValidationWork,
 	}
 	started := time.Now()
 	var before, after runtime.MemStats
 	runtime.ReadMemStats(&before)
-	computed, err := ComputeMatchingTimes(spec, candidate.QueryStart, candidate.QueryEnd, candidate.JitterSeed, options)
+	computed, err := ComputeMatchingTimes(ctx, spec, candidate.QueryStart, candidate.QueryEnd, candidate.JitterSeed, options)
 	runtime.ReadMemStats(&after)
 	elapsed := time.Since(started)
 	if err != nil && !errors.Is(err, ErrIterationLimit) && !errors.Is(err, context.DeadlineExceeded) {
@@ -291,7 +291,7 @@ func evaluateRedTeamCandidate(config redTeamSearchConfig, candidate RedTeamCandi
 	}
 	firstOptions := options
 	firstOptions.MaxResults = 1
-	first, firstErr := ComputeMatchingTimes(spec, candidate.QueryStart, candidate.QueryEnd, candidate.JitterSeed, firstOptions)
+	first, firstErr := ComputeMatchingTimes(ctx, spec, candidate.QueryStart, candidate.QueryEnd, candidate.JitterSeed, firstOptions)
 	if firstErr != nil && !errors.Is(firstErr, ErrIterationLimit) {
 		return redTeamEvaluation{}, firstErr
 	}
@@ -491,9 +491,10 @@ func runRedTeamBudgetMatrix(candidate RedTeamCandidate, profile string, limit in
 	}
 	var successful ComputeResult
 	for _, budget := range redTeamBudgetLadder {
-		result, err := ComputeMatchingTimes(spec, start, end, candidate.JitterSeed, ComputeOptions{
+		result, err := ComputeMatchingTimes(backgroundContext, spec, start, end, candidate.JitterSeed, ComputeOptions{
 			MaxResults: limit, MaxIterations: budget, MaxValidationIterations: validationBudget,
 		})
+
 		attempt := redTeamBudgetAttempt{
 			Budget: budget, ValidationWork: result.Validation.Work.Total,
 			MatchingWork: result.Work.Total, PartialResults: len(result.Times), Status: redTeamOutcome(err, result),
@@ -526,17 +527,19 @@ func runRedTeamBudgetMatrix(candidate RedTeamCandidate, profile string, limit in
 		return matrix, errors.New("candidate did not complete through 10,000,000 matching work")
 	}
 	n := *matrix.ExactRequired
-	exact, exactErr := ComputeMatchingTimes(spec, start, end, candidate.JitterSeed, ComputeOptions{
+	exact, exactErr := ComputeMatchingTimes(backgroundContext, spec, start, end, candidate.JitterSeed, ComputeOptions{
 		MaxResults: limit, MaxIterations: n, MaxValidationIterations: validationBudget,
 	})
+
 	matrix.NOutcome = redTeamOutcome(exactErr, exact)
 	if exactErr != nil {
 		return matrix, fmt.Errorf("exact N=%d failed: %w", n, exactErr)
 	}
 	if n > 1 {
-		short, shortErr := ComputeMatchingTimes(spec, start, end, candidate.JitterSeed, ComputeOptions{
+		short, shortErr := ComputeMatchingTimes(backgroundContext, spec, start, end, candidate.JitterSeed, ComputeOptions{
 			MaxResults: limit, MaxIterations: n - 1, MaxValidationIterations: validationBudget,
 		})
+
 		matrix.NMinusOneOutcome = redTeamOutcome(shortErr, short)
 		if !errors.Is(shortErr, ErrIterationLimit) {
 			return matrix, fmt.Errorf("N-1=%d did not exhaust matching work: %v", n-1, shortErr)
@@ -586,7 +589,7 @@ func runValidationBudgetMatrix(candidate RedTeamCandidate) (redTeamBudgetMatrix,
 	spec := renderRedTeamCandidate(candidate)
 	var final ValidationResult
 	for _, budget := range redTeamBudgetLadder {
-		result, err := ValidateSchedule(spec, ValidationOptions{MaxIterations: budget})
+		result, err := ValidateSchedule(backgroundContext, spec, ValidationOptions{MaxIterations: budget})
 		status := result.Status.String()
 		if errors.Is(err, ErrValidationLimit) {
 			value := budget
@@ -608,12 +611,12 @@ func runValidationBudgetMatrix(candidate RedTeamCandidate) (redTeamBudgetMatrix,
 		return matrix, errors.New("validation-abuse candidate did not classify through 10,000,000 work")
 	}
 	n := *matrix.ExactRequired
-	exact, exactErr := ValidateSchedule(spec, ValidationOptions{MaxIterations: n})
+	exact, exactErr := ValidateSchedule(backgroundContext, spec, ValidationOptions{MaxIterations: n})
 	matrix.NOutcome = exact.Status.String()
 	if !errors.Is(exactErr, ErrUnsatisfiableSpec) || exact.Status != final.Status {
 		return matrix, fmt.Errorf("validation exact N failed: %w", exactErr)
 	}
-	short, shortErr := ValidateSchedule(spec, ValidationOptions{MaxIterations: n - 1})
+	short, shortErr := ValidateSchedule(backgroundContext, spec, ValidationOptions{MaxIterations: n - 1})
 	matrix.NMinusOneOutcome = short.Status.String()
 	if !errors.Is(shortErr, ErrValidationLimit) || short.Status != ValidationIndeterminateBudget {
 		return matrix, fmt.Errorf("validation N-1 did not remain indeterminate: %w", shortErr)
@@ -769,9 +772,10 @@ func TestRedTeamCandidateDeadlineTerminatesAtWorkTick(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	candidate := redTeamSeedCandidates()[0]
-	result, err := ComputeMatchingTimes(renderRedTeamCandidate(candidate), candidate.QueryStart, candidate.QueryEnd, candidate.JitterSeed, ComputeOptions{
-		MaxResults: 1_000, MaxIterations: 10_000_000, MaxValidationIterations: 10_000_000, Context: ctx,
+	result, err := ComputeMatchingTimes(ctx, renderRedTeamCandidate(candidate), candidate.QueryStart, candidate.QueryEnd, candidate.JitterSeed, ComputeOptions{
+		MaxResults: 1_000, MaxIterations: 10_000_000, MaxValidationIterations: 10_000_000,
 	})
+
 	if !errors.Is(err, context.Canceled) || result.Work.Total != 0 {
 		t.Fatalf("cancelled candidate continued: result=%+v error=%v", result, err)
 	}
@@ -1184,6 +1188,7 @@ func workBreakdownMap(work WorkBreakdown) map[string]any {
 		"inclusion_source_checks": work.InclusionSourceChecks, "calendar_search_steps": work.CalendarSearchSteps,
 		"interval_checks": work.IntervalChecks, "exclusion_checks": work.ExclusionChecks,
 		"excluded_candidate_retries": work.ExcludedCandidateRetries, "result_loop_steps": work.ResultLoopSteps,
+		"cancellation_checks_non_budgeted": work.CancellationChecks,
 	}
 }
 

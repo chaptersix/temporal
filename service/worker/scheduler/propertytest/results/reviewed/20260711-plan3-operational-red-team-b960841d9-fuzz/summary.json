@@ -1,0 +1,18 @@
+{
+  "campaign_id": "20260711-plan3-operational-red-team-b960841d9-fuzz",
+  "completed_cases": 6,
+  "duration_seconds_per_target": 5,
+  "failures": 0,
+  "outer_timeout_seconds_per_target": 120,
+  "parallelism": 1,
+  "population": "coverage-fuzz",
+  "schema_version": "summary-v1",
+  "targets": [
+    "FuzzOperationalRawScheduleDecodeAndValidate",
+    "FuzzOperationalMalformedTimezoneData",
+    "FuzzOperationalExtremeTimestampsAndDurations",
+    "FuzzOperationalLargeRepeatedFields",
+    "FuzzOperationalUnicodeCronAndComments",
+    "FuzzOperationalCancellationRacingParsingAndValidation"
+  ]
+}

@@ -18,16 +18,16 @@ func TestComputeMatchingTimesErrors(t *testing.T) {
 		Interval: durationpb.New(time.Hour),
 	}}}
 
-	_, err := ComputeMatchingTimes(valid, start, start.Add(-time.Second), "", ComputeOptions{MaxResults: 1, MaxIterations: 100})
+	_, err := ComputeMatchingTimes(backgroundContext, valid, start, start.Add(-time.Second), "", ComputeOptions{MaxResults: 1, MaxIterations: 100})
 	require.ErrorIs(t, err, ErrInvalidQueryRange)
 
-	_, err = ComputeMatchingTimes(valid, start, start.Add(time.Hour), "", ComputeOptions{MaxResults: 0, MaxIterations: 100})
+	_, err = ComputeMatchingTimes(backgroundContext, valid, start, start.Add(time.Hour), "", ComputeOptions{MaxResults: 0, MaxIterations: 100})
 	require.ErrorIs(t, err, ErrInvalidOptions)
 
 	invalid := &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{
 		Month: []*schedulepb.Range{{Start: 13}},
 	}}}
-	_, err = ComputeMatchingTimes(invalid, start, start.Add(time.Hour), "", ComputeOptions{MaxResults: 1, MaxIterations: 100})
+	_, err = ComputeMatchingTimes(backgroundContext, invalid, start, start.Add(time.Hour), "", ComputeOptions{MaxResults: 1, MaxIterations: 100})
 	require.ErrorIs(t, err, ErrInvalidSpec)
 }
 
@@ -35,9 +35,10 @@ func TestInvalidEmptyInclusionSet(t *testing.T) {
 	t.Parallel()
 
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	result, err := ComputeMatchingTimes(&schedulepb.ScheduleSpec{}, start, start.Add(time.Hour), "", ComputeOptions{
+	result, err := ComputeMatchingTimes(backgroundContext, &schedulepb.ScheduleSpec{}, start, start.Add(time.Hour), "", ComputeOptions{
 		MaxResults: 10, MaxIterations: 100_000,
 	})
+
 	require.ErrorIs(t, err, ErrUnsatisfiableSpec)
 	require.ErrorIs(t, err, ErrInvalidSpec)
 	require.Equal(t, ValidationInvalidComponentUnsatisfiable, result.Validation.Status)
@@ -47,9 +48,10 @@ func TestInvalidEmptyStructuredInclusion(t *testing.T) {
 	t.Parallel()
 
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	result, err := ComputeMatchingTimes(&schedulepb.ScheduleSpec{
+	result, err := ComputeMatchingTimes(backgroundContext, &schedulepb.ScheduleSpec{
 		StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{}},
 	}, start, start.Add(time.Hour), "", ComputeOptions{MaxResults: 10, MaxIterations: 100_000})
+
 	require.ErrorIs(t, err, ErrUnsatisfiableSpec)
 	require.Equal(t, ValidationInvalidComponentUnsatisfiable, result.Validation.Status)
 }
@@ -58,7 +60,7 @@ func TestInvalidImpossibleCivilDate(t *testing.T) {
 	t.Parallel()
 
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	result, err := ComputeMatchingTimes(&schedulepb.ScheduleSpec{
+	result, err := ComputeMatchingTimes(backgroundContext, &schedulepb.ScheduleSpec{
 		StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{
 			Second:     []*schedulepb.Range{{Start: 0}},
 			Minute:     []*schedulepb.Range{{Start: 0}},
@@ -68,6 +70,7 @@ func TestInvalidImpossibleCivilDate(t *testing.T) {
 			DayOfWeek:  []*schedulepb.Range{{Start: 0, End: 6, Step: 1}},
 		}},
 	}, start, start.Add(365*24*time.Hour), "", ComputeOptions{MaxResults: 10, MaxIterations: 100_000})
+
 	require.ErrorIs(t, err, ErrUnsatisfiableSpec)
 	require.Equal(t, ValidationInvalidComponentUnsatisfiable, result.Validation.Status)
 }
@@ -76,11 +79,12 @@ func TestInvalidInvertedScheduleBounds(t *testing.T) {
 	t.Parallel()
 
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	result, err := ComputeMatchingTimes(&schedulepb.ScheduleSpec{
+	result, err := ComputeMatchingTimes(backgroundContext, &schedulepb.ScheduleSpec{
 		Interval:  []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Hour)}},
 		StartTime: timestamppb.New(start.Add(2 * time.Hour)),
 		EndTime:   timestamppb.New(start.Add(time.Hour)),
 	}, start, start.Add(365*24*time.Hour), "", ComputeOptions{MaxResults: 10, MaxIterations: 100_000})
+
 	require.ErrorIs(t, err, ErrUnsatisfiableSpec)
 	require.Equal(t, ValidationInvalidStructural, result.Validation.Status)
 }
@@ -89,9 +93,10 @@ func TestValidScheduleCanHaveEmptyQueryResult(t *testing.T) {
 	t.Parallel()
 
 	start := time.Date(2025, 1, 1, 0, 0, 1, 0, time.UTC)
-	result, err := ComputeMatchingTimes(&schedulepb.ScheduleSpec{
+	result, err := ComputeMatchingTimes(backgroundContext, &schedulepb.ScheduleSpec{
 		Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(24 * time.Hour)}},
 	}, start, start.Add(time.Hour), "", ComputeOptions{MaxResults: 10, MaxIterations: 100_000})
+
 	require.NoError(t, err)
 	require.Empty(t, result.Times)
 	require.Equal(t, ValidationValid, result.Validation.Status)
@@ -135,22 +140,24 @@ func TestComputeMatchingTimesBudgetBoundary(t *testing.T) {
 	}}}
 	options := ComputeOptions{MaxResults: 5, MaxIterations: 1_000_000}
 
-	baseline, err := ComputeMatchingTimes(spec, start, start.Add(5*time.Hour), "", options)
+	baseline, err := ComputeMatchingTimes(backgroundContext, spec, start, start.Add(5*time.Hour), "", options)
 	require.NoError(t, err)
 	require.Positive(t, baseline.Work.Total)
 	requireWorkConsistent(t, baseline.Work)
 
-	exact, err := ComputeMatchingTimes(spec, start, start.Add(5*time.Hour), "", ComputeOptions{
+	exact, err := ComputeMatchingTimes(backgroundContext, spec, start, start.Add(5*time.Hour), "", ComputeOptions{
 		MaxResults:    options.MaxResults,
 		MaxIterations: baseline.Work.Total,
 	})
+
 	require.NoError(t, err)
 	require.Equal(t, baseline, exact)
 
-	partial, err := ComputeMatchingTimes(spec, start, start.Add(5*time.Hour), "", ComputeOptions{
+	partial, err := ComputeMatchingTimes(backgroundContext, spec, start, start.Add(5*time.Hour), "", ComputeOptions{
 		MaxResults:    options.MaxResults,
 		MaxIterations: baseline.Work.Total - 1,
 	})
+
 	require.ErrorIs(t, err, ErrIterationLimit)
 	require.Equal(t, baseline.Work.Total-1, partial.Work.Total)
 	var limitErr *IterationLimitError

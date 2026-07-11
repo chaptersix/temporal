@@ -1,0 +1,186 @@
+{
+  "cache_semantics_equal": true,
+  "campaign_id": "20260711-plan3-operational-red-team-b960841d9-repeated-abuse",
+  "cancelled_buffer_retention_bound_bytes": 16777216,
+  "cold_and_warm_separate": true,
+  "completed_cases": 10,
+  "memory_plateau_bound_bytes": 8388608,
+  "observations": [
+    {
+      "allocated_bytes": 164840,
+      "cache_hits": 0,
+      "cache_mode": "uncached",
+      "executed_matching_work": 21000,
+      "executed_validation_work": 352720,
+      "latency_ns": 9068125,
+      "logical_matching_work": 21000,
+      "logical_validation_work": 352720,
+      "requests": 10,
+      "scenario": "sequential-identical-expensive",
+      "typed_outcome": "complete"
+    },
+    {
+      "allocated_bytes": 87696,
+      "cache_hits": 0,
+      "cache_mode": "uncached",
+      "executed_matching_work": 21000,
+      "executed_validation_work": 352720,
+      "latency_ns": 2733583,
+      "logical_matching_work": 21000,
+      "logical_validation_work": 352720,
+      "requests": 10,
+      "scenario": "ten-concurrent-one-spec",
+      "typed_outcome": "complete"
+    },
+    {
+      "allocated_bytes": 15157792,
+      "cache_hits": 0,
+      "cache_mode": "uncached",
+      "executed_matching_work": 388818,
+      "executed_validation_work": 1328035,
+      "latency_ns": 10088000,
+      "logical_matching_work": 388818,
+      "logical_validation_work": 1328035,
+      "requests": 10,
+      "scenario": "distributed-expensive-specs",
+      "typed_outcome": "complete"
+    },
+    {
+      "allocated_bytes": 75152,
+      "cache_hits": 0,
+      "cache_mode": "uncached",
+      "executed_matching_work": 11100,
+      "executed_validation_work": 222770,
+      "latency_ns": 5810291,
+      "logical_matching_work": 11100,
+      "logical_validation_work": 222770,
+      "requests": 10,
+      "scenario": "alternating-cheap-expensive",
+      "typed_outcome": "complete"
+    },
+    {
+      "allocated_bytes": 209344744,
+      "cache_hits": 0,
+      "cache_mode": "uncached",
+      "executed_matching_work": 0,
+      "executed_validation_work": 7779170,
+      "latency_ns": 274247333,
+      "logical_matching_work": 0,
+      "logical_validation_work": 7779170,
+      "requests": 10,
+      "scenario": "repeated-expensive-invalid-validation",
+      "typed_outcome": "invalid"
+    },
+    {
+      "allocated_bytes": 24152,
+      "cache_hits": 9,
+      "cache_mode": "cached",
+      "executed_matching_work": 2100,
+      "executed_validation_work": 35272,
+      "latency_ns": 904708,
+      "logical_matching_work": 21000,
+      "logical_validation_work": 352720,
+      "requests": 10,
+      "scenario": "sequential-identical-expensive",
+      "typed_outcome": "complete"
+    },
+    {
+      "allocated_bytes": 29112,
+      "cache_hits": 9,
+      "cache_mode": "cached",
+      "executed_matching_work": 2100,
+      "executed_validation_work": 35272,
+      "latency_ns": 954959,
+      "logical_matching_work": 21000,
+      "logical_validation_work": 352720,
+      "requests": 10,
+      "scenario": "ten-concurrent-one-spec",
+      "typed_outcome": "complete"
+    },
+    {
+      "allocated_bytes": 6338848,
+      "cache_hits": 7,
+      "cache_mode": "cached",
+      "executed_matching_work": 128906,
+      "executed_validation_work": 430921,
+      "latency_ns": 7148792,
+      "logical_matching_work": 388818,
+      "logical_validation_work": 1328035,
+      "requests": 10,
+      "scenario": "distributed-expensive-specs",
+      "typed_outcome": "complete"
+    },
+    {
+      "allocated_bytes": 30800,
+      "cache_hits": 8,
+      "cache_mode": "cached",
+      "executed_matching_work": 2220,
+      "executed_validation_work": 44554,
+      "latency_ns": 1132833,
+      "logical_matching_work": 11100,
+      "logical_validation_work": 222770,
+      "requests": 10,
+      "scenario": "alternating-cheap-expensive",
+      "typed_outcome": "complete"
+    },
+    {
+      "allocated_bytes": 20954848,
+      "cache_hits": 9,
+      "cache_mode": "cached",
+      "executed_matching_work": 0,
+      "executed_validation_work": 777917,
+      "latency_ns": 27467625,
+      "logical_matching_work": 0,
+      "logical_validation_work": 7779170,
+      "requests": 10,
+      "scenario": "repeated-expensive-invalid-validation",
+      "typed_outcome": "invalid"
+    }
+  ],
+  "population": "adversarial-repeated-abuse",
+  "retry_advice": {
+    "cancelled": {
+      "fewer-results": false,
+      "identical": true,
+      "larger-budget": false,
+      "none": true,
+      "smaller-window": false
+    },
+    "deadline": {
+      "fewer-results": false,
+      "identical": true,
+      "larger-budget": false,
+      "none": true,
+      "smaller-window": false
+    },
+    "matching-budget": {
+      "fewer-results": true,
+      "identical": false,
+      "larger-budget": true,
+      "none": true,
+      "smaller-window": true
+    },
+    "structural-invalid": {
+      "fewer-results": false,
+      "identical": false,
+      "larger-budget": false,
+      "none": true,
+      "smaller-window": false
+    },
+    "unsatisfiable": {
+      "fewer-results": false,
+      "identical": false,
+      "larger-budget": false,
+      "none": true,
+      "smaller-window": false
+    },
+    "validation-indeterminate": {
+      "fewer-results": false,
+      "identical": false,
+      "larger-budget": true,
+      "none": true,
+      "smaller-window": false
+    }
+  },
+  "schema_version": "summary-v1"
+}

@@ -2,9 +2,9 @@
 
 ## Status
 
-Plans 1 and 2 are complete for the test-only analysis harness. Plan 3 has not started.
-Reviewed evidence is stored under campaign `20260710-plan1-validity-hardening-0e0638d11`
-and the four Plan 2 campaigns listed below.
+Plans 1, 2, and 3 are complete for the test-only analysis harness. Reviewed evidence is
+stored under campaign `20260710-plan1-validity-hardening-0e0638d11`, the four Plan 2
+campaigns listed below, and the five Plan 3 campaigns in the Plan 3 section.
 
 ## Iteration Definition
 
@@ -15,6 +15,9 @@ and the four Plan 2 campaigns listed below.
 - Validator version: `v1`
 - Validation budget: separate from matching work; component checks, civil days,
   calendar tuples, interval occurrences, effective days, and exclusion checks
+- Operational check version: `context-check-v1`
+- Cancellation checks: separately reported and non-budgeted; context is checked before
+  the active phase budget at every existing work-tick boundary
 
 ## Plan 1 Reviewed Findings
 
@@ -303,6 +306,125 @@ killed by the named semantic property in `TestMutationKillMatrix`.
   oracle semantics. The dedicated copied/production parity divergence remains a
   regression and production follow-up, not a computational-guard fix.
 
+## Plan 3 Reviewed Findings
+
+Reviewed campaigns:
+
+- `20260711-plan3-operational-red-team-b960841d9-cancellation-deadline`
+- `20260711-plan3-operational-red-team-b960841d9-concurrency`
+- `20260711-plan3-operational-red-team-b960841d9-repeated-abuse`
+- `20260711-plan3-operational-red-team-b960841d9-race`
+- `20260711-plan3-operational-red-team-b960841d9-fuzz`
+
+### OBSERVATION: Cancellation Stops At The First Observable Work Boundary
+
+- Campaign: `20260711-plan3-operational-red-team-b960841d9-cancellation-deadline`
+- Stable cases cover cancellation before validation, during component satisfiability,
+  during effective-set proof, before the first result, after one result, during an
+  exclusion retry, at matching work `N-1`, and simultaneously across ten workers.
+- Context is checked before the active validation or matching budget. All deterministic
+  cancellation cases consumed zero budgeted ticks after the hook made cancellation
+  observable.
+- Cancellation-check counts are excluded from iteration-v1 and validator-v1 totals.
+  Plan 3 reruns the Plan 2 corpus and compares the documented projection that removes
+  the non-budgeted cancellation-check fields; it does not aggregate the composite
+  definition directly with Plan 2 results.
+- Partial prefixes remain stable and are clipped to their actual length, but every
+  cancellation and deadline result has `Complete=false`.
+
+### OBSERVATION: Deadline Outcomes Are Host-Specific And Work-Paired
+
+- Campaign: `20260711-plan3-operational-red-team-b960841d9-cancellation-deadline`
+- Expired, 1 ms, 10 ms, 100 ms, 1 second, and sufficient deadlines ran against low,
+  exact-transition, and maximum-matching-work cases.
+- Every wall-clock outcome is paired with separate validation and matching work.
+- Boundary cases record validation-budget and matching-budget wins under a one-second
+  deadline; an already-observable deadline wins before either phase consumes work.
+
+### OBSERVATION: One-To-Ten-Worker Work Vectors Are Deterministic
+
+- Campaign: `20260711-plan3-operational-red-team-b960841d9-concurrency`
+- Homogeneous and mixed workloads ran at 1, 2, 10, and 20 workers; a mixed 100-worker
+  tier ran as opt-in stress.
+- Every corpus class has retained one-worker and ten-worker records: low-cost valid,
+  typical uniform-generated, exact transition, maximum matching work, maximum
+  validation work, query-local empty, structural invalid, unsatisfiable, timezone/DST,
+  and large bounded timezone data.
+- Throughput, P50/P90/P99/maximum latency, allocated bytes, peak heap reservation,
+  typed outcomes, and before/after goroutine counts are retained in `summary.json`.
+- Validation and matching work remained identical to the one-worker baseline. The
+  recorded latency and memory values apply only to the recorded Apple M4 Max host.
+
+### OBSERVATION: Explicit Caching Preserves Semantics And Reports Avoided Work
+
+- Campaign: `20260711-plan3-operational-red-team-b960841d9-repeated-abuse`
+- Sequential identical expensive requests, ten concurrent callers on one spec,
+  callers distributed across expensive specs, alternating cheap and expensive
+  requests, and repeated expensive invalid validation ran in explicit cached and
+  uncached modes.
+- Cached warm results retain the same semantic result and logical work vector while
+  separately reporting zero executed work on a hit.
+- Ten repeated invalid validations consumed `7,779,170` executed validation work when
+  uncached and `777,917` when cached; both modes retained the same proven-invalid
+  classification and zero matching work.
+- The copied calculator's default remains uncached. The request cache is test-only and
+  cancellation during lookup remains distinguishable.
+
+### NEGATIVE EVIDENCE: Bounded Memory And Race Campaigns Found No Leak Or Race
+
+- Campaigns: `20260711-plan3-operational-red-team-b960841d9-repeated-abuse` and
+  `20260711-plan3-operational-red-team-b960841d9-race`.
+- Benchmem and the retained heap profile cover maximum result slices, validation proof
+  buffers, many calendars/ranges, large timezone data, rapid cancellation, and repeated
+  validation with and without cache.
+- Partial errors retain no excess result backing capacity, rapidly cancelled buffers
+  are released, and repeated cached workloads remain within the documented 8 MiB
+  plateau allowance.
+- The finite race suite found no race in the shared `SpecBuilder` timezone cache,
+  cached requests, validation of one spec, matching with different jitter seeds, or
+  cancellation during cache lookup. It also found no input protobuf mutation or work
+  drift.
+
+### NEGATIVE EVIDENCE: Six Hostile-Input Fuzz Targets Completed
+
+- Campaign: `20260711-plan3-operational-red-team-b960841d9-fuzz`.
+- Six separately bounded five-second coverage-guided runs covered raw protobuf decode
+  and validation, malformed timezone data, extreme timestamps and durations, bounded
+  repeated fields, Unicode cron/comments, and cancellation racing with parsing and
+  validation.
+- No retained panic, hang, goroutine leak, or allocation-bound failure was found. This
+  is finite fuzz evidence and makes no claim about customer input frequency.
+
+### INFERENCE: Identical Deterministic Budget Retries Do Not Progress
+
+- Campaign: `20260711-plan3-operational-red-team-b960841d9-repeated-abuse`.
+- Structural invalidity and proven unsatisfiability are not retryable without changing
+  the spec. Validation indeterminacy can be actionable with a larger validation budget.
+- Matching exhaustion can be actionable with fewer results, a smaller query window, or
+  a larger matching budget. An immediate identical retry reproduces the same stopping
+  work and is marked non-progressing.
+- Cancellation can be retried after the cancellation condition clears; a deadline can
+  be retried with a sufficient deadline. Neither outcome is converted into invalidity
+  or budget exhaustion.
+
+### RECOMMENDATION: Preserve Every Plan 2 Guard Status
+
+- The Plan 3 `DECISIONS.md` table resolves the tenfold-load open question for all twelve
+  Plan 2 guard candidates.
+- Cumulative matching work, separate validation work, maximum results, combined
+  serialized-size/work, and cancellation/deadline polling remain deferred.
+- Query-window, component/range, per-next-time, per-calendar, elapsed-time, and
+  densest/sparsest-source substitutes remain rejected.
+- No production guard, budget, cache, retry policy, or polling interval was selected or
+  enforced.
+
+### NEGATIVE EVIDENCE: Lord Howe Production Parity Remains Preserved
+
+- Case: `plan1-lord-howe-repeated-half-hour`.
+- Plan 3 made no production scheduler change. The reviewed copied/production divergence
+  remains intentionally preserved for a separate compatibility-sensitive production
+  project.
+
 ## Production Implementation Handoff
 
 This section is a handoff for a separate production implementation project after the
@@ -367,13 +489,13 @@ these notes as authorization to change production behavior.
   or schedule can help and whether retry is meaningful.
 - Bound diagnostic strings and timezone information in errors and telemetry.
 
-### RECOMMENDATION: Do Not Select A Production Work Limit Before Plans 2 And 3
+### RECOMMENDATION: Do Not Select A Production Work Limit From This Exercise
 
 - Existing evidence already shows that 10,000 matching-work units reject legitimate
   dense-plus-sparse schedules.
-- Plan 2 must calibrate deterministic work against CPU and allocations and evaluate
-  valid false positives. Plan 3 must add cancellation, concurrency, and tenfold-load
-  evidence.
+- Plan 2 calibrated deterministic work against CPU and allocations and evaluated valid
+  false positives. Plan 3 added cancellation, concurrency, memory, retry, race, fuzz,
+  and tenfold-load evidence without identifying a justified production limit.
 - A later implementation should prefer cumulative request accounting and ensure both
   legacy and CHASM use the same work definition and client-visible outcome.
 

@@ -1,0 +1,26 @@
+File: propertytest.test
+Type: inuse_space
+Time: 2026-07-11 00:59:51 CDT
+Showing nodes accounting for 13449.23kB, 100% of 13449.23kB total
+Showing top 20 nodes out of 76
+      flat  flat%   sum%        cum   cum%
+ 4101.30kB 30.49% 30.49%  4101.30kB 30.49%  runtime.mallocgc
+ 2048.94kB 15.23% 45.73%  3134.24kB 23.30%  google.golang.org/protobuf/internal/filedesc.newRawFile
+ 1646.55kB 12.24% 57.97%  2158.58kB 16.05%  pgregory.net/rapid.expandRangeTable
+ 1425.86kB 10.60% 68.57%  1425.86kB 10.60%  modernc.org/libc/honnef.co/go/netdb.init.0
+  565.76kB  4.21% 72.78%   565.76kB  4.21%  go.temporal.io/api/workflowservice/v1.init
+  553.04kB  4.11% 76.89%   553.04kB  4.11%  google.golang.org/protobuf/internal/strs.(*Builder).grow (inline)
+  532.26kB  3.96% 80.85%   532.26kB  3.96%  google.golang.org/protobuf/internal/filedesc.(*File).initDecls (inline)
+  521.37kB  3.88% 84.73%   521.37kB  3.88%  github.com/aws/aws-sdk-go-v2/service/s3/internal/endpoints.init
+  518.02kB  3.85% 88.58%   518.02kB  3.85%  regexp/syntax.(*compiler).inst (inline)
+  512.10kB  3.81% 92.39%   512.10kB  3.81%  github.com/prometheus/client_golang/prometheus.(*Registry).Register
+  512.02kB  3.81% 96.19%   512.02kB  3.81%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+  512.01kB  3.81%   100%   512.01kB  3.81%  golang.org/x/net/http2.init
+         0     0%   100%   518.02kB  3.85%  github.com/Masterminds/semver/v3.init.0
+         0     0%   100%   512.23kB  3.81%  github.com/envoyproxy/go-control-plane/envoy/admin/v3.file_envoy_admin_v3_init_dump_proto_init
+         0     0%   100%   512.23kB  3.81%  github.com/envoyproxy/go-control-plane/envoy/admin/v3.init.4
+         0     0%   100%   512.23kB  3.81%  github.com/envoyproxy/go-control-plane/envoy/config/route/v3.file_envoy_config_route_v3_route_proto_init
+         0     0%   100%   512.23kB  3.81%  github.com/envoyproxy/go-control-plane/envoy/config/route/v3.init.0
+         0     0%   100%   553.04kB  4.11%  github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3.file_envoy_data_accesslog_v3_accesslog_proto_init
+         0     0%   100%   553.04kB  4.11%  github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3.init.0
+         0     0%   100%  1024.47kB  7.62%  github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3.file_envoy_type_matcher_v3_metadata_proto_init
