@@ -12,14 +12,18 @@ const iterationDefinitionVersion = "v1"
 
 var (
 	ErrInvalidSpec       = errors.New("invalid schedule spec")
+	ErrUnsatisfiableSpec = errors.New("unsatisfiable schedule spec")
 	ErrInvalidQueryRange = errors.New("invalid query range")
 	ErrInvalidOptions    = errors.New("invalid compute options")
+	ErrValidationLimit   = errors.New("validation limit exceeded")
 	ErrIterationLimit    = errors.New("iteration limit exceeded")
 )
 
 type ComputeOptions struct {
-	MaxResults    int
-	MaxIterations int
+	MaxResults              int
+	MaxIterations           int
+	MaxValidationIterations int
+	faults                  analysisFaults
 }
 
 type WorkBreakdown struct {
@@ -34,8 +38,9 @@ type WorkBreakdown struct {
 }
 
 type ComputeResult struct {
-	Times []time.Time
-	Work  WorkBreakdown
+	Times      []time.Time
+	Work       WorkBreakdown
+	Validation ValidationResult
 }
 
 type IterationLimitError struct {
@@ -128,9 +133,9 @@ func ComputeMatchingTimes(
 	jitterSeed string,
 	options ComputeOptions,
 ) (ComputeResult, error) {
-	if options.MaxResults <= 0 || options.MaxIterations <= 0 {
+	if options.MaxResults <= 0 || options.MaxIterations <= 0 || options.MaxValidationIterations < 0 {
 		return ComputeResult{}, fmt.Errorf(
-			"%w: max results and max iterations must be positive",
+			"%w: result and matching limits must be positive and validation limit must not be negative",
 			ErrInvalidOptions,
 		)
 	}
@@ -138,31 +143,61 @@ func ComputeMatchingTimes(
 		return ComputeResult{}, fmt.Errorf("%w: end is before start", ErrInvalidQueryRange)
 	}
 
-	compiled, err := NewSpecBuilder().NewCompiledSpec(spec)
+	validationLimit := options.MaxValidationIterations
+	if validationLimit == 0 {
+		validationLimit = defaultValidationIterations
+	}
+	validation, err := ValidateSchedule(spec, ValidationOptions{
+		MaxIterations: validationLimit,
+		faults:        options.faults,
+	})
 	if err != nil {
-		return ComputeResult{}, fmt.Errorf("%w: %v", ErrInvalidSpec, err)
+		if options.faults.validationIndeterminateIsInvalid && errors.Is(err, ErrValidationLimit) {
+			err = newValidationClassificationError(ErrInvalidSpec, validation.Reason)
+		}
+		return ComputeResult{Validation: validation}, err
 	}
 
+	compiled, err := NewSpecBuilder().NewCompiledSpec(spec)
+	if err != nil {
+		return ComputeResult{Validation: validation}, fmt.Errorf("%w: %v", ErrInvalidSpec, err)
+	}
+	compiled.faults = options.faults
+
 	budget := newIterationBudget(options.MaxIterations)
-	result := ComputeResult{Times: make([]time.Time, 0, options.MaxResults)}
+	result := ComputeResult{
+		Times:      make([]time.Time, 0, options.MaxResults),
+		Validation: validation,
+	}
 	after := start
 	for range options.MaxResults {
 		budget.at(after)
 		if err := budget.tick(workResultLoop); err != nil {
 			result.Work = budget.snapshot()
-			return result, err
+			return matchingBudgetOutcome(result, err, options.faults)
 		}
 		next, err := compiled.getNextTime(jitterSeed, after, budget)
 		if err != nil {
 			result.Work = budget.snapshot()
-			return result, err
+			return matchingBudgetOutcome(result, err, options.faults)
 		}
 		after = next.Next
 		if after.IsZero() || after.After(end) {
 			break
 		}
 		result.Times = append(result.Times, after)
+		if options.faults.allowDuplicateUnionResults && len(compiled.calendar)+len(compiled.spec.Interval) > 1 {
+			result.Times = append(result.Times, after)
+		}
 	}
 	result.Work = budget.snapshot()
 	return result, nil
+}
+
+func matchingBudgetOutcome(result ComputeResult, err error, faults analysisFaults) (ComputeResult, error) {
+	if faults.iterationLimitIsEmpty && errors.Is(err, ErrIterationLimit) {
+		result.Times = nil
+		return result, nil
+	}
+	return result, err
 }

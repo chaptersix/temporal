@@ -114,6 +114,7 @@ type scheduleModel struct {
 	calendars  []calendarModel
 	intervals  []intervalModel
 	exclusions []calendarModel
+	witness    time.Time
 	startTime  *time.Time
 	endTime    *time.Time
 	jitter     time.Duration
@@ -195,6 +196,15 @@ func bruteForceMatchingTimes(
 		}
 	}
 	return times
+}
+
+func bruteForceValidationWitness(model scheduleModel, start time.Time, end time.Time) time.Time {
+	for candidate := start; !candidate.After(end); candidate = candidate.Add(time.Second) {
+		if model.matchesNominal(candidate) {
+			return candidate
+		}
+	}
+	return time.Time{}
 }
 
 func rangesMatch(ranges []rangeModel, value int, emptyMatchesAll bool) bool {

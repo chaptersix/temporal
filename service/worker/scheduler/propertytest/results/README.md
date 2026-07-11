@@ -39,3 +39,24 @@ red-team results. It intentionally does not contain bulk generated output.
 ```
 
 Campaign bundles are incomplete until schemas and checksums validate.
+
+## Test-Only Writer And Verification
+
+`result_writer_test.go` implements the Plan 4 lifecycle for analysis campaigns:
+
+1. Write an incomplete `campaign.json` before case output.
+2. Stream validated case records to a temporary JSONL file.
+3. Atomically publish cases, summary, results, and optional decisions.
+4. Finalize the manifest and artifact checksums only after clean completion.
+5. Re-read every case and verify every referenced checksum.
+
+`TestCampaignWriterLeavesInterruptedCampaignIncomplete` verifies that an interrupted
+campaign cannot pass bundle verification. `TestCampaignWriterRoundTrip` verifies a
+complete bundle. `TestWritePlan1ReviewedCampaign` writes the reviewed Plan 1 bundle
+when `SCHEDULE_PROPERTY_RESULTS_DIR` and campaign provenance variables are supplied.
+
+## Reviewed Campaigns
+
+- `reviewed/20260710-plan1-validity-hardening-0e0638d11/`: Plan 1 validity contract,
+  validation-budget, minimized timezone-boundary, property, fuzz, mutation, and package
+  verification evidence.

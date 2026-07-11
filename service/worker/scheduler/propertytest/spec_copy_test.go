@@ -21,6 +21,7 @@ type (
 		tz       *time.Location
 		calendar []*compiledCalendar
 		excludes []*compiledCalendar
+		faults   analysisFaults
 	}
 
 	GetNextTimeResult struct {
@@ -121,6 +122,22 @@ func CleanSpec(spec *schedulepb.ScheduleSpec) {
 
 //revive:disable-next-line:cognitive-complexity
 func canonicalizeSpec(spec *schedulepb.ScheduleSpec) (*schedulepb.ScheduleSpec, error) {
+	return canonicalizeSpecWithFaults(spec, analysisFaults{})
+}
+
+func canonicalizeSpecWithFaults(spec *schedulepb.ScheduleSpec, faults analysisFaults) (*schedulepb.ScheduleSpec, error) {
+	for _, calendar := range spec.Calendar {
+		if calendar == nil {
+			return nil, errors.New("calendar is nil")
+		}
+	}
+	if !faults.stopValidatingExclusions {
+		for _, calendar := range spec.ExcludeCalendar {
+			if calendar == nil {
+				return nil, errors.New("exclude calendar is nil")
+			}
+		}
+	}
 	// make copy so we can change some fields
 	spec = common.CloneProto(spec)
 	if spec.StartTime != nil {
@@ -144,6 +161,9 @@ func canonicalizeSpec(spec *schedulepb.ScheduleSpec) (*schedulepb.ScheduleSpec, 
 
 	// parse CalendarSpecs to StructuredCalendarSpecs
 	for _, cal := range spec.Calendar {
+		if cal == nil {
+			return nil, errors.New("calendar is nil")
+		}
 		structured, err := parseCalendarToStructured(cal)
 		if err != nil {
 			return nil, err
@@ -154,6 +174,9 @@ func canonicalizeSpec(spec *schedulepb.ScheduleSpec) (*schedulepb.ScheduleSpec, 
 
 	// parse ExcludeCalendars
 	for _, cal := range spec.ExcludeCalendar {
+		if cal == nil {
+			return nil, errors.New("exclude calendar is nil")
+		}
 		structured, err := parseCalendarToStructured(cal)
 		if err != nil {
 			return nil, err
@@ -200,9 +223,11 @@ func canonicalizeSpec(spec *schedulepb.ScheduleSpec) (*schedulepb.ScheduleSpec, 
 			return nil, err
 		}
 	}
-	for _, structured := range spec.ExcludeStructuredCalendar {
-		if err := validateStructuredCalendar(structured); err != nil {
-			return nil, fmt.Errorf("invalid exclusion: %w", err)
+	if !faults.stopValidatingExclusions {
+		for _, structured := range spec.ExcludeStructuredCalendar {
+			if err := validateStructuredCalendar(structured); err != nil {
+				return nil, fmt.Errorf("invalid exclusion: %w", err)
+			}
 		}
 	}
 
@@ -313,6 +338,9 @@ func (cs *CompiledSpec) getNextTime(
 	after time.Time,
 	budget *iterationBudget,
 ) (GetNextTimeResult, error) {
+	if cs.faults.queryStartInclusive {
+		after = after.Add(-time.Second)
+	}
 	budget.at(after)
 	if err := budget.tick(workNextTime); err != nil {
 		return GetNextTimeResult{}, err
@@ -328,6 +356,9 @@ func (cs *CompiledSpec) getNextTime(
 	var nominal time.Time
 	for {
 		if !nominal.IsZero() {
+			if cs.faults.ignoreExclusions {
+				break
+			}
 			excluded, err := cs.excluded(nominal, budget)
 			if err != nil {
 				return GetNextTimeResult{}, err
@@ -359,7 +390,7 @@ func (cs *CompiledSpec) getNextTime(
 	if err != nil {
 		return GetNextTimeResult{}, err
 	}
-	if !following.IsZero() {
+	if !following.IsZero() && !cs.faults.jitterCrossesNextNominal {
 		maxJitter = min(maxJitter, following.Sub(nominal))
 	}
 	next := cs.addJitter(jitterSeed, nominal, maxJitter)

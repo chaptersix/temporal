@@ -1,0 +1,25 @@
+{
+  "campaign_id": "20260710-plan1-validity-hardening-0e0638d11",
+  "completed_cases": 6,
+  "populations": {
+    "coverage-fuzz": {
+      "matching_executions": 1207,
+      "matching_new_interesting": 0,
+      "validation_executions": 9712,
+      "validation_new_interesting": 2
+    },
+    "curated": {
+      "retained_cases": 6
+    },
+    "invalid-abuse": {
+      "mutation_switches_killed": 11,
+      "mutation_switches_total": 11
+    },
+    "uniform-generated": {
+      "counterexamples": 0,
+      "rapid_checks_per_property": 10000
+    }
+  },
+  "schema_version": "summary-v1",
+  "validation_and_matching_work_aggregated": false
+}

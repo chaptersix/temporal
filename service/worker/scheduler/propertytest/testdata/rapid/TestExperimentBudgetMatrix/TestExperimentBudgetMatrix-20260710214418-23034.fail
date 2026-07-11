@@ -1,0 +1,41 @@
+# 2026/07/10 21:44:18.393968 [TestExperimentBudgetMatrix] [rapid] draw case: propertytest.scheduleCase{model:propertytest.scheduleModel{calendars:[]propertytest.calendarModel{propertytest.calendarModel{second:[]propertytest.rangeModel{propertytest.rangeModel{start:1, end:1, step:1}}, minute:[]propertytest.rangeModel{propertytest.rangeModel{start:0, end:0, step:1}}, hour:[]propertytest.rangeModel{propertytest.rangeModel{start:14, end:14, step:1}}, day:[]propertytest.rangeModel{propertytest.rangeModel{start:1, end:1, step:1}}, month:[]propertytest.rangeModel{propertytest.rangeModel{start:1, end:1, step:1}}, year:[]propertytest.rangeModel{propertytest.rangeModel{start:2020, end:2020, step:1}}, dayOfWeek:[]propertytest.rangeModel{propertytest.rangeModel{start:3, end:3, step:1}}}}, intervals:[]propertytest.intervalModel(nil), exclusions:[]propertytest.calendarModel(nil), witness:time.Time{wall:0x0, ext:63713433601, loc:(*time.Location)(nil)}, startTime:(*time.Time)(nil), endTime:(*time.Time)(0x2bea8de72090), jitter:0, timezone:"Pacific/Apia"}, spec:(*schedule.ScheduleSpec)(0x2bea8e5a0500), start:time.Time{wall:0x0, ext:63713433600, loc:(*time.Location)(nil)}, end:time.Time{wall:0x0, ext:63713437200, loc:(*time.Location)(nil)}, seed:""}
+# 2026/07/10 21:44:18.393978 [TestExperimentBudgetMatrix] [rapid] draw result-limit: 1
+# 2026/07/10 21:44:18.394270 [TestExperimentBudgetMatrix] budget matrix failed: unsatisfiable schedule spec: calendar has no civil timestamp in its effective horizon for start=2020-01-01T00:00:00Z end=2020-01-01T01:00:00Z seed="" spec={"structured_calendar":[{"second":[{"start":1,"end":1,"step":1}],"minute":[{"step":1}],"hour":[{"start":14,"end":14,"step":1}],"day_of_month":[{"start":1,"end":1,"step":1}],"month":[{"start":1,"end":1,"step":1}],"year":[{"start":2020,"end":2020,"step":1}],"day_of_week":[{"start":3,"end":3,"step":1}]}],"end_time":"2020-01-01T00:00:01Z","jitter":"0s","timezone_name":"Pacific/Apia"}
+# 
+v0.4.8#8566469149949224528
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x6b74f03291620
+0x6
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x1
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x1
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

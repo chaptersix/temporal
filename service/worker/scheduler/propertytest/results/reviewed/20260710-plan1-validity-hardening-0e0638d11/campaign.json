@@ -1,0 +1,60 @@
+{
+  "schema_version": "campaign-v1",
+  "campaign_id": "20260710-plan1-validity-hardening-0e0638d11",
+  "plan": "plan1",
+  "name": "validity-and-property-hardening",
+  "started_at": "2026-07-11T03:04:59.047875Z",
+  "completed_at": "2026-07-11T03:04:59.08566Z",
+  "complete": true,
+  "provenance": {
+    "architecture": "arm64",
+    "cache_mode": "count=1",
+    "cpu_count": 14,
+    "cpu_model": "Apple M4 Max",
+    "dirty_worktree": true,
+    "generator_version": "plan1-witness-first-v1",
+    "git_revision": "0e0638d119313d3c185ac5ca4a25053d32a3b4c7",
+    "go_version": "go1.26.4",
+    "memory_bytes": 38654705664,
+    "os": "darwin",
+    "patch_sha256": "c736850d8b470315fdea9f8ea4fecc2453fa2b75ac7d5b6d2f428a43bea563c3",
+    "profile_version": "plan1-query-profiles-v1",
+    "race_enabled": false,
+    "rapid_version": "v1.3.0",
+    "temporal_api_version": "v1.63.3",
+    "timezone_version": "tzcode-2022g-host-data",
+    "work_definition_version": "v1/validator-v1"
+  },
+  "population": "curated",
+  "planned_cases": 6,
+  "completed_cases": 6,
+  "commands": [
+    "go test -tags test_dep ./service/worker/scheduler/propertytest -run '^TestPropertyReducedDomainValidatorDifferential$' -rapid.checks=50000 -count=1",
+    "go test -tags test_dep ./service/worker/scheduler/propertytest -rapid.checks=10000 -count=1",
+    "go test -tags test_dep ./service/worker/scheduler/propertytest -run='^$' -fuzz='^FuzzScheduleValidation$' -fuzztime=30s -parallel=1",
+    "go test -tags test_dep ./service/worker/scheduler/propertytest -run='^$' -fuzz='^FuzzMatchingTimesOracle$' -fuzztime=30s -parallel=1",
+    "go test -tags test_dep ./service/worker/scheduler -count=1",
+    "go test -tags test_dep ./chasm/lib/scheduler -count=1"
+  ],
+  "environment": {
+    "GOMAXPROCS": "default",
+    "SCHEDULE_PROPERTY_LONG_EXPERIMENT": "unset"
+  },
+  "artifacts": [
+    {
+      "path": "cases.jsonl",
+      "bytes": 11809,
+      "sha256": "abc8ae89c509f4af6d8dfb1062b07f8326a6b460030f53d80f8e0d2cadc63975"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 634,
+      "sha256": "a16b2d4831410260a87c05d5a2a7f54155cd0a600339bed34d1b8246082c34e8"
+    },
+    {
+      "path": "RESULTS.md",
+      "bytes": 2631,
+      "sha256": "a1f151e76d4657dca5dca0bb9f508e90e19437c41add81561b0187810fda6ad0"
+    }
+  ]
+}

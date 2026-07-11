@@ -1,0 +1,36 @@
+# 2026/07/10 21:58:07.014623 [TestPropertySmallWindowOracle] [rapid] draw case: propertytest.scheduleCase{model:propertytest.scheduleModel{calendars:[]propertytest.calendarModel{propertytest.calendarModel{second:[]propertytest.rangeModel{propertytest.rangeModel{start:0, end:0, step:1}}, minute:[]propertytest.rangeModel{propertytest.rangeModel{start:30, end:30, step:1}}, hour:[]propertytest.rangeModel{propertytest.rangeModel{start:1, end:1, step:1}}, day:[]propertytest.rangeModel{propertytest.rangeModel{start:5, end:5, step:1}}, month:[]propertytest.rangeModel{propertytest.rangeModel{start:4, end:4, step:1}}, year:[]propertytest.rangeModel(nil), dayOfWeek:[]propertytest.rangeModel{propertytest.rangeModel{start:0, end:0, step:1}}}}, intervals:[]propertytest.intervalModel(nil), exclusions:[]propertytest.calendarModel(nil), witness:time.Time{wall:0x0, ext:63721607400, loc:(*time.Location)(nil)}, startTime:(*time.Time)(nil), endTime:(*time.Time)(nil), jitter:0, timezone:"Australia/Lord_Howe"}, spec:(*schedule.ScheduleSpec)(0x4b0f318f8200), start:time.Time{wall:0x0, ext:63721607348, loc:(*time.Location)(nil)}, end:time.Time{wall:0x0, ext:63721607408, loc:(*time.Location)(nil)}, seed:""}
+# 2026/07/10 21:58:07.016415 [TestPropertySmallWindowOracle] oracle mismatch for start=2020-04-04T14:29:08Z end=2020-04-04T14:30:08Z seed="" spec={"structured_calendar":[{"second":[{"step":1}], "minute":[{"start":30, "end":30, "step":1}], "hour":[{"start":1, "end":1, "step":1}], "day_of_month":[{"start":5, "end":5, "step":1}], "month":[{"start":4, "end":4, "step":1}], "day_of_week":[{"step":1}]}], "jitter":"0s", "timezone_name":"Australia/Lord_Howe"}
+# actual=[]
+# expected=[2020-04-04 14:30:00 +0000 UTC]
+# work={Total:408 NextTimeCalls:1 InclusionSourceChecks:2 CalendarSearchSteps:404 IntervalChecks:0 ExclusionChecks:0 ExcludedCandidateRetries:0 ResultLoopSteps:1}
+# 
+v0.4.8#2945572818629456973
+0x0
+0x1b4812094ede61
+0x7cb8b4
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0xe3e05a098777c
+0x33
+0x6b74f03291620
+0x5
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

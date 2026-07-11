@@ -80,7 +80,7 @@ func TestExperimentBudgetMatrix(t *testing.T) {
 	}
 }
 
-func TestAllExcludedDenseIntervalReachesBudget(t *testing.T) {
+func TestAllExcludedDenseIntervalValidationClassification(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	spec := &schedulepb.ScheduleSpec{
 		Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}},
@@ -93,15 +93,28 @@ func TestAllExcludedDenseIntervalReachesBudget(t *testing.T) {
 			DayOfWeek:  []*schedulepb.Range{{Start: 0, End: 6, Step: 1}},
 		}},
 	}
-	result, err := ComputeMatchingTimes(spec, start, start.Add(time.Minute), "", ComputeOptions{
-		MaxResults:    1,
-		MaxIterations: 10_000,
+	lowBudget, err := ComputeMatchingTimes(spec, start, start.Add(time.Minute), "", ComputeOptions{
+		MaxResults:              1,
+		MaxIterations:           10_000,
+		MaxValidationIterations: 100,
 	})
-	if !errors.Is(err, ErrIterationLimit) {
-		t.Fatalf("expected a valid all-excluded schedule to reach the budget, result=%+v error=%v", result, err)
+	if !errors.Is(err, ErrValidationLimit) || lowBudget.Validation.Status != ValidationIndeterminateBudget {
+		t.Fatalf("expected low-budget validation to remain indeterminate, result=%+v error=%v", lowBudget, err)
 	}
-	if result.Work.ExcludedCandidateRetries == 0 {
-		t.Fatalf("expected excluded candidate retries, work=%+v", result.Work)
+	if lowBudget.Work.Total != 0 {
+		t.Fatalf("matching computation ran after indeterminate validation, work=%+v", lowBudget.Work)
+	}
+
+	provedEmpty, err := ComputeMatchingTimes(spec, start, start.Add(time.Minute), "", ComputeOptions{
+		MaxResults:              1,
+		MaxIterations:           10_000,
+		MaxValidationIterations: 500_000,
+	})
+	if !errors.Is(err, ErrUnsatisfiableSpec) || provedEmpty.Validation.Status != ValidationInvalidEffectiveSetEmpty {
+		t.Fatalf("expected effective-set unsatisfiability with sufficient proof budget, result=%+v error=%v", provedEmpty, err)
+	}
+	if provedEmpty.Work.Total != 0 {
+		t.Fatalf("matching computation ran after invalid validation, work=%+v", provedEmpty.Work)
 	}
 }
 

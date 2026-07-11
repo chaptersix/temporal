@@ -95,7 +95,7 @@ func TestPropertyBudgetBoundary(t *testing.T) {
 func TestPropertyInvalidSpecsReturnErrors(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
-		invalid := invalidScheduleCaseGenerator().Draw(t, "case")
+		invalid := invalidStructuralScheduleCaseGenerator().Draw(t, "case")
 		_, err := ComputeMatchingTimes(
 			invalid.spec,
 			time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -177,6 +177,13 @@ func TestPropertyRepresentationEquivalence(t *testing.T) {
 		}
 		if !slices.Equal(structuredResult.Times, calendarResult.Times) || !slices.Equal(structuredResult.Times, cronResult.Times) {
 			t.Fatalf("representation mismatch: structured=%v calendar=%v cron=%v model=%+v", structuredResult.Times, calendarResult.Times, cronResult.Times, tc.model)
+		}
+		if structuredResult.Validation.Status != ValidationValid ||
+			calendarResult.Validation.Status != ValidationValid ||
+			cronResult.Validation.Status != ValidationValid ||
+			structuredResult.Validation.Witness != calendarResult.Validation.Witness ||
+			structuredResult.Validation.Witness != cronResult.Validation.Witness {
+			t.Fatalf("representation validity mismatch: structured=%+v calendar=%+v cron=%+v model=%+v", structuredResult.Validation, calendarResult.Validation, cronResult.Validation, tc.model)
 		}
 	})
 }
@@ -291,9 +298,10 @@ func TestPropertyExclusionIsSetSubtraction(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		intervalSeconds := rapid.Int64Range(1, 60).Draw(t, "interval")
 		phaseSeconds := rapid.Int64Range(0, intervalSeconds-1).Draw(t, "phase")
-		exclusion := drawCalendarModel(t, "exclusion", false)
 		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		end := start.Add(time.Hour)
+		exclusionOffset := rapid.Int64Range(1, int64(end.Sub(start)/time.Second)).Draw(t, "exclusion-offset")
+		exclusion := exactCalendarModel(start.Add(time.Duration(exclusionOffset) * time.Second))
 		baseModel := scheduleModel{intervals: []intervalModel{{intervalSeconds: intervalSeconds, phaseSeconds: phaseSeconds}}, timezone: "UTC"}
 		excludedModel := baseModel
 		excludedModel.exclusions = []calendarModel{exclusion}

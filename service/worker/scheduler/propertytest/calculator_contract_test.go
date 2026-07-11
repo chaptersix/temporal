@@ -18,58 +18,112 @@ func TestComputeMatchingTimesErrors(t *testing.T) {
 		Interval: durationpb.New(time.Hour),
 	}}}
 
-	_, err := ComputeMatchingTimes(valid, start, start.Add(-time.Second), "", ComputeOptions{1, 100})
+	_, err := ComputeMatchingTimes(valid, start, start.Add(-time.Second), "", ComputeOptions{MaxResults: 1, MaxIterations: 100})
 	require.ErrorIs(t, err, ErrInvalidQueryRange)
 
-	_, err = ComputeMatchingTimes(valid, start, start.Add(time.Hour), "", ComputeOptions{0, 100})
+	_, err = ComputeMatchingTimes(valid, start, start.Add(time.Hour), "", ComputeOptions{MaxResults: 0, MaxIterations: 100})
 	require.ErrorIs(t, err, ErrInvalidOptions)
 
 	invalid := &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{
 		Month: []*schedulepb.Range{{Start: 13}},
 	}}}
-	_, err = ComputeMatchingTimes(invalid, start, start.Add(time.Hour), "", ComputeOptions{1, 100})
+	_, err = ComputeMatchingTimes(invalid, start, start.Add(time.Hour), "", ComputeOptions{MaxResults: 1, MaxIterations: 100})
 	require.ErrorIs(t, err, ErrInvalidSpec)
 }
 
-func TestValidEmptyScheduleShapesReturnEmptySuccess(t *testing.T) {
+func TestInvalidEmptyInclusionSet(t *testing.T) {
 	t.Parallel()
 
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	tests := []struct {
-		name string
-		spec *schedulepb.ScheduleSpec
-	}{
-		{name: "empty schedule", spec: &schedulepb.ScheduleSpec{}},
-		{name: "empty structured calendar", spec: &schedulepb.ScheduleSpec{
-			StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{}},
-		}},
-		{name: "inverted schedule bounds describe empty set", spec: &schedulepb.ScheduleSpec{
-			Interval:  []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Hour)}},
-			StartTime: timestamppb.New(start.Add(2 * time.Hour)),
-			EndTime:   timestamppb.New(start.Add(time.Hour)),
-		}},
-		{name: "impossible civil date", spec: &schedulepb.ScheduleSpec{
-			StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{
-				Second:     []*schedulepb.Range{{Start: 0}},
-				Minute:     []*schedulepb.Range{{Start: 0}},
-				Hour:       []*schedulepb.Range{{Start: 0}},
-				DayOfMonth: []*schedulepb.Range{{Start: 30}},
-				Month:      []*schedulepb.Range{{Start: 2}},
-				DayOfWeek:  []*schedulepb.Range{{Start: 0, End: 6, Step: 1}},
-			}},
-		}},
-	}
+	result, err := ComputeMatchingTimes(&schedulepb.ScheduleSpec{}, start, start.Add(time.Hour), "", ComputeOptions{
+		MaxResults: 10, MaxIterations: 100_000,
+	})
+	require.ErrorIs(t, err, ErrUnsatisfiableSpec)
+	require.ErrorIs(t, err, ErrInvalidSpec)
+	require.Equal(t, ValidationInvalidComponentUnsatisfiable, result.Validation.Status)
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := ComputeMatchingTimes(tt.spec, start, start.Add(365*24*time.Hour), "", ComputeOptions{
-				MaxResults:    10,
-				MaxIterations: 100_000,
-			})
-			require.NoError(t, err)
-			require.Empty(t, result.Times)
-		})
+func TestInvalidEmptyStructuredInclusion(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	result, err := ComputeMatchingTimes(&schedulepb.ScheduleSpec{
+		StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{}},
+	}, start, start.Add(time.Hour), "", ComputeOptions{MaxResults: 10, MaxIterations: 100_000})
+	require.ErrorIs(t, err, ErrUnsatisfiableSpec)
+	require.Equal(t, ValidationInvalidComponentUnsatisfiable, result.Validation.Status)
+}
+
+func TestInvalidImpossibleCivilDate(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	result, err := ComputeMatchingTimes(&schedulepb.ScheduleSpec{
+		StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{
+			Second:     []*schedulepb.Range{{Start: 0}},
+			Minute:     []*schedulepb.Range{{Start: 0}},
+			Hour:       []*schedulepb.Range{{Start: 0}},
+			DayOfMonth: []*schedulepb.Range{{Start: 30}},
+			Month:      []*schedulepb.Range{{Start: 2}},
+			DayOfWeek:  []*schedulepb.Range{{Start: 0, End: 6, Step: 1}},
+		}},
+	}, start, start.Add(365*24*time.Hour), "", ComputeOptions{MaxResults: 10, MaxIterations: 100_000})
+	require.ErrorIs(t, err, ErrUnsatisfiableSpec)
+	require.Equal(t, ValidationInvalidComponentUnsatisfiable, result.Validation.Status)
+}
+
+func TestInvalidInvertedScheduleBounds(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	result, err := ComputeMatchingTimes(&schedulepb.ScheduleSpec{
+		Interval:  []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Hour)}},
+		StartTime: timestamppb.New(start.Add(2 * time.Hour)),
+		EndTime:   timestamppb.New(start.Add(time.Hour)),
+	}, start, start.Add(365*24*time.Hour), "", ComputeOptions{MaxResults: 10, MaxIterations: 100_000})
+	require.ErrorIs(t, err, ErrUnsatisfiableSpec)
+	require.Equal(t, ValidationInvalidStructural, result.Validation.Status)
+}
+
+func TestValidScheduleCanHaveEmptyQueryResult(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2025, 1, 1, 0, 0, 1, 0, time.UTC)
+	result, err := ComputeMatchingTimes(&schedulepb.ScheduleSpec{
+		Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(24 * time.Hour)}},
+	}, start, start.Add(time.Hour), "", ComputeOptions{MaxResults: 10, MaxIterations: 100_000})
+	require.NoError(t, err)
+	require.Empty(t, result.Times)
+	require.Equal(t, ValidationValid, result.Validation.Status)
+	require.False(t, result.Validation.Witness.IsZero())
+}
+
+func TestValidationAcceptsTimezoneCalendarAtScheduleEnd(t *testing.T) {
+	witness := time.Date(2020, 1, 1, 0, 0, 1, 0, time.UTC)
+	location, err := time.LoadLocation("Pacific/Apia")
+	require.NoError(t, err)
+	model := scheduleModel{
+		calendars: []calendarModel{exactCalendarModel(witness.In(location))},
+		endTime:   &witness,
+		timezone:  "Pacific/Apia",
 	}
+	spec, err := canonicalizeSpec(model.renderStructured())
+	require.NoError(t, err)
+	CleanSpec(spec)
+	horizonStart, horizonEnd := validationHorizon(spec, location)
+	calendar := newCompiledCalendar(spec.StructuredCalendar[0], location)
+	budget := &validationBudget{limit: defaultValidationIterations}
+	componentWitness, componentErr := calendarComponentWitness(
+		calendar,
+		spec.StructuredCalendar[0],
+		horizonStart,
+		horizonEnd,
+		budget,
+		"inclusion calendar 0",
+		analysisFaults{},
+	)
+	require.NoError(t, componentErr)
+	require.Equal(t, witness, componentWitness)
 }
 
 func TestComputeMatchingTimesBudgetBoundary(t *testing.T) {

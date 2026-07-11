@@ -1,0 +1,36 @@
+# 2026/07/10 21:56:24.126553 [TestPropertyStructuralInvalidClassification] [rapid] draw case: propertytest.invalidScheduleCase{spec:(*schedule.ScheduleSpec)(0x4b422078400), label:"nil-exclusion-calendar"}
+# 2026/07/10 21:56:24.126601 [TestPropertyStructuralInvalidClassification] structural mutation "nil-exclusion-calendar" classified as status=valid err=<nil> spec={"structured_calendar":[{"second":[{"start":1, "end":1, "step":1}], "minute":[{"step":1}], "hour":[{"step":1}], "day_of_month":[{"start":1, "end":1, "step":1}], "month":[{"start":1, "end":1, "step":1}], "day_of_week":[{"start":3, "end":3, "step":1}]}], "exclude_calendar":[{}], "jitter":"0s"}
+# 
+v0.4.8#1849047227555857316
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x1f2b5a0e61c3a6
+0x0
