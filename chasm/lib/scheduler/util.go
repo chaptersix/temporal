@@ -8,6 +8,7 @@ import (
 	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/metrics"
 	schedulescommon "go.temporal.io/server/common/schedules"
+	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -45,6 +46,22 @@ func newTaggedMetricsHandler(baseHandler metrics.Handler, scheduler *Scheduler) 
 	return baseHandler.WithTags(
 		metrics.NamespaceTag(scheduler.Namespace),
 		metrics.StringTag(metrics.ScheduleBackendTag, metrics.ScheduleBackendChasm),
+	)
+}
+
+func recordComputeLimitExceeded(
+	baseLogger log.Logger,
+	metricsHandler metrics.Handler,
+	scheduler *Scheduler,
+) {
+	metricsHandler.Counter(metrics.ScheduleComputeLimitExceeded.Name()).Record(1)
+	spec := legacyscheduler.NewScheduleSpecLogInfo(scheduler.Schedule.GetSpec())
+	newTaggedLogger(baseLogger, scheduler).Warn(
+		"schedule spec next-time search hit the compute limit; update the spec or limit to resume",
+		tag.WorkflowNamespaceID(scheduler.NamespaceId),
+		tag.String("spec", spec.Spec),
+		tag.Int("timezone-data-size", spec.TimezoneDataSize),
+		tag.String("timezone-data-sha256", spec.TimezoneDataSHA256),
 	)
 }
 

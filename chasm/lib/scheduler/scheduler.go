@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -756,6 +757,13 @@ func (s *Scheduler) ListMatchingTimes(
 	for range maxListMatchingTimesCount {
 		res, err := cspec.GetNextTime(s.jitterSeed(), t1)
 		if err != nil {
+			if errors.Is(err, scheduler.ErrComputeLimitExceeded) {
+				recordComputeLimitExceeded(
+					ctx.Logger(),
+					newTaggedMetricsHandler(ctx.MetricsHandler(), s),
+					s,
+				)
+			}
 			// An identical retry would re-burn the same compute bound.
 			return nil, serviceerror.NewFailedPrecondition(err.Error())
 		}

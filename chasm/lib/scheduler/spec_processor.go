@@ -215,9 +215,7 @@ func (s *SpecProcessorImpl) checkNextScheduleResult(
 
 	// A bounded search must not fail the generator task and send it to the DLQ.
 	if errors.Is(err, legacyscheduler.ErrComputeLimitExceeded) {
-		metricsHandler.Counter(metrics.ScheduleComputeLimitExceeded.Name()).Record(1)
-		newTaggedLogger(s.logger, scheduler).Warn(
-			"schedule spec next-time search hit the compute limit; update the spec or limit to resume")
+		recordComputeLimitExceeded(s.logger, metricsHandler, scheduler)
 		return time.Time{}, nil
 	}
 	return time.Time{}, err
