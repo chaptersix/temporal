@@ -4791,10 +4791,112 @@ func TestScheduleNextActionTimeVisibility(t *testing.T) {
 		v2Sid, query)
 }
 
-// TestMirroredIncludeExcludeSpec sets identical interval and exclusion
-// specifications that match every 1s, effectively cancelling each other out.
+// TestScheduleComputeLimitBlackoutGoesIdle verifies the current behavior when a valid
+// schedule's next occurrence is beyond the per-search compute limit. The scheduler loses
+// its future action time and enters the idle-retention window even though the spec has a
+// valid occurrence after the finite blackout.
+func TestScheduleComputeLimitBlackoutGoesIdle(t *testing.T) {
+	opts := append(
+		scheduleCommonOpts(t),
+		testcore.WithDynamicConfig(dynamicconfig.SchedulerSpecMaxIterations, scheduler.DefaultMaxIterations),
+	)
+	s := testcore.NewEnv(t, opts...)
+
+	sid := testcore.RandomizeStr("sched-compute-limit-blackout")
+	wid := testcore.RandomizeStr("sched-compute-limit-blackout-wf")
+	wt := testcore.RandomizeStr("sched-compute-limit-blackout-wt")
+
+	var runs atomic.Int32
+	registerCountingWorkflow(s, wt, &runs)
+
+	// Anchor the scenario in the next calendar year so the test does not depend on
+	// wall-clock time. The global StartTime puts the first interval occurrence at the
+	// beginning of the blackout; exclusions themselves do not have start/end fields.
+	year := time.Now().UTC().Year() + 1
+	blackoutStart := time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC)
+	blackoutEnd := blackoutStart.AddDate(0, 0, 21)
+	scheduleEnd := blackoutEnd.AddDate(0, 0, 1)
+	spec := &schedulepb.ScheduleSpec{
+		Interval:  []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}},
+		StartTime: timestamppb.New(blackoutStart),
+		ExcludeCalendar: []*schedulepb.CalendarSpec{{
+			// Exclude every second in [January 1, January 22). The first allowed
+			// interval occurrence is January 22 at midnight, one week beyond the
+			// default two-week candidate budget.
+			Second: "*", Minute: "*", Hour: "*",
+			DayOfMonth: "1-21", Month: "1", Year: fmt.Sprintf("%d", year),
+		}},
+		EndTime: timestamppb.New(scheduleEnd),
+	}
+
+	ctx := chasmContextFactory(s.Context())
+	createSchedule(ctx, t, s, sid, &schedulepb.Schedule{
+		Spec:   spec,
+		Action: startWorkflowAction(s, wid, wt),
+	})
+
+	// Searching from the beginning of the blackout exhausts the default compute limit.
+	_, err := s.FrontendClient().ListScheduleMatchingTimes(ctx, &workflowservice.ListScheduleMatchingTimesRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+		StartTime:  timestamppb.New(blackoutStart.Add(-time.Second)),
+		EndTime:    timestamppb.New(scheduleEnd),
+	})
+	var failedPrecondition *serviceerror.FailedPrecondition
+	require.ErrorAs(t, err, &failedPrecondition)
+	require.ErrorContains(t, err, scheduler.ErrComputeLimitExceeded.Error())
+
+	// A narrow query proves that the schedule is valid and has a result immediately
+	// after the blackout; the broad search failed because of its budget, not emptiness.
+	narrow, err := s.FrontendClient().ListScheduleMatchingTimes(ctx, &workflowservice.ListScheduleMatchingTimesRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+		StartTime:  timestamppb.New(blackoutEnd.Add(-time.Second)),
+		EndTime:    timestamppb.New(blackoutEnd.Add(time.Second)),
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, narrow.GetStartTime())
+	require.Equal(t, blackoutEnd, narrow.GetStartTime()[0].AsTime())
+
+	// The generator interprets compute exhaustion as no future work. Visibility exposes
+	// both halves of that state: no next action time and an armed idle-close deadline.
+	idleQuery := fmt.Sprintf(
+		`ScheduleId = '%s' AND %s IS NULL AND %s IS NOT NULL`,
+		sid,
+		chasmscheduler.ScheduleNextActionTimeName,
+		chasmscheduler.ScheduleIdleCloseTimeName,
+	)
+	await.RequireTruef(t, func() bool {
+		listResp, listErr := s.FrontendClient().ListSchedules(ctx, &workflowservice.ListSchedulesRequest{
+			Namespace:       s.Namespace().String(),
+			MaximumPageSize: 10,
+			Query:           idleQuery,
+		})
+		if listErr != nil {
+			return false
+		}
+		for _, entry := range listResp.GetSchedules() {
+			if entry.GetScheduleId() == sid {
+				return true
+			}
+		}
+		return false
+	}, awaitTimeout, pollInterval, "schedule should have no next action and an idle-close deadline")
+
+	describe, err := s.FrontendClient().DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+	})
+	require.NoError(t, err)
+	require.Empty(t, describe.GetInfo().GetFutureActionTimes())
+	require.Zero(t, describe.GetInfo().GetActionCount())
+	require.Zero(t, runs.Load())
+}
+
+// TestMirroredIncludeExcludeSpec sets inclusion and exclusion specifications that collectively
+// match every second, effectively cancelling each other out.
 func TestMirroredIncludeExcludeSpec(t *testing.T) {
-	// A tiny compute bound trips the mirrored spec near-instantly; the default (~1.2M candidate
+	// A tiny compute bound trips the cancelling spec near-instantly; the default (~1.2M candidate
 	// scans per GetNextTime) makes this test burn seconds of CPU on every scheduler code path.
 	opts := append(scheduleCommonOpts(t), testcore.WithDynamicConfig(dynamicconfig.SchedulerSpecMaxIterations, 1000))
 	s := testcore.NewEnv(t, opts...)
@@ -4804,13 +4906,17 @@ func TestMirroredIncludeExcludeSpec(t *testing.T) {
 	wt := testcore.RandomizeStr("sched-cancelling-spec-wt")
 
 	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
+	excludeEverySecond := []*schedulepb.CalendarSpec{
+		{Second: "0-58", Minute: "*", Hour: "*", Year: "2025-2100"},
+		{Second: "59", Minute: "*", Hour: "*", Year: "2025-2100"},
+	}
 
 	ctx, cancel := context.WithTimeout(chasmContextFactory(s.Context()), 10*time.Second)
 	defer cancel()
 	createSchedule(ctx, t, s, sid, &schedulepb.Schedule{
 		Spec: &schedulepb.ScheduleSpec{
 			Calendar:        []*schedulepb.CalendarSpec{everySecond},
-			ExcludeCalendar: []*schedulepb.CalendarSpec{everySecond},
+			ExcludeCalendar: excludeEverySecond,
 		},
 		Action: startWorkflowAction(s, wid, wt),
 	})
@@ -4843,6 +4949,10 @@ func TestMirroredIncludeExcludeSpecOnUpdate(t *testing.T) {
 	})
 
 	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
+	excludeEverySecond := []*schedulepb.CalendarSpec{
+		{Second: "0-58", Minute: "*", Hour: "*", Year: "2025-2100"},
+		{Second: "59", Minute: "*", Hour: "*", Year: "2025-2100"},
+	}
 	updateCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	_, err := s.FrontendClient().UpdateSchedule(updateCtx, &workflowservice.UpdateScheduleRequest{
@@ -4851,7 +4961,7 @@ func TestMirroredIncludeExcludeSpecOnUpdate(t *testing.T) {
 		Schedule: &schedulepb.Schedule{
 			Spec: &schedulepb.ScheduleSpec{
 				Calendar:        []*schedulepb.CalendarSpec{everySecond},
-				ExcludeCalendar: []*schedulepb.CalendarSpec{everySecond},
+				ExcludeCalendar: excludeEverySecond,
 			},
 			Action: startWorkflowAction(s, wid, wt),
 		},
@@ -4870,6 +4980,44 @@ func TestMirroredIncludeExcludeSpecOnUpdate(t *testing.T) {
 		})
 		return lmErr != nil
 	}, awaitTimeout, pollInterval, "ListMatchingTimes should error once the mirrored spec is applied")
+}
+
+func TestGloballyEmptyScheduleRejected(t *testing.T) {
+	s := testcore.NewEnv(t, scheduleCommonOpts(t)...)
+	ctx := chasmContextFactory(s.Context())
+	globallyEmptySpec := func() *schedulepb.ScheduleSpec {
+		return &schedulepb.ScheduleSpec{
+			Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}},
+			ExcludeCalendar: []*schedulepb.CalendarSpec{
+				{Second: "0-58", Minute: "*", Hour: "*"},
+				{Second: "59", Minute: "*", Hour: "*"},
+			},
+		}
+	}
+
+	_, err := s.FrontendClient().CreateSchedule(ctx, &workflowservice.CreateScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: testcore.RandomizeStr("sched-empty-create"),
+		Schedule:   &schedulepb.Schedule{Spec: globallyEmptySpec()},
+		Identity:   "test",
+		RequestId:  uuid.NewString(),
+	})
+	var invalidArgument *serviceerror.InvalidArgument
+	require.ErrorAs(t, err, &invalidArgument)
+
+	sid := testcore.RandomizeStr("sched-empty-update")
+	createSchedule(ctx, t, s, sid, &schedulepb.Schedule{
+		Spec:   intervalSpec(time.Hour),
+		Action: startWorkflowAction(s, testcore.RandomizeStr("sched-empty-update-wf"), testcore.RandomizeStr("sched-empty-update-wt")),
+	})
+	_, err = s.FrontendClient().UpdateSchedule(ctx, &workflowservice.UpdateScheduleRequest{
+		Namespace:  s.Namespace().String(),
+		ScheduleId: sid,
+		Schedule:   &schedulepb.Schedule{Spec: globallyEmptySpec()},
+		Identity:   "test",
+		RequestId:  uuid.NewString(),
+	})
+	require.ErrorAs(t, err, &invalidArgument)
 }
 
 // TestScheduleFarFutureActionTimes verifies that a schedule firing far beyond the compute

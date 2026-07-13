@@ -213,13 +213,9 @@ func (s *SpecProcessorImpl) checkNextScheduleResult(
 		return next.Next, nil
 	}
 
-	// special case: broken or pathological spec
-	// in this particular case, just swallow the error and log.
-	// The schedule will just degrade to return nothing
+	// A bounded search must not fail the generator task and send it to the DLQ.
 	if errors.Is(err, legacyscheduler.ErrComputeLimitExceeded) {
-		metricsHandler.Counter(metrics.ScheduleComputeLimitExceeded.Name()).Record(1)
-		newTaggedLogger(s.logger, scheduler).Warn(
-			"schedule spec next-time search hit the compute limit; taking no further action until the spec is changed")
+		recordComputeLimitExceeded(s.logger, metricsHandler, scheduler)
 		return time.Time{}, nil
 	}
 	return time.Time{}, err
@@ -242,5 +238,9 @@ func (s *SpecProcessorImpl) NextTime(scheduler *Scheduler, after time.Time) (leg
 		return legacyscheduler.GetNextTimeResult{}, err
 	}
 
-	return spec.GetNextTime(scheduler.jitterSeed(), after)
+	result, err := spec.GetNextTime(scheduler.jitterSeed(), after)
+	newTaggedMetricsHandler(s.metricsHandler, scheduler).
+		Histogram(metrics.ScheduleComputeIterations.Name(), metrics.Dimensionless).
+		Record(int64(result.ComputeIterations))
+	return result, err
 }

@@ -1519,6 +1519,10 @@ var (
 		"schedule_compute_limit_exceeded",
 		WithDescription("The number of times a schedule's next-time search hit the compute iteration bound"),
 	)
+	ScheduleComputeIterations = NewDimensionlessHistogramDef(
+		"schedule_compute_iterations",
+		WithDescription("The number of candidate times examined by a schedule next-time search"),
+	)
 	ScheduleIdleTask = NewCounterDef(
 		"schedule_idle_task",
 		WithDescription("The number of times a schedule's idle task ran. Tagged with outcome and reason (reason is \"none\" when outcome is \"fired\")."),

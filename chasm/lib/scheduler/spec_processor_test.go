@@ -11,8 +11,10 @@ import (
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/metrics/metricstest"
+	"go.temporal.io/server/common/testing/testlogger"
 	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -29,6 +31,7 @@ type testSpecProcessor struct {
 func newTestSpecProcessor(ctrl *gomock.Controller) *testSpecProcessor {
 	mockMetrics := metrics.NewMockHandler(ctrl)
 	mockMetrics.EXPECT().Counter(gomock.Any()).Return(metrics.NoopCounterMetricFunc).AnyTimes()
+	mockMetrics.EXPECT().Histogram(gomock.Any(), gomock.Any()).Return(metrics.NoopHistogramMetricFunc).AnyTimes()
 	mockMetrics.EXPECT().WithTags(gomock.Any()).Return(mockMetrics).AnyTimes()
 	mockMetrics.EXPECT().Timer(gomock.Any()).Return(metrics.NoopTimerMetricFunc).AnyTimes()
 
@@ -255,8 +258,11 @@ func TestProcessTimeRange_ComputeLimitExceeded(t *testing.T) {
 	schedule := defaultSchedule()
 	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
 	schedule.Spec = &schedulepb.ScheduleSpec{
-		Calendar:        []*schedulepb.CalendarSpec{everySecond},
-		ExcludeCalendar: []*schedulepb.CalendarSpec{everySecond},
+		Calendar: []*schedulepb.CalendarSpec{everySecond},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{
+			{Second: "0-58", Minute: "*", Hour: "*", Year: "2025-2100"},
+			{Second: "59", Minute: "*", Hour: "*", Year: "2025-2100"},
+		},
 	}
 	sched, err := scheduler.NewScheduler(ctx, namespace, namespaceID, scheduleID, schedule, nil)
 	require.NoError(t, err)
@@ -267,12 +273,23 @@ func TestProcessTimeRange_ComputeLimitExceeded(t *testing.T) {
 
 	specBuilder := legacyscheduler.NewSpecBuilder()
 	specBuilder.SetMaxIterations(func() int { return 10_000 })
+	logger := testlogger.NewTestLogger(t, testlogger.FailOnExpectedErrorOnly)
+	computeLimitLog := logger.Expect(
+		testlogger.Warn,
+		"schedule spec next-time search hit the compute limit",
+		tag.WorkflowNamespace(namespace),
+		tag.WorkflowNamespaceID(namespaceID),
+		tag.ScheduleID(scheduleID),
+		tag.String("spec", "calendar"),
+		tag.Int("timezone-data-size", 0),
+		tag.String("timezone-data-sha256", ""),
+	)
 	processor := scheduler.NewSpecProcessor(
 		&scheduler.Config{
 			Tweakables: func(_ string) scheduler.Tweakables { return scheduler.DefaultTweakables },
 		},
 		rec,
-		log.NewTestLogger(),
+		logger,
 		specBuilder,
 	)
 
@@ -292,4 +309,11 @@ func TestProcessTimeRange_ComputeLimitExceeded(t *testing.T) {
 
 	recorded := capture.Snapshot()[metrics.ScheduleComputeLimitExceeded.Name()]
 	require.Len(t, recorded, 2, "expected the compute-limit counter to fire on both the active and paused paths")
+	require.Equal(t, int64(2), computeLimitLog.MatchCount())
+	iterations := capture.Snapshot()[metrics.ScheduleComputeIterations.Name()]
+	require.Len(t, iterations, 2)
+	for _, recording := range iterations {
+		require.Equal(t, int64(10_000), recording.Value)
+		require.Equal(t, metrics.MetricUnit(metrics.Dimensionless), recording.Unit)
+	}
 }

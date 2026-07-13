@@ -3,8 +3,10 @@ package scheduler_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/chasm"
@@ -12,6 +14,8 @@ import (
 	"go.temporal.io/server/chasm/lib/scheduler"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/testing/testlogger"
 	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -59,6 +63,48 @@ func TestSentinelHandler_ListScheduleMatchingTimes(t *testing.T) {
 		}, specBuilder)
 		return err
 	})
+}
+
+func TestListScheduleMatchingTimesComputeLimitExceededLogsSpec(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := env.MutableContext()
+	schedule := defaultSchedule()
+	schedule.Spec = &schedulepb.ScheduleSpec{
+		Calendar: []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{
+			{Second: "0-58", Minute: "*", Hour: "*", Year: "2025-2100"},
+			{Second: "59", Minute: "*", Hour: "*", Year: "2025-2100"},
+		},
+	}
+	sched, err := scheduler.NewScheduler(ctx, namespace, namespaceID, scheduleID, schedule, nil)
+	require.NoError(t, err)
+
+	logger := env.Logger.(*testlogger.TestLogger)
+	expectedLog := logger.Expect(
+		testlogger.Warn,
+		"schedule spec next-time search hit the compute limit",
+		tag.WorkflowNamespace(namespace),
+		tag.WorkflowNamespaceID(namespaceID),
+		tag.ScheduleID(scheduleID),
+		tag.String("spec", "calendar"),
+	)
+	specBuilder := legacyscheduler.NewSpecBuilder()
+	specBuilder.SetMaxIterations(func() int { return 100 })
+	start := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+	_, err = sched.ListMatchingTimes(ctx, &schedulerpb.ListScheduleMatchingTimesRequest{
+		NamespaceId: namespaceID,
+		FrontendRequest: &workflowservice.ListScheduleMatchingTimesRequest{
+			Namespace:  namespace,
+			ScheduleId: scheduleID,
+			StartTime:  timestamppb.New(start),
+			EndTime:    timestamppb.New(start.Add(time.Hour)),
+		},
+	}, specBuilder)
+
+	var failedPrecondition *serviceerror.FailedPrecondition
+	require.ErrorAs(t, err, &failedPrecondition)
+	require.Equal(t, int64(1), expectedLog.MatchCount())
 }
 
 func TestSentinelHandler_UpdateSchedule(t *testing.T) {

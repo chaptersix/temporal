@@ -24,6 +24,7 @@ type (
 		// of week starts at 0 == Sunday. A time matches this compiled calendar
 		// when all fields match.
 		year, month, dayOfMonth, dayOfWeek, hour, minute, second func(int) bool
+		unboundedYear                                            bool
 	}
 )
 
@@ -81,14 +82,15 @@ var (
 
 func newCompiledCalendar(cal *schedulepb.StructuredCalendarSpec, tz *time.Location) *compiledCalendar {
 	return &compiledCalendar{
-		tz:         tz,
-		year:       makeYearMatcher(cal.Year),
-		month:      makeBitMatcher(cal.Month),
-		dayOfMonth: makeBitMatcher(cal.DayOfMonth),
-		dayOfWeek:  makeBitMatcher(cal.DayOfWeek),
-		hour:       makeBitMatcher(cal.Hour),
-		minute:     makeBitMatcher(cal.Minute),
-		second:     makeBitMatcher(cal.Second),
+		tz:            tz,
+		year:          makeYearMatcher(cal.Year),
+		month:         makeBitMatcher(cal.Month),
+		dayOfMonth:    makeBitMatcher(cal.DayOfMonth),
+		dayOfWeek:     makeBitMatcher(cal.DayOfWeek),
+		hour:          makeBitMatcher(cal.Hour),
+		minute:        makeBitMatcher(cal.Minute),
+		second:        makeBitMatcher(cal.Second),
+		unboundedYear: len(cal.Year) == 0,
 	}
 }
 
@@ -108,6 +110,107 @@ func (cc *compiledCalendar) matches(ts time.Time) bool {
 		cc.hour(h) &&
 		cc.minute(m) &&
 		cc.second(s)
+}
+
+func (cc *compiledCalendar) matchesAllDates() bool {
+	if !cc.unboundedYear {
+		return false
+	}
+	fields := []struct {
+		matcher func(int) bool
+		start   int
+		end     int
+	}{
+		{cc.month, 1, 12},
+		{cc.dayOfMonth, 1, 31},
+		{cc.dayOfWeek, 0, 6},
+	}
+	for _, field := range fields {
+		for value := field.start; value <= field.end; value++ {
+			if !field.matcher(value) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (cc *compiledCalendar) hasPossibleCivilTime() bool {
+	fieldHasMatch := func(matcher func(int) bool, start, end int) bool {
+		for value := start; value <= end; value++ {
+			if matcher(value) {
+				return true
+			}
+		}
+		return false
+	}
+	if !fieldHasMatch(cc.hour, 0, 23) ||
+		!fieldHasMatch(cc.minute, 0, 59) ||
+		!fieldHasMatch(cc.second, 0, 59) {
+		return false
+	}
+	for year := minCalendarYear; year <= maxCalendarYear; year++ {
+		if !cc.year(year) {
+			continue
+		}
+		for month := time.January; month <= time.December; month++ {
+			if !cc.month(int(month)) {
+				continue
+			}
+			for day := 1; day <= daysInMonth(month, year); day++ {
+				if cc.dayOfMonth(day) && cc.dayOfWeek(int(time.Date(year, month, day, 0, 0, 0, 0, time.UTC).Weekday())) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func exclusionsMatchAllTimes(exclusions []*compiledCalendar) bool {
+	const secondsPerDay = 24 * 60 * 60
+	var covered []uint64
+	remaining := secondsPerDay
+	for _, exclusion := range exclusions {
+		if !exclusion.matchesAllDates() {
+			continue
+		}
+		if covered == nil {
+			covered = make([]uint64, (secondsPerDay+63)/64)
+		}
+		remaining -= addExcludedSeconds(covered, exclusion)
+		if remaining == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func addExcludedSeconds(covered []uint64, exclusion *compiledCalendar) int {
+	added := 0
+	for hour := 0; hour < 24; hour++ {
+		if !exclusion.hour(hour) {
+			continue
+		}
+		for minute := 0; minute < 60; minute++ {
+			if !exclusion.minute(minute) {
+				continue
+			}
+			for second := 0; second < 60; second++ {
+				if !exclusion.second(second) {
+					continue
+				}
+				secondOfDay := (hour*60+minute)*60 + second
+				word := secondOfDay / 64
+				mask := uint64(1) << (secondOfDay % 64)
+				if covered[word]&mask == 0 {
+					covered[word] |= mask
+					added++
+				}
+			}
+		}
+	}
+	return added
 }
 
 // Returns the earliest time that matches this calendar spec that is after the given time.

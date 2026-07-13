@@ -1,6 +1,8 @@
 package scheduler
 
 import (
+	"bytes"
+	"encoding/binary"
 	"testing"
 	"time"
 
@@ -367,37 +369,199 @@ func (s *specSuite) TestSpecExclude() {
 	)
 }
 
-func (s *specSuite) TestExcludeAll() {
-	cs, err := s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
-		Interval: []*schedulepb.IntervalSpec{
-			{Interval: durationpb.New(7 * 24 * time.Hour)},
+func (s *specSuite) TestRejectsSpecsWithNoMatchingTime() {
+	second := durationpb.New(time.Second)
+	tests := map[string]*schedulepb.ScheduleSpec{
+		"impossible civil date": {
+			Calendar: []*schedulepb.CalendarSpec{{Month: "2", DayOfMonth: "30"}},
 		},
-		ExcludeCalendar: []*schedulepb.CalendarSpec{
-			&schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"},
+		"inverted bounds": {
+			Interval:  []*schedulepb.IntervalSpec{{Interval: second}},
+			StartTime: timestamppb.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)),
+			EndTime:   timestamppb.New(time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)),
 		},
+		"universal exclusion": {
+			Interval:        []*schedulepb.IntervalSpec{{Interval: second}},
+			ExcludeCalendar: []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
+		},
+		"partitioned universal exclusion": {
+			Interval: []*schedulepb.IntervalSpec{{Interval: second}},
+			ExcludeCalendar: []*schedulepb.CalendarSpec{
+				{Second: "0-58", Minute: "*", Hour: "*"},
+				{Second: "59", Minute: "*", Hour: "*"},
+			},
+		},
+	}
+	for name, spec := range tests {
+		s.Run(name, func() {
+			_, err := s.specBuilder.NewCompiledSpec(spec)
+			s.Require().ErrorIs(err, ErrNoMatchingTimes)
+		})
+	}
+
+	_, err := s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{})
+	s.Require().NoError(err, "an empty inclusion set is a supported manual-only schedule")
+
+	_, err = s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Calendar: []*schedulepb.CalendarSpec{{Month: "2", DayOfMonth: "30"}},
+		Interval: []*schedulepb.IntervalSpec{{Interval: second}},
 	})
-	s.NoError(err)
-	result, err := cs.GetNextTime("", time.Date(2022, 3, 23, 12, 53, 2, 9, time.UTC))
-	s.Require().NoError(err)
-	s.Zero(result)
+	s.Require().NoError(err, "one impossible union member does not make the effective set empty")
+
+	_, err = s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Calendar: []*schedulepb.CalendarSpec{{
+			Second: "0", Minute: "30", Hour: "1", DayOfMonth: "5", Month: "4", Year: "2020",
+		}},
+		StartTime:    timestamppb.New(time.Date(2020, 4, 4, 14, 29, 59, 0, time.UTC)),
+		EndTime:      timestamppb.New(time.Date(2020, 4, 4, 14, 30, 0, 0, time.UTC)),
+		TimezoneName: "Australia/Lord_Howe",
+	})
+	s.Require().NoError(err, "validation must not inherit next-time search false negatives")
 }
 
 func (s *specSuite) TestGetNextTimeComputeLimitExceeded() {
-	// Mirrored calendar/exclude: every candidate is excluded, so the search hits the bound.
+	// The exclusions cover a finite year, so a result exists after that year even though this
+	// search cannot reach it before exhausting the fallback bound.
 	const iterations = 10_000
 	builder := NewSpecBuilder()
 	builder.SetMaxIterations(func() int { return iterations })
 	cs, err := builder.NewCompiledSpec(&schedulepb.ScheduleSpec{
-		Calendar:        []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
-		ExcludeCalendar: []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
+		Calendar: []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{
+			{Second: "0-58", Minute: "*", Hour: "*", Year: "2025"},
+			{Second: "59", Minute: "*", Hour: "*", Year: "2025"},
+		},
 	})
 	s.Require().NoError(err)
 
-	after := time.Date(2022, 3, 23, 12, 0, 0, 0, time.UTC)
+	after := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	result, err := cs.GetNextTime("", after)
 
 	s.Require().ErrorIs(err, ErrComputeLimitExceeded)
-	s.Zero(result)
+	s.True(result.Nominal.IsZero())
+	s.True(result.Next.IsZero())
+	s.Equal(iterations, result.ComputeIterations)
+}
+
+func (s *specSuite) TestUniversalExclusionValidationShortCircuits() {
+	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
+	started := time.Now()
+	_, err := NewSpecBuilder().NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Calendar:        []*schedulepb.CalendarSpec{everySecond},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{everySecond},
+	})
+	elapsed := time.Since(started)
+	s.T().Logf("universal exclusion was rejected without walking the default %d-candidate limit in %s", DefaultMaxIterations, elapsed)
+
+	s.Require().ErrorIs(err, ErrNoMatchingTimes)
+}
+
+func (s *specSuite) TestGetNextTimeYearBoundedExclusionIsNotUniversal() {
+	cs, err := NewSpecBuilder().NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{{
+			Second: "*", Minute: "*", Hour: "*", DayOfMonth: "*", Month: "*", Year: "2025",
+		}},
+	})
+	s.Require().NoError(err)
+
+	result, err := cs.GetNextTime("", time.Date(2025, 12, 31, 23, 59, 59, 0, time.UTC))
+	s.Require().NoError(err)
+	s.Equal(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), result.Next)
+}
+
+func (s *specSuite) TestGetNextTimeDefaultComputeLimitCanRejectValidBlackout() {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	boundary := start.Add(time.Duration(DefaultMaxIterations) * time.Second)
+	expected := boundary.Add(time.Second)
+	cs, err := NewSpecBuilder().NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{
+			{
+				Second: "*", Minute: "*", Hour: "*", DayOfMonth: "1-14", Month: "1", Year: "2025",
+			},
+			{
+				Second: "0", Minute: "0", Hour: "0", DayOfMonth: "15", Month: "1", Year: "2025",
+			},
+		},
+		EndTime: timestamppb.New(time.Date(2025, 1, 16, 0, 0, 0, 0, time.UTC)),
+	})
+	s.Require().NoError(err)
+
+	started := time.Now()
+	result, err := cs.GetNextTime("", start)
+	elapsed := time.Since(started)
+	s.T().Logf("valid finite-blackout search reached the default %d-candidate limit in %s", DefaultMaxIterations, elapsed)
+
+	s.Require().ErrorIs(err, ErrComputeLimitExceeded)
+	s.True(result.Nominal.IsZero())
+	s.True(result.Next.IsZero())
+	s.Equal(DefaultMaxIterations, result.ComputeIterations)
+	s.Equal(time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC), boundary)
+	s.Equal(expected, cs.rawNextTime(boundary))
+	s.False(cs.excluded(expected), "the schedule has an allowed occurrence one second beyond the default limit")
+}
+
+func (s *specSuite) TestGetNextTimeDenseIntervalWithManyExhaustedCalendars() {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	spec := &schedulepb.ScheduleSpec{
+		Interval:     []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}},
+		TimezoneName: "Test/UTC",
+		TimezoneData: syntheticUTCZone(30_000),
+	}
+	s.Len(spec.TimezoneData, 150_054)
+	for range 24 {
+		spec.Calendar = append(spec.Calendar, &schedulepb.CalendarSpec{
+			Second: "0", Minute: "0", Hour: "0", DayOfMonth: "1", Month: "1", Year: "2025",
+		})
+	}
+	compileStarted := time.Now()
+	cs, err := NewSpecBuilder().NewCompiledSpec(spec)
+	compileElapsed := time.Since(compileStarted)
+	s.Require().NoError(err)
+
+	started := time.Now()
+	after := start
+	for range 1_000 {
+		result, err := cs.GetNextTime("", after)
+		s.Require().NoError(err)
+		s.Require().False(result.Next.IsZero())
+		after = result.Next
+	}
+	elapsed := time.Since(started)
+	s.T().Logf(
+		"dense interval, 24 exhausted calendars, and a %d-byte TZif compiled in %s and produced 1,000 results in %s",
+		len(spec.TimezoneData),
+		compileElapsed,
+		elapsed,
+	)
+
+	s.Equal(start.Add(1_000*time.Second), after)
+}
+
+func syntheticUTCZone(transitionCount int) []byte {
+	var data bytes.Buffer
+	data.WriteString("TZif")
+	data.WriteByte(0)
+	data.Write(make([]byte, 15))
+	counts := []uint32{0, 0, 0, uint32(transitionCount), 1, 4}
+	var word [4]byte
+	for _, count := range counts {
+		binary.BigEndian.PutUint32(word[:], count)
+		data.Write(word[:])
+	}
+	for index := range transitionCount {
+		transition := int32(-1_800_000_000 + index*60)
+		binary.BigEndian.PutUint32(word[:], uint32(transition))
+		data.Write(word[:])
+	}
+	data.Write(make([]byte, transitionCount))
+	binary.BigEndian.PutUint32(word[:], 0)
+	data.Write(word[:])
+	data.WriteByte(0)
+	data.WriteByte(0)
+	data.WriteString("UTC\x00")
+	return data.Bytes()
 }
 
 func (s *specSuite) TestSpecStartTime() {

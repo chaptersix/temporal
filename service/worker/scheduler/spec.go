@@ -17,9 +17,9 @@ import (
 
 // DefaultMaxIterations is the fallback bound on how many excluded candidate times GetNextTime
 // will consider before giving up, used when no dynamic-config accessor is injected into the
-// SpecBuilder. It is two weeks' worth of one-second ticks: enough that no well-formed spec ever
-// reaches it, small enough that an adversarial spec (calendar matches every second, exclude
-// cancels every second).
+// SpecBuilder. It is two weeks' worth of one-second ticks. A valid schedule with a longer dense
+// exclusion window can reach the bound, so exhaustion must not be treated as proof that the
+// schedule has no future match.
 const DefaultMaxIterations = 2 * 7 * 24 * 60 * 60
 
 type (
@@ -28,12 +28,14 @@ type (
 		tz            *time.Location
 		calendar      []*compiledCalendar
 		excludes      []*compiledCalendar
+		excludesAll   bool
 		maxIterations int
 	}
 
 	GetNextTimeResult struct {
-		Nominal time.Time // scheduled time before adding jitter
-		Next    time.Time // scheduled time after adding jitter
+		Nominal           time.Time // scheduled time before adding jitter
+		Next              time.Time // scheduled time after adding jitter
+		ComputeIterations int       // candidate times examined by this search
 	}
 
 	SpecBuilder struct {
@@ -53,11 +55,14 @@ type (
 )
 
 // ErrComputeLimitExceeded is returned by GetNextTime when the search for the next matching time
-// hits the compute iteration bound before finding a non-excluded time. It indicates an
-// over-excluded (e.g. a calendar and exclude that cancel each other out).
-// Callers should surface it (metric + log) and stop scheduling; the schedule takes no further
-// action until its spec is changed.
+// hits the compute iteration bound before finding a non-excluded time. An identical retry from
+// the same starting point will repeat the work, but changing the start, spec, or limit may find a
+// future match.
 var ErrComputeLimitExceeded = errors.New("schedule spec next-time search exceeded the compute iteration limit")
+
+// ErrNoMatchingTimes is returned when validation proves that a schedule cannot produce a time
+// within the supported calendar horizon.
+var ErrNoMatchingTimes = errors.New("schedule spec cannot produce a matching time")
 
 func NewSpecBuilder() *SpecBuilder {
 	return &SpecBuilder{
@@ -115,10 +120,37 @@ func (b *SpecBuilder) NewCompiledSpec(spec *schedulepb.ScheduleSpec) (*CompiledS
 		tz:            tz,
 		calendar:      ccs,
 		excludes:      excludes,
+		excludesAll:   exclusionsMatchAllTimes(excludes),
 		maxIterations: b.MaxIterations(),
+	}
+	if err := cspec.validateHasMatchingTime(); err != nil {
+		return nil, err
 	}
 
 	return cspec, nil
+}
+
+func (cs *CompiledSpec) validateHasMatchingTime() error {
+	// An empty inclusion set is a supported manual-only schedule.
+	if len(cs.calendar)+len(cs.spec.Interval) == 0 {
+		return nil
+	}
+	if cs.spec.StartTime != nil && cs.spec.EndTime != nil &&
+		cs.spec.StartTime.AsTime().After(cs.spec.EndTime.AsTime()) {
+		return ErrNoMatchingTimes
+	}
+	if cs.excludesAll {
+		return ErrNoMatchingTimes
+	}
+	if len(cs.spec.Interval) == 0 {
+		for _, calendar := range cs.calendar {
+			if calendar.hasPossibleCivilTime() {
+				return nil
+			}
+		}
+		return ErrNoMatchingTimes
+	}
+	return nil
 }
 
 // setMaxIterations overrides the compiled search bound. The legacy scheduler workflow uses this
@@ -311,6 +343,12 @@ func (cs *CompiledSpec) CanonicalForm() *schedulepb.ScheduleSpec {
 // Returns: Nominal is the time that matches, pre-jitter. Next is the nominal time with
 // jitter applied. If there is no matching time, Nominal and Next will be the zero time.
 func (cs *CompiledSpec) GetNextTime(jitterSeed string, after time.Time) (GetNextTimeResult, error) {
+	// A single universal exclusion proves that the effective set is empty. Avoid walking every
+	// inclusion candidate to the compute limit when the result is already known.
+	if cs.excludesAll {
+		return GetNextTimeResult{}, nil
+	}
+
 	// If we're starting before the schedule's allowed time range, jump up to right before
 	// it (so that we can still return the first second of the range if it happens to match).
 	// note: AsTime returns unix epoch on nil StartTime
@@ -325,17 +363,19 @@ func (cs *CompiledSpec) GetNextTime(jitterSeed string, after time.Time) (GetNext
 	}
 
 	var nominal time.Time
-	for iterations := 0; nominal.IsZero() || cs.excluded(nominal); iterations++ {
+	iterations := 0
+	for nominal.IsZero() || cs.excluded(nominal) {
 		// Bound the search so an over-excluded / adversarial spec can't spin toward
 		// maxCalendarYear. Well-formed specs resolve in a handful of iterations.
 		if iterations >= maxIterations {
-			return GetNextTimeResult{}, ErrComputeLimitExceeded
+			return GetNextTimeResult{ComputeIterations: iterations}, ErrComputeLimitExceeded
 		}
+		iterations++
 		nominal = cs.rawNextTime(after)
 		after = nominal
 
 		if nominal.IsZero() || pastEndTime(nominal) {
-			return GetNextTimeResult{}, nil
+			return GetNextTimeResult{ComputeIterations: iterations}, nil
 		}
 	}
 
@@ -346,7 +386,7 @@ func (cs *CompiledSpec) GetNextTime(jitterSeed string, after time.Time) (GetNext
 	}
 	next := cs.addJitter(jitterSeed, nominal, maxJitter)
 
-	return GetNextTimeResult{Nominal: nominal, Next: next}, nil
+	return GetNextTimeResult{Nominal: nominal, Next: next, ComputeIterations: iterations}, nil
 }
 
 // Returns the next matching time (without jitter), or the zero value if no time matches.
