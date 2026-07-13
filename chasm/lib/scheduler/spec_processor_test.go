@@ -29,6 +29,7 @@ type testSpecProcessor struct {
 func newTestSpecProcessor(ctrl *gomock.Controller) *testSpecProcessor {
 	mockMetrics := metrics.NewMockHandler(ctrl)
 	mockMetrics.EXPECT().Counter(gomock.Any()).Return(metrics.NoopCounterMetricFunc).AnyTimes()
+	mockMetrics.EXPECT().Histogram(gomock.Any(), gomock.Any()).Return(metrics.NoopHistogramMetricFunc).AnyTimes()
 	mockMetrics.EXPECT().WithTags(gomock.Any()).Return(mockMetrics).AnyTimes()
 	mockMetrics.EXPECT().Timer(gomock.Any()).Return(metrics.NoopTimerMetricFunc).AnyTimes()
 
@@ -299,5 +300,6 @@ func TestProcessTimeRange_ComputeLimitExceeded(t *testing.T) {
 	require.Len(t, iterations, 2)
 	for _, recording := range iterations {
 		require.Equal(t, int64(10_000), recording.Value)
+		require.Equal(t, metrics.MetricUnit(metrics.Dimensionless), recording.Unit)
 	}
 }

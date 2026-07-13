@@ -242,7 +242,7 @@ func (s *SpecProcessorImpl) NextTime(scheduler *Scheduler, after time.Time) (leg
 
 	result, err := spec.GetNextTime(scheduler.jitterSeed(), after)
 	newTaggedMetricsHandler(s.metricsHandler, scheduler).
-		Counter(metrics.ScheduleComputeIterations.Name()).
+		Histogram(metrics.ScheduleComputeIterations.Name(), metrics.Dimensionless).
 		Record(int64(result.ComputeIterations))
 	return result, err
 }
