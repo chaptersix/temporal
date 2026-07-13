@@ -178,33 +178,39 @@ func exclusionsMatchAllTimes(exclusions []*compiledCalendar) bool {
 		if covered == nil {
 			covered = make([]uint64, (secondsPerDay+63)/64)
 		}
-		for hour := 0; hour < 24; hour++ {
-			if !exclusion.hour(hour) {
-				continue
-			}
-			for minute := 0; minute < 60; minute++ {
-				if !exclusion.minute(minute) {
-					continue
-				}
-				for second := 0; second < 60; second++ {
-					if !exclusion.second(second) {
-						continue
-					}
-					secondOfDay := (hour*60+minute)*60 + second
-					word := secondOfDay / 64
-					mask := uint64(1) << (secondOfDay % 64)
-					if covered[word]&mask == 0 {
-						covered[word] |= mask
-						remaining--
-					}
-				}
-			}
-		}
+		remaining -= addExcludedSeconds(covered, exclusion)
 		if remaining == 0 {
 			return true
 		}
 	}
 	return false
+}
+
+func addExcludedSeconds(covered []uint64, exclusion *compiledCalendar) int {
+	added := 0
+	for hour := 0; hour < 24; hour++ {
+		if !exclusion.hour(hour) {
+			continue
+		}
+		for minute := 0; minute < 60; minute++ {
+			if !exclusion.minute(minute) {
+				continue
+			}
+			for second := 0; second < 60; second++ {
+				if !exclusion.second(second) {
+					continue
+				}
+				secondOfDay := (hour*60+minute)*60 + second
+				word := secondOfDay / 64
+				mask := uint64(1) << (secondOfDay % 64)
+				if covered[word]&mask == 0 {
+					covered[word] |= mask
+					added++
+				}
+			}
+		}
+	}
+	return added
 }
 
 // Returns the earliest time that matches this calendar spec that is after the given time.

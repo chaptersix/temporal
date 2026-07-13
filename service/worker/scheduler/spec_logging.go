@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 
 	schedulepb "go.temporal.io/api/schedule/v1"
+	"go.temporal.io/server/common"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 // ScheduleSpecLogInfo contains a JSON representation of a schedule spec that is safe to log.
@@ -21,7 +21,7 @@ type ScheduleSpecLogInfo struct {
 func NewScheduleSpecLogInfo(spec *schedulepb.ScheduleSpec) ScheduleSpecLogInfo {
 	redacted := &schedulepb.ScheduleSpec{}
 	if spec != nil {
-		redacted = proto.Clone(spec).(*schedulepb.ScheduleSpec)
+		redacted = common.CloneProto(spec)
 	}
 
 	timezoneData := redacted.GetTimezoneData()
