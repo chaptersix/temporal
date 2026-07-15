@@ -307,6 +307,31 @@ func TestExecuteTaskRetriesHandlerErrors(t *testing.T) {
 	})
 }
 
+func TestUpdateComponentRollsBackErrors(t *testing.T) {
+	now := time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC)
+	env := newDriverTestEnv(t, now, "update-rollback")
+	beforeTasks, err := env.engine.Tasks(env.ref)
+	require.NoError(t, err)
+	updateErr := errors.New("reject update")
+
+	_, err = env.engine.UpdateComponent(
+		env.engineCtx,
+		env.ref,
+		func(ctx chasm.MutableContext, component chasm.Component) error {
+			driver := component.(*driverComponent)
+			driver.PureValue = chasm.NewDataField(ctx, wrapperspb.Int64(10))
+			ctx.AddTask(driver, chasm.TaskAttributes{}, &sideEffectDriverTask{Value: wrapperspb.Int64(10)})
+			return updateErr
+		},
+	)
+	require.ErrorIs(t, err, updateErr)
+	require.Equal(t, driverValues{}, env.values(t))
+
+	afterTasks, err := env.engine.Tasks(env.ref)
+	require.NoError(t, err)
+	require.Equal(t, beforeTasks, afterTasks)
+}
+
 func TestExecuteTaskKeepsExecutionsIsolated(t *testing.T) {
 	now := time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC)
 	env := newDriverTestEnv(t, now, "execution-a")

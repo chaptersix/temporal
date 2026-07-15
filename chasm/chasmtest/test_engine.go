@@ -610,8 +610,13 @@ func (e *Engine) updateComponentInExecution(
 	ref chasm.ComponentRef,
 	updateFn func(chasm.MutableContext, chasm.Component) error,
 ) ([]byte, error) {
-	mutableCtx := chasm.NewMutableContext(ctx, execution.node)
-	component, err := execution.node.Component(mutableCtx, ref)
+	workingNode, workingRoot, err := e.cloneExecutionTree(ctx, execution)
+	if err != nil {
+		return nil, err
+	}
+
+	mutableCtx := chasm.NewMutableContext(ctx, workingNode)
+	component, err := workingNode.Component(mutableCtx, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -620,10 +625,12 @@ func (e *Engine) updateComponentInExecution(
 		return nil, err
 	}
 
-	if err = e.closeTransaction(execution, execution.node); err != nil {
+	if err = e.closeTransaction(execution, workingNode); err != nil {
 		return nil, err
 	}
 
+	execution.node = workingNode
+	execution.root = workingRoot
 	return mutableCtx.Ref(component)
 }
 
