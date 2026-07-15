@@ -4,9 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
+	"slices"
 	"sync"
-	"testing"
 	"time"
 
 	enumspb "go.temporal.io/api/enums/v1"
@@ -30,11 +29,11 @@ type (
 	// well as blocking [PollComponent] with [NotifyExecution], matching the behavior
 	// of the production engine as closely as possible without persistence or shard logic.
 	Engine struct {
-		t          *testing.T
-		registry   *chasm.Registry
-		logger     log.Logger
-		metrics    metrics.Handler
-		timeSource clock.TimeSource
+		registry              *chasm.Registry
+		logger                log.Logger
+		metrics               metrics.Handler
+		timeSource            clock.TimeSource
+		nodeBackendDecorators []func(*chasm.MockNodeBackend)
 		// currentExecutions maps (namespaceID, businessID) to the latest run (running or closed).
 		currentExecutions map[businessKey]*execution
 		// allExecutions maps (namespaceID, businessID, runID) to any run, for lookups by specific RunID.
@@ -43,11 +42,18 @@ type (
 	}
 
 	execution struct {
-		key       chasm.ExecutionKey
-		node      *chasm.Node
-		backend   *chasm.MockNodeBackend
-		root      chasm.RootComponent
-		requestID string
+		key        chasm.ExecutionKey
+		node       *chasm.Node
+		backend    *chasm.MockNodeBackend
+		root       chasm.RootComponent
+		requestID  string
+		transition transitionState
+	}
+
+	transitionState struct {
+		mu        sync.Mutex
+		committed int64
+		pending   int64
 	}
 
 	businessKey struct {
@@ -73,6 +79,14 @@ func WithTimeSource(ts clock.TimeSource) EngineOption {
 	}
 }
 
+// WithNodeBackendDecorator applies decorate to each execution's node backend
+// before its CHASM tree is created.
+func WithNodeBackendDecorator(decorate func(*chasm.MockNodeBackend)) EngineOption {
+	return func(e *Engine) {
+		e.nodeBackendDecorators = append(e.nodeBackendDecorators, decorate)
+	}
+}
+
 var defaultTransitionOptions = chasm.TransitionOptions{
 	ReusePolicy:    chasm.BusinessIDReusePolicyAllowDuplicate,
 	ConflictPolicy: chasm.BusinessIDConflictPolicyFail,
@@ -81,7 +95,7 @@ var defaultTransitionOptions = chasm.TransitionOptions{
 var _ chasm.Engine = (*Engine)(nil)
 
 func NewEngine(
-	t *testing.T,
+	t testlogger.TestingT,
 	registry *chasm.Registry,
 	opts ...EngineOption,
 ) *Engine {
@@ -90,7 +104,6 @@ func NewEngine(
 	ts := clock.NewEventTimeSource()
 	ts.Update(time.Now())
 	e := &Engine{
-		t:                 t,
 		registry:          registry,
 		logger:            testlogger.NewTestLogger(t, testlogger.FailOnExpectedErrorOnly),
 		metrics:           metrics.NoopMetricsHandler,
@@ -116,9 +129,11 @@ func (e *Engine) Tasks(ref chasm.ComponentRef) (map[tasks.Category][]tasks.Task,
 	if err != nil {
 		return nil, err
 	}
-	// Return a shallow copy so callers cannot mutate the internal task lists.
+	// Copy both the map and slices so callers cannot mutate the internal task lists.
 	result := make(map[tasks.Category][]tasks.Task, len(exec.backend.TasksByCategory))
-	maps.Copy(result, exec.backend.TasksByCategory)
+	for category, categoryTasks := range exec.backend.TasksByCategory {
+		result[category] = slices.Clone(categoryTasks)
+	}
 	return result, nil
 }
 
@@ -439,7 +454,7 @@ func (e *Engine) startNew(
 	if err := exec.node.SetRootComponent(root); err != nil {
 		return chasm.StartExecutionResult{}, err
 	}
-	if _, err = exec.node.CloseTransaction(); err != nil {
+	if err = e.closeTransaction(exec, exec.node); err != nil {
 		return chasm.StartExecutionResult{}, err
 	}
 
@@ -482,7 +497,7 @@ func (e *Engine) startAndUpdateNew(
 	if err := updateFn(mutableCtx, root); err != nil {
 		return chasm.EngineUpdateWithStartExecutionResult{}, err
 	}
-	if _, err = exec.node.CloseTransaction(); err != nil {
+	if err = e.closeTransaction(exec, exec.node); err != nil {
 		return chasm.EngineUpdateWithStartExecutionResult{}, err
 	}
 
@@ -503,30 +518,25 @@ func (e *Engine) startAndUpdateNew(
 }
 
 func (e *Engine) newExecution(key chasm.ExecutionKey) *execution {
-	// bsMu (backend state mutex) guards transitionCount and execState, which are shared
-	// across handler closures. It is separate from MockNodeBackend's internal mu to avoid deadlocks.
+	// bsMu guards execState across backend handler closures. It is separate from
+	// MockNodeBackend's internal mu to avoid deadlocks.
 	var (
-		bsMu            sync.Mutex
-		transitionCount int64 = 1
-		execState             = persistencespb.WorkflowExecutionState{
+		bsMu      sync.Mutex
+		execState = persistencespb.WorkflowExecutionState{
 			State:  enumsspb.WORKFLOW_EXECUTION_STATE_CREATED,
 			Status: enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING,
 		}
 	)
+	exec := &execution{key: key}
 
 	backend := &chasm.MockNodeBackend{
-		// NextTransitionCount increments on every CloseTransaction call, matching
-		// the real engine's per transition monotonic counter.
-		HandleNextTransitionCount: func() int64 {
-			bsMu.Lock()
-			defer bsMu.Unlock()
-			transitionCount++
-			return transitionCount
-		},
+		HandleNextTransitionCount: exec.transition.next,
 		// CurrentVersionedTransition reflects the latest committed transition count.
 		HandleCurrentVersionedTransition: func() *persistencespb.VersionedTransition {
-			bsMu.Lock()
-			defer bsMu.Unlock()
+			transitionCount := exec.transition.current()
+			if transitionCount == 0 {
+				return nil
+			}
 			return &persistencespb.VersionedTransition{
 				NamespaceFailoverVersion: 1,
 				TransitionCount:          transitionCount,
@@ -558,18 +568,19 @@ func (e *Engine) newExecution(key chasm.ExecutionKey) *execution {
 			return changed, nil
 		},
 	}
-	return &execution{
-		key:     key,
-		backend: backend,
-		node: chasm.NewEmptyTree(
-			e.registry,
-			e.timeSource,
-			backend,
-			chasm.DefaultPathEncoder,
-			e.logger,
-			e.metrics,
-		),
+	for _, decorate := range e.nodeBackendDecorators {
+		decorate(backend)
 	}
+	exec.backend = backend
+	exec.node = chasm.NewEmptyTree(
+		e.registry,
+		e.timeSource,
+		backend,
+		chasm.DefaultPathEncoder,
+		e.logger,
+		e.metrics,
+	)
+	return exec
 }
 
 // executionForRef looks up an execution by the ref's RunID when present, or falls back
@@ -599,22 +610,65 @@ func (e *Engine) updateComponentInExecution(
 	ref chasm.ComponentRef,
 	updateFn func(chasm.MutableContext, chasm.Component) error,
 ) ([]byte, error) {
-	chasmCtx := chasm.NewContext(ctx, execution.node)
-	component, err := execution.node.Component(chasmCtx, ref)
+	mutableCtx := chasm.NewMutableContext(ctx, execution.node)
+	component, err := execution.node.Component(mutableCtx, ref)
 	if err != nil {
 		return nil, err
 	}
 
-	mutableCtx := chasm.NewMutableContext(ctx, execution.node)
 	if err := updateFn(mutableCtx, component); err != nil {
 		return nil, err
 	}
 
-	if _, err = execution.node.CloseTransaction(); err != nil {
+	if err = e.closeTransaction(execution, execution.node); err != nil {
 		return nil, err
 	}
 
 	return mutableCtx.Ref(component)
+}
+
+func (e *Engine) closeTransaction(exec *execution, node *chasm.Node) error {
+	exec.transition.begin()
+	if _, err := node.CloseTransaction(); err != nil {
+		exec.transition.abort()
+		return err
+	}
+	exec.transition.commit()
+	return nil
+}
+
+func (s *transitionState) begin() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pending = s.committed + 1
+}
+
+func (s *transitionState) next() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.pending != 0 {
+		return s.pending
+	}
+	return s.committed + 1
+}
+
+func (s *transitionState) current() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.committed
+}
+
+func (s *transitionState) commit() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.committed = s.pending
+	s.pending = 0
+}
+
+func (s *transitionState) abort() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pending = 0
 }
 
 // refForComponent looks up the ComponentRef for a component instance by scanning

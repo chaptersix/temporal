@@ -56,8 +56,8 @@ type TestingT interface {
 	Fatal(args ...any)
 }
 
-// CleanupCapable is an interface that allows a test to register cleanup functions.
-// This is /not/ implemented by *rapid.T but is by *testing.T
+// CleanupCapableT is implemented by testing types that can register cleanup functions,
+// including *testing.T and *rapid.T.
 type CleanupCapableT interface {
 	TestingT
 	Cleanup(func())
