@@ -105,6 +105,12 @@ func (l *Library) Tasks() []*chasm.RegistrableTask {
 		chasm.NewRegistrablePureTask(
 			"backfill",
 			l.BackfillerTaskHandler,
+			// LastProcessedTime is the backfill's schedule-time cursor, not a task-execution
+			// watermark. For backfills over past ranges, a retry's wall-clock scheduled time
+			// remains after that cursor, so high-water-mark validation alone cannot invalidate
+			// the task that just ran. Replace it when scheduling the next retry to prevent
+			// already-processed tasks from accumulating and executing again.
+			chasm.WithSingletonTask(chasm.SingletonTaskModeReplace),
 		),
 		chasm.NewRegistrableSideEffectTask(
 			"migrateToWorkflow",

@@ -42,12 +42,13 @@ type (
 	}
 
 	execution struct {
-		key        chasm.ExecutionKey
-		node       *chasm.Node
-		backend    *chasm.MockNodeBackend
-		root       chasm.RootComponent
-		requestID  string
-		transition transitionState
+		key                      chasm.ExecutionKey
+		node                     *chasm.Node
+		backend                  *chasm.MockNodeBackend
+		root                     chasm.RootComponent
+		requestID                string
+		processedPureTaskDeletes int
+		transition               transitionState
 	}
 
 	transitionState struct {
@@ -640,8 +641,23 @@ func (e *Engine) closeTransaction(exec *execution, node *chasm.Node) error {
 		exec.transition.abort()
 		return err
 	}
+	e.applyPureTaskDeletes(exec)
 	exec.transition.commit()
 	return nil
+}
+
+func (e *Engine) applyPureTaskDeletes(exec *execution) {
+	for _, maxScheduledTime := range exec.backend.DeletePureTaskCalls[exec.processedPureTaskDeletes:] {
+		if exec.backend.TasksByCategory == nil {
+			continue
+		}
+		timerTasks := exec.backend.TasksByCategory[tasks.CategoryTimer]
+		exec.backend.TasksByCategory[tasks.CategoryTimer] = slices.DeleteFunc(timerTasks, func(task tasks.Task) bool {
+			_, pure := task.(*tasks.ChasmTaskPure)
+			return pure && task.GetVisibilityTime().Before(maxScheduledTime)
+		})
+	}
+	exec.processedPureTaskDeletes = len(exec.backend.DeletePureTaskCalls)
 }
 
 func (s *transitionState) begin() {

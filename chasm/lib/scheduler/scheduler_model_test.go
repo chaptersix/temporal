@@ -115,6 +115,11 @@ type (
 		hasCallback   bool
 	}
 
+	modelBackfiller struct {
+		attempt           int64
+		lastProcessedTime time.Time
+	}
+
 	modelInternalSnapshot struct {
 		closed            bool
 		sentinel          bool
@@ -123,6 +128,7 @@ type (
 		lastProcessedTime time.Time
 		idleCloseTime     time.Time
 		backfillers       int
+		backfillerStates  []modelBackfiller
 		buffered          []modelBufferedStart
 	}
 
@@ -138,6 +144,8 @@ type (
 		migrationStarts []*historyservice.StartWorkflowExecutionRequest
 	}
 
+	modelRetryPolicy struct{}
+
 	schedulerModelEnv struct {
 		handler     schedulerpb.SchedulerServiceServer
 		engine      *chasmtest.Engine
@@ -150,6 +158,14 @@ type (
 		completionN int
 	}
 )
+
+func (modelRetryPolicy) ComputeNextDelay(_ time.Duration, attempts int, _ error) time.Duration {
+	delay := time.Second
+	for attempt := 1; attempt < attempts && delay < time.Minute; attempt++ {
+		delay *= 2
+	}
+	return min(delay, time.Minute)
+}
 
 func (s *modelWorkflowService) StartWorkflowExecution(
 	_ context.Context,
@@ -425,7 +441,7 @@ func modelSchedulerConfig(config modelEnvConfig) *scheduler.Config {
 		},
 		ServiceCallTimeout: func() time.Duration { return 5 * time.Second },
 		RetryPolicy: func() backoff.RetryPolicy {
-			return backoff.NewExponentialRetryPolicy(time.Second).WithMaximumInterval(time.Minute)
+			return modelRetryPolicy{}
 		},
 		EncodeInternalTokenWithEnvelope: func(string) bool { return true },
 	}
@@ -597,6 +613,21 @@ func (e *schedulerModelEnv) internal(t *rapid.T) modelInternalSnapshot {
 			if s.Sentinel {
 				return snapshot, nil
 			}
+			for _, field := range s.Backfillers {
+				backfiller := field.Get(ctx)
+				snapshot.backfillerStates = append(snapshot.backfillerStates, modelBackfiller{
+					attempt: backfiller.GetAttempt(), lastProcessedTime: backfiller.GetLastProcessedTime().AsTime(),
+				})
+			}
+			slices.SortFunc(snapshot.backfillerStates, func(a, b modelBackfiller) int {
+				if a.attempt < b.attempt {
+					return -1
+				}
+				if a.attempt > b.attempt {
+					return 1
+				}
+				return a.lastProcessedTime.Compare(b.lastProcessedTime)
+			})
 			invoker := s.Invoker.Get(ctx)
 			snapshot.lastProcessedTime = invoker.GetLastProcessedTime().AsTime()
 			for _, start := range invoker.GetBufferedStarts() {

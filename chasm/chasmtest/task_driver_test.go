@@ -36,7 +36,8 @@ type (
 	pureDriverTaskHandler struct {
 		chasm.PureTaskHandlerBase
 
-		err error
+		err        error
+		reschedule time.Duration
 	}
 
 	sideEffectDriverTaskHandler struct {
@@ -91,13 +92,20 @@ func (h *pureDriverTaskHandler) Validate(
 func (h *pureDriverTaskHandler) Execute(
 	ctx chasm.MutableContext,
 	component *driverComponent,
-	_ chasm.TaskAttributes,
+	attrs chasm.TaskAttributes,
 	task *pureDriverTask,
 ) error {
 	if h.err != nil {
 		return h.err
 	}
 	component.PureValue = chasm.NewDataField(ctx, wrapperspb.Int64(task.Value.Value))
+	if h.reschedule > 0 {
+		ctx.AddTask(
+			component,
+			chasm.TaskAttributes{ScheduledTime: attrs.ScheduledTime.Add(h.reschedule)},
+			&pureDriverTask{Value: wrapperspb.Int64(task.Value.Value + 1)},
+		)
+	}
 	return nil
 }
 
@@ -255,6 +263,36 @@ func TestExecuteSideEffectTaskAcknowledgesSuccessAndStaleTasks(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, runnable)
 	})
+}
+
+func TestExecutePureTaskReplacesPhysicalTimer(t *testing.T) {
+	now := time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC)
+	env := newDriverTestEnv(t, now, "pure-reschedule")
+	env.pureHandler.reschedule = time.Minute
+	env.addPureTasks(t, pureTaskSpec{scheduledTime: now, value: 1})
+
+	runnable, err := env.engine.RunnableTasks(env.ref)
+	require.NoError(t, err)
+	require.Len(t, runnable, 1)
+	_, err = env.engine.ExecuteTask(env.engineCtx, env.ref, runnable[0])
+	require.NoError(t, err)
+
+	runnable, err = env.engine.RunnableTasks(env.ref)
+	require.NoError(t, err)
+	require.Empty(t, runnable)
+	queued, err := env.engine.Tasks(env.ref)
+	require.NoError(t, err)
+	require.Len(t, queued[tasks.CategoryTimer], 1)
+	require.Equal(t, now.Add(time.Minute), queued[tasks.CategoryTimer][0].GetVisibilityTime())
+
+	env.pureHandler.reschedule = 0
+	env.timeSource.Update(now.Add(time.Minute))
+	runnable, err = env.engine.RunnableTasks(env.ref)
+	require.NoError(t, err)
+	require.Len(t, runnable, 1)
+	_, err = env.engine.ExecuteTask(env.engineCtx, env.ref, runnable[0])
+	require.NoError(t, err)
+	require.Equal(t, int64(2), env.values(t).pure)
 }
 
 func TestExecuteTaskRetriesHandlerErrors(t *testing.T) {
