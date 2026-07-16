@@ -355,22 +355,6 @@ func defaultModelEnvConfig() modelEnvConfig {
 func newSchedulerModelEnv(t *rapid.T, config modelEnvConfig) *schedulerModelEnv {
 	t.Helper()
 
-	if config.startTime.IsZero() {
-		config.startTime = modelStartTime
-	}
-	if config.interval == 0 {
-		config.interval = defaultInterval
-	}
-	if config.catchupWindow == 0 {
-		config.catchupWindow = 24 * time.Hour
-	}
-	if config.maxBufferSize == 0 {
-		config.maxBufferSize = scheduler.DefaultTweakables.MaxBufferSize
-	}
-	if config.maxActions == 0 {
-		config.maxActions = 100
-	}
-
 	timeSource := clock.NewEventTimeSource()
 	timeSource.Update(config.startTime)
 	logger := testlogger.NewTestLogger(t, testlogger.FailOnExpectedErrorOnly)
