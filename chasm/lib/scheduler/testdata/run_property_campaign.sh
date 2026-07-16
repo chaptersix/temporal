@@ -8,10 +8,10 @@ readonly checks="${CHASM_SCHEDULER_PROPERTY_CHECKS:?}"
 readonly steps="${CHASM_SCHEDULER_PROPERTY_STEPS:?}"
 readonly shrink_time="${CHASM_SCHEDULER_PROPERTY_SHRINKTIME:?}"
 readonly timeout="${CHASM_SCHEDULER_PROPERTY_TIMEOUT:?}"
-readonly shard_count="${CHASM_SCHEDULER_PROPERTY_SHARDS:?}"
+readonly requested_shards="${CHASM_SCHEDULER_PROPERTY_SHARDS:?}"
 
-if [[ ! "$shard_count" =~ ^[1-9][0-9]*$ ]]; then
-    echo "CHASM_SCHEDULER_PROPERTY_SHARDS must be a positive integer" >&2
+if [[ "$requested_shards" != auto && ! "$requested_shards" =~ ^[1-9][0-9]*$ ]]; then
+    echo "CHASM_SCHEDULER_PROPERTY_SHARDS must be auto or a positive integer" >&2
     exit 2
 fi
 
@@ -26,6 +26,12 @@ done <<< "$test_list"
 if [[ ${#tests[@]} -eq 0 ]]; then
     echo "no scheduler property models found" >&2
     exit 2
+fi
+
+if [[ "$requested_shards" == auto ]]; then
+    shard_count=${#tests[@]}
+else
+    shard_count=$requested_shards
 fi
 
 patterns=()
