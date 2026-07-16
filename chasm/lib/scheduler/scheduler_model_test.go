@@ -125,6 +125,7 @@ type (
 		sentinel          bool
 		migrationPending  bool
 		conflictToken     int64
+		createTime        time.Time
 		lastProcessedTime time.Time
 		idleCloseTime     time.Time
 		lastSuccess       []byte
@@ -157,6 +158,7 @@ type (
 		workflows   *modelWorkflowService
 		history     *modelHistoryService
 		config      modelEnvConfig
+		scheduleID  string
 		completionN int
 	}
 )
@@ -411,6 +413,7 @@ func newSchedulerModelEnv(t *rapid.T, config modelEnvConfig) *schedulerModelEnv 
 			NamespaceID: namespaceID, BusinessID: scheduleID,
 		}),
 		timeSource: timeSource, workflows: workflows, history: history, config: config,
+		scheduleID: scheduleID,
 	}
 
 	_, err := handler.CreateSchedule(engineCtx, &schedulerpb.CreateScheduleRequest{
@@ -572,7 +575,7 @@ func (e *schedulerModelEnv) describe(t *rapid.T) *workflowservice.DescribeSchedu
 	t.Helper()
 	response, err := e.handler.DescribeSchedule(e.engineCtx, &schedulerpb.DescribeScheduleRequest{
 		NamespaceId:     namespaceID,
-		FrontendRequest: &workflowservice.DescribeScheduleRequest{Namespace: namespace, ScheduleId: scheduleID},
+		FrontendRequest: &workflowservice.DescribeScheduleRequest{Namespace: namespace, ScheduleId: e.scheduleID},
 	})
 	mustNoError(t, err)
 	return response.GetFrontendResponse()
@@ -587,7 +590,7 @@ func (e *schedulerModelEnv) listMatching(
 	response, err := e.handler.ListScheduleMatchingTimes(e.engineCtx, &schedulerpb.ListScheduleMatchingTimesRequest{
 		NamespaceId: namespaceID,
 		FrontendRequest: &workflowservice.ListScheduleMatchingTimesRequest{
-			Namespace: namespace, ScheduleId: scheduleID,
+			Namespace: namespace, ScheduleId: e.scheduleID,
 			StartTime: timestamppb.New(start), EndTime: timestamppb.New(end),
 		},
 	})
@@ -609,8 +612,11 @@ func (e *schedulerModelEnv) internal(t *rapid.T) modelInternalSnapshot {
 		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (modelInternalSnapshot, error) {
 			snapshot := modelInternalSnapshot{
 				closed: s.Closed, sentinel: s.Sentinel, migrationPending: s.WorkflowMigration != nil,
-				conflictToken: s.ConflictToken, idleCloseTime: s.GetIdleCloseTime().AsTime(),
+				conflictToken: s.ConflictToken, createTime: s.GetInfo().GetCreateTime().AsTime(),
 				backfillers: len(s.Backfillers),
+			}
+			if s.GetIdleCloseTime() != nil {
+				snapshot.idleCloseTime = s.GetIdleCloseTime().AsTime()
 			}
 			if s.Sentinel {
 				return snapshot, nil
