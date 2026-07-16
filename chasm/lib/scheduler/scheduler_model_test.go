@@ -504,10 +504,20 @@ func modelSchedule(config modelEnvConfig) *schedulepb.Schedule {
 
 func (e *schedulerModelEnv) drain(t *rapid.T) int {
 	t.Helper()
-	drained, err := e.engine.DrainTasks(e.engineCtx, e.ref, modelDrainLimit)
-	mustNoError(t, err)
-	e.requireNoRunnableTasks(t)
-	return drained
+	for drained := 0; drained < modelDrainLimit; drained++ {
+		runnable := e.runnableTasks(t)
+		if len(runnable) == 0 {
+			return drained
+		}
+		selected := rapid.IntRange(0, len(runnable)-1).Draw(t, "runnable task")
+		_, err := e.engine.ExecuteTask(e.engineCtx, e.ref, runnable[selected])
+		mustNoError(t, err)
+	}
+	runnable := e.runnableTasks(t)
+	if len(runnable) != 0 {
+		t.Fatalf("task drain limit %d reached with %d runnable tasks remaining", modelDrainLimit, len(runnable))
+	}
+	return modelDrainLimit
 }
 
 func (e *schedulerModelEnv) drainNewStarts(t *rapid.T) int {
@@ -519,33 +529,53 @@ func (e *schedulerModelEnv) drainNewStarts(t *rapid.T) int {
 
 func (e *schedulerModelEnv) executeOne(t *rapid.T) (tasks.Task, chasmtest.TaskExecutionResult) {
 	t.Helper()
-	runnable, err := e.engine.RunnableTasks(e.ref)
+	task := e.selectRunnableTask(t)
+	result, err := e.engine.ExecuteTask(e.engineCtx, e.ref, task)
 	mustNoError(t, err)
-	if len(runnable) == 0 {
-		t.Fatalf("expected one runnable task")
-	}
-	result, err := e.engine.ExecuteTask(e.engineCtx, e.ref, runnable[0])
-	mustNoError(t, err)
-	return runnable[0], result
+	return task, result
 }
 
 func (e *schedulerModelEnv) executeOneError(t *rapid.T, expected error) tasks.Task {
 	t.Helper()
-	runnable, err := e.engine.RunnableTasks(e.ref)
-	mustNoError(t, err)
-	if len(runnable) == 0 {
-		t.Fatalf("expected one runnable task")
-	}
-	_, err = e.engine.ExecuteTask(e.engineCtx, e.ref, runnable[0])
+	task := e.selectRunnableTask(t)
+	_, err := e.engine.ExecuteTask(e.engineCtx, e.ref, task)
 	if !errors.Is(err, expected) {
 		t.Fatalf("task error: got %v, want %v", err, expected)
 	}
-	stillRunnable, runnableErr := e.engine.RunnableTasks(e.ref)
-	mustNoError(t, runnableErr)
-	if !slices.Contains(stillRunnable, runnable[0]) {
+	stillRunnable := e.runnableTasks(t)
+	if !slices.Contains(stillRunnable, task) {
 		t.Fatalf("failed task was not retained for retry")
 	}
-	return runnable[0]
+	return task
+}
+
+func (e *schedulerModelEnv) runnableTasks(t *rapid.T) []tasks.Task {
+	t.Helper()
+	runnable, err := e.engine.RunnableTasks(e.ref)
+	mustNoError(t, err)
+	return runnable
+}
+
+func (e *schedulerModelEnv) selectRunnableTask(t *rapid.T) tasks.Task {
+	t.Helper()
+	runnable := e.runnableTasks(t)
+	if len(runnable) == 0 {
+		t.Fatalf("expected one runnable task")
+	}
+	return runnable[rapid.IntRange(0, len(runnable)-1).Draw(t, "runnable task")]
+}
+
+func (e *schedulerModelEnv) advanceToNextTask(t *rapid.T) time.Time {
+	t.Helper()
+	now := e.timeSource.Now()
+	for _, task := range e.tasks(t) {
+		if task.visibilityTime.After(now) {
+			e.timeSource.Update(task.visibilityTime)
+			return task.visibilityTime
+		}
+	}
+	t.Skip("no future task")
+	return time.Time{}
 }
 
 func (e *schedulerModelEnv) redeliver(t *rapid.T, task tasks.Task) chasmtest.TaskExecutionResult {

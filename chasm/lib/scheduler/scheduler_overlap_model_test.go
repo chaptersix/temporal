@@ -56,6 +56,8 @@ func TestSchedulerOverlapBackfillModel(t *testing.T) {
 			rapid.Check(t, func(t *rapid.T) {
 				config := defaultModelEnvConfig()
 				config.overlapPolicy = policy
+				config.maxBufferSize = 10_000
+				config.maxActions = 10_000
 				model := &overlapModel{
 					env: newSchedulerModelEnv(t, config), policy: policy, cursor: config.startTime,
 					running: make(map[string]overlapModelAction), completed: make(map[string]overlapModelAction),
