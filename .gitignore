@@ -19,6 +19,7 @@
 *.cov
 *.html
 /test.log
+/chasm/lib/scheduler/testdata/rapid/
 
 # Executables produced by temporal repo
 /temporal-*

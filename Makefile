@@ -58,6 +58,12 @@ TEST_TAG_FLAG := -tags $(ALL_TEST_TAGS)
 # which causes the a job run to not produce any logs and hurts the debugging experience.
 TEST_TIMEOUT ?= 35m
 
+CHASM_SCHEDULER_PROPERTY_CHECKS     ?= 10000
+CHASM_SCHEDULER_PROPERTY_STEPS      ?= 100
+CHASM_SCHEDULER_PROPERTY_SHRINKTIME ?= 2m
+CHASM_SCHEDULER_PROPERTY_TIMEOUT    ?= 2h
+CHASM_SCHEDULER_RAPID_ARGS          ?=
+
 # Number of retries for *-coverage targets.
 MAX_TEST_ATTEMPTS ?= 3
 TEST_RUNNER_TIMEOUT_ARG := $(if $(TEST_RUNNER_TIMEOUT),--total-timeout=$(TEST_RUNNER_TIMEOUT),)
@@ -483,6 +489,16 @@ clean-test-output:
 build-tests:
 	@printf $(COLOR) "Build tests..."
 	@CGO_ENABLED=$(CGO_ENABLED) go test $(TEST_TAG_FLAG) -exec="true" -count=0 $(TEST_DIRS)
+
+.PHONY: chasm-scheduler-property-test
+chasm-scheduler-property-test:
+	@printf $(COLOR) "Run CHASM scheduler property campaign..."
+	@CGO_ENABLED=$(CGO_ENABLED) go test $(TEST_TAG_FLAG) ./chasm/lib/scheduler -count=1 \
+		-timeout=$(CHASM_SCHEDULER_PROPERTY_TIMEOUT) \
+		-rapid.checks=$(CHASM_SCHEDULER_PROPERTY_CHECKS) \
+		-rapid.steps=$(CHASM_SCHEDULER_PROPERTY_STEPS) \
+		-rapid.shrinktime=$(CHASM_SCHEDULER_PROPERTY_SHRINKTIME) \
+		$(CHASM_SCHEDULER_RAPID_ARGS)
 
 unit-test: clean-test-output
 	@printf $(COLOR) "Run unit tests..."
