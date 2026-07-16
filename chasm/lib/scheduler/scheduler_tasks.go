@@ -332,6 +332,9 @@ func (r *SchedulerCallbacksTaskHandler) Validate(
 	taskAttrs chasm.TaskInvocation,
 	task *schedulerpb.SchedulerCallbacksTask,
 ) (bool, error) {
+	if scheduler.Closed {
+		return false, nil
+	}
 	invoker := scheduler.Invoker.Get(ctx)
 	if slices.ContainsFunc(invoker.BufferedStarts, needsCallback) {
 		return true, nil
