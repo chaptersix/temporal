@@ -83,15 +83,16 @@ type (
 	modelHistoryService struct {
 		historyservice.HistoryServiceClient
 
-		mu                sync.Mutex
-		cancels           []*historyservice.RequestCancelWorkflowExecutionRequest
-		terminates        []*historyservice.TerminateWorkflowExecutionRequest
-		describes         []*historyservice.DescribeWorkflowExecutionRequest
-		migrationStarts   []*historyservice.StartWorkflowExecutionRequest
-		cancelOutcomes    []error
-		terminateOutcomes []error
-		describeOutcomes  []modelDescribeOutcome
-		migrationOutcomes []error
+		mu                 sync.Mutex
+		cancels            []*historyservice.RequestCancelWorkflowExecutionRequest
+		terminates         []*historyservice.TerminateWorkflowExecutionRequest
+		describes          []*historyservice.DescribeWorkflowExecutionRequest
+		migrationStarts    []*historyservice.StartWorkflowExecutionRequest
+		cancelOutcomes     []error
+		terminateOutcomes  []error
+		describeOutcomes   []modelDescribeOutcome
+		migrationOutcomes  []error
+		migrationSuccesses int
 	}
 
 	modelTaskSnapshot struct {
@@ -121,18 +122,20 @@ type (
 	}
 
 	modelInternalSnapshot struct {
-		closed            bool
-		sentinel          bool
-		migrationPending  bool
-		conflictToken     int64
-		createTime        time.Time
-		lastProcessedTime time.Time
-		idleCloseTime     time.Time
-		lastSuccess       []byte
-		lastFailure       string
-		backfillers       int
-		backfillerStates  []modelBackfiller
-		buffered          []modelBufferedStart
+		closed             bool
+		sentinel           bool
+		migrationPending   bool
+		preMigrationPaused bool
+		preMigrationNotes  string
+		conflictToken      int64
+		createTime         time.Time
+		lastProcessedTime  time.Time
+		idleCloseTime      time.Time
+		lastSuccess        []byte
+		lastFailure        string
+		backfillers        int
+		backfillerStates   []modelBackfiller
+		buffered           []modelBufferedStart
 	}
 
 	modelWorkflowSnapshot struct {
@@ -141,10 +144,11 @@ type (
 	}
 
 	modelHistorySnapshot struct {
-		cancels         []*historyservice.RequestCancelWorkflowExecutionRequest
-		terminates      []*historyservice.TerminateWorkflowExecutionRequest
-		describes       []*historyservice.DescribeWorkflowExecutionRequest
-		migrationStarts []*historyservice.StartWorkflowExecutionRequest
+		cancels            []*historyservice.RequestCancelWorkflowExecutionRequest
+		terminates         []*historyservice.TerminateWorkflowExecutionRequest
+		describes          []*historyservice.DescribeWorkflowExecutionRequest
+		migrationStarts    []*historyservice.StartWorkflowExecutionRequest
+		migrationSuccesses int
 	}
 
 	modelRetryPolicy struct{}
@@ -209,6 +213,21 @@ func (s *modelWorkflowService) pushAttachError(err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.attachOutcomes = append(s.attachOutcomes, modelStartOutcome{err: err})
+}
+
+func (s *modelHistoryService) pushDescribeOutcome(
+	response *historyservice.DescribeWorkflowExecutionResponse,
+	err error,
+) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.describeOutcomes = append(s.describeOutcomes, modelDescribeOutcome{response: response, err: err})
+}
+
+func (s *modelHistoryService) pushMigrationError(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.migrationOutcomes = append(s.migrationOutcomes, err)
 }
 
 func (s *modelWorkflowService) snapshot() modelWorkflowSnapshot {
@@ -296,6 +315,7 @@ func (s *modelHistoryService) StartWorkflowExecution(
 			return nil, err
 		}
 	}
+	s.migrationSuccesses++
 	return &historyservice.StartWorkflowExecutionResponse{RunId: "migration-run"}, nil
 }
 
@@ -303,10 +323,11 @@ func (s *modelHistoryService) snapshot() modelHistorySnapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return modelHistorySnapshot{
-		cancels:         cloneProtoSlice(s.cancels),
-		terminates:      cloneProtoSlice(s.terminates),
-		describes:       cloneProtoSlice(s.describes),
-		migrationStarts: cloneProtoSlice(s.migrationStarts),
+		cancels:            cloneProtoSlice(s.cancels),
+		terminates:         cloneProtoSlice(s.terminates),
+		describes:          cloneProtoSlice(s.describes),
+		migrationStarts:    cloneProtoSlice(s.migrationStarts),
+		migrationSuccesses: s.migrationSuccesses,
 	}
 }
 
@@ -617,6 +638,10 @@ func (e *schedulerModelEnv) internal(t *rapid.T) modelInternalSnapshot {
 			}
 			if s.GetIdleCloseTime() != nil {
 				snapshot.idleCloseTime = s.GetIdleCloseTime().AsTime()
+			}
+			if s.WorkflowMigration != nil {
+				snapshot.preMigrationPaused = s.WorkflowMigration.GetPreMigrationPaused()
+				snapshot.preMigrationNotes = s.WorkflowMigration.GetPreMigrationNotes()
 			}
 			if s.Sentinel {
 				return snapshot, nil
