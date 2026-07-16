@@ -128,7 +128,7 @@ func TestSchedulerBackfillCapacityModel(t *testing.T) {
 					}
 				}
 				if next.IsZero() {
-					t.Fatalf("pending backfill has no retry task")
+					t.Fatal("pending backfill has no retry task")
 				}
 				env.timeSource.Update(next)
 			}
@@ -194,7 +194,7 @@ func TestSchedulerBackfillCapacityModel(t *testing.T) {
 		}
 		if !description.GetSchedule().GetState().GetPaused() ||
 			description.GetSchedule().GetState().GetRemainingActions() != 0 {
-			t.Fatalf("manual backfill changed paused or limited-action state")
+			t.Fatal("manual backfill changed paused or limited-action state")
 		}
 		if len(env.workflows.snapshot().starts) != requested {
 			t.Fatalf("unique backfill starts: got %d, want %d", len(env.workflows.snapshot().starts), requested)

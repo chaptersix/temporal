@@ -28,8 +28,8 @@ func NewTestRateLimitedError(delay time.Duration) error {
 }
 
 func CreateFromMigrationStateForTest(
-	h schedulerpb.SchedulerServiceServer,
 	ctx context.Context,
+	h schedulerpb.SchedulerServiceServer,
 	req *schedulerpb.CreateFromMigrationStateRequest,
 ) (*schedulerpb.CreateFromMigrationStateResponse, error) {
 	return h.(*handler).CreateFromMigrationState(ctx, req)

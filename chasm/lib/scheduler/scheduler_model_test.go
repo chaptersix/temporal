@@ -529,7 +529,7 @@ func (e *schedulerModelEnv) executeOneError(t *rapid.T, expected error) tasks.Ta
 	}
 	stillRunnable := e.runnableTasks(t)
 	if !slices.Contains(stillRunnable, task) {
-		t.Fatalf("failed task was not retained for retry")
+		t.Fatal("failed task was not retained for retry")
 	}
 	return task
 }
@@ -545,7 +545,7 @@ func (e *schedulerModelEnv) selectRunnableTask(t *rapid.T) tasks.Task {
 	t.Helper()
 	runnable := e.runnableTasks(t)
 	if len(runnable) == 0 {
-		t.Fatalf("expected one runnable task")
+		t.Fatal("expected one runnable task")
 	}
 	return runnable[rapid.IntRange(0, len(runnable)-1).Draw(t, "runnable task")]
 }
@@ -581,14 +581,14 @@ func (e *schedulerModelEnv) reload(t *rapid.T) {
 		t.Fatalf("reload changed internal state: before=%+v after=%+v", beforeInternal, afterInternal)
 	}
 	if !slices.Equal(beforeTasks, e.tasks(t)) {
-		t.Fatalf("reload changed physical tasks")
+		t.Fatal("reload changed physical tasks")
 	}
 	if !modelWorkflowSnapshotsEqual(beforeWorkflow, e.workflows.snapshot()) ||
 		!modelHistorySnapshotsEqual(beforeHistory, e.history.snapshot()) {
-		t.Fatalf("reload made a service call")
+		t.Fatal("reload made a service call")
 	}
 	if beforeDescription != nil && !proto.Equal(beforeDescription, e.describe(t)) {
-		t.Fatalf("reload changed DescribeSchedule state")
+		t.Fatal("reload changed DescribeSchedule state")
 	}
 }
 

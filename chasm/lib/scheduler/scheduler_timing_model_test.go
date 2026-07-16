@@ -229,17 +229,17 @@ func (m *timingModel) rejectStaleUpdate(t *rapid.T) {
 		t.Fatalf("stale update error: got %v, want FailedPrecondition", err)
 	}
 	if !proto.Equal(beforeDescription, m.env.describe(t)) {
-		t.Fatalf("stale update changed DescribeSchedule response")
+		t.Fatal("stale update changed DescribeSchedule response")
 	}
 	if !reflect.DeepEqual(beforeInternal, m.env.internal(t)) {
-		t.Fatalf("stale update changed internal state")
+		t.Fatal("stale update changed internal state")
 	}
 	if !slices.Equal(beforeTasks, m.env.tasks(t)) {
-		t.Fatalf("stale update changed queued tasks")
+		t.Fatal("stale update changed queued tasks")
 	}
 	afterWorkflows := m.env.workflows.snapshot()
 	if len(beforeWorkflows.starts) != len(afterWorkflows.starts) || len(beforeWorkflows.startCalls) != len(afterWorkflows.startCalls) {
-		t.Fatalf("stale update changed workflow service calls")
+		t.Fatal("stale update changed workflow service calls")
 	}
 	m.check(t)
 }

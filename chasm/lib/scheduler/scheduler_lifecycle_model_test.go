@@ -218,7 +218,7 @@ func (m *lifecycleModel) duplicateCreate(t *rapid.T) {
 		after := m.env.internal(t)
 		if before.closed != after.closed || before.conflictToken != after.conflictToken ||
 			!before.createTime.Equal(after.createTime) {
-			t.Fatalf("duplicate create mutated scheduler state")
+			t.Fatal("duplicate create mutated scheduler state")
 		}
 	}
 	m.check(t)
@@ -358,7 +358,7 @@ func (m *lifecycleModel) addPendingBackfill(t *rapid.T) {
 	m.backfill = true
 	m.idleDeadline = time.Time{}
 	if m.env.internal(t).backfillers == 0 {
-		t.Fatalf("large backfill completed instead of remaining pending")
+		t.Fatal("large backfill completed instead of remaining pending")
 	}
 	m.check(t)
 }
@@ -370,7 +370,7 @@ func (m *lifecycleModel) advanceWhileHeldOpen(t *rapid.T) {
 	m.env.timeSource.Update(m.env.timeSource.Now().Add(2 * m.idleTime))
 	m.env.drain(t)
 	if m.env.internal(t).closed {
-		t.Fatalf("held-open schedule closed")
+		t.Fatal("held-open schedule closed")
 	}
 	m.check(t)
 }
@@ -449,7 +449,7 @@ func (m *lifecycleModel) check(t *rapid.T) {
 		t.Fatalf("idle close time: got %s, want %s", internal.idleCloseTime, m.idleDeadline)
 	}
 	if m.backfill && internal.backfillers == 0 {
-		t.Fatalf("pending backfill disappeared")
+		t.Fatal("pending backfill disappeared")
 	}
 	m.env.checkRequestIDs(t)
 	m.env.requireNoRunnableTasks(t)

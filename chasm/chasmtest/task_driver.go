@@ -2,6 +2,7 @@ package chasmtest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -215,7 +216,7 @@ func (e *Engine) executeSideEffectTask(
 	task *tasks.ChasmTask,
 ) (TaskExecutionResult, error) {
 	if task.Info == nil {
-		return TaskExecutionResult{}, fmt.Errorf("chasmtest: CHASM side-effect task has no task info")
+		return TaskExecutionResult{}, errors.New("chasmtest: CHASM side-effect task has no task info")
 	}
 	if task.Info.ArchetypeId != uint32(exec.node.ArchetypeID()) {
 		return TaskExecutionResult{Dropped: true}, nil
@@ -277,10 +278,10 @@ func (e *Engine) cloneExecutionTree(
 
 func validateTaskExecution(exec *execution, task tasks.Task, now time.Time) error {
 	if task == nil {
-		return fmt.Errorf("chasmtest: task is nil")
+		return errors.New("chasmtest: task is nil")
 	}
 	if task.GetCategory() == tasks.CategoryVisibility {
-		return fmt.Errorf("chasmtest: visibility maintenance tasks are not executable")
+		return errors.New("chasmtest: visibility maintenance tasks are not executable")
 	}
 	if task.GetNamespaceID() != exec.key.NamespaceID ||
 		task.GetWorkflowID() != exec.key.BusinessID ||

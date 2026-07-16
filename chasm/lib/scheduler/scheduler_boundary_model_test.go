@@ -78,7 +78,7 @@ func TestSchedulerTimeBoundaryModel(t *testing.T) {
 			triggerModelAction(t, env, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
 			_, result := env.executeOne(t)
 			if result.Dropped {
-				t.Fatalf("retryable start task was dropped")
+				t.Fatal("retryable start task was dropped")
 			}
 			internal := env.internal(t)
 			if len(internal.buffered) != 1 || internal.buffered[0].backoffTime.IsZero() {
@@ -88,14 +88,14 @@ func TestSchedulerTimeBoundaryModel(t *testing.T) {
 			env.timeSource.Update(internal.buffered[0].backoffTime.Add(offset))
 			if offset < 0 {
 				if len(env.runnableTasks(t)) != 0 {
-					t.Fatalf("retry runnable before backoff")
+					t.Fatal("retry runnable before backoff")
 				}
 				return
 			}
 			env.workflows.pushStartError(nil)
 			env.drain(t)
 			if len(env.workflows.snapshot().starts) != 1 {
-				t.Fatalf("retry did not run at backoff boundary")
+				t.Fatal("retry did not run at backoff boundary")
 			}
 		})
 	})
@@ -208,13 +208,13 @@ func TestSchedulerCardinalityBoundaryModel(t *testing.T) {
 			env.drain(t)
 			if len(env.workflows.snapshot().starts) != int(remaining) ||
 				env.describe(t).GetSchedule().GetState().GetRemainingActions() != 0 {
-				t.Fatalf("scheduled action limit was not enforced")
+				t.Fatal("scheduled action limit was not enforced")
 			}
 			triggerModelAction(t, env, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
 			env.drain(t)
 			if len(env.workflows.snapshot().starts) != int(remaining)+1 ||
 				env.describe(t).GetSchedule().GetState().GetRemainingActions() != 0 {
-				t.Fatalf("manual action changed or obeyed exhausted scheduled limit")
+				t.Fatal("manual action changed or obeyed exhausted scheduled limit")
 			}
 		})
 	})
@@ -320,7 +320,7 @@ func TestSchedulerCrossFeatureFailureModel(t *testing.T) {
 			switch outcome {
 			case 0:
 				if len(workflow.starts) != 1 {
-					t.Fatalf("successful start was not recorded")
+					t.Fatal("successful start was not recorded")
 				}
 			case 1, 2:
 				if len(internal.buffered) != 1 || internal.buffered[0].backoffTime.IsZero() {
@@ -330,6 +330,8 @@ func TestSchedulerCrossFeatureFailureModel(t *testing.T) {
 				if len(internal.buffered) != 0 || len(workflow.starts) != 0 {
 					t.Fatalf("non-retryable start was retained: %+v", internal.buffered)
 				}
+			default:
+				t.Fatalf("unexpected start outcome %d", outcome)
 			}
 		})
 	})
@@ -352,7 +354,7 @@ func TestSchedulerCrossFeatureFailureModel(t *testing.T) {
 			if outcome == 0 || outcome == 5 {
 				mustNoError(t, executeErr)
 				if result.Dropped {
-					t.Fatalf("terminal describe outcome dropped recovery task")
+					t.Fatal("terminal describe outcome dropped recovery task")
 				}
 				return
 			}
@@ -381,7 +383,7 @@ func TestSchedulerCrossFeatureFailureModel(t *testing.T) {
 			if outcome == 0 || outcome == 4 {
 				mustNoError(t, executeErr)
 				if result.Dropped {
-					t.Fatalf("terminal attach outcome dropped recovery task")
+					t.Fatal("terminal attach outcome dropped recovery task")
 				}
 				return
 			}
@@ -417,7 +419,7 @@ func TestSchedulerCrossFeatureFailureModel(t *testing.T) {
 			mustNoError(t, err)
 			env.drain(t)
 			if env.describe(t).GetSchedule().GetState().GetNotes() != "updated during backfill" {
-				t.Fatalf("update was lost during backfill")
+				t.Fatal("update was lost during backfill")
 			}
 			env.checkRequestIDs(t)
 		})
@@ -444,7 +446,7 @@ func TestSchedulerCrossFeatureFailureModel(t *testing.T) {
 			env.workflows.pushStartError(nil)
 			env.drain(t)
 			if len(env.workflows.snapshot().starts) != 1 || !env.describe(t).GetSchedule().GetState().GetPaused() {
-				t.Fatalf("paused buffered retry did not finish")
+				t.Fatal("paused buffered retry did not finish")
 			}
 		})
 	})
@@ -468,7 +470,7 @@ func TestSchedulerCrossFeatureFailureModel(t *testing.T) {
 			env.complete(t, first, enumspb.WORKFLOW_EXECUTION_STATUS_CANCELED, []byte("canceled"))
 			env.drain(t)
 			if len(env.workflows.snapshot().starts) != 2 {
-				t.Fatalf("completion did not release canceled overlap")
+				t.Fatal("completion did not release canceled overlap")
 			}
 		})
 	})
@@ -492,7 +494,7 @@ func TestSchedulerCrossFeatureFailureModel(t *testing.T) {
 			env.complete(t, first, enumspb.WORKFLOW_EXECUTION_STATUS_TERMINATED, []byte("terminated"))
 			env.drain(t)
 			if len(env.workflows.snapshot().starts) != 2 {
-				t.Fatalf("completion did not release terminated overlap")
+				t.Fatal("completion did not release terminated overlap")
 			}
 		})
 	})
@@ -509,7 +511,7 @@ func TestSchedulerCrossFeatureFailureModel(t *testing.T) {
 			triggerModelAction(t, env, config.overlapPolicy)
 			env.drain(t)
 			if len(env.runningRequestIDs(t)) != 1 || env.describe(t).GetInfo().GetBufferSize() != 1 {
-				t.Fatalf("migration setup lacks running and buffered work")
+				t.Fatal("migration setup lacks running and buffered work")
 			}
 			_, err := env.handler.MigrateToWorkflow(env.engineCtx, &schedulerpb.MigrateToWorkflowRequest{
 				NamespaceId: namespaceID, ScheduleId: env.scheduleID,
@@ -532,7 +534,7 @@ func TestSchedulerCrossFeatureFailureModel(t *testing.T) {
 			_, executeErr = env.engine.ExecuteTask(env.engineCtx, env.ref, task)
 			mustNoError(t, executeErr)
 			if !env.internal(t).closed {
-				t.Fatalf("migration retry did not close schedule")
+				t.Fatal("migration retry did not close schedule")
 			}
 		})
 	})
@@ -548,7 +550,7 @@ func TestSchedulerCrossFeatureFailureModel(t *testing.T) {
 				}
 			}
 			if task == nil {
-				t.Fatalf("callback recovery has no side-effect task")
+				t.Fatal("callback recovery has no side-effect task")
 			}
 			_, err := model.env.handler.DeleteSchedule(model.env.engineCtx, &schedulerpb.DeleteScheduleRequest{
 				NamespaceId: namespaceID,
@@ -627,6 +629,6 @@ func callbackModelTask(t *rapid.T, env *schedulerModelEnv) tasks.Task {
 			return task
 		}
 	}
-	t.Fatalf("expected a callback or migration side-effect task")
+	t.Fatal("expected a callback or migration side-effect task")
 	return nil
 }

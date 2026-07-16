@@ -119,14 +119,15 @@ func (m *failureModel) triggerWithOutcome(t *rapid.T) {
 			continue
 		}
 		if item != nil {
-			t.Fatalf("trigger created more than one buffered start")
+			t.Fatal("trigger created more than one buffered start")
 		}
 		item = &failureModelItem{
 			requestID: start.requestID, workflowID: start.workflowID, attempt: 1,
 		}
 	}
 	if item == nil {
-		t.Fatalf("trigger did not create a buffered start")
+		t.Fatal("trigger did not create a buffered start")
+		return
 	}
 	m.items[item.requestID] = item
 
@@ -145,6 +146,7 @@ func (m *failureModel) advanceRetry(t *rapid.T) {
 	item := m.backingOffItem()
 	if item == nil {
 		t.Skip("no start is backing off")
+		return
 	}
 
 	var outcome failureOutcome
@@ -189,7 +191,7 @@ func (m *failureModel) redeliverSavedTask(t *rapid.T) {
 	}
 	if len(m.env.workflows.snapshot().startCalls) != beforeCalls ||
 		m.env.describe(t).GetInfo().GetActionCount() != beforeActions {
-		t.Fatalf("redelivered task produced side effects")
+		t.Fatal("redelivered task produced side effects")
 	}
 	m.check(t)
 }
@@ -343,6 +345,9 @@ func (m *failureModel) check(t *rapid.T) {
 		switch item.state {
 		case failureItemBackingOff, failureItemRunning, failureItemCompleted:
 			expectedBuffered[requestID] = item
+		case failureItemDropped, failureItemEvicted:
+		default:
+			t.Fatalf("unexpected failure item state %d", item.state)
 		}
 	}
 	if len(internal.buffered) != len(expectedBuffered) {
@@ -353,26 +358,29 @@ func (m *failureModel) check(t *rapid.T) {
 		expected := expectedBuffered[actual.requestID]
 		if expected == nil {
 			t.Fatalf("unexpected buffered request %q", actual.requestID)
-		}
-		if actual.workflowID != expected.workflowID || actual.attempt != expected.attempt {
-			t.Fatalf("buffered request %q: got workflow=%q attempt=%d, want workflow=%q attempt=%d",
-				actual.requestID, actual.workflowID, actual.attempt, expected.workflowID, expected.attempt)
-		}
-		switch expected.state {
-		case failureItemBackingOff:
-			pendingCount++
-			if actual.runID != "" || !actual.backoffTime.Equal(expected.backoffTime) {
-				t.Fatalf("backoff request %q: got run=%q time=%s, want time=%s",
-					actual.requestID, actual.runID, actual.backoffTime, expected.backoffTime)
+		} else {
+			if actual.workflowID != expected.workflowID || actual.attempt != expected.attempt {
+				t.Fatalf("buffered request %q: got workflow=%q attempt=%d, want workflow=%q attempt=%d",
+					actual.requestID, actual.workflowID, actual.attempt, expected.workflowID, expected.attempt)
 			}
-		case failureItemRunning:
-			if actual.runID != expected.runID || actual.completed != enumspb.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED ||
-				!actual.hasCallback {
-				t.Fatalf("running request %q has inconsistent state: %+v", actual.requestID, actual)
-			}
-		case failureItemCompleted:
-			if actual.runID != expected.runID || actual.completed != expected.status {
-				t.Fatalf("completed request %q has inconsistent state: %+v", actual.requestID, actual)
+			switch expected.state {
+			case failureItemBackingOff:
+				pendingCount++
+				if actual.runID != "" || !actual.backoffTime.Equal(expected.backoffTime) {
+					t.Fatalf("backoff request %q: got run=%q time=%s, want time=%s",
+						actual.requestID, actual.runID, actual.backoffTime, expected.backoffTime)
+				}
+			case failureItemRunning:
+				if actual.runID != expected.runID || actual.completed != enumspb.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED ||
+					!actual.hasCallback {
+					t.Fatalf("running request %q has inconsistent state: %+v", actual.requestID, actual)
+				}
+			case failureItemCompleted:
+				if actual.runID != expected.runID || actual.completed != expected.status {
+					t.Fatalf("completed request %q has inconsistent state: %+v", actual.requestID, actual)
+				}
+			default:
+				t.Fatalf("unexpected buffered request state %d", expected.state)
 			}
 		}
 	}
@@ -389,6 +397,9 @@ func (m *failureModel) check(t *rapid.T) {
 			expectedRecent[item.runID] = enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING
 		case failureItemCompleted:
 			expectedRecent[item.runID] = item.status
+		case failureItemBackingOff, failureItemDropped, failureItemEvicted:
+		default:
+			t.Fatalf("unexpected failure item state %d", item.state)
 		}
 	}
 	var actualRunning []string

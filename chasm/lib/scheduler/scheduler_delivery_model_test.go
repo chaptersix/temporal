@@ -146,6 +146,8 @@ func TestSchedulerTerminalTaskInterleavingModel(t *testing.T) {
 					t.Fatalf("migration retry did not retain task: %v", err)
 				}
 				env.history.pushMigrationError(nil)
+			default:
+				t.Fatalf("unexpected migration outcome %d", outcome)
 			}
 			result, err := env.engine.ExecuteTask(env.engineCtx, env.ref, task)
 			mustNoError(t, err)
@@ -176,7 +178,7 @@ func TestSchedulerTerminalTaskInterleavingModel(t *testing.T) {
 			})
 			mustNoError(t, err)
 			if !env.internal(t).closed {
-				t.Fatalf("delete did not close schedule")
+				t.Fatal("delete did not close schedule")
 			}
 			env.timeSource.Update(task.GetVisibilityTime())
 			result := env.redeliver(t, task)
@@ -200,7 +202,7 @@ func firstQueuedModelTask(t *rapid.T, env *schedulerModelEnv) tasks.Task {
 		candidates = append(candidates, categoryTasks...)
 	}
 	if len(candidates) == 0 {
-		t.Fatalf("expected a queued task")
+		t.Fatal("expected a queued task")
 	}
 	slices.SortFunc(candidates, func(a, b tasks.Task) int {
 		return a.GetVisibilityTime().Compare(b.GetVisibilityTime())
@@ -319,7 +321,7 @@ func (m *deliveryModel) retryWorkflowStart(t *rapid.T) {
 		}
 	}
 	if len(sideEffects) == 0 {
-		t.Fatalf("trigger produced no workflow-start task")
+		t.Fatal("trigger produced no workflow-start task")
 	}
 	m.env.workflows.pushStartError(serviceerror.NewDeadlineExceeded("interleaved start retry"))
 	beforeCalls := len(m.env.workflows.snapshot().startCalls)
@@ -368,7 +370,7 @@ func (m *deliveryModel) redeliverStaleTask(t *rapid.T) {
 	if len(beforeWorkflow.startCalls) != len(afterWorkflow.startCalls) ||
 		len(beforeHistory.cancels) != len(afterHistory.cancels) ||
 		len(beforeHistory.terminates) != len(afterHistory.terminates) {
-		t.Fatalf("stale task made a service call")
+		t.Fatal("stale task made a service call")
 	}
 	m.observedStages[deliveryStageStale] = true
 	m.check(t)
@@ -387,7 +389,7 @@ func (m *deliveryModel) queryAPIs(t *rapid.T) {
 		len(beforeWorkflow.startCalls) != len(m.env.workflows.snapshot().startCalls) ||
 		len(beforeHistory.cancels) != len(m.env.history.snapshot().cancels) ||
 		len(beforeHistory.terminates) != len(m.env.history.snapshot().terminates) {
-		t.Fatalf("read-only APIs changed scheduler work")
+		t.Fatal("read-only APIs changed scheduler work")
 	}
 	m.check(t)
 }
@@ -396,7 +398,7 @@ func (m *deliveryModel) check(t *rapid.T) {
 	t.Helper()
 	internal := m.env.internal(t)
 	if internal.closed || internal.sentinel || internal.migrationPending {
-		t.Fatalf("delivery model unexpectedly entered terminal state")
+		t.Fatal("delivery model unexpectedly entered terminal state")
 	}
 	description := m.env.describe(t)
 	info := description.GetInfo()
@@ -477,12 +479,12 @@ func (m *deliveryModel) check(t *rapid.T) {
 	}
 	for _, request := range m.env.history.snapshot().cancels {
 		if request.GetCancelRequest().GetWorkflowExecution().GetWorkflowId() == "" {
-			t.Fatalf("cancel request has no workflow ID")
+			t.Fatal("cancel request has no workflow ID")
 		}
 	}
 	for _, request := range m.env.history.snapshot().terminates {
 		if request.GetTerminateRequest().GetWorkflowExecution().GetWorkflowId() == "" {
-			t.Fatalf("terminate request has no workflow ID")
+			t.Fatal("terminate request has no workflow ID")
 		}
 	}
 	m.env.checkRequestIDs(t)

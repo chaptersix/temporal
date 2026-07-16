@@ -142,7 +142,7 @@ func (m *migrationModel) repeatMigration(t *rapid.T) {
 	})
 	mustNoError(t, err)
 	if !slices.Equal(beforeTasks, m.env.tasks(t)) {
-		t.Fatalf("repeated migration scheduled another task")
+		t.Fatal("repeated migration scheduled another task")
 	}
 	m.check(t)
 }
@@ -198,7 +198,7 @@ func (m *migrationModel) rejectPendingChange(t *rapid.T) {
 		!slices.Equal(before.GetConflictToken(), after.GetConflictToken()) ||
 		!proto.Equal(before.GetMemo(), after.GetMemo()) ||
 		!proto.Equal(before.GetSearchAttributes(), after.GetSearchAttributes()) {
-		t.Fatalf("rejected migration mutation was not atomic")
+		t.Fatal("rejected migration mutation was not atomic")
 	}
 	m.check(t)
 }
@@ -220,6 +220,8 @@ func (m *migrationModel) executeMigration(t *rapid.T) {
 	case migrationOutcomeFailure:
 		injected = serviceerror.NewInternal("migration start failure")
 		m.env.history.pushMigrationError(injected)
+	default:
+		t.Fatalf("unexpected migration outcome %d", outcome)
 	}
 	m.calls++
 	if outcome == migrationOutcomeFailure {
@@ -287,7 +289,7 @@ func (m *migrationModel) check(t *rapid.T) {
 		if args.GetSchedule().GetState().GetPaused() != m.initialPaused ||
 			args.GetSchedule().GetState().GetNotes() != m.initialNotes ||
 			args.GetState().GetScheduleId() != m.env.scheduleID {
-			t.Fatalf("migration export did not restore pre-migration state")
+			t.Fatal("migration export did not restore pre-migration state")
 		}
 	}
 	if m.pending {
@@ -323,7 +325,7 @@ func newCallbackRecoveryModel(t *rapid.T) *callbackRecoveryModel {
 		modelSchedule(config), info, legacyState,
 		&commonpb.SearchAttributes{}, &commonpb.Memo{}, env.timeSource.Now(),
 	)
-	_, err := scheduler.CreateFromMigrationStateForTest(env.handler, env.engineCtx, request)
+	_, err := scheduler.CreateFromMigrationStateForTest(env.engineCtx, env.handler, request)
 	mustNoError(t, err)
 	internal := env.internal(t)
 	if len(internal.buffered) != 1 {
@@ -365,6 +367,8 @@ func (m *callbackRecoveryModel) recoverCallback(t *rapid.T) {
 		case callbackOutcomeAttachFailure:
 			injected = serviceerror.NewInternal("callback attachment failure")
 			m.env.workflows.pushAttachError(injected)
+		default:
+			t.Fatalf("unexpected attach outcome %d", outcome)
 		}
 	case callbackOutcomeDescribeClosed:
 		m.env.history.pushDescribeOutcome(callbackDescribeResponse(
@@ -378,6 +382,8 @@ func (m *callbackRecoveryModel) recoverCallback(t *rapid.T) {
 		injected = serviceerror.NewInternal("callback describe failure")
 		m.env.history.pushDescribeOutcome(nil, injected)
 		m.describeCalls++
+	default:
+		t.Fatalf("unexpected callback outcome %d", outcome)
 	}
 
 	if outcome == callbackOutcomeDescribeFailure || outcome == callbackOutcomeAttachFailure {
@@ -399,6 +405,8 @@ func (m *callbackRecoveryModel) recoverCallback(t *rapid.T) {
 		case callbackOutcomeAttachAlreadyStarted:
 			m.state = callbackStateCompleted
 			m.status = enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED
+		default:
+			t.Fatalf("unexpected successful callback outcome %d", outcome)
 		}
 	}
 	m.check(t)
@@ -442,7 +450,7 @@ func (m *callbackRecoveryModel) redeliverRecovery(t *rapid.T) {
 	}
 	if len(m.env.history.snapshot().describes) != beforeDescribe ||
 		len(m.env.workflows.snapshot().startCalls) != beforeAttach {
-		t.Fatalf("stale recovery task made service calls")
+		t.Fatal("stale recovery task made service calls")
 	}
 	m.check(t)
 }
@@ -470,7 +478,7 @@ func (m *callbackRecoveryModel) check(t *rapid.T) {
 
 	description := m.env.describe(t)
 	if description.GetInfo().GetActionCount() != 1 || len(description.GetInfo().GetRecentActions()) != 1 {
-		t.Fatalf("callback recovery changed action count or recent action cardinality")
+		t.Fatal("callback recovery changed action count or recent action cardinality")
 	}
 	expectedStatus := enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING
 	if m.state == callbackStateCompleted {
