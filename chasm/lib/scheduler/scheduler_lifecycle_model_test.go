@@ -60,9 +60,15 @@ func TestSchedulerLifecycleModel(t *testing.T) {
 			"advance to idle":         model.advanceToIdle,
 			"delete":                  model.deleteSchedule,
 			"closed APIs":             model.checkClosedAPIs,
+			"reload execution":        model.reload,
 			"":                        model.check,
 		})
 	})
+}
+
+func (m *lifecycleModel) reload(t *rapid.T) {
+	m.env.reload(t)
+	m.check(t)
 }
 
 func TestSchedulerSentinelLifecycleModel(t *testing.T) {

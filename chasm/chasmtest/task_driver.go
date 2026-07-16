@@ -24,6 +24,22 @@ type runnableTask struct {
 	insertion int
 }
 
+// ReloadExecution reconstructs an execution's component tree from a cloned
+// persistence snapshot while retaining the execution and its physical tasks.
+func (e *Engine) ReloadExecution(ctx context.Context, ref chasm.ComponentRef) error {
+	exec, err := e.executionForRef(ref)
+	if err != nil {
+		return err
+	}
+	node, root, err := e.cloneExecutionTree(ctx, exec)
+	if err != nil {
+		return err
+	}
+	exec.node = node
+	exec.root = root
+	return nil
+}
+
 // RunnableTasks returns the undelivered CHASM tasks for ref that are due at the
 // engine's current time. Visibility maintenance tasks are excluded.
 func (e *Engine) RunnableTasks(ref chasm.ComponentRef) ([]tasks.Task, error) {

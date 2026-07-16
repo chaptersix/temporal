@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"sync"
 	"time"
@@ -560,6 +561,67 @@ func (e *schedulerModelEnv) advanceToNextTask(t *rapid.T) time.Time {
 	}
 	t.Skip("no future task")
 	return time.Time{}
+}
+
+func (e *schedulerModelEnv) reload(t *rapid.T) {
+	t.Helper()
+	beforeInternal := e.internal(t)
+	beforeTasks := e.tasks(t)
+	beforeWorkflow := e.workflows.snapshot()
+	beforeHistory := e.history.snapshot()
+	var beforeDescription *workflowservice.DescribeScheduleResponse
+	if !beforeInternal.closed && !beforeInternal.sentinel {
+		beforeDescription = proto.CloneOf(e.describe(t))
+	}
+
+	mustNoError(t, e.engine.ReloadExecution(e.engineCtx, e.ref))
+
+	afterInternal := e.internal(t)
+	if !reflect.DeepEqual(beforeInternal, afterInternal) {
+		t.Fatalf("reload changed internal state: before=%+v after=%+v", beforeInternal, afterInternal)
+	}
+	if !slices.Equal(beforeTasks, e.tasks(t)) {
+		t.Fatalf("reload changed physical tasks")
+	}
+	if !modelWorkflowSnapshotsEqual(beforeWorkflow, e.workflows.snapshot()) ||
+		!modelHistorySnapshotsEqual(beforeHistory, e.history.snapshot()) {
+		t.Fatalf("reload made a service call")
+	}
+	if beforeDescription != nil && !proto.Equal(beforeDescription, e.describe(t)) {
+		t.Fatalf("reload changed DescribeSchedule state")
+	}
+}
+
+func modelWorkflowSnapshotsEqual(a, b modelWorkflowSnapshot) bool {
+	if len(a.starts) != len(b.starts) || len(a.startCalls) != len(b.startCalls) {
+		return false
+	}
+	for requestID, request := range a.starts {
+		if !proto.Equal(request, b.starts[requestID]) {
+			return false
+		}
+	}
+	return protoSlicesEqual(a.startCalls, b.startCalls)
+}
+
+func modelHistorySnapshotsEqual(a, b modelHistorySnapshot) bool {
+	return a.migrationSuccesses == b.migrationSuccesses &&
+		protoSlicesEqual(a.cancels, b.cancels) &&
+		protoSlicesEqual(a.terminates, b.terminates) &&
+		protoSlicesEqual(a.describes, b.describes) &&
+		protoSlicesEqual(a.migrationStarts, b.migrationStarts)
+}
+
+func protoSlicesEqual[T proto.Message](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !proto.Equal(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func (e *schedulerModelEnv) redeliver(t *rapid.T, task tasks.Task) chasmtest.TaskExecutionResult {

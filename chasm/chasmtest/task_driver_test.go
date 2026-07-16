@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/common/clock"
@@ -393,6 +394,74 @@ func TestExecuteTaskKeepsExecutionsIsolated(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, driverValues{}, otherValues)
+}
+
+func TestReloadExecutionReconstructsTreeAndPreservesTasks(t *testing.T) {
+	now := time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC)
+	env := newDriverTestEnv(t, now, "reload")
+	env.addPureTasks(t, pureTaskSpec{scheduledTime: now.Add(time.Minute), value: 1})
+	env.addSideEffectTask(t, chasm.TaskAttributes{}, 2)
+
+	var before *driverComponent
+	require.NoError(t, env.engine.ReadComponent(
+		env.engineCtx,
+		env.ref,
+		func(_ chasm.Context, component chasm.Component) error {
+			before = component.(*driverComponent)
+			return nil
+		},
+	))
+	queuedBefore, err := env.engine.Tasks(env.ref)
+	require.NoError(t, err)
+	runnable, err := env.engine.RunnableTasks(env.ref)
+	require.NoError(t, err)
+	require.Len(t, runnable, 1)
+	savedTask := runnable[0]
+
+	require.NoError(t, env.engine.ReloadExecution(env.engineCtx, env.ref))
+
+	var after *driverComponent
+	require.NoError(t, env.engine.ReadComponent(
+		env.engineCtx,
+		env.ref,
+		func(_ chasm.Context, component chasm.Component) error {
+			after = component.(*driverComponent)
+			return nil
+		},
+	))
+	require.NotSame(t, before, after)
+	queuedAfter, err := env.engine.Tasks(env.ref)
+	require.NoError(t, err)
+	require.Equal(t, queuedBefore, queuedAfter)
+	require.Equal(t, driverValues{}, env.values(t))
+
+	result, err := env.engine.ExecuteTask(env.engineCtx, env.ref, savedTask)
+	require.NoError(t, err)
+	require.Equal(t, chasmtest.TaskExecutionResult{Executed: 1}, result)
+	env.timeSource.Update(now.Add(time.Minute))
+	runnable, err = env.engine.RunnableTasks(env.ref)
+	require.NoError(t, err)
+	require.Len(t, runnable, 1)
+	_, err = env.engine.ExecuteTask(env.engineCtx, env.ref, runnable[0])
+	require.NoError(t, err)
+	require.Equal(t, driverValues{pure: 1, sideEffect: 2}, env.values(t))
+
+	require.NoError(t, env.engine.ReloadExecution(env.engineCtx, env.ref))
+	result, err = env.engine.ExecuteTask(env.engineCtx, env.ref, savedTask)
+	require.NoError(t, err)
+	require.Equal(t, chasmtest.TaskExecutionResult{Dropped: true}, result)
+}
+
+func TestReloadExecutionRejectsInvalidReference(t *testing.T) {
+	env := newDriverTestEnv(t, time.Now(), "reload-invalid")
+	invalid := chasm.ComponentRef{ExecutionKey: chasm.ExecutionKey{
+		NamespaceID: "namespace-id",
+		BusinessID:  "missing",
+	}}
+
+	err := env.engine.ReloadExecution(env.engineCtx, invalid)
+	var notFound *serviceerror.NotFound
+	require.ErrorAs(t, err, &notFound)
 }
 
 func TestDrainTasksReportsLivelock(t *testing.T) {

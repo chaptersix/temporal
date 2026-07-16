@@ -78,9 +78,15 @@ func TestSchedulerFailureIdempotencyModel(t *testing.T) {
 			"redeliver saved task": model.redeliverSavedTask,
 			"complete workflow":    model.completeWorkflow,
 			"duplicate completion": model.duplicateCompletion,
+			"reload execution":     model.reload,
 			"":                     model.check,
 		})
 	})
+}
+
+func (m *failureModel) reload(t *rapid.T) {
+	m.env.reload(t)
+	m.check(t)
 }
 
 func (m *failureModel) triggerWithOutcome(t *rapid.T) {

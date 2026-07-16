@@ -82,9 +82,15 @@ func TestSchedulerTimingAPIModel(t *testing.T) {
 			"reject stale update": model.rejectStaleUpdate,
 			"list matching times": model.listMatchingTimes,
 			"complete workflow":   model.completeWorkflow,
+			"reload execution":    model.reload,
 			"":                    model.check,
 		})
 	})
+}
+
+func (m *timingModel) reload(t *rapid.T) {
+	m.env.reload(t)
+	m.check(t)
 }
 
 func (m *timingModel) advanceTime(t *rapid.T) {

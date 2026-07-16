@@ -69,11 +69,17 @@ func TestSchedulerTaskInterleavingModel(t *testing.T) {
 					"complete workflow":     model.completeWorkflow,
 					"redeliver stale task":  model.redeliverStaleTask,
 					"query APIs":            model.queryAPIs,
+					"reload execution":      model.reload,
 					"":                      model.check,
 				})
 			})
 		})
 	}
+}
+
+func (m *deliveryModel) reload(t *rapid.T) {
+	m.env.reload(t)
+	m.check(t)
 }
 
 func TestSchedulerTerminalTaskInterleavingModel(t *testing.T) {
