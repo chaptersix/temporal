@@ -127,6 +127,8 @@ type (
 		conflictToken     int64
 		lastProcessedTime time.Time
 		idleCloseTime     time.Time
+		lastSuccess       []byte
+		lastFailure       string
 		backfillers       int
 		backfillerStates  []modelBackfiller
 		buffered          []modelBufferedStart
@@ -613,6 +615,9 @@ func (e *schedulerModelEnv) internal(t *rapid.T) modelInternalSnapshot {
 			if s.Sentinel {
 				return snapshot, nil
 			}
+			lastCompletion := s.LastCompletionResult.Get(ctx)
+			snapshot.lastSuccess = slices.Clone(lastCompletion.GetSuccess().GetData())
+			snapshot.lastFailure = lastCompletion.GetFailure().GetMessage()
 			for _, field := range s.Backfillers {
 				backfiller := field.Get(ctx)
 				snapshot.backfillerStates = append(snapshot.backfillerStates, modelBackfiller{

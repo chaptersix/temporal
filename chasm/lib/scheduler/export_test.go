@@ -23,6 +23,10 @@ func NewTestHandler(logger log.Logger) *handler {
 	return newHandler(logger, legacyscheduler.NewSpecBuilder(func() int { return 0 }, func() int { return 0 }))
 }
 
+func NewTestRateLimitedError(delay time.Duration) error {
+	return newRateLimitedError(delay)
+}
+
 func (h *handler) TestCreateFromMigrationState(ctx context.Context, req *schedulerpb.CreateFromMigrationStateRequest) (*schedulerpb.CreateFromMigrationStateResponse, error) {
 	return h.CreateFromMigrationState(ctx, req)
 }
