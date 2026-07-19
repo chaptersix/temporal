@@ -176,9 +176,13 @@ func newCompiledExclusion(cal *schedulepb.StructuredCalendarSpec, tz *time.Locat
 // Returns the first time after ts that does not match this exclusion. A zero result means the
 // exclusion continues through the end of the supported calendar range.
 func (ce *compiledExclusion) nextNonMatch(ts time.Time) time.Time {
+	return ce.nextNonMatchWithUpperBound(ts, time.Time{})
+}
+
+func (ce *compiledExclusion) nextNonMatchWithUpperBound(ts, upperBound time.Time) time.Time {
 	var first time.Time
 	for _, nonMatcher := range ce.nonMatchers {
-		next := nonMatcher.next(ts)
+		next := nonMatcher.nextWithUpperBound(ts, upperBound)
 		if !next.IsZero() && (first.IsZero() || next.Before(first)) {
 			first = next
 		}
@@ -233,6 +237,16 @@ func (cc *compiledCalendar) key() compiledCalendarKey {
 // Returns the earliest time that matches this calendar spec that is after the given time.
 // All times are considered to have 1 second resolution.
 func (cc *compiledCalendar) next(ts time.Time) time.Time {
+	return cc.nextWithUpperBound(ts, time.Time{})
+}
+
+// nextWithUpperBound is equivalent to next, but returns zero as soon as the calendar search can
+// prove that its next candidate would be after the inclusive absolute-time upper bound.
+func (cc *compiledCalendar) nextWithUpperBound(ts, upperBound time.Time) time.Time {
+	if !upperBound.IsZero() && !ts.Before(upperBound) {
+		return time.Time{}
+	}
+
 	// set time zone
 	ts = ts.In(cc.tz)
 
@@ -277,6 +291,9 @@ Outer:
 			y, mo = y+1, time.January
 		}
 		if y > maxCalendarYear {
+			break Outer
+		}
+		if !upperBound.IsZero() && time.Date(y, mo, d, h, m, s, 0, cc.tz).Add(dstoffset).After(upperBound) {
 			break Outer
 		}
 		// try to match year, month, etc. from outside in
@@ -326,7 +343,11 @@ Outer:
 			h, m, s = h+1, 0, 0
 			continue Outer
 		}
-		return nextTs.Add(dstoffset)
+		nextTs = nextTs.Add(dstoffset)
+		if !upperBound.IsZero() && nextTs.After(upperBound) {
+			return time.Time{}
+		}
+		return nextTs
 	}
 
 	// no more matching times (up to max we checked)

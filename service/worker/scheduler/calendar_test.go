@@ -482,6 +482,58 @@ func TestExclusionNextNonMatchProperty(t *testing.T) {
 	}
 }
 
+func TestCalendarNextWithUpperBoundProperty(t *testing.T) {
+	rng := rand.New(rand.NewSource(42017))
+	zNames := []string{"UTC", "America/Los_Angeles", "America/New_York", "Europe/London", "Australia/Lord_Howe", "Pacific/Apia"}
+	secondExpressions := []string{"*", "0", "*/2", "1-59/3", "15-45"}
+	minuteExpressions := []string{"*", "0", "*/5", "1-59/7"}
+	hourExpressions := []string{"*", "0", "1", "6-18/3", "23"}
+	dayExpressions := []string{"*", "1", "15", "28-31"}
+	monthExpressions := []string{"*", "1", "2", "6-12/2"}
+	yearExpressions := []string{"*", "2024", "2028", "2096"}
+	dayOfWeekExpressions := []string{"*", "0", "1-5", "5-6"}
+	pick := func(values []string) string { return values[rng.Intn(len(values))] }
+
+	for testCase := range 2000 {
+		loc, err := time.LoadLocation(tzNames[rng.Intn(len(tzNames))])
+		require.NoError(t, err)
+		structured, err := parseCalendarToStructured(&schedulepb.CalendarSpec{
+			Second:     pick(secondExpressions),
+			Minute:     pick(minuteExpressions),
+			Hour:       pick(hourExpressions),
+			DayOfMonth: pick(dayExpressions),
+			Month:      pick(monthExpressions),
+			Year:       pick(yearExpressions),
+			DayOfWeek:  pick(dayOfWeekExpressions),
+		})
+		require.NoError(t, err)
+		calendar := newCompiledCalendar(structured, loc)
+		after := time.Unix(
+			time.Date(2023, time.January, 1, 0, 0, 0, 0, time.UTC).Unix()+rng.Int63n(8*365*24*60*60),
+			0,
+		)
+		upperBound := after.Add(time.Duration(rng.Int63n(int64(400 * 24 * time.Hour))))
+
+		expected := calendar.next(after)
+		if !expected.IsZero() && expected.After(upperBound) {
+			expected = time.Time{}
+		}
+		actual := calendar.nextWithUpperBound(after, upperBound)
+		require.Equal(t, expected, actual, "case %d after=%v upper=%v", testCase, after, upperBound)
+	}
+}
+
+func (s *calendarSuite) TestCalendarNextWithUpperBoundStopsBeforeFarFutureMatch() {
+	calendar := s.mustCompileCalendarSpec(&schedulepb.CalendarSpec{
+		Second: "0", Minute: "0", Hour: "0", DayOfMonth: "29", Month: "2", Year: "2096",
+	}, time.UTC)
+	after := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
+	s.Zero(calendar.nextWithUpperBound(after, after.Add(time.Hour)))
+	expected := time.Date(2096, time.February, 29, 0, 0, 0, 0, time.UTC)
+	s.Equal(expected, calendar.next(after))
+	s.Equal(expected, calendar.nextWithUpperBound(after, expected))
+}
+
 func FuzzCalendar(f *testing.F) {
 	// partially random selection but including at least one with dst
 	// transitions at midnight

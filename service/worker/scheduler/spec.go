@@ -341,6 +341,13 @@ func (cs *CompiledSpec) getNextTime(
 			(cs.spec.EndTime != nil && t.After(cs.spec.EndTime.AsTime())) ||
 			t.Year() > maxCalendarYear
 	}
+	searchUpperBound := upperBound
+	if cs.spec.EndTime != nil {
+		endTime := cs.spec.EndTime.AsTime()
+		if searchUpperBound.IsZero() || endTime.Before(searchUpperBound) {
+			searchUpperBound = endTime
+		}
+	}
 	warnIterations := cs.warnIterations()
 	if warnIterations <= 0 {
 		warnIterations = DefaultWarnIterations
@@ -362,13 +369,13 @@ func (cs *CompiledSpec) getNextTime(
 		if iterations >= warnIterations {
 			warned = true
 		}
-		nominal = cs.rawNextTime(after)
+		nominal = cs.rawNextTimeWithUpperBound(after, searchUpperBound)
 
 		if nominal.IsZero() || pastEndTime(nominal) {
 			return GetNextTimeResult{ComputeLimitWarning: warned}, nil
 		}
 
-		excludedUntil, excluded := cs.excludedUntil(nominal)
+		excludedUntil, excluded := cs.excludedUntilWithUpperBound(nominal, searchUpperBound)
 		if !excluded {
 			break
 		}
@@ -382,7 +389,8 @@ func (cs *CompiledSpec) getNextTime(
 
 	maxJitter := timestamp.DurationValue(cs.spec.Jitter)
 	// Ensure that jitter doesn't push this time past the _next_ nominal start time
-	if following := cs.rawNextTime(nominal); !following.IsZero() {
+	jitterSearchUpperBound := nominal.Add(max(maxJitter, 0))
+	if following := cs.rawNextTimeWithUpperBound(nominal, jitterSearchUpperBound); !following.IsZero() {
 		maxJitter = min(maxJitter, following.Sub(nominal))
 	}
 	next := cs.addJitter(jitterSeed, nominal, maxJitter)
@@ -395,10 +403,17 @@ func (cs *CompiledSpec) getNextTime(
 
 // Returns the next matching time (without jitter), or the zero value if no time matches.
 func (cs *CompiledSpec) rawNextTime(after time.Time) (nominal time.Time) {
+	return cs.rawNextTimeWithUpperBound(after, time.Time{})
+}
+
+func (cs *CompiledSpec) rawNextTimeWithUpperBound(after, upperBound time.Time) (nominal time.Time) {
+	if !upperBound.IsZero() && !after.Before(upperBound) {
+		return time.Time{}
+	}
 	var minTimestamp int64 = math.MaxInt64 // unix seconds-since-epoch as int64
 
 	for _, cal := range cs.calendar {
-		if next := cal.next(after); !next.IsZero() {
+		if next := cal.nextWithUpperBound(after, upperBound); !next.IsZero() {
 			nextTs := next.Unix()
 			if nextTs < minTimestamp {
 				minTimestamp = nextTs
@@ -409,6 +424,9 @@ func (cs *CompiledSpec) rawNextTime(after time.Time) (nominal time.Time) {
 	ts := after.Unix()
 	for _, iv := range cs.intervals {
 		next := iv.next(ts)
+		if !upperBound.IsZero() && next > upperBound.Unix() {
+			continue
+		}
 		if next < minTimestamp {
 			minTimestamp = next
 		}
@@ -474,12 +492,16 @@ func containsEverySecond(intervals []compiledInterval) bool {
 // Returns the end of the contiguous excluded range containing nominal. If any matching
 // exclusion continues through the supported calendar range, the returned time is zero.
 func (cs *CompiledSpec) excludedUntil(nominal time.Time) (time.Time, bool) {
+	return cs.excludedUntilWithUpperBound(nominal, time.Time{})
+}
+
+func (cs *CompiledSpec) excludedUntilWithUpperBound(nominal, upperBound time.Time) (time.Time, bool) {
 	var until time.Time
 	var excluded bool
 	for _, exclusion := range cs.excludes {
 		if exclusion.calendar.matches(nominal) {
 			excluded = true
-			next := exclusion.nextNonMatch(nominal)
+			next := exclusion.nextNonMatchWithUpperBound(nominal, upperBound)
 			if next.IsZero() {
 				return time.Time{}, true
 			}
