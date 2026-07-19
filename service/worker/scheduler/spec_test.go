@@ -365,6 +365,86 @@ func TestCompiledInclusionOptimizationProperty(t *testing.T) {
 	}
 }
 
+func TestNextTimeIteratorProperty(t *testing.T) {
+	rng := rand.New(rand.NewSource(19081))
+	zNames := []string{"UTC", "America/Los_Angeles", "America/New_York", "Europe/London", "Australia/Lord_Howe"}
+	secondExpressions := []string{"*", "0", "*/2", "1-59/3", "15-45"}
+	minuteExpressions := []string{"*", "0", "*/5", "1-59/7", "59"}
+	hourExpressions := []string{"*", "0", "6-18/3", "23"}
+	exclusionSeconds := []string{"0-5", "10-20", "*/5", "1-59/2"}
+	pick := func(values []string) string { return values[rng.Intn(len(values))] }
+
+	for testCase := range 500 {
+		spec := &schedulepb.ScheduleSpec{
+			TimezoneName: tzNames[rng.Intn(len(tzNames))],
+			Jitter:       durationpb.New(time.Duration(rng.Intn(10)) * time.Second),
+		}
+		for range rng.Intn(5) {
+			spec.Calendar = append(spec.Calendar, &schedulepb.CalendarSpec{
+				Second: pick(secondExpressions), Minute: pick(minuteExpressions), Hour: pick(hourExpressions),
+			})
+		}
+		for range rng.Intn(4) + 1 {
+			intervalSeconds := int64(rng.Intn(30) + 1)
+			spec.Interval = append(spec.Interval, &schedulepb.IntervalSpec{
+				Interval: durationpb.New(time.Duration(intervalSeconds) * time.Second),
+				Phase:    durationpb.New(time.Duration(rng.Int63n(intervalSeconds)) * time.Second),
+			})
+		}
+		for range rng.Intn(4) {
+			spec.ExcludeCalendar = append(spec.ExcludeCalendar, &schedulepb.CalendarSpec{
+				Second: pick(exclusionSeconds), Minute: pick(minuteExpressions), Hour: "*",
+			})
+		}
+
+		after := time.Unix(
+			time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC).Unix()+rng.Int63n(365*24*60*60),
+			0,
+		)
+		upperBound := after.Add(2 * time.Hour)
+		if rng.Intn(3) == 0 {
+			spec.StartTime = timestamppb.New(after.Add(time.Duration(rng.Intn(30)) * time.Minute))
+		}
+		if rng.Intn(3) == 0 {
+			spec.EndTime = timestamppb.New(after.Add(time.Duration(rng.Intn(120)+1) * time.Minute))
+		}
+
+		cs, err := newSpecBuilderForTest(0, 0).NewCompiledSpec(spec)
+		require.NoError(t, err, "case %d", testCase)
+		iterator := cs.NewNextTimeIterator("iterator-property", upperBound)
+		for result := range 100 {
+			expected, expectedErr := cs.GetNextTimeWithUpperBound("iterator-property", after, upperBound)
+			actual, actualErr := iterator.GetNextTime(after)
+			require.ErrorIs(t, actualErr, expectedErr, "case %d result %d", testCase, result)
+			require.Equal(t, expected, actual, "case %d result %d spec=%v", testCase, result, spec)
+			if actual.Next.IsZero() || actualErr != nil {
+				break
+			}
+			after = actual.Next
+		}
+	}
+}
+
+func (s *specSuite) TestNextTimeIteratorResetsAfterBackwardSeek() {
+	cs, err := s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(2 * time.Second)}},
+		Calendar: []*schedulepb.CalendarSpec{{Second: "0", Minute: "59", Hour: "*"}},
+	})
+	s.Require().NoError(err)
+	start := time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)
+	iterator := cs.NewNextTimeIterator("", start.Add(time.Hour))
+	first, err := iterator.GetNextTime(start)
+	s.Require().NoError(err)
+	_, err = iterator.GetNextTime(first.Next)
+	s.Require().NoError(err)
+
+	rewound, err := iterator.GetNextTime(start.Add(-time.Second))
+	s.Require().NoError(err)
+	expected, err := cs.GetNextTimeWithUpperBound("", start.Add(-time.Second), start.Add(time.Hour))
+	s.Require().NoError(err)
+	s.Equal(expected, rewound)
+}
+
 func (s *specSuite) TestSpecIntervalBasic() {
 	s.checkSequenceRaw(
 		&schedulepb.ScheduleSpec{
@@ -661,6 +741,46 @@ func BenchmarkGetNextTimeFullyExcluded(b *testing.B) {
 			b.Fatalf("result=%v err=%v", result, err)
 		}
 	}
+}
+
+func BenchmarkNextTimeIteratorDenseSparseUnion(b *testing.B) {
+	cs, err := newSpecBuilderForTest(0, 0).NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(2 * time.Second)}},
+		Calendar: []*schedulepb.CalendarSpec{
+			{Second: "0", Minute: "59", Hour: "*"},
+			{Second: "1", Minute: "59", Hour: "*"},
+			{Second: "2", Minute: "59", Hour: "*"},
+		},
+	})
+	require.NoError(b, err)
+	start := time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(time.Hour)
+
+	b.Run("existing", func(b *testing.B) {
+		for range b.N {
+			after := start
+			for range 1000 {
+				result, err := cs.GetNextTimeWithUpperBound("", after, end)
+				if err != nil || result.Next.IsZero() {
+					b.Fatalf("result=%v err=%v", result, err)
+				}
+				after = result.Next
+			}
+		}
+	})
+	b.Run("iterator", func(b *testing.B) {
+		for range b.N {
+			after := start
+			iterator := cs.NewNextTimeIterator("", end)
+			for range 1000 {
+				result, err := iterator.GetNextTime(after)
+				if err != nil || result.Next.IsZero() {
+					b.Fatalf("result=%v err=%v", result, err)
+				}
+				after = result.Next
+			}
+		}
+	})
 }
 
 func (s *specSuite) TestExcludeAll() {

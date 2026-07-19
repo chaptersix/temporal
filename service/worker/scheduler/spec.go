@@ -44,6 +44,20 @@ type (
 		ComputeLimitWarning bool
 	}
 
+	// NextTimeIterator caches the next candidate from each inclusion source for one monotonic
+	// request. It is intentionally request-local and is not safe for concurrent use.
+	NextTimeIterator struct {
+		spec             *CompiledSpec
+		jitterSeed       string
+		upperBound       time.Time
+		sourceUpperBound time.Time
+		highWatermark    time.Time
+		calendarNext     []time.Time
+		calendarReady    []bool
+		intervalNext     []time.Time
+		intervalReady    []bool
+	}
+
 	SpecBuilder struct {
 		// locationCache is a cache for the results of time.LoadLocation. That function accesses
 		// the filesystem and is relatively slow. We assume that it returns a semantically
@@ -331,6 +345,15 @@ func (cs *CompiledSpec) getNextTime(
 	after time.Time,
 	upperBound time.Time,
 ) (GetNextTimeResult, error) {
+	return cs.getNextTimeWithSource(jitterSeed, after, upperBound, cs.rawNextTimeWithUpperBound)
+}
+
+func (cs *CompiledSpec) getNextTimeWithSource(
+	jitterSeed string,
+	after time.Time,
+	upperBound time.Time,
+	rawNextTime func(time.Time, time.Time) time.Time,
+) (GetNextTimeResult, error) {
 	// If we're starting before the schedule's allowed time range, jump up to right before
 	// it (so that we can still return the first second of the range if it happens to match).
 	// note: AsTime returns unix epoch on nil StartTime
@@ -369,7 +392,7 @@ func (cs *CompiledSpec) getNextTime(
 		if iterations >= warnIterations {
 			warned = true
 		}
-		nominal = cs.rawNextTimeWithUpperBound(after, searchUpperBound)
+		nominal = rawNextTime(after, searchUpperBound)
 
 		if nominal.IsZero() || pastEndTime(nominal) {
 			return GetNextTimeResult{ComputeLimitWarning: warned}, nil
@@ -390,7 +413,7 @@ func (cs *CompiledSpec) getNextTime(
 	maxJitter := timestamp.DurationValue(cs.spec.Jitter)
 	// Ensure that jitter doesn't push this time past the _next_ nominal start time
 	jitterSearchUpperBound := nominal.Add(max(maxJitter, 0))
-	if following := cs.rawNextTimeWithUpperBound(nominal, jitterSearchUpperBound); !following.IsZero() {
+	if following := rawNextTime(nominal, jitterSearchUpperBound); !following.IsZero() {
 		maxJitter = min(maxJitter, following.Sub(nominal))
 	}
 	next := cs.addJitter(jitterSeed, nominal, maxJitter)
@@ -399,6 +422,80 @@ func (cs *CompiledSpec) getNextTime(
 	}
 
 	return GetNextTimeResult{Nominal: nominal, Next: next, ComputeLimitWarning: warned}, nil
+}
+
+// NewNextTimeIterator creates a request-local iterator for a monotonic sequence of next-time
+// lookups. upperBound is inclusive; use the zero value for an unbounded iterator.
+func (cs *CompiledSpec) NewNextTimeIterator(jitterSeed string, upperBound time.Time) *NextTimeIterator {
+	nominalUpperBound := upperBound
+	if cs.spec.EndTime != nil {
+		endTime := cs.spec.EndTime.AsTime()
+		if nominalUpperBound.IsZero() || endTime.Before(nominalUpperBound) {
+			nominalUpperBound = endTime
+		}
+	}
+	sourceUpperBound := nominalUpperBound
+	if !sourceUpperBound.IsZero() {
+		// The existing algorithm may use a following nominal beyond the schedule/query end to cap
+		// jitter on the last returned nominal, so retain candidates through that lookahead window.
+		sourceUpperBound = sourceUpperBound.Add(max(timestamp.DurationValue(cs.spec.Jitter), 0))
+	}
+	return &NextTimeIterator{
+		spec:             cs,
+		jitterSeed:       jitterSeed,
+		upperBound:       upperBound,
+		sourceUpperBound: sourceUpperBound,
+		calendarNext:     make([]time.Time, len(cs.calendar)),
+		calendarReady:    make([]bool, len(cs.calendar)),
+		intervalNext:     make([]time.Time, len(cs.intervals)),
+		intervalReady:    make([]bool, len(cs.intervals)),
+	}
+}
+
+// GetNextTime returns the same result as CompiledSpec.GetNextTimeWithUpperBound while retaining
+// future inclusion-source candidates for later monotonic calls.
+func (it *NextTimeIterator) GetNextTime(after time.Time) (GetNextTimeResult, error) {
+	return it.spec.getNextTimeWithSource(it.jitterSeed, after, it.upperBound, it.rawNextTime)
+}
+
+func (it *NextTimeIterator) rawNextTime(after, upperBound time.Time) time.Time {
+	if !it.highWatermark.IsZero() && after.Before(it.highWatermark) {
+		clear(it.calendarNext)
+		clear(it.calendarReady)
+		clear(it.intervalNext)
+		clear(it.intervalReady)
+	}
+	it.highWatermark = after
+
+	var next time.Time
+	consider := func(candidate time.Time) {
+		if candidate.IsZero() || !upperBound.IsZero() && candidate.After(upperBound) {
+			return
+		}
+		if next.IsZero() || candidate.Before(next) {
+			next = candidate
+		}
+	}
+
+	for i, calendar := range it.spec.calendar {
+		if !it.calendarReady[i] || (!it.calendarNext[i].IsZero() && !it.calendarNext[i].After(after)) {
+			it.calendarNext[i] = calendar.nextWithUpperBound(after, it.sourceUpperBound)
+			it.calendarReady[i] = true
+		}
+		consider(it.calendarNext[i])
+	}
+	for i, interval := range it.spec.intervals {
+		if !it.intervalReady[i] || (!it.intervalNext[i].IsZero() && !it.intervalNext[i].After(after)) {
+			candidate := time.Unix(interval.next(after.Unix()), 0).UTC()
+			if !it.sourceUpperBound.IsZero() && candidate.After(it.sourceUpperBound) {
+				candidate = time.Time{}
+			}
+			it.intervalNext[i] = candidate
+			it.intervalReady[i] = true
+		}
+		consider(it.intervalNext[i])
+	}
+	return next
 }
 
 // Returns the next matching time (without jitter), or the zero value if no time matches.
