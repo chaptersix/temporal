@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"math"
 	"math/rand"
 	"testing"
 	"time"
@@ -54,6 +55,27 @@ func bruteForceNextTimeWithUpperBound(
 		return GetNextTimeResult{}
 	}
 	return GetNextTimeResult{Nominal: nominal, Next: next}
+}
+
+// legacyRawNextTime is the pre-optimization union search kept as a test oracle. It deliberately
+// compiles and evaluates every source from the canonical spec on every call.
+func legacyRawNextTime(spec *schedulepb.ScheduleSpec, tz *time.Location, after time.Time) time.Time {
+	var minTimestamp int64 = math.MaxInt64
+	for _, structured := range spec.StructuredCalendar {
+		if next := newCompiledCalendar(structured, tz).next(after); !next.IsZero() {
+			minTimestamp = min(minTimestamp, next.Unix())
+		}
+	}
+	for _, intervalSpec := range spec.Interval {
+		interval := max(int64(timestamp.DurationValue(intervalSpec.Interval)/time.Second), 1)
+		phase := max(int64(timestamp.DurationValue(intervalSpec.Phase)/time.Second), 0)
+		next := (((after.Unix()-phase)/interval)+1)*interval + phase
+		minTimestamp = min(minTimestamp, next)
+	}
+	if minTimestamp == math.MaxInt64 {
+		return time.Time{}
+	}
+	return time.Unix(minTimestamp, 0).UTC()
 }
 
 type specSuite struct {
@@ -248,6 +270,99 @@ func (s *specSuite) TestCanonicalize() {
 		},
 	})
 	s.Error(err)
+}
+
+func (s *specSuite) TestCompiledSpecDeduplicatesInclusionSources() {
+	duplicate := &schedulepb.CalendarSpec{
+		Second: "0,10-20/2", Minute: "*", Hour: "*", Comment: "first representation",
+	}
+	equivalent := &schedulepb.CalendarSpec{
+		Second: "10,12,14,16,18,20,0", Minute: "*", Hour: "*", Comment: "same matches",
+	}
+	cs, err := s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Calendar: []*schedulepb.CalendarSpec{duplicate, duplicate, equivalent},
+		Interval: []*schedulepb.IntervalSpec{
+			{Interval: durationpb.New(4 * time.Second), Phase: durationpb.New(time.Second)},
+			{Interval: durationpb.New(2 * time.Second), Phase: durationpb.New(time.Second)},
+			{Interval: durationpb.New(4 * time.Second), Phase: durationpb.New(3 * time.Second)},
+		},
+	})
+	s.Require().NoError(err)
+	s.Len(cs.calendar, 1)
+	s.Equal([]compiledInterval{{interval: 2, phase: 1}}, cs.intervals)
+	// Compiled-source optimization must not rewrite the canonical user-visible spec.
+	s.Len(cs.CanonicalForm().StructuredCalendar, 3)
+	s.Len(cs.CanonicalForm().Interval, 3)
+}
+
+func (s *specSuite) TestEverySecondIntervalSubsumesCalendarSources() {
+	cs, err := s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Calendar: []*schedulepb.CalendarSpec{{Second: "0", Minute: "0", Hour: "0"}},
+		Interval: []*schedulepb.IntervalSpec{
+			{Interval: durationpb.New(24 * time.Hour)},
+			{Interval: durationpb.New(time.Second)},
+		},
+	})
+	s.Require().NoError(err)
+	s.Empty(cs.calendar)
+	s.Equal([]compiledInterval{{interval: 1, phase: 0}}, cs.intervals)
+}
+
+func TestCompiledInclusionOptimizationProperty(t *testing.T) {
+	rng := rand.New(rand.NewSource(73621))
+	zNames := []string{"UTC", "America/New_York", "Europe/London", "Australia/Lord_Howe"}
+	secondExpressions := []string{"*", "0", "1", "*/2", "1-59/2", "0-30", "15-45/3"}
+	minuteExpressions := []string{"*", "0", "*/5", "1-59/7"}
+	hourExpressions := []string{"*", "0", "6-18/3", "23"}
+	pick := func(values []string) string { return values[rng.Intn(len(values))] }
+
+	for testCase := range 500 {
+		spec := &schedulepb.ScheduleSpec{TimezoneName: tzNames[rng.Intn(len(tzNames))]}
+		for range rng.Intn(6) {
+			calendar := &schedulepb.CalendarSpec{
+				Second: pick(secondExpressions), Minute: pick(minuteExpressions), Hour: pick(hourExpressions),
+			}
+			spec.Calendar = append(spec.Calendar, calendar)
+			if rng.Intn(3) == 0 {
+				copy := *calendar
+				copy.Comment = "semantic duplicate"
+				spec.Calendar = append(spec.Calendar, &copy)
+			}
+		}
+		for range rng.Intn(6) {
+			intervalSeconds := int64(rng.Intn(30) + 1)
+			phaseSeconds := rng.Int63n(intervalSeconds)
+			spec.Interval = append(spec.Interval, &schedulepb.IntervalSpec{
+				Interval: durationpb.New(time.Duration(intervalSeconds) * time.Second),
+				Phase:    durationpb.New(time.Duration(phaseSeconds) * time.Second),
+			})
+			if rng.Intn(3) == 0 {
+				spec.Interval = append(spec.Interval, &schedulepb.IntervalSpec{
+					Interval: durationpb.New(time.Duration(intervalSeconds) * time.Second),
+					Phase:    durationpb.New(time.Duration(phaseSeconds) * time.Second),
+				})
+			}
+		}
+		if len(spec.Calendar) == 0 && len(spec.Interval) == 0 {
+			spec.Interval = []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}}
+		}
+
+		cs, err := newSpecBuilderForTest(0, 0).NewCompiledSpec(spec)
+		require.NoError(t, err, "case %d", testCase)
+		after := time.Unix(
+			time.Date(2023, time.January, 1, 0, 0, 0, 0, time.UTC).Unix()+rng.Int63n(3*365*24*60*60),
+			0,
+		)
+		for result := range 100 {
+			expected := legacyRawNextTime(cs.spec, cs.tz, after)
+			actual := cs.rawNextTime(after)
+			require.Equal(t, expected, actual, "case %d result %d spec=%v", testCase, result, spec)
+			if actual.IsZero() {
+				break
+			}
+			after = actual
+		}
+	}
 }
 
 func (s *specSuite) TestSpecIntervalBasic() {

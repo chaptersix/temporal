@@ -26,6 +26,12 @@ type (
 		year, month, dayOfMonth, dayOfWeek, hour, minute, second func(int) bool
 	}
 
+	compiledCalendarKey struct {
+		year                         [2]uint64
+		month, dayOfMonth, dayOfWeek uint64
+		hour, minute, second         uint64
+	}
+
 	compiledExclusion struct {
 		calendar    *compiledCalendar
 		nonMatchers []*compiledCalendar
@@ -196,6 +202,32 @@ func (cc *compiledCalendar) matches(ts time.Time) bool {
 		cc.hour(h) &&
 		cc.minute(m) &&
 		cc.second(s)
+}
+
+func (cc *compiledCalendar) key() compiledCalendarKey {
+	var key compiledCalendarKey
+	for year := minCalendarYear; year <= maxCalendarYear; year++ {
+		if cc.year(year) {
+			offset := year - minCalendarYear
+			key.year[offset/64] |= uint64(1) << (offset % 64)
+		}
+	}
+	setBits := func(minValue, maxValue int, matches func(int) bool) uint64 {
+		var bits uint64
+		for value := minValue; value <= maxValue; value++ {
+			if matches(value) {
+				bits |= uint64(1) << value
+			}
+		}
+		return bits
+	}
+	key.month = setBits(int(time.January), int(time.December), cc.month)
+	key.dayOfMonth = setBits(1, 31, cc.dayOfMonth)
+	key.dayOfWeek = setBits(int(time.Sunday), int(time.Saturday), cc.dayOfWeek)
+	key.hour = setBits(0, 23, cc.hour)
+	key.minute = setBits(0, 59, cc.minute)
+	key.second = setBits(0, 59, cc.second)
+	return key
 }
 
 // Returns the earliest time that matches this calendar spec that is after the given time.

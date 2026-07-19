@@ -24,9 +24,15 @@ type (
 		spec           *schedulepb.ScheduleSpec
 		tz             *time.Location
 		calendar       []*compiledCalendar
+		intervals      []compiledInterval
 		excludes       []*compiledExclusion
 		warnIterations dynamicconfig.IntPropertyFn
 		maxIterations  dynamicconfig.IntPropertyFn
+	}
+
+	compiledInterval struct {
+		interval int64
+		phase    int64
 	}
 
 	GetNextTimeResult struct {
@@ -86,10 +92,23 @@ func (b *SpecBuilder) NewCompiledSpec(spec *schedulepb.ScheduleSpec) (*CompiledS
 		return nil, err
 	}
 
-	// compile StructuredCalendarSpecs
-	ccs := make([]*compiledCalendar, len(spec.StructuredCalendar))
-	for i, structured := range spec.StructuredCalendar {
-		ccs[i] = newCompiledCalendar(structured, tz)
+	intervals := compileIntervals(spec.Interval)
+
+	// Compile only semantically distinct calendar sources. Comments and range representation do
+	// not affect matching, so equivalent calendars can share one search. A one-second interval
+	// already contains every calendar occurrence and makes all calendar sources redundant.
+	var ccs []*compiledCalendar
+	if !containsEverySecond(intervals) {
+		seen := make(map[compiledCalendarKey]struct{}, len(spec.StructuredCalendar))
+		for _, structured := range spec.StructuredCalendar {
+			calendar := newCompiledCalendar(structured, tz)
+			key := calendar.key()
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			ccs = append(ccs, calendar)
+		}
 	}
 
 	// compile excludes
@@ -102,6 +121,7 @@ func (b *SpecBuilder) NewCompiledSpec(spec *schedulepb.ScheduleSpec) (*CompiledS
 		spec:           spec,
 		tz:             tz,
 		calendar:       ccs,
+		intervals:      intervals,
 		excludes:       excludes,
 		warnIterations: b.warnIterations,
 		maxIterations:  b.maxIterations,
@@ -387,8 +407,8 @@ func (cs *CompiledSpec) rawNextTime(after time.Time) (nominal time.Time) {
 	}
 
 	ts := after.Unix()
-	for _, iv := range cs.spec.Interval {
-		next := cs.nextIntervalTime(iv, ts)
+	for _, iv := range cs.intervals {
+		next := iv.next(ts)
 		if next < minTimestamp {
 			minTimestamp = next
 		}
@@ -400,11 +420,55 @@ func (cs *CompiledSpec) rawNextTime(after time.Time) (nominal time.Time) {
 	return time.Unix(minTimestamp, 0).UTC()
 }
 
-// Returns the next matching time for a single interval spec.
-func (cs *CompiledSpec) nextIntervalTime(iv *schedulepb.IntervalSpec, ts int64) int64 {
-	interval := max(int64(timestamp.DurationValue(iv.Interval)/time.Second), 1)
-	phase := max(int64(timestamp.DurationValue(iv.Phase)/time.Second), 0)
-	return (((ts-phase)/interval)+1)*interval + phase
+// Returns the next matching time for a single compiled interval source.
+func (iv compiledInterval) next(ts int64) int64 {
+	return (((ts-iv.phase)/iv.interval)+1)*iv.interval + iv.phase
+}
+
+// contains returns true when every occurrence in other is also an occurrence in iv.
+func (iv compiledInterval) contains(other compiledInterval) bool {
+	return other.interval%iv.interval == 0 && (other.phase-iv.phase)%iv.interval == 0
+}
+
+func compileIntervals(intervals []*schedulepb.IntervalSpec) []compiledInterval {
+	compiled := make([]compiledInterval, 0, len(intervals))
+	for _, intervalSpec := range intervals {
+		candidate := compiledInterval{
+			interval: max(int64(timestamp.DurationValue(intervalSpec.Interval)/time.Second), 1),
+			phase:    max(int64(timestamp.DurationValue(intervalSpec.Phase)/time.Second), 0),
+		}
+
+		redundant := false
+		for _, existing := range compiled {
+			if existing.contains(candidate) {
+				redundant = true
+				break
+			}
+		}
+		if redundant {
+			continue
+		}
+
+		// If the new source is denser than an earlier source with a compatible phase, the earlier
+		// source is redundant. Preserve order for all remaining sources to keep debugging stable.
+		kept := compiled[:0]
+		for _, existing := range compiled {
+			if !candidate.contains(existing) {
+				kept = append(kept, existing)
+			}
+		}
+		compiled = append(kept, candidate)
+	}
+	return compiled
+}
+
+func containsEverySecond(intervals []compiledInterval) bool {
+	for _, interval := range intervals {
+		if interval.interval == 1 {
+			return true
+		}
+	}
+	return false
 }
 
 // Returns the end of the contiguous excluded range containing nominal. If any matching
