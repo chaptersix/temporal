@@ -25,6 +25,11 @@ type (
 		// when all fields match.
 		year, month, dayOfMonth, dayOfWeek, hour, minute, second func(int) bool
 	}
+
+	compiledExclusion struct {
+		calendar    *compiledCalendar
+		nonMatchers []*compiledCalendar
+	}
 )
 
 const (
@@ -80,16 +85,99 @@ var (
 )
 
 func newCompiledCalendar(cal *schedulepb.StructuredCalendarSpec, tz *time.Location) *compiledCalendar {
+	return newCompiledCalendarFromMatchers(
+		tz,
+		makeYearMatcher(cal.Year),
+		makeBitMatcher(cal.Month),
+		makeBitMatcher(cal.DayOfMonth),
+		makeBitMatcher(cal.DayOfWeek),
+		makeBitMatcher(cal.Hour),
+		makeBitMatcher(cal.Minute),
+		makeBitMatcher(cal.Second),
+	)
+}
+
+func newCompiledCalendarFromMatchers(
+	tz *time.Location,
+	year func(int) bool,
+	month func(int) bool,
+	dayOfMonth func(int) bool,
+	dayOfWeek func(int) bool,
+	hour func(int) bool,
+	minute func(int) bool,
+	second func(int) bool,
+) *compiledCalendar {
 	return &compiledCalendar{
 		tz:         tz,
-		year:       makeYearMatcher(cal.Year),
-		month:      makeBitMatcher(cal.Month),
-		dayOfMonth: makeBitMatcher(cal.DayOfMonth),
-		dayOfWeek:  makeBitMatcher(cal.DayOfWeek),
-		hour:       makeBitMatcher(cal.Hour),
-		minute:     makeBitMatcher(cal.Minute),
-		second:     makeBitMatcher(cal.Second),
+		year:       year,
+		month:      month,
+		dayOfMonth: dayOfMonth,
+		dayOfWeek:  dayOfWeek,
+		hour:       hour,
+		minute:     minute,
+		second:     second,
 	}
+}
+
+func newCompiledExclusion(cal *schedulepb.StructuredCalendarSpec, tz *time.Location) *compiledExclusion {
+	calendar := newCompiledCalendar(cal, tz)
+	matchAll := func(int) bool { return true }
+	invert := func(matcher func(int) bool) func(int) bool {
+		return func(value int) bool { return !matcher(value) }
+	}
+	canReject := func(matcher func(int) bool, minValue, maxValue int) bool {
+		for value := minValue; value <= maxValue; value++ {
+			if !matcher(value) {
+				return true
+			}
+		}
+		return false
+	}
+
+	var nonMatchers []*compiledCalendar
+	if canReject(calendar.year, minCalendarYear, maxCalendarYear) {
+		nonMatchers = append(nonMatchers, newCompiledCalendarFromMatchers(
+			tz, invert(calendar.year), matchAll, matchAll, matchAll, matchAll, matchAll, matchAll))
+	}
+	if canReject(calendar.month, int(time.January), int(time.December)) {
+		nonMatchers = append(nonMatchers, newCompiledCalendarFromMatchers(
+			tz, matchAll, invert(calendar.month), matchAll, matchAll, matchAll, matchAll, matchAll))
+	}
+	if canReject(calendar.dayOfMonth, 1, 31) {
+		nonMatchers = append(nonMatchers, newCompiledCalendarFromMatchers(
+			tz, matchAll, matchAll, invert(calendar.dayOfMonth), matchAll, matchAll, matchAll, matchAll))
+	}
+	if canReject(calendar.dayOfWeek, int(time.Sunday), int(time.Saturday)) {
+		nonMatchers = append(nonMatchers, newCompiledCalendarFromMatchers(
+			tz, matchAll, matchAll, matchAll, invert(calendar.dayOfWeek), matchAll, matchAll, matchAll))
+	}
+	if canReject(calendar.hour, 0, 23) {
+		nonMatchers = append(nonMatchers, newCompiledCalendarFromMatchers(
+			tz, matchAll, matchAll, matchAll, matchAll, invert(calendar.hour), matchAll, matchAll))
+	}
+	if canReject(calendar.minute, 0, 59) {
+		nonMatchers = append(nonMatchers, newCompiledCalendarFromMatchers(
+			tz, matchAll, matchAll, matchAll, matchAll, matchAll, invert(calendar.minute), matchAll))
+	}
+	if canReject(calendar.second, 0, 59) {
+		nonMatchers = append(nonMatchers, newCompiledCalendarFromMatchers(
+			tz, matchAll, matchAll, matchAll, matchAll, matchAll, matchAll, invert(calendar.second)))
+	}
+
+	return &compiledExclusion{calendar: calendar, nonMatchers: nonMatchers}
+}
+
+// Returns the first time after ts that does not match this exclusion. A zero result means the
+// exclusion continues through the end of the supported calendar range.
+func (ce *compiledExclusion) nextNonMatch(ts time.Time) time.Time {
+	var first time.Time
+	for _, nonMatcher := range ce.nonMatchers {
+		next := nonMatcher.next(ts)
+		if !next.IsZero() && (first.IsZero() || next.Before(first)) {
+			first = next
+		}
+	}
+	return first
 }
 
 // Returns true if the given time matches this calendar spec.

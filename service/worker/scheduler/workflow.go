@@ -1172,16 +1172,17 @@ func (s *scheduler) handleListMatchingTimesQuery(req *workflowservice.ListSchedu
 
 	var out []*timestamppb.Timestamp
 	t1 := timestamp.TimeValue(req.StartTime)
+	end := timestamp.TimeValue(req.EndTime)
 	for range maxListMatchingTimesCount {
 		// don't need to call GetNextTime in SideEffect because this is just a query
-		res, err := s.cspec.GetNextTime(s.jitterSeed(), t1)
+		res, err := s.cspec.GetNextTimeWithUpperBound(s.jitterSeed(), t1, end)
 		if err != nil {
 			// An over-excluded spec won't resolve until it's edited, so return a
 			// non-retryable code: retrying would just re-burn the compute bound each call.
 			return nil, ErrScheduleSpecLimitHit
 		}
 		t1 = res.Next
-		if t1.IsZero() || t1.After(timestamp.TimeValue(req.EndTime)) {
+		if t1.IsZero() || t1.After(end) {
 			break
 		}
 		out = append(out, timestamppb.New(t1))

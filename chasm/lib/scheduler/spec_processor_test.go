@@ -295,10 +295,10 @@ func TestProcessTimeRange_ComputeLimitExceeded(t *testing.T) {
 	ctx := chasm.NewMutableContext(context.Background(), env.Node)
 
 	schedule := defaultSchedule()
-	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
+	everyOtherSecond := &schedulepb.CalendarSpec{Second: "*/2", Minute: "*", Hour: "*"}
 	schedule.Spec = &schedulepb.ScheduleSpec{
-		Calendar:        []*schedulepb.CalendarSpec{everySecond},
-		ExcludeCalendar: []*schedulepb.CalendarSpec{everySecond},
+		Calendar:        []*schedulepb.CalendarSpec{everyOtherSecond},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{everyOtherSecond},
 	}
 	sched, err := scheduler.NewScheduler(ctx, namespace, namespaceID, scheduleID, schedule, nil)
 	require.NoError(t, err)
@@ -343,10 +343,10 @@ func TestProcessTimeRange_ComputeLimitWarning(t *testing.T) {
 	start := end.Add(-defaultInterval)
 
 	schedule := defaultSchedule()
-	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
+	everyOtherSecond := &schedulepb.CalendarSpec{Second: "*/2", Minute: "*", Hour: "*"}
 	schedule.Spec = &schedulepb.ScheduleSpec{
-		Calendar:        []*schedulepb.CalendarSpec{everySecond},
-		ExcludeCalendar: []*schedulepb.CalendarSpec{everySecond},
+		Calendar:        []*schedulepb.CalendarSpec{everyOtherSecond},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{everyOtherSecond},
 		// A short end time bounds the (otherwise unlimited) scan so the test stays fast while
 		// still crossing the small warn threshold below.
 		EndTime: timestamppb.New(end.Add(30 * time.Second)),

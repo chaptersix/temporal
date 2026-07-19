@@ -1,11 +1,14 @@
 package scheduler
 
 import (
+	"math/rand"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	schedulepb "go.temporal.io/api/schedule/v1"
+	"go.temporal.io/server/common/primitives/timestamp"
 	"go.temporal.io/server/common/testing/protorequire"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -15,6 +18,42 @@ import (
 // of 0 means "use the default" (GetNextTime treats a non-positive bound as its default).
 func newSpecBuilderForTest(warnIter, maxIter int) *SpecBuilder {
 	return NewSpecBuilder(func() int { return warnIter }, func() int { return maxIter })
+}
+
+func bruteForceNextTimeWithUpperBound(
+	cs *CompiledSpec,
+	jitterSeed string,
+	after time.Time,
+	upperBound time.Time,
+) GetNextTimeResult {
+	var nominal time.Time
+	for {
+		nominal = cs.rawNextTime(after)
+		if nominal.IsZero() || nominal.After(upperBound) || nominal.Year() > maxCalendarYear {
+			return GetNextTimeResult{}
+		}
+		excluded := false
+		for _, exclusion := range cs.excludes {
+			if exclusion.calendar.matches(nominal) {
+				excluded = true
+				break
+			}
+		}
+		if !excluded {
+			break
+		}
+		after = nominal
+	}
+
+	maxJitter := timestamp.DurationValue(cs.spec.Jitter)
+	if following := cs.rawNextTime(nominal); !following.IsZero() {
+		maxJitter = min(maxJitter, following.Sub(nominal))
+	}
+	next := cs.addJitter(jitterSeed, nominal, maxJitter)
+	if next.After(upperBound) {
+		return GetNextTimeResult{}
+	}
+	return GetNextTimeResult{Nominal: nominal, Next: next}
 }
 
 type specSuite struct {
@@ -373,6 +412,142 @@ func (s *specSuite) TestSpecExclude() {
 	)
 }
 
+func (s *specSuite) TestSpecExcludeOverlappingRanges() {
+	cs, err := s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{
+			{Second: "*", Minute: "*", Hour: "0-2"},
+			{Second: "*", Minute: "*", Hour: "1-3"},
+		},
+	})
+	s.Require().NoError(err)
+
+	start := time.Date(2024, time.January, 2, 1, 30, 0, 0, time.UTC)
+	result, err := cs.GetNextTime("", start)
+	s.Require().NoError(err)
+	s.Equal(time.Date(2024, time.January, 2, 4, 0, 0, 0, time.UTC), result.Nominal)
+}
+
+func (s *specSuite) TestGetNextTimeWithUpperBound() {
+	cs, err := s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{
+			{Second: "*", Minute: "*", Hour: "0-11"},
+		},
+	})
+	s.Require().NoError(err)
+
+	start := time.Date(2024, time.January, 2, 1, 0, 0, 0, time.UTC)
+	result, err := cs.GetNextTimeWithUpperBound("", start, start.Add(time.Minute))
+	s.Require().NoError(err)
+	s.Zero(result)
+
+	result, err = cs.GetNextTimeWithUpperBound("", start, time.Date(2024, time.January, 2, 12, 0, 0, 0, time.UTC))
+	s.Require().NoError(err)
+	s.Equal(time.Date(2024, time.January, 2, 12, 0, 0, 0, time.UTC), result.Nominal)
+}
+
+func (s *specSuite) TestDenseExclusionDoesNotCrossComputeWarning() {
+	builder := newSpecBuilderForTest(5, 10)
+	cs, err := builder.NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{
+			{Second: "*", Minute: "*", Hour: "0-11"},
+		},
+	})
+	s.Require().NoError(err)
+
+	result, err := cs.GetNextTime("", time.Date(2024, time.January, 2, 1, 0, 0, 0, time.UTC))
+	s.Require().NoError(err)
+	s.False(result.ComputeLimitWarning)
+	s.Equal(time.Date(2024, time.January, 2, 12, 0, 0, 0, time.UTC), result.Nominal)
+}
+
+func TestGetNextTimeOptimizationProperty(t *testing.T) {
+	rng := rand.New(rand.NewSource(99173))
+	zNames := []string{"UTC", "America/Los_Angeles", "America/New_York", "Europe/London", "Australia/Lord_Howe"}
+	secondExpressions := []string{"*", "0-14", "15-44", "45-59", "*/2", "1-59/2", "0-58"}
+	minuteExpressions := []string{"*", "0-14", "15-44", "45-59", "*/2", "1-59/2"}
+	hourExpressions := []string{"*", "0-5", "6-11", "12-17", "18-23", "*/2", "1-23/2"}
+	dayOfWeekExpressions := []string{"*", "0-1", "1-5", "5-6", "*/2"}
+	pick := func(values []string) string { return values[rng.Intn(len(values))] }
+
+	for testCase := range 500 {
+		spec := &schedulepb.ScheduleSpec{
+			TimezoneName: tzNames[rng.Intn(len(tzNames))],
+			Interval: []*schedulepb.IntervalSpec{{
+				Interval: durationpb.New(time.Duration(rng.Intn(30)+1) * time.Second),
+			}},
+			Jitter: durationpb.New(time.Duration(rng.Intn(10)) * time.Second),
+		}
+		if rng.Intn(2) == 0 {
+			spec.Calendar = []*schedulepb.CalendarSpec{{
+				Second: pick(secondExpressions), Minute: "*", Hour: "*",
+			}}
+		}
+		for range rng.Intn(4) {
+			spec.ExcludeCalendar = append(spec.ExcludeCalendar, &schedulepb.CalendarSpec{
+				Second:     pick(secondExpressions),
+				Minute:     pick(minuteExpressions),
+				Hour:       pick(hourExpressions),
+				DayOfMonth: "*",
+				Month:      "*",
+				Year:       "*",
+				DayOfWeek:  pick(dayOfWeekExpressions),
+			})
+		}
+
+		cs, err := newSpecBuilderForTest(0, 0).NewCompiledSpec(spec)
+		require.NoError(t, err, "case %d", testCase)
+		start := time.Unix(
+			time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC).Unix()+rng.Int63n(365*24*60*60),
+			0,
+		)
+		upperBound := start.Add(2 * time.Hour)
+		expected := bruteForceNextTimeWithUpperBound(cs, "property", start, upperBound)
+		actual, err := cs.GetNextTimeWithUpperBound("property", start, upperBound)
+		require.NoError(t, err, "case %d", testCase)
+		require.Equal(t, expected, actual, "case %d, spec: %v", testCase, spec)
+	}
+}
+
+func BenchmarkGetNextTimeDenseExclusion(b *testing.B) {
+	cs, err := newSpecBuilderForTest(0, 0).NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{
+			{Second: "*", Minute: "*", Hour: "0-11"},
+		},
+	})
+	require.NoError(b, err)
+	start := time.Date(2024, time.January, 2, 1, 0, 0, 0, time.UTC)
+
+	b.ResetTimer()
+	for range b.N {
+		result, err := cs.GetNextTime("", start)
+		if err != nil || result.Nominal.Hour() != 12 {
+			b.Fatalf("result=%v err=%v", result, err)
+		}
+	}
+}
+
+func BenchmarkGetNextTimeFullyExcluded(b *testing.B) {
+	everySecond := &schedulepb.CalendarSpec{Second: "*", Minute: "*", Hour: "*"}
+	cs, err := newSpecBuilderForTest(0, 0).NewCompiledSpec(&schedulepb.ScheduleSpec{
+		Calendar:        []*schedulepb.CalendarSpec{everySecond},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{everySecond},
+	})
+	require.NoError(b, err)
+	start := time.Date(2024, time.January, 2, 1, 0, 0, 0, time.UTC)
+
+	b.ResetTimer()
+	for range b.N {
+		result, err := cs.GetNextTime("", start)
+		if err != nil || !result.Next.IsZero() {
+			b.Fatalf("result=%v err=%v", result, err)
+		}
+	}
+}
+
 func (s *specSuite) TestExcludeAll() {
 	cs, err := s.specBuilder.NewCompiledSpec(&schedulepb.ScheduleSpec{
 		Interval: []*schedulepb.IntervalSpec{
@@ -389,12 +564,13 @@ func (s *specSuite) TestExcludeAll() {
 }
 
 func (s *specSuite) TestGetNextTimeComputeLimitExceeded() {
-	// Mirrored calendar/exclude: every candidate is excluded, so the search hits the bound.
+	// The inclusion matches only isolated excluded seconds, so range skipping cannot collapse
+	// the search into a single jump and the hard compute bound is still enforced.
 	const iterations = 10_000
 	builder := newSpecBuilderForTest(0, iterations)
 	cs, err := builder.NewCompiledSpec(&schedulepb.ScheduleSpec{
-		Calendar:        []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
-		ExcludeCalendar: []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
+		Interval:        []*schedulepb.IntervalSpec{{Interval: durationpb.New(2 * time.Second)}},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{{Second: "*/2", Minute: "*", Hour: "*"}},
 	})
 	s.Require().NoError(err)
 
@@ -405,15 +581,13 @@ func (s *specSuite) TestGetNextTimeComputeLimitExceeded() {
 }
 
 func (s *specSuite) TestGetNextTimeComputeLimitWarning() {
-	// Mirrored calendar/exclude means every candidate is excluded. With the hard limit disabled
-	// (the default, math.MaxInt) the search does not error; it crosses the warn threshold and
-	// keeps searching until the spec's end time, then returns no match. A short end time keeps
-	// the scan bounded for the test.
+	// Isolated excluded candidates cannot be collapsed into one range jump. With the hard limit
+	// disabled, the search crosses the warning threshold and continues to the spec's end time.
 	start := time.Date(2022, 3, 23, 12, 0, 0, 0, time.UTC)
 	builder := newSpecBuilderForTest(5, 0)
 	cs, err := builder.NewCompiledSpec(&schedulepb.ScheduleSpec{
-		Calendar:        []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
-		ExcludeCalendar: []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
+		Interval:        []*schedulepb.IntervalSpec{{Interval: durationpb.New(2 * time.Second)}},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{{Second: "*/2", Minute: "*", Hour: "*"}},
 		EndTime:         timestamppb.New(start.Add(30 * time.Second)),
 	})
 	s.Require().NoError(err)
@@ -425,15 +599,15 @@ func (s *specSuite) TestGetNextTimeComputeLimitWarning() {
 }
 
 func (s *specSuite) TestGetNextTimeComputeLimitWarningThenResolves() {
-	// Calendar matches every second; exclude matches every second EXCEPT :59. The search skips
-	// the excluded seconds (crossing the small warn threshold) and then resolves to a real time.
+	// The interval matches isolated even seconds and the exclusion covers the first few of them.
+	// The search crosses the small warn threshold and then resolves to a real time.
 	// This exercises the success return path carrying ComputeLimitWarning=true (as opposed to the
 	// no-match path in TestGetNextTimeComputeLimitWarning).
 	start := time.Date(2022, 3, 23, 12, 0, 0, 0, time.UTC)
 	builder := newSpecBuilderForTest(5, 0)
 	cs, err := builder.NewCompiledSpec(&schedulepb.ScheduleSpec{
-		Calendar:        []*schedulepb.CalendarSpec{{Second: "*", Minute: "*", Hour: "*"}},
-		ExcludeCalendar: []*schedulepb.CalendarSpec{{Second: "0-58", Minute: "*", Hour: "*"}},
+		Interval:        []*schedulepb.IntervalSpec{{Interval: durationpb.New(2 * time.Second)}},
+		ExcludeCalendar: []*schedulepb.CalendarSpec{{Second: "0-8/2", Minute: "*", Hour: "*"}},
 	})
 	s.Require().NoError(err)
 
@@ -441,7 +615,7 @@ func (s *specSuite) TestGetNextTimeComputeLimitWarningThenResolves() {
 	s.Require().NoError(err)
 	s.True(result.ComputeLimitWarning, "crossing the warn threshold should be flagged even when the search resolves")
 	s.Require().False(result.Next.IsZero(), "the search should resolve to a real next time")
-	s.Equal(59, result.Nominal.Second(), "the only non-excluded second is :59")
+	s.Equal(10, result.Nominal.Second(), "the first non-excluded interval time is :10")
 }
 
 func (s *specSuite) TestSpecStartTime() {

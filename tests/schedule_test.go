@@ -4977,8 +4977,6 @@ func TestScheduleNextActionTimeVisibility(t *testing.T) {
 // TestMirroredIncludeExcludeSpec sets identical interval and exclusion
 // specifications that match every 1s, effectively cancelling each other out.
 func TestMirroredIncludeExcludeSpec(t *testing.T) {
-	// A tiny compute bound trips the mirrored spec near-instantly; the default (~1.2M candidate
-	// scans per GetNextTime) makes this test burn seconds of CPU on every scheduler code path.
 	opts := append(scheduleCommonOpts(t), testcore.WithDynamicConfig(dynamicconfig.SchedulerSpecMaxIterations, 1000))
 	s := testcore.NewEnv(t, opts...)
 
@@ -4998,20 +4996,20 @@ func TestMirroredIncludeExcludeSpec(t *testing.T) {
 		Action: startWorkflowAction(s, wid, wt),
 	})
 
-	// ListMatchingTimes must surface the compute limit as an error rather than hang.
-	_, lmErr := s.FrontendClient().ListScheduleMatchingTimes(ctx, &workflowservice.ListScheduleMatchingTimesRequest{
+	// The exclusion has no future non-matching range, so listing resolves to empty immediately.
+	resp, lmErr := s.FrontendClient().ListScheduleMatchingTimes(ctx, &workflowservice.ListScheduleMatchingTimesRequest{
 		Namespace:  s.Namespace().String(),
 		ScheduleId: sid,
 		StartTime:  timestamppb.New(time.Now().UTC()),
 		EndTime:    timestamppb.New(time.Now().UTC().Add(time.Hour)),
 	})
-	require.Error(t, lmErr, "ListMatchingTimes should error for a mirrored include/exclude spec")
+	require.NoError(t, lmErr)
+	require.Empty(t, resp.GetStartTime())
 }
 
 // TestMirroredIncludeExcludeSpecOnUpdate is like TestMirroredIncludeExcludeSpec but reaches the
 // mirrored spec via UpdateSchedule, exercising the spec-recompile path on an existing schedule.
 func TestMirroredIncludeExcludeSpecOnUpdate(t *testing.T) {
-	// A tiny compute bound trips the mirrored spec near-instantly (see TestMirroredIncludeExcludeSpec).
 	opts := append(scheduleCommonOpts(t), testcore.WithDynamicConfig(dynamicconfig.SchedulerSpecMaxIterations, 1000))
 	s := testcore.NewEnv(t, opts...)
 
@@ -5043,16 +5041,16 @@ func TestMirroredIncludeExcludeSpecOnUpdate(t *testing.T) {
 	})
 	require.NoError(t, err, "UpdateSchedule to a mirrored include/exclude spec should not hang")
 
-	// Once the mirrored spec is applied, ListMatchingTimes must surface the compute limit.
+	// Once the mirrored spec is applied, ListMatchingTimes resolves to empty immediately.
 	await.RequireTruef(t, func() bool {
-		_, lmErr := s.FrontendClient().ListScheduleMatchingTimes(ctx, &workflowservice.ListScheduleMatchingTimesRequest{
+		resp, lmErr := s.FrontendClient().ListScheduleMatchingTimes(ctx, &workflowservice.ListScheduleMatchingTimesRequest{
 			Namespace:  s.Namespace().String(),
 			ScheduleId: sid,
 			StartTime:  timestamppb.New(time.Now().UTC()),
 			EndTime:    timestamppb.New(time.Now().UTC().Add(time.Hour)),
 		})
-		return lmErr != nil
-	}, awaitTimeout, pollInterval, "ListMatchingTimes should error once the mirrored spec is applied")
+		return lmErr == nil && len(resp.GetStartTime()) == 0
+	}, awaitTimeout, pollInterval, "ListMatchingTimes should be empty once the mirrored spec is applied")
 }
 
 // TestScheduleFarFutureActionTimes verifies that a schedule firing far beyond the compute

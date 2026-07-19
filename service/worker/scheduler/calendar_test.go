@@ -33,6 +33,14 @@ func (s *calendarSuite) mustCompileCalendarSpec(cal *schedulepb.CalendarSpec, tz
 	return cc
 }
 
+func (s *calendarSuite) mustCompileExclusion(cal *schedulepb.CalendarSpec, tz *time.Location) *compiledExclusion {
+	scs, err := parseCalendarToStructured(cal)
+	s.NoError(err)
+	s.NotNil(scs)
+	s.NoError(validateStructuredCalendar(scs))
+	return newCompiledExclusion(scs, tz)
+}
+
 func (s *calendarSuite) TestCalendarMatch() {
 	pacific, err := time.LoadLocation("US/Pacific")
 	s.NoError(err)
@@ -367,6 +375,111 @@ func (s *calendarSuite) TestDaysInMonth() {
 	s.Equal(31, daysInMonth(time.October, 2022))
 	s.Equal(30, daysInMonth(time.November, 2022))
 	s.Equal(31, daysInMonth(time.December, 2022))
+}
+
+func (s *calendarSuite) TestExclusionNextNonMatch() {
+	tests := []struct {
+		name     string
+		calendar *schedulepb.CalendarSpec
+		start    time.Time
+		expected time.Time
+	}{
+		{
+			name: "non-contiguous hours",
+			calendar: &schedulepb.CalendarSpec{
+				Second: "*", Minute: "*", Hour: "1-3,5-7",
+			},
+			start:    time.Date(2024, time.January, 2, 2, 30, 0, 0, time.UTC),
+			expected: time.Date(2024, time.January, 2, 4, 0, 0, 0, time.UTC),
+		},
+		{
+			name: "second holes",
+			calendar: &schedulepb.CalendarSpec{
+				Second: "0-58", Minute: "*", Hour: "*",
+			},
+			start:    time.Date(2024, time.January, 2, 2, 30, 17, 0, time.UTC),
+			expected: time.Date(2024, time.January, 2, 2, 30, 59, 0, time.UTC),
+		},
+	}
+
+	for _, test := range tests {
+		s.Run(test.name, func() {
+			exclusion := s.mustCompileExclusion(test.calendar, time.UTC)
+			s.True(exclusion.calendar.matches(test.start))
+			s.Equal(test.expected, exclusion.nextNonMatch(test.start))
+		})
+	}
+}
+
+func (s *calendarSuite) TestExclusionNextNonMatchDST() {
+	newYork, err := time.LoadLocation("America/New_York")
+	s.Require().NoError(err)
+	exclusion := s.mustCompileExclusion(&schedulepb.CalendarSpec{
+		Second: "*", Minute: "*", Hour: "1",
+	}, newYork)
+
+	// Both copies of the repeated 1 a.m. hour are one contiguous excluded range.
+	fallStart := time.Date(2024, time.November, 3, 5, 30, 0, 0, time.UTC)
+	s.True(exclusion.calendar.matches(fallStart))
+	s.Equal(time.Date(2024, time.November, 3, 7, 0, 0, 0, time.UTC), exclusion.nextNonMatch(fallStart))
+
+	// The nonexistent 2 a.m. hour does not create an artificial boundary.
+	springStart := time.Date(2024, time.March, 10, 6, 30, 0, 0, time.UTC)
+	s.True(exclusion.calendar.matches(springStart))
+	s.Equal(time.Date(2024, time.March, 10, 7, 0, 0, 0, time.UTC), exclusion.nextNonMatch(springStart))
+}
+
+func TestExclusionNextNonMatchProperty(t *testing.T) {
+	rng := rand.New(rand.NewSource(81723))
+	zNames := []string{"UTC", "America/Los_Angeles", "America/New_York", "Europe/London", "Australia/Lord_Howe"}
+	fullRange := func(minValue, maxValue int) []*schedulepb.Range {
+		return []*schedulepb.Range{{Start: int32(minValue), End: int32(maxValue), Step: 1}}
+	}
+	coveringRange := func(value, minValue, maxValue int) []*schedulepb.Range {
+		if rng.Intn(3) == 0 {
+			return fullRange(minValue, maxValue)
+		}
+		start := minValue + rng.Intn(value-minValue+1)
+		end := value + rng.Intn(maxValue-value+1)
+		return []*schedulepb.Range{{Start: int32(start), End: int32(end), Step: 1}}
+	}
+
+	for testCase := range 1000 {
+		loc, err := time.LoadLocation(tzNames[rng.Intn(len(tzNames))])
+		require.NoError(t, err)
+		start := time.Unix(rng.Int63n(6*365*24*60*60)+time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC).Unix(), 0)
+		local := start.In(loc)
+		year, month, day := local.Date()
+		hour, minute, second := local.Clock()
+
+		cal := &schedulepb.StructuredCalendarSpec{
+			Second:     coveringRange(second, 0, 59),
+			Minute:     coveringRange(minute, 0, 59),
+			Hour:       coveringRange(hour, 0, 23),
+			DayOfMonth: coveringRange(day, 1, 31),
+			Month:      coveringRange(int(month), int(time.January), int(time.December)),
+			Year:       coveringRange(year, minCalendarYear, maxCalendarYear),
+			DayOfWeek:  coveringRange(int(local.Weekday()), int(time.Sunday), int(time.Saturday)),
+		}
+		// Keep the brute-force oracle bounded while varying which low-order field ends the run.
+		switch rng.Intn(3) {
+		case 0:
+			cal.Second = []*schedulepb.Range{{Start: int32(second), End: int32(second), Step: 1}}
+		case 1:
+			cal.Minute = []*schedulepb.Range{{Start: int32(minute), End: int32(minute), Step: 1}}
+		case 2:
+			cal.Hour = []*schedulepb.Range{{Start: int32(hour), End: int32(hour), Step: 1}}
+		}
+
+		exclusion := newCompiledExclusion(cal, loc)
+		require.True(t, exclusion.calendar.matches(start), "case %d", testCase)
+		expected := start.Add(time.Second)
+		for exclusion.calendar.matches(expected) {
+			expected = expected.Add(time.Second)
+			require.Less(t, expected.Sub(start), 26*time.Hour, "case %d", testCase)
+		}
+		require.Equal(t, expected, exclusion.nextNonMatch(start), "case %d in %s", testCase, loc)
+	}
 }
 
 func FuzzCalendar(f *testing.F) {
