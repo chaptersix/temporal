@@ -11,6 +11,7 @@ import (
 	"go.temporal.io/server/chasm/chasmtest/rpcgen"
 	"go.temporal.io/server/chasm/chasmtest/rpctest"
 	"google.golang.org/grpc/codes"
+	"pgregory.net/rapid"
 )
 
 // schedulerRPCProfiles records the dependency outcomes the scheduler can
@@ -76,4 +77,24 @@ func TestSchedulerRPCProfilesQueueLabeledBehaviors(t *testing.T) {
 	require.Equal(t, "committed-run", response.GetRunId())
 	calls := script.Calls()
 	require.Equal(t, []string{"retryable-Unavailable", "ambiguous-commit"}, []string{calls[0].Name, calls[1].Name})
+}
+
+func TestSchedulerRPCProfilesReplayBehaviorSelection(t *testing.T) {
+	profiles := schedulerRPCProfiles{}
+	rapid.Check(t, func(t *rapid.T) {
+		behavior := rpcgen.Draw(t, "StartWorkflowExecution behavior",
+			profiles.startRetryable(),
+			profiles.startTerminal(),
+		)
+		var script rpctest.Script[
+			*workflowservice.StartWorkflowExecutionRequest,
+			*workflowservice.StartWorkflowExecutionResponse,
+		]
+		behavior.Queue(&script)
+		_, err := script.Handle(t.Context(), &workflowservice.StartWorkflowExecutionRequest{})
+		require.Error(t, err)
+		calls := script.Calls()
+		require.Len(t, calls, 1)
+		require.Equal(t, behavior.Label, calls[0].Name)
+	})
 }

@@ -36,3 +36,21 @@ func TestBehaviorDrawIsReplayable(t *testing.T) {
 		require.NotEmpty(t, behavior.Label)
 	})
 }
+
+func TestRetrySequenceAndCancellation(t *testing.T) {
+	var script rpctest.Script[*wrapperspb.StringValue, *wrapperspb.StringValue]
+	rpcgen.QueueSequence(&script, rpcgen.RetrySequence(
+		rpcgen.Retryable[*wrapperspb.StringValue, *wrapperspb.StringValue](codes.Unavailable),
+		rpcgen.Success[*wrapperspb.StringValue](wrapperspb.String("success")),
+	)...)
+	_, err := script.Handle(context.Background(), wrapperspb.String("first"))
+	require.Equal(t, codes.Unavailable, status.Code(err))
+	response, err := script.Handle(context.Background(), wrapperspb.String("second"))
+	require.NoError(t, err)
+	require.Equal(t, "success", response.GetValue())
+
+	var cancellation rpctest.Script[*wrapperspb.StringValue, *wrapperspb.StringValue]
+	rpcgen.Cancellation[*wrapperspb.StringValue, *wrapperspb.StringValue]().Queue(&cancellation)
+	_, err = cancellation.Handle(context.Background(), wrapperspb.String("third"))
+	require.ErrorIs(t, err, context.Canceled)
+}

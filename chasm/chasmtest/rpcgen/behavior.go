@@ -59,6 +59,11 @@ func Timeout[Request, Response proto.Message]() Behavior[Request, Response] {
 	return Behavior[Request, Response]{Label: "timeout", Delay: time.Hour}
 }
 
+// Cancellation returns the cancellation observed by an already-canceled caller.
+func Cancellation[Request, Response proto.Message]() Behavior[Request, Response] {
+	return Behavior[Request, Response]{Label: "cancellation", Err: context.Canceled}
+}
+
 // AmbiguousCommit records that the dependency committed response before the
 // caller observed an unavailable error.
 func AmbiguousCommit[Request, Response proto.Message](response Response) Behavior[Request, Response] {
@@ -73,6 +78,16 @@ func AmbiguousCommit[Request, Response proto.Message](response Response) Behavio
 // RetrySequence queues a finite retry sequence in call order.
 func RetrySequence[Request, Response proto.Message](behaviors ...Behavior[Request, Response]) []Behavior[Request, Response] {
 	return behaviors
+}
+
+// QueueSequence installs a retry sequence in call order.
+func QueueSequence[Request, Response proto.Message](
+	script *rpctest.Script[Request, Response],
+	behaviors ...Behavior[Request, Response],
+) {
+	for _, behavior := range behaviors {
+		behavior.Queue(script)
+	}
 }
 
 // Draw selects a behavior on the property-test goroutine. The supplied label
