@@ -344,6 +344,21 @@ func TestExecuteTask_MaxAttemptsIncludesLimit(t *testing.T) {
 	})
 }
 
+func TestExecuteTask_DropsRetryPastCatchupDeadline(t *testing.T) {
+	env := newInvokerExecuteTestEnv(t)
+	now := env.TimeSource.Now()
+	runExecuteTestCase(t, env, &executeTestCase{
+		InitialBufferedStarts: []*schedulespb.BufferedStart{{
+			NominalTime:   timestamppb.New(now.Add(-10 * time.Minute)),
+			ActualTime:    timestamppb.New(now.Add(-10 * time.Minute)),
+			DesiredTime:   timestamppb.New(now.Add(-10 * time.Minute)),
+			RequestId:     "late-retry",
+			OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+			Attempt:       2,
+		}},
+	})
+}
+
 // An execute task retains cancels and terminations that fail to execute.
 func TestExecuteTask_CancelTerminateFailure(t *testing.T) {
 	env := newInvokerExecuteTestEnv(t)

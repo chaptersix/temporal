@@ -365,6 +365,17 @@ func (h *InvokerExecuteTaskHandler) startWorkflows(
 		if !ctx.takeNextAction() {
 			break
 		}
+		if !start.Manual {
+			deadline := start.ActualTime.AsTime().Add(max(
+				catchupWindow(scheduler, h.config.Tweakables(scheduler.Namespace)),
+				startWorkflowMinDeadline,
+			))
+			if now.After(deadline) {
+				// SCH-055: a retry that misses its catchup deadline must not start late.
+				result.FailedStarts = append(result.FailedStarts, common.CloneProto(start))
+				continue
+			}
+		}
 
 		// Clone start before concurrent access. The clone will have RunId/StartTime
 		// set by startWorkflow, then copied back to the original in recordExecuteResult.
