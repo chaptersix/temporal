@@ -54,6 +54,33 @@ func TestUnaryMethodGeneratorReplaysRapidDraws(t *testing.T) {
 	})
 }
 
+func TestUnaryMethodGeneratesClassifiedInboundRequests(t *testing.T) {
+	descriptor := historyservice.File_temporal_server_api_historyservice_v1_service_proto.
+		Services().ByName("HistoryService").Methods().ByName("DescribeWorkflowExecution")
+	method, err := rpcgen.NewUnaryMethod(
+		descriptor,
+		func() *historyservice.DescribeWorkflowExecutionRequest {
+			return &historyservice.DescribeWorkflowExecutionRequest{}
+		},
+		func() *historyservice.DescribeWorkflowExecutionResponse {
+			return &historyservice.DescribeWorkflowExecutionResponse{}
+		},
+	)
+	require.NoError(t, err)
+
+	classes := map[rpcgen.InboundRequestClass]bool{}
+	rapid.Check(t, func(t *rapid.T) {
+		request := method.InboundRequestGenerator(rpcgen.InboundRequestProfile[*historyservice.DescribeWorkflowExecutionRequest]{
+			Invalid: rapid.Just(&historyservice.DescribeWorkflowExecutionRequest{}),
+		}).Draw(t, "DescribeWorkflowExecution inbound request")
+		classes[request.Class] = true
+		require.NotNil(t, request.Value)
+		_, err := proto.Marshal(request.Value)
+		require.NoError(t, err)
+	})
+	require.NotEmpty(t, classes)
+}
+
 func TestUnaryMethodRejectsMismatchedTypes(t *testing.T) {
 	descriptor := historyservice.File_temporal_server_api_historyservice_v1_service_proto.
 		Services().ByName("HistoryService").Methods().ByName("DescribeWorkflowExecution")

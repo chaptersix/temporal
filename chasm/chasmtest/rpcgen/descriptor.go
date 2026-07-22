@@ -20,6 +20,32 @@ type UnaryMethod[Request, Response proto.Message] struct {
 	newResponse func() Response
 }
 
+// InboundRequestClass records how a generated inbound request should be used
+// by the receiving property. Descriptor structure alone cannot infer semantic
+// validity, so intentionally invalid values are supplied by the use case.
+type InboundRequestClass string
+
+const (
+	InboundRequestValid    InboundRequestClass = "valid"
+	InboundRequestBoundary InboundRequestClass = "boundary"
+	InboundRequestInvalid  InboundRequestClass = "invalid"
+)
+
+// InboundRequest is a transport-representable generated inbound request with
+// its declared test domain.
+type InboundRequest[Request proto.Message] struct {
+	Class InboundRequestClass
+	Value Request
+}
+
+// InboundRequestProfile supplies the semantic domains that descriptors cannot
+// determine. Every generated value must remain representable on the wire.
+type InboundRequestProfile[Request proto.Message] struct {
+	Valid    *rapid.Generator[Request]
+	Boundary *rapid.Generator[Request]
+	Invalid  *rapid.Generator[Request]
+}
+
 // NewUnaryMethod validates a typed unary method binding.
 func NewUnaryMethod[Request, Response proto.Message](
 	descriptor protoreflect.MethodDescriptor,
@@ -61,6 +87,44 @@ func (m UnaryMethod[Request, Response]) RequestGenerator() *rapid.Generator[Requ
 // ResponseGenerator returns transport-representable typed response messages.
 func (m UnaryMethod[Request, Response]) ResponseGenerator() *rapid.Generator[Response] {
 	return messageGenerator(m.newResponse)
+}
+
+// InboundRequestGenerator returns classified, transport-representable inbound
+// requests. Valid and boundary generators default to descriptor-backed values;
+// an invalid generator is opt-in because its semantic meaning belongs to the
+// use case rather than the protobuf descriptor.
+func (m UnaryMethod[Request, Response]) InboundRequestGenerator(
+	profile InboundRequestProfile[Request],
+) *rapid.Generator[InboundRequest[Request]] {
+	if profile.Valid == nil {
+		profile.Valid = m.RequestGenerator()
+	}
+	if profile.Boundary == nil {
+		profile.Boundary = rapid.Just(m.newRequest())
+	}
+	return rapid.Custom(func(t *rapid.T) InboundRequest[Request] {
+		classes := []InboundRequestClass{InboundRequestValid, InboundRequestBoundary}
+		if profile.Invalid != nil {
+			classes = append(classes, InboundRequestInvalid)
+		}
+		class := classes[rapid.IntRange(0, len(classes)-1).Draw(t, m.FullMethodName()+" inbound class")]
+		var value Request
+		switch class {
+		case InboundRequestValid:
+			value = profile.Valid.Draw(t, m.FullMethodName()+" valid request")
+		case InboundRequestBoundary:
+			value = profile.Boundary.Draw(t, m.FullMethodName()+" boundary request")
+		case InboundRequestInvalid:
+			value = profile.Invalid.Draw(t, m.FullMethodName()+" invalid request")
+		}
+		if isNil(value) {
+			t.Fatalf("rpcgen: %s inbound request generator returned nil", class)
+		}
+		if _, err := proto.Marshal(value); err != nil {
+			t.Fatalf("rpcgen: %s inbound request is not transport-representable: %v", class, err)
+		}
+		return InboundRequest[Request]{Class: class, Value: value}
+	})
 }
 
 func messageGenerator[Message proto.Message](newMessage func() Message) *rapid.Generator[Message] {
