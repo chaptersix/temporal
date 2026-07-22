@@ -290,6 +290,7 @@ func (h *InvokerExecuteTaskHandler) cancelWorkflows(
 			if err != nil {
 				logger.Info("failed to cancel workflow", tag.Error(err), tag.WorkflowID(wf.WorkflowId))
 				metricsHandler.Counter(metrics.ScheduleCancelWorkflowErrors.Name()).Record(1)
+				// SCH-073: retaining this target lets the re-armed execute task retry it.
 				return
 			}
 
@@ -328,6 +329,7 @@ func (h *InvokerExecuteTaskHandler) terminateWorkflows(
 			if err != nil {
 				logger.Info("failed to terminate workflow", tag.Error(err), tag.WorkflowID(wf.WorkflowId))
 				metricsHandler.Counter(metrics.ScheduleTerminateWorkflowErrors.Name()).Record(1)
+				// SCH-073: retaining this target lets the re-armed execute task retry it.
 				return
 			}
 
@@ -622,6 +624,7 @@ func (h *InvokerExecuteTaskHandler) startWorkflow(
 ) error {
 	requestSpec := scheduler.GetSchedule().GetAction().GetStartWorkflow()
 
+	// SCH-039: the configured limit is inclusive, so attempt ten must reach the RPC.
 	if start.Attempt > InvokerMaxStartAttempts {
 		return errRetryLimitExceeded
 	}

@@ -45,6 +45,28 @@ func TestSchedulerMigrationFailureReloadAndRetryProperty(t *testing.T) {
 	require.Len(t, env.services.Migrate.Calls(), 2)
 }
 
+func TestSchedulerMigrationTerminalFailureRestoresScheduleProperty(t *testing.T) {
+	env := newSchedulerPropertyEnv(t, false)
+	_, err := env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+	require.NoError(t, err)
+	schedulerRPCProfiles{}.migrationTerminal().Queue(&env.services.Migrate)
+	_, err = env.handler.MigrateToWorkflow(env.engineCtx, &schedulerpb.MigrateToWorkflowRequest{
+		NamespaceId: namespaceID, ScheduleId: scheduleID,
+	})
+	require.NoError(t, err)
+	runnable, err := env.engine.RunnableTasks(env.ref)
+	require.NoError(t, err)
+	require.Len(t, runnable, 1)
+
+	_, err = env.engine.ExecuteTask(t.Context(), env.ref, runnable[0])
+	require.NoError(t, err)
+	require.Len(t, env.services.Migrate.Calls(), 1)
+	require.False(t, env.describe(t).GetSchedule().GetState().GetPaused())
+	runnable, err = env.engine.RunnableTasks(env.ref)
+	require.NoError(t, err)
+	require.Empty(t, runnable)
+}
+
 func TestSchedulerCallbackRecoveryUsesGeneratedClientsProperty(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		env := newSchedulerPropertyEnv(t, false)

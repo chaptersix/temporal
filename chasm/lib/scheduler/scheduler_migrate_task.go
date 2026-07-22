@@ -227,6 +227,24 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 		// Treat already-started as success for idempotency.
 		var alreadyStartedErr *serviceerror.WorkflowExecutionAlreadyStarted
 		if !errors.As(err, &alreadyStartedErr) {
+			if !isRetryableError(err) {
+				// SCH-077: a terminal handoff failure must not leave the schedule migration-paused.
+				_, _, clearErr := chasm.UpdateComponent(
+					ctx,
+					schedulerRef,
+					func(s *Scheduler, ctx chasm.MutableContext, _ any) (chasm.NoValue, error) {
+						s.Schedule.State.Paused = s.WorkflowMigration.PreMigrationPaused
+						s.Schedule.State.Notes = s.WorkflowMigration.PreMigrationNotes
+						s.WorkflowMigration = nil
+						return nil, nil
+					},
+					nil,
+				)
+				if clearErr != nil {
+					return fmt.Errorf("failed to clear terminal migration: %w", clearErr)
+				}
+				return nil
+			}
 			return fmt.Errorf("failed to start V1 scheduler workflow: %w", err)
 		}
 	}

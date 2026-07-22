@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflow/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/api/historyservice/v1"
@@ -126,6 +127,16 @@ func (schedulerRPCProfiles) migrationRetryable() rpcgen.Behavior[
 	*historyservice.StartWorkflowExecutionResponse,
 ] {
 	return rpcgen.Retryable[*historyservice.StartWorkflowExecutionRequest, *historyservice.StartWorkflowExecutionResponse](codes.Unavailable)
+}
+
+func (schedulerRPCProfiles) migrationTerminal() rpcgen.Behavior[
+	*historyservice.StartWorkflowExecutionRequest,
+	*historyservice.StartWorkflowExecutionResponse,
+] {
+	return rpcgen.Behavior[
+		*historyservice.StartWorkflowExecutionRequest,
+		*historyservice.StartWorkflowExecutionResponse,
+	]{Label: "terminal-invalid-argument", Err: serviceerror.NewInvalidArgument("injected terminal failure")}
 }
 
 func (schedulerRPCProfiles) describeCompleted() rpcgen.Behavior[
