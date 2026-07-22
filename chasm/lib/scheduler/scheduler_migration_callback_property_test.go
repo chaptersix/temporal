@@ -5,10 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	enumspb "go.temporal.io/api/enums/v1"
-	"go.temporal.io/api/serviceerror"
-	"go.temporal.io/server/api/historyservice/v1"
 	"go.temporal.io/server/chasm"
-	"go.temporal.io/server/chasm/chasmtest/rpctest"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 )
@@ -17,13 +14,7 @@ func TestSchedulerMigrationFailureReloadAndRetryProperty(t *testing.T) {
 	env := newSchedulerPropertyEnv(t, false)
 	_, err := env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
 	require.NoError(t, err)
-	env.services.Migrate.Push(
-		"unavailable",
-		rpctest.Fail[
-			*historyservice.StartWorkflowExecutionRequest,
-			*historyservice.StartWorkflowExecutionResponse,
-		](serviceerror.NewUnavailable("injected migration failure")),
-	)
+	schedulerRPCProfiles{}.migrationRetryable().Queue(&env.services.Migrate)
 	_, err = env.handler.MigrateToWorkflow(env.engineCtx, &schedulerpb.MigrateToWorkflowRequest{
 		NamespaceId: namespaceID, ScheduleId: scheduleID,
 	})

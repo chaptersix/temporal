@@ -100,6 +100,13 @@ func (schedulerRPCProfiles) migrationStarted() rpcgen.Behavior[
 	})
 }
 
+func (schedulerRPCProfiles) migrationRetryable() rpcgen.Behavior[
+	*historyservice.StartWorkflowExecutionRequest,
+	*historyservice.StartWorkflowExecutionResponse,
+] {
+	return rpcgen.Retryable[*historyservice.StartWorkflowExecutionRequest, *historyservice.StartWorkflowExecutionResponse](codes.Unavailable)
+}
+
 func (schedulerRPCProfiles) describeCompleted() rpcgen.Behavior[
 	*historyservice.DescribeWorkflowExecutionRequest,
 	*historyservice.DescribeWorkflowExecutionResponse,
