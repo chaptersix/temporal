@@ -98,6 +98,20 @@ func (schedulerRPCProfiles) terminateAccepted() rpcgen.Behavior[
 	)
 }
 
+func (schedulerRPCProfiles) cancelRetryable() rpcgen.Behavior[
+	*historyservice.RequestCancelWorkflowExecutionRequest,
+	*historyservice.RequestCancelWorkflowExecutionResponse,
+] {
+	return rpcgen.Retryable[*historyservice.RequestCancelWorkflowExecutionRequest, *historyservice.RequestCancelWorkflowExecutionResponse](codes.Unavailable)
+}
+
+func (schedulerRPCProfiles) terminateRetryable() rpcgen.Behavior[
+	*historyservice.TerminateWorkflowExecutionRequest,
+	*historyservice.TerminateWorkflowExecutionResponse,
+] {
+	return rpcgen.Retryable[*historyservice.TerminateWorkflowExecutionRequest, *historyservice.TerminateWorkflowExecutionResponse](codes.Unavailable)
+}
+
 func (schedulerRPCProfiles) migrationStarted() rpcgen.Behavior[
 	*historyservice.StartWorkflowExecutionRequest,
 	*historyservice.StartWorkflowExecutionResponse,
