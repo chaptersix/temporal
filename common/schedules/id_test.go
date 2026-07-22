@@ -2,6 +2,7 @@ package schedules
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,4 +52,19 @@ func TestGenerateRequestID(t *testing.T) {
 		actualTime.UnixMilli(),
 	)
 	require.Equal(t, expected, actual)
+}
+
+func TestGenerateRequestIDBoundsOversizedInputs(t *testing.T) {
+	requestID := GenerateRequestID(
+		strings.Repeat("n", 1000),
+		strings.Repeat("s", 1000),
+		1,
+		strings.Repeat("b", 1000),
+		time.Unix(1, 0),
+		time.Unix(2, 0),
+	)
+	require.LessOrEqual(t, len(requestID), maxRequestIDLength)
+	require.Equal(t, requestID, GenerateRequestID(
+		strings.Repeat("n", 1000), strings.Repeat("s", 1000), 1, strings.Repeat("b", 1000), time.Unix(1, 0), time.Unix(2, 0),
+	))
 }

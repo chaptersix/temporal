@@ -1,11 +1,14 @@
 package schedules
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+const maxRequestIDLength = 1000
 
 // GenerateRequestID generates a deterministic request ID for a buffered action's
 // time. The request ID is deterministic because the jittered actual time (as
@@ -26,7 +29,7 @@ func GenerateRequestID(
 	if backfillID == "" {
 		backfillID = "auto"
 	}
-	return fmt.Sprintf(
+	requestID := fmt.Sprintf(
 		"sched-%s-%s-%s-%d-%d-%d",
 		backfillID,
 		namespaceID,
@@ -35,6 +38,12 @@ func GenerateRequestID(
 		nominal.UnixMilli(),
 		actual.UnixMilli(),
 	)
+	if len(requestID) <= maxRequestIDLength {
+		return requestID
+	}
+	// SCH-086: preserve deterministic idempotency without sending oversized IDs to frontend.
+	sum := sha256.Sum256([]byte(requestID))
+	return fmt.Sprintf("sched-%x", sum)
 }
 
 // GenerateWorkflowID generates a deterministic workflow ID for a buffered
