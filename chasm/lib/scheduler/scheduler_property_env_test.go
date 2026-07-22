@@ -10,8 +10,11 @@ import (
 	enumspb "go.temporal.io/api/enums/v1"
 	schedulepb "go.temporal.io/api/schedule/v1"
 	taskqueuepb "go.temporal.io/api/taskqueue/v1"
+	workflowpb "go.temporal.io/api/workflow/v1"
 	"go.temporal.io/api/workflowservice/v1"
+	"go.temporal.io/server/api/historyservice/v1"
 	"go.temporal.io/server/api/historyservicemock/v1"
+	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/chasmtest/rapidtest"
@@ -21,27 +24,51 @@ import (
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/metrics"
 	namespacepkg "go.temporal.io/server/common/namespace"
+	"go.temporal.io/server/common/searchattribute"
 	"go.temporal.io/server/common/testing/mockapi/workflowservicemock/v1"
 	"go.temporal.io/server/common/testing/testlogger"
 	"go.temporal.io/server/common/testing/testvars"
 	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"pgregory.net/rapid"
 )
 
 var schedulerPropertyStartTime = time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 
+const schedulerPropertyMaxBufferSize = 16
+
 type schedulerPropertyEnv struct {
-	handler     schedulerpb.SchedulerServiceServer
-	engine      *chasmtest.Engine
-	engineCtx   context.Context
-	execution   *rapidtest.Execution
-	ref         chasm.ComponentRef
-	timeSource  *clock.EventTimeSource
-	startScript rpctest.Script[
+	handler    schedulerpb.SchedulerServiceServer
+	engine     *chasmtest.Engine
+	engineCtx  context.Context
+	execution  *rapidtest.Execution
+	ref        chasm.ComponentRef
+	timeSource *clock.EventTimeSource
+	services   schedulerServiceScripts
+}
+
+type schedulerServiceScripts struct {
+	Start rpctest.Script[
 		*workflowservice.StartWorkflowExecutionRequest,
 		*workflowservice.StartWorkflowExecutionResponse,
+	]
+	Describe rpctest.Script[
+		*historyservice.DescribeWorkflowExecutionRequest,
+		*historyservice.DescribeWorkflowExecutionResponse,
+	]
+	Cancel rpctest.Script[
+		*historyservice.RequestCancelWorkflowExecutionRequest,
+		*historyservice.RequestCancelWorkflowExecutionResponse,
+	]
+	Terminate rpctest.Script[
+		*historyservice.TerminateWorkflowExecutionRequest,
+		*historyservice.TerminateWorkflowExecutionResponse,
+	]
+	Migrate rpctest.Script[
+		*historyservice.StartWorkflowExecutionRequest,
+		*historyservice.StartWorkflowExecutionResponse,
 	]
 }
 
@@ -50,7 +77,20 @@ type schedulerPropertyTestingT interface {
 	Helper()
 }
 
-func newSchedulerPropertyEnv(t *rapid.T, initiallyPaused bool) *schedulerPropertyEnv {
+type schedulerPropertyOwner interface {
+	testlogger.TestingT
+	Context() context.Context
+}
+
+func newSchedulerPropertyEnv(t schedulerPropertyOwner, initiallyPaused bool) *schedulerPropertyEnv {
+	return newSchedulerPropertyEnvWithPolicy(t, initiallyPaused, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+}
+
+func newSchedulerPropertyEnvWithPolicy(
+	t schedulerPropertyOwner,
+	initiallyPaused bool,
+	overlapPolicy enumspb.ScheduleOverlapPolicy,
+) *schedulerPropertyEnv {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	logger := testlogger.NewTestLogger(t, testlogger.FailOnExpectedErrorOnly)
@@ -61,12 +101,51 @@ func newSchedulerPropertyEnv(t *rapid.T, initiallyPaused bool) *schedulerPropert
 	history := historyservicemock.NewMockHistoryServiceClient(ctrl)
 	handler := scheduler.NewTestHandler(logger)
 	env := &schedulerPropertyEnv{handler: handler}
-	env.startScript.SetDefault("success", func(request *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
+	env.services.Start.SetDefault("success", func(request *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
 		return &workflowservice.StartWorkflowExecutionResponse{RunId: "run-" + request.GetRequestId()}, nil
+	})
+	env.services.Describe.SetDefault("running", func(request *historyservice.DescribeWorkflowExecutionRequest) (*historyservice.DescribeWorkflowExecutionResponse, error) {
+		return &historyservice.DescribeWorkflowExecutionResponse{
+			WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
+				Execution: request.GetRequest().GetExecution(),
+				Status:    enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING,
+			},
+		}, nil
+	})
+	env.services.Cancel.SetDefault(
+		"success",
+		rpctest.Return[*historyservice.RequestCancelWorkflowExecutionRequest](
+			&historyservice.RequestCancelWorkflowExecutionResponse{},
+		),
+	)
+	env.services.Terminate.SetDefault(
+		"success",
+		rpctest.Return[*historyservice.TerminateWorkflowExecutionRequest](
+			&historyservice.TerminateWorkflowExecutionResponse{},
+		),
+	)
+	env.services.Migrate.SetDefault("success", func(request *historyservice.StartWorkflowExecutionRequest) (*historyservice.StartWorkflowExecutionResponse, error) {
+		return &historyservice.StartWorkflowExecutionResponse{RunId: "migration-" + request.GetStartRequest().GetRequestId()}, nil
 	})
 	frontend.EXPECT().
 		StartWorkflowExecution(gomock.Any(), gomock.Any()).
-		DoAndReturn(env.startScript.Handle).
+		DoAndReturn(env.services.Start.Handle).
+		AnyTimes()
+	history.EXPECT().
+		DescribeWorkflowExecution(gomock.Any(), gomock.Any()).
+		DoAndReturn(env.services.Describe.Handle).
+		AnyTimes()
+	history.EXPECT().
+		RequestCancelWorkflowExecution(gomock.Any(), gomock.Any()).
+		DoAndReturn(env.services.Cancel.Handle).
+		AnyTimes()
+	history.EXPECT().
+		TerminateWorkflowExecution(gomock.Any(), gomock.Any()).
+		DoAndReturn(env.services.Terminate.Handle).
+		AnyTimes()
+	history.EXPECT().
+		StartWorkflowExecution(gomock.Any(), gomock.Any()).
+		DoAndReturn(env.services.Migrate.Handle).
 		AnyTimes()
 
 	invokerOptions := scheduler.InvokerTaskHandlerOptions{
@@ -98,6 +177,7 @@ func newSchedulerPropertyEnv(t *rapid.T, initiallyPaused bool) *schedulerPropert
 		}),
 		scheduler.NewSchedulerMigrateToWorkflowTaskHandler(scheduler.SchedulerMigrateToWorkflowTaskHandlerOptions{
 			Config: config, MetricsHandler: metrics.NoopMetricsHandler, BaseLogger: logger,
+			HistoryClient: history, SaMapperProvider: searchattribute.NewTestMapperProvider(nil),
 		}),
 	)
 	registry := chasm.NewRegistry(logger)
@@ -120,7 +200,7 @@ func newSchedulerPropertyEnv(t *rapid.T, initiallyPaused bool) *schedulerPropert
 	engineCtx := chasm.NewEngineContext(t.Context(), engine)
 	schedule := proto.CloneOf(defaultSchedule())
 	schedule.State.Paused = initiallyPaused
-	schedule.Policies.OverlapPolicy = enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL
+	schedule.Policies.OverlapPolicy = overlapPolicy
 	schedule.Action.GetStartWorkflow().TaskQueue = &taskqueuepb.TaskQueue{Name: "property-task-queue"}
 	schedule.Action.GetStartWorkflow().Input = &commonpb.Payloads{}
 	_, err := handler.CreateSchedule(engineCtx, &schedulerpb.CreateScheduleRequest{
@@ -145,7 +225,7 @@ func newSchedulerPropertyEnv(t *rapid.T, initiallyPaused bool) *schedulerPropert
 
 func schedulerPropertyConfig() *scheduler.Config {
 	tweakables := scheduler.DefaultTweakables
-	tweakables.MaxBufferSize = 8
+	tweakables.MaxBufferSize = schedulerPropertyMaxBufferSize
 	tweakables.GeneratorBufferReserveSize = 0
 	tweakables.MaxActionsPerExecution = 2
 	tweakables.IdleTime = 10 * time.Minute
@@ -185,30 +265,72 @@ func (e *schedulerPropertyEnv) trigger(t require.TestingT) {
 		FrontendRequest: &workflowservice.PatchScheduleRequest{
 			Namespace: namespace, ScheduleId: scheduleID,
 			Patch: &schedulepb.SchedulePatch{
-				TriggerImmediately: &schedulepb.TriggerImmediatelyRequest{
-					OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
-				},
+				TriggerImmediately: &schedulepb.TriggerImmediatelyRequest{},
 			},
 		},
 	})
 	require.NoError(t, err)
 }
 
+func (e *schedulerPropertyEnv) backfill(
+	t require.TestingT,
+	start time.Time,
+	end time.Time,
+	overlapPolicy enumspb.ScheduleOverlapPolicy,
+) {
+	_, err := e.handler.PatchSchedule(e.engineCtx, &schedulerpb.PatchScheduleRequest{
+		NamespaceId: namespaceID,
+		FrontendRequest: &workflowservice.PatchScheduleRequest{
+			Namespace: namespace, ScheduleId: scheduleID,
+			Patch: &schedulepb.SchedulePatch{
+				BackfillRequest: []*schedulepb.BackfillRequest{{
+					StartTime: timestamppb.New(start), EndTime: timestamppb.New(end), OverlapPolicy: overlapPolicy,
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+}
+
+func (e *schedulerPropertyEnv) delete(t require.TestingT) {
+	_, err := e.handler.DeleteSchedule(e.engineCtx, &schedulerpb.DeleteScheduleRequest{
+		NamespaceId: namespaceID,
+		FrontendRequest: &workflowservice.DeleteScheduleRequest{
+			Namespace: namespace, ScheduleId: scheduleID,
+		},
+	})
+	require.NoError(t, err)
+}
+
+func (e *schedulerPropertyEnv) complete(t require.TestingT, requestID string) {
+	_, err := e.engine.UpdateComponent(e.engineCtx, e.ref, func(ctx chasm.MutableContext, component chasm.Component) error {
+		return component.(*scheduler.Scheduler).HandleNexusCompletion(ctx, &persistencespb.ChasmNexusCompletion{
+			RequestId: requestID,
+			Outcome: &persistencespb.ChasmNexusCompletion_Success{
+				Success: &commonpb.Payload{},
+			},
+			CloseTime: timestamppb.New(e.timeSource.Now()),
+		})
+	})
+	require.NoError(t, err)
+}
+
 func (e *schedulerPropertyEnv) check(t schedulerPropertyTestingT, paused bool) {
 	t.Helper()
+	require.NoError(t, validateSchedulerSnapshot(e.snapshot(t), schedulerPropertyMaxBufferSize))
 	beforeTasks, err := e.engine.Tasks(e.ref)
 	require.NoError(t, err)
-	beforeCalls := e.startScript.Calls()
+	beforeCalls := e.services.Start.Calls()
 	description := e.describe(t)
 	afterTasks, err := e.engine.Tasks(e.ref)
 	require.NoError(t, err)
 	require.Equal(t, beforeTasks, afterTasks, "Describe changed physical tasks")
-	require.Equal(t, beforeCalls, e.startScript.Calls(), "Describe made an external call")
+	require.Equal(t, beforeCalls, e.services.Start.Calls(), "Describe made an external call")
 	require.Equal(t, paused, description.GetSchedule().GetState().GetPaused())
 	require.GreaterOrEqual(t, description.GetInfo().GetBufferSize(), int64(0))
 
 	seen := make(map[string]struct{})
-	for _, call := range e.startScript.Calls() {
+	for _, call := range e.services.Start.Calls() {
 		requestID := call.Request.GetRequestId()
 		require.NotEmpty(t, requestID)
 		_, exists := seen[requestID]
@@ -228,7 +350,7 @@ func TestSchedulerPropertyEnvironment(t *testing.T) {
 			rapidtest.Action{Name: "deliver", Weight: 4, Run: env.execution.DeliverRunnable},
 			rapidtest.Action{Name: "advance", Weight: 2, Run: env.execution.AdvanceToNextTask},
 			rapidtest.Action{Name: "redeliver", Weight: 1, Run: env.execution.Redeliver},
-			rapidtest.Action{Name: "reload", Weight: 1, Run: env.execution.Reload},
+			rapidtest.Action{Name: "reload", Weight: 1, Run: env.reload},
 			rapidtest.Action{Name: "pause", Weight: 1, Run: func(t *rapid.T) {
 				if paused {
 					t.Skip("already paused")

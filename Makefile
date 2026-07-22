@@ -62,6 +62,10 @@ TEST_TIMEOUT ?= 35m
 MAX_TEST_ATTEMPTS ?= 3
 TEST_RUNNER_TIMEOUT_ARG := $(if $(TEST_RUNNER_TIMEOUT),--total-timeout=$(TEST_RUNNER_TIMEOUT),)
 
+CHASM_SCHEDULER_PROPERTY_CHECKS ?= 100
+CHASM_SCHEDULER_PROPERTY_STEPS ?= 100
+CHASM_SCHEDULER_PROPERTY_ARGS ?=
+
 # Whether or not to test with the race detector. All of (1 on y yes t true) are true values.
 TEST_RACE_FLAG ?= on
 # Whether or not to shuffle tests. All of (1 on y yes t true) are true values.
@@ -509,6 +513,14 @@ unit-test: clean-test-output
 	@printf $(COLOR) "Run unit tests..."
 	@CGO_ENABLED=$(CGO_ENABLED) go test $(UNIT_TEST_DIRS) $(COMPILED_TEST_ARGS) 2>&1 | tee -a test.log
 	@$(MAKE) verify-test-log
+
+chasm-scheduler-property-test:
+	@CGO_ENABLED=$(CGO_ENABLED) go test -tags test_dep ./chasm/lib/scheduler \
+		-run '^TestScheduler.*Property$$' \
+		-count=1 \
+		-rapid.checks=$(CHASM_SCHEDULER_PROPERTY_CHECKS) \
+		-rapid.steps=$(CHASM_SCHEDULER_PROPERTY_STEPS) \
+		$(CHASM_SCHEDULER_PROPERTY_ARGS)
 
 integration-test: clean-test-output
 	@printf $(COLOR) "Run integration tests..."

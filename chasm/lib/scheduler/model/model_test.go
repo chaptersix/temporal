@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/server/chasm/lib/scheduler/model"
 )
 
@@ -136,6 +137,7 @@ func testConfig() model.Config {
 		CatchupWindow:     time.Hour,
 		RecentActionLimit: 10,
 		MaxGenerated:      20,
+		OverlapPolicy:     enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
 	}
 }
 

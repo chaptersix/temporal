@@ -3,6 +3,8 @@ package model
 import (
 	"errors"
 	"time"
+
+	enumspb "go.temporal.io/api/enums/v1"
 )
 
 var (
@@ -21,6 +23,9 @@ type Config struct {
 	CatchupWindow     time.Duration
 	RecentActionLimit int
 	MaxGenerated      int
+	OverlapPolicy     enumspb.ScheduleOverlapPolicy
+	LimitedActions    bool
+	RemainingActions  int64
 }
 
 type Lifecycle int
@@ -36,19 +41,26 @@ type Action struct {
 	NominalTime time.Time
 	Manual      bool
 	RunID       string
+	Dispatched  bool
+	Attempt     int
+	RetryAt     time.Time
 }
 
 type State struct {
-	Now           time.Time
-	Lifecycle     Lifecycle
-	Paused        bool
-	Notes         string
-	ConflictToken int64
-	HighWatermark time.Time
-	Pending       []Action
-	Running       []Action
-	Recent        []Action
-	ActionCount   int64
+	Now              time.Time
+	Lifecycle        Lifecycle
+	Paused           bool
+	Notes            string
+	ConflictToken    int64
+	HighWatermark    time.Time
+	Pending          []Action
+	Running          []Action
+	Recent           []Action
+	ActionCount      int64
+	OverlapSkipped   int64
+	LimitedActions   bool
+	RemainingActions int64
+	OverlapPolicy    enumspb.ScheduleOverlapPolicy
 }
 
 type Event interface {
@@ -70,6 +82,12 @@ type Unpause struct {
 	Note string
 }
 
+type Update struct {
+	Paused        bool
+	Notes         string
+	OverlapPolicy enumspb.ScheduleOverlapPolicy
+}
+
 type Trigger struct {
 	ID string
 }
@@ -83,6 +101,20 @@ type StartSucceeded struct {
 	RunID    string
 }
 
+type StartFailureClass int
+
+const (
+	StartFailureRetryable StartFailureClass = iota
+	StartFailureRateLimited
+	StartFailureNonRetryable
+)
+
+type StartFailed struct {
+	ActionID string
+	Class    StartFailureClass
+	RetryAt  time.Time
+}
+
 type CompleteWorkflow struct {
 	ActionID string
 }
@@ -93,9 +125,11 @@ func (Create) isEvent()           {}
 func (Describe) isEvent()         {}
 func (Pause) isEvent()            {}
 func (Unpause) isEvent()          {}
+func (Update) isEvent()           {}
 func (Trigger) isEvent()          {}
 func (AdvanceTime) isEvent()      {}
 func (StartSucceeded) isEvent()   {}
+func (StartFailed) isEvent()      {}
 func (CompleteWorkflow) isEvent() {}
 func (Delete) isEvent()           {}
 
@@ -113,9 +147,19 @@ type ScheduleWakeup struct {
 
 type CloseSchedule struct{}
 
-func (StartWorkflow) isEffect()  {}
-func (ScheduleWakeup) isEffect() {}
-func (CloseSchedule) isEffect()  {}
+type CancelWorkflow struct {
+	ActionID string
+}
+
+type TerminateWorkflow struct {
+	ActionID string
+}
+
+func (StartWorkflow) isEffect()     {}
+func (ScheduleWakeup) isEffect()    {}
+func (CloseSchedule) isEffect()     {}
+func (CancelWorkflow) isEffect()    {}
+func (TerminateWorkflow) isEffect() {}
 
 type Response interface {
 	isResponse()
@@ -139,27 +183,33 @@ type Outcome struct {
 }
 
 type Observable struct {
-	Now           time.Time
-	Lifecycle     Lifecycle
-	Paused        bool
-	Notes         string
-	ConflictToken int64
-	Pending       int
-	Running       int
-	Recent        int
-	ActionCount   int64
+	Now              time.Time
+	Lifecycle        Lifecycle
+	Paused           bool
+	Notes            string
+	ConflictToken    int64
+	Pending          int
+	Running          int
+	Recent           int
+	ActionCount      int64
+	OverlapSkipped   int64
+	LimitedActions   bool
+	RemainingActions int64
 }
 
 func Observe(state State) Observable {
 	return Observable{
-		Now:           state.Now,
-		Lifecycle:     state.Lifecycle,
-		Paused:        state.Paused,
-		Notes:         state.Notes,
-		ConflictToken: state.ConflictToken,
-		Pending:       len(state.Pending),
-		Running:       len(state.Running),
-		Recent:        len(state.Recent),
-		ActionCount:   state.ActionCount,
+		Now:              state.Now,
+		Lifecycle:        state.Lifecycle,
+		Paused:           state.Paused,
+		Notes:            state.Notes,
+		ConflictToken:    state.ConflictToken,
+		Pending:          len(state.Pending),
+		Running:          len(state.Running),
+		Recent:           len(state.Recent),
+		ActionCount:      state.ActionCount,
+		OverlapSkipped:   state.OverlapSkipped,
+		LimitedActions:   state.LimitedActions,
+		RemainingActions: state.RemainingActions,
 	}
 }
