@@ -93,12 +93,13 @@ func (b *BackfillerTaskHandler) Execute(
 	requestType := backfiller.RequestType()
 	limit := 1
 	var err error
-	if requestType == RequestTypeBackfill {
+	switch requestType {
+	case RequestTypeBackfill:
 		limit, err = b.allowedBufferedStarts(ctx, scheduler, invoker, tweakables)
 		if err != nil {
 			return err
 		}
-	} else if requestType == RequestTypeTrigger {
+	case RequestTypeTrigger:
 		// SCH-041: triggers reserve generator headroom but do not consume range quota.
 		limit = max(0, tweakables.MaxBufferSize-tweakables.GeneratorBufferReserveSize-len(invoker.GetBufferedStarts()))
 	}
@@ -266,8 +267,11 @@ func (b *BackfillerTaskHandler) allowedBufferedStarts(
 	// Prevents a division by 0.
 	backfillerCount = max(1, backfillerCount)
 
-	// Give half the available buffer to backfillers, distributed evenly, minus
-	// Generator reserve space.
+	// SCH-024: divide one shared backfill budget so active ranges retain progress.
 	pending := max(0, len(invoker.GetBufferedStarts())-recentActionCount)
-	return max(0, ((tweakables.MaxBufferSize/2)/backfillerCount)-pending-tweakables.GeneratorBufferReserveSize), nil
+	available := max(0, (tweakables.MaxBufferSize/2)-pending-tweakables.GeneratorBufferReserveSize)
+	if available == 0 {
+		return 0, nil
+	}
+	return max(1, available/backfillerCount), nil
 }

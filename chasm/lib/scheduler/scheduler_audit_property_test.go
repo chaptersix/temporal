@@ -135,6 +135,32 @@ func TestSchedulerCapacityDeferredBackfillRetainsStartAudit(t *testing.T) {
 	require.Len(t, env.services.Start.Calls(), 4)
 }
 
+func TestSchedulerConcurrentBackfillsMakeProgressAudit(t *testing.T) {
+	env := newSchedulerPropertyEnv(t, false)
+	_, err := env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+	require.NoError(t, err)
+	start := schedulerPropertyStartTime.Add(-defaultInterval)
+	requests := make([]*schedulepb.BackfillRequest, 0, 10)
+	for range 10 {
+		requests = append(requests, &schedulepb.BackfillRequest{
+			StartTime: timestamppb.New(start),
+			EndTime:   timestamppb.New(schedulerPropertyStartTime),
+		})
+	}
+	_, err = env.handler.PatchSchedule(env.engineCtx, &schedulerpb.PatchScheduleRequest{
+		NamespaceId: namespaceID,
+		FrontendRequest: &workflowservice.PatchScheduleRequest{
+			Namespace:  namespace,
+			ScheduleId: scheduleID,
+			Patch:      &schedulepb.SchedulePatch{BackfillRequest: requests},
+		},
+	})
+	require.NoError(t, err)
+	_, err = env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+	require.NoError(t, err)
+	require.NotEmpty(t, env.services.Start.Calls())
+}
+
 func TestSchedulerGeneratedBackfillModelConformance(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		count := rapid.IntRange(1, 4).Draw(t, "backfill-intervals")
