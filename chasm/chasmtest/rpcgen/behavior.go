@@ -20,11 +20,12 @@ type Behavior[Request, Response proto.Message] struct {
 	Err       error
 	Delay     time.Duration
 	Committed bool
+	respond   func(context.Context, Request) (Response, error)
 }
 
 // Queue installs behavior on a typed generated-mock script.
 func (b Behavior[Request, Response]) Queue(script *rpctest.Script[Request, Response]) {
-	script.PushContext(b.Label, func(ctx context.Context, _ Request) (Response, error) {
+	respond := func(ctx context.Context, _ Request) (Response, error) {
 		if b.Delay > 0 {
 			timer := time.NewTimer(b.Delay)
 			defer timer.Stop()
@@ -36,7 +37,45 @@ func (b Behavior[Request, Response]) Queue(script *rpctest.Script[Request, Respo
 			}
 		}
 		return b.Response, b.Err
-	})
+	}
+	if b.respond != nil {
+		respond = b.respond
+	}
+	script.PushContext(b.Label, respond)
+}
+
+// SetDefault installs behavior as the deterministic fallback for a typed mock.
+func (b Behavior[Request, Response]) SetDefault(script *rpctest.Script[Request, Response]) {
+	respond := func(ctx context.Context, _ Request) (Response, error) {
+		if b.Delay > 0 {
+			timer := time.NewTimer(b.Delay)
+			defer timer.Stop()
+			select {
+			case <-ctx.Done():
+				var response Response
+				return response, ctx.Err()
+			case <-timer.C:
+			}
+		}
+		return b.Response, b.Err
+	}
+	if b.respond != nil {
+		respond = b.respond
+	}
+	script.SetDefaultContext(b.Label, respond)
+}
+
+// Derived returns a successful behavior derived from the real outbound request.
+func Derived[Request, Response proto.Message](
+	label string,
+	response func(Request) Response,
+) Behavior[Request, Response] {
+	return Behavior[Request, Response]{
+		Label: label,
+		respond: func(_ context.Context, request Request) (Response, error) {
+			return response(request), nil
+		},
+	}
 }
 
 // Success returns a successful response behavior.

@@ -27,6 +27,15 @@ func (schedulerRPCProfiles) startStarted() rpcgen.Behavior[
 	)
 }
 
+func (schedulerRPCProfiles) startSucceeded() rpcgen.Behavior[
+	*workflowservice.StartWorkflowExecutionRequest,
+	*workflowservice.StartWorkflowExecutionResponse,
+] {
+	return rpcgen.Derived("started", func(request *workflowservice.StartWorkflowExecutionRequest) *workflowservice.StartWorkflowExecutionResponse {
+		return &workflowservice.StartWorkflowExecutionResponse{RunId: "run-" + request.GetRequestId()}
+	})
+}
+
 func (schedulerRPCProfiles) startRetryable() rpcgen.Behavior[
 	*workflowservice.StartWorkflowExecutionRequest,
 	*workflowservice.StartWorkflowExecutionResponse,
@@ -54,9 +63,50 @@ func (schedulerRPCProfiles) describeRunning() rpcgen.Behavior[
 	*historyservice.DescribeWorkflowExecutionRequest,
 	*historyservice.DescribeWorkflowExecutionResponse,
 ] {
+	return rpcgen.Derived("running", func(request *historyservice.DescribeWorkflowExecutionRequest) *historyservice.DescribeWorkflowExecutionResponse {
+		return &historyservice.DescribeWorkflowExecutionResponse{
+			WorkflowExecutionInfo: &workflow.WorkflowExecutionInfo{
+				Execution: request.GetRequest().GetExecution(),
+				Status:    enums.WORKFLOW_EXECUTION_STATUS_RUNNING,
+			},
+		}
+	})
+}
+
+func (schedulerRPCProfiles) cancelAccepted() rpcgen.Behavior[
+	*historyservice.RequestCancelWorkflowExecutionRequest,
+	*historyservice.RequestCancelWorkflowExecutionResponse,
+] {
+	return rpcgen.Success[*historyservice.RequestCancelWorkflowExecutionRequest](
+		&historyservice.RequestCancelWorkflowExecutionResponse{},
+	)
+}
+
+func (schedulerRPCProfiles) terminateAccepted() rpcgen.Behavior[
+	*historyservice.TerminateWorkflowExecutionRequest,
+	*historyservice.TerminateWorkflowExecutionResponse,
+] {
+	return rpcgen.Success[*historyservice.TerminateWorkflowExecutionRequest](
+		&historyservice.TerminateWorkflowExecutionResponse{},
+	)
+}
+
+func (schedulerRPCProfiles) migrationStarted() rpcgen.Behavior[
+	*historyservice.StartWorkflowExecutionRequest,
+	*historyservice.StartWorkflowExecutionResponse,
+] {
+	return rpcgen.Derived("migration-started", func(request *historyservice.StartWorkflowExecutionRequest) *historyservice.StartWorkflowExecutionResponse {
+		return &historyservice.StartWorkflowExecutionResponse{RunId: "migration-" + request.GetStartRequest().GetRequestId()}
+	})
+}
+
+func (schedulerRPCProfiles) describeCompleted() rpcgen.Behavior[
+	*historyservice.DescribeWorkflowExecutionRequest,
+	*historyservice.DescribeWorkflowExecutionResponse,
+] {
 	return rpcgen.Success[*historyservice.DescribeWorkflowExecutionRequest](
 		&historyservice.DescribeWorkflowExecutionResponse{
-			WorkflowExecutionInfo: &workflow.WorkflowExecutionInfo{Status: enums.WORKFLOW_EXECUTION_STATUS_RUNNING},
+			WorkflowExecutionInfo: &workflow.WorkflowExecutionInfo{Status: enums.WORKFLOW_EXECUTION_STATUS_COMPLETED},
 		},
 	)
 }

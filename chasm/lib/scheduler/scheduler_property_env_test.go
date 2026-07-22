@@ -11,7 +11,6 @@ import (
 	enumspb "go.temporal.io/api/enums/v1"
 	schedulepb "go.temporal.io/api/schedule/v1"
 	taskqueuepb "go.temporal.io/api/taskqueue/v1"
-	workflowpb "go.temporal.io/api/workflow/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/api/historyservice/v1"
 	"go.temporal.io/server/api/historyservicemock/v1"
@@ -112,32 +111,12 @@ func newSchedulerPropertyEnvWithPolicyAndInitialPatch(
 	history := historyservicemock.NewMockHistoryServiceClient(ctrl)
 	handler := scheduler.NewTestHandler(logger)
 	env := &schedulerPropertyEnv{handler: handler}
-	env.services.Start.SetDefault("success", func(request *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
-		return &workflowservice.StartWorkflowExecutionResponse{RunId: "run-" + request.GetRequestId()}, nil
-	})
-	env.services.Describe.SetDefault("running", func(request *historyservice.DescribeWorkflowExecutionRequest) (*historyservice.DescribeWorkflowExecutionResponse, error) {
-		return &historyservice.DescribeWorkflowExecutionResponse{
-			WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
-				Execution: request.GetRequest().GetExecution(),
-				Status:    enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING,
-			},
-		}, nil
-	})
-	env.services.Cancel.SetDefault(
-		"success",
-		rpctest.Return[*historyservice.RequestCancelWorkflowExecutionRequest](
-			&historyservice.RequestCancelWorkflowExecutionResponse{},
-		),
-	)
-	env.services.Terminate.SetDefault(
-		"success",
-		rpctest.Return[*historyservice.TerminateWorkflowExecutionRequest](
-			&historyservice.TerminateWorkflowExecutionResponse{},
-		),
-	)
-	env.services.Migrate.SetDefault("success", func(request *historyservice.StartWorkflowExecutionRequest) (*historyservice.StartWorkflowExecutionResponse, error) {
-		return &historyservice.StartWorkflowExecutionResponse{RunId: "migration-" + request.GetStartRequest().GetRequestId()}, nil
-	})
+	profiles := schedulerRPCProfiles{}
+	profiles.startSucceeded().SetDefault(&env.services.Start)
+	profiles.describeRunning().SetDefault(&env.services.Describe)
+	profiles.cancelAccepted().SetDefault(&env.services.Cancel)
+	profiles.terminateAccepted().SetDefault(&env.services.Terminate)
+	profiles.migrationStarted().SetDefault(&env.services.Migrate)
 	frontend.EXPECT().
 		StartWorkflowExecution(gomock.Any(), gomock.Any()).
 		DoAndReturn(env.services.Start.Handle).
