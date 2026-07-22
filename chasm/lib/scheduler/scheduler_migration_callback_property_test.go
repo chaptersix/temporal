@@ -6,8 +6,10 @@ import (
 	"github.com/stretchr/testify/require"
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/chasmtest/rpcgen"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
+	"pgregory.net/rapid"
 )
 
 func TestSchedulerMigrationFailureReloadAndRetryProperty(t *testing.T) {
@@ -44,39 +46,53 @@ func TestSchedulerMigrationFailureReloadAndRetryProperty(t *testing.T) {
 }
 
 func TestSchedulerCallbackRecoveryUsesGeneratedClientsProperty(t *testing.T) {
-	env := newSchedulerPropertyEnv(t, false)
-	_, err := env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
-	require.NoError(t, err)
-	env.trigger(t)
-	_, err = env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
-	require.NoError(t, err)
-	initialCall := env.services.Start.Calls()[0]
+	rapid.Check(t, func(t *rapid.T) {
+		env := newSchedulerPropertyEnv(t, false)
+		profiles := schedulerRPCProfiles{}
+		behavior := rpcgen.Draw(t, "DescribeWorkflowExecution callback behavior",
+			profiles.describeRunning(),
+			profiles.describeCompleted(),
+		)
+		behavior.Queue(&env.services.Describe)
+		_, err := env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+		require.NoError(t, err)
+		env.trigger(t)
+		_, err = env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+		require.NoError(t, err)
+		initialCall := env.services.Start.Calls()[0]
 
-	_, err = env.engine.UpdateComponent(env.engineCtx, env.ref, func(ctx chasm.MutableContext, component chasm.Component) error {
-		schedule := component.(*scheduler.Scheduler)
-		start := schedule.Invoker.Get(ctx).GetBufferedStarts()[0]
-		start.HasCallback = false
-		ctx.AddTask(schedule, chasm.TaskAttributes{}, &schedulerpb.SchedulerCallbacksTask{})
-		return nil
+		_, err = env.engine.UpdateComponent(env.engineCtx, env.ref, func(ctx chasm.MutableContext, component chasm.Component) error {
+			schedule := component.(*scheduler.Scheduler)
+			start := schedule.Invoker.Get(ctx).GetBufferedStarts()[0]
+			start.HasCallback = false
+			ctx.AddTask(schedule, chasm.TaskAttributes{}, &schedulerpb.SchedulerCallbacksTask{})
+			return nil
+		})
+		require.NoError(t, err)
+		runnable, err := env.engine.RunnableTasks(env.ref)
+		require.NoError(t, err)
+		require.Len(t, runnable, 1)
+		callbackTask := runnable[0]
+		_, err = env.engine.ExecuteTask(t.Context(), env.ref, callbackTask)
+		require.NoError(t, err)
+
+		describes := env.services.Describe.Calls()
+		require.Len(t, describes, 1)
+		require.Equal(t, behavior.Label, describes[0].Name)
+		starts := env.services.Start.Calls()
+		wantStartCalls := 1
+		if behavior.Label == "running" {
+			wantStartCalls = 2
+			require.Equal(t, initialCall.Request.GetRequestId(), starts[1].Request.GetRequestId())
+			require.Equal(t, enumspb.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING, starts[1].Request.GetWorkflowIdConflictPolicy())
+		}
+		require.Len(t, starts, wantStartCalls)
+
+		require.NoError(t, env.engine.ReloadExecution(t.Context(), env.ref))
+		redelivery, err := env.engine.ExecuteTask(t.Context(), env.ref, callbackTask)
+		require.NoError(t, err)
+		require.True(t, redelivery.Dropped)
+		require.Len(t, env.services.Describe.Calls(), 1)
+		require.Len(t, env.services.Start.Calls(), wantStartCalls)
 	})
-	require.NoError(t, err)
-	runnable, err := env.engine.RunnableTasks(env.ref)
-	require.NoError(t, err)
-	require.Len(t, runnable, 1)
-	callbackTask := runnable[0]
-	_, err = env.engine.ExecuteTask(t.Context(), env.ref, callbackTask)
-	require.NoError(t, err)
-
-	require.Len(t, env.services.Describe.Calls(), 1)
-	starts := env.services.Start.Calls()
-	require.Len(t, starts, 2)
-	require.Equal(t, initialCall.Request.GetRequestId(), starts[1].Request.GetRequestId())
-	require.Equal(t, enumspb.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING, starts[1].Request.GetWorkflowIdConflictPolicy())
-
-	require.NoError(t, env.engine.ReloadExecution(t.Context(), env.ref))
-	redelivery, err := env.engine.ExecuteTask(t.Context(), env.ref, callbackTask)
-	require.NoError(t, err)
-	require.True(t, redelivery.Dropped)
-	require.Len(t, env.services.Describe.Calls(), 1)
-	require.Len(t, env.services.Start.Calls(), 2)
 }

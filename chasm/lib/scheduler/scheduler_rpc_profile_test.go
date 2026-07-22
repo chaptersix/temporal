@@ -118,11 +118,14 @@ func (schedulerRPCProfiles) describeCompleted() rpcgen.Behavior[
 	*historyservice.DescribeWorkflowExecutionRequest,
 	*historyservice.DescribeWorkflowExecutionResponse,
 ] {
-	return rpcgen.Success[*historyservice.DescribeWorkflowExecutionRequest](
-		&historyservice.DescribeWorkflowExecutionResponse{
-			WorkflowExecutionInfo: &workflow.WorkflowExecutionInfo{Status: enums.WORKFLOW_EXECUTION_STATUS_COMPLETED},
-		},
-	)
+	return rpcgen.Derived("completed", func(request *historyservice.DescribeWorkflowExecutionRequest) *historyservice.DescribeWorkflowExecutionResponse {
+		return &historyservice.DescribeWorkflowExecutionResponse{
+			WorkflowExecutionInfo: &workflow.WorkflowExecutionInfo{
+				Execution: request.GetRequest().GetExecution(),
+				Status:    enums.WORKFLOW_EXECUTION_STATUS_COMPLETED,
+			},
+		}
+	})
 }
 
 func TestSchedulerRPCProfilesQueueLabeledBehaviors(t *testing.T) {

@@ -54,3 +54,16 @@ func TestRetrySequenceAndCancellation(t *testing.T) {
 	_, err = cancellation.Handle(context.Background(), wrapperspb.String("third"))
 	require.ErrorIs(t, err, context.Canceled)
 }
+
+func TestTimeoutRecordsCallerCancellation(t *testing.T) {
+	var script rpctest.Script[*wrapperspb.StringValue, *wrapperspb.StringValue]
+	rpcgen.Timeout[*wrapperspb.StringValue, *wrapperspb.StringValue]().Queue(&script)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := script.Handle(ctx, wrapperspb.String("request"))
+	require.ErrorIs(t, err, context.Canceled)
+	calls := script.Calls()
+	require.Len(t, calls, 1)
+	require.True(t, calls[0].Canceled)
+	require.Equal(t, "timeout", calls[0].Name)
+}
