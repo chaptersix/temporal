@@ -148,6 +148,18 @@ func NewScheduler(
 	generator := NewGenerator(ctx)
 	sched.Generator = chasm.NewComponentField(ctx, generator)
 
+	if patch != nil {
+		// SCH-035: InitialPatch pause state must be observable before any task runs.
+		if patch.Pause != "" {
+			sched.Schedule.State.Paused = true
+			sched.Schedule.State.Notes = patch.Pause
+		}
+		if patch.Unpause != "" {
+			sched.Schedule.State.Paused = false
+			sched.Schedule.State.Notes = patch.Unpause
+		}
+	}
+
 	// Create backfillers to fulfill initialPatch.
 	if err := sched.handlePatch(ctx, patch); err != nil {
 		return nil, err
@@ -648,6 +660,8 @@ func (s *Scheduler) HandleNexusCompletion(
 			strings.ToLower(wfStatus.String()),
 			workflowID,
 		)
+		// SCH-036: auto-pause is a mutation that must reject stale updates.
+		s.updateConflictToken()
 	}
 
 	// Record the completed action in the Invoker.

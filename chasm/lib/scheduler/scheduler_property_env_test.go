@@ -93,6 +93,15 @@ func newSchedulerPropertyEnvWithPolicy(
 	initiallyPaused bool,
 	overlapPolicy enumspb.ScheduleOverlapPolicy,
 ) *schedulerPropertyEnv {
+	return newSchedulerPropertyEnvWithPolicyAndInitialPatch(t, initiallyPaused, overlapPolicy, nil)
+}
+
+func newSchedulerPropertyEnvWithPolicyAndInitialPatch(
+	t schedulerPropertyOwner,
+	initiallyPaused bool,
+	overlapPolicy enumspb.ScheduleOverlapPolicy,
+	initialPatch *schedulepb.SchedulePatch,
+) *schedulerPropertyEnv {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	logger := testlogger.NewTestLogger(t, testlogger.FailOnExpectedErrorOnly)
@@ -206,7 +215,7 @@ func newSchedulerPropertyEnvWithPolicy(
 	_, err := handler.CreateSchedule(engineCtx, &schedulerpb.CreateScheduleRequest{
 		NamespaceId: namespaceID,
 		FrontendRequest: &workflowservice.CreateScheduleRequest{
-			Namespace: namespace, ScheduleId: scheduleID, RequestId: "property-create", Schedule: schedule,
+			Namespace: namespace, ScheduleId: scheduleID, RequestId: "property-create", Schedule: schedule, InitialPatch: initialPatch,
 		},
 	})
 	require.NoError(t, err)
