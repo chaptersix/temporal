@@ -15,9 +15,16 @@ import (
 	"go.temporal.io/server/common/dynamicconfig"
 	"go.temporal.io/server/common/primitives/timestamp"
 	"go.temporal.io/server/common/util"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const DefaultWarnIterations = 24 * 60 * 60
+
+var (
+	minScheduleTimestamp = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+	maxScheduleTimestamp = time.Date(9999, time.December, 31, 23, 59, 59, 999999999, time.UTC)
+)
 
 type (
 	CompiledSpec struct {
@@ -143,6 +150,16 @@ func CleanSpec(spec *schedulepb.ScheduleSpec) {
 func canonicalizeSpec(spec *schedulepb.ScheduleSpec) (*schedulepb.ScheduleSpec, error) {
 	// make copy so we can change some fields
 	spec = common.CloneProto(spec)
+	// SCH-057/SCH-058: persist valid well-known protobuf values in canonical specs.
+	for _, interval := range spec.Interval {
+		if interval == nil {
+			continue
+		}
+		interval.Interval = canonicalDuration(interval.Interval)
+		interval.Phase = canonicalDuration(interval.Phase)
+	}
+	spec.StartTime = canonicalTimestamp(spec.StartTime)
+	spec.EndTime = canonicalTimestamp(spec.EndTime)
 
 	// parse CalendarSpecs to StructuredCalendarSpecs
 	for _, cal := range spec.Calendar {
@@ -211,6 +228,26 @@ func canonicalizeSpec(spec *schedulepb.ScheduleSpec) (*schedulepb.ScheduleSpec, 
 	}
 
 	return spec, nil
+}
+
+func canonicalDuration(value *durationpb.Duration) *durationpb.Duration {
+	if value == nil {
+		return nil
+	}
+	return durationpb.New(value.AsDuration())
+}
+
+func canonicalTimestamp(value *timestamppb.Timestamp) *timestamppb.Timestamp {
+	if value == nil {
+		return nil
+	}
+	canonical := value.AsTime()
+	if canonical.Before(minScheduleTimestamp) {
+		canonical = minScheduleTimestamp
+	} else if canonical.After(maxScheduleTimestamp) {
+		canonical = maxScheduleTimestamp
+	}
+	return timestamppb.New(canonical)
 }
 
 func validateStructuredCalendar(scs *schedulepb.StructuredCalendarSpec) error {

@@ -211,6 +211,44 @@ func (s *specSuite) TestCanonicalize() {
 	s.Error(err)
 }
 
+func (s *specSuite) TestCanonicalizeNormalizesWellKnownValues() {
+	canonical, err := canonicalizeSpec(&schedulepb.ScheduleSpec{
+		Interval: []*schedulepb.IntervalSpec{{
+			Interval: &durationpb.Duration{Seconds: 2, Nanos: -1},
+			Phase:    &durationpb.Duration{Nanos: 1_000_000_000},
+		}},
+		StartTime: &timestamppb.Timestamp{Nanos: 1_000_000_000},
+		EndTime:   &timestamppb.Timestamp{Seconds: 3600, Nanos: 1_000_000_000},
+	})
+	s.Require().NoError(err)
+	s.ProtoEqual(&schedulepb.ScheduleSpec{
+		Interval: []*schedulepb.IntervalSpec{{
+			Interval: durationpb.New(2*time.Second - time.Nanosecond),
+			Phase:    durationpb.New(time.Second),
+		}},
+		StartTime: timestamppb.New(time.Unix(1, 0).UTC()),
+		EndTime:   timestamppb.New(time.Unix(3601, 0).UTC()),
+	}, canonical)
+	s.NoError(canonical.GetInterval()[0].GetInterval().CheckValid())
+	s.NoError(canonical.GetInterval()[0].GetPhase().CheckValid())
+	s.NoError(canonical.GetStartTime().CheckValid())
+	s.NoError(canonical.GetEndTime().CheckValid())
+}
+
+func (s *specSuite) TestCanonicalizeClampsTimestampBounds() {
+	canonical, err := canonicalizeSpec(&schedulepb.ScheduleSpec{
+		StartTime: &timestamppb.Timestamp{Seconds: -62_135_596_801},
+		EndTime:   &timestamppb.Timestamp{Seconds: 253_402_300_800},
+	})
+	s.Require().NoError(err)
+	s.ProtoEqual(&schedulepb.ScheduleSpec{
+		StartTime: timestamppb.New(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)),
+		EndTime:   timestamppb.New(time.Date(9999, time.December, 31, 23, 59, 59, 999999999, time.UTC)),
+	}, canonical)
+	s.NoError(canonical.GetStartTime().CheckValid())
+	s.NoError(canonical.GetEndTime().CheckValid())
+}
+
 func (s *specSuite) TestSpecIntervalBasic() {
 	s.checkSequenceRaw(
 		&schedulepb.ScheduleSpec{
