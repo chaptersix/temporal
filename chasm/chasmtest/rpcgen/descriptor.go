@@ -81,7 +81,26 @@ func populate(t *rapid.T, message protoreflect.Message, depth int) {
 		if !rapid.Bool().Draw(t, string(field.Name())+"-present") {
 			continue
 		}
-		if field.IsList() || field.IsMap() {
+		if field.IsList() {
+			list := message.Mutable(field).List()
+			value := list.NewElement()
+			if field.Kind() == protoreflect.MessageKind || field.Kind() == protoreflect.GroupKind {
+				populate(t, value.Message(), depth+1)
+			} else {
+				value = scalar(t, field)
+			}
+			list.Append(value)
+			continue
+		}
+		if field.IsMap() {
+			entries := message.Mutable(field).Map()
+			value := entries.NewValue()
+			if field.MapValue().Kind() == protoreflect.MessageKind || field.MapValue().Kind() == protoreflect.GroupKind {
+				populate(t, value.Message(), depth+1)
+			} else {
+				value = scalar(t, field.MapValue())
+			}
+			entries.Set(mapKey(t, field.MapKey()), value)
 			continue
 		}
 		if field.Kind() == protoreflect.MessageKind || field.Kind() == protoreflect.GroupKind {
@@ -91,6 +110,10 @@ func populate(t *rapid.T, message protoreflect.Message, depth int) {
 		}
 		message.Set(field, scalar(t, field))
 	}
+}
+
+func mapKey(t *rapid.T, field protoreflect.FieldDescriptor) protoreflect.MapKey {
+	return scalar(t, field).MapKey()
 }
 
 func scalar(t *rapid.T, field protoreflect.FieldDescriptor) protoreflect.Value {
