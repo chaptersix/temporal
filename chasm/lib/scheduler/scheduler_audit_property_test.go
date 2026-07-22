@@ -161,6 +161,24 @@ func TestSchedulerConcurrentBackfillsMakeProgressAudit(t *testing.T) {
 	require.NotEmpty(t, env.services.Start.Calls())
 }
 
+func TestSchedulerBackfillRedeliveryReplacesPriorTaskAudit(t *testing.T) {
+	env := newSchedulerPropertyEnv(t, false)
+	_, err := env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+	require.NoError(t, err)
+	env.backfill(t, schedulerPropertyStartTime.Add(-20*defaultInterval), schedulerPropertyStartTime, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+	runnable, err := env.engine.RunnableTasks(env.ref)
+	require.NoError(t, err)
+	require.Len(t, runnable, 1)
+	priorTask := runnable[0]
+	_, err = env.engine.ExecuteTask(t.Context(), env.ref, priorTask)
+	require.NoError(t, err)
+
+	env.timeSource.Update(nextSchedulerTaskTime(t, env))
+	redelivery, err := env.engine.ExecuteTask(t.Context(), env.ref, priorTask)
+	require.NoError(t, err)
+	require.Equal(t, 1, redelivery.LogicalTasksExecuted)
+}
+
 func TestSchedulerGeneratedBackfillModelConformance(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		count := rapid.IntRange(1, 4).Draw(t, "backfill-intervals")

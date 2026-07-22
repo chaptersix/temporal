@@ -102,6 +102,8 @@ func (b *BackfillerTaskHandler) Execute(
 	case RequestTypeTrigger:
 		// SCH-041: triggers reserve generator headroom but do not consume range quota.
 		limit = max(0, tweakables.MaxBufferSize-tweakables.GeneratorBufferReserveSize-len(invoker.GetBufferedStarts()))
+	default:
+		return queueerrors.NewUnprocessableTaskError(fmt.Sprintf("unknown backfill type: %v", requestType))
 	}
 	if limit <= 0 {
 		// Buffer is full, back off and retry later. Unlike the generator, the
