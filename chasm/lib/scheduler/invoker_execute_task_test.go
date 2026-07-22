@@ -316,8 +316,8 @@ func TestExecuteTask_AlreadyStarted(t *testing.T) {
 	})
 }
 
-// A buffered start fails from having exceeded its maximum retry limit.
-func TestExecuteTask_ExceedsMaxAttempts(t *testing.T) {
+// A buffered start at the maximum retry limit still performs its final attempt.
+func TestExecuteTask_MaxAttemptsIncludesLimit(t *testing.T) {
 	env := newInvokerExecuteTestEnv(t)
 	startTime := timestamppb.New(env.TimeSource.Now())
 	bufferedStarts := []*schedulespb.BufferedStart{
@@ -331,12 +331,16 @@ func TestExecuteTask_ExceedsMaxAttempts(t *testing.T) {
 			Attempt:       scheduler.InvokerMaxStartAttempts,
 		},
 	}
+	env.mockFrontendClient.EXPECT().
+		StartWorkflowExecution(gomock.Any(), gomock.Any()).
+		Times(1).
+		Return(&workflowservice.StartWorkflowExecutionResponse{RunId: "run"}, nil)
 
 	runExecuteTestCase(t, env, &executeTestCase{
 		InitialBufferedStarts:    bufferedStarts,
-		ExpectedBufferedStarts:   0,
-		ExpectedRunningWorkflows: 0,
-		ExpectedActionCount:      0,
+		ExpectedBufferedStarts:   1,
+		ExpectedRunningWorkflows: 1,
+		ExpectedActionCount:      1,
 	})
 }
 

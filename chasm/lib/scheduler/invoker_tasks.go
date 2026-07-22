@@ -622,7 +622,7 @@ func (h *InvokerExecuteTaskHandler) startWorkflow(
 ) error {
 	requestSpec := scheduler.GetSchedule().GetAction().GetStartWorkflow()
 
-	if start.Attempt >= InvokerMaxStartAttempts {
+	if start.Attempt > InvokerMaxStartAttempts {
 		return errRetryLimitExceeded
 	}
 
