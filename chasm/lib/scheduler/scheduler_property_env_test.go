@@ -2,6 +2,7 @@ package scheduler_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/chasmtest"
-	"go.temporal.io/server/chasm/chasmtest/rapidtest"
 	"go.temporal.io/server/chasm/chasmtest/rpctest"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
@@ -28,6 +28,7 @@ import (
 	"go.temporal.io/server/common/testing/mockapi/workflowservicemock/v1"
 	"go.temporal.io/server/common/testing/testlogger"
 	"go.temporal.io/server/common/testing/testvars"
+	"go.temporal.io/server/service/history/tasks"
 	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/proto"
@@ -43,10 +44,11 @@ type schedulerPropertyEnv struct {
 	handler    schedulerpb.SchedulerServiceServer
 	engine     *chasmtest.Engine
 	engineCtx  context.Context
-	execution  *rapidtest.Execution
 	ref        chasm.ComponentRef
 	timeSource *clock.EventTimeSource
 	services   schedulerServiceScripts
+	delivered  []tasks.Task
+	history    []string
 }
 
 type schedulerServiceScripts struct {
@@ -193,9 +195,7 @@ func newSchedulerPropertyEnvWithPolicy(
 		t,
 		registry,
 		chasmtest.WithTimeSource(timeSource),
-		chasmtest.WithNodeBackendDecorator(func(backend *chasm.MockNodeBackend) {
-			backend.HandleGetNamespaceEntry = tv.Namespace
-		}),
+		chasmtest.WithNamespaceEntry(tv.Namespace),
 	)
 	engineCtx := chasm.NewEngineContext(t.Context(), engine)
 	schedule := proto.CloneOf(defaultSchedule())
@@ -219,7 +219,6 @@ func newSchedulerPropertyEnvWithPolicy(
 	env.engineCtx = engineCtx
 	env.ref = ref
 	env.timeSource = timeSource
-	env.execution = &rapidtest.Execution{Engine: engine, Ref: ref, TimeSource: timeSource}
 	return env
 }
 
@@ -315,6 +314,83 @@ func (e *schedulerPropertyEnv) complete(t require.TestingT, requestID string) {
 	require.NoError(t, err)
 }
 
+func (e *schedulerPropertyEnv) deliverRunnable(t *rapid.T) {
+	runnable, err := e.engine.RunnableTasks(e.ref)
+	if err != nil {
+		e.fail(t, "inspect runnable tasks", nil, err)
+	}
+	if len(runnable) == 0 {
+		t.Skip("no runnable CHASM tasks")
+	}
+	task := rapid.SampledFrom(runnable).Draw(t, "runnable task")
+	e.history = append(e.history, "deliver "+schedulerPropertyDescribeTask(task))
+	if _, err := e.engine.ExecuteTask(t.Context(), e.ref, task); err != nil {
+		e.fail(t, "deliver task", task, err)
+	}
+	e.delivered = append(e.delivered, task)
+}
+
+func (e *schedulerPropertyEnv) redeliver(t *rapid.T) {
+	if len(e.delivered) == 0 {
+		t.Skip("no previously delivered CHASM tasks")
+	}
+	task := rapid.SampledFrom(e.delivered).Draw(t, "delivered task")
+	e.history = append(e.history, "redeliver "+schedulerPropertyDescribeTask(task))
+	if _, err := e.engine.ExecuteTask(t.Context(), e.ref, task); err != nil {
+		e.fail(t, "redeliver task", task, err)
+	}
+}
+
+func (e *schedulerPropertyEnv) advanceToNextTask(t *rapid.T) {
+	queued, err := e.engine.Tasks(e.ref)
+	if err != nil {
+		e.fail(t, "inspect queued tasks", nil, err)
+	}
+	now := e.timeSource.Now()
+	var next time.Time
+	for category, categoryTasks := range queued {
+		if category == tasks.CategoryVisibility {
+			continue
+		}
+		for _, task := range categoryTasks {
+			switch task.(type) {
+			case *tasks.ChasmTask, *tasks.ChasmTaskPure:
+			default:
+				continue
+			}
+			visibilityTime := task.GetVisibilityTime()
+			if !visibilityTime.After(now) || !next.IsZero() && !visibilityTime.Before(next) {
+				continue
+			}
+			next = visibilityTime
+		}
+	}
+	if next.IsZero() {
+		t.Skip("no future CHASM tasks")
+	}
+	e.history = append(e.history, "advance time to "+next.Format(time.RFC3339Nano))
+	e.timeSource.Update(next)
+}
+
+func (e *schedulerPropertyEnv) reloadExecution(t *rapid.T) {
+	e.history = append(e.history, "reload execution")
+	if err := e.engine.ReloadExecution(t.Context(), e.ref); err != nil {
+		e.fail(t, "reload execution", nil, err)
+	}
+}
+
+func (e *schedulerPropertyEnv) fail(t *rapid.T, operation string, task tasks.Task, err error) {
+	t.Helper()
+	t.Fatalf("%s failed: execution=%+v time=%s task=%s error=%v history=%v", operation, e.ref.ExecutionKey, e.timeSource.Now().Format(time.RFC3339Nano), schedulerPropertyDescribeTask(task), err, e.history)
+}
+
+func schedulerPropertyDescribeTask(task tasks.Task) string {
+	if task == nil {
+		return "<none>"
+	}
+	return fmt.Sprintf("%T(category=%s, visibility=%s)", task, task.GetCategory().Name(), task.GetVisibilityTime().Format(time.RFC3339Nano))
+}
+
 func (e *schedulerPropertyEnv) check(t schedulerPropertyTestingT, paused bool) {
 	t.Helper()
 	require.NoError(t, validateSchedulerSnapshot(e.snapshot(t), schedulerPropertyMaxBufferSize))
@@ -346,31 +422,31 @@ func TestSchedulerPropertyEnvironment(t *testing.T) {
 		env := newSchedulerPropertyEnv(t, paused)
 		env.check(t, paused)
 
-		t.Repeat(rapidtest.ActionMap(
-			rapidtest.Action{Name: "deliver", Weight: 4, Run: env.execution.DeliverRunnable},
-			rapidtest.Action{Name: "advance", Weight: 2, Run: env.execution.AdvanceToNextTask},
-			rapidtest.Action{Name: "redeliver", Weight: 1, Run: env.execution.Redeliver},
-			rapidtest.Action{Name: "reload", Weight: 1, Run: env.reload},
-			rapidtest.Action{Name: "pause", Weight: 1, Run: func(t *rapid.T) {
+		t.Repeat(map[string]func(*rapid.T){
+			"deliver":   env.deliverRunnable,
+			"advance":   env.advanceToNextTask,
+			"redeliver": env.redeliver,
+			"reload":    env.reload,
+			"pause": func(t *rapid.T) {
 				if paused {
 					t.Skip("already paused")
 				}
 				env.setPaused(t, true)
 				paused = true
-			}},
-			rapidtest.Action{Name: "unpause", Weight: 1, Run: func(t *rapid.T) {
+			},
+			"unpause": func(t *rapid.T) {
 				if !paused {
 					t.Skip("already unpaused")
 				}
 				env.setPaused(t, false)
 				paused = false
-			}},
-			rapidtest.Action{Name: "trigger", Weight: 1, Run: func(t *rapid.T) {
+			},
+			"trigger": func(t *rapid.T) {
 				env.trigger(t)
-			}},
-			rapidtest.Action{Name: "", Run: func(t *rapid.T) {
+			},
+			"": func(t *rapid.T) {
 				env.check(t, paused)
-			}},
-		))
+			},
+		})
 	})
 }

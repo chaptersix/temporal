@@ -26,18 +26,13 @@ type outcome[Request, Response proto.Message] struct {
 	responder Responder[Request, Response]
 }
 
-type callEntry[Request, Response proto.Message] struct {
-	call Call[Request, Response]
-	done bool
-}
-
 // Script supplies ordered, typed outcomes to a generated unary client mock.
 // Its zero value is ready for use.
 type Script[Request, Response proto.Message] struct {
 	mu             sync.Mutex
 	queued         []outcome[Request, Response]
 	defaultOutcome *outcome[Request, Response]
-	calls          []callEntry[Request, Response]
+	calls          []Call[Request, Response]
 }
 
 // Push appends an outcome to the script.
@@ -69,6 +64,7 @@ func (s *Script[Request, Response]) Handle(
 	request = clone(request)
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	var selected outcome[Request, Response]
 	switch {
 	case len(s.queued) > 0:
@@ -79,27 +75,17 @@ func (s *Script[Request, Response]) Handle(
 	default:
 		var response Response
 		err := fmt.Errorf("rpctest: no response configured for request %T", request)
-		s.calls = append(s.calls, callEntry[Request, Response]{
-			call: Call[Request, Response]{Request: request, Err: err},
-			done: true,
-		})
-		s.mu.Unlock()
+		s.calls = append(s.calls, Call[Request, Response]{Request: request, Err: err})
 		return response, err
 	}
-	callIndex := len(s.calls)
-	s.calls = append(s.calls, callEntry[Request, Response]{
-		call: Call[Request, Response]{Name: selected.name, Request: request},
-	})
-	s.mu.Unlock()
-
 	response, err := selected.responder(request)
 	response = clone(response)
-
-	s.mu.Lock()
-	s.calls[callIndex].call.Response = clone(response)
-	s.calls[callIndex].call.Err = err
-	s.calls[callIndex].done = true
-	s.mu.Unlock()
+	s.calls = append(s.calls, Call[Request, Response]{
+		Name:     selected.name,
+		Request:  request,
+		Response: clone(response),
+		Err:      err,
+	})
 	return response, err
 }
 
@@ -110,14 +96,11 @@ func (s *Script[Request, Response]) Calls() []Call[Request, Response] {
 
 	calls := make([]Call[Request, Response], 0, len(s.calls))
 	for _, entry := range s.calls {
-		if !entry.done {
-			continue
-		}
 		calls = append(calls, Call[Request, Response]{
-			Name:     entry.call.Name,
-			Request:  clone(entry.call.Request),
-			Response: clone(entry.call.Response),
-			Err:      entry.call.Err,
+			Name:     entry.Name,
+			Request:  clone(entry.Request),
+			Response: clone(entry.Response),
+			Err:      entry.Err,
 		})
 	}
 	return calls

@@ -2,7 +2,6 @@ package chasmtest
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -17,6 +16,8 @@ import (
 	"go.temporal.io/server/common/definition"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/namespace"
+	"go.temporal.io/server/common/primitives"
 	"go.temporal.io/server/common/testing/testlogger"
 	"go.temporal.io/server/service/history/tasks"
 )
@@ -24,16 +25,15 @@ import (
 type (
 	EngineOption func(*Engine)
 
-	// Engine is a lightweight in memory CHASM engine for unit tests. It implements
-	// [chasm.Engine] and supports the full set of conflict and reuse policies, as
-	// well as blocking [PollComponent] with [NotifyExecution], matching the behavior
-	// of the production engine as closely as possible without persistence or shard logic.
+	// Engine is an in-memory host for CHASM Node transactions and registered task
+	// handlers. It is intentionally limited to isolated test executions: it does
+	// not model history ownership, persistence, queues, or service routing.
 	Engine struct {
-		registry              *chasm.Registry
-		logger                log.Logger
-		metrics               metrics.Handler
-		timeSource            clock.TimeSource
-		nodeBackendDecorators []func(*chasm.MockNodeBackend)
+		registry       *chasm.Registry
+		logger         log.Logger
+		metrics        metrics.Handler
+		timeSource     clock.TimeSource
+		namespaceEntry func() *namespace.Namespace
 		// currentExecutions maps (namespaceID, businessID) to the latest run (running or closed).
 		currentExecutions map[businessKey]*execution
 		// allExecutions maps (namespaceID, businessID, runID) to any run, for lookups by specific RunID.
@@ -80,10 +80,11 @@ func WithTimeSource(ts clock.TimeSource) EngineOption {
 	}
 }
 
-// WithNodeBackendDecorator applies decorate to each execution's node backend.
-func WithNodeBackendDecorator(decorate func(*chasm.MockNodeBackend)) EngineOption {
+// WithNamespaceEntry supplies the namespace capability required by components
+// that read namespace metadata from their CHASM context.
+func WithNamespaceEntry(namespaceEntry func() *namespace.Namespace) EngineOption {
 	return func(e *Engine) {
-		e.nodeBackendDecorators = append(e.nodeBackendDecorators, decorate)
+		e.namespaceEntry = namespaceEntry
 	}
 }
 
@@ -144,6 +145,9 @@ func (e *Engine) StartExecution(
 	opts ...chasm.TransitionOption,
 ) (chasm.StartExecutionResult, error) {
 	options := constructTransitionOptions(opts...)
+	if err := validateStartOptions(ref, options); err != nil {
+		return chasm.StartExecutionResult{}, err
+	}
 	bKey := newBusinessKey(ref.ExecutionKey)
 
 	current, hasCurrent := e.currentExecutions[bKey]
@@ -184,6 +188,9 @@ func (e *Engine) UpdateWithStartExecution(
 	opts ...chasm.TransitionOption,
 ) (chasm.EngineUpdateWithStartExecutionResult, error) {
 	options := constructTransitionOptions(opts...)
+	if err := validateStartOptions(ref, options); err != nil {
+		return chasm.EngineUpdateWithStartExecutionResult{}, err
+	}
 	bKey := newBusinessKey(ref.ExecutionKey)
 
 	current, hasCurrent := e.currentExecutions[bKey]
@@ -241,8 +248,11 @@ func (e *Engine) UpdateComponent(
 	ctx context.Context,
 	ref chasm.ComponentRef,
 	updateFn func(chasm.MutableContext, chasm.Component) error,
-	_ ...chasm.TransitionOption,
+	opts ...chasm.TransitionOption,
 ) ([]byte, error) {
+	if err := validateReferenceOptions(opts...); err != nil {
+		return nil, err
+	}
 	execution, err := e.executionForRef(ref)
 	if err != nil {
 		return nil, err
@@ -254,8 +264,11 @@ func (e *Engine) ReadComponent(
 	ctx context.Context,
 	ref chasm.ComponentRef,
 	readFn func(chasm.Context, chasm.Component) error,
-	_ ...chasm.TransitionOption,
+	opts ...chasm.TransitionOption,
 ) error {
+	if err := validateReferenceOptions(opts...); err != nil {
+		return err
+	}
 	execution, err := e.executionForRef(ref)
 	if err != nil {
 		return err
@@ -272,15 +285,16 @@ func (e *Engine) ReadComponent(
 
 // PollComponent waits until the supplied predicate is satisfied when evaluated against the
 // component identified by ref. If the predicate is true immediately it returns without blocking.
-// Otherwise it subscribes to [NotifyExecution] signals and re evaluates after each one, just
-// like the production engine. Returns (nil, nil) if ctx is cancelled, matching the long poll
-// timeout semantics of the production engine where the caller is expected to re-poll.
+// Otherwise it subscribes to [NotifyExecution] signals and re evaluates after each one.
 func (e *Engine) PollComponent(
 	ctx context.Context,
 	ref chasm.ComponentRef,
 	predicate func(chasm.Context, chasm.Component) (bool, error),
-	_ ...chasm.TransitionOption,
+	opts ...chasm.TransitionOption,
 ) ([]byte, error) {
+	if err := validateReferenceOptions(opts...); err != nil {
+		return nil, err
+	}
 	executionKey := ref.ExecutionKey
 
 	checkPredicate := func() ([]byte, bool, error) {
@@ -326,7 +340,7 @@ func (e *Engine) PollComponent(
 			}
 		case <-ctx.Done():
 			unsubscribe()
-			return nil, nil //nolint:nilerr // nil, nil = long-poll timeout; caller should re-poll
+			return nil, ctx.Err()
 		}
 	}
 }
@@ -375,11 +389,9 @@ func (e *Engine) handleConflictPolicy(
 			current.key.RunID,
 		)
 	case chasm.BusinessIDConflictPolicyTerminateExisting:
-		_, _ = current.backend.UpdateWorkflowStateStatus(
-			enumsspb.WORKFLOW_EXECUTION_STATE_COMPLETED,
-			enumspb.WORKFLOW_EXECUTION_STATUS_TERMINATED,
+		return chasm.StartExecutionResult{}, serviceerror.NewUnimplemented(
+			"chasmtest: TerminateExisting conflict policy is not supported",
 		)
-		return e.startNew(ctx, ref.ExecutionKey, startFn, options.RequestID)
 	case chasm.BusinessIDConflictPolicyUseExisting:
 		serializedRef, err := current.node.Ref(current.root)
 		if err != nil {
@@ -443,6 +455,7 @@ func (e *Engine) startNew(
 	startFn func(chasm.MutableContext) (chasm.RootComponent, error),
 	requestID string,
 ) (chasm.StartExecutionResult, error) {
+	key.RunID = primitives.NewUUID().String()
 	exec := e.newExecution(key)
 	exec.requestID = requestID
 
@@ -483,6 +496,7 @@ func (e *Engine) startAndUpdateNew(
 	updateFn func(chasm.MutableContext, chasm.Component) error,
 	requestID string,
 ) (chasm.EngineUpdateWithStartExecutionResult, error) {
+	key.RunID = primitives.NewUUID().String()
 	exec := e.newExecution(key)
 	exec.requestID = requestID
 
@@ -545,7 +559,8 @@ func (e *Engine) newExecution(key chasm.ExecutionKey) *execution {
 		HandleGetWorkflowKey: func() definition.WorkflowKey {
 			return definition.NewWorkflowKey(key.NamespaceID, key.BusinessID, key.RunID)
 		},
-		HandleIsWorkflow: func() bool { return false },
+		HandleIsWorkflow:        func() bool { return false },
+		HandleGetNamespaceEntry: e.namespaceEntry,
 		// GetExecutionState returns the current lifecycle state, which CloseTransaction
 		// uses to decide whether to call UpdateWorkflowStateStatus on the backend.
 		HandleGetExecutionState: func() *persistencespb.WorkflowExecutionState {
@@ -566,9 +581,6 @@ func (e *Engine) newExecution(key chasm.ExecutionKey) *execution {
 			execState.Status = status
 			return changed, nil
 		},
-	}
-	for _, decorate := range e.nodeBackendDecorators {
-		decorate(backend)
 	}
 	exec.backend = backend
 	exec.node = chasm.NewEmptyTree(
@@ -692,32 +704,32 @@ func (s *transitionState) abort() {
 	s.pending = 0
 }
 
-// refForComponent looks up the ComponentRef for a component instance by scanning
-// all executions. It works because Node.CloseTransaction (called after every mutation)
-// runs syncSubComponents, which populates the node's valueToNode map for all
-// subcomponents. Returns an error if the component is not found in any execution.
-func (e *Engine) refForComponent(component chasm.Component) (chasm.ComponentRef, error) {
-	for _, exec := range e.allExecutions {
-		serialized, err := exec.node.Ref(component)
-		if err != nil {
-			if errors.As(err, new(*serviceerror.NotFound)) {
-				continue // component not registered in this execution's node
-			}
-			return chasm.ComponentRef{}, err
-		}
-		return chasm.DeserializeComponentRef(serialized)
-	}
-	return chasm.ComponentRef{}, fmt.Errorf("component %T not found in any execution managed by this engine", component)
-}
-
 func constructTransitionOptions(opts ...chasm.TransitionOption) chasm.TransitionOptions {
 	options := defaultTransitionOptions
 	for _, opt := range opts {
 		opt(&options)
 	}
+	if options.RequestID == "" {
+		options.RequestID = primitives.NewUUID().String()
+	}
 	// NOTE: TransitionOptions.Speculative is intentionally not implemented here. It is also
 	// unimplemented in the production engine (see the TODO in service/history/chasm_engine.go).
 	return options
+}
+
+func validateStartOptions(ref chasm.ComponentRef, options chasm.TransitionOptions) error {
+	if ref.RunID != "" {
+		return serviceerror.NewUnimplemented("chasmtest: explicit run ID is not supported for StartExecution")
+	}
+	return nil
+}
+
+func validateReferenceOptions(opts ...chasm.TransitionOption) error {
+	options := constructTransitionOptions(opts...)
+	if options.ConsistencyLevel != chasm.RefConsistencyLevelExecutionLastUpdate {
+		return serviceerror.NewUnimplemented("chasmtest: non-default reference consistency is not supported")
+	}
+	return nil
 }
 
 // executionFailed reports whether a closed execution ended in a failure state

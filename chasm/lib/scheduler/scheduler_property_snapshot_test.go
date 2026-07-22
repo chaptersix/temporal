@@ -2,6 +2,7 @@ package scheduler_test
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"slices"
 	"testing"
@@ -91,26 +92,26 @@ func (e *schedulerPropertyEnv) snapshot(t schedulerPropertyTestingT) schedulerSn
 func (e *schedulerPropertyEnv) reload(t *rapid.T) {
 	t.Helper()
 	before := e.snapshot(t)
-	e.execution.Reload(t)
+	e.reloadExecution(t)
 	require.Equal(t, before, e.snapshot(t))
 }
 
 func validateSchedulerSnapshot(snapshot schedulerSnapshot, maxBufferSize int) error {
 	if snapshot.BufferSize < 0 || snapshot.ActionCount < 0 {
-		return fmt.Errorf("scheduler counters must not be negative")
+		return errors.New("scheduler counters must not be negative")
 	}
 	if snapshot.Running > snapshot.Recent {
-		return fmt.Errorf("running workflows must be represented in recent actions")
+		return errors.New("running workflows must be represented in recent actions")
 	}
 	if snapshot.BufferedStarts < int(snapshot.BufferSize)+snapshot.Recent {
-		return fmt.Errorf("internal buffered starts do not cover API views")
+		return errors.New("internal buffered starts do not cover API views")
 	}
 	internalLimit := maxBufferSize + scheduler.RecentActionCount
 	if maxBufferSize > 0 && snapshot.BufferedStarts > internalLimit {
 		return fmt.Errorf("buffered starts %d exceed internal limit %d", snapshot.BufferedStarts, internalLimit)
 	}
 	if snapshot.GeneratorWatermark.After(snapshot.Now) || snapshot.InvokerWatermark.After(snapshot.Now) {
-		return fmt.Errorf("scheduler watermark is ahead of logical time")
+		return errors.New("scheduler watermark is ahead of logical time")
 	}
 	return nil
 }

@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	enumspb "go.temporal.io/api/enums/v1"
-	enumsspb "go.temporal.io/server/api/enums/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/common/clock"
@@ -157,7 +155,6 @@ type driverTestEnv struct {
 	ctx         context.Context
 	ref         chasm.ComponentRef
 	timeSource  *clock.EventTimeSource
-	backend     *chasm.MockNodeBackend
 	pureHandler *pureDriverTaskHandler
 	sideHandler *sideDriverTaskHandler
 }
@@ -276,45 +273,6 @@ func TestUpdateRollbackReloadAndIsolation(t *testing.T) {
 	require.ErrorContains(t, err, "does not match ref execution key")
 }
 
-func TestCloseTransactionFailureRollsBackTransitionState(t *testing.T) {
-	now := time.Date(2026, time.July, 21, 12, 0, 0, 0, time.UTC)
-	closeErr := errors.New("close transaction")
-	failClose := false
-	env := newDriverTestEnv(t, now, "close-rollback", chasmtest.WithNodeBackendDecorator(func(backend *chasm.MockNodeBackend) {
-		updateState := backend.HandleUpdateWorkflowStateStatus
-		backend.HandleUpdateWorkflowStateStatus = func(
-			state enumsspb.WorkflowExecutionState,
-			status enumspb.WorkflowExecutionStatus,
-		) (bool, error) {
-			if failClose {
-				return false, closeErr
-			}
-			return updateState(state, status)
-		}
-	}))
-	require.Equal(t, int64(1), env.backend.CurrentVersionedTransition().TransitionCount)
-	queuedBefore, err := env.engine.Tasks(env.ref)
-	require.NoError(t, err)
-
-	failClose = true
-	_, err = env.engine.UpdateComponent(env.ctx, env.ref, func(ctx chasm.MutableContext, component chasm.Component) error {
-		driver := component.(*driverComponent)
-		driver.PureValue = chasm.NewDataField(ctx, wrapperspb.Int64(10))
-		ctx.AddTask(driver, chasm.TaskAttributes{}, &sideDriverTask{Value: wrapperspb.Int64(10)})
-		return nil
-	})
-	require.ErrorIs(t, err, closeErr)
-	require.Equal(t, int64(1), env.backend.CurrentVersionedTransition().TransitionCount)
-	require.Equal(t, driverValues{}, env.values(t))
-	queuedAfter, err := env.engine.Tasks(env.ref)
-	require.NoError(t, err)
-	require.Equal(t, queuedBefore, queuedAfter)
-
-	failClose = false
-	env.setSideValue(t, 1)
-	require.Equal(t, int64(2), env.backend.CurrentVersionedTransition().TransitionCount)
-}
-
 func TestStaleTaskAndDrainLimit(t *testing.T) {
 	now := time.Date(2026, time.July, 21, 12, 0, 0, 0, time.UTC)
 	env := newDriverTestEnv(t, now, "stale")
@@ -334,6 +292,54 @@ func TestStaleTaskAndDrainLimit(t *testing.T) {
 
 	_, err = env.engine.DrainTasks(env.ctx, env.ref, -1)
 	require.ErrorContains(t, err, "must be non-negative")
+}
+
+func TestEngineRejectsUnsupportedHistoryBehavior(t *testing.T) {
+	now := time.Date(2026, time.July, 21, 12, 0, 0, 0, time.UTC)
+	env := newDriverTestEnv(t, now, "unsupported")
+	newRef := chasm.ComponentRef{ExecutionKey: chasm.ExecutionKey{
+		NamespaceID: "namespace-id",
+		BusinessID:  "another-execution",
+	}}
+
+	newRef.RunID = "explicit-run"
+	_, err := env.engine.StartExecution(env.ctx, newRef, nil, chasm.WithRequestID("request"))
+	require.ErrorContains(t, err, "explicit run ID is not supported")
+
+	_, err = env.engine.StartExecution(
+		env.ctx,
+		chasm.ComponentRef{ExecutionKey: chasm.ExecutionKey{
+			NamespaceID: "namespace-id",
+			BusinessID:  "unsupported",
+		}},
+		nil,
+		chasm.WithRequestID("replacement"),
+		chasm.WithBusinessIDPolicy(
+			chasm.BusinessIDReusePolicyAllowDuplicate,
+			chasm.BusinessIDConflictPolicyTerminateExisting,
+		),
+	)
+	require.ErrorContains(t, err, "TerminateExisting conflict policy is not supported")
+
+	err = env.engine.ReadComponent(
+		env.ctx,
+		env.ref,
+		nil,
+		chasm.WithRefConsistencyLevel(chasm.RefConsistencyLevelCurrentRun),
+	)
+	require.ErrorContains(t, err, "non-default reference consistency is not supported")
+}
+
+func TestPollComponentReturnsContextCancellation(t *testing.T) {
+	now := time.Date(2026, time.July, 21, 12, 0, 0, 0, time.UTC)
+	env := newDriverTestEnv(t, now, "poll-cancellation")
+	ctx, cancel := context.WithCancel(env.ctx)
+	cancel()
+
+	_, err := env.engine.PollComponent(ctx, env.ref, func(chasm.Context, chasm.Component) (bool, error) {
+		return false, nil
+	})
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 type pureTaskSpec struct {
@@ -360,10 +366,8 @@ func newDriverTestEnv(
 	require.NoError(t, registry.Register(&driverLibrary{pureHandler: pureHandler, sideHandler: sideHandler}))
 	timeSource := clock.NewEventTimeSource()
 	timeSource.Update(now)
-	var backend *chasm.MockNodeBackend
 	engineOpts := []chasmtest.EngineOption{
 		chasmtest.WithTimeSource(timeSource),
-		chasmtest.WithNodeBackendDecorator(func(value *chasm.MockNodeBackend) { backend = value }),
 	}
 	engine := chasmtest.NewEngine(t, registry, append(engineOpts, opts...)...)
 	env := &driverTestEnv{
@@ -374,7 +378,6 @@ func newDriverTestEnv(
 		sideHandler: sideHandler,
 	}
 	env.ref = env.startExecution(t, businessID)
-	env.backend = backend
 	return env
 }
 
@@ -385,7 +388,6 @@ func (e *driverTestEnv) startExecution(t *testing.T, businessID string) chasm.Co
 		chasm.ComponentRef{ExecutionKey: chasm.ExecutionKey{
 			NamespaceID: "namespace-id",
 			BusinessID:  businessID,
-			RunID:       businessID + "-run",
 		}},
 		func(ctx chasm.MutableContext) (chasm.RootComponent, error) {
 			return &driverComponent{
@@ -394,6 +396,7 @@ func (e *driverTestEnv) startExecution(t *testing.T, businessID string) chasm.Co
 				SideValue: chasm.NewDataField(ctx, wrapperspb.Int64(0)),
 			}, nil
 		},
+		chasm.WithRequestID("request-"+businessID),
 	)
 	require.NoError(t, err)
 	ref, err := chasm.DeserializeComponentRef(result.ExecutionRef)

@@ -3,7 +3,6 @@ package rpctest_test
 import (
 	"context"
 	"errors"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -56,42 +55,6 @@ func TestScriptFailuresAndMissingOutcome(t *testing.T) {
 	require.Nil(t, response)
 	require.ErrorContains(t, err, "no response configured")
 	require.Len(t, script.Calls(), 2)
-}
-
-func TestScriptDoesNotCallResponderUnderLock(t *testing.T) {
-	var script rpctest.Script[*wrapperspb.StringValue, *wrapperspb.StringValue]
-	script.Push("derived", func(request *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
-		require.Equal(t, 0, script.Pending())
-		return wrapperspb.String(request.Value + "-response"), nil
-	})
-
-	response, err := script.Handle(context.Background(), wrapperspb.String("request"))
-	require.NoError(t, err)
-	require.Equal(t, "request-response", response.Value)
-}
-
-func TestScriptConcurrentCallHistory(t *testing.T) {
-	var script rpctest.Script[*wrapperspb.Int64Value, *wrapperspb.Int64Value]
-	script.SetDefault("derived", func(request *wrapperspb.Int64Value) (*wrapperspb.Int64Value, error) {
-		return wrapperspb.Int64(request.Value + 1), nil
-	})
-
-	var waitGroup sync.WaitGroup
-	results := make(chan error, 20)
-	for value := int64(0); value < 20; value++ {
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
-			_, err := script.Handle(context.Background(), wrapperspb.Int64(value))
-			results <- err
-		}()
-	}
-	waitGroup.Wait()
-	close(results)
-	for err := range results {
-		require.NoError(t, err)
-	}
-	require.Len(t, script.Calls(), 20)
 }
 
 func TestScriptBindsToGeneratedClientMock(t *testing.T) {
