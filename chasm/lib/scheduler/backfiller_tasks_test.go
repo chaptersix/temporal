@@ -139,6 +139,21 @@ func TestBackfillTask_TriggerImmediateFullBuffer(t *testing.T) {
 	})
 }
 
+func TestBackfillTask_TriggerImmediateUsesAvailableBufferAudit(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := env.MutableContext()
+	invoker := env.Scheduler.Invoker.Get(ctx)
+	for range scheduler.DefaultTweakables.MaxBufferSize/2 - scheduler.DefaultTweakables.GeneratorBufferReserveSize + scheduler.RecentActionCount {
+		invoker.BufferedStarts = append(invoker.BufferedStarts, &schedulespb.BufferedStart{})
+	}
+
+	runBackfillTestCase(t, env, &backfillTestCase{
+		InitialTriggerRequest:  &schedulepb.TriggerImmediatelyRequest{},
+		ExpectedBufferedStarts: 0,
+		ExpectedComplete:       true,
+	})
+}
+
 // A backfill request completes entirely should result in the machine being
 // deleted after completion.
 func TestBackfillTask_CompleteFill(t *testing.T) {

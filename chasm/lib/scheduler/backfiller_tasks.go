@@ -90,9 +90,17 @@ func (b *BackfillerTaskHandler) Execute(
 	// If the buffer is already full, don't move the watermark at all, just back off
 	// and retry.
 	tweakables := b.config.Tweakables(scheduler.Namespace)
-	limit, err := b.allowedBufferedStarts(ctx, scheduler, invoker, tweakables)
-	if err != nil {
-		return err
+	requestType := backfiller.RequestType()
+	limit := 1
+	var err error
+	if requestType == RequestTypeBackfill {
+		limit, err = b.allowedBufferedStarts(ctx, scheduler, invoker, tweakables)
+		if err != nil {
+			return err
+		}
+	} else if requestType == RequestTypeTrigger {
+		// SCH-041: triggers reserve generator headroom but do not consume range quota.
+		limit = max(0, tweakables.MaxBufferSize-tweakables.GeneratorBufferReserveSize-len(invoker.GetBufferedStarts()))
 	}
 	if limit <= 0 {
 		// Buffer is full, back off and retry later. Unlike the generator, the
@@ -105,7 +113,7 @@ func (b *BackfillerTaskHandler) Execute(
 
 	// Process backfills, returning BufferedStarts.
 	var result backfillProgressResult
-	switch backfiller.RequestType() {
+	switch requestType {
 	case RequestTypeBackfill:
 		result, err = b.processBackfill(ctx, scheduler, backfiller, limit)
 	case RequestTypeTrigger:
