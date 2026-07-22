@@ -93,6 +93,15 @@ func TestTransitionLimitedActionsDoNotLimitManualTrigger(t *testing.T) {
 	require.IsType(t, model.StartWorkflow{}, manual.Effects[0])
 }
 
+func TestTransitionBackfillIncludesBoundsAfterDeferral(t *testing.T) {
+	config := testConfig()
+	state := transition(t, config, model.State{}, model.Create{}).State
+	start := testStart.Add(-3 * time.Minute)
+	outcome := transition(t, config, state, model.Backfill{ID: "history", Start: start, End: testStart})
+	require.Len(t, outcome.Effects, 4)
+	require.Equal(t, start, outcome.State.Pending[0].NominalTime)
+}
+
 func TestTransitionUpdate(t *testing.T) {
 	config := testConfig()
 	state := transition(t, config, model.State{}, model.Create{}).State

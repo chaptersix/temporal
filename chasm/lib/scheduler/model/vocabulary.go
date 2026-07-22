@@ -92,6 +92,13 @@ type Trigger struct {
 	ID string
 }
 
+type Backfill struct {
+	ID            string
+	Start         time.Time
+	End           time.Time
+	OverlapPolicy enumspb.ScheduleOverlapPolicy
+}
+
 type AdvanceTime struct {
 	Time time.Time
 }
@@ -127,6 +134,7 @@ func (Pause) isEvent()            {}
 func (Unpause) isEvent()          {}
 func (Update) isEvent()           {}
 func (Trigger) isEvent()          {}
+func (Backfill) isEvent()         {}
 func (AdvanceTime) isEvent()      {}
 func (StartSucceeded) isEvent()   {}
 func (StartFailed) isEvent()      {}

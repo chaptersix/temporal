@@ -66,6 +66,8 @@ func Transition(config Config, input State, event Event) (Outcome, error) {
 		outcome.State = state
 		outcome.Response = MutationResponse{ConflictToken: state.ConflictToken}
 		return outcome, nil
+	case Backfill:
+		return backfill(config, input, state, event)
 	case AdvanceTime:
 		return advance(config, input, state, event.Time)
 	case StartSucceeded:
@@ -89,6 +91,38 @@ func Transition(config Config, input State, event Event) (Outcome, error) {
 	default:
 		return Outcome{State: input}, fmt.Errorf("%w: %T", ErrInvalidEvent, event)
 	}
+}
+
+func backfill(config Config, input, state State, event Backfill) (Outcome, error) {
+	if err := requireRunning(state); err != nil {
+		return Outcome{State: input}, err
+	}
+	if event.ID == "" || event.Start.IsZero() || event.End.Before(event.Start) {
+		return Outcome{State: input}, fmt.Errorf("%w: invalid backfill", ErrInvalidEvent)
+	}
+	policy := normalizeOverlapPolicy(event.OverlapPolicy)
+	if event.OverlapPolicy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
+		policy = state.OverlapPolicy
+	}
+	previousPolicy := state.OverlapPolicy
+	state.OverlapPolicy = policy
+	maxGenerated := config.MaxGenerated
+	if maxGenerated <= 0 {
+		maxGenerated = 1000
+	}
+	var effects []Effect
+	for next, ok := matchingTimeAtOrAfter(config, event.Start); ok && !next.After(event.End); next = next.Add(config.Interval) {
+		if len(effects) >= maxGenerated {
+			return Outcome{State: input}, fmt.Errorf("%w: generated action limit exceeded", ErrInvalidEvent)
+		}
+		action := Action{ID: fmt.Sprintf("backfill:%s:%d", event.ID, next.UnixNano()), NominalTime: next, Manual: true}
+		var actionEffects []Effect
+		state, actionEffects = enqueueAction(state, action)
+		effects = append(effects, actionEffects...)
+	}
+	state.OverlapPolicy = previousPolicy
+	state.ConflictToken++
+	return Outcome{State: state, Effects: effects, Response: MutationResponse{ConflictToken: state.ConflictToken}}, nil
 }
 
 func setPaused(config Config, input, state State, paused bool, note string) (Outcome, error) {
@@ -355,6 +389,27 @@ func matchingTimeAfter(config Config, after time.Time) (time.Time, bool) {
 	if !anchor.After(after) {
 		steps := after.Sub(anchor)/config.Interval + 1
 		anchor = anchor.Add(steps * config.Interval)
+	}
+	if !config.SpecEnd.IsZero() && anchor.After(config.SpecEnd) {
+		return time.Time{}, false
+	}
+	return anchor, true
+}
+
+func matchingTimeAtOrAfter(config Config, at time.Time) (time.Time, bool) {
+	if config.Interval <= 0 {
+		return time.Time{}, false
+	}
+	anchor := config.StartTime.Truncate(config.Interval).Add(config.Phase % config.Interval)
+	if at.Before(anchor) {
+		steps := -int((anchor.Sub(at) + config.Interval - 1) / config.Interval)
+		anchor = anchor.Add(time.Duration(steps) * config.Interval)
+	}
+	if anchor.Before(at) {
+		anchor = anchor.Add(config.Interval)
+	}
+	if !config.SpecStart.IsZero() && anchor.Before(config.SpecStart) {
+		return matchingTimeAfter(config, config.SpecStart.Add(-time.Nanosecond))
 	}
 	if !config.SpecEnd.IsZero() && anchor.After(config.SpecEnd) {
 		return time.Time{}, false

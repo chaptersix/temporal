@@ -376,6 +376,8 @@ func (s *Scheduler) NewRangeBackfiller(
 	request *schedulepb.BackfillRequest,
 ) *Backfiller {
 	backfiller := addBackfiller(ctx, s)
+	// SCH-023: a capacity-deferred range must retain its inclusive start cursor.
+	backfiller.LastProcessedTime = timestamppb.New(request.GetStartTime().AsTime().Add(-time.Millisecond))
 	backfiller.Request = &schedulerpb.BackfillerState_BackfillRequest{
 		BackfillRequest: request,
 	}

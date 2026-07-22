@@ -72,7 +72,7 @@ func deliverUntilStartCall(t *testing.T, env *schedulerPropertyEnv) tasks.Task {
 	return nil
 }
 
-func nextSchedulerTaskTime(t *testing.T, env *schedulerPropertyEnv) time.Time {
+func nextSchedulerTaskTime(t schedulerPropertyTestingT, env *schedulerPropertyEnv) time.Time {
 	t.Helper()
 	queued, err := env.engine.Tasks(env.ref)
 	require.NoError(t, err)

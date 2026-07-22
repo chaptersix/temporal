@@ -2,6 +2,7 @@ package scheduler_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	commonpb "go.temporal.io/api/common/v1"
@@ -11,11 +12,14 @@ import (
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
+	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
+	"go.temporal.io/server/chasm/lib/scheduler/model"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"pgregory.net/rapid"
 )
 
 func TestSchedulerInitialPatchPauseStateAudit(t *testing.T) {
@@ -92,4 +96,83 @@ func TestSchedulerPauseOnFailureInvalidatesConflictTokenAudit(t *testing.T) {
 	})
 	var failedPrecondition *serviceerror.FailedPrecondition
 	require.ErrorAs(t, err, &failedPrecondition)
+}
+
+func TestSchedulerCapacityDeferredBackfillRetainsStartAudit(t *testing.T) {
+	modelConfig := model.Config{StartTime: schedulerPropertyStartTime, Interval: defaultInterval, OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL}
+	modelState, err := model.Transition(modelConfig, model.State{}, model.Create{})
+	require.NoError(t, err)
+	start := schedulerPropertyStartTime.Add(-3 * defaultInterval)
+	modelOutcome, err := model.Transition(modelConfig, modelState.State, model.Backfill{ID: "history", Start: start, End: schedulerPropertyStartTime})
+	require.NoError(t, err)
+	require.Len(t, startEffects(modelOutcome.Effects), 4)
+
+	env := newSchedulerPropertyEnv(t, false)
+	_, err = env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+	require.NoError(t, err)
+	_, err = env.engine.UpdateComponent(env.engineCtx, env.ref, func(ctx chasm.MutableContext, component chasm.Component) error {
+		invoker := component.(*scheduler.Scheduler).Invoker.Get(ctx)
+		for range 2 * schedulerPropertyMaxBufferSize {
+			invoker.BufferedStarts = append(invoker.BufferedStarts, &schedulespb.BufferedStart{})
+		}
+		return nil
+	})
+	require.NoError(t, err)
+
+	env.backfill(t, start, schedulerPropertyStartTime, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+	_, err = env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+	require.NoError(t, err)
+	require.Empty(t, env.services.Start.Calls())
+
+	_, err = env.engine.UpdateComponent(env.engineCtx, env.ref, func(ctx chasm.MutableContext, component chasm.Component) error {
+		component.(*scheduler.Scheduler).Invoker.Get(ctx).BufferedStarts = nil
+		return nil
+	})
+	require.NoError(t, err)
+	env.timeSource.Update(nextSchedulerTaskTime(t, env))
+	_, err = env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+	require.NoError(t, err)
+	require.Len(t, env.services.Start.Calls(), 4)
+}
+
+func TestSchedulerGeneratedBackfillModelConformance(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		count := rapid.IntRange(1, 4).Draw(t, "backfill-intervals")
+		deferForCapacity := rapid.Bool().Draw(t, "defer-for-capacity")
+		start := schedulerPropertyStartTime.Add(-time.Duration(count) * defaultInterval)
+		config := model.Config{StartTime: schedulerPropertyStartTime, Interval: defaultInterval, OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL}
+		created, err := model.Transition(config, model.State{}, model.Create{})
+		require.NoError(t, err)
+		want, err := model.Transition(config, created.State, model.Backfill{ID: "generated", Start: start, End: schedulerPropertyStartTime})
+		require.NoError(t, err)
+
+		env := newSchedulerPropertyEnv(t, false)
+		_, err = env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+		require.NoError(t, err)
+		if deferForCapacity {
+			_, err = env.engine.UpdateComponent(env.engineCtx, env.ref, func(ctx chasm.MutableContext, component chasm.Component) error {
+				invoker := component.(*scheduler.Scheduler).Invoker.Get(ctx)
+				for range 2 * schedulerPropertyMaxBufferSize {
+					invoker.BufferedStarts = append(invoker.BufferedStarts, &schedulespb.BufferedStart{})
+				}
+				return nil
+			})
+			require.NoError(t, err)
+		}
+		env.backfill(t, start, schedulerPropertyStartTime, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+		_, err = env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+		require.NoError(t, err)
+		if deferForCapacity {
+			_, err = env.engine.UpdateComponent(env.engineCtx, env.ref, func(ctx chasm.MutableContext, component chasm.Component) error {
+				component.(*scheduler.Scheduler).Invoker.Get(ctx).BufferedStarts = nil
+				return nil
+			})
+			require.NoError(t, err)
+			require.NoError(t, env.engine.ReloadExecution(t.Context(), env.ref))
+			env.timeSource.Update(nextSchedulerTaskTime(t, env))
+			_, err = env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
+			require.NoError(t, err)
+		}
+		require.Len(t, env.services.Start.Calls(), len(startEffects(want.Effects)))
+	})
 }
