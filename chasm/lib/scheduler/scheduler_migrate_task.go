@@ -219,8 +219,10 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 		Priority:                 &commonpb.Priority{},
 	}
 
+	callCtx, cancel := schedulerRPCCtx(ctx)
+	defer cancel()
 	_, err = h.historyClient.StartWorkflowExecution(
-		ctx,
+		callCtx,
 		common.CreateHistoryStartWorkflowRequest(result.namespaceID, startReq, nil, nil, result.now),
 	)
 	if err != nil {

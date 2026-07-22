@@ -693,7 +693,9 @@ func (h *InvokerExecuteTaskHandler) startWorkflow(
 		},
 	}
 
-	result, err := h.frontendClient.StartWorkflowExecution(ctx, request)
+	callCtx, cancel := schedulerRPCCtx(ctx)
+	defer cancel()
+	result, err := h.frontendClient.StartWorkflowExecution(callCtx, request)
 	if err != nil {
 		return err
 	}
@@ -735,7 +737,9 @@ func (h *InvokerExecuteTaskHandler) terminateWorkflow(
 			FirstExecutionRunId: target.RunId,
 		},
 	}
-	_, err := h.historyClient.TerminateWorkflowExecution(ctx, request)
+	callCtx, cancel := schedulerRPCCtx(ctx)
+	defer cancel()
+	_, err := h.historyClient.TerminateWorkflowExecution(callCtx, request)
 	return err
 }
 
@@ -754,7 +758,9 @@ func (h *InvokerExecuteTaskHandler) cancelWorkflow(
 			FirstExecutionRunId: target.RunId,
 		},
 	}
-	_, err := h.historyClient.RequestCancelWorkflowExecution(ctx, request)
+	callCtx, cancel := schedulerRPCCtx(ctx)
+	defer cancel()
+	_, err := h.historyClient.RequestCancelWorkflowExecution(callCtx, request)
 	return err
 }
 

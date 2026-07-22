@@ -1,9 +1,11 @@
 package scheduler
 
 import (
+	"context"
 	"encoding/binary"
 	"time"
 
+	"go.temporal.io/server/client/history"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/metrics"
@@ -12,6 +14,10 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func schedulerRPCCtx(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, history.DefaultTimeout)
+}
 
 func generateRequestID(scheduler *Scheduler, backfillID string, nominal, actual time.Time) string {
 	return schedulescommon.GenerateRequestID(

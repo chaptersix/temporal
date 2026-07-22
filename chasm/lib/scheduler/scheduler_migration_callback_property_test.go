@@ -101,6 +101,7 @@ func TestSchedulerCallbackRecoveryUsesGeneratedClientsProperty(t *testing.T) {
 		describes := env.services.Describe.Calls()
 		require.Len(t, describes, 1)
 		require.Equal(t, behavior.Label, describes[0].Name)
+		require.False(t, describes[0].Deadline.IsZero())
 		starts := env.services.Start.Calls()
 		wantStartCalls := 1
 		if behavior.Label == "running" {
@@ -109,6 +110,9 @@ func TestSchedulerCallbackRecoveryUsesGeneratedClientsProperty(t *testing.T) {
 			require.Equal(t, enumspb.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING, starts[1].Request.GetWorkflowIdConflictPolicy())
 		}
 		require.Len(t, starts, wantStartCalls)
+		for _, start := range starts {
+			require.False(t, start.Deadline.IsZero())
+		}
 
 		require.NoError(t, env.engine.ReloadExecution(t.Context(), env.ref))
 		redelivery, err := env.engine.ExecuteTask(t.Context(), env.ref, callbackTask)
