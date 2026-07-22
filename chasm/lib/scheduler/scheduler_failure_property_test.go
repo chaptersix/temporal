@@ -5,9 +5,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.temporal.io/api/serviceerror"
-	"go.temporal.io/api/workflowservice/v1"
-	"go.temporal.io/server/chasm/chasmtest/rpctest"
 	"go.temporal.io/server/common/testing/protorequire"
 	"go.temporal.io/server/service/history/tasks"
 )
@@ -16,13 +13,7 @@ func TestSchedulerStartFailureRetryAndRedeliveryProperty(t *testing.T) {
 	env := newSchedulerPropertyEnv(t, false)
 	_, err := env.engine.DrainTasks(t.Context(), env.ref, schedulerConformanceDrainLimit)
 	require.NoError(t, err)
-	env.services.Start.Push(
-		"unavailable",
-		rpctest.Fail[
-			*workflowservice.StartWorkflowExecutionRequest,
-			*workflowservice.StartWorkflowExecutionResponse,
-		](serviceerror.NewUnavailable("injected start failure")),
-	)
+	schedulerRPCProfiles{}.startRetryable().Queue(&env.services.Start)
 	env.trigger(t)
 
 	failedTask := deliverUntilStartCall(t, env)
