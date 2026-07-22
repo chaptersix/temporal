@@ -40,7 +40,14 @@ func (schedulerRPCProfiles) startRetryable() rpcgen.Behavior[
 	*workflowservice.StartWorkflowExecutionRequest,
 	*workflowservice.StartWorkflowExecutionResponse,
 ] {
-	return rpcgen.Retryable[*workflowservice.StartWorkflowExecutionRequest, *workflowservice.StartWorkflowExecutionResponse](codes.Unavailable)
+	return schedulerRPCProfiles{}.startRetryableWithCode(codes.Unavailable)
+}
+
+func (schedulerRPCProfiles) startRetryableWithCode(code codes.Code) rpcgen.Behavior[
+	*workflowservice.StartWorkflowExecutionRequest,
+	*workflowservice.StartWorkflowExecutionResponse,
+] {
+	return rpcgen.Retryable[*workflowservice.StartWorkflowExecutionRequest, *workflowservice.StartWorkflowExecutionResponse](code)
 }
 
 func (schedulerRPCProfiles) startTerminal() rpcgen.Behavior[
