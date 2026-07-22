@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.temporal.io/server/api/historyservice/v1"
@@ -39,6 +40,24 @@ func TestScriptConsumesOutcomesAndClonesMessages(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "default", response.Value)
 	require.Equal(t, "fallback", script.Calls()[1].Name)
+}
+
+func TestScriptRecordsContextDeadlineAndCancellation(t *testing.T) {
+	var script rpctest.Script[*wrapperspb.StringValue, *wrapperspb.StringValue]
+	observedCanceled := false
+	script.PushContext("context", func(ctx context.Context, _ *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
+		observedCanceled = ctx.Err() != nil
+		return wrapperspb.String("response"), nil
+	})
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute))
+	cancel()
+	_, err := script.Handle(ctx, wrapperspb.String("request"))
+	require.NoError(t, err)
+	require.True(t, observedCanceled)
+	calls := script.Calls()
+	require.Len(t, calls, 1)
+	require.False(t, calls[0].Deadline.IsZero())
+	require.True(t, calls[0].Canceled)
 }
 
 func TestScriptFailuresAndMissingOutcome(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -13,17 +14,24 @@ import (
 // Responder returns one scripted unary RPC outcome.
 type Responder[Request, Response proto.Message] func(Request) (Response, error)
 
+// ContextResponder returns one scripted unary RPC outcome and observes the
+// context supplied by the caller.
+type ContextResponder[Request, Response proto.Message] func(context.Context, Request) (Response, error)
+
 // Call is an immutable snapshot of a completed scripted RPC.
 type Call[Request, Response proto.Message] struct {
 	Name     string
 	Request  Request
 	Response Response
 	Err      error
+	Deadline time.Time
+	Canceled bool
 }
 
 type outcome[Request, Response proto.Message] struct {
-	name      string
-	responder Responder[Request, Response]
+	name       string
+	responder  Responder[Request, Response]
+	contextual ContextResponder[Request, Response]
 }
 
 // Script supplies ordered, typed outcomes to a generated unary client mock.
@@ -45,6 +53,17 @@ func (s *Script[Request, Response]) Push(
 	s.queued = append(s.queued, outcome[Request, Response]{name: name, responder: responder})
 }
 
+// PushContext appends an outcome which receives the context passed to the
+// generated unary client method.
+func (s *Script[Request, Response]) PushContext(
+	name string,
+	responder ContextResponder[Request, Response],
+) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.queued = append(s.queued, outcome[Request, Response]{name: name, contextual: responder})
+}
+
 // SetDefault sets the deterministic outcome used after the queue is exhausted.
 func (s *Script[Request, Response]) SetDefault(
 	name string,
@@ -55,9 +74,20 @@ func (s *Script[Request, Response]) SetDefault(
 	s.defaultOutcome = &outcome[Request, Response]{name: name, responder: responder}
 }
 
+// SetDefaultContext sets the deterministic context-aware outcome used after
+// the queue is exhausted.
+func (s *Script[Request, Response]) SetDefaultContext(
+	name string,
+	responder ContextResponder[Request, Response],
+) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.defaultOutcome = &outcome[Request, Response]{name: name, contextual: responder}
+}
+
 // Handle has the signature expected by generated unary gRPC client mocks.
 func (s *Script[Request, Response]) Handle(
-	_ context.Context,
+	ctx context.Context,
 	request Request,
 	_ ...grpc.CallOption,
 ) (Response, error) {
@@ -78,13 +108,25 @@ func (s *Script[Request, Response]) Handle(
 		s.calls = append(s.calls, Call[Request, Response]{Request: request, Err: err})
 		return response, err
 	}
-	response, err := selected.responder(request)
+	var deadline time.Time
+	if value, ok := ctx.Deadline(); ok {
+		deadline = value
+	}
+	var response Response
+	var err error
+	if selected.contextual != nil {
+		response, err = selected.contextual(ctx, request)
+	} else {
+		response, err = selected.responder(request)
+	}
 	response = clone(response)
 	s.calls = append(s.calls, Call[Request, Response]{
 		Name:     selected.name,
 		Request:  request,
 		Response: clone(response),
 		Err:      err,
+		Deadline: deadline,
+		Canceled: ctx.Err() != nil,
 	})
 	return response, err
 }
@@ -101,6 +143,8 @@ func (s *Script[Request, Response]) Calls() []Call[Request, Response] {
 			Request:  clone(entry.Request),
 			Response: clone(entry.Response),
 			Err:      entry.Err,
+			Deadline: entry.Deadline,
+			Canceled: entry.Canceled,
 		})
 	}
 	return calls

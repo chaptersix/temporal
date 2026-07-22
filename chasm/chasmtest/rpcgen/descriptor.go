@@ -1,0 +1,122 @@
+// Package rpcgen provides descriptor-backed generators for unary RPC test
+// boundaries. It deliberately provides structure, not service semantics.
+package rpcgen
+
+import (
+	"fmt"
+	"reflect"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"pgregory.net/rapid"
+)
+
+// UnaryMethod binds generated request and response Go types to a unary method
+// descriptor. The caller supplies typed constructors because descriptors alone
+// cannot construct generated Go message types.
+type UnaryMethod[Request, Response proto.Message] struct {
+	descriptor  protoreflect.MethodDescriptor
+	newRequest  func() Request
+	newResponse func() Response
+}
+
+// NewUnaryMethod validates a typed unary method binding.
+func NewUnaryMethod[Request, Response proto.Message](
+	descriptor protoreflect.MethodDescriptor,
+	newRequest func() Request,
+	newResponse func() Response,
+) (UnaryMethod[Request, Response], error) {
+	if descriptor == nil || descriptor.IsStreamingClient() || descriptor.IsStreamingServer() {
+		return UnaryMethod[Request, Response]{}, fmt.Errorf("rpcgen: method must be unary")
+	}
+	if newRequest == nil || newResponse == nil {
+		return UnaryMethod[Request, Response]{}, fmt.Errorf("rpcgen: typed constructors are required")
+	}
+	request := newRequest()
+	response := newResponse()
+	if isNil(request) || request.ProtoReflect().Descriptor().FullName() != descriptor.Input().FullName() {
+		return UnaryMethod[Request, Response]{}, fmt.Errorf("rpcgen: request type does not match %s", descriptor.FullName())
+	}
+	if isNil(response) || response.ProtoReflect().Descriptor().FullName() != descriptor.Output().FullName() {
+		return UnaryMethod[Request, Response]{}, fmt.Errorf("rpcgen: response type does not match %s", descriptor.FullName())
+	}
+	return UnaryMethod[Request, Response]{descriptor: descriptor, newRequest: newRequest, newResponse: newResponse}, nil
+}
+
+func isNil[Message proto.Message](message Message) bool {
+	value := reflect.ValueOf(message)
+	return !value.IsValid() || value.Kind() == reflect.Ptr && value.IsNil()
+}
+
+// FullMethodName is the stable gRPC method identifier used in diagnostics.
+func (m UnaryMethod[Request, Response]) FullMethodName() string {
+	return "/" + string(m.descriptor.Parent().FullName()) + "/" + string(m.descriptor.Name())
+}
+
+// RequestGenerator returns transport-representable typed request messages.
+func (m UnaryMethod[Request, Response]) RequestGenerator() *rapid.Generator[Request] {
+	return messageGenerator(m.newRequest)
+}
+
+// ResponseGenerator returns transport-representable typed response messages.
+func (m UnaryMethod[Request, Response]) ResponseGenerator() *rapid.Generator[Response] {
+	return messageGenerator(m.newResponse)
+}
+
+func messageGenerator[Message proto.Message](newMessage func() Message) *rapid.Generator[Message] {
+	return rapid.Custom(func(t *rapid.T) Message {
+		message := newMessage()
+		populate(t, message.ProtoReflect(), 0)
+		return message
+	})
+}
+
+func populate(t *rapid.T, message protoreflect.Message, depth int) {
+	if depth == 2 {
+		return
+	}
+	fields := message.Descriptor().Fields()
+	for index := 0; index < fields.Len(); index++ {
+		field := fields.Get(index)
+		if !rapid.Bool().Draw(t, string(field.Name())+"-present") {
+			continue
+		}
+		if field.IsList() || field.IsMap() {
+			continue
+		}
+		if field.Kind() == protoreflect.MessageKind || field.Kind() == protoreflect.GroupKind {
+			child := message.Mutable(field).Message()
+			populate(t, child, depth+1)
+			continue
+		}
+		message.Set(field, scalar(t, field))
+	}
+}
+
+func scalar(t *rapid.T, field protoreflect.FieldDescriptor) protoreflect.Value {
+	switch field.Kind() {
+	case protoreflect.BoolKind:
+		return protoreflect.ValueOfBool(rapid.Bool().Draw(t, string(field.Name())))
+	case protoreflect.StringKind:
+		return protoreflect.ValueOfString(rapid.StringN(0, 4, 16).Draw(t, string(field.Name())))
+	case protoreflect.BytesKind:
+		return protoreflect.ValueOfBytes([]byte(rapid.StringN(0, 3, 8).Draw(t, string(field.Name()))))
+	case protoreflect.EnumKind:
+		values := field.Enum().Values()
+		return protoreflect.ValueOfEnum(values.Get(rapid.IntRange(0, values.Len()-1).Draw(t, string(field.Name()))).Number())
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
+		return protoreflect.ValueOfInt32(rapid.Int32().Draw(t, string(field.Name())))
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
+		return protoreflect.ValueOfInt64(rapid.Int64().Draw(t, string(field.Name())))
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		return protoreflect.ValueOfUint32(rapid.Uint32().Draw(t, string(field.Name())))
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		return protoreflect.ValueOfUint64(rapid.Uint64().Draw(t, string(field.Name())))
+	case protoreflect.FloatKind:
+		return protoreflect.ValueOfFloat32(rapid.Float32().Draw(t, string(field.Name())))
+	case protoreflect.DoubleKind:
+		return protoreflect.ValueOfFloat64(rapid.Float64().Draw(t, string(field.Name())))
+	default:
+		panic(fmt.Sprintf("rpcgen: unsupported scalar kind %s", field.Kind()))
+	}
+}
