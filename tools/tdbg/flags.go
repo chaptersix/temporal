@@ -84,6 +84,7 @@ var (
 	FlagExecute                    = "execute"
 	FlagWorkers                    = "workers"
 	FlagOutputLog                  = "output-log"
+	FlagFormat                     = "format"
 )
 
 const defaultMigrateWorkers = 5

@@ -35,6 +35,8 @@ type decodedChasmNode struct {
 	PureTasks       []*decodedTask                    `json:"pureTasks,omitempty"`
 }
 
+type protoJSONEncoder func(proto.Message) ([]byte, error)
+
 func getNodeType(metadata *persistencespb.ChasmNodeMetadata) string {
 	switch {
 	case metadata.GetComponentAttributes() != nil:
@@ -53,6 +55,14 @@ func getNodeType(metadata *persistencespb.ChasmNodeMetadata) string {
 func decodeTask(
 	task *persistencespb.ChasmComponentAttributes_Task,
 	registry *chasm.Registry,
+) (*decodedTask, error) {
+	return decodeTaskWithEncoder(task, registry, codec.NewJSONPBEncoder().Encode)
+}
+
+func decodeTaskWithEncoder(
+	task *persistencespb.ChasmComponentAttributes_Task,
+	registry *chasm.Registry,
+	encoder protoJSONEncoder,
 ) (*decodedTask, error) {
 	typeID := task.GetTypeId()
 	fqn, _ := registry.TaskFqnByID(typeID)
@@ -99,7 +109,7 @@ func decodeTask(
 		}
 	}
 
-	jsonBytes, err := codec.NewJSONPBEncoder().Encode(message)
+	jsonBytes, err := encoder(message)
 	if err != nil {
 		decoded.RawData = dataBlob
 		return decoded, nil
@@ -110,6 +120,14 @@ func decodeTask(
 }
 
 func decodeNode(node *persistencespb.ChasmNode, registry *chasm.Registry) (*decodedChasmNode, error) {
+	return decodeNodeWithEncoder(node, registry, codec.NewJSONPBEncoder().Encode)
+}
+
+func decodeNodeWithEncoder(
+	node *persistencespb.ChasmNode,
+	registry *chasm.Registry,
+	encoder protoJSONEncoder,
+) (*decodedChasmNode, error) {
 	metadata := node.GetMetadata()
 	componentAttr := metadata.GetComponentAttributes()
 
@@ -154,7 +172,7 @@ func decodeNode(node *persistencespb.ChasmNode, registry *chasm.Registry) (*deco
 				result.RawData = dataBlob
 				result.NodeType = "component (decode error)"
 			} else {
-				jsonBytes, err := codec.NewJSONPBEncoder().Encode(message)
+				jsonBytes, err := encoder(message)
 				if err != nil {
 					return nil, fmt.Errorf("failed to encode to JSON: %w", err)
 				}
@@ -167,13 +185,13 @@ func decodeNode(node *persistencespb.ChasmNode, registry *chasm.Registry) (*deco
 	fqn, _ := registry.ComponentFqnByID(typeID)
 	result.ComponentFQN = fqn
 
-	sideEffectTasks, err := decodeTasks(componentAttr.GetSideEffectTasks(), registry)
+	sideEffectTasks, err := decodeTasksWithEncoder(componentAttr.GetSideEffectTasks(), registry, encoder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode side effect task: %w", err)
 	}
 	result.SideEffectTasks = sideEffectTasks
 
-	pureTasks, err := decodeTasks(componentAttr.GetPureTasks(), registry)
+	pureTasks, err := decodeTasksWithEncoder(componentAttr.GetPureTasks(), registry, encoder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode pure task: %w", err)
 	}
@@ -186,9 +204,17 @@ func decodeTasks(
 	tasks []*persistencespb.ChasmComponentAttributes_Task,
 	registry *chasm.Registry,
 ) ([]*decodedTask, error) {
+	return decodeTasksWithEncoder(tasks, registry, codec.NewJSONPBEncoder().Encode)
+}
+
+func decodeTasksWithEncoder(
+	tasks []*persistencespb.ChasmComponentAttributes_Task,
+	registry *chasm.Registry,
+	encoder protoJSONEncoder,
+) ([]*decodedTask, error) {
 	result := make([]*decodedTask, len(tasks))
 	for i, task := range tasks {
-		decodedTask, err := decodeTask(task, registry)
+		decodedTask, err := decodeTaskWithEncoder(task, registry, encoder)
 		if err != nil {
 			return nil, err
 		}
@@ -201,9 +227,17 @@ func decodeChasmNodes(
 	chasmNodes map[string]*persistencespb.ChasmNode,
 	registry *chasm.Registry,
 ) (map[string]*decodedChasmNode, error) {
+	return decodeChasmNodesWithEncoder(chasmNodes, registry, codec.NewJSONPBEncoder().Encode)
+}
+
+func decodeChasmNodesWithEncoder(
+	chasmNodes map[string]*persistencespb.ChasmNode,
+	registry *chasm.Registry,
+	encoder protoJSONEncoder,
+) (map[string]*decodedChasmNode, error) {
 	decoded := make(map[string]*decodedChasmNode, len(chasmNodes))
 	for path, node := range chasmNodes {
-		decodedNode, err := decodeNode(node, registry)
+		decodedNode, err := decodeNodeWithEncoder(node, registry, encoder)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode node at path %q: %w", path, err)
 		}

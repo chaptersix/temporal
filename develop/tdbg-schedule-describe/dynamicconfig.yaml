@@ -1,0 +1,15 @@
+history.enableChasm:
+  - value: true
+    constraints: {}
+
+history.enableCHASMSchedulerCreation:
+  - value: true
+    constraints: {}
+
+history.chasmSchedulerCreationRolloutPercent:
+  - value: 100
+    constraints: {}
+
+history.enableCHASMSchedulerRouting:
+  - value: true
+    constraints: {}

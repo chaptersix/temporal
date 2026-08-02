@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Summary.ScheduleID}}</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-[#f3eee2] text-[#292524] antialiased">
+<main class="mx-auto max-w-5xl space-y-4 px-4 py-5">
+  <header class="grid grid-cols-2 gap-4 rounded-2xl border-2 border-[#cfc6b7] bg-[#fffdf7] p-5 shadow-[3px_4px_0_rgba(87,75,60,0.12)] md:grid-cols-4">
+    <div class="col-span-2">
+      <h1 class="break-words text-2xl font-bold tracking-tight">{{.Summary.ScheduleID}}</h1>
+    </div>
+    <div><div class="text-xs font-bold uppercase tracking-wider text-[#746b60]">State</div><div class="mt-1"><span class="inline-flex rounded-full border border-[#b9ae9d] bg-[#f8f3e9] px-3 py-1 font-semibold">{{.Summary.Status}}</span></div></div>
+    <label><span class="text-xs font-bold uppercase tracking-wider text-[#746b60]">Time display</span><select id="time-display" class="mt-1 block w-full rounded-lg border border-[#b9ae9d] bg-[#fffdf7] px-3 py-2"><option value="relative">Relative</option><option value="timestamp">Timestamp</option></select></label>
+    <div><div class="text-xs font-bold uppercase tracking-wider text-[#746b60]">Updated</div><div class="timestamp mt-1 break-words" data-time="{{.Summary.UpdatedAt}}">{{.Summary.UpdatedAt}}</div></div>
+    <div><div class="text-xs font-bold uppercase tracking-wider text-[#746b60]">Created</div><div class="timestamp mt-1 break-words" data-time="{{.Summary.CreatedAt}}">{{.Summary.CreatedAt}}</div></div>
+    <div><div class="text-xs font-bold uppercase tracking-wider text-[#746b60]">Overlap policy</div><div class="mt-1 break-words">{{.Summary.OverlapPolicy}}</div></div>
+  </header>
+
+  <section class="rounded-2xl border-2 border-[#5ba3a5] bg-[#f2fbfa] p-5 shadow-[3px_4px_0_rgba(50,105,107,0.13)]">
+    <div class="mb-3 flex items-center justify-between gap-3"><h2 class="text-xl font-bold text-[#245f61]">Invoker buffer</h2>{{with .Components.Invoker}}<span class="rounded-full bg-[#d9efed] px-3 py-1 text-sm font-semibold text-[#245f61]">{{len .Buffer}} starts</span>{{end}}</div>
+    {{with .Components.Invoker}}
+    <div class="grid max-h-[70vh] gap-3 overflow-y-auto pr-2" id="buffer-list">
+      {{range .Buffer}}<article class="rounded-xl border border-[#8bc3c1] bg-[#fffef9] p-3" data-state="{{.State}}">
+        <div class="mb-2 flex flex-wrap items-end gap-3 text-sm text-[#4d7474]">
+          <strong>#{{.Index}}</strong><span>{{.State}}</span>
+          {{if .NominalTime}}<span><span class="block text-xs font-bold uppercase tracking-wide">Nominal</span><span class="timestamp" data-time="{{.NominalTime}}">{{.NominalTime}}</span></span>{{end}}
+          {{if .ActualTime}}<span><span class="block text-xs font-bold uppercase tracking-wide">Actual</span><span class="timestamp" data-time="{{.ActualTime}}">{{.ActualTime}}</span></span>{{end}}
+          {{if .StartTime}}<span><span class="block text-xs font-bold uppercase tracking-wide">Start</span><span class="timestamp" data-time="{{.StartTime}}">{{.StartTime}}</span></span>{{end}}
+        </div>
+        <pre class="overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[#e8f5f3] p-3 font-mono text-sm leading-6">{{.RawPretty}}</pre>
+      </article>{{else}}<p class="text-[#746b60]">Buffer is empty.</p>{{end}}
+    </div>
+    {{else}}<p class="text-[#746b60]">Invoker node is absent.</p>{{end}}
+  </section>
+
+  <section class="rounded-2xl border-2 border-[#cfc6b7] bg-[#fffdf7] p-5 shadow-[3px_4px_0_rgba(87,75,60,0.12)]">
+    <div class="mb-3 flex items-center justify-between gap-3"><h2 class="text-xl font-bold">Event timeline</h2><select id="event-filter" class="rounded-lg border border-[#b9ae9d] bg-[#fffdf7] px-3 py-2"><option value="">All components</option><option>Scheduler</option><option>Generator</option><option>Invoker</option><option>Backfiller</option></select></div>
+    <div class="grid max-h-[70vh] gap-3 overflow-y-auto pr-2" id="timeline">
+      {{range .EventTimeline}}<article class="rounded-xl border-2 p-3 {{if eq .Source "Generator"}}border-[#5798c5] bg-[#eef8ff]{{else if eq .Source "Invoker"}}border-[#5ba3a5] bg-[#edf9f8]{{else if eq .Source "Scheduler"}}border-[#d09a42] bg-[#fff8df]{{else}}border-[#a77bb8] bg-[#faf1ff]{{end}}" data-source="{{.Source}}">
+        <div class="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-sm {{if eq .Source "Generator"}}text-[#356b91]{{else if eq .Source "Invoker"}}text-[#245f61]{{else if eq .Source "Scheduler"}}text-[#8a5d19]{{else}}text-[#684579]{{end}}"><span class="timestamp" data-time="{{.Time}}">{{.Time}}</span>{{if .Delta}}<span>+{{.Delta}}</span>{{end}}<strong>{{.Source}}</strong></div>
+        <pre class="overflow-auto whitespace-pre-wrap break-words rounded-lg p-3 font-mono text-sm leading-6 {{if eq .Source "Generator"}}bg-[#deeffa]{{else if eq .Source "Invoker"}}bg-[#dcefed]{{else if eq .Source "Scheduler"}}bg-[#f8e9bd]{{else}}bg-[#eadcf0]{{end}}">{{.RawPretty}}</pre>
+      </article>{{else}}<p class="text-[#746b60]">No scheduler event logs were persisted.</p>{{end}}
+    </div>
+  </section>
+
+  <section class="rounded-2xl border-2 border-[#7e9b72] bg-[#f5faef] p-5 shadow-[3px_4px_0_rgba(72,103,58,0.13)]">
+    <div class="mb-3"><h2 class="text-xl font-bold text-[#45603b]">Search attributes</h2><p class="mt-1 text-sm text-[#66745f]">Framework mappings and current derived values, plus custom values persisted under Visibility$SA.</p></div>
+    <pre class="max-h-[40rem] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[#e9f2e3] p-3 font-mono text-sm leading-6">{{.SearchAttributes.Pretty}}</pre>
+  </section>
+
+  <section class="space-y-4 rounded-2xl border-2 border-[#78716c] bg-[#fffdf7] p-5 shadow-[3px_4px_0_rgba(87,75,60,0.12)]">
+    <h2 class="text-xl font-bold">Component internals</h2>
+    {{template "component" .Components.Scheduler}}
+    {{template "component" .Components.Generator}}
+    {{template "component" .Components.Invoker}}
+    {{range .Components.Backfillers}}{{template "component" .}}{{end}}
+  </section>
+
+  <section class="rounded-2xl border-2 border-[#8776b6] bg-[#f8f5ff] p-5 shadow-[3px_4px_0_rgba(83,65,128,0.13)]">
+    <div class="mb-3 flex items-center justify-between"><h2 class="text-xl font-bold text-[#57458a]">Logical tasks</h2><span class="text-[#746b60]">{{len .LogicalTasks}}</span></div>
+    <div class="grid max-h-[70vh] gap-4 overflow-y-auto pr-2" id="logical-task-list">
+      {{range .LogicalTaskGroups}}<section class="rounded-xl border border-[#b8ace0] bg-[#eee9fb]/60 p-3" data-task-kind="{{.Kind}}">
+        <div class="mb-3 flex items-center justify-between"><h3 class="font-bold uppercase tracking-wide text-[#57458a]">{{.Label}}</h3><span class="rounded-full bg-[#ddd4f3] px-3 py-1 text-sm font-semibold text-[#57458a]">{{len .Tasks}}</span></div>
+        <div class="grid gap-3">
+          {{range .Tasks}}<article class="rounded-xl border border-[#b8ace0] bg-[#fffefe] p-3">
+            <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2"><h4 class="font-bold text-[#57458a]">{{.TaskFQN}}</h4><span class="font-mono text-sm text-[#746b60]">{{displayPath .OwnerPath}}</span></div>
+            <pre class="max-h-[36rem] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[#eee9fb] p-3 font-mono text-sm leading-6">{{.Pretty}}</pre>
+          </article>{{end}}
+        </div>
+      </section>{{else}}<p class="text-[#746b60]">No logical tasks.</p>{{end}}
+    </div>
+  </section>
+
+  <section class="rounded-2xl border-2 border-[#7e9b72] bg-[#f5faef] p-5 shadow-[3px_4px_0_rgba(72,103,58,0.13)]">
+    <div class="mb-3 flex items-center justify-between"><h2 class="text-xl font-bold text-[#45603b]">Supporting nodes</h2><span class="text-[#746b60]">{{len .SupportingNodes}}</span></div>
+    <div class="grid gap-3">
+      {{range .SupportingNodes}}<article class="rounded-xl border border-[#adc3a4] bg-[#fffef9] p-3">
+        <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2"><h3 class="font-bold text-[#45603b]">{{displayPath .Path}}</h3><span class="font-mono text-sm text-[#746b60]">{{.NodeType}}</span></div>
+        <pre class="max-h-[36rem] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[#e9f2e3] p-3 font-mono text-sm leading-6">{{.Pretty}}</pre>
+      </article>{{end}}
+    </div>
+  </section>
+
+  {{if .DecodeErrors}}<section class="rounded-2xl border-2 border-[#c75b5b] bg-[#fff2f2] p-5"><h2 class="text-xl font-bold text-[#8e3030]">Decode errors</h2>{{range .DecodeErrors}}<p class="mt-2"><code>{{displayPath .Path}}</code>: {{.Error}}</p>{{end}}</section>{{end}}
+</main>
+
+{{define "component"}}{{if .}}<article class="rounded-xl border-2 p-4 {{if eq .Node.ComponentFQN "scheduler.scheduler"}}border-[#d09a42] bg-[#fff8df]{{else if eq .Node.ComponentFQN "scheduler.generator"}}border-[#5798c5] bg-[#eef8ff]{{else if eq .Node.ComponentFQN "scheduler.invoker"}}border-[#5ba3a5] bg-[#edf9f8]{{else}}border-[#a77bb8] bg-[#faf1ff]{{end}}">
+  <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
+    <div><h3 class="font-bold">{{.Node.ComponentFQN}}</h3><span class="font-mono text-sm text-[#746b60]">{{displayPath .Node.Path}}</span></div>
+    {{if .LastProcessedTime}}<div class="rounded-lg border border-black/15 bg-white/70 px-3 py-2 text-right shadow-sm"><div class="text-xs font-bold uppercase tracking-wider text-[#746b60]">Last processed</div><div class="timestamp mt-1 font-semibold" data-time="{{.LastProcessedTime}}">{{.LastProcessedTime}}</div></div>{{end}}
+  </div>
+  {{if .Node.DecodedPretty}}<pre class="max-h-[40rem] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-white/70 p-3 font-mono text-sm leading-6">{{.Node.DecodedPretty}}</pre>{{end}}
+  <div class="mt-3 border-t border-black/15 pt-3"><h4 class="font-semibold">Node metadata</h4><pre class="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-white/70 p-3 font-mono text-sm leading-6">{{.Node.MetadataPretty}}</pre></div>
+  {{if .EventLog}}<div class="mt-3 border-t border-black/15 pt-3"><h4 class="font-semibold">Component event log node</h4><pre class="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-white/70 p-3 font-mono text-sm leading-6">{{.EventLog.DecodedPretty}}</pre></div>{{end}}
+</article>{{end}}{{end}}
+
+<script>
+(() => {
+  const formatGoDuration = (totalSeconds) => {
+    const seconds = Math.max(0, Math.round(Math.abs(totalSeconds)));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainder = seconds % 60;
+    if (hours) return `${hours}h${minutes}m${remainder}s`;
+    if (minutes) return `${minutes}m${remainder}s`;
+    return `${remainder}s`;
+  };
+  const formatRelativeTime = (date) => {
+    const seconds = (date.valueOf() - Date.now()) / 1000;
+    const duration = formatGoDuration(seconds);
+    return seconds > 0 ? `in ${duration}` : `${duration} ago`;
+  };
+  const renderTimes = () => {
+    const mode = document.querySelector('#time-display').value;
+    document.querySelectorAll('.timestamp[data-time]').forEach((element) => {
+      const raw = element.dataset.time;
+      const date = new Date(raw);
+      if (!raw || Number.isNaN(date.valueOf())) return;
+      element.textContent = mode === 'relative' ? formatRelativeTime(date) : raw;
+      element.title = raw;
+    });
+  };
+  document.querySelector('#time-display').addEventListener('change', renderTimes);
+  renderTimes();
+  document.querySelector('#event-filter').addEventListener('change', (event) => {
+    const source = event.target.value;
+    document.querySelectorAll('#timeline article').forEach((entry) => entry.classList.toggle('hidden', source && !entry.dataset.source.startsWith(source)));
+  });
+})();
+</script>
+</body>
+</html>

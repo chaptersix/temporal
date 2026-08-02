@@ -300,6 +300,30 @@ func newAdminExecutionCommands(clientFactory ClientFactory, prompterFactory Prom
 func newAdminScheduleCommands(clientFactory ClientFactory) []*cli.Command {
 	return []*cli.Command{
 		{
+			Name:  "describe",
+			Usage: "Describe decoded internal state of a CHASM schedule",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     FlagScheduleID,
+					Aliases:  FlagScheduleIDAlias,
+					Usage:    "Schedule ID",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:  FlagFormat,
+					Usage: "Output format: json or html",
+					Value: "json",
+				},
+				&cli.StringFlag{
+					Name:  FlagOutputFilename,
+					Usage: "Output file (defaults to stdout)",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				return AdminDescribeSchedule(c, clientFactory)
+			},
+		},
+		{
 			Name:  "migrate",
 			Usage: "Migrate a schedule between V1 (workflow-backed) and V2 (CHASM)",
 			Flags: []cli.Flag{
