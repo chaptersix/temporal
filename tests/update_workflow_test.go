@@ -5074,7 +5074,7 @@ func (s *UpdateWithStartSuite) updateWithStartReq(env testcore.Env, tv *testvars
 	}
 }
 
-func (s *UpdateWithStartSuite) TestWorkflowCacheEvictionLeavesCompletedUpdateWaiterBehind() {
+func (s *UpdateWithStartSuite) TestWorkflowCacheEvictionWakesCompletedUpdateWaiter() {
 	env := testcore.NewEnv(s.T(), testcore.WithDedicatedCluster())
 	startReq := s.updateWithStartReq(env, env.Tv())
 	startReq.WorkflowIdConflictPolicy = enumspb.WORKFLOW_ID_CONFLICT_POLICY_FAIL
@@ -5145,12 +5145,6 @@ func (s *UpdateWithStartSuite) TestWorkflowCacheEvictionLeavesCompletedUpdateWai
 		})
 	s.NoError(err)
 
-	select {
-	case result := <-resultCh:
-		s.Failf("Update-with-Start returned after durable completion", "response: %v, error: %v", result.response, result.err)
-	default:
-	}
-
 	s.EqualHistoryEvents(`
 	  1 WorkflowExecutionStarted
 	  2 WorkflowTaskScheduled
@@ -5169,12 +5163,12 @@ func (s *UpdateWithStartSuite) TestWorkflowCacheEvictionLeavesCompletedUpdateWai
 	case result := <-resultCh:
 		s.NoError(result.err)
 		s.NotNil(result.response)
-		s.GreaterOrEqual(time.Since(requestStartTime), 19*time.Second)
+		s.Less(time.Since(requestStartTime), 19*time.Second)
 		updateResponse := result.response.Responses[1].GetUpdateWorkflow()
-		s.Equal(enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED, updateResponse.Stage)
-		s.Nil(updateResponse.Outcome)
-	case <-time.After(30 * time.Second):
-		s.Fail("Update-with-Start did not return after the History long-poll timeout")
+		s.Equal(enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED, updateResponse.Stage)
+		s.Equal("success-result-of-"+tv.UpdateID(), testcore.DecodeString(s.T(), updateResponse.GetOutcome().GetSuccess()))
+	case <-time.After(10 * time.Second):
+		s.Fail("Update-with-Start did not return promptly after durable completion")
 	}
 }
 

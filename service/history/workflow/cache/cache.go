@@ -137,6 +137,7 @@ func NewHostLevelCache(
 				logger.Debug("cache failed to de-register callback in finalizer",
 					tag.Error(err), tag.ShardID(item.shardId))
 			}
+			item.wfContext.Clear()
 		},
 	}
 
