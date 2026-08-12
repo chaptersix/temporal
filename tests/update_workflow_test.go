@@ -5074,6 +5074,110 @@ func (s *UpdateWithStartSuite) updateWithStartReq(env testcore.Env, tv *testvars
 	}
 }
 
+func (s *UpdateWithStartSuite) TestWorkflowCacheEvictionLeavesCompletedUpdateWaiterBehind() {
+	env := testcore.NewEnv(s.T(), testcore.WithDedicatedCluster())
+	startReq := s.updateWithStartReq(env, env.Tv())
+	startReq.WorkflowIdConflictPolicy = enumspb.WORKFLOW_ID_CONFLICT_POLICY_FAIL
+	updateReq := updateWorkflowRequest(env, env.Tv(),
+		&updatepb.WaitPolicy{LifecycleStage: enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED})
+
+	// The application-facing Go SDK v1.40.0 equivalent is approximately:
+	//
+	//  startOp := sdkClient.NewWithStartWorkflowOperation(
+	//      client.StartWorkflowOptions{
+	//          ID: workflowID, TaskQueue: taskQueue,
+	//          WorkflowIDConflictPolicy: enumspb.WORKFLOW_ID_CONFLICT_POLICY_FAIL,
+	//      }, workflowFn)
+	//  handle, err := sdkClient.UpdateWithStartWorkflow(ctx, client.UpdateWithStartWorkflowOptions{
+	//      StartWorkflowOperation: startOp,
+	//      UpdateOptions: client.UpdateWorkflowOptions{
+	//          UpdateID: updateID, UpdateName: updateName,
+	//          WaitForStage: client.WorkflowUpdateStageCompleted,
+	//      },
+	//  })
+	//  err = handle.Get(ctx, &result)
+	//
+	// This test calls WorkflowService directly because the SDK repeatedly calls ExecuteMultiOperation
+	// until the response is past Admitted. That is desirable client behavior, but it would hide the
+	// first server response that this test needs to assert. The direct call still traverses Frontend
+	// and History; it only omits the SDK's outer retry loop.
+	requestStartTime := time.Now()
+	resultCh := make(chan multiopsResponseErr, 1)
+	go func() {
+		response, err := env.FrontendClient().ExecuteMultiOperation(
+			testcore.NewContext(env.Context()),
+			&workflowservice.ExecuteMultiOperationRequest{
+				Namespace: env.Namespace().String(),
+				Operations: []*workflowservice.ExecuteMultiOperationRequest_Operation{
+					{Operation: &workflowservice.ExecuteMultiOperationRequest_Operation_StartWorkflow{StartWorkflow: startReq}},
+					{Operation: &workflowservice.ExecuteMultiOperationRequest_Operation_UpdateWorkflow{UpdateWorkflow: updateReq}},
+				},
+			},
+		)
+		resultCh <- multiopsResponseErr{response: response, err: err}
+	}()
+
+	task, err := env.FrontendClient().PollWorkflowTaskQueue(
+		testcore.NewContext(env.Context()),
+		&workflowservice.PollWorkflowTaskQueueRequest{
+			Namespace: env.Namespace().String(),
+			TaskQueue: env.Tv().TaskQueue(),
+			Identity:  env.Tv().WorkerIdentity(),
+		},
+	)
+	s.NoError(err)
+	s.Len(task.Messages, 1)
+	runID := task.WorkflowExecution.GetRunId()
+	s.NotEmpty(runID)
+
+	// There is no public API to evict one workflow from History's cache. CloseShard is not equivalent:
+	// shard finalization calls WorkflowContext.Clear and wakes this waiter with Unavailable. Filling the
+	// default cache would require more than 128,000 entries, and TTL eviction would take an hour. The test
+	// hook locates this exact, now-unpinned run and calls the cache's real Delete path, which invokes the
+	// same OnEvict callback as capacity and TTL eviction. It bypasses victim selection, not eviction behavior.
+	env.EvictWorkflowExecution(env.NamespaceID().String(), env.Tv().WorkflowID(), runID)
+	tv := env.Tv().WithRunID(runID)
+	_, err = env.TaskPoller().HandleWorkflowTask(tv, task,
+		func(task *workflowservice.PollWorkflowTaskQueueResponse) (*workflowservice.RespondWorkflowTaskCompletedRequest, error) {
+			return &workflowservice.RespondWorkflowTaskCompletedRequest{
+				Messages: env.UpdateAcceptCompleteMessages(tv, task.Messages[0]),
+			}, nil
+		})
+	s.NoError(err)
+
+	select {
+	case result := <-resultCh:
+		s.Failf("Update-with-Start returned after durable completion", "response: %v, error: %v", result.response, result.err)
+	default:
+	}
+
+	s.EqualHistoryEvents(`
+	  1 WorkflowExecutionStarted
+	  2 WorkflowTaskScheduled
+	  3 WorkflowTaskStarted
+	  4 WorkflowTaskCompleted
+	  5 WorkflowExecutionUpdateAccepted
+	  6 WorkflowExecutionUpdateCompleted`, env.GetHistory(env.Namespace().String(), tv.WorkflowExecution()))
+
+	pollResponse, err := pollUpdate(env, tv,
+		&updatepb.WaitPolicy{LifecycleStage: enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED})
+	s.NoError(err)
+	s.Equal(enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED, pollResponse.Stage)
+	s.Equal("success-result-of-"+tv.UpdateID(), testcore.DecodeString(s.T(), pollResponse.GetOutcome().GetSuccess()))
+
+	select {
+	case result := <-resultCh:
+		s.NoError(result.err)
+		s.NotNil(result.response)
+		s.GreaterOrEqual(time.Since(requestStartTime), 19*time.Second)
+		updateResponse := result.response.Responses[1].GetUpdateWorkflow()
+		s.Equal(enumspb.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED, updateResponse.Stage)
+		s.Nil(updateResponse.Outcome)
+	case <-time.After(30 * time.Second):
+		s.Fail("Update-with-Start did not return after the History long-poll timeout")
+	}
+}
+
 func (s *UpdateWithStartSuite) TestWorkflowIsNotRunning() {
 	for _, p := range []enumspb.WorkflowIdConflictPolicy{
 		enumspb.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING,

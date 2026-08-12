@@ -25,6 +25,7 @@ import (
 	"go.temporal.io/server/common/authorization"
 	"go.temporal.io/server/common/cluster"
 	"go.temporal.io/server/common/config"
+	"go.temporal.io/server/common/definition"
 	"go.temporal.io/server/common/dynamicconfig"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
@@ -52,6 +53,7 @@ import (
 	"go.temporal.io/server/service/history"
 	"go.temporal.io/server/service/history/replication"
 	"go.temporal.io/server/service/history/tasks"
+	wcache "go.temporal.io/server/service/history/workflow/cache"
 	"go.temporal.io/server/service/matching"
 	"go.temporal.io/server/service/worker"
 	"go.temporal.io/server/temporal"
@@ -105,6 +107,7 @@ type (
 		chasmVisibilityMgr        chasm.VisibilityManager
 		replicationStreamRecorder *ReplicationStreamRecorder
 		historyTaskRecorder       *HistoryTaskRecorder
+		historyWorkflowCaches     []wcache.Cache
 		spanExporters             map[telemetry.SpanExporterType]sdktrace.SpanExporter
 		tokenProvider             auth.TokenProvider
 		enableHistoryTaskRecorder bool
@@ -439,6 +442,7 @@ func (c *temporalImpl) startHistory() {
 
 	for _, host := range c.hostsByProtocolByService[grpcProtocol][serviceName].All {
 		var namespaceRegistry namespace.Registry
+		var workflowCache wcache.Cache
 		logger := log.With(c.logger, tag.Host(host))
 		app := fx.New(
 			fx.Supply(
@@ -495,7 +499,7 @@ func (c *temporalImpl) startHistory() {
 			temporal.FxLogAdapter,
 			c.getFxOptionsForService(primitives.HistoryService),
 			chasm.Module,
-			fx.Populate(&namespaceRegistry),
+			fx.Populate(&namespaceRegistry, &workflowCache),
 		)
 		err := app.Err()
 		if err != nil {
@@ -506,7 +510,18 @@ func (c *temporalImpl) startHistory() {
 		if err := app.Start(context.Background()); err != nil {
 			logger.Fatal("unable to start history service", tag.Error(err))
 		}
+		c.historyWorkflowCaches = append(c.historyWorkflowCaches, workflowCache)
 	}
+}
+
+func (c *temporalImpl) evictWorkflowExecution(namespaceID, workflowID, runID string) bool {
+	workflowKey := definition.NewWorkflowKey(namespaceID, workflowID, runID)
+	for _, workflowCache := range c.historyWorkflowCaches {
+		if wcache.EvictWorkflowExecution(workflowCache, workflowKey) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *temporalImpl) startMatching() {

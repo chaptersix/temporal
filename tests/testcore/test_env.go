@@ -598,6 +598,18 @@ func (e *TestEnv) CloseShard(namespaceID string, workflowID string) {
 	e.NoError(err)
 }
 
+// EvictWorkflowExecution removes an exact workflow run through the History cache's eviction path.
+// It is intentionally restricted to dedicated clusters because it mutates process-wide cache state.
+func (e *TestEnv) EvictWorkflowExecution(namespaceID string, workflowID string, runID string) {
+	if e.isShared {
+		e.t.Fatalf("EvictWorkflowExecution cannot be called on a shared cluster; use testcore.WithDedicatedCluster()")
+	}
+	e.dedicatedGuard.record("workflow cache entry evicted")
+	if !e.cluster.host.evictWorkflowExecution(namespaceID, workflowID, runID) {
+		e.t.Fatalf("workflow cache entry not found for workflow %q run %q", workflowID, runID)
+	}
+}
+
 func canBeNamespaceScoped(p dynamicconfig.Precedence) bool {
 	switch p {
 	case dynamicconfig.PrecedenceNamespace,
