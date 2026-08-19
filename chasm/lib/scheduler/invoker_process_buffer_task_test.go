@@ -2,13 +2,17 @@ package scheduler_test
 
 import (
 	"context"
+	"fmt"
 	"slices"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
+	schedulepb "go.temporal.io/api/schedule/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/chasmtest"
@@ -16,8 +20,10 @@ import (
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/metrics/metricstest"
 	"go.temporal.io/server/common/util"
 	"go.temporal.io/server/service/history/tasks"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -676,6 +682,362 @@ func TestProcessBufferTask_PausedDropsAutomatedKeepsManual(t *testing.T) {
 				"manual start must be promoted to Attempt=1 even when schedule is paused")
 		},
 	})
+}
+
+type bufferProcessingComparisonInput struct {
+	name                 string
+	schedule             *schedulepb.Schedule
+	bufferedStarts       []*schedulespb.BufferedStart
+	cancelWorkflows      []*commonpb.WorkflowExecution
+	terminateWorkflows   []*commonpb.WorkflowExecution
+	lastProcessedTime    time.Time
+	workflowMigration    bool
+	initialConflictToken int64
+}
+
+type normalizedBufferProcessing struct {
+	schedulerState     *schedulerpb.SchedulerState
+	invokerState       *schedulerpb.InvokerState
+	tasks              []string
+	actionRequests     []string
+	metrics            []string
+	outcomes           []string
+	remainingDelta     int64
+	conflictTokenDelta int64
+}
+
+func TestProcessBufferTask_LegacyAndPlannerDifferentialCorpus(t *testing.T) {
+	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	makeStart := func(id string, policy enumspb.ScheduleOverlapPolicy) *schedulespb.BufferedStart {
+		return &schedulespb.BufferedStart{
+			NominalTime:   timestamppb.New(now),
+			ActualTime:    timestamppb.New(now),
+			DesiredTime:   timestamppb.New(now),
+			RequestId:     id,
+			WorkflowId:    "workflow-" + id,
+			OverlapPolicy: policy,
+		}
+	}
+	running := makeStart("running", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+	running.Attempt = 1
+	running.RunId = "running-run"
+
+	var corpus []bufferProcessingComparisonInput
+	for _, policy := range []enumspb.ScheduleOverlapPolicy{
+		enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL,
+		enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER,
+		enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER,
+		enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+	} {
+		corpus = append(corpus, bufferProcessingComparisonInput{
+			name:              "overlap " + policy.String(),
+			schedule:          defaultSchedule(),
+			bufferedStarts:    []*schedulespb.BufferedStart{running, makeStart("pending", policy)},
+			lastProcessedTime: now,
+		})
+	}
+
+	pausedSchedule := defaultSchedule()
+	pausedSchedule.State.Paused = true
+	pausedManual := makeStart("manual", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+	pausedManual.Manual = true
+	corpus = append(corpus, bufferProcessingComparisonInput{
+		name: "paused automatic and manual", schedule: pausedSchedule,
+		bufferedStarts: []*schedulespb.BufferedStart{
+			makeStart("automatic", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL), pausedManual,
+		}, lastProcessedTime: now,
+	})
+	for _, remaining := range []int64{0, 1, 3} {
+		limited := defaultSchedule()
+		limited.State.LimitedActions = true
+		limited.State.RemainingActions = remaining
+		corpus = append(corpus, bufferProcessingComparisonInput{
+			name: fmt.Sprintf("limited actions %d", remaining), schedule: limited,
+			bufferedStarts: []*schedulespb.BufferedStart{
+				makeStart("first", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL),
+				makeStart("second", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL),
+			}, lastProcessedTime: now, initialConflictToken: 17,
+		})
+	}
+	unlimitedManual := makeStart("manual", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+	unlimitedManual.Manual = true
+	corpus = append(corpus, bufferProcessingComparisonInput{
+		name: "unlimited and manual", schedule: defaultSchedule(),
+		bufferedStarts: []*schedulespb.BufferedStart{
+			makeStart("automatic", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL), unlimitedManual,
+		}, lastProcessedTime: now,
+	})
+	expired := makeStart("expired", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+	expired.ActualTime = timestamppb.New(now.Add(-2 * defaultCatchupWindow))
+	corpus = append(corpus, bufferProcessingComparisonInput{
+		name: "expired catchup window", schedule: defaultSchedule(),
+		bufferedStarts: []*schedulespb.BufferedStart{expired}, lastProcessedTime: now,
+	})
+	deferred := makeStart("deferred", enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE)
+	deferred.Attempt = -1
+	corpus = append(corpus, bufferProcessingComparisonInput{
+		name: "running and deferred", schedule: defaultSchedule(),
+		bufferedStarts: []*schedulespb.BufferedStart{running, deferred}, lastProcessedTime: now,
+	})
+	for _, backoffDelta := range []time.Duration{-time.Second, 0, time.Second} {
+		retry := makeStart(fmt.Sprintf("retry-%s", backoffDelta), enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+		retry.Attempt = 2
+		retry.BackoffTime = timestamppb.New(now.Add(backoffDelta))
+		corpus = append(corpus, bufferProcessingComparisonInput{
+			name: fmt.Sprintf("retry boundary %s", backoffDelta), schedule: defaultSchedule(),
+			bufferedStarts: []*schedulespb.BufferedStart{retry}, lastProcessedTime: now,
+		})
+	}
+	completed := makeStart("duplicate", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+	completed.Attempt = 1
+	completed.RunId = "completed-run"
+	completed.Completed = &schedulespb.CompletedResult{}
+	corpus = append(corpus, bufferProcessingComparisonInput{
+		name: "duplicate and completed entries", schedule: defaultSchedule(),
+		bufferedStarts:    []*schedulespb.BufferedStart{completed, proto.Clone(completed).(*schedulespb.BufferedStart)},
+		lastProcessedTime: now,
+	})
+	duplicatePending := makeStart("duplicate-pending", enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE)
+	corpus = append(corpus, bufferProcessingComparisonInput{
+		name: "duplicate pending entries", schedule: defaultSchedule(),
+		bufferedStarts: []*schedulespb.BufferedStart{
+			running,
+			duplicatePending,
+			proto.Clone(duplicatePending).(*schedulespb.BufferedStart),
+		},
+		lastProcessedTime: now,
+	})
+	corpus = append(corpus,
+		bufferProcessingComparisonInput{
+			name: "existing cancel work", schedule: defaultSchedule(),
+			bufferedStarts:    []*schedulespb.BufferedStart{running},
+			cancelWorkflows:   []*commonpb.WorkflowExecution{{WorkflowId: "cancel", RunId: "cancel-run"}},
+			lastProcessedTime: now,
+		},
+		bufferProcessingComparisonInput{
+			name: "existing terminate work", schedule: defaultSchedule(),
+			bufferedStarts:     []*schedulespb.BufferedStart{running},
+			terminateWorkflows: []*commonpb.WorkflowExecution{{WorkflowId: "terminate", RunId: "terminate-run"}},
+			lastProcessedTime:  now,
+		},
+		bufferProcessingComparisonInput{
+			name: "migration state", schedule: defaultSchedule(),
+			bufferedStarts:    []*schedulespb.BufferedStart{makeStart("migration", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)},
+			lastProcessedTime: now, workflowMigration: true,
+		},
+	)
+	completionRace := makeStart("completion-race", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+	completionRace.Attempt = 1
+	completionRace.Completed = &schedulespb.CompletedResult{}
+	corpus = append(corpus, bufferProcessingComparisonInput{
+		name: "completion before start result", schedule: defaultSchedule(),
+		bufferedStarts: []*schedulespb.BufferedStart{completionRace}, lastProcessedTime: now,
+	})
+
+	for _, input := range corpus {
+		t.Run(input.name, func(t *testing.T) {
+			compareBufferProcessing(t, input)
+		})
+	}
+}
+
+func TestApplyBufferPlan_RevalidatesRequestBeforeMutation(t *testing.T) {
+	schedule := defaultSchedule()
+	schedule.State.LimitedActions = true
+	schedule.State.RemainingActions = 1
+	env := newSchedulerTestEngine(t, schedule)
+	now := env.timeSource.Now()
+	config := defaultConfig()
+	handler := scheduler.NewInvokerProcessBufferTaskHandler(scheduler.InvokerTaskHandlerOptions{
+		Config: config, MetricsHandler: metrics.NoopMetricsHandler, BaseLogger: env.logger,
+	})
+	var apply func(chasm.MutableContext, *scheduler.Scheduler, *scheduler.Invoker) int64
+	var initialConflictToken int64
+	require.NoError(t, env.updateScheduler(func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+		invoker := s.Invoker.Get(ctx)
+		invoker.BufferedStarts = []*schedulespb.BufferedStart{{
+			NominalTime: timestamppb.New(now), ActualTime: timestamppb.New(now), DesiredTime: timestamppb.New(now),
+			RequestId: "request", WorkflowId: "workflow", OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+		}}
+		invoker.LastProcessedTime = timestamppb.New(now)
+		apply = handler.PlanBufferProcessingForTest(invoker, s, now)
+		initialConflictToken = s.ConflictToken
+		return nil
+	}))
+
+	var staleDecisions int64
+	require.NoError(t, env.updateScheduler(func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+		invoker := s.Invoker.Get(ctx)
+		invoker.BufferedStarts[0].Attempt = 1
+		staleDecisions = apply(ctx, s, invoker)
+		return nil
+	}))
+
+	require.Equal(t, int64(1), staleDecisions)
+	require.NoError(t, env.readScheduler(func(s *scheduler.Scheduler, ctx chasm.Context) error {
+		require.Equal(t, int64(1), s.Invoker.Get(ctx).BufferedStarts[0].GetAttempt())
+		require.Equal(t, int64(1), s.Schedule.State.GetRemainingActions())
+		require.Equal(t, initialConflictToken, s.ConflictToken)
+		return nil
+	}))
+}
+
+func compareBufferProcessing(t *testing.T, input bufferProcessingComparisonInput) {
+	t.Helper()
+	legacy := runBufferProcessing(t, input, false)
+	planned := runBufferProcessing(t, input, true)
+	require.True(t, proto.Equal(legacy.schedulerState, planned.schedulerState), "Scheduler state mismatch\nlegacy: %v\nplanned: %v", legacy.schedulerState, planned.schedulerState)
+	require.True(t, proto.Equal(legacy.invokerState, planned.invokerState), "Invoker state mismatch\nlegacy: %v\nplanned: %v", legacy.invokerState, planned.invokerState)
+	require.Equal(t, legacy.tasks, planned.tasks)
+	require.Equal(t, legacy.actionRequests, planned.actionRequests)
+	require.Equal(t, legacy.metrics, planned.metrics)
+	require.Equal(t, legacy.outcomes, planned.outcomes)
+	require.Equal(t, legacy.remainingDelta, planned.remainingDelta)
+	require.Equal(t, legacy.conflictTokenDelta, planned.conflictTokenDelta)
+}
+
+func runBufferProcessing(t *testing.T, input bufferProcessingComparisonInput, planner bool) normalizedBufferProcessing {
+	t.Helper()
+	env := newTestEnv(t)
+	env.TimeSource.Update(input.lastProcessedTime)
+	ctx := env.MutableContext()
+	env.Scheduler.Schedule = proto.Clone(input.schedule).(*schedulepb.Schedule)
+	env.Scheduler.Info.CreateTime = timestamppb.New(input.lastProcessedTime)
+	initialConflictToken := input.initialConflictToken
+	if initialConflictToken == 0 {
+		initialConflictToken = env.Scheduler.ConflictToken
+	}
+	env.Scheduler.ConflictToken = initialConflictToken
+	if input.workflowMigration {
+		env.Scheduler.WorkflowMigration = &schedulerpb.WorkflowMigrationState{}
+	}
+	invoker := env.Scheduler.Invoker.Get(ctx)
+	invoker.InvokerState = &schedulerpb.InvokerState{
+		BufferedStarts:     cloneBufferedStarts(input.bufferedStarts),
+		CancelWorkflows:    cloneWorkflowExecutions(input.cancelWorkflows),
+		TerminateWorkflows: cloneWorkflowExecutions(input.terminateWorkflows),
+		LastProcessedTime:  timestamppb.New(input.lastProcessedTime),
+	}
+	env.NodeBackend.TasksByCategory = nil
+
+	config := defaultConfig()
+	config.EnableBufferPlanner = func(string) bool { return planner }
+	recorder := metricstest.NewCaptureHandler()
+	capture := recorder.StartCapture()
+	defer recorder.StopCapture(capture)
+	handler := scheduler.NewInvokerProcessBufferTaskHandler(scheduler.InvokerTaskHandlerOptions{
+		Config: config, MetricsHandler: recorder, BaseLogger: env.Logger,
+	})
+	initialRemaining := env.Scheduler.Schedule.State.GetRemainingActions()
+	require.NoError(t, handler.Execute(ctx, invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerProcessBufferTask{}))
+	require.NoError(t, env.CloseTransaction())
+
+	return normalizedBufferProcessing{
+		schedulerState:     proto.Clone(env.Scheduler.SchedulerState).(*schedulerpb.SchedulerState),
+		invokerState:       proto.Clone(invoker.InvokerState).(*schedulerpb.InvokerState),
+		tasks:              normalizeTasks(env.NodeBackend.TasksByCategory),
+		actionRequests:     normalizeActionRequests(invoker),
+		metrics:            normalizeMetrics(capture.Snapshot()),
+		outcomes:           normalizeBufferOutcomes(input.bufferedStarts, invoker.GetBufferedStarts()),
+		remainingDelta:     env.Scheduler.Schedule.State.GetRemainingActions() - initialRemaining,
+		conflictTokenDelta: env.Scheduler.ConflictToken - initialConflictToken,
+	}
+}
+
+func cloneBufferedStarts(starts []*schedulespb.BufferedStart) []*schedulespb.BufferedStart {
+	cloned := make([]*schedulespb.BufferedStart, 0, len(starts))
+	for _, start := range starts {
+		cloned = append(cloned, proto.Clone(start).(*schedulespb.BufferedStart))
+	}
+	return cloned
+}
+
+func cloneWorkflowExecutions(executions []*commonpb.WorkflowExecution) []*commonpb.WorkflowExecution {
+	cloned := make([]*commonpb.WorkflowExecution, 0, len(executions))
+	for _, execution := range executions {
+		cloned = append(cloned, proto.Clone(execution).(*commonpb.WorkflowExecution))
+	}
+	return cloned
+}
+
+func normalizeTasks(tasksByCategory map[tasks.Category][]tasks.Task) []string {
+	var categories []tasks.Category
+	for category := range tasksByCategory {
+		categories = append(categories, category)
+	}
+	sort.Slice(categories, func(i, j int) bool { return categories[i].ID() < categories[j].ID() })
+	var normalized []string
+	for _, category := range categories {
+		for index, task := range tasksByCategory[category] {
+			identity := ""
+			if chasmTask, ok := task.(*tasks.ChasmTask); ok {
+				identity = fmt.Sprintf("path=%s,type=%d,data=%x", strings.Join(chasmTask.Info.GetPath(), "/"), chasmTask.Info.GetTypeId(), chasmTask.Info.GetData().GetData())
+			}
+			normalized = append(normalized, fmt.Sprintf("%d:%d:%s:%s:%s", category.ID(), index, task.GetType(), task.GetVisibilityTime().UTC().Format(time.RFC3339Nano), identity))
+		}
+	}
+	return normalized
+}
+
+func normalizeActionRequests(invoker *scheduler.Invoker) []string {
+	requests := make([]string, 0, len(invoker.GetTerminateWorkflows())+len(invoker.GetCancelWorkflows()))
+	for _, execution := range invoker.GetTerminateWorkflows() {
+		requests = append(requests, "terminate:"+execution.GetWorkflowId()+":"+execution.GetRunId())
+	}
+	for _, execution := range invoker.GetCancelWorkflows() {
+		requests = append(requests, "cancel:"+execution.GetWorkflowId()+":"+execution.GetRunId())
+	}
+	return requests
+}
+
+func normalizeMetrics(snapshot metricstest.CaptureSnapshot) []string {
+	var normalized []string
+	for name, recordings := range snapshot {
+		for _, recording := range recordings {
+			var tags []string
+			for key, value := range recording.Tags {
+				tags = append(tags, key+"="+value)
+			}
+			sort.Strings(tags)
+			normalized = append(normalized, fmt.Sprintf("%s:%v:%s", name, recording.Value, strings.Join(tags, ",")))
+		}
+	}
+	sort.Strings(normalized)
+	return normalized
+}
+
+func normalizeBufferOutcomes(before, after []*schedulespb.BufferedStart) []string {
+	afterByRequestID := make(map[string][]*schedulespb.BufferedStart)
+	for _, start := range after {
+		afterByRequestID[start.GetRequestId()] = append(afterByRequestID[start.GetRequestId()], start)
+	}
+	outcomes := make([]string, 0, len(before))
+	for _, start := range before {
+		matches := afterByRequestID[start.GetRequestId()]
+		if len(matches) == 0 {
+			outcomes = append(outcomes, start.GetRequestId()+":discard")
+			continue
+		}
+		current := matches[0]
+		afterByRequestID[start.GetRequestId()] = matches[1:]
+		switch {
+		case start.GetAttempt() == 0 && current.GetAttempt() > 0:
+			outcomes = append(outcomes, start.GetRequestId()+":execute")
+		case current.GetAttempt() == -1:
+			outcomes = append(outcomes, start.GetRequestId()+":defer")
+		case current.GetCompleted() != nil:
+			outcomes = append(outcomes, start.GetRequestId()+":completed")
+		case current.GetRunId() != "":
+			outcomes = append(outcomes, start.GetRequestId()+":running")
+		case current.GetAttempt() > 1:
+			outcomes = append(outcomes, start.GetRequestId()+":retry")
+		default:
+			outcomes = append(outcomes, start.GetRequestId()+":retain")
+		}
+	}
+	return outcomes
 }
 
 // A buffered start with an overlap policy to cancel other workflows is processed.

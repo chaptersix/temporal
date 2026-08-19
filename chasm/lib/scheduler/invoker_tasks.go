@@ -460,18 +460,38 @@ func (h *InvokerProcessBufferTaskHandler) Execute(
 		return queueerrors.NewUnprocessableTaskError("schedules must have an Action set")
 	}
 
-	// Compute actions to take from the current buffer.
-	result := h.processBuffer(ctx, invoker, scheduler)
-
-	// Update Scheduler metadata.
-	var totalMissedCatchup int64
-	for _, count := range result.missedCatchupByActionRunning {
-		totalMissedCatchup += count
+	var result processBufferResult
+	if h.config.EnableBufferPlanner != nil && h.config.EnableBufferPlanner(scheduler.Namespace) {
+		tweakables := h.config.Tweakables(scheduler.Namespace)
+		snapshot := newBufferProcessingSnapshot(invoker, scheduler, catchupWindow(scheduler, tweakables))
+		plan := schedulerinternal.PlanBufferProcessing(snapshot, ctx.Now(invoker))
+		result = applyBufferPlan(ctx, scheduler, invoker, plan).result
+	} else {
+		result = h.processBufferLegacy(ctx, invoker, scheduler)
+		var totalMissedCatchup int64
+		for _, count := range result.missedCatchupByActionRunning {
+			totalMissedCatchup += count
+		}
+		scheduler.recordActionResult(&schedulerActionResult{
+			overlapSkipped:      result.overlapSkipped,
+			missedCatchupWindow: totalMissedCatchup,
+		})
+		invoker.recordProcessBufferResult(ctx, &result)
 	}
-	scheduler.recordActionResult(&schedulerActionResult{
-		overlapSkipped:      result.overlapSkipped,
-		missedCatchupWindow: totalMissedCatchup,
-	})
+
+	h.recordBufferProcessingMetrics(scheduler, result)
+	return nil
+}
+
+func (h *InvokerProcessBufferTaskHandler) recordBufferProcessingMetrics(
+	scheduler *Scheduler,
+	result processBufferResult,
+) {
+	metricsHandler := newTaggedMetricsHandler(h.metricsHandler, scheduler)
+	for _, reason := range result.bufferedStartDropReasons {
+		metricsHandler.Counter(metrics.ScheduleBufferedStartDropped.Name()).
+			Record(1, metrics.ReasonTag(reason))
+	}
 	for overlapPolicy, count := range result.overlapSkippedByPolicy {
 		newTaggedMetricsHandler(h.metricsHandler, scheduler).WithTags(
 			metrics.StringTag(metrics.ScheduleOverlapPolicyTag, overlapPolicy.String()),
@@ -483,17 +503,12 @@ func (h *InvokerProcessBufferTaskHandler) Execute(
 			metrics.StringTag(metrics.ScheduleActionRunningTag, fmt.Sprintf("%t", actionRunning)),
 		).Counter(metrics.ScheduleMissedCatchupWindow.Name()).Record(count)
 	}
-
-	// Update internal state and create new tasks.
-	invoker.recordProcessBufferResult(ctx, &result)
-
-	return nil
 }
 
 // processBuffer resolves the Invoker's buffered starts that haven't yet begun
 // execution. This is where the decision is made to drive execution to
 // completion, or skip/drop a start.
-func (h *InvokerProcessBufferTaskHandler) processBuffer(
+func (h *InvokerProcessBufferTaskHandler) processBufferLegacy(
 	ctx chasm.MutableContext,
 	invoker *Invoker,
 	scheduler *Scheduler,
@@ -532,8 +547,6 @@ func (h *InvokerProcessBufferTaskHandler) processBuffer(
 	// Add starting workflows to result, trim others. Catchup-window expiry is
 	// checked before consumeScheduledAction so that a start past its catchup
 	// window doesn't consume a LimitedActions slot.
-	droppedCounter := newTaggedMetricsHandler(h.metricsHandler, scheduler).
-		Counter(metrics.ScheduleBufferedStartDropped.Name())
 	for _, start := range readyStarts {
 		deadline := h.startWorkflowDeadline(ctx, scheduler, start)
 		if ctx.Now(invoker).After(deadline) {
@@ -552,7 +565,7 @@ func (h *InvokerProcessBufferTaskHandler) processBuffer(
 				result.missedCatchupByActionRunning[actionRunning]++
 			}
 			result.discardStarts = append(result.discardStarts, start)
-			droppedCounter.Record(1, metrics.ReasonTag(bufferedStartDroppedMissedCatchup))
+			result.bufferedStartDropReasons = append(result.bufferedStartDropReasons, bufferedStartDroppedMissedCatchup)
 			continue
 		}
 
@@ -560,7 +573,7 @@ func (h *InvokerProcessBufferTaskHandler) processBuffer(
 		if !start.Manual && !scheduler.consumeScheduledAction() {
 			// Drop buffered automated actions while paused or out of actions.
 			result.discardStarts = append(result.discardStarts, start)
-			droppedCounter.Record(1, metrics.ReasonTag(bufferedStartDroppedPausedOrLimited))
+			result.bufferedStartDropReasons = append(result.bufferedStartDropReasons, bufferedStartDroppedPausedOrLimited)
 			continue
 		}
 

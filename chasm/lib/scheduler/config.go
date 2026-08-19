@@ -29,6 +29,7 @@ type (
 		ServiceCallTimeout              dynamicconfig.DurationPropertyFn
 		RetryPolicy                     func() backoff.RetryPolicy
 		EncodeInternalTokenWithEnvelope dynamicconfig.BoolPropertyFnWithNamespaceFilter
+		EnableBufferPlanner             dynamicconfig.BoolPropertyFnWithNamespaceFilter
 	}
 )
 
@@ -80,6 +81,12 @@ var (
 		`The upper bound on how long a service call can take before being timed out.`,
 	)
 
+	EnableBufferPlanner = dynamicconfig.NewNamespaceBoolSetting(
+		"scheduler.enableBufferPlanner",
+		false,
+		`Use the pure planner to process CHASM scheduler buffered starts. The legacy processor remains the fallback while this setting is disabled.`,
+	)
+
 	// SentinelIdleTime is how long a CHASM sentinel reserves the schedule ID
 	// before auto-closing via the idle task mechanism. Matches the dummy
 	// workflow's duration.
@@ -104,6 +111,7 @@ func ConfigProvider(dc *dynamicconfig.Collection) *Config {
 		Tweakables:                      CurrentTweakables.Get(dc),
 		ServiceCallTimeout:              ServiceCallTimeout.Get(dc),
 		EncodeInternalTokenWithEnvelope: callback.EncodeInternalTokenWithEnvelope.Get(dc),
+		EnableBufferPlanner:             EnableBufferPlanner.Get(dc),
 		RetryPolicy: func() backoff.RetryPolicy {
 			return backoff.NewExponentialRetryPolicy(
 				RetryPolicyInitialInterval.Get(dc)(),

@@ -12,6 +12,7 @@ import (
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
+	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/util"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -93,6 +94,11 @@ type processBufferResult struct {
 	// Number of buffered starts dropped from missing the catchup window,
 	// bucketed by whether a running action contributed to the miss.
 	missedCatchupByActionRunning map[bool]int64
+	bufferedStartDropReasons     []metrics.ReasonString
+
+	// processedStarts limits lifecycle transitions to identities covered by a
+	// revalidated plan. A nil map preserves the legacy processor's behavior.
+	processedStarts map[string]bool
 }
 
 // recordProcessBufferResult updates the Invoker's internal state based on result, as well as the
@@ -120,7 +126,7 @@ func (i *Invoker) recordProcessBufferResult(ctx chasm.MutableContext, result *pr
 		if ready[start.RequestId] && start.Attempt < 1 {
 			schedulerinternal.MarkStartReady(start)
 			readiedStarts++
-		} else if start.Attempt == 0 {
+		} else if start.Attempt == 0 && (result.processedStarts == nil || result.processedStarts[start.RequestId]) {
 			// Start was processed but deferred (e.g., BUFFER_ONE policy with running workflow).
 			// Mark as deferred (-1) to distinguish from newly-enqueued starts so addTasks
 			// won't schedule an immediate ProcessBuffer task for them - they wait on

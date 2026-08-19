@@ -7,6 +7,7 @@ import (
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
+	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
 	"go.temporal.io/server/common/log"
 	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 )
@@ -70,6 +71,19 @@ func (i *Invoker) RecordExecuteResult(
 		CompletedStarts: completed,
 		RetryableStarts: retryable,
 	})
+}
+
+func (h *InvokerProcessBufferTaskHandler) PlanBufferProcessingForTest(
+	invoker *Invoker,
+	scheduler *Scheduler,
+	now time.Time,
+) func(chasm.MutableContext, *Scheduler, *Invoker) int64 {
+	tweakables := h.config.Tweakables(scheduler.Namespace)
+	snapshot := newBufferProcessingSnapshot(invoker, scheduler, catchupWindow(scheduler, tweakables))
+	plan := schedulerinternal.PlanBufferProcessing(snapshot, now)
+	return func(ctx chasm.MutableContext, scheduler *Scheduler, invoker *Invoker) int64 {
+		return applyBufferPlan(ctx, scheduler, invoker, plan).staleDecisions
+	}
 }
 
 func (b *BackfillerTaskHandler) ProcessBackfill(
