@@ -20,12 +20,18 @@ const (
 	BufferedStartStateCompleted
 )
 
+const (
+	bufferedStartDeferredAttempt       int64 = -1
+	bufferedStartUnprocessedAttempt    int64 = 0
+	bufferedStartFirstExecutionAttempt int64 = 1
+)
+
 // ClassifyBufferedStart returns the lifecycle state encoded by start at retryEvaluationTime.
 func ClassifyBufferedStart(
 	start *schedulespb.BufferedStart,
 	retryEvaluationTime time.Time,
 ) BufferedStartState {
-	if start == nil || start.GetAttempt() < -1 {
+	if start == nil || start.GetAttempt() < bufferedStartDeferredAttempt {
 		return BufferedStartStateInvalid
 	}
 
@@ -34,12 +40,12 @@ func ClassifyBufferedStart(
 	hasBackoff := start.GetBackoffTime() != nil
 
 	switch start.GetAttempt() {
-	case -1:
+	case bufferedStartDeferredAttempt:
 		if hasRun || hasCompletion || hasBackoff {
 			return BufferedStartStateInvalid
 		}
 		return BufferedStartStateDeferred
-	case 0:
+	case bufferedStartUnprocessedAttempt:
 		if hasRun || hasCompletion || hasBackoff {
 			return BufferedStartStateInvalid
 		}
@@ -63,7 +69,7 @@ func ClassifyBufferedStart(
 
 // MarkStartUnprocessed marks a start for its initial overlap-policy pass.
 func MarkStartUnprocessed(start *schedulespb.BufferedStart) {
-	start.Attempt = 0
+	start.Attempt = bufferedStartUnprocessedAttempt
 }
 
 // MarkStartMigratedUnprocessed clears V2 retry state from a pending V1 start.
@@ -74,12 +80,12 @@ func MarkStartMigratedUnprocessed(start *schedulespb.BufferedStart) {
 
 // MarkStartDeferred marks a start as waiting for an overlapping action to complete.
 func MarkStartDeferred(start *schedulespb.BufferedStart) {
-	start.Attempt = -1
+	start.Attempt = bufferedStartDeferredAttempt
 }
 
 // MarkStartReady marks a start as ready for its first execution attempt.
 func MarkStartReady(start *schedulespb.BufferedStart) {
-	start.Attempt = 1
+	start.Attempt = bufferedStartFirstExecutionAttempt
 }
 
 // MarkStartRetrying advances a start to its next attempt and backoff deadline.
