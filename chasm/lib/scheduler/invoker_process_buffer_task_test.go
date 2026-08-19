@@ -78,10 +78,12 @@ func TestProcessBufferTask_Validate(t *testing.T) {
 			now := env.timeSource.Now()
 			scheduledTime := c.scheduledTime(now)
 			currentLastProcessedAt := c.currentLastProcessedAt
-			if c.name == "scheduled equal to LPT is stale" {
+			switch c.name {
+			case "scheduled equal to LPT is stale":
 				currentLastProcessedAt = timestamppb.New(scheduledTime)
-			} else if c.name == "scheduled before LPT is stale" {
+			case "scheduled before LPT is stale":
 				currentLastProcessedAt = timestamppb.New(scheduledTime.Add(time.Second))
+			default:
 			}
 
 			var invoker *scheduler.Invoker
