@@ -409,40 +409,31 @@ func (s *Scheduler) NewImmediateBackfiller(
 	return backfiller
 }
 
-// useScheduledAction returns true when the Scheduler should allow scheduled
-// actions to be taken.
-//
-// When decrement is true, the schedule's state's `RemainingActions` counter is
-// decremented when an action can be taken. When decrement is false, no state
-// is mutated.
-func (s *Scheduler) useScheduledAction(decrement bool) bool {
+// canTakeScheduledAction returns true when the Scheduler should allow a
+// scheduled action to be taken without mutating state.
+func (s *Scheduler) canTakeScheduledAction() bool {
 	scheduleState := s.Schedule.GetState()
 
-	// If paused, don't do anything.
-	if scheduleState.Paused {
+	return !scheduleState.Paused &&
+		(!scheduleState.LimitedActions || scheduleState.RemainingActions > 0)
+}
+
+// consumeScheduledAction takes one scheduled action when allowed.
+func (s *Scheduler) consumeScheduledAction() bool {
+	if !s.canTakeScheduledAction() {
 		return false
 	}
 
-	// If unlimited actions, allow.
-	if !scheduleState.LimitedActions {
-		return true
+	scheduleState := s.Schedule.GetState()
+	if scheduleState.LimitedActions {
+		scheduleState.RemainingActions--
+
+		// The conflict token is updated because a client might be in the process of
+		// preparing an update request that increments their schedule's RemainingActions
+		// field.
+		s.updateConflictToken()
 	}
-
-	// Otherwise check and decrement limit.
-	if scheduleState.RemainingActions > 0 {
-		if decrement {
-			scheduleState.RemainingActions--
-
-			// The conflict token is updated because a client might be in the process of
-			// preparing an update request that increments their schedule's RemainingActions
-			// field.
-			s.updateConflictToken()
-		}
-		return true
-	}
-
-	// No actions left
-	return false
+	return true
 }
 
 func (s *Scheduler) getCompiledSpec(specBuilder *scheduler.SpecBuilder) (*scheduler.CompiledSpec, error) {
@@ -564,7 +555,7 @@ func (s *Scheduler) getIdleExpiration(
 ) (time.Time, bool) {
 	if idleTime == 0 ||
 		s.isHeldOpen() ||
-		(!nextWakeup.IsZero() && s.useScheduledAction(false)) {
+		(!nextWakeup.IsZero() && s.canTakeScheduledAction()) {
 		return time.Time{}, false
 	}
 	return s.idleDeadline(ctx, idleTime), true
