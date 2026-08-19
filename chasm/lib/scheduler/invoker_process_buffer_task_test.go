@@ -598,7 +598,7 @@ func TestProcessBufferTask_NeedsTerminate(t *testing.T) {
 }
 
 // Past-catchup automated starts must drop WITHOUT consuming a LimitedActions
-// slot. Regression for the order-of-checks bug where useScheduledAction(true)
+// slot. Regression for the order-of-checks bug where action capacity consumption
 // fired before the catchup-window check, decrementing RemainingActions for
 // starts that never ran.
 //
