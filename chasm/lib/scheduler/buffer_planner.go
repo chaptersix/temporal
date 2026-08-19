@@ -12,12 +12,13 @@ import (
 	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
 )
 
+// appliedBufferPlan collects the live-state result and the number of decisions invalidated during revalidation.
 type appliedBufferPlan struct {
-	result         processBufferResult
-	decisions      []schedulerinternal.BufferDecision
-	staleDecisions int64
+	result               processBufferResult
+	invalidatedDecisions int64
 }
 
+// newBufferProcessingSnapshot projects live CHASM state into values that the pure planner cannot mutate.
 func newBufferProcessingSnapshot(invoker *Invoker, scheduler *Scheduler, catchupWindow time.Duration) schedulerinternal.BufferProcessingSnapshot {
 	state := scheduler.Schedule.GetState()
 	snapshot := schedulerinternal.BufferProcessingSnapshot{
@@ -56,6 +57,8 @@ func projectBufferedStart(start *schedulespb.BufferedStart) schedulerinternal.Bu
 	}
 }
 
+// applyBufferPlan revalidates a plan, resolves its value decisions back to live
+// BufferedStart pointers, and applies only decisions whose expected state still matches.
 func applyBufferPlan(
 	ctx chasm.MutableContext,
 	scheduler *Scheduler,
@@ -65,7 +68,7 @@ func applyBufferPlan(
 	applied := newAppliedBufferPlan()
 	currentSnapshot := newBufferProcessingSnapshot(invoker, scheduler, plan.Snapshot.CatchupWindow)
 	if !bufferProcessingSnapshotsEqual(plan.Snapshot, currentSnapshot) {
-		return staleBufferPlan(plan, applied)
+		return invalidateBufferPlan(plan, applied)
 	}
 	startsByRequestID := make(map[string][]*schedulespb.BufferedStart)
 	for _, start := range invoker.GetBufferedStarts() {
@@ -74,24 +77,22 @@ func applyBufferPlan(
 
 	for _, decision := range plan.Decisions {
 		if !decision.MutatesState() {
-			applied.decisions = append(applied.decisions, decision)
 			continue
 		}
 		start, ok := popMatchingBufferedStart(startsByRequestID, decision)
 		if !ok {
-			applied.recordStaleDecision(decision)
+			applied.recordInvalidatedDecision()
 			continue
 		}
 
-		if decision.Action == schedulerinternal.BufferDecisionExecute && !start.GetManual() && !scheduler.consumeScheduledAction() {
-			applied.recordStaleDecision(decision)
+		if decision.ConsumesScheduledAction && !scheduler.consumeScheduledAction() {
+			applied.recordInvalidatedDecision()
 			continue
 		}
 
 		applyBufferDecision(&applied.result, decision, start)
-		applied.decisions = append(applied.decisions, decision)
 	}
-	if applied.staleDecisions == 0 {
+	if applied.invalidatedDecisions == 0 {
 		applied.result.overlapSkipped = plan.OverlapSkipped
 		applied.result.overlapSkippedByPolicy = maps.Clone(plan.OverlapSkippedByPolicy)
 	}
@@ -127,24 +128,21 @@ func newAppliedBufferPlan() appliedBufferPlan {
 	}}
 }
 
-func staleBufferPlan(plan schedulerinternal.BufferPlan, applied appliedBufferPlan) appliedBufferPlan {
+func invalidateBufferPlan(plan schedulerinternal.BufferPlan, applied appliedBufferPlan) appliedBufferPlan {
 	for _, decision := range plan.Decisions {
 		if decision.MutatesState() {
-			applied.recordStaleDecision(decision)
-		} else {
-			applied.decisions = append(applied.decisions, decision)
+			applied.recordInvalidatedDecision()
 		}
 	}
 	return applied
 }
 
-func (a *appliedBufferPlan) recordStaleDecision(decision schedulerinternal.BufferDecision) {
-	decision.Action = schedulerinternal.BufferDecisionRetain
-	decision.Reason = schedulerinternal.BufferDecisionReasonStale
-	a.staleDecisions++
-	a.decisions = append(a.decisions, decision)
+func (a *appliedBufferPlan) recordInvalidatedDecision() {
+	a.invalidatedDecisions++
 }
 
+// popMatchingBufferedStart resolves one decision to its live protobuf pointer.
+// Removing the match ensures duplicate request IDs cannot reuse the same start.
 func popMatchingBufferedStart(
 	startsByRequestID map[string][]*schedulespb.BufferedStart,
 	decision schedulerinternal.BufferDecision,
@@ -166,12 +164,12 @@ func applyBufferDecision(result *processBufferResult, decision schedulerinternal
 		result.startWorkflows = append(result.startWorkflows, start)
 	case schedulerinternal.BufferDecisionDiscard:
 		result.discardStarts = append(result.discardStarts, start)
-		recordAppliedDiscard(result, decision)
 	default:
 	}
+	recordAppliedDecisionMetrics(result, decision)
 }
 
-func recordAppliedDiscard(result *processBufferResult, decision schedulerinternal.BufferDecision) {
+func recordAppliedDecisionMetrics(result *processBufferResult, decision schedulerinternal.BufferDecision) {
 	switch decision.Reason {
 	case schedulerinternal.BufferDecisionReasonMissedCatchupWindow:
 		result.bufferedStartDropReasons = append(result.bufferedStartDropReasons, bufferedStartDroppedMissedCatchup)

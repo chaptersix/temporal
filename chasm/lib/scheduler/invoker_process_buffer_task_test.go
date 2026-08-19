@@ -843,6 +843,357 @@ func TestProcessBufferTask_LegacyAndPlannerDifferentialCorpus(t *testing.T) {
 	}
 }
 
+func TestProcessBufferTask_LegacyAndPlannerDifferentialOverlapStateSpace(t *testing.T) {
+	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	policies := []enumspb.ScheduleOverlapPolicy{
+		enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL,
+		enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER,
+		enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER,
+		enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+	}
+	capacityCases := []struct {
+		name      string
+		limited   bool
+		remaining int64
+	}{
+		{name: "unlimited"},
+		{name: "exhausted", limited: true},
+		{name: "one", limited: true, remaining: 1},
+		{name: "two", limited: true, remaining: 2},
+		{name: "three", limited: true, remaining: 3},
+	}
+
+	comparisons := 0
+	for length := 0; length <= 4; length++ {
+		forEachOverlapPolicySequence(policies, length, func(sequence []enumspb.ScheduleOverlapPolicy) {
+			for _, running := range []bool{false, true} {
+				for _, capacity := range capacityCases {
+					schedule := defaultSchedule()
+					schedule.Policies.OverlapPolicy = enumspb.SCHEDULE_OVERLAP_POLICY_SKIP
+					schedule.State.LimitedActions = capacity.limited
+					schedule.State.RemainingActions = capacity.remaining
+					starts := make([]*schedulespb.BufferedStart, 0, len(sequence)+1)
+					if running {
+						start := newBufferProcessingComparisonStart(now, "running", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+						start.Attempt = 1
+						start.RunId = "running-run"
+						starts = append(starts, start)
+					}
+					for index, policy := range sequence {
+						starts = append(starts, newBufferProcessingComparisonStart(now, fmt.Sprintf("pending-%d", index), policy))
+					}
+					compareBufferProcessing(t, bufferProcessingComparisonInput{
+						name: fmt.Sprintf(
+							"overlap state length=%d policies=%v running=%t capacity=%s",
+							length,
+							sequence,
+							running,
+							capacity.name,
+						),
+						schedule:             schedule,
+						bufferedStarts:       starts,
+						lastProcessedTime:    now,
+						initialConflictToken: 17,
+					})
+					comparisons++
+				}
+			}
+		})
+	}
+	require.Equal(t, 15550, comparisons)
+}
+
+func TestProcessBufferTask_LegacyAndPlannerDifferentialDuplicateIdentityStateSpace(t *testing.T) {
+	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	policies := []enumspb.ScheduleOverlapPolicy{
+		enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED,
+		enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL,
+		enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER,
+		enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER,
+		enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+	}
+	requestIDPatterns := []struct {
+		name string
+		id   func(int) string
+	}{
+		{name: "same", id: func(int) string { return "duplicate" }},
+		{name: "alternating", id: func(index int) string { return fmt.Sprintf("duplicate-%d", index%2) }},
+	}
+	comparisons := 0
+	for length := 1; length <= 3; length++ {
+		forEachOverlapPolicySequence(policies, length, func(sequence []enumspb.ScheduleOverlapPolicy) {
+			for _, requestIDs := range requestIDPatterns {
+				for _, running := range []bool{false, true} {
+					for remaining := int64(0); remaining <= 3; remaining++ {
+						schedule := defaultSchedule()
+						schedule.Policies.OverlapPolicy = enumspb.SCHEDULE_OVERLAP_POLICY_SKIP
+						schedule.State.LimitedActions = true
+						schedule.State.RemainingActions = remaining
+						starts := make([]*schedulespb.BufferedStart, 0, len(sequence)+1)
+						if running {
+							start := newBufferProcessingComparisonStart(now, "running", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+							start.Attempt = 1
+							start.RunId = "running-run"
+							starts = append(starts, start)
+						}
+						for index, policy := range sequence {
+							starts = append(starts, newBufferProcessingComparisonStart(now, requestIDs.id(index), policy))
+						}
+						compareBufferProcessing(t, bufferProcessingComparisonInput{
+							name: fmt.Sprintf(
+								"duplicate identities pattern=%s policies=%v running=%t remaining=%d",
+								requestIDs.name,
+								sequence,
+								running,
+								remaining,
+							),
+							schedule:             schedule,
+							bufferedStarts:       starts,
+							lastProcessedTime:    now,
+							initialConflictToken: 17,
+						})
+						comparisons++
+					}
+				}
+			}
+		})
+	}
+	require.Equal(t, 6384, comparisons)
+}
+
+func TestProcessBufferTask_LegacyAndPlannerDifferentialDefaultPolicyStateSpace(t *testing.T) {
+	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	policies := []enumspb.ScheduleOverlapPolicy{
+		enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL,
+		enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER,
+		enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER,
+		enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+	}
+	comparisons := 0
+	for _, defaultPolicy := range policies {
+		for unspecifiedIndex := 0; unspecifiedIndex < 3; unspecifiedIndex++ {
+			forEachOverlapPolicySequence(policies, 2, func(surrounding []enumspb.ScheduleOverlapPolicy) {
+				sequence := make([]enumspb.ScheduleOverlapPolicy, 3)
+				sequence[unspecifiedIndex] = enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED
+				for index, policy := range surrounding {
+					if index >= unspecifiedIndex {
+						index++
+					}
+					sequence[index] = policy
+				}
+				for _, running := range []bool{false, true} {
+					for remaining := int64(0); remaining <= 3; remaining++ {
+						schedule := defaultSchedule()
+						schedule.Policies.OverlapPolicy = defaultPolicy
+						schedule.State.LimitedActions = true
+						schedule.State.RemainingActions = remaining
+						starts := make([]*schedulespb.BufferedStart, 0, len(sequence)+1)
+						if running {
+							start := newBufferProcessingComparisonStart(now, "running", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+							start.Attempt = 1
+							start.RunId = "running-run"
+							starts = append(starts, start)
+						}
+						for index, policy := range sequence {
+							starts = append(starts, newBufferProcessingComparisonStart(now, fmt.Sprintf("pending-%d", index), policy))
+						}
+						compareBufferProcessing(t, bufferProcessingComparisonInput{
+							name: fmt.Sprintf(
+								"default policy=%s policies=%v running=%t remaining=%d",
+								defaultPolicy,
+								sequence,
+								running,
+								remaining,
+							),
+							schedule:             schedule,
+							bufferedStarts:       starts,
+							lastProcessedTime:    now,
+							initialConflictToken: 17,
+						})
+						comparisons++
+					}
+				}
+			})
+		}
+	}
+	require.Equal(t, 5184, comparisons)
+}
+
+func TestProcessBufferTask_LegacyAndPlannerDifferentialTimeCapacityStateSpace(t *testing.T) {
+	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	catchupWindows := []time.Duration{time.Second, 5 * time.Second, time.Hour}
+	timeRelations := []struct {
+		name   string
+		offset time.Duration
+	}{
+		{name: "before", offset: time.Nanosecond},
+		{name: "equal"},
+		{name: "after", offset: -time.Nanosecond},
+	}
+	capacityCases := []struct {
+		name      string
+		limited   bool
+		remaining int64
+	}{
+		{name: "unlimited"},
+		{name: "exhausted", limited: true},
+		{name: "one", limited: true, remaining: 1},
+		{name: "two", limited: true, remaining: 2},
+	}
+
+	comparisons := 0
+	for _, catchupWindow := range catchupWindows {
+		effectiveWindow := max(catchupWindow, 5*time.Second)
+		for _, deadlineRelation := range timeRelations {
+			actualTime := now.Add(-effectiveWindow + deadlineRelation.offset)
+			deadline := actualTime.Add(effectiveWindow)
+			for _, desiredRelation := range timeRelations {
+				desiredTime := deadline.Add(-desiredRelation.offset)
+				for _, manual := range []bool{false, true} {
+					for _, paused := range []bool{false, true} {
+						for _, running := range []bool{false, true} {
+							for _, capacity := range capacityCases {
+								schedule := defaultSchedule()
+								schedule.Policies.CatchupWindow = durationpb.New(catchupWindow)
+								schedule.State.Paused = paused
+								schedule.State.LimitedActions = capacity.limited
+								schedule.State.RemainingActions = capacity.remaining
+								start := newBufferProcessingComparisonStart(now, "pending", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+								start.ActualTime = timestamppb.New(actualTime)
+								start.DesiredTime = timestamppb.New(desiredTime)
+								start.Manual = manual
+								starts := []*schedulespb.BufferedStart{start}
+								if running {
+									runningStart := newBufferProcessingComparisonStart(now, "running", enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+									runningStart.Attempt = 1
+									runningStart.RunId = "running-run"
+									starts = append([]*schedulespb.BufferedStart{runningStart}, starts...)
+								}
+								compareBufferProcessing(t, bufferProcessingComparisonInput{
+									name: fmt.Sprintf(
+										"time capacity catchup=%s deadline=%s desired=%s manual=%t paused=%t running=%t capacity=%s",
+										catchupWindow,
+										deadlineRelation.name,
+										desiredRelation.name,
+										manual,
+										paused,
+										running,
+										capacity.name,
+									),
+									schedule:             schedule,
+									bufferedStarts:       starts,
+									lastProcessedTime:    now,
+									initialConflictToken: 17,
+								})
+								comparisons++
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	require.Equal(t, 864, comparisons)
+}
+
+func TestProcessBufferTask_LegacyAndPlannerDifferentialLifecycleStateSpace(t *testing.T) {
+	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	policies := []enumspb.ScheduleOverlapPolicy{
+		enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED,
+		enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL,
+		enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER,
+		enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER,
+		enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+	}
+	defaultPolicies := policies[1:]
+	lifecycleCases := []struct {
+		name      string
+		attempt   int64
+		runID     string
+		completed bool
+	}{
+		{name: "deferred", attempt: -1},
+		{name: "unprocessed"},
+		{name: "ready", attempt: 1},
+		{name: "retry", attempt: 2},
+		{name: "running", attempt: 1, runID: "run"},
+		{name: "completed", attempt: 1, runID: "run", completed: true},
+		{name: "completion before start", attempt: 1, completed: true},
+	}
+
+	comparisons := 0
+	for _, defaultPolicy := range defaultPolicies {
+		for _, policy := range policies {
+			for _, lifecycle := range lifecycleCases {
+				schedule := defaultSchedule()
+				schedule.Policies.OverlapPolicy = defaultPolicy
+				start := newBufferProcessingComparisonStart(now, "start", policy)
+				start.Attempt = lifecycle.attempt
+				start.RunId = lifecycle.runID
+				if lifecycle.completed {
+					start.Completed = &schedulespb.CompletedResult{}
+				}
+				compareBufferProcessing(t, bufferProcessingComparisonInput{
+					name: fmt.Sprintf(
+						"lifecycle=%s policy=%s default=%s",
+						lifecycle.name,
+						policy,
+						defaultPolicy,
+					),
+					schedule:          schedule,
+					bufferedStarts:    []*schedulespb.BufferedStart{start},
+					lastProcessedTime: now,
+				})
+				comparisons++
+			}
+		}
+	}
+	require.Equal(t, 294, comparisons)
+}
+
+func forEachOverlapPolicySequence(
+	policies []enumspb.ScheduleOverlapPolicy,
+	length int,
+	visit func([]enumspb.ScheduleOverlapPolicy),
+) {
+	sequence := make([]enumspb.ScheduleOverlapPolicy, length)
+	var generate func(int)
+	generate = func(index int) {
+		if index == len(sequence) {
+			visit(sequence)
+			return
+		}
+		for _, policy := range policies {
+			sequence[index] = policy
+			generate(index + 1)
+		}
+	}
+	generate(0)
+}
+
+func newBufferProcessingComparisonStart(
+	now time.Time,
+	requestID string,
+	policy enumspb.ScheduleOverlapPolicy,
+) *schedulespb.BufferedStart {
+	return &schedulespb.BufferedStart{
+		NominalTime:   timestamppb.New(now),
+		ActualTime:    timestamppb.New(now),
+		DesiredTime:   timestamppb.New(now),
+		RequestId:     requestID,
+		WorkflowId:    "workflow-" + requestID,
+		OverlapPolicy: policy,
+	}
+}
+
 func TestApplyBufferPlan_RevalidatesRequestBeforeMutation(t *testing.T) {
 	schedule := defaultSchedule()
 	schedule.State.LimitedActions = true
@@ -867,15 +1218,15 @@ func TestApplyBufferPlan_RevalidatesRequestBeforeMutation(t *testing.T) {
 		return nil
 	}))
 
-	var staleDecisions int64
+	var invalidatedDecisions int64
 	require.NoError(t, env.updateScheduler(func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 		invoker := s.Invoker.Get(ctx)
 		invoker.BufferedStarts[0].Attempt = 1
-		staleDecisions = apply(ctx, s, invoker)
+		invalidatedDecisions = apply(ctx, s, invoker)
 		return nil
 	}))
 
-	require.Equal(t, int64(1), staleDecisions)
+	require.Equal(t, int64(1), invalidatedDecisions)
 	require.NoError(t, env.readScheduler(func(s *scheduler.Scheduler, ctx chasm.Context) error {
 		require.Equal(t, int64(1), s.Invoker.Get(ctx).BufferedStarts[0].GetAttempt())
 		require.Equal(t, int64(1), s.Schedule.State.GetRemainingActions())
@@ -888,14 +1239,14 @@ func compareBufferProcessing(t *testing.T, input bufferProcessingComparisonInput
 	t.Helper()
 	legacy := runBufferProcessing(t, input, false)
 	planned := runBufferProcessing(t, input, true)
-	require.True(t, proto.Equal(legacy.schedulerState, planned.schedulerState), "Scheduler state mismatch\nlegacy: %v\nplanned: %v", legacy.schedulerState, planned.schedulerState)
-	require.True(t, proto.Equal(legacy.invokerState, planned.invokerState), "Invoker state mismatch\nlegacy: %v\nplanned: %v", legacy.invokerState, planned.invokerState)
-	require.Equal(t, legacy.tasks, planned.tasks)
-	require.Equal(t, legacy.actionRequests, planned.actionRequests)
-	require.Equal(t, legacy.metrics, planned.metrics)
-	require.Equal(t, legacy.outcomes, planned.outcomes)
-	require.Equal(t, legacy.remainingDelta, planned.remainingDelta)
-	require.Equal(t, legacy.conflictTokenDelta, planned.conflictTokenDelta)
+	require.True(t, proto.Equal(legacy.schedulerState, planned.schedulerState), "%s: Scheduler state mismatch\nlegacy: %v\nplanned: %v", input.name, legacy.schedulerState, planned.schedulerState)
+	require.True(t, proto.Equal(legacy.invokerState, planned.invokerState), "%s: Invoker state mismatch\nlegacy: %v\nplanned: %v", input.name, legacy.invokerState, planned.invokerState)
+	require.Equal(t, legacy.tasks, planned.tasks, input.name)
+	require.Equal(t, legacy.actionRequests, planned.actionRequests, input.name)
+	require.Equal(t, legacy.metrics, planned.metrics, input.name)
+	require.Equal(t, legacy.outcomes, planned.outcomes, input.name)
+	require.Equal(t, legacy.remainingDelta, planned.remainingDelta, input.name)
+	require.Equal(t, legacy.conflictTokenDelta, planned.conflictTokenDelta, input.name)
 }
 
 func runBufferProcessing(t *testing.T, input bufferProcessingComparisonInput, planner bool) normalizedBufferProcessing {
@@ -923,7 +1274,6 @@ func runBufferProcessing(t *testing.T, input bufferProcessingComparisonInput, pl
 	env.NodeBackend.TasksByCategory = nil
 
 	config := defaultConfig()
-	config.EnableBufferPlanner = func(string) bool { return planner }
 	recorder := metricstest.NewCaptureHandler()
 	capture := recorder.StartCapture()
 	defer recorder.StopCapture(capture)
@@ -931,7 +1281,11 @@ func runBufferProcessing(t *testing.T, input bufferProcessingComparisonInput, pl
 		Config: config, MetricsHandler: recorder, BaseLogger: env.Logger,
 	})
 	initialRemaining := env.Scheduler.Schedule.State.GetRemainingActions()
-	require.NoError(t, handler.Execute(ctx, invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerProcessBufferTask{}))
+	if planner {
+		require.NoError(t, handler.Execute(ctx, invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerProcessBufferTask{}))
+	} else {
+		require.NoError(t, handler.ExecuteProcessBufferLegacyForTest(ctx, invoker))
+	}
 	require.NoError(t, env.CloseTransaction())
 
 	return normalizedBufferProcessing{

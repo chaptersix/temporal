@@ -80,7 +80,33 @@ func TestPlanBufferProcessing_TimeAndCapacity(t *testing.T) {
 	}, decisionActions(plan.Decisions))
 	require.Equal(t, BufferDecisionReasonMissedCatchupWindow, plan.Decisions[0].Reason)
 	require.Equal(t, BufferDecisionReasonPausedOrLimited, plan.Decisions[2].Reason)
-	require.Equal(t, int64(1), plan.MissedCatchupByActionRunning[false])
+	require.True(t, plan.Decisions[0].MissedCatchupMetric)
+	require.False(t, plan.Decisions[0].MissedCatchupActionRunning)
+}
+
+func TestPlanBufferProcessing_PreservesLegacyReadyOrder(t *testing.T) {
+	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	snapshot := BufferProcessingSnapshot{
+		Starts: []BufferedStartSnapshot{
+			{RequestID: "non-overlapping", OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP, ActualTime: now},
+			{RequestID: "allow-all", OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL, ActualTime: now},
+		},
+		DefaultOverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+		CatchupWindow:        time.Hour,
+		MinimumCatchupWindow: 5 * time.Second,
+		LimitedActions:       true,
+		RemainingActions:     1,
+	}
+
+	plan := PlanBufferProcessing(snapshot, now)
+
+	require.Len(t, plan.Decisions, 2)
+	require.Equal(t, "allow-all", plan.Decisions[0].RequestID)
+	require.Equal(t, BufferDecisionExecute, plan.Decisions[0].Action)
+	require.True(t, plan.Decisions[0].ConsumesScheduledAction)
+	require.Equal(t, "non-overlapping", plan.Decisions[1].RequestID)
+	require.Equal(t, BufferDecisionDiscard, plan.Decisions[1].Action)
+	require.Equal(t, BufferDecisionReasonPausedOrLimited, plan.Decisions[1].Reason)
 }
 
 func TestPlanBufferProcessing_PausedAndProcessedStates(t *testing.T) {

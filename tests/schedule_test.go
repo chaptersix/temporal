@@ -71,9 +71,6 @@ func scheduleCommonOpts(t *testing.T) []testcore.TestOption {
 		// only v1 needs the worker service
 		opts = append(opts, testcore.WithWorkerService("V1 scheduler"))
 	}
-	if strings.HasPrefix(t.Name(), "TestScheduleCHASM") {
-		opts = append(opts, testcore.WithDynamicConfig(chasmscheduler.EnableBufferPlanner, true))
-	}
 	return opts
 }
 

@@ -9,6 +9,8 @@ import (
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
 	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/metrics"
+	queueerrors "go.temporal.io/server/service/history/queues/errors"
 	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 )
 
@@ -82,8 +84,36 @@ func (h *InvokerProcessBufferTaskHandler) PlanBufferProcessingForTest(
 	snapshot := newBufferProcessingSnapshot(invoker, scheduler, catchupWindow(scheduler, tweakables))
 	plan := schedulerinternal.PlanBufferProcessing(snapshot, now)
 	return func(ctx chasm.MutableContext, scheduler *Scheduler, invoker *Invoker) int64 {
-		return applyBufferPlan(ctx, scheduler, invoker, plan).staleDecisions
+		return applyBufferPlan(ctx, scheduler, invoker, plan).invalidatedDecisions
 	}
+}
+
+func (h *InvokerProcessBufferTaskHandler) ExecuteProcessBufferLegacyForTest(
+	ctx chasm.MutableContext,
+	invoker *Invoker,
+) error {
+	scheduler := invoker.Scheduler.Get(ctx)
+	newTaggedMetricsHandler(h.metricsHandler, scheduler).
+		Counter(metrics.ScheduleInvokerProcessBufferTask.Name()).
+		Record(1, metrics.OutcomeTag(outcomeFired), metrics.ReasonTag(reasonNone))
+
+	invoker.getOrCreateEventLog(ctx).LogEvent(ctx, "processBufferTask executed")
+	if scheduler.Schedule.GetAction().GetStartWorkflow() == nil {
+		return queueerrors.NewUnprocessableTaskError("schedules must have an Action set")
+	}
+
+	result := h.processBufferLegacy(ctx, invoker, scheduler)
+	var totalMissedCatchup int64
+	for _, count := range result.missedCatchupByActionRunning {
+		totalMissedCatchup += count
+	}
+	scheduler.recordActionResult(&schedulerActionResult{
+		overlapSkipped:      result.overlapSkipped,
+		missedCatchupWindow: totalMissedCatchup,
+	})
+	invoker.recordProcessBufferResult(ctx, &result)
+	h.recordBufferProcessingMetrics(scheduler, result)
+	return nil
 }
 
 func (b *BackfillerTaskHandler) ProcessBackfill(

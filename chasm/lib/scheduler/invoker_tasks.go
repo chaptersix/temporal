@@ -22,9 +22,7 @@ import (
 	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/resource"
-	"go.temporal.io/server/common/util"
 	queueerrors "go.temporal.io/server/service/history/queues/errors"
-	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 	"go.uber.org/fx"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -460,24 +458,10 @@ func (h *InvokerProcessBufferTaskHandler) Execute(
 		return queueerrors.NewUnprocessableTaskError("schedules must have an Action set")
 	}
 
-	var result processBufferResult
-	if h.config.EnableBufferPlanner != nil && h.config.EnableBufferPlanner(scheduler.Namespace) {
-		tweakables := h.config.Tweakables(scheduler.Namespace)
-		snapshot := newBufferProcessingSnapshot(invoker, scheduler, catchupWindow(scheduler, tweakables))
-		plan := schedulerinternal.PlanBufferProcessing(snapshot, ctx.Now(invoker))
-		result = applyBufferPlan(ctx, scheduler, invoker, plan).result
-	} else {
-		result = h.processBufferLegacy(ctx, invoker, scheduler)
-		var totalMissedCatchup int64
-		for _, count := range result.missedCatchupByActionRunning {
-			totalMissedCatchup += count
-		}
-		scheduler.recordActionResult(&schedulerActionResult{
-			overlapSkipped:      result.overlapSkipped,
-			missedCatchupWindow: totalMissedCatchup,
-		})
-		invoker.recordProcessBufferResult(ctx, &result)
-	}
+	tweakables := h.config.Tweakables(scheduler.Namespace)
+	snapshot := newBufferProcessingSnapshot(invoker, scheduler, catchupWindow(scheduler, tweakables))
+	plan := schedulerinternal.PlanBufferProcessing(snapshot, ctx.Now(invoker))
+	result := applyBufferPlan(ctx, scheduler, invoker, plan).result
 
 	h.recordBufferProcessingMetrics(scheduler, result)
 	return nil
@@ -503,97 +487,6 @@ func (h *InvokerProcessBufferTaskHandler) recordBufferProcessingMetrics(
 			metrics.StringTag(metrics.ScheduleActionRunningTag, fmt.Sprintf("%t", actionRunning)),
 		).Counter(metrics.ScheduleMissedCatchupWindow.Name()).Record(count)
 	}
-}
-
-// processBuffer resolves the Invoker's buffered starts that haven't yet begun
-// execution. This is where the decision is made to drive execution to
-// completion, or skip/drop a start.
-func (h *InvokerProcessBufferTaskHandler) processBufferLegacy(
-	ctx chasm.MutableContext,
-	invoker *Invoker,
-	scheduler *Scheduler,
-) (result processBufferResult) {
-	runningWorkflows := invoker.runningWorkflowExecutions()
-	isRunning := len(runningWorkflows) > 0
-	result.missedCatchupByActionRunning = make(map[bool]int64)
-
-	// Processing ignores starts that are already executing or backing off. An existing
-	// deferred BUFFER_ONE start still participates so it can reject later starts.
-	pendingBufferedStarts := util.FilterSlice(invoker.GetBufferedStarts(), func(start *schedulespb.BufferedStart) bool {
-		return start.Attempt == 0 ||
-			(start.Attempt == -1 && scheduler.resolveOverlapPolicy(start.GetOverlapPolicy()) == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE)
-	})
-
-	// Resolve overlap policies and trim BufferedStarts that are skipped by policy.
-	action := legacyscheduler.ProcessBuffer(pendingBufferedStarts, isRunning, scheduler.resolveOverlapPolicy)
-
-	// ProcessBuffer will drop starts by omitting them from NewBuffer. Start with the
-	// diff between the input and NewBuffer, and add any executing starts.
-	keepStarts := make(map[string]struct{}) // request ID -> is present
-	for _, start := range action.NewBuffer {
-		keepStarts[start.GetRequestId()] = struct{}{}
-	}
-
-	// Combine all available starts.
-	readyStarts := action.OverlappingStarts
-	if action.NonOverlappingStart != nil {
-		readyStarts = append(readyStarts, action.NonOverlappingStart)
-	}
-
-	// Update result metrics.
-	result.overlapSkipped = action.OverlapSkipped
-	result.overlapSkippedByPolicy = action.OverlapSkippedByPolicy
-
-	// Add starting workflows to result, trim others. Catchup-window expiry is
-	// checked before consumeScheduledAction so that a start past its catchup
-	// window doesn't consume a LimitedActions slot.
-	for _, start := range readyStarts {
-		deadline := h.startWorkflowDeadline(ctx, scheduler, start)
-		if ctx.Now(invoker).After(deadline) {
-			// Action was buffered in time but expired before execution
-			// (e.g., due to overlap deferral, retries, or system delay).
-			// Only emit the metric if the schedule would have run this
-			// start -- skip paused or action-exhausted schedules.
-			if start.Manual || scheduler.canTakeScheduledAction() {
-				// Determine if a running action contributed: either one is still
-				// running, or the previous action's CloseTime (stored in DesiredTime)
-				// was already past this start's deadline.
-				// Note: if no prior action completed, DesiredTime is zero-valued,
-				// so After(deadline) is false, correctly yielding actionRunning=false.
-				actionRunning := isRunning ||
-					start.GetDesiredTime().AsTime().After(deadline)
-				result.missedCatchupByActionRunning[actionRunning]++
-			}
-			result.discardStarts = append(result.discardStarts, start)
-			result.bufferedStartDropReasons = append(result.bufferedStartDropReasons, bufferedStartDroppedMissedCatchup)
-			continue
-		}
-
-		// Ensure we can take more actions. Manual actions are always allowed.
-		if !start.Manual && !scheduler.consumeScheduledAction() {
-			// Drop buffered automated actions while paused or out of actions.
-			result.discardStarts = append(result.discardStarts, start)
-			result.bufferedStartDropReasons = append(result.bufferedStartDropReasons, bufferedStartDroppedPausedOrLimited)
-			continue
-		}
-
-		keepStarts[start.GetRequestId()] = struct{}{}
-		result.startWorkflows = append(result.startWorkflows, start)
-	}
-
-	result.discardStarts = util.FilterSlice(pendingBufferedStarts, func(start *schedulespb.BufferedStart) bool {
-		_, keep := keepStarts[start.GetRequestId()]
-		return !keep
-	})
-
-	// Terminate overrides cancel if both are requested.
-	if action.NeedTerminate {
-		result.terminateWorkflows = runningWorkflows
-	} else if action.NeedCancel {
-		result.cancelWorkflows = runningWorkflows
-	}
-
-	return
 }
 
 // applyBackoff advances start's attempt and BackoffTime based on err and the retry policy.
