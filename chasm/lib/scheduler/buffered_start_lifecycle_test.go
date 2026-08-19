@@ -2,7 +2,6 @@ package scheduler_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	enumspb "go.temporal.io/api/enums/v1"
@@ -18,10 +17,10 @@ import (
 func TestBufferedStartLifecycleTransitionsEngine(t *testing.T) {
 	t.Run("unprocessed to ready", func(t *testing.T) {
 		env := newSchedulerTestEngine(t, defaultSchedule())
-		now := time.Now()
+		now := env.timeSource.Now()
 
-		_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
-			func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+		err := env.updateScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 				invoker := s.Invoker.Get(ctx)
 				invoker.BufferedStarts = []*schedulespb.BufferedStart{{
 					NominalTime:   timestamppb.New(now),
@@ -31,27 +30,27 @@ func TestBufferedStartLifecycleTransitionsEngine(t *testing.T) {
 					OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
 				}}
 				ctx.AddTask(invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerProcessBufferTask{})
-				return struct{}{}, nil
-			}, struct{}{})
+				return nil
+			})
 		require.NoError(t, err)
 
-		_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
-			func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+		err = env.readScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.Context) error {
 				start := s.Invoker.Get(ctx).GetBufferedStarts()[0]
 				require.Equal(t, int64(1), start.GetAttempt())
 				require.Empty(t, start.GetRunId())
 				require.Nil(t, start.GetBackoffTime())
-				return struct{}{}, nil
-			}, struct{}{})
+				return nil
+			})
 		require.NoError(t, err)
 	})
 
 	t.Run("ready to retrying", func(t *testing.T) {
 		env := newInvokerExecuteEngine(t)
-		now := time.Now()
+		now := env.timeSource.Now()
 
-		_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
-			func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+		err := env.updateScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 				invoker := s.Invoker.Get(ctx)
 				invoker.LastProcessedTime = timestamppb.New(now)
 				invoker.BufferedStarts = []*schedulespb.BufferedStart{{
@@ -64,8 +63,8 @@ func TestBufferedStartLifecycleTransitionsEngine(t *testing.T) {
 					Attempt:       1,
 				}}
 				ctx.AddTask(invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
-				return struct{}{}, nil
-			}, struct{}{})
+				return nil
+			})
 		require.NoError(t, err)
 
 		env.frontendClient.EXPECT().
@@ -76,14 +75,14 @@ func TestBufferedStartLifecycleTransitionsEngine(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, executed)
 
-		_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
-			func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+		err = env.readScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.Context) error {
 				start := s.Invoker.Get(ctx).GetBufferedStarts()[0]
 				require.Equal(t, int64(2), start.GetAttempt())
 				require.Empty(t, start.GetRunId())
 				require.True(t, start.GetBackoffTime().AsTime().After(now))
-				return struct{}{}, nil
-			}, struct{}{})
+				return nil
+			})
 		require.NoError(t, err)
 	})
 }
