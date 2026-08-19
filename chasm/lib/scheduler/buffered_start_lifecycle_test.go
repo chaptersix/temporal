@@ -1,7 +1,6 @@
 package scheduler_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -10,28 +9,20 @@ import (
 	"go.temporal.io/api/serviceerror"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
-	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
-	"go.temporal.io/server/common/metrics"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestBufferedStartLifecycleTransitionsEngine(t *testing.T) {
 	t.Run("unprocessed to ready", func(t *testing.T) {
-		engine, engineCtx, rootRef, logger := newTaskValidityEngine(t, defaultSchedule())
-		handler := scheduler.NewInvokerProcessBufferTaskHandler(scheduler.InvokerTaskHandlerOptions{
-			Config:         defaultConfig(),
-			MetricsHandler: metrics.NoopMetricsHandler,
-			BaseLogger:     logger,
-		})
+		env := newSchedulerTestEngine(t, defaultSchedule())
 		now := time.Now()
 
-		var invoker *scheduler.Invoker
-		_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+		_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
 			func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
-				invoker = s.Invoker.Get(ctx)
+				invoker := s.Invoker.Get(ctx)
 				invoker.BufferedStarts = []*schedulespb.BufferedStart{{
 					NominalTime:   timestamppb.New(now),
 					ActualTime:    timestamppb.New(now),
@@ -44,13 +35,7 @@ func TestBufferedStartLifecycleTransitionsEngine(t *testing.T) {
 			}, struct{}{})
 		require.NoError(t, err)
 
-		dropped, err := chasmtest.ExecutePureTask(
-			context.Background(), engine, invoker, handler,
-			chasm.TaskAttributes{}, &schedulerpb.InvokerProcessBufferTask{})
-		require.NoError(t, err)
-		require.False(t, dropped)
-
-		_, err = chasm.ReadComponent(engineCtx, rootRef,
+		_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
 			func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
 				start := s.Invoker.Get(ctx).GetBufferedStarts()[0]
 				require.Equal(t, int64(1), start.GetAttempt())
@@ -62,13 +47,12 @@ func TestBufferedStartLifecycleTransitionsEngine(t *testing.T) {
 	})
 
 	t.Run("ready to retrying", func(t *testing.T) {
-		engine, engineCtx, rootRef, handler, frontendClient := newInvokerExecuteEngineEnv(t)
+		env := newInvokerExecuteEngine(t)
 		now := time.Now()
 
-		var invoker *scheduler.Invoker
-		_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+		_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
 			func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
-				invoker = s.Invoker.Get(ctx)
+				invoker := s.Invoker.Get(ctx)
 				invoker.LastProcessedTime = timestamppb.New(now)
 				invoker.BufferedStarts = []*schedulespb.BufferedStart{{
 					NominalTime:   timestamppb.New(now),
@@ -84,17 +68,15 @@ func TestBufferedStartLifecycleTransitionsEngine(t *testing.T) {
 			}, struct{}{})
 		require.NoError(t, err)
 
-		frontendClient.EXPECT().
+		env.frontendClient.EXPECT().
 			StartWorkflowExecution(gomock.Any(), startWorkflowExecutionRequestIDMatches("retrying")).
 			Return(nil, serviceerror.NewDeadlineExceeded("retry"))
 
-		dropped, err := chasmtest.ExecuteSideEffectTask(
-			context.Background(), engine, invoker, handler,
-			chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
+		executed, err := env.engine.FireSideEffectTasks(env.rootRef, now)
 		require.NoError(t, err)
-		require.False(t, dropped)
+		require.Equal(t, 1, executed)
 
-		_, err = chasm.ReadComponent(engineCtx, rootRef,
+		_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
 			func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
 				start := s.Invoker.Get(ctx).GetBufferedStarts()[0]
 				require.Equal(t, int64(2), start.GetAttempt())
