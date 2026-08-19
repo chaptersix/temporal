@@ -106,6 +106,7 @@ type overlapAction struct {
 
 // PlanBufferProcessing computes buffer outcomes without mutating snapshot or live scheduler state.
 func PlanBufferProcessing(snapshot BufferProcessingSnapshot, now time.Time) BufferPlan {
+	snapshot.Starts = slices.Clone(snapshot.Starts)
 	for index := range snapshot.Starts {
 		snapshot.Starts[index].Occurrence = index
 	}
