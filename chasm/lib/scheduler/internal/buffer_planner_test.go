@@ -161,6 +161,24 @@ func TestPlanBufferProcessing_DoesNotMutateOrAliasInput(t *testing.T) {
 	require.Equal(t, "request", snapshot.Starts[0].RequestID)
 }
 
+func TestPlanBufferProcessing_BufferOneDoesNotMergeDuplicateRequestIDs(t *testing.T) {
+	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	snapshot := BufferProcessingSnapshot{
+		Starts: []BufferedStartSnapshot{
+			{RequestID: "duplicate", WorkflowID: "first", Attempt: bufferedStartDeferredAttempt, OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE, ActualTime: now},
+			{RequestID: "duplicate", WorkflowID: "second", Attempt: bufferedStartDeferredAttempt, OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE, ActualTime: now},
+		},
+		RunningWorkflows:     []WorkflowExecutionSnapshot{{WorkflowID: "running", RunID: "run"}},
+		DefaultOverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
+		CatchupWindow:        time.Hour,
+		MinimumCatchupWindow: time.Second,
+	}
+
+	plan := PlanBufferProcessing(snapshot, now)
+
+	require.Equal(t, []BufferDecisionAction{BufferDecisionDefer, BufferDecisionDiscard}, decisionActions(plan.Decisions))
+}
+
 func decisionActions(decisions []BufferDecision) []BufferDecisionAction {
 	actions := make([]BufferDecisionAction, 0, len(decisions))
 	for _, decision := range decisions {

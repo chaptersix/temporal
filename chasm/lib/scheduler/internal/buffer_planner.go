@@ -126,9 +126,9 @@ func PlanBufferProcessing(snapshot BufferProcessingSnapshot, now time.Time) Buff
 		plan.CancelWorkflows = append(plan.CancelWorkflows, snapshot.RunningWorkflows...)
 	}
 
-	keep := make(map[string]struct{}, len(action.NewBuffer)+len(action.OverlappingStarts)+1)
+	keep := make(map[BufferedStartSnapshot]struct{}, len(action.NewBuffer)+len(action.OverlappingStarts)+1)
 	for _, start := range action.NewBuffer {
-		keep[start.RequestID] = struct{}{}
+		keep[start] = struct{}{}
 	}
 	readyStarts := slices.Clone(action.OverlappingStarts)
 	if action.NonOverlappingStart.RequestID != "" {
@@ -138,21 +138,21 @@ func PlanBufferProcessing(snapshot BufferProcessingSnapshot, now time.Time) Buff
 	// All ready decisions share this task-wide budget. Passing its address preserves
 	// legacy ready-start ordering while keeping the input snapshot immutable.
 	remainingActions := snapshot.RemainingActions
-	ready := make(map[string]struct{}, len(readyStarts))
+	ready := make(map[BufferedStartSnapshot]struct{}, len(readyStarts))
 	readyDecisions := make([]BufferDecision, 0, len(readyStarts))
 	readyOccurrences := make(map[BufferedStartSnapshot]int, len(readyStarts))
 	for _, start := range readyStarts {
 		decision := planReadyBufferDecision(start, snapshot, now, &remainingActions)
 		if decision.Action == BufferDecisionExecute {
-			keep[start.RequestID] = struct{}{}
-			ready[start.RequestID] = struct{}{}
+			keep[start] = struct{}{}
+			ready[start] = struct{}{}
 		}
 		readyDecisions = append(readyDecisions, decision)
 		readyOccurrences[start]++
 	}
 
 	for _, decision := range readyDecisions {
-		decision.Action = finalPendingBufferAction(decision.RequestID, keep, ready)
+		decision.Action = finalPendingBufferAction(decision.Expected, keep, ready)
 		plan.Decisions = append(plan.Decisions, decision)
 	}
 	for _, start := range snapshot.Starts {
@@ -167,7 +167,7 @@ func PlanBufferProcessing(snapshot BufferProcessingSnapshot, now time.Time) Buff
 		decision := BufferDecision{
 			RequestID: start.RequestID,
 			Expected:  start,
-			Action:    finalPendingBufferAction(start.RequestID, keep, ready),
+			Action:    finalPendingBufferAction(start, keep, ready),
 			Reason:    BufferDecisionReasonOverlapPolicy,
 		}
 		if decision.Action == BufferDecisionDiscard && (action.NeedCancel || action.NeedTerminate) {
@@ -303,14 +303,14 @@ func planReadyBufferDecision(
 }
 
 func finalPendingBufferAction(
-	requestID string,
-	keep map[string]struct{},
-	ready map[string]struct{},
+	start BufferedStartSnapshot,
+	keep map[BufferedStartSnapshot]struct{},
+	ready map[BufferedStartSnapshot]struct{},
 ) BufferDecisionAction {
-	if _, ok := ready[requestID]; ok {
+	if _, ok := ready[start]; ok {
 		return BufferDecisionExecute
 	}
-	if _, ok := keep[requestID]; ok {
+	if _, ok := keep[start]; ok {
 		return BufferDecisionDefer
 	}
 	return BufferDecisionDiscard
