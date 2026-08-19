@@ -11,6 +11,7 @@ import (
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
+	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
 	"go.temporal.io/server/common/util"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -117,14 +118,14 @@ func (i *Invoker) recordProcessBufferResult(ctx chasm.MutableContext, result *pr
 
 		// Starts ready for execution are set to their first attempt.
 		if ready[start.RequestId] && start.Attempt < 1 {
-			markStartReady(start)
+			schedulerinternal.MarkStartReady(start)
 			readiedStarts++
 		} else if start.Attempt == 0 {
 			// Start was processed but deferred (e.g., BUFFER_ONE policy with running workflow).
 			// Mark as deferred (-1) to distinguish from newly-enqueued starts so addTasks
 			// won't schedule an immediate ProcessBuffer task for them - they wait on
 			// recordCompletedAction to re-enable.
-			markStartDeferred(start)
+			schedulerinternal.MarkStartDeferred(start)
 			deferredStarts++
 		}
 
@@ -235,12 +236,12 @@ func (i *Invoker) recordExecuteResult(ctx chasm.MutableContext, result *executeR
 			continue
 		}
 		if completedStart, ok := completed[start.RequestId]; ok {
-			markStartStarted(start, completedStart.GetRunId(), completedStart.GetStartTime())
+			schedulerinternal.MarkStartStarted(start, completedStart.GetRunId(), completedStart.GetStartTime())
 			start.HasCallback = true
 			newlyStarted++
 		}
 		if retry, ok := retryable[start.RequestId]; ok {
-			markStartRetrying(start, start.GetAttempt()+1, retry.GetBackoffTime())
+			schedulerinternal.MarkStartRetrying(start, start.GetAttempt()+1, retry.GetBackoffTime())
 			retriedStarts++
 		}
 	}
@@ -282,7 +283,7 @@ func (i *Invoker) recordCompletedAction(
 	for _, start := range i.BufferedStarts {
 		if start.GetRequestId() == requestID {
 			scheduleTime = start.DesiredTime.AsTime()
-			markStartCompleted(start, completed)
+			schedulerinternal.MarkStartCompleted(start, completed)
 			break
 		}
 	}
@@ -292,7 +293,7 @@ func (i *Invoker) recordCompletedAction(
 	// policy to be re-evaluated.
 	for _, start := range i.BufferedStarts {
 		if start.Attempt == -1 {
-			markStartUnprocessed(start)
+			schedulerinternal.MarkStartUnprocessed(start)
 		}
 	}
 

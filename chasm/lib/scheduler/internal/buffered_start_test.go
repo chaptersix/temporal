@@ -1,4 +1,4 @@
-package scheduler
+package internal
 
 import (
 	"testing"
@@ -15,13 +15,13 @@ func TestClassifyBufferedStart(t *testing.T) {
 	tests := []struct {
 		name  string
 		start *schedulespb.BufferedStart
-		want  bufferedStartState
+		want  BufferedStartState
 	}{
-		{name: "nil", want: bufferedStartStateInvalid},
-		{name: "unknown negative attempt", start: &schedulespb.BufferedStart{Attempt: -2}, want: bufferedStartStateInvalid},
-		{name: "unprocessed", start: unprocessedStart(), want: bufferedStartStateUnprocessed},
-		{name: "deferred", start: deferredStart(), want: bufferedStartStateDeferred},
-		{name: "ready without backoff", start: readyStart(), want: bufferedStartStateReady},
+		{name: "nil", want: BufferedStartStateInvalid},
+		{name: "unknown negative attempt", start: &schedulespb.BufferedStart{Attempt: -2}, want: BufferedStartStateInvalid},
+		{name: "unprocessed", start: unprocessedStart(), want: BufferedStartStateUnprocessed},
+		{name: "deferred", start: deferredStart(), want: BufferedStartStateDeferred},
+		{name: "ready without backoff", start: readyStart(), want: BufferedStartStateReady},
 		{
 			name: "ready before backoff boundary",
 			start: func() *schedulespb.BufferedStart {
@@ -29,7 +29,7 @@ func TestClassifyBufferedStart(t *testing.T) {
 				start.BackoffTime = timestamppb.New(now.Add(-time.Nanosecond))
 				return start
 			}(),
-			want: bufferedStartStateReady,
+			want: BufferedStartStateReady,
 		},
 		{
 			name: "ready at backoff boundary",
@@ -38,25 +38,25 @@ func TestClassifyBufferedStart(t *testing.T) {
 				start.BackoffTime = timestamppb.New(now)
 				return start
 			}(),
-			want: bufferedStartStateReady,
+			want: BufferedStartStateReady,
 		},
-		{name: "backing off", start: backingOffStart(now), want: bufferedStartStateBackingOff},
-		{name: "started", start: runningStart(now), want: bufferedStartStateStarted},
-		{name: "completed", start: completedStart(now), want: bufferedStartStateCompleted},
+		{name: "backing off", start: backingOffStart(now), want: BufferedStartStateBackingOff},
+		{name: "started", start: runningStart(now), want: BufferedStartStateStarted},
+		{name: "completed", start: completedStart(now), want: BufferedStartStateCompleted},
 		{
 			name: "completion before start",
 			start: &schedulespb.BufferedStart{
 				Attempt:   1,
 				Completed: &schedulespb.CompletedResult{},
 			},
-			want: bufferedStartStateInvalid,
+			want: BufferedStartStateInvalid,
 		},
 		{
 			name: "unprocessed with run ID",
 			start: &schedulespb.BufferedStart{
 				RunId: "run-id",
 			},
-			want: bufferedStartStateInvalid,
+			want: BufferedStartStateInvalid,
 		},
 		{
 			name: "deferred with backoff",
@@ -64,13 +64,13 @@ func TestClassifyBufferedStart(t *testing.T) {
 				Attempt:     -1,
 				BackoffTime: timestamppb.New(now),
 			},
-			want: bufferedStartStateInvalid,
+			want: BufferedStartStateInvalid,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.want, classifyBufferedStart(tt.start, now))
+			require.Equal(t, tt.want, ClassifyBufferedStart(tt.start, now))
 		})
 	}
 }
@@ -82,35 +82,35 @@ func TestBufferedStartTransitions(t *testing.T) {
 	completion := &schedulespb.CompletedResult{CloseTime: timestamppb.New(now.Add(3 * time.Minute))}
 	start := &schedulespb.BufferedStart{RequestId: "request-id"}
 
-	markStartDeferred(start)
+	MarkStartDeferred(start)
 	require.Equal(t, int64(-1), start.GetAttempt())
 	require.Equal(t, "request-id", start.GetRequestId())
-	require.Equal(t, bufferedStartStateDeferred, classifyBufferedStart(start, now))
+	require.Equal(t, BufferedStartStateDeferred, ClassifyBufferedStart(start, now))
 
-	markStartUnprocessed(start)
+	MarkStartUnprocessed(start)
 	require.Zero(t, start.GetAttempt())
-	require.Equal(t, bufferedStartStateUnprocessed, classifyBufferedStart(start, now))
+	require.Equal(t, BufferedStartStateUnprocessed, ClassifyBufferedStart(start, now))
 
-	markStartReady(start)
+	MarkStartReady(start)
 	require.Equal(t, int64(1), start.GetAttempt())
-	require.Equal(t, bufferedStartStateReady, classifyBufferedStart(start, now))
+	require.Equal(t, BufferedStartStateReady, ClassifyBufferedStart(start, now))
 
-	markStartRetrying(start, 2, backoffTime)
+	MarkStartRetrying(start, 2, backoffTime)
 	require.Equal(t, int64(2), start.GetAttempt())
 	require.Same(t, backoffTime, start.GetBackoffTime())
-	require.Equal(t, bufferedStartStateBackingOff, classifyBufferedStart(start, now))
+	require.Equal(t, BufferedStartStateBackingOff, ClassifyBufferedStart(start, now))
 
-	markStartStarted(start, "run-id", startTime)
+	MarkStartStarted(start, "run-id", startTime)
 	require.Equal(t, "run-id", start.GetRunId())
 	require.Same(t, startTime, start.GetStartTime())
 	require.Equal(t, int64(2), start.GetAttempt())
 	require.Same(t, backoffTime, start.GetBackoffTime())
-	require.Equal(t, bufferedStartStateStarted, classifyBufferedStart(start, now))
+	require.Equal(t, BufferedStartStateStarted, ClassifyBufferedStart(start, now))
 
-	markStartCompleted(start, completion)
+	MarkStartCompleted(start, completion)
 	require.Same(t, completion, start.GetCompleted())
 	require.Equal(t, "run-id", start.GetRunId())
-	require.Equal(t, bufferedStartStateCompleted, classifyBufferedStart(start, now))
+	require.Equal(t, BufferedStartStateCompleted, ClassifyBufferedStart(start, now))
 }
 
 func unprocessedStart() *schedulespb.BufferedStart {
