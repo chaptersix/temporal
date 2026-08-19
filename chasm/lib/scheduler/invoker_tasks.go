@@ -582,7 +582,7 @@ func (h *InvokerProcessBufferTaskHandler) processBuffer(
 	return
 }
 
-// applyBackoff updates start's BackoffTime based on err and the retry policy.
+// applyBackoff advances start's attempt and BackoffTime based on err and the retry policy.
 // `now` is the framework clock captured at task start - using time.Now would
 // diverge from the LastProcessedTime/eligibility comparison in tests.
 func (h *InvokerExecuteTaskHandler) applyBackoff(start *schedulespb.BufferedStart, err error, now time.Time) {
@@ -598,7 +598,7 @@ func (h *InvokerExecuteTaskHandler) applyBackoff(start *schedulespb.BufferedStar
 		delay = h.config.RetryPolicy().ComputeNextDelay(0, int(start.Attempt), nil)
 	}
 
-	start.BackoffTime = timestamppb.New(now.Add(delay))
+	markStartRetrying(start, start.GetAttempt()+1, timestamppb.New(now.Add(delay)))
 }
 
 // startWorkflowDeadline returns the latest time at which a buffered workflow
@@ -709,8 +709,7 @@ func (h *InvokerExecuteTaskHandler) startWorkflow(
 	// Set metadata on the cloned start. The clone was created in startWorkflows
 	// before spawning this goroutine, and will be copied back to the Invoker's
 	// BufferedStarts in recordExecuteResult.
-	start.RunId = result.RunId
-	start.StartTime = timestamppb.New(actualStartTime)
+	markStartStarted(start, result.RunId, timestamppb.New(actualStartTime))
 	start.HasCallback = true
 
 	// Record time taken from action eligible to workflow started.

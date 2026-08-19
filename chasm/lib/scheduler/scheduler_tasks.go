@@ -213,7 +213,7 @@ func (r *SchedulerCallbacksTaskHandler) Execute(
 				if result, ok := results[start.RequestId]; ok {
 					start.HasCallback = true
 					if result.completed != nil {
-						start.Completed = result.completed
+						markStartCompleted(start, result.completed)
 					}
 				}
 			}
