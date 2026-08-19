@@ -557,6 +557,28 @@ verify-test-log:
 
 test: unit-test integration-test functional-test
 
+PROPERTY_TEST_FILES := $(shell find . -name '*_property_test.go' -not -path './vendor/*')
+PROPERTY_TEST_DIRS := $(sort $(dir $(PROPERTY_TEST_FILES)))
+RAPID_CHECKS ?= 250
+RAPID_STEPS ?= 50
+
+.PHONY: property-test
+property-test: prepare-coverage-test
+	@set -eu; \
+	files='$(PROPERTY_TEST_FILES)'; \
+	if [ -z "$$files" ]; then echo "No property tests found."; exit 0; fi; \
+	invalid=0; \
+	for file in $$files; do \
+		grep -q '^//go:build property_test$$' "$$file" || { echo "$$file: missing //go:build property_test"; invalid=1; }; \
+		awk '/^func Test/ { if ($$2 !~ /^TestProperty[A-Za-z0-9_]*\(t$$/) { print FILENAME ": top-level tests must be named TestProperty..."; exit 1 } found=1 } END { exit !found }' "$$file" || invalid=1; \
+	done; \
+	[ $$invalid -eq 0 ] || exit 1
+	@printf $(COLOR) "Run property tests..."
+	RAPID_CHECKS=$(RAPID_CHECKS) RAPID_STEPS=$(RAPID_STEPS) \
+		go run ./cmd/tools/test-runner test --gotestsum-path=$(GOTESTSUM) --max-attempts=$(MAX_TEST_ATTEMPTS) $(TEST_RUNNER_TIMEOUT_ARG) --junitfile=$(NEW_REPORT) -- \
+			-timeout=$(TEST_TIMEOUT) -tags=disable_grpc_modules,test_dep,property_test -run='^TestProperty' -count=1 -coverprofile=$(NEW_COVER_PROFILE) $(PROPERTY_TEST_DIRS)
+	@$(MAKE) generate-test-summary
+
 ##### Coverage & Reporting #####
 $(TEST_OUTPUT_ROOT):
 	@mkdir -p $(TEST_OUTPUT_ROOT)

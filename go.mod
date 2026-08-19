@@ -106,6 +106,7 @@ require (
 	github.com/hashicorp/go-version v1.9.0 // indirect
 	go.opentelemetry.io/collector/featuregate v1.56.0 // indirect
 	golang.org/x/perf v0.0.0-20260709024250-82a0b07e230d // indirect
+	pgregory.net/rapid v1.3.0 // indirect
 )
 
 require (
