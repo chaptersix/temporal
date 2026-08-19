@@ -16,6 +16,27 @@ import (
 )
 
 // The Invoker component is responsible for executing buffered actions.
+//
+// BufferedStart lifecycle is encoded by a tuple rather than one state field.
+// The states produced by current writers are:
+//
+//	Attempt == 0                       unprocessed by overlap policy
+//	Attempt == -1                      deferred by overlap policy
+//	Attempt > 0, RunId == "", Completed == nil   ready or backing off
+//	Attempt > 0, RunId != "", Completed == nil   started
+//	Attempt > 0, RunId != "", Completed != nil   completed and retained as history
+//
+// For a ready or backing-off start, BackoffTime is ready when it is less than
+// or equal to Invoker.LastProcessedTime and is otherwise still backing off.
+// Attempt is therefore both a lifecycle sentinel and a 1-based retry count.
+// HasCallback is normally set by a successful start. A started tuple with it
+// unset needs callback repair after V1 migration.
+//
+// A completion callback can commit before the matching StartWorkflow result,
+// producing a tuple with Completed set but no RunId. Current eligibility uses
+// Attempt, RunId, BackoffTime, and LastProcessedTime, but not Completed, so an
+// Execute task may still select it. A successful late result fills in the RunId;
+// failure paths can retain the unusual tuple while retry handling continues.
 type Invoker struct {
 	chasm.UnimplementedComponent
 

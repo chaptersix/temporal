@@ -1,6 +1,8 @@
 package scheduler_test
 
 import (
+	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -9,8 +11,10 @@ import (
 	enumspb "go.temporal.io/api/enums/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
+	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/util"
 	"go.temporal.io/server/service/history/tasks"
@@ -20,42 +24,128 @@ import (
 
 // Validate that ProcessBufferTask is invalidated by a later high water mark.
 func TestProcessBufferTask_Validate(t *testing.T) {
-	env := newTestEnv(t)
-	now := env.TimeSource.Now()
-	handler := newProcessBufferHandler(env)
-	invoker := env.Scheduler.Invoker.Get(env.MutableContext())
-
 	cases := []struct {
-		name              string
-		lastProcessedTime *timestamppb.Timestamp
-		scheduledTime     time.Time
-		expectedValid     bool
+		name                   string
+		initialLastProcessedAt *timestamppb.Timestamp
+		currentLastProcessedAt *timestamppb.Timestamp
+		scheduledTime          func(time.Time) time.Time
+		expectedValid          bool
 	}{
-		{name: "immediate always valid", lastProcessedTime: timestamppb.New(now), scheduledTime: time.Time{}, expectedValid: true},
-		{name: "nil LPT always valid", lastProcessedTime: nil, scheduledTime: now, expectedValid: true},
-		{name: "scheduled after LPT is valid", lastProcessedTime: timestamppb.New(now), scheduledTime: now.Add(time.Second), expectedValid: true},
-		{name: "scheduled equal to LPT is stale", lastProcessedTime: timestamppb.New(now), scheduledTime: now, expectedValid: false},
-		{name: "scheduled before LPT is stale", lastProcessedTime: timestamppb.New(now.Add(time.Second)), scheduledTime: now, expectedValid: false},
+		{
+			name:                   "immediate always valid",
+			initialLastProcessedAt: timestamppb.New(time.Time{}),
+			currentLastProcessedAt: timestamppb.New(time.Time{}),
+			scheduledTime:          func(time.Time) time.Time { return time.Time{} },
+			expectedValid:          true,
+		},
+		{
+			name:                   "nil LPT always valid",
+			initialLastProcessedAt: nil,
+			currentLastProcessedAt: nil,
+			scheduledTime:          func(now time.Time) time.Time { return now },
+			expectedValid:          true,
+		},
+		{
+			name:                   "scheduled after LPT is valid",
+			initialLastProcessedAt: timestamppb.New(time.Unix(1, 0)),
+			currentLastProcessedAt: timestamppb.New(time.Unix(1, 0)),
+			scheduledTime:          func(now time.Time) time.Time { return now },
+			expectedValid:          true,
+		},
+		{
+			name:                   "scheduled equal to LPT is stale",
+			initialLastProcessedAt: timestamppb.New(time.Unix(1, 0)),
+			currentLastProcessedAt: nil,
+			scheduledTime:          func(now time.Time) time.Time { return now },
+			expectedValid:          false,
+		},
+		{
+			name:                   "scheduled before LPT is stale",
+			initialLastProcessedAt: timestamppb.New(time.Unix(1, 0)),
+			currentLastProcessedAt: nil,
+			scheduledTime:          func(now time.Time) time.Time { return now },
+			expectedValid:          false,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			invoker.LastProcessedTime = c.lastProcessedTime
-			valid, err := handler.Validate(env.MutableContext(), invoker, chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: c.scheduledTime}}, &schedulerpb.InvokerProcessBufferTask{})
+			engine, engineCtx, rootRef, logger := newTaskValidityEngine(t, defaultSchedule())
+			handler := scheduler.NewInvokerProcessBufferTaskHandler(scheduler.InvokerTaskHandlerOptions{
+				Config:         defaultConfig(),
+				MetricsHandler: metrics.NoopMetricsHandler,
+				BaseLogger:     logger,
+			})
+			now := time.Now()
+			scheduledTime := c.scheduledTime(now)
+			currentLastProcessedAt := c.currentLastProcessedAt
+			if c.name == "scheduled equal to LPT is stale" {
+				currentLastProcessedAt = timestamppb.New(scheduledTime)
+			} else if c.name == "scheduled before LPT is stale" {
+				currentLastProcessedAt = timestamppb.New(scheduledTime.Add(time.Second))
+			}
+
+			var invoker *scheduler.Invoker
+			_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+				func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+					invoker = s.Invoker.Get(ctx)
+					invoker.LastProcessedTime = c.initialLastProcessedAt
+					if !scheduledTime.IsZero() {
+						ctx.AddTask(invoker, chasm.TaskAttributes{ScheduledTime: scheduledTime}, &schedulerpb.InvokerProcessBufferTask{})
+					}
+					return struct{}{}, nil
+				}, struct{}{})
 			require.NoError(t, err)
-			require.Equal(t, c.expectedValid, valid)
+
+			_, _, err = chasm.UpdateComponent(engineCtx, rootRef,
+				func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+					invoker = s.Invoker.Get(ctx)
+					s.Info.OverlapSkipped++ // unrelated scheduler state
+					invoker.LastProcessedTime = currentLastProcessedAt
+					return struct{}{}, nil
+				}, struct{}{})
+			require.NoError(t, err)
+
+			dropped, err := chasmtest.ExecutePureTask(
+				context.Background(), engine, invoker, handler,
+				chasm.TaskAttributes{ScheduledTime: scheduledTime}, &schedulerpb.InvokerProcessBufferTask{})
+			require.NoError(t, err)
+			require.Equal(t, !c.expectedValid, dropped)
 		})
 	}
 }
 
 func TestProcessBufferTask_Validate_MigrationPending(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := env.MutableContext()
-	invoker := env.Scheduler.Invoker.Get(ctx)
-	env.Scheduler.WorkflowMigration = &schedulerpb.WorkflowMigrationState{}
-
-	valid, err := newProcessBufferHandler(env).Validate(ctx, invoker, chasm.TaskInvocation{}, &schedulerpb.InvokerProcessBufferTask{})
+	engine, engineCtx, rootRef, logger := newTaskValidityEngine(t, defaultSchedule())
+	handler := scheduler.NewInvokerProcessBufferTaskHandler(scheduler.InvokerTaskHandlerOptions{
+		Config:         defaultConfig(),
+		MetricsHandler: metrics.NoopMetricsHandler,
+		BaseLogger:     logger,
+	})
+	now := time.Now()
+	taskTime := now.Add(time.Minute)
+	var invoker *scheduler.Invoker
+	_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+			invoker = s.Invoker.Get(ctx)
+			invoker.LastProcessedTime = timestamppb.New(now)
+			ctx.AddTask(invoker, chasm.TaskAttributes{ScheduledTime: taskTime}, &schedulerpb.InvokerProcessBufferTask{})
+			return struct{}{}, nil
+		}, struct{}{})
 	require.NoError(t, err)
-	require.False(t, valid)
+
+	_, _, err = chasm.UpdateComponent(engineCtx, rootRef,
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+			invoker = s.Invoker.Get(ctx)
+			s.WorkflowMigration = &schedulerpb.WorkflowMigrationState{}
+			return struct{}{}, nil
+		}, struct{}{})
+	require.NoError(t, err)
+
+	dropped, err := chasmtest.ExecutePureTask(
+		context.Background(), engine, invoker, handler,
+		chasm.TaskAttributes{ScheduledTime: taskTime}, &schedulerpb.InvokerProcessBufferTask{})
+	require.NoError(t, err)
+	require.True(t, dropped)
 }
 
 // A buffer of only deferred starts (Attempt=-1) must NOT start a workflow or
@@ -93,37 +183,65 @@ func TestInvoker_AddTasks_AllDeferredEmitsNothing(t *testing.T) {
 // Regression for the addTasks gate that previously suppressed re-arm when
 // processBuffer found nothing to process (no Attempt==0 starts).
 func TestProcessBufferTask_RearmsBackedOffRetry(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := env.MutableContext()
-	invoker := env.Scheduler.Invoker.Get(ctx)
+	timeSource := clock.NewEventTimeSource()
+	now := time.Now()
+	timeSource.Update(now)
+	engine, engineCtx, rootRef, _ := newTaskValidityEngine(
+		t, defaultSchedule(), withEngineTimeSource(timeSource))
 
-	now := env.TimeSource.Now()
 	// Set LPT to the past so the start (with BackoffTime at now) becomes
 	// eligible only after the HWM advance in this run.
-	invoker.LastProcessedTime = timestamppb.New(now.Add(-time.Minute))
-	invoker.BufferedStarts = []*schedulespb.BufferedStart{{
-		NominalTime:   timestamppb.New(now),
-		ActualTime:    timestamppb.New(now),
-		DesiredTime:   timestamppb.New(now),
-		RequestId:     "retry-ready",
-		OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
-		Attempt:       2,
-		BackoffTime:   timestamppb.New(now),
-	}}
-
-	err := newProcessBufferHandler(env).Execute(ctx, invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerProcessBufferTask{})
+	_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+			invoker := s.Invoker.Get(ctx)
+			invoker.LastProcessedTime = timestamppb.New(now.Add(-time.Minute))
+			invoker.BufferedStarts = []*schedulespb.BufferedStart{{
+				NominalTime:   timestamppb.New(now),
+				ActualTime:    timestamppb.New(now),
+				DesiredTime:   timestamppb.New(now),
+				RequestId:     "retry-ready",
+				OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+				Attempt:       2,
+				BackoffTime:   timestamppb.New(now),
+			}}
+			ctx.AddTask(invoker, chasm.TaskAttributes{ScheduledTime: now}, &schedulerpb.InvokerProcessBufferTask{})
+			return struct{}{}, nil
+		}, struct{}{})
 	require.NoError(t, err)
-	require.NoError(t, env.CloseTransaction())
+
+	before, err := engine.Tasks(rootRef)
+	require.NoError(t, err)
+	beforeInvokerTasks := countInvokerSideEffectTasks(before)
+	executed, err := engine.FirePureTasks(rootRef, now)
+	require.NoError(t, err)
+	require.Equal(t, 1, executed)
 
 	// Precondition for re-arm: the HWM advance in this Execute must have made
 	// the previously-backing-off start eligible (BackoffTime <= LPT).
-	require.False(t, invoker.BufferedStarts[0].BackoffTime.AsTime().After(invoker.LastProcessedTime.AsTime()),
-		"setup invariant: start must be eligible after HWM advance")
+	_, err = chasm.ReadComponent(engineCtx, rootRef,
+		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+			invoker := s.Invoker.Get(ctx)
+			require.False(t, invoker.BufferedStarts[0].BackoffTime.AsTime().After(invoker.LastProcessedTime.AsTime()),
+				"task execution must advance the HWM through the backoff boundary")
+			return struct{}{}, nil
+		}, struct{}{})
+	require.NoError(t, err)
 
-	// addTasks must have emitted an immediate side-effect ChasmTask carrying
-	// the InvokerExecuteTask payload so the retry actually fires.
-	require.True(t, env.HasTask(&tasks.ChasmTask{}, chasm.TaskScheduledTimeImmediate),
-		"expected an immediate side-effect task to re-arm the backed-off retry")
+	after, err := engine.Tasks(rootRef)
+	require.NoError(t, err)
+	require.Equal(t, beforeInvokerTasks+1, countInvokerSideEffectTasks(after),
+		"elapsed retry must emit an immediate Invoker Execute task")
+}
+
+func countInvokerSideEffectTasks(tasksByCategory map[tasks.Category][]tasks.Task) int {
+	count := 0
+	for _, task := range tasksByCategory[tasks.CategoryTransfer] {
+		chasmTask, ok := task.(*tasks.ChasmTask)
+		if ok && slices.Equal(chasmTask.Info.GetPath(), []string{"Invoker"}) {
+			count++
+		}
+	}
+	return count
 }
 
 func newProcessBufferHandler(env *testEnv) *scheduler.InvokerProcessBufferTaskHandler {
@@ -487,26 +605,38 @@ func TestProcessBufferTask_NeedsTerminate(t *testing.T) {
 // check. The bug only manifests for automated Generator starts that age past
 // their catchup window while processing is stalled.
 func TestProcessBufferTask_MissedCatchupPreservesRemainingActions(t *testing.T) {
-	env := newTestEnv(t)
-	env.Scheduler.Schedule.State.LimitedActions = true
-	env.Scheduler.Schedule.State.RemainingActions = 3
+	schedule := defaultSchedule()
+	schedule.State.LimitedActions = true
+	schedule.State.RemainingActions = 3
+	_, engineCtx, rootRef, _ := newTaskValidityEngine(t, schedule)
 
-	now := env.TimeSource.Now()
+	now := time.Now()
 	startTime := timestamppb.New(now.Add(-defaultCatchupWindow * 2))
-	runProcessBufferTestCase(t, env, &processBufferTestCase{
-		InitialBufferedStarts: []*schedulespb.BufferedStart{{
-			NominalTime:   startTime,
-			ActualTime:    startTime,
-			DesiredTime:   startTime,
-			Manual:        false,
-			RequestId:     "expired",
-			OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
-		}},
-		ExpectedBufferedStarts:      0,
-		ExpectedMissedCatchupWindow: 1,
-	})
-	require.Equal(t, int64(3), env.Scheduler.Schedule.State.RemainingActions,
-		"RemainingActions must not be consumed by a start that was dropped for missing the catchup window")
+	_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+			invoker := s.Invoker.Get(ctx)
+			invoker.BufferedStarts = []*schedulespb.BufferedStart{{
+				NominalTime:   startTime,
+				ActualTime:    startTime,
+				DesiredTime:   startTime,
+				Manual:        false,
+				RequestId:     "expired",
+				OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+			}}
+			ctx.AddTask(invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerProcessBufferTask{})
+			return struct{}{}, nil
+		}, struct{}{})
+	require.NoError(t, err)
+
+	_, err = chasm.ReadComponent(engineCtx, rootRef,
+		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+			require.Empty(t, s.Invoker.Get(ctx).GetBufferedStarts())
+			require.Equal(t, int64(1), s.Info.GetMissedCatchupWindow())
+			require.Equal(t, int64(3), s.Schedule.State.GetRemainingActions(),
+				"RemainingActions must not be consumed by a start that was dropped for missing the catchup window")
+			return struct{}{}, nil
+		}, struct{}{})
+	require.NoError(t, err)
 }
 
 // Paused schedules drop automated buffered starts during processBuffer (but
