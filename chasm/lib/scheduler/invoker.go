@@ -12,10 +12,8 @@ import (
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
-	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/util"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -154,101 +152,6 @@ func (i *Invoker) recordProcessBufferResult(ctx chasm.MutableContext, result *pr
 	// Re-arm tasks if this call changed state, or if the LastProcessedTime advance
 	// just unblocked backed-off starts.
 	i.addTasks(ctx)
-}
-
-type executionCommitOutcome struct {
-	appliedStarts             int
-	removedActions            int
-	committedRetries          int
-	duplicateInvalidations    int
-	stateChangedInvalidations int
-	executeTaskScheduled      bool
-}
-
-func (i *Invoker) commitExecutionResult(
-	ctx chasm.MutableContext,
-	result executionBatchResult,
-) (outcome executionCommitOutcome) {
-	removeTerminations := revalidateWorkflowResults(i.TerminateWorkflows, result.terminations, &outcome)
-	i.TerminateWorkflows = deleteIndexed(i.TerminateWorkflows, removeTerminations)
-	removeCancels := revalidateWorkflowResults(i.CancelWorkflows, result.cancellations, &outcome)
-	i.CancelWorkflows = deleteIndexed(i.CancelWorkflows, removeCancels)
-
-	removeStarts := make(map[int]bool)
-	for _, startResult := range result.starts {
-		index := startResult.loaded.index
-		if index < 0 || index >= len(i.BufferedStarts) ||
-			!proto.Equal(i.BufferedStarts[index], startResult.loaded.expected) {
-			if startResult.outcome == startExecutionCompleted && index >= 0 && index < len(i.BufferedStarts) &&
-				isAlreadyRecordedStart(i.BufferedStarts[index], startResult.loaded.expected) {
-				outcome.duplicateInvalidations++
-			} else {
-				outcome.stateChangedInvalidations++
-			}
-			continue
-		}
-
-		start := i.BufferedStarts[index]
-		switch startResult.outcome {
-		case startExecutionCompleted:
-			schedulerinternal.MarkStartStarted(start, startResult.runID, startResult.startTime)
-			start.HasCallback = true
-			outcome.appliedStarts++
-		case startExecutionRetryable:
-			schedulerinternal.MarkStartRetrying(start, start.GetAttempt()+1, startResult.backoffTime)
-			outcome.committedRetries++
-		case startExecutionFailed:
-			removeStarts[index] = true
-			outcome.removedActions++
-		}
-	}
-	i.BufferedStarts = deleteIndexed(i.BufferedStarts, removeStarts)
-
-	i.getOrCreateEventLog(ctx).LogEvent(ctx,
-		fmt.Sprintf("recordExecuteResult kicked off %d starts, removed %d starts, retried %d starts",
-			outcome.appliedStarts,
-			outcome.removedActions,
-			outcome.committedRetries))
-	i.addTasks(ctx)
-	outcome.executeTaskScheduled = i.hasExecutableWork()
-	return outcome
-}
-
-func isAlreadyRecordedStart(live, expected *schedulespb.BufferedStart) bool {
-	if live.GetRunId() == "" {
-		return false
-	}
-	liveWithoutResult := common.CloneProto(live)
-	liveWithoutResult.RunId = ""
-	liveWithoutResult.StartTime = nil
-	liveWithoutResult.HasCallback = false
-	return proto.Equal(liveWithoutResult, expected)
-}
-
-func revalidateWorkflowResults(
-	live []*commonpb.WorkflowExecution,
-	results []loadedWorkflowExecution,
-	outcome *executionCommitOutcome,
-) map[int]bool {
-	remove := make(map[int]bool, len(results))
-	for _, result := range results {
-		if result.index < 0 || result.index >= len(live) || !proto.Equal(live[result.index], result.expected) {
-			outcome.stateChangedInvalidations++
-			continue
-		}
-		remove[result.index] = true
-		outcome.removedActions++
-	}
-	return remove
-}
-
-func deleteIndexed[T any](values []T, remove map[int]bool) []T {
-	index := 0
-	return slices.DeleteFunc(values, func(T) bool {
-		removed := remove[index]
-		index++
-		return removed
-	})
 }
 
 // runningWorkflowID returns the workflow ID associated with the given
