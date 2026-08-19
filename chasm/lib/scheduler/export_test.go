@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	schedulespb "go.temporal.io/server/api/schedule/v1"
@@ -62,17 +63,84 @@ func (i *Invoker) ApplyCompletedRetention() {
 	i.applyCompletedRetention()
 }
 
-// RecordExecuteResult exposes recordExecuteResult so tests can pin the
-// per-RequestId idempotency guard against concurrent ExecuteTasks.
+// RecordExecuteResult retains the pre-refactor request-ID matching behavior as
+// a test-only oracle for existing event-log and race characterizations.
 func (i *Invoker) RecordExecuteResult(
 	ctx chasm.MutableContext,
 	completed []*schedulespb.BufferedStart,
 	retryable []*schedulespb.BufferedStart,
 ) (newlyStarted, droppedDuplicates int) {
-	return i.recordExecuteResult(ctx, &executeResult{
-		CompletedStarts: completed,
-		RetryableStarts: retryable,
-	})
+	completedByRequestID := make(map[string]*schedulespb.BufferedStart)
+	retryableByRequestID := make(map[string]*schedulespb.BufferedStart)
+	for _, start := range completed {
+		completedByRequestID[start.GetRequestId()] = start
+	}
+	for _, start := range retryable {
+		retryableByRequestID[start.GetRequestId()] = start
+	}
+
+	retriedStarts := 0
+	for _, start := range i.GetBufferedStarts() {
+		if start.GetRunId() != "" {
+			if _, duplicate := completedByRequestID[start.GetRequestId()]; duplicate {
+				droppedDuplicates++
+			}
+			continue
+		}
+		if completedStart, ok := completedByRequestID[start.GetRequestId()]; ok {
+			schedulerinternal.MarkStartStarted(start, completedStart.GetRunId(), completedStart.GetStartTime())
+			start.HasCallback = true
+			newlyStarted++
+		}
+		if retry, ok := retryableByRequestID[start.GetRequestId()]; ok {
+			schedulerinternal.MarkStartRetrying(start, start.GetAttempt()+1, retry.GetBackoffTime())
+			retriedStarts++
+		}
+	}
+	i.getOrCreateEventLog(ctx).LogEvent(ctx,
+		fmt.Sprintf("recordExecuteResult kicked off %d starts, removed 0 starts, retried %d starts", newlyStarted, retriedStarts))
+	i.addTasks(ctx)
+	return newlyStarted, droppedDuplicates
+}
+
+type ExecutionBatchForTest struct {
+	batch executionBatch
+}
+
+type ExecutionBatchResultForTest struct {
+	result executionBatchResult
+}
+
+func (h *InvokerExecuteTaskHandler) LoadExecutionBatchForTest(
+	ctx context.Context,
+	invokerRef chasm.ComponentRef,
+) (ExecutionBatchForTest, error) {
+	batch, err := h.loadExecutionBatch(ctx, invokerRef)
+	return ExecutionBatchForTest{batch: batch}, err
+}
+
+func (h *InvokerExecuteTaskHandler) ExecuteBatchForTest(
+	ctx context.Context,
+	batch ExecutionBatchForTest,
+) ExecutionBatchResultForTest {
+	return ExecutionBatchResultForTest{result: h.executeBatch(ctx, batch.batch)}
+}
+
+func (h *InvokerExecuteTaskHandler) CommitExecutionResultForTest(
+	ctx context.Context,
+	invokerRef chasm.ComponentRef,
+	result ExecutionBatchResultForTest,
+) (bool, error) {
+	outcome, err := h.commitExecutionResult(ctx, invokerRef, result.result)
+	return outcome.executeTaskScheduled, err
+}
+
+func EvaluateInvokerExecuteTaskValidityForTest(
+	invoker *Invoker,
+	scheduler *Scheduler,
+) (bool, string) {
+	validity := evaluateInvokerExecuteTaskValidity(invoker, scheduler)
+	return validity.valid, string(validity.reason)
 }
 
 func (h *InvokerProcessBufferTaskHandler) PlanBufferProcessingForTest(

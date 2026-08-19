@@ -29,9 +29,9 @@ func (h *InvokerProcessBufferTaskHandler) processBufferLegacy(
 
 	// ProcessBuffer will drop starts by omitting them from NewBuffer. Start with the
 	// diff between the input and NewBuffer, and add any executing starts.
-	keepStarts := make(map[string]struct{}) // request ID -> is present
+	keepStarts := make(map[*schedulespb.BufferedStart]struct{})
 	for _, start := range action.NewBuffer {
-		keepStarts[start.GetRequestId()] = struct{}{}
+		keepStarts[start] = struct{}{}
 	}
 
 	// Combine all available starts.
@@ -77,12 +77,12 @@ func (h *InvokerProcessBufferTaskHandler) processBufferLegacy(
 			continue
 		}
 
-		keepStarts[start.GetRequestId()] = struct{}{}
+		keepStarts[start] = struct{}{}
 		result.startWorkflows = append(result.startWorkflows, start)
 	}
 
 	result.discardStarts = util.FilterSlice(pendingBufferedStarts, func(start *schedulespb.BufferedStart) bool {
-		_, keep := keepStarts[start.GetRequestId()]
+		_, keep := keepStarts[start]
 		return !keep
 	})
 

@@ -98,19 +98,19 @@ type processBufferResult struct {
 
 	// processedStarts limits lifecycle transitions to identities covered by a
 	// revalidated plan. A nil map preserves the legacy processor's behavior.
-	processedStarts map[string]bool
+	processedStarts map[*schedulespb.BufferedStart]bool
 }
 
 // recordProcessBufferResult updates the Invoker's internal state based on result, as well as the
 // LastProcessedTime watermark. Tasks to continue execution are added, if needed.
 func (i *Invoker) recordProcessBufferResult(ctx chasm.MutableContext, result *processBufferResult) {
-	discards := make(map[string]bool) // request ID -> is present
-	ready := make(map[string]bool)
+	discards := make(map[*schedulespb.BufferedStart]bool)
+	ready := make(map[*schedulespb.BufferedStart]bool)
 	for _, start := range result.discardStarts {
-		discards[start.RequestId] = true
+		discards[start] = true
 	}
 	for _, start := range result.startWorkflows {
-		ready[start.RequestId] = true
+		ready[start] = true
 	}
 
 	// Drop discarded starts, and update requested starts for execution.
@@ -118,15 +118,15 @@ func (i *Invoker) recordProcessBufferResult(ctx chasm.MutableContext, result *pr
 	readiedStarts := 0
 	deferredStarts := 0
 	for _, start := range i.GetBufferedStarts() {
-		if discards[start.RequestId] {
+		if discards[start] {
 			continue
 		}
 
 		// Starts ready for execution are set to their first attempt.
-		if ready[start.RequestId] && start.Attempt < 1 {
+		if ready[start] && start.Attempt < 1 {
 			schedulerinternal.MarkStartReady(start)
 			readiedStarts++
-		} else if start.Attempt == 0 && (result.processedStarts == nil || result.processedStarts[start.RequestId]) {
+		} else if start.Attempt == 0 && (result.processedStarts == nil || result.processedStarts[start]) {
 			// Start was processed but deferred (e.g., BUFFER_ONE policy with running workflow).
 			// Mark as deferred (-1) to distinguish from newly-enqueued starts so addTasks
 			// won't schedule an immediate ProcessBuffer task for them - they wait on
@@ -152,114 +152,6 @@ func (i *Invoker) recordProcessBufferResult(ctx chasm.MutableContext, result *pr
 	// Re-arm tasks if this call changed state, or if the LastProcessedTime advance
 	// just unblocked backed-off starts.
 	i.addTasks(ctx)
-}
-
-type executeResult struct {
-	// Starts that executed successfully. Their RunId and StartTime should be
-	// copied to the corresponding BufferedStart in the buffer.
-	CompletedStarts []*schedulespb.BufferedStart
-
-	// Starts that failed with a retryable error should be updated and kept in the buffer.
-	RetryableStarts []*schedulespb.BufferedStart
-
-	// Starts that failed with a non-retryable error can be removed from the buffer.
-	FailedStarts []*schedulespb.BufferedStart
-
-	CompletedCancels    []*commonpb.WorkflowExecution
-	CompletedTerminates []*commonpb.WorkflowExecution
-}
-
-// Append combines two executeResults (no deduplication is done).
-func (e *executeResult) Append(o executeResult) executeResult {
-	return executeResult{
-		CompletedStarts:     append(e.CompletedStarts, o.CompletedStarts...),
-		RetryableStarts:     append(e.RetryableStarts, o.RetryableStarts...),
-		FailedStarts:        append(e.FailedStarts, o.FailedStarts...),
-		CompletedCancels:    append(e.CompletedCancels, o.CompletedCancels...),
-		CompletedTerminates: append(e.CompletedTerminates, o.CompletedTerminates...),
-	}
-}
-
-// recordExecuteResult updates the Invoker's internal state with the results of a
-// completed InvokerExecuteTask. It returns the number of *new* actions recorded
-// (starts that transitioned from "no RunId" to "has RunId" in this call) and
-// the number of completed results that were dropped because they were previously
-// recorded.
-func (i *Invoker) recordExecuteResult(ctx chasm.MutableContext, result *executeResult) (newlyStarted, droppedDuplicates int) {
-	completed := make(map[string]*schedulespb.BufferedStart) // request ID -> BufferedStart with RunId/StartTime
-	failed := make(map[string]bool)                          // request ID -> is present
-	retryable := make(map[string]*schedulespb.BufferedStart) // request ID -> *BufferedStart
-	canceled := make(map[string]bool)                        // run ID -> is present
-	terminated := make(map[string]bool)                      // run ID -> is present
-
-	for _, start := range result.CompletedStarts {
-		completed[start.RequestId] = start
-	}
-	for _, start := range result.FailedStarts {
-		failed[start.RequestId] = true
-	}
-	for _, start := range result.RetryableStarts {
-		retryable[start.RequestId] = start
-	}
-	for _, wf := range result.CompletedCancels {
-		canceled[wf.RunId] = true
-	}
-	for _, wf := range result.CompletedTerminates {
-		terminated[wf.RunId] = true
-	}
-
-	// Remove failed (non-retryable) starts from the buffer.
-	removedStarts := 0
-	retriedStarts := 0
-	i.BufferedStarts = slices.DeleteFunc(i.GetBufferedStarts(), func(start *schedulespb.BufferedStart) bool {
-		failed := failed[start.RequestId]
-		if failed {
-			removedStarts++
-		}
-		return failed
-	})
-	i.CancelWorkflows = slices.DeleteFunc(i.GetCancelWorkflows(), func(we *commonpb.WorkflowExecution) bool {
-		canceled := canceled[we.RunId]
-		if canceled {
-			removedStarts++
-		}
-		return canceled
-	})
-	i.TerminateWorkflows = slices.DeleteFunc(i.GetTerminateWorkflows(), func(we *commonpb.WorkflowExecution) bool {
-		terminated := terminated[we.RunId]
-		if terminated {
-			removedStarts++
-		}
-		return terminated
-	})
-
-	// Update BufferedStarts with results, dropping duplicates.
-	for _, start := range i.GetBufferedStarts() {
-		if start.RunId != "" {
-			if _, isDuplicate := completed[start.RequestId]; isDuplicate {
-				droppedDuplicates++
-			}
-			continue
-		}
-		if completedStart, ok := completed[start.RequestId]; ok {
-			schedulerinternal.MarkStartStarted(start, completedStart.GetRunId(), completedStart.GetStartTime())
-			start.HasCallback = true
-			newlyStarted++
-		}
-		if retry, ok := retryable[start.RequestId]; ok {
-			schedulerinternal.MarkStartRetrying(start, start.GetAttempt()+1, retry.GetBackoffTime())
-			retriedStarts++
-		}
-	}
-
-	i.getOrCreateEventLog(ctx).LogEvent(ctx,
-		fmt.Sprintf("recordExecuteResult kicked off %d starts, removed %d starts, retried %d starts",
-			newlyStarted,
-			removedStarts,
-			retriedStarts))
-
-	i.addTasks(ctx)
-	return newlyStarted, droppedDuplicates
 }
 
 // runningWorkflowID returns the workflow ID associated with the given
@@ -346,12 +238,16 @@ func (i *Invoker) addTasks(ctx chasm.MutableContext) {
 
 	// Execute drains work that's ready now: pending cancels/terminates, and
 	// starts that are past their backoff.
-	if len(i.GetCancelWorkflows()) > 0 ||
-		len(i.GetTerminateWorkflows()) > 0 ||
-		len(i.getEligibleBufferedStarts()) > 0 {
+	if i.hasExecutableWork() {
 		i.getOrCreateEventLog(ctx).LogEvent(ctx, "scheduled executeTask")
 		ctx.AddTask(i, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
 	}
+}
+
+func (i *Invoker) hasExecutableWork() bool {
+	return len(i.GetCancelWorkflows()) > 0 ||
+		len(i.GetTerminateWorkflows()) > 0 ||
+		len(i.getEligibleBufferedStarts()) > 0
 }
 
 // hasUnprocessedStarts reports whether any BufferedStart is still awaiting its

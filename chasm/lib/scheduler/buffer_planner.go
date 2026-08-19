@@ -30,8 +30,8 @@ func newBufferProcessingSnapshot(invoker *Invoker, scheduler *Scheduler, catchup
 		LimitedActions:       state.GetLimitedActions(),
 		RemainingActions:     state.GetRemainingActions(),
 	}
-	for _, start := range invoker.GetBufferedStarts() {
-		projected := projectBufferedStart(start)
+	for index, start := range invoker.GetBufferedStarts() {
+		projected := projectBufferedStart(start, index)
 		snapshot.Starts = append(snapshot.Starts, projected)
 		if projected.RunID != "" && !projected.Completed {
 			snapshot.RunningWorkflows = append(snapshot.RunningWorkflows, schedulerinternal.WorkflowExecutionSnapshot{
@@ -43,8 +43,9 @@ func newBufferProcessingSnapshot(invoker *Invoker, scheduler *Scheduler, catchup
 	return snapshot
 }
 
-func projectBufferedStart(start *schedulespb.BufferedStart) schedulerinternal.BufferedStartSnapshot {
+func projectBufferedStart(start *schedulespb.BufferedStart, occurrence int) schedulerinternal.BufferedStartSnapshot {
 	return schedulerinternal.BufferedStartSnapshot{
+		Occurrence:    occurrence,
 		RequestID:     start.GetRequestId(),
 		WorkflowID:    start.GetWorkflowId(),
 		RunID:         start.GetRunId(),
@@ -70,9 +71,9 @@ func applyBufferPlan(
 	if !bufferProcessingSnapshotsEqual(plan.Snapshot, currentSnapshot) {
 		return invalidateBufferPlan(plan, applied)
 	}
-	startsByRequestID := make(map[string][]*schedulespb.BufferedStart)
-	for _, start := range invoker.GetBufferedStarts() {
-		startsByRequestID[start.GetRequestId()] = append(startsByRequestID[start.GetRequestId()], start)
+	startsByRequestID := make(map[string][]indexedBufferedStart)
+	for occurrence, start := range invoker.GetBufferedStarts() {
+		startsByRequestID[start.GetRequestId()] = append(startsByRequestID[start.GetRequestId()], indexedBufferedStart{start: start, occurrence: occurrence})
 	}
 
 	for _, decision := range plan.Decisions {
@@ -124,7 +125,7 @@ func newAppliedBufferPlan() appliedBufferPlan {
 	return appliedBufferPlan{result: processBufferResult{
 		overlapSkippedByPolicy:       make(map[enumspb.ScheduleOverlapPolicy]int64),
 		missedCatchupByActionRunning: make(map[bool]int64),
-		processedStarts:              make(map[string]bool),
+		processedStarts:              make(map[*schedulespb.BufferedStart]bool),
 	}}
 }
 
@@ -143,22 +144,27 @@ func (a *appliedBufferPlan) recordInvalidatedDecision() {
 
 // popMatchingBufferedStart resolves one decision to its live protobuf pointer.
 // Removing the match ensures duplicate request IDs cannot reuse the same start.
+type indexedBufferedStart struct {
+	start      *schedulespb.BufferedStart
+	occurrence int
+}
+
 func popMatchingBufferedStart(
-	startsByRequestID map[string][]*schedulespb.BufferedStart,
+	startsByRequestID map[string][]indexedBufferedStart,
 	decision schedulerinternal.BufferDecision,
 ) (*schedulespb.BufferedStart, bool) {
 	matches := startsByRequestID[decision.RequestID]
-	for index, start := range matches {
-		if projectBufferedStart(start) == decision.Expected {
+	for index, candidate := range matches {
+		if projectBufferedStart(candidate.start, candidate.occurrence) == decision.Expected {
 			startsByRequestID[decision.RequestID] = append(matches[:index], matches[index+1:]...)
-			return start, true
+			return candidate.start, true
 		}
 	}
 	return nil, false
 }
 
 func applyBufferDecision(result *processBufferResult, decision schedulerinternal.BufferDecision, start *schedulespb.BufferedStart) {
-	result.processedStarts[decision.RequestID] = true
+	result.processedStarts[start] = true
 	switch decision.Action {
 	case schedulerinternal.BufferDecisionExecute:
 		result.startWorkflows = append(result.startWorkflows, start)

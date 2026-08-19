@@ -1,30 +1,19 @@
 package scheduler
 
 import (
-	"cmp"
-	"context"
-	"errors"
 	"fmt"
-	"sync"
 	"time"
 
-	commonpb "go.temporal.io/api/common/v1"
-	enumspb "go.temporal.io/api/enums/v1"
-	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
-	"go.temporal.io/server/api/historyservice/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
-	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/log"
-	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/resource"
 	queueerrors "go.temporal.io/server/service/history/queues/errors"
 	"go.uber.org/fx"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type (
@@ -44,15 +33,6 @@ type (
 		FrontendClient workflowservice.WorkflowServiceClient
 	}
 
-	InvokerExecuteTaskHandler struct {
-		chasm.SideEffectTaskHandlerBase[*schedulerpb.InvokerExecuteTask]
-		config         *Config
-		metricsHandler metrics.Handler
-		baseLogger     log.Logger
-		historyClient  resource.HistoryClient
-		frontendClient workflowservice.WorkflowServiceClient
-	}
-
 	InvokerProcessBufferTaskHandler struct {
 		chasm.PureTaskHandlerBase
 		config         *Config
@@ -61,59 +41,20 @@ type (
 		historyClient  resource.HistoryClient
 		frontendClient workflowservice.WorkflowServiceClient
 	}
-
-	// Per-task context.
-	invokerTaskHandlerContext struct {
-		context.Context
-
-		actionsTaken int
-		maxActions   int
-	}
-
-	rateLimitedError struct {
-		// The requested interval to delay processing by rescheduilng.
-		delay time.Duration
-	}
 )
 
 const (
 	// Lower bound for the deadline in which buffered actions are dropped.
 	startWorkflowMinDeadline = 5 * time.Second
-
-	// InvokerMaxStartAttempts is the maximum number of StartWorkflowExecution
-	// RPCs issued for an individual buffered action, counting the first call.
-	// Attempt numbers are 1-based: recordProcessBufferResult readies a start at
-	// Attempt 1, and each retryable failure increments it. The bound is
-	// therefore inclusive - a start is refused locally (and dropped) only once
-	// its Attempt exceeds this value - so a value of 10 permits ten start RPCs,
-	// i.e. the initial call plus nine retries.
-	InvokerMaxStartAttempts = 10 // TODO - dial this up/remove it
-)
-
-var (
-	errRetryLimitExceeded       = queueerrors.NewUnprocessableTaskError("retry limit exceeded")
-	_                     error = &rateLimitedError{}
 )
 
 // Invoker task invalidation and buffered-start drop reasons. Limited cardinality
 // for ReasonTag.
 const (
-	invokerProcessBufferInvalidatedStaleHWM  metrics.ReasonString = "stale_hwm"
-	invokerExecuteInvalidatedNoWork          metrics.ReasonString = "no_work"
-	invokerExecuteInvalidatedAlreadyRecorded metrics.ReasonString = "already_recorded"
-	bufferedStartDroppedMissedCatchup        metrics.ReasonString = "missed_catchup_window"
-	bufferedStartDroppedPausedOrLimited      metrics.ReasonString = "paused_or_limited"
+	invokerProcessBufferInvalidatedStaleHWM metrics.ReasonString = "stale_hwm"
+	bufferedStartDroppedMissedCatchup       metrics.ReasonString = "missed_catchup_window"
+	bufferedStartDroppedPausedOrLimited     metrics.ReasonString = "paused_or_limited"
 )
-
-func NewInvokerExecuteTaskHandler(opts InvokerTaskHandlerOptions) *InvokerExecuteTaskHandler {
-	return &InvokerExecuteTaskHandler{
-		config:         opts.Config,
-		metricsHandler: opts.MetricsHandler,
-		baseLogger:     opts.BaseLogger,
-		historyClient:  opts.HistoryClient,
-		frontendClient: opts.FrontendClient,
-	}
-}
 
 func NewInvokerProcessBufferTaskHandler(opts InvokerTaskHandlerOptions) *InvokerProcessBufferTaskHandler {
 	return &InvokerProcessBufferTaskHandler{
@@ -123,299 +64,6 @@ func NewInvokerProcessBufferTaskHandler(opts InvokerTaskHandlerOptions) *Invoker
 		historyClient:  opts.HistoryClient,
 		frontendClient: opts.FrontendClient,
 	}
-}
-
-// recordDuplicateExecuteDrops emits a metric + Debug log for CompletedStarts
-// that were dropped because a concurrent ExecuteTask already recorded the
-// RunId. A nonzero rate means two ExecuteTasks raced through clone-then-write
-// for the same RequestId; the server's RequestId dedupe collapses the RPCs
-// to one RunId and the idempotency guard in recordExecuteResult absorbs the
-// duplicate without inflating ActionCount.
-func (h *InvokerExecuteTaskHandler) recordDuplicateExecuteDrops(scheduler *Scheduler, count int) {
-	newTaggedMetricsHandler(h.metricsHandler, scheduler).
-		Counter(metrics.ScheduleInvokerExecuteTask.Name()).
-		Record(int64(count), metrics.OutcomeTag(outcomeInvalidated), metrics.ReasonTag(invokerExecuteInvalidatedAlreadyRecorded))
-	newTaggedLogger(h.baseLogger, scheduler).Debug(
-		"duplicate ExecuteTask result dropped",
-		tag.NewInt("count", count))
-}
-
-func (h *InvokerExecuteTaskHandler) Validate(
-	ctx chasm.Context,
-	invoker *Invoker,
-	_ chasm.TaskInvocation,
-	_ *schedulerpb.InvokerExecuteTask,
-) (bool, error) {
-	if invoker.Scheduler.Get(ctx).WorkflowMigration != nil {
-		return false, nil
-	}
-	// If another execute task already happened to kick everything off, we don't need
-	// this one.
-	eligibleStarts := invoker.getEligibleBufferedStarts()
-	if len(invoker.GetTerminateWorkflows())+len(invoker.GetCancelWorkflows())+len(eligibleStarts) > 0 {
-		return true, nil
-	}
-	newTaggedMetricsHandler(h.metricsHandler, invoker.Scheduler.Get(ctx)).
-		Counter(metrics.ScheduleInvokerExecuteTask.Name()).
-		Record(1, metrics.OutcomeTag(outcomeInvalidated), metrics.ReasonTag(invokerExecuteInvalidatedNoWork))
-	return false, nil
-}
-
-func (h *InvokerExecuteTaskHandler) Execute(
-	ctx context.Context,
-	invokerRef chasm.ComponentRef,
-	_ chasm.TaskAttributes,
-	_ *schedulerpb.InvokerExecuteTask,
-) error {
-	var result executeResult
-
-	var invoker *Invoker
-	var scheduler *Scheduler
-	var lastCompletionState *schedulerpb.LastCompletionResult
-	var schedulerRef []byte
-	var now time.Time
-
-	// Read and deep copy returned components, since we'll continue to access them
-	// outside of this function (outside of the MS lock).
-	_, err := chasm.ReadComponent(
-		ctx,
-		invokerRef,
-		func(i *Invoker, ctx chasm.Context, _ any) (struct{}, error) {
-			invoker = &Invoker{
-				InvokerState: common.CloneProto(i.InvokerState),
-			}
-
-			s := i.Scheduler.Get(ctx)
-			scheduler = &Scheduler{
-				SchedulerState:     common.CloneProto(s.SchedulerState),
-				cacheConflictToken: s.cacheConflictToken,
-				compiledSpec:       s.compiledSpec,
-			}
-
-			lcs := s.LastCompletionResult.Get(ctx)
-			lastCompletionState = common.CloneProto(lcs)
-
-			// Capture the scheduler's component ref so a per-start completion callback (carrying that
-			// start's request ID in its token) can be built outside the MS lock.
-			ref, err := ctx.Ref(s)
-			if err != nil {
-				return struct{}{}, err
-			}
-			schedulerRef = ref
-
-			// Captured here for applyBackoff (runs outside this closure): BackoffTime
-			// must be framework-clock to match LastProcessedTime and task deadlines.
-			now = ctx.Now(i)
-
-			return struct{}{}, nil
-		},
-		nil,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to read component: %w", err)
-	}
-	if scheduler == nil {
-		return errors.New("scheduler component was nil after read")
-	}
-
-	logger := newTaggedLogger(h.baseLogger, scheduler)
-	metricsHandler := newTaggedMetricsHandler(h.metricsHandler, scheduler)
-	metricsHandler.Counter(metrics.ScheduleInvokerExecuteTask.Name()).Record(1, metrics.OutcomeTag(outcomeFired), metrics.ReasonTag(reasonNone))
-
-	// Terminate, cancel, and start workflows. The result struct contains the
-	// complete outcome of all requests executed in a single batch.
-	//
-	// Invoker will never have work pending for more than one of these calls (terminate,
-	// cancel, start) at a time, so it isn't sensible to run them in parallel. The
-	// structure below is simply for code simplicity.
-	ictx := h.newInvokerTaskHandlerContext(ctx, scheduler)
-	result = result.Append(h.terminateWorkflows(ictx, logger, metricsHandler, scheduler, invoker.GetTerminateWorkflows()))
-	result = result.Append(h.cancelWorkflows(ictx, logger, metricsHandler, scheduler, invoker.GetCancelWorkflows()))
-	result = result.Append(h.startWorkflows(ictx, logger, metricsHandler, scheduler, invoker, lastCompletionState, schedulerRef, now))
-
-	// Record action results on the Invoker (internal state), as well as the
-	// Scheduler (user-facing metrics).
-	_, _, err = chasm.UpdateComponent(
-		ctx,
-		invokerRef,
-		func(i *Invoker, ctx chasm.MutableContext, _ any) (chasm.NoValue, error) {
-			s := i.Scheduler.Get(ctx)
-			// Use newlyStarted (not len(result.CompletedStarts)) so a concurrent
-			// ExecuteTask's duplicate StartWorkflow can't inflate ActionCount.
-			newlyStarted, droppedDuplicates := i.recordExecuteResult(ctx, &result)
-			s.recordActionResult(&schedulerActionResult{actionCount: int64(newlyStarted)})
-			if droppedDuplicates > 0 {
-				h.recordDuplicateExecuteDrops(s, droppedDuplicates)
-			}
-			return nil, nil
-		},
-		nil,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to update component state: %w", err)
-	}
-
-	return nil
-}
-
-// takeNextAction increments the context's actionTaken counter, returning true if
-// the action should be executed, and false if the task should instead yield.
-func (i *invokerTaskHandlerContext) takeNextAction() bool {
-	allowed := i.actionsTaken < i.maxActions
-	if allowed {
-		i.actionsTaken++
-	}
-	return allowed
-}
-
-// cancelWorkflows does a best-effort attempt to cancel all workflow executions provided in targets.
-func (h *InvokerExecuteTaskHandler) cancelWorkflows(
-	ctx invokerTaskHandlerContext,
-	logger log.Logger,
-	metricsHandler metrics.Handler,
-	scheduler *Scheduler,
-	targets []*commonpb.WorkflowExecution,
-) (result executeResult) {
-	var wg sync.WaitGroup
-	var resultMutex sync.Mutex
-
-	for _, wf := range targets {
-		if !ctx.takeNextAction() {
-			break
-		}
-
-		// Run all cancels concurrently.
-		newCtx := ctx.Clone()
-		wg.Go(func() {
-			err := h.cancelWorkflow(newCtx, scheduler, wf)
-
-			resultMutex.Lock()
-			defer resultMutex.Unlock()
-
-			if err != nil {
-				logger.Info("failed to cancel workflow", tag.Error(err), tag.WorkflowID(wf.WorkflowId))
-				metricsHandler.Counter(metrics.ScheduleCancelWorkflowErrors.Name()).Record(1)
-			}
-
-			// Cancels are only attempted once here: transient failures are
-			// already retried at the history-client layer (resource.HistoryClient
-			// is retry-wrapped), so a single best-effort attempt is intentional.
-			// todo: consider splitting these out to individual tasks so they can be retried
-			// independently
-			result.CompletedCancels = append(result.CompletedCancels, wf)
-		})
-	}
-
-	wg.Wait()
-	return
-}
-
-// terminateWorkflows does a best-effort attempt to terminate all workflow executions provided in targets.
-func (h *InvokerExecuteTaskHandler) terminateWorkflows(
-	ctx invokerTaskHandlerContext,
-	logger log.Logger,
-	metricsHandler metrics.Handler,
-	scheduler *Scheduler,
-	targets []*commonpb.WorkflowExecution,
-) (result executeResult) {
-	var wg sync.WaitGroup
-	var resultMutex sync.Mutex
-
-	for _, wf := range targets {
-		if !ctx.takeNextAction() {
-			break
-		}
-
-		// Run all terminates concurrently.
-		newCtx := ctx.Clone()
-		wg.Go(func() {
-			err := h.terminateWorkflow(newCtx, scheduler, wf)
-
-			resultMutex.Lock()
-			defer resultMutex.Unlock()
-
-			if err != nil {
-				logger.Info("failed to terminate workflow", tag.Error(err), tag.WorkflowID(wf.WorkflowId))
-				metricsHandler.Counter(metrics.ScheduleTerminateWorkflowErrors.Name()).Record(1)
-			}
-
-			// Terminates are only attempted once here: transient failures are
-			// already retried at the history-client layer (resource.HistoryClient
-			// is retry-wrapped), so a single best-effort attempt is intentional.
-			// todo: consider splitting these out to individual tasks so they can be retried
-			// independently
-			result.CompletedTerminates = append(result.CompletedTerminates, wf)
-		})
-	}
-
-	wg.Wait()
-	return
-}
-
-// startWorkflows executes the provided list of starts, returning a result with their outcomes.
-func (h *InvokerExecuteTaskHandler) startWorkflows(
-	ctx invokerTaskHandlerContext,
-	logger log.Logger,
-	metricsHandler metrics.Handler,
-	scheduler *Scheduler,
-	invoker *Invoker,
-	lastCompletionState *schedulerpb.LastCompletionResult,
-	schedulerRef []byte,
-	now time.Time,
-) (result executeResult) {
-	metricsWithTag := metricsHandler.WithTags(
-		metrics.StringTag(metrics.ScheduleActionTypeTag, metrics.ScheduleActionStartWorkflow))
-
-	var wg sync.WaitGroup
-	var resultMutex sync.Mutex
-
-	for _, start := range invoker.getEligibleBufferedStarts() {
-		// Starts that haven't been executed yet will remain in `BufferedStarts`,
-		// without change, so another ExecuteTask will be immediately created to continue
-		// processing in a new task.
-		if !ctx.takeNextAction() {
-			break
-		}
-
-		// Clone start before concurrent access. The clone will have RunId/StartTime
-		// set by startWorkflow, then copied back to the original in recordExecuteResult.
-		start = common.CloneProto(start)
-
-		// Run all starts concurrently.
-		newCtx := ctx.Clone()
-		wg.Go(func() {
-			err := h.startWorkflow(newCtx, metricsHandler, scheduler, start, lastCompletionState, schedulerRef)
-
-			resultMutex.Lock()
-			defer resultMutex.Unlock()
-
-			if err != nil {
-				logger.Info("failed to start workflow", tag.Error(err))
-
-				// Don't count "already started" for the error metric or retry, as it is most likely
-				// due to misconfiguration.
-				if !isAlreadyStartedError(err) {
-					metricsWithTag.Counter(metrics.ScheduleActionErrors.Name()).Record(1)
-				}
-
-				if isRetryableError(err) {
-					h.applyBackoff(start, err, now)
-					result.RetryableStarts = append(result.RetryableStarts, start)
-				} else {
-					// Drop the start from the buffer.
-					result.FailedStarts = append(result.FailedStarts, start)
-				}
-
-				return
-			}
-
-			metricsWithTag.Counter(metrics.ScheduleActionSuccess.Name()).Record(1)
-			result.CompletedStarts = append(result.CompletedStarts, start)
-		})
-	}
-
-	wg.Wait()
-	return
 }
 
 func (h *InvokerProcessBufferTaskHandler) Validate(
@@ -489,25 +137,6 @@ func (h *InvokerProcessBufferTaskHandler) recordBufferProcessingMetrics(
 	}
 }
 
-// applyBackoff advances start's attempt and BackoffTime based on err and the retry policy.
-// `now` is the framework clock captured at task start - using time.Now would
-// diverge from the LastProcessedTime/eligibility comparison in tests.
-func (h *InvokerExecuteTaskHandler) applyBackoff(start *schedulespb.BufferedStart, err error, now time.Time) {
-	if err == nil {
-		return
-	}
-
-	var delay time.Duration
-	if rateLimitDelay, ok := isRateLimitedError(err); ok {
-		delay = rateLimitDelay
-	} else {
-		// Elapsed time is left at 0 because we bound on number of attempts.
-		delay = h.config.RetryPolicy().ComputeNextDelay(0, int(start.Attempt), nil)
-	}
-
-	schedulerinternal.MarkStartRetrying(start, start.GetAttempt()+1, timestamppb.New(now.Add(delay)))
-}
-
 // startWorkflowDeadline returns the latest time at which a buffered workflow
 // should be started, instead of dropped. The deadline puts an upper bound on
 // the number of retry attempts per buffered start.
@@ -533,202 +162,4 @@ func (h *InvokerProcessBufferTaskHandler) startWorkflowDeadline(
 	timeout = max(timeout, startWorkflowMinDeadline)
 
 	return start.ActualTime.AsTime().Add(timeout)
-}
-
-func (h *InvokerExecuteTaskHandler) startWorkflow(
-	ctx context.Context,
-	metricsHandler metrics.Handler,
-	scheduler *Scheduler,
-	start *schedulespb.BufferedStart,
-	lastCompletionState *schedulerpb.LastCompletionResult,
-	schedulerRef []byte,
-) error {
-	requestSpec := scheduler.GetSchedule().GetAction().GetStartWorkflow()
-
-	// Inclusive bound: Attempt is 1-based, so the attempt numbered
-	// InvokerMaxStartAttempts is the last one that gets an RPC.
-	if start.Attempt > InvokerMaxStartAttempts {
-		return errRetryLimitExceeded
-	}
-
-	// Get rate limiter permission once per buffered start, on the first attempt only.
-	if start.Attempt == 1 {
-		delay, err := h.getRateLimiterPermission()
-		if err != nil {
-			return err
-		}
-		if delay > 0 {
-			return newRateLimitedError(delay)
-		}
-	}
-
-	reusePolicy := enumspb.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE
-	if start.Manual {
-		reusePolicy = enumspb.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
-	}
-
-	var lcr []*commonpb.Payload
-	if lastCompletionState.Success != nil {
-		lcr = append(lcr, lastCompletionState.Success)
-	}
-	// Build the completion callback with this start's request ID packed into its token, so the
-	// completion is matched by a request ID that rides in the callback header and survives
-	// continue-as-new, rather than the started workflow's callback state which is re-stamped on each
-	// new run.
-	callback, err := chasm.GenerateNexusCallback(schedulerRef, start.RequestId, h.config.EncodeInternalTokenWithEnvelope(scheduler.Namespace))
-	if err != nil {
-		return err
-	}
-	request := &workflowservice.StartWorkflowExecutionRequest{
-		CompletionCallbacks:      []*commonpb.Callback{callback},
-		Header:                   requestSpec.Header,
-		Identity:                 scheduler.identity(),
-		Input:                    requestSpec.Input,
-		Memo:                     requestSpec.Memo,
-		Namespace:                scheduler.Namespace,
-		RequestId:                start.RequestId,
-		RetryPolicy:              requestSpec.RetryPolicy,
-		SearchAttributes:         scheduler.startWorkflowSearchAttributes(start.NominalTime.AsTime()),
-		TaskQueue:                requestSpec.TaskQueue,
-		UserMetadata:             requestSpec.UserMetadata,
-		WorkflowExecutionTimeout: requestSpec.WorkflowExecutionTimeout,
-		WorkflowId:               start.WorkflowId,
-		WorkflowIdReusePolicy:    reusePolicy,
-		WorkflowRunTimeout:       requestSpec.WorkflowRunTimeout,
-		WorkflowTaskTimeout:      requestSpec.WorkflowTaskTimeout,
-		WorkflowType:             requestSpec.WorkflowType,
-		Priority:                 requestSpec.Priority,
-		ContinuedFailure:         lastCompletionState.Failure,
-		LastCompletionResult: &commonpb.Payloads{
-			Payloads: lcr,
-		},
-	}
-	if h.config.Tweakables(scheduler.Namespace).EnableVersioningOverride {
-		request.VersioningOverride = requestSpec.VersioningOverride
-	}
-
-	result, err := h.frontendClient.StartWorkflowExecution(ctx, request)
-	if err != nil {
-		return err
-	}
-	actualStartTime := time.Now()
-
-	// Set metadata on the cloned start. The clone was created in startWorkflows
-	// before spawning this goroutine, and will be copied back to the Invoker's
-	// BufferedStarts in recordExecuteResult.
-	schedulerinternal.MarkStartStarted(start, result.RunId, timestamppb.New(actualStartTime))
-	start.HasCallback = true
-
-	// Record time taken from action eligible to workflow started.
-	if !start.Manual {
-		desiredTime := cmp.Or(start.DesiredTime, start.ActualTime)
-		metricsHandler.
-			Timer(metrics.ScheduleActionDelay.Name()).
-			Record(actualStartTime.Sub(desiredTime.AsTime()))
-		// Record total delay from original schedule time, including any overlap policy wait.
-		metricsHandler.
-			Timer(metrics.ScheduleActionE2EDelay.Name()).
-			Record(actualStartTime.Sub(start.ActualTime.AsTime()))
-	}
-	return nil
-}
-
-func (h *InvokerExecuteTaskHandler) terminateWorkflow(
-	ctx context.Context,
-	scheduler *Scheduler,
-	target *commonpb.WorkflowExecution,
-) error {
-	request := &historyservice.TerminateWorkflowExecutionRequest{
-		NamespaceId: scheduler.NamespaceId,
-		TerminateRequest: &workflowservice.TerminateWorkflowExecutionRequest{
-			Namespace:           scheduler.Namespace,
-			WorkflowExecution:   &commonpb.WorkflowExecution{WorkflowId: target.WorkflowId},
-			Reason:              "terminated by schedule overlap policy",
-			Identity:            scheduler.identity(),
-			FirstExecutionRunId: target.RunId,
-		},
-	}
-	_, err := h.historyClient.TerminateWorkflowExecution(ctx, request)
-	return err
-}
-
-func (h *InvokerExecuteTaskHandler) cancelWorkflow(
-	ctx context.Context,
-	scheduler *Scheduler,
-	target *commonpb.WorkflowExecution,
-) error {
-	request := &historyservice.RequestCancelWorkflowExecutionRequest{
-		NamespaceId: scheduler.NamespaceId,
-		CancelRequest: &workflowservice.RequestCancelWorkflowExecutionRequest{
-			Namespace:           scheduler.Namespace,
-			WorkflowExecution:   &commonpb.WorkflowExecution{WorkflowId: target.WorkflowId},
-			Reason:              "cancelled by schedule overlap policy",
-			Identity:            scheduler.identity(),
-			FirstExecutionRunId: target.RunId,
-		},
-	}
-	_, err := h.historyClient.RequestCancelWorkflowExecution(ctx, request)
-	return err
-}
-
-// getRateLimiterPermission returns a delay for which the caller should wait
-// before proceeding. If an error is returned, execution should not proceed, and
-// reservation should be retried.
-func (h *InvokerExecuteTaskHandler) getRateLimiterPermission() (delay time.Duration, err error) {
-	// For now, we're only going to rate limit via APS.
-	return
-}
-
-func isAlreadyStartedError(err error) bool {
-	var expectedErr *serviceerror.WorkflowExecutionAlreadyStarted
-	return errors.As(err, &expectedErr)
-}
-
-func isRateLimitedError(err error) (time.Duration, bool) {
-	var expectedErr *rateLimitedError
-	if errors.As(err, &expectedErr) {
-		return expectedErr.delay, true
-	}
-	return 0, false
-}
-
-func isRetryableError(err error) bool {
-	_, rateLimited := isRateLimitedError(err)
-	return !errors.Is(err, errRetryLimitExceeded) &&
-		(rateLimited ||
-			common.IsServiceTransientError(err) ||
-			common.IsContextDeadlineExceededErr(err))
-}
-
-func newRateLimitedError(delay time.Duration) error {
-	return &rateLimitedError{delay}
-}
-
-func (r *rateLimitedError) Error() string {
-	return fmt.Sprintf("rate limited for %s", r.delay)
-}
-
-func (h *InvokerExecuteTaskHandler) newInvokerTaskHandlerContext(
-	ctx context.Context,
-	scheduler *Scheduler,
-) invokerTaskHandlerContext {
-	tweakables := h.config.Tweakables(scheduler.Namespace)
-	maxActions := tweakables.MaxActionsPerExecution
-	if maxActions <= 0 {
-		maxActions = DefaultTweakables.MaxActionsPerExecution
-	}
-
-	return invokerTaskHandlerContext{
-		Context:      ctx,
-		actionsTaken: 0,
-		maxActions:   maxActions,
-	}
-}
-
-func (i invokerTaskHandlerContext) Clone() invokerTaskHandlerContext {
-	return invokerTaskHandlerContext{
-		Context:      i.Context,
-		actionsTaken: i.actionsTaken,
-		maxActions:   i.maxActions,
-	}
 }
