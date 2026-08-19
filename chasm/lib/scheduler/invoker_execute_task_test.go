@@ -16,6 +16,7 @@ import (
 	"go.temporal.io/server/api/historyservicemock/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	"go.temporal.io/server/common/metrics"
@@ -674,62 +675,83 @@ func TestExecuteTask_ExceedsMaxActionsPerExecution(t *testing.T) {
 // double-count, stomp the winner's RunId/StartTime/HasCallback, or rewind
 // Attempt/BackoffTime on the already-running entry.
 func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := env.MutableContext()
-	invoker := env.Scheduler.Invoker.Get(ctx)
-
-	startTime := timestamppb.New(env.TimeSource.Now())
+	env := newSchedulerTestEngine(t, defaultSchedule())
+	startTime := timestamppb.New(env.timeSource.Now())
 	winning := "winning-run"
-	invoker.BufferedStarts = []*schedulespb.BufferedStart{{
-		NominalTime: startTime,
-		ActualTime:  startTime,
-		DesiredTime: startTime,
-		RequestId:   "req",
-		WorkflowId:  "wf",
-		Attempt:     1,
-		RunId:       winning,
-		StartTime:   startTime,
-		HasCallback: true,
-	}}
-	invoker.LastProcessedTime = timestamppb.New(env.TimeSource.Now())
-
-	loserStartTime := timestamppb.New(env.TimeSource.Now().Add(time.Second))
+	loserStartTime := timestamppb.New(startTime.AsTime().Add(time.Second))
 	loser := []*schedulespb.BufferedStart{{
 		RequestId: "req",
 		RunId:     "loser-run",
 		StartTime: loserStartTime,
 	}}
 
-	newlyStarted, droppedDuplicates := invoker.RecordExecuteResult(ctx, loser, nil)
+	var newlyStarted, droppedDuplicates int
+	err := env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+			invoker := s.Invoker.Get(ctx)
+			invoker.BufferedStarts = []*schedulespb.BufferedStart{{
+				NominalTime: startTime,
+				ActualTime:  startTime,
+				DesiredTime: startTime,
+				RequestId:   "req",
+				WorkflowId:  "wf",
+				Attempt:     1,
+				RunId:       winning,
+				StartTime:   startTime,
+				HasCallback: true,
+			}}
+			invoker.LastProcessedTime = startTime
+			newlyStarted, droppedDuplicates = invoker.RecordExecuteResult(ctx, loser, nil)
+			return nil
+		})
+	require.NoError(t, err)
 	require.Equal(t, 0, newlyStarted, "duplicate RunId-set start must not be counted")
 	require.Equal(t, 1, droppedDuplicates, "the dropped completion must be reported for observability")
-	live := invoker.BufferedStarts[0]
-	require.Equal(t, winning, live.RunId, "live RunId must not be stomped")
-	require.Equal(t, startTime.AsTime(), live.StartTime.AsTime(), "live StartTime must not be stomped")
-	require.True(t, live.HasCallback, "live HasCallback must not be cleared")
+
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
+			live := s.Invoker.Get(ctx).BufferedStarts[0]
+			require.Equal(t, winning, live.RunId, "live RunId must not be stomped")
+			require.Equal(t, startTime.AsTime(), live.StartTime.AsTime(), "live StartTime must not be stomped")
+			require.True(t, live.HasCallback, "live HasCallback must not be cleared")
+			return nil
+		})
+	require.NoError(t, err)
 
 	// First-mover case: a CompletedStart for a fresh RequestId increments
 	// newlyStarted and writes through to the live entry.
-	invoker.BufferedStarts = append(invoker.BufferedStarts, &schedulespb.BufferedStart{
-		NominalTime: startTime,
-		ActualTime:  startTime,
-		DesiredTime: startTime,
-		RequestId:   "req2",
-		WorkflowId:  "wf2",
-		Attempt:     1,
-	})
 	first := []*schedulespb.BufferedStart{{
 		RequestId: "req2",
 		RunId:     "first-run",
 		StartTime: startTime,
 	}}
-	newlyStarted, droppedDuplicates = invoker.RecordExecuteResult(ctx, first, nil)
+	err = env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+			invoker := s.Invoker.Get(ctx)
+			invoker.BufferedStarts = append(invoker.BufferedStarts, &schedulespb.BufferedStart{
+				NominalTime: startTime,
+				ActualTime:  startTime,
+				DesiredTime: startTime,
+				RequestId:   "req2",
+				WorkflowId:  "wf2",
+				Attempt:     1,
+			})
+			newlyStarted, droppedDuplicates = invoker.RecordExecuteResult(ctx, first, nil)
+			return nil
+		})
+	require.NoError(t, err)
 	require.Equal(t, 1, newlyStarted, "first-time RunId assignment must be counted")
 	require.Equal(t, 0, droppedDuplicates, "no duplicate was dropped")
-	freshlyStarted := invoker.BufferedStarts[1]
-	require.Equal(t, "first-run", freshlyStarted.RunId)
-	require.Equal(t, startTime.AsTime(), freshlyStarted.StartTime.AsTime())
-	require.True(t, freshlyStarted.HasCallback, "first-time RunId assignment must set HasCallback")
+
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
+			freshlyStarted := s.Invoker.Get(ctx).BufferedStarts[1]
+			require.Equal(t, "first-run", freshlyStarted.RunId)
+			require.Equal(t, startTime.AsTime(), freshlyStarted.StartTime.AsTime())
+			require.True(t, freshlyStarted.HasCallback, "first-time RunId assignment must set HasCallback")
+			return nil
+		})
+	require.NoError(t, err)
 }
 
 // A RetryableStart for a request whose live BufferedStart already has RunId
@@ -737,38 +759,48 @@ func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 // protects the completed branch must also protect the retryable branch,
 // otherwise stale retry metadata persists on an already-running entry.
 func TestExecuteTask_RecordResultIdempotentOnRetryableRace(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := env.MutableContext()
-	invoker := env.Scheduler.Invoker.Get(ctx)
-
-	startTime := timestamppb.New(env.TimeSource.Now())
-	invoker.BufferedStarts = []*schedulespb.BufferedStart{{
-		NominalTime: startTime,
-		ActualTime:  startTime,
-		DesiredTime: startTime,
-		RequestId:   "req",
-		WorkflowId:  "wf",
-		Attempt:     1,
-		RunId:       "winning-run",
-		StartTime:   startTime,
-		HasCallback: true,
-	}}
-	invoker.LastProcessedTime = timestamppb.New(env.TimeSource.Now())
+	env := newSchedulerTestEngine(t, defaultSchedule())
+	startTime := timestamppb.New(env.timeSource.Now())
 
 	// A losing concurrent Execute saw the start as eligible, its RPC failed
 	// retryably, and applyBackoff produced a RetryableStart entry.
-	loserBackoff := timestamppb.New(env.TimeSource.Now().Add(time.Minute))
+	loserBackoff := timestamppb.New(startTime.AsTime().Add(time.Minute))
 	retryable := []*schedulespb.BufferedStart{{
 		RequestId:   "req",
 		BackoffTime: loserBackoff,
 	}}
 
-	newlyStarted, droppedDuplicates := invoker.RecordExecuteResult(ctx, nil, retryable)
+	var newlyStarted, droppedDuplicates int
+	err := env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+			invoker := s.Invoker.Get(ctx)
+			invoker.BufferedStarts = []*schedulespb.BufferedStart{{
+				NominalTime: startTime,
+				ActualTime:  startTime,
+				DesiredTime: startTime,
+				RequestId:   "req",
+				WorkflowId:  "wf",
+				Attempt:     1,
+				RunId:       "winning-run",
+				StartTime:   startTime,
+				HasCallback: true,
+			}}
+			invoker.LastProcessedTime = startTime
+			newlyStarted, droppedDuplicates = invoker.RecordExecuteResult(ctx, nil, retryable)
+			return nil
+		})
+	require.NoError(t, err)
 	require.Equal(t, 0, newlyStarted)
 	require.Equal(t, 0, droppedDuplicates, "retryable drops aren't counted as duplicates - only completed-side drops are")
-	live := invoker.BufferedStarts[0]
-	require.Equal(t, int64(1), live.Attempt, "Attempt must not be incremented on a started entry")
-	require.Nil(t, live.BackoffTime, "BackoffTime must not be set on a started entry")
+
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
+			live := s.Invoker.Get(ctx).BufferedStarts[0]
+			require.Equal(t, int64(1), live.Attempt, "Attempt must not be incremented on a started entry")
+			require.Nil(t, live.BackoffTime, "BackoffTime must not be set on a started entry")
+			return nil
+		})
+	require.NoError(t, err)
 }
 
 func TestExecuteTask_EventLog(t *testing.T) {
@@ -852,21 +884,42 @@ func TestExecuteTask_EventLog(t *testing.T) {
 // Regression for the strict-Before check, which excluded equal-time entries
 // and stranded retries that landed precisely at the HWM boundary.
 func TestExecuteTask_Validate_BackoffEqualToLPTIsEligible(t *testing.T) {
-	env := newInvokerExecuteTestEnv(t)
-	ctx := env.MutableContext()
-	invoker := env.Scheduler.Invoker.Get(ctx)
-
-	now := env.TimeSource.Now()
-	invoker.LastProcessedTime = timestamppb.New(now)
-	invoker.BufferedStarts = []*schedulespb.BufferedStart{{
-		RequestId:   "boundary",
-		Attempt:     2,
-		BackoffTime: timestamppb.New(now),
-	}}
-
-	valid, err := env.handler.Validate(ctx, invoker, chasm.TaskInvocation{}, &schedulerpb.InvokerExecuteTask{})
+	env := newInvokerExecuteEngine(t)
+	now := env.timeSource.Now()
+	var invoker *scheduler.Invoker
+	err := env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+			invoker = s.Invoker.Get(ctx)
+			invoker.LastProcessedTime = timestamppb.New(now)
+			invoker.BufferedStarts = []*schedulespb.BufferedStart{{
+				NominalTime:   timestamppb.New(now),
+				ActualTime:    timestamppb.New(now),
+				DesiredTime:   timestamppb.New(now),
+				RequestId:     "boundary",
+				WorkflowId:    "boundary-workflow",
+				Attempt:       2,
+				BackoffTime:   timestamppb.New(now),
+				OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+			}}
+			ctx.AddTask(invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
+			return nil
+		})
 	require.NoError(t, err)
-	require.True(t, valid, "BackoffTime == LastProcessedTime must be eligible (<=, not strict <)")
+
+	env.frontendClient.EXPECT().
+		StartWorkflowExecution(gomock.Any(), startWorkflowExecutionRequestIDMatches("boundary")).
+		Return(&workflowservice.StartWorkflowExecutionResponse{RunId: "boundary-run"}, nil)
+	dropped, err := chasmtest.ExecuteSideEffectTask(
+		context.Background(), env.engine, invoker, env.handler, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
+	require.NoError(t, err)
+	require.False(t, dropped, "BackoffTime == LastProcessedTime must be eligible (<=, not strict <)")
+
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
+			require.Equal(t, "boundary-run", s.Invoker.Get(ctx).BufferedStarts[0].GetRunId())
+			return nil
+		})
+	require.NoError(t, err)
 }
 
 func TestExecuteTask_Validate_MigrationPending(t *testing.T) {
@@ -963,6 +1016,106 @@ func TestExecuteTask_Validate(t *testing.T) {
 			require.Equal(t, c.expectedValid, valid)
 		})
 	}
+}
+
+func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
+	t.Run("old task executes different current work", func(t *testing.T) {
+		env := newInvokerExecuteEngine(t)
+		now := env.timeSource.Now()
+
+		err := env.updateScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+				invoker := s.Invoker.Get(ctx)
+				invoker.LastProcessedTime = timestamppb.New(now)
+				invoker.BufferedStarts = []*schedulespb.BufferedStart{{
+					RequestId:  "original-work",
+					WorkflowId: "original-workflow",
+					Attempt:    1,
+				}}
+				ctx.AddTask(invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
+				return nil
+			})
+		require.NoError(t, err)
+
+		var invoker *scheduler.Invoker
+		err = env.updateScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+				invoker = s.Invoker.Get(ctx)
+				s.Info.OverlapSkipped++ // unrelated scheduler state
+				invoker.BufferedStarts[0].RunId = "original-run"
+				invoker.BufferedStarts = append(invoker.BufferedStarts, &schedulespb.BufferedStart{
+					RequestId:  "current-work",
+					WorkflowId: "current-workflow",
+					Attempt:    1,
+				})
+				return nil
+			})
+		require.NoError(t, err)
+
+		env.frontendClient.EXPECT().
+			StartWorkflowExecution(gomock.Any(), startWorkflowExecutionRequestIDMatches("current-work")).
+			Return(&workflowservice.StartWorkflowExecutionResponse{RunId: "current-run"}, nil)
+
+		dropped, err := chasmtest.ExecuteSideEffectTask(
+			context.Background(), env.engine, invoker, env.handler, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
+		require.NoError(t, err)
+		require.False(t, dropped)
+
+		err = env.readScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.Context) error {
+				starts := s.Invoker.Get(ctx).GetBufferedStarts()
+				require.Equal(t, "original-run", starts[0].GetRunId())
+				require.Equal(t, "current-run", starts[1].GetRunId())
+				return nil
+			})
+		require.NoError(t, err)
+	})
+
+	t.Run("completion before start remains execute eligible", func(t *testing.T) {
+		env := newInvokerExecuteEngine(t)
+		now := env.timeSource.Now()
+		completed := &schedulespb.CompletedResult{
+			Status:    enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
+			CloseTime: timestamppb.New(now),
+		}
+
+		var invoker *scheduler.Invoker
+		err := env.updateScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+				invoker = s.Invoker.Get(ctx)
+				invoker.LastProcessedTime = timestamppb.New(now)
+				invoker.BufferedStarts = []*schedulespb.BufferedStart{{
+					NominalTime: timestamppb.New(now),
+					ActualTime:  timestamppb.New(now),
+					DesiredTime: timestamppb.New(now),
+					RequestId:   "racing-work",
+					WorkflowId:  "racing-workflow",
+					Attempt:     1,
+					Completed:   completed,
+				}}
+				ctx.AddTask(invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
+				return nil
+			})
+		require.NoError(t, err)
+
+		env.frontendClient.EXPECT().
+			StartWorkflowExecution(gomock.Any(), startWorkflowExecutionRequestIDMatches("racing-work")).
+			Return(&workflowservice.StartWorkflowExecutionResponse{RunId: "racing-run"}, nil)
+
+		dropped, err := chasmtest.ExecuteSideEffectTask(
+			context.Background(), env.engine, invoker, env.handler, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
+		require.NoError(t, err)
+		require.False(t, dropped)
+
+		err = env.readScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.Context) error {
+				start := s.Invoker.Get(ctx).GetBufferedStarts()[0]
+				require.Equal(t, "racing-run", start.GetRunId())
+				require.Equal(t, completed, start.GetCompleted())
+				return nil
+			})
+		require.NoError(t, err)
+	})
 }
 
 // BackoffTime must be derived from the framework clock (chasm.Context.Now),

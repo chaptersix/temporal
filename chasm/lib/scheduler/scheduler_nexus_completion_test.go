@@ -320,38 +320,46 @@ func TestHandleNexusCompletion_Canceled(t *testing.T) {
 // End state Attempt=1 demonstrates the full defer -> re-enable -> promote
 // cascade.
 func TestHandleNexusCompletion_ReenablesDeferredStarts(t *testing.T) {
-	tc := nexusCompletionTestCase{
-		name: "completion re-enables deferred starts",
-		setupInvoker: func(invoker *scheduler.Invoker) {
-			invoker.BufferedStarts = []*schedulespb.BufferedStart{
+	env := newSchedulerTestEngine(t, defaultSchedule())
+	now := env.timeSource.Now()
+	err := env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+			s.Invoker.Get(ctx).BufferedStarts = []*schedulespb.BufferedStart{
 				{
 					RequestId:  "req-1",
 					WorkflowId: "wf-1",
 					RunId:      "run-1",
 					Attempt:    1,
-					ActualTime: timestamppb.New(time.Now().Add(-1 * time.Minute)),
-					StartTime:  timestamppb.New(time.Now().Add(-30 * time.Second)),
+					ActualTime: timestamppb.New(now.Add(-time.Minute)),
+					StartTime:  timestamppb.New(now.Add(-30 * time.Second)),
 				},
 				{
 					RequestId:  "req-2",
 					WorkflowId: "wf-2",
 					Attempt:    -1,
-					ActualTime: timestamppb.New(time.Now()),
+					ActualTime: timestamppb.New(now),
 				},
 			}
-		},
-		completion: &persistencespb.ChasmNexusCompletion{
-			RequestId: "req-1",
-			Outcome: &persistencespb.ChasmNexusCompletion_Success{
-				Success: &commonpb.Payload{Data: []byte("ok")},
-			},
-			CloseTime: timestamppb.New(time.Now()),
-		},
-		expectPaused: false,
-		expectStatus: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
-		validateInvoker: func(t *testing.T, invoker *scheduler.Invoker) {
+			return nil
+		})
+	require.NoError(t, err)
+
+	err = env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+			return s.HandleNexusCompletion(ctx, &persistencespb.ChasmNexusCompletion{
+				RequestId: "req-1",
+				Outcome: &persistencespb.ChasmNexusCompletion_Success{
+					Success: &commonpb.Payload{Data: []byte("ok")},
+				},
+				CloseTime: timestamppb.New(now),
+			})
+		})
+	require.NoError(t, err)
+
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
 			var deferred *schedulespb.BufferedStart
-			for _, start := range invoker.BufferedStarts {
+			for _, start := range s.Invoker.Get(ctx).BufferedStarts {
 				if start.RequestId == "req-2" {
 					deferred = start
 					break
@@ -359,11 +367,10 @@ func TestHandleNexusCompletion_ReenablesDeferredStarts(t *testing.T) {
 			}
 			require.NotNil(t, deferred, "previously-deferred start must remain in the buffer")
 			require.Equal(t, int64(1), deferred.Attempt,
-				"deferred start must be re-enabled past 0 (recordCompletedAction) and promoted to exactly 1 (inline ProcessBufferTask)")
-		},
-	}
-
-	executeNexusCompletion(t, tc)
+				"completion must re-enable the start and the engine-fired ProcessBuffer task must promote it")
+			return nil
+		})
+	require.NoError(t, err)
 }
 
 // TestHandleNexusCompletion_CompletionBeforeStart verifies that a workflow can
