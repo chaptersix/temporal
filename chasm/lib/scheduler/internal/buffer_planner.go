@@ -35,6 +35,7 @@ const (
 // BufferedStartSnapshot is the value-only planner projection of a persisted BufferedStart.
 // Keeping protobuf pointers out of the planner prevents planning from mutating live CHASM state.
 type BufferedStartSnapshot struct {
+	Occurrence    int
 	RequestID     string
 	WorkflowID    string
 	RunID         string
@@ -105,6 +106,9 @@ type overlapAction struct {
 
 // PlanBufferProcessing computes buffer outcomes without mutating snapshot or live scheduler state.
 func PlanBufferProcessing(snapshot BufferProcessingSnapshot, now time.Time) BufferPlan {
+	for index := range snapshot.Starts {
+		snapshot.Starts[index].Occurrence = index
+	}
 	plan := BufferPlan{
 		Snapshot:               cloneBufferProcessingSnapshot(snapshot),
 		OverlapSkippedByPolicy: make(map[enumspb.ScheduleOverlapPolicy]int64),

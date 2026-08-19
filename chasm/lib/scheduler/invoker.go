@@ -98,19 +98,19 @@ type processBufferResult struct {
 
 	// processedStarts limits lifecycle transitions to identities covered by a
 	// revalidated plan. A nil map preserves the legacy processor's behavior.
-	processedStarts map[string]bool
+	processedStarts map[*schedulespb.BufferedStart]bool
 }
 
 // recordProcessBufferResult updates the Invoker's internal state based on result, as well as the
 // LastProcessedTime watermark. Tasks to continue execution are added, if needed.
 func (i *Invoker) recordProcessBufferResult(ctx chasm.MutableContext, result *processBufferResult) {
-	discards := make(map[string]bool) // request ID -> is present
-	ready := make(map[string]bool)
+	discards := make(map[*schedulespb.BufferedStart]bool)
+	ready := make(map[*schedulespb.BufferedStart]bool)
 	for _, start := range result.discardStarts {
-		discards[start.RequestId] = true
+		discards[start] = true
 	}
 	for _, start := range result.startWorkflows {
-		ready[start.RequestId] = true
+		ready[start] = true
 	}
 
 	// Drop discarded starts, and update requested starts for execution.
@@ -118,15 +118,15 @@ func (i *Invoker) recordProcessBufferResult(ctx chasm.MutableContext, result *pr
 	readiedStarts := 0
 	deferredStarts := 0
 	for _, start := range i.GetBufferedStarts() {
-		if discards[start.RequestId] {
+		if discards[start] {
 			continue
 		}
 
 		// Starts ready for execution are set to their first attempt.
-		if ready[start.RequestId] && start.Attempt < 1 {
+		if ready[start] && start.Attempt < 1 {
 			schedulerinternal.MarkStartReady(start)
 			readiedStarts++
-		} else if start.Attempt == 0 && (result.processedStarts == nil || result.processedStarts[start.RequestId]) {
+		} else if start.Attempt == 0 && (result.processedStarts == nil || result.processedStarts[start]) {
 			// Start was processed but deferred (e.g., BUFFER_ONE policy with running workflow).
 			// Mark as deferred (-1) to distinguish from newly-enqueued starts so addTasks
 			// won't schedule an immediate ProcessBuffer task for them - they wait on
