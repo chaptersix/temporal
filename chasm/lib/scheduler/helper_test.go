@@ -15,10 +15,12 @@ import (
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/scheduler"
+	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	"go.temporal.io/server/common/backoff"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/testing/mockapi/workflowservicemock/v1"
 	"go.temporal.io/server/common/testing/testlogger"
 	"go.temporal.io/server/common/testing/testvars"
 	"go.temporal.io/server/service/history/tasks"
@@ -197,6 +199,7 @@ func newRealSpecProcessor(ctrl *gomock.Controller, logger log.Logger) scheduler.
 type engineTestConfig struct {
 	specProcessor  scheduler.SpecProcessor
 	frontendClient workflowservice.WorkflowServiceClient
+	timeSource     *clock.EventTimeSource
 	engineOpts     []chasmtest.EngineOption
 }
 
@@ -221,8 +224,116 @@ func withEngineFrontendClient(frontendClient workflowservice.WorkflowServiceClie
 // time source, for tests that need to advance time explicitly.
 func withEngineTimeSource(ts *clock.EventTimeSource) engineTestOption {
 	return func(c *engineTestConfig) {
+		c.timeSource = ts
 		c.engineOpts = append(c.engineOpts, chasmtest.WithTimeSource(ts))
 	}
+}
+
+type schedulerTestEngine struct {
+	engine     *chasmtest.Engine
+	engineCtx  context.Context
+	rootRef    chasm.ComponentRef
+	logger     log.Logger
+	timeSource *clock.EventTimeSource
+}
+
+func newSchedulerTestEngine(
+	t *testing.T,
+	schedule *schedulepb.Schedule,
+	opts ...engineTestOption,
+) *schedulerTestEngine {
+	t.Helper()
+
+	logger := testlogger.NewTestLogger(t, testlogger.FailOnExpectedErrorOnly)
+	config := newEngineTestConfig(opts...)
+	if config.timeSource == nil {
+		config.timeSource = clock.NewEventTimeSource()
+		config.timeSource.Update(time.Now())
+		config.engineOpts = append(config.engineOpts, chasmtest.WithTimeSource(config.timeSource))
+	}
+	engine, engineCtx := newTestEngineContextFromConfig(t, logger, config)
+	rootRef := chasm.NewComponentRef[*scheduler.Scheduler](chasm.ExecutionKey{
+		NamespaceID: namespaceID,
+		BusinessID:  scheduleID,
+	})
+	_, err := scheduler.NewTestHandler(logger).CreateSchedule(engineCtx, &schedulerpb.CreateScheduleRequest{
+		NamespaceId: namespaceID,
+		FrontendRequest: &workflowservice.CreateScheduleRequest{
+			Namespace:  namespace,
+			ScheduleId: scheduleID,
+			Schedule:   schedule,
+			RequestId:  "create-request",
+		},
+	})
+	require.NoError(t, err)
+	return &schedulerTestEngine{
+		engine:     engine,
+		engineCtx:  engineCtx,
+		rootRef:    rootRef,
+		logger:     logger,
+		timeSource: config.timeSource,
+	}
+}
+
+func (e *schedulerTestEngine) updateScheduler(
+	update func(*scheduler.Scheduler, chasm.MutableContext) error,
+) error {
+	_, _, err := chasm.UpdateComponent(
+		e.engineCtx,
+		e.rootRef,
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+			return struct{}{}, update(s, ctx)
+		},
+		struct{}{},
+	)
+	return err
+}
+
+func (e *schedulerTestEngine) readScheduler(
+	read func(*scheduler.Scheduler, chasm.Context) error,
+) error {
+	_, err := chasm.ReadComponent(
+		e.engineCtx,
+		e.rootRef,
+		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+			return struct{}{}, read(s, ctx)
+		},
+		struct{}{},
+	)
+	return err
+}
+
+type invokerExecuteEngine struct {
+	*schedulerTestEngine
+	handler        *scheduler.InvokerExecuteTaskHandler
+	frontendClient *workflowservicemock.MockWorkflowServiceClient
+}
+
+func newInvokerExecuteEngine(t *testing.T) *invokerExecuteEngine {
+	t.Helper()
+
+	ctrl := gomock.NewController(t)
+	frontendClient := workflowservicemock.NewMockWorkflowServiceClient(ctrl)
+	env := newSchedulerTestEngine(t, defaultSchedule(), withEngineFrontendClient(frontendClient))
+	handler := scheduler.NewInvokerExecuteTaskHandler(scheduler.InvokerTaskHandlerOptions{
+		Config:         defaultConfig(),
+		MetricsHandler: metrics.NoopMetricsHandler,
+		BaseLogger:     env.logger,
+		FrontendClient: frontendClient,
+	})
+	return &invokerExecuteEngine{
+		schedulerTestEngine: env,
+		handler:             handler,
+		frontendClient:      frontendClient,
+	}
+}
+
+func newEngineTestConfig(opts ...engineTestOption) *engineTestConfig {
+	config := &engineTestConfig{}
+	for _, opt := range opts {
+		opt(config)
+	}
+	return config
 }
 
 // newTestEngineContext builds a CHASM registry with the core and scheduler
@@ -230,11 +341,14 @@ func withEngineTimeSource(ts *clock.EventTimeSource) engineTestOption {
 // engine along with an engine-bound context ready for chasm.StartExecution /
 // ReadComponent / etc.
 func newTestEngineContext(t *testing.T, logger log.Logger, opts ...engineTestOption) (*chasmtest.Engine, context.Context) {
-	config := &engineTestConfig{}
-	for _, opt := range opts {
-		opt(config)
-	}
+	return newTestEngineContextFromConfig(t, logger, newEngineTestConfig(opts...))
+}
 
+func newTestEngineContextFromConfig(
+	t *testing.T,
+	logger log.Logger,
+	config *engineTestConfig,
+) (*chasmtest.Engine, context.Context) {
 	specProcessor := config.specProcessor
 	if specProcessor == nil {
 		specProcessor = newRealSpecProcessor(gomock.NewController(t), logger)

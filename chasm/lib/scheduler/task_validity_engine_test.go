@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
@@ -16,80 +15,41 @@ import (
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
-	"go.temporal.io/server/common/testing/testlogger"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type schedulerTestEngine struct {
-	engine    *chasmtest.Engine
-	engineCtx context.Context
-	rootRef   chasm.ComponentRef
-	logger    log.Logger
-}
-
-func newSchedulerTestEngine(
-	t *testing.T,
-	schedule *schedulepb.Schedule,
-	opts ...engineTestOption,
-) *schedulerTestEngine {
-	t.Helper()
-
-	logger := testlogger.NewTestLogger(t, testlogger.FailOnExpectedErrorOnly)
-	engine, engineCtx := newTestEngineContext(t, logger, opts...)
-	rootRef := chasm.NewComponentRef[*scheduler.Scheduler](chasm.ExecutionKey{
-		NamespaceID: namespaceID,
-		BusinessID:  scheduleID,
-	})
-	_, err := scheduler.NewTestHandler(logger).CreateSchedule(engineCtx, &schedulerpb.CreateScheduleRequest{
-		NamespaceId: namespaceID,
-		FrontendRequest: &workflowservice.CreateScheduleRequest{
-			Namespace:  namespace,
-			ScheduleId: scheduleID,
-			Schedule:   schedule,
-			RequestId:  "create-request",
-		},
-	})
-	require.NoError(t, err)
-	return &schedulerTestEngine{
-		engine:    engine,
-		engineCtx: engineCtx,
-		rootRef:   rootRef,
-		logger:    logger,
-	}
-}
-
 func TestGeneratorTask_EngineHighWaterMarkInvalidation(t *testing.T) {
 	env := newSchedulerTestEngine(t, defaultSchedule())
 	handler := newGeneratorTaskHandlerForValidity(t, env.logger)
-	now := time.Now()
+	now := env.timeSource.Now()
 	taskTime := now.Add(time.Minute)
 	task := &schedulerpb.GeneratorTask{}
 
 	var generator *scheduler.Generator
-	_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+	err := env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 			generator = s.Generator.Get(ctx)
 			generator.LastProcessedTime = timestamppb.New(now)
 			ctx.AddTask(generator, chasm.TaskAttributes{ScheduledTime: taskTime}, task)
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 
-	_, _, err = chasm.UpdateComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+	err = env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 			generator = s.Generator.Get(ctx)
 			s.Info.OverlapSkipped++ // unrelated scheduler state
 			valid, err := handler.Validate(ctx, generator,
 				chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: taskTime}}, task)
 			if err != nil {
-				return struct{}{}, err
+				return err
 			}
 			require.True(t, valid)
 			generator.LastProcessedTime = timestamppb.New(taskTime)
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 
 	dropped, err := chasmtest.ExecutePureTask(
@@ -131,32 +91,32 @@ func TestIdleTask_EngineActivityInvalidatesAndRearms(t *testing.T) {
 	})
 
 	var oldDeadline time.Time
-	_, err := chasm.ReadComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, _ chasm.Context, _ struct{}) (struct{}, error) {
+	err := env.readScheduler(
+		func(s *scheduler.Scheduler, _ chasm.Context) error {
 			oldDeadline = s.GetIdleCloseTime().AsTime()
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 	require.False(t, oldDeadline.IsZero())
 	idleTime := oldDeadline.Sub(now)
-	_, _, err = chasm.UpdateComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, _ chasm.MutableContext, _ struct{}) (struct{}, error) {
+	err = env.updateScheduler(
+		func(s *scheduler.Scheduler, _ chasm.MutableContext) error {
 			s.Info.OverlapSkipped++ // unrelated scheduler state
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 
-	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
 			valid, err := handler.Validate(ctx, s,
 				chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: oldDeadline}},
 				&schedulerpb.SchedulerIdleTask{IdleTimeTotal: durationpb.New(idleTime)})
 			if err != nil {
-				return struct{}{}, err
+				return err
 			}
 			require.True(t, valid)
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 
 	timeSource.Update(now.Add(time.Minute))
@@ -172,19 +132,19 @@ func TestIdleTask_EngineActivityInvalidatesAndRearms(t *testing.T) {
 
 	var sched *scheduler.Scheduler
 	var newDeadline time.Time
-	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
 			sched = s
 			newDeadline = s.GetIdleCloseTime().AsTime()
 			valid, err := handler.Validate(ctx, s,
 				chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: newDeadline}},
 				&schedulerpb.SchedulerIdleTask{IdleTimeTotal: durationpb.New(idleTime)})
 			if err != nil {
-				return struct{}{}, err
+				return err
 			}
 			require.True(t, valid)
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 	require.True(t, newDeadline.After(oldDeadline))
 
@@ -217,8 +177,8 @@ func TestCallbacksTask_EngineCurrentTupleInvalidation(t *testing.T) {
 			task := &schedulerpb.SchedulerCallbacksTask{}
 
 			var sched *scheduler.Scheduler
-			_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
-				func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+			err := env.updateScheduler(
+				func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 					sched = s
 					s.Invoker.Get(ctx).BufferedStarts = []*schedulespb.BufferedStart{{
 						RequestId:  "running-work",
@@ -227,22 +187,22 @@ func TestCallbacksTask_EngineCurrentTupleInvalidation(t *testing.T) {
 						Attempt:    1,
 					}}
 					ctx.AddTask(s, chasm.TaskAttributes{}, task)
-					return struct{}{}, nil
-				}, struct{}{})
+					return nil
+				})
 			require.NoError(t, err)
 
-			_, _, err = chasm.UpdateComponent(env.engineCtx, env.rootRef,
-				func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+			err = env.updateScheduler(
+				func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 					sched = s
 					s.Info.OverlapSkipped++ // unrelated scheduler state
 					valid, err := handler.Validate(ctx, s, chasm.TaskInvocation{}, task)
 					if err != nil {
-						return struct{}{}, err
+						return err
 					}
 					require.True(t, valid)
 					test.mutate(s.Invoker.Get(ctx).BufferedStarts[0])
-					return struct{}{}, nil
-				}, struct{}{})
+					return nil
+				})
 			require.NoError(t, err)
 
 			dropped, err := chasmtest.ExecuteSideEffectTask(
@@ -284,27 +244,27 @@ func TestMigrationTask_EngineStateInvalidation(t *testing.T) {
 			task := &schedulerpb.SchedulerMigrateToWorkflowTask{}
 
 			var sched *scheduler.Scheduler
-			_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
-				func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+			err := env.updateScheduler(
+				func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 					sched = s
 					s.WorkflowMigration = &schedulerpb.WorkflowMigrationState{}
 					ctx.AddTask(s, chasm.TaskAttributes{}, task)
-					return struct{}{}, nil
-				}, struct{}{})
+					return nil
+				})
 			require.NoError(t, err)
 
-			_, _, err = chasm.UpdateComponent(env.engineCtx, env.rootRef,
-				func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+			err = env.updateScheduler(
+				func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 					sched = s
 					s.Info.OverlapSkipped++ // unrelated scheduler state
 					valid, err := handler.Validate(ctx, s, chasm.TaskInvocation{}, task)
 					if err != nil {
-						return struct{}{}, err
+						return err
 					}
 					require.True(t, valid)
 					test.mutate(s)
-					return struct{}{}, nil
-				}, struct{}{})
+					return nil
+				})
 			require.NoError(t, err)
 
 			dropped, err := chasmtest.ExecuteSideEffectTask(

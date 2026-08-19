@@ -676,7 +676,7 @@ func TestExecuteTask_ExceedsMaxActionsPerExecution(t *testing.T) {
 // Attempt/BackoffTime on the already-running entry.
 func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 	env := newSchedulerTestEngine(t, defaultSchedule())
-	startTime := timestamppb.New(time.Now())
+	startTime := timestamppb.New(env.timeSource.Now())
 	winning := "winning-run"
 	loserStartTime := timestamppb.New(startTime.AsTime().Add(time.Second))
 	loser := []*schedulespb.BufferedStart{{
@@ -686,8 +686,8 @@ func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 	}}
 
 	var newlyStarted, droppedDuplicates int
-	_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+	err := env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 			invoker := s.Invoker.Get(ctx)
 			invoker.BufferedStarts = []*schedulespb.BufferedStart{{
 				NominalTime: startTime,
@@ -702,20 +702,20 @@ func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 			}}
 			invoker.LastProcessedTime = startTime
 			newlyStarted, droppedDuplicates = invoker.RecordExecuteResult(ctx, loser, nil)
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 	require.Equal(t, 0, newlyStarted, "duplicate RunId-set start must not be counted")
 	require.Equal(t, 1, droppedDuplicates, "the dropped completion must be reported for observability")
 
-	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
 			live := s.Invoker.Get(ctx).BufferedStarts[0]
 			require.Equal(t, winning, live.RunId, "live RunId must not be stomped")
 			require.Equal(t, startTime.AsTime(), live.StartTime.AsTime(), "live StartTime must not be stomped")
 			require.True(t, live.HasCallback, "live HasCallback must not be cleared")
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 
 	// First-mover case: a CompletedStart for a fresh RequestId increments
@@ -725,8 +725,8 @@ func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 		RunId:     "first-run",
 		StartTime: startTime,
 	}}
-	_, _, err = chasm.UpdateComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+	err = env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 			invoker := s.Invoker.Get(ctx)
 			invoker.BufferedStarts = append(invoker.BufferedStarts, &schedulespb.BufferedStart{
 				NominalTime: startTime,
@@ -737,20 +737,20 @@ func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 				Attempt:     1,
 			})
 			newlyStarted, droppedDuplicates = invoker.RecordExecuteResult(ctx, first, nil)
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 	require.Equal(t, 1, newlyStarted, "first-time RunId assignment must be counted")
 	require.Equal(t, 0, droppedDuplicates, "no duplicate was dropped")
 
-	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
 			freshlyStarted := s.Invoker.Get(ctx).BufferedStarts[1]
 			require.Equal(t, "first-run", freshlyStarted.RunId)
 			require.Equal(t, startTime.AsTime(), freshlyStarted.StartTime.AsTime())
 			require.True(t, freshlyStarted.HasCallback, "first-time RunId assignment must set HasCallback")
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 }
 
@@ -760,7 +760,7 @@ func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 // otherwise stale retry metadata persists on an already-running entry.
 func TestExecuteTask_RecordResultIdempotentOnRetryableRace(t *testing.T) {
 	env := newSchedulerTestEngine(t, defaultSchedule())
-	startTime := timestamppb.New(time.Now())
+	startTime := timestamppb.New(env.timeSource.Now())
 
 	// A losing concurrent Execute saw the start as eligible, its RPC failed
 	// retryably, and applyBackoff produced a RetryableStart entry.
@@ -771,8 +771,8 @@ func TestExecuteTask_RecordResultIdempotentOnRetryableRace(t *testing.T) {
 	}}
 
 	var newlyStarted, droppedDuplicates int
-	_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+	err := env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 			invoker := s.Invoker.Get(ctx)
 			invoker.BufferedStarts = []*schedulespb.BufferedStart{{
 				NominalTime: startTime,
@@ -787,19 +787,19 @@ func TestExecuteTask_RecordResultIdempotentOnRetryableRace(t *testing.T) {
 			}}
 			invoker.LastProcessedTime = startTime
 			newlyStarted, droppedDuplicates = invoker.RecordExecuteResult(ctx, nil, retryable)
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 	require.Equal(t, 0, newlyStarted)
 	require.Equal(t, 0, droppedDuplicates, "retryable drops aren't counted as duplicates - only completed-side drops are")
 
-	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
 			live := s.Invoker.Get(ctx).BufferedStarts[0]
 			require.Equal(t, int64(1), live.Attempt, "Attempt must not be incremented on a started entry")
 			require.Nil(t, live.BackoffTime, "BackoffTime must not be set on a started entry")
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 }
 
@@ -885,10 +885,10 @@ func TestExecuteTask_EventLog(t *testing.T) {
 // and stranded retries that landed precisely at the HWM boundary.
 func TestExecuteTask_Validate_BackoffEqualToLPTIsEligible(t *testing.T) {
 	env := newInvokerExecuteEngine(t)
-	now := time.Now()
+	now := env.timeSource.Now()
 	var invoker *scheduler.Invoker
-	_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+	err := env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 			invoker = s.Invoker.Get(ctx)
 			invoker.LastProcessedTime = timestamppb.New(now)
 			invoker.BufferedStarts = []*schedulespb.BufferedStart{{
@@ -902,8 +902,8 @@ func TestExecuteTask_Validate_BackoffEqualToLPTIsEligible(t *testing.T) {
 				OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
 			}}
 			ctx.AddTask(invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 
 	env.frontendClient.EXPECT().
@@ -914,11 +914,11 @@ func TestExecuteTask_Validate_BackoffEqualToLPTIsEligible(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, dropped, "BackoffTime == LastProcessedTime must be eligible (<=, not strict <)")
 
-	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
 			require.Equal(t, "boundary-run", s.Invoker.Get(ctx).BufferedStarts[0].GetRunId())
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 }
 
@@ -1018,38 +1018,13 @@ func TestExecuteTask_Validate(t *testing.T) {
 	}
 }
 
-type invokerExecuteEngine struct {
-	*schedulerTestEngine
-	handler        *scheduler.InvokerExecuteTaskHandler
-	frontendClient *workflowservicemock.MockWorkflowServiceClient
-}
-
-func newInvokerExecuteEngine(t *testing.T) *invokerExecuteEngine {
-	t.Helper()
-
-	ctrl := gomock.NewController(t)
-	frontendClient := workflowservicemock.NewMockWorkflowServiceClient(ctrl)
-	env := newSchedulerTestEngine(t, defaultSchedule(), withEngineFrontendClient(frontendClient))
-	handler := scheduler.NewInvokerExecuteTaskHandler(scheduler.InvokerTaskHandlerOptions{
-		Config:         defaultConfig(),
-		MetricsHandler: metrics.NoopMetricsHandler,
-		BaseLogger:     env.logger,
-		FrontendClient: frontendClient,
-	})
-	return &invokerExecuteEngine{
-		schedulerTestEngine: env,
-		handler:             handler,
-		frontendClient:      frontendClient,
-	}
-}
-
 func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 	t.Run("old task executes different current work", func(t *testing.T) {
 		env := newInvokerExecuteEngine(t)
-		now := time.Now()
+		now := env.timeSource.Now()
 
-		_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
-			func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+		err := env.updateScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 				invoker := s.Invoker.Get(ctx)
 				invoker.LastProcessedTime = timestamppb.New(now)
 				invoker.BufferedStarts = []*schedulespb.BufferedStart{{
@@ -1058,13 +1033,13 @@ func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 					Attempt:    1,
 				}}
 				ctx.AddTask(invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
-				return struct{}{}, nil
-			}, struct{}{})
+				return nil
+			})
 		require.NoError(t, err)
 
 		var invoker *scheduler.Invoker
-		_, _, err = chasm.UpdateComponent(env.engineCtx, env.rootRef,
-			func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+		err = env.updateScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 				invoker = s.Invoker.Get(ctx)
 				s.Info.OverlapSkipped++ // unrelated scheduler state
 				invoker.BufferedStarts[0].RunId = "original-run"
@@ -1073,8 +1048,8 @@ func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 					WorkflowId: "current-workflow",
 					Attempt:    1,
 				})
-				return struct{}{}, nil
-			}, struct{}{})
+				return nil
+			})
 		require.NoError(t, err)
 
 		env.frontendClient.EXPECT().
@@ -1086,27 +1061,27 @@ func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, dropped)
 
-		_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
-			func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+		err = env.readScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.Context) error {
 				starts := s.Invoker.Get(ctx).GetBufferedStarts()
 				require.Equal(t, "original-run", starts[0].GetRunId())
 				require.Equal(t, "current-run", starts[1].GetRunId())
-				return struct{}{}, nil
-			}, struct{}{})
+				return nil
+			})
 		require.NoError(t, err)
 	})
 
 	t.Run("completion before start remains execute eligible", func(t *testing.T) {
 		env := newInvokerExecuteEngine(t)
-		now := time.Now()
+		now := env.timeSource.Now()
 		completed := &schedulespb.CompletedResult{
 			Status:    enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
 			CloseTime: timestamppb.New(now),
 		}
 
 		var invoker *scheduler.Invoker
-		_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
-			func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+		err := env.updateScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 				invoker = s.Invoker.Get(ctx)
 				invoker.LastProcessedTime = timestamppb.New(now)
 				invoker.BufferedStarts = []*schedulespb.BufferedStart{{
@@ -1119,8 +1094,8 @@ func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 					Completed:   completed,
 				}}
 				ctx.AddTask(invoker, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
-				return struct{}{}, nil
-			}, struct{}{})
+				return nil
+			})
 		require.NoError(t, err)
 
 		env.frontendClient.EXPECT().
@@ -1132,13 +1107,13 @@ func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, dropped)
 
-		_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
-			func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+		err = env.readScheduler(
+			func(s *scheduler.Scheduler, ctx chasm.Context) error {
 				start := s.Invoker.Get(ctx).GetBufferedStarts()[0]
 				require.Equal(t, "racing-run", start.GetRunId())
 				require.Equal(t, completed, start.GetCompleted())
-				return struct{}{}, nil
-			}, struct{}{})
+				return nil
+			})
 		require.NoError(t, err)
 	})
 }

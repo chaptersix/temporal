@@ -321,9 +321,9 @@ func TestHandleNexusCompletion_Canceled(t *testing.T) {
 // cascade.
 func TestHandleNexusCompletion_ReenablesDeferredStarts(t *testing.T) {
 	env := newSchedulerTestEngine(t, defaultSchedule())
-	now := time.Now()
-	_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+	now := env.timeSource.Now()
+	err := env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
 			s.Invoker.Get(ctx).BufferedStarts = []*schedulespb.BufferedStart{
 				{
 					RequestId:  "req-1",
@@ -340,25 +340,24 @@ func TestHandleNexusCompletion_ReenablesDeferredStarts(t *testing.T) {
 					ActualTime: timestamppb.New(now),
 				},
 			}
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 
-	_, _, err = chasm.UpdateComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
-			err := s.HandleNexusCompletion(ctx, &persistencespb.ChasmNexusCompletion{
+	err = env.updateScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+			return s.HandleNexusCompletion(ctx, &persistencespb.ChasmNexusCompletion{
 				RequestId: "req-1",
 				Outcome: &persistencespb.ChasmNexusCompletion_Success{
 					Success: &commonpb.Payload{Data: []byte("ok")},
 				},
 				CloseTime: timestamppb.New(now),
 			})
-			return struct{}{}, err
-		}, struct{}{})
+		})
 	require.NoError(t, err)
 
-	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
+	err = env.readScheduler(
+		func(s *scheduler.Scheduler, ctx chasm.Context) error {
 			var deferred *schedulespb.BufferedStart
 			for _, start := range s.Invoker.Get(ctx).BufferedStarts {
 				if start.RequestId == "req-2" {
@@ -369,8 +368,8 @@ func TestHandleNexusCompletion_ReenablesDeferredStarts(t *testing.T) {
 			require.NotNil(t, deferred, "previously-deferred start must remain in the buffer")
 			require.Equal(t, int64(1), deferred.Attempt,
 				"completion must re-enable the start and the engine-fired ProcessBuffer task must promote it")
-			return struct{}{}, nil
-		}, struct{}{})
+			return nil
+		})
 	require.NoError(t, err)
 }
 
