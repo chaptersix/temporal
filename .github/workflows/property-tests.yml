@@ -1,0 +1,57 @@
+name: Property Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: property-tests-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAX_TEST_ATTEMPTS: 1
+  TEST_TIMEOUT: 20m
+  PROPERTY_TEST_ARTIFACT_DIR: .testoutput/property-tests
+
+jobs:
+  property-tests:
+    name: Property tests (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          check-latest: true
+      - name: Run property tests
+        run: make property-test
+      - name: Report property test results
+        if: always()
+        uses: ./.github/actions/post-test-reporting
+        with:
+          artifact_name_suffix: property-tests
+          job_name: Property tests (advisory)
+      - name: Print focused replay command
+        if: failure()
+        run: |
+          echo 'Focused replay: RAPID_SEED=<seed-from-log> go test -tags test_dep,property_test -run "^TestProperty" -count=1 ./chasm/lib/scheduler/internal'
+      - name: Upload property diagnostics
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: property-test-diagnostics--${{ github.run_id }}
+          path: |
+            **/testdata/rapid/**/*.fail
+            .testoutput/junit.*.xml
+            .testoutput/test-summary.*
+            .testoutput/property-tests/**
+          if-no-files-found: warn
+          include-hidden-files: true
