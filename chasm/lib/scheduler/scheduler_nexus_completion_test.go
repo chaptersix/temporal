@@ -320,9 +320,9 @@ func TestHandleNexusCompletion_Canceled(t *testing.T) {
 // End state Attempt=1 demonstrates the full defer -> re-enable -> promote
 // cascade.
 func TestHandleNexusCompletion_ReenablesDeferredStarts(t *testing.T) {
-	_, engineCtx, rootRef, _ := newTaskValidityEngine(t, defaultSchedule())
+	env := newSchedulerTestEngine(t, defaultSchedule())
 	now := time.Now()
-	_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+	_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
 		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
 			s.Invoker.Get(ctx).BufferedStarts = []*schedulespb.BufferedStart{
 				{
@@ -344,7 +344,7 @@ func TestHandleNexusCompletion_ReenablesDeferredStarts(t *testing.T) {
 		}, struct{}{})
 	require.NoError(t, err)
 
-	_, _, err = chasm.UpdateComponent(engineCtx, rootRef,
+	_, _, err = chasm.UpdateComponent(env.engineCtx, env.rootRef,
 		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
 			err := s.HandleNexusCompletion(ctx, &persistencespb.ChasmNexusCompletion{
 				RequestId: "req-1",
@@ -357,7 +357,7 @@ func TestHandleNexusCompletion_ReenablesDeferredStarts(t *testing.T) {
 		}, struct{}{})
 	require.NoError(t, err)
 
-	_, err = chasm.ReadComponent(engineCtx, rootRef,
+	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
 		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
 			var deferred *schedulespb.BufferedStart
 			for _, start := range s.Invoker.Get(ctx).BufferedStarts {

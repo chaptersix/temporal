@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/service/history/tasks"
 )
 
 // ExecutePureTask validates and executes a pure task atomically via [Engine.UpdateComponent].
@@ -80,6 +81,61 @@ func (e *Engine) FirePureTasks(ref chasm.ComponentRef, referenceTime time.Time) 
 		return executed, err
 	}
 	return executed, nil
+}
+
+// FireSideEffectTasks executes persisted side effect tasks due by referenceTime.
+// Framework visibility tasks are excluded because they have a dedicated processor.
+func (e *Engine) FireSideEffectTasks(ref chasm.ComponentRef, referenceTime time.Time) (executed int, err error) {
+	exec, err := e.executionForRef(ref)
+	if err != nil {
+		return 0, err
+	}
+
+	type queuedTask struct {
+		category tasks.Category
+		task     *tasks.ChasmTask
+	}
+	var dueTasks []queuedTask
+	for category, categoryTasks := range exec.backend.TasksByCategory {
+		if category == tasks.CategoryVisibility {
+			continue
+		}
+		for _, task := range categoryTasks {
+			chasmTask, ok := task.(*tasks.ChasmTask)
+			if !ok || category.Type() == tasks.CategoryTypeScheduled && chasmTask.GetVisibilityTime().After(referenceTime) {
+				continue
+			}
+			dueTasks = append(dueTasks, queuedTask{category: category, task: chasmTask})
+		}
+	}
+
+	engineCtx := chasm.NewEngineContext(context.Background(), e)
+	for _, queued := range dueTasks {
+		err := exec.node.ExecuteSideEffectTask(
+			engineCtx,
+			exec.key,
+			queued.task,
+			func(chasm.NodeBackend, chasm.Context, chasm.Component) error { return nil },
+		)
+		if err != nil {
+			return executed, err
+		}
+		executed++
+		exec.backend.TasksByCategory[queued.category] = removeTask(
+			exec.backend.TasksByCategory[queued.category],
+			queued.task,
+		)
+	}
+	return executed, nil
+}
+
+func removeTask(taskList []tasks.Task, target tasks.Task) []tasks.Task {
+	for i, task := range taskList {
+		if task == target {
+			return append(taskList[:i], taskList[i+1:]...)
+		}
+	}
+	return taskList
 }
 
 // ExecuteSideEffectTask validates and executes a side effect task.

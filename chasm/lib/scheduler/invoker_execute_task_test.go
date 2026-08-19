@@ -675,7 +675,7 @@ func TestExecuteTask_ExceedsMaxActionsPerExecution(t *testing.T) {
 // double-count, stomp the winner's RunId/StartTime/HasCallback, or rewind
 // Attempt/BackoffTime on the already-running entry.
 func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
-	_, engineCtx, rootRef, _ := newTaskValidityEngine(t, defaultSchedule())
+	env := newSchedulerTestEngine(t, defaultSchedule())
 	startTime := timestamppb.New(time.Now())
 	winning := "winning-run"
 	loserStartTime := timestamppb.New(startTime.AsTime().Add(time.Second))
@@ -686,7 +686,7 @@ func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 	}}
 
 	var newlyStarted, droppedDuplicates int
-	_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+	_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
 		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
 			invoker := s.Invoker.Get(ctx)
 			invoker.BufferedStarts = []*schedulespb.BufferedStart{{
@@ -708,7 +708,7 @@ func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 	require.Equal(t, 0, newlyStarted, "duplicate RunId-set start must not be counted")
 	require.Equal(t, 1, droppedDuplicates, "the dropped completion must be reported for observability")
 
-	_, err = chasm.ReadComponent(engineCtx, rootRef,
+	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
 		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
 			live := s.Invoker.Get(ctx).BufferedStarts[0]
 			require.Equal(t, winning, live.RunId, "live RunId must not be stomped")
@@ -725,7 +725,7 @@ func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 		RunId:     "first-run",
 		StartTime: startTime,
 	}}
-	_, _, err = chasm.UpdateComponent(engineCtx, rootRef,
+	_, _, err = chasm.UpdateComponent(env.engineCtx, env.rootRef,
 		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
 			invoker := s.Invoker.Get(ctx)
 			invoker.BufferedStarts = append(invoker.BufferedStarts, &schedulespb.BufferedStart{
@@ -743,7 +743,7 @@ func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 	require.Equal(t, 1, newlyStarted, "first-time RunId assignment must be counted")
 	require.Equal(t, 0, droppedDuplicates, "no duplicate was dropped")
 
-	_, err = chasm.ReadComponent(engineCtx, rootRef,
+	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
 		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
 			freshlyStarted := s.Invoker.Get(ctx).BufferedStarts[1]
 			require.Equal(t, "first-run", freshlyStarted.RunId)
@@ -759,7 +759,7 @@ func TestExecuteTask_RecordResultIdempotentOnRace(t *testing.T) {
 // protects the completed branch must also protect the retryable branch,
 // otherwise stale retry metadata persists on an already-running entry.
 func TestExecuteTask_RecordResultIdempotentOnRetryableRace(t *testing.T) {
-	_, engineCtx, rootRef, _ := newTaskValidityEngine(t, defaultSchedule())
+	env := newSchedulerTestEngine(t, defaultSchedule())
 	startTime := timestamppb.New(time.Now())
 
 	// A losing concurrent Execute saw the start as eligible, its RPC failed
@@ -771,7 +771,7 @@ func TestExecuteTask_RecordResultIdempotentOnRetryableRace(t *testing.T) {
 	}}
 
 	var newlyStarted, droppedDuplicates int
-	_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+	_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
 		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
 			invoker := s.Invoker.Get(ctx)
 			invoker.BufferedStarts = []*schedulespb.BufferedStart{{
@@ -793,7 +793,7 @@ func TestExecuteTask_RecordResultIdempotentOnRetryableRace(t *testing.T) {
 	require.Equal(t, 0, newlyStarted)
 	require.Equal(t, 0, droppedDuplicates, "retryable drops aren't counted as duplicates - only completed-side drops are")
 
-	_, err = chasm.ReadComponent(engineCtx, rootRef,
+	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
 		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
 			live := s.Invoker.Get(ctx).BufferedStarts[0]
 			require.Equal(t, int64(1), live.Attempt, "Attempt must not be incremented on a started entry")
@@ -884,10 +884,10 @@ func TestExecuteTask_EventLog(t *testing.T) {
 // Regression for the strict-Before check, which excluded equal-time entries
 // and stranded retries that landed precisely at the HWM boundary.
 func TestExecuteTask_Validate_BackoffEqualToLPTIsEligible(t *testing.T) {
-	engine, engineCtx, rootRef, handler, frontendClient := newInvokerExecuteEngineEnv(t)
+	env := newInvokerExecuteEngine(t)
 	now := time.Now()
 	var invoker *scheduler.Invoker
-	_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+	_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
 		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
 			invoker = s.Invoker.Get(ctx)
 			invoker.LastProcessedTime = timestamppb.New(now)
@@ -906,15 +906,15 @@ func TestExecuteTask_Validate_BackoffEqualToLPTIsEligible(t *testing.T) {
 		}, struct{}{})
 	require.NoError(t, err)
 
-	frontendClient.EXPECT().
+	env.frontendClient.EXPECT().
 		StartWorkflowExecution(gomock.Any(), startWorkflowExecutionRequestIDMatches("boundary")).
 		Return(&workflowservice.StartWorkflowExecutionResponse{RunId: "boundary-run"}, nil)
 	dropped, err := chasmtest.ExecuteSideEffectTask(
-		context.Background(), engine, invoker, handler, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
+		context.Background(), env.engine, invoker, env.handler, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
 	require.NoError(t, err)
 	require.False(t, dropped, "BackoffTime == LastProcessedTime must be eligible (<=, not strict <)")
 
-	_, err = chasm.ReadComponent(engineCtx, rootRef,
+	_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
 		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
 			require.Equal(t, "boundary-run", s.Invoker.Get(ctx).BufferedStarts[0].GetRunId())
 			return struct{}{}, nil
@@ -1018,29 +1018,37 @@ func TestExecuteTask_Validate(t *testing.T) {
 	}
 }
 
-func newInvokerExecuteEngineEnv(
-	t *testing.T,
-) (*chasmtest.Engine, context.Context, chasm.ComponentRef, *scheduler.InvokerExecuteTaskHandler, *workflowservicemock.MockWorkflowServiceClient) {
+type invokerExecuteEngine struct {
+	*schedulerTestEngine
+	handler        *scheduler.InvokerExecuteTaskHandler
+	frontendClient *workflowservicemock.MockWorkflowServiceClient
+}
+
+func newInvokerExecuteEngine(t *testing.T) *invokerExecuteEngine {
 	t.Helper()
 
-	engine, engineCtx, rootRef, logger := newTaskValidityEngine(t, defaultSchedule())
 	ctrl := gomock.NewController(t)
 	frontendClient := workflowservicemock.NewMockWorkflowServiceClient(ctrl)
+	env := newSchedulerTestEngine(t, defaultSchedule(), withEngineFrontendClient(frontendClient))
 	handler := scheduler.NewInvokerExecuteTaskHandler(scheduler.InvokerTaskHandlerOptions{
 		Config:         defaultConfig(),
 		MetricsHandler: metrics.NoopMetricsHandler,
-		BaseLogger:     logger,
+		BaseLogger:     env.logger,
 		FrontendClient: frontendClient,
 	})
-	return engine, engineCtx, rootRef, handler, frontendClient
+	return &invokerExecuteEngine{
+		schedulerTestEngine: env,
+		handler:             handler,
+		frontendClient:      frontendClient,
+	}
 }
 
 func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 	t.Run("old task executes different current work", func(t *testing.T) {
-		engine, engineCtx, rootRef, handler, frontendClient := newInvokerExecuteEngineEnv(t)
+		env := newInvokerExecuteEngine(t)
 		now := time.Now()
 
-		_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+		_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
 			func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
 				invoker := s.Invoker.Get(ctx)
 				invoker.LastProcessedTime = timestamppb.New(now)
@@ -1055,7 +1063,7 @@ func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 		require.NoError(t, err)
 
 		var invoker *scheduler.Invoker
-		_, _, err = chasm.UpdateComponent(engineCtx, rootRef,
+		_, _, err = chasm.UpdateComponent(env.engineCtx, env.rootRef,
 			func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
 				invoker = s.Invoker.Get(ctx)
 				s.Info.OverlapSkipped++ // unrelated scheduler state
@@ -1069,16 +1077,16 @@ func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 			}, struct{}{})
 		require.NoError(t, err)
 
-		frontendClient.EXPECT().
+		env.frontendClient.EXPECT().
 			StartWorkflowExecution(gomock.Any(), startWorkflowExecutionRequestIDMatches("current-work")).
 			Return(&workflowservice.StartWorkflowExecutionResponse{RunId: "current-run"}, nil)
 
 		dropped, err := chasmtest.ExecuteSideEffectTask(
-			context.Background(), engine, invoker, handler, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
+			context.Background(), env.engine, invoker, env.handler, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
 		require.NoError(t, err)
 		require.False(t, dropped)
 
-		_, err = chasm.ReadComponent(engineCtx, rootRef,
+		_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
 			func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
 				starts := s.Invoker.Get(ctx).GetBufferedStarts()
 				require.Equal(t, "original-run", starts[0].GetRunId())
@@ -1089,7 +1097,7 @@ func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 	})
 
 	t.Run("completion before start remains execute eligible", func(t *testing.T) {
-		engine, engineCtx, rootRef, handler, frontendClient := newInvokerExecuteEngineEnv(t)
+		env := newInvokerExecuteEngine(t)
 		now := time.Now()
 		completed := &schedulespb.CompletedResult{
 			Status:    enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
@@ -1097,7 +1105,7 @@ func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 		}
 
 		var invoker *scheduler.Invoker
-		_, _, err := chasm.UpdateComponent(engineCtx, rootRef,
+		_, _, err := chasm.UpdateComponent(env.engineCtx, env.rootRef,
 			func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
 				invoker = s.Invoker.Get(ctx)
 				invoker.LastProcessedTime = timestamppb.New(now)
@@ -1115,16 +1123,16 @@ func TestExecuteTask_EngineCharacterizesCurrentWorkValidity(t *testing.T) {
 			}, struct{}{})
 		require.NoError(t, err)
 
-		frontendClient.EXPECT().
+		env.frontendClient.EXPECT().
 			StartWorkflowExecution(gomock.Any(), startWorkflowExecutionRequestIDMatches("racing-work")).
 			Return(&workflowservice.StartWorkflowExecutionResponse{RunId: "racing-run"}, nil)
 
 		dropped, err := chasmtest.ExecuteSideEffectTask(
-			context.Background(), engine, invoker, handler, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
+			context.Background(), env.engine, invoker, env.handler, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
 		require.NoError(t, err)
 		require.False(t, dropped)
 
-		_, err = chasm.ReadComponent(engineCtx, rootRef,
+		_, err = chasm.ReadComponent(env.engineCtx, env.rootRef,
 			func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
 				start := s.Invoker.Get(ctx).GetBufferedStarts()[0]
 				require.Equal(t, "racing-run", start.GetRunId())

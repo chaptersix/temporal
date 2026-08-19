@@ -12,6 +12,7 @@ import (
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/tests"
+	"go.temporal.io/server/chasm/lib/tests/gen/testspb/v1"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/payload"
@@ -39,6 +40,43 @@ func TestTasksArePhysicallyGenerated(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, countTasks(t, e, ref, tasks.CategoryTimer))
 	})
+}
+
+func TestFireSideEffectTasks(t *testing.T) {
+	const ttl = time.Hour
+	e, ref := startStore(t, ttl)
+
+	var expirationTime time.Time
+	_, _, err := chasm.UpdateComponent(engineContext(e), ref,
+		func(store *tests.PayloadStore, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+			expirationTime = store.State.ExpirationTimes["first"].AsTime()
+			ctx.AddTask(
+				store,
+				chasm.TaskAttributes{ScheduledTime: expirationTime},
+				&testspb.TestPayloadTTLSideEffectTask{PayloadKey: "first"},
+			)
+			return struct{}{}, nil
+		}, struct{}{})
+	require.NoError(t, err)
+	require.Equal(t, 1, countSideEffectTasks(t, e, ref, tasks.CategoryTimer))
+
+	executed, err := e.FireSideEffectTasks(ref, expirationTime.Add(-time.Nanosecond))
+	require.NoError(t, err)
+	require.Equal(t, 0, executed)
+	require.Equal(t, 1, countSideEffectTasks(t, e, ref, tasks.CategoryTimer))
+
+	executed, err = e.FireSideEffectTasks(ref, expirationTime)
+	require.NoError(t, err)
+	require.Equal(t, 1, executed)
+	require.Equal(t, 0, countSideEffectTasks(t, e, ref, tasks.CategoryTimer))
+
+	executed, err = e.FireSideEffectTasks(ref, expirationTime)
+	require.NoError(t, err)
+	require.Equal(t, 0, executed)
+
+	_, err = chasm.ReadComponent(engineContext(e), ref, (*tests.PayloadStore).GetPayload, "first")
+	var notFound *serviceerror.NotFound
+	require.ErrorAs(t, err, &notFound)
 }
 
 func TestUpdateComponentDeduplicatesRequestID(t *testing.T) {
@@ -161,6 +199,24 @@ func countTasks(t *testing.T, e *chasmtest.Engine, ref chasm.ComponentRef, categ
 	byCategory, err := e.Tasks(ref)
 	require.NoError(t, err)
 	return len(byCategory[category])
+}
+
+func countSideEffectTasks(
+	t *testing.T,
+	e *chasmtest.Engine,
+	ref chasm.ComponentRef,
+	category tasks.Category,
+) int {
+	t.Helper()
+	byCategory, err := e.Tasks(ref)
+	require.NoError(t, err)
+	count := 0
+	for _, task := range byCategory[category] {
+		if _, ok := task.(*tasks.ChasmTask); ok {
+			count++
+		}
+	}
+	return count
 }
 
 func engineContext(e *chasmtest.Engine) context.Context {
