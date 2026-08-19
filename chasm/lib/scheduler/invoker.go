@@ -12,8 +12,10 @@ import (
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
+	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/util"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -154,112 +156,99 @@ func (i *Invoker) recordProcessBufferResult(ctx chasm.MutableContext, result *pr
 	i.addTasks(ctx)
 }
 
-type executeResult struct {
-	// Starts that executed successfully. Their RunId and StartTime should be
-	// copied to the corresponding BufferedStart in the buffer.
-	CompletedStarts []*schedulespb.BufferedStart
-
-	// Starts that failed with a retryable error should be updated and kept in the buffer.
-	RetryableStarts []*schedulespb.BufferedStart
-
-	// Starts that failed with a non-retryable error can be removed from the buffer.
-	FailedStarts []*schedulespb.BufferedStart
-
-	CompletedCancels    []*commonpb.WorkflowExecution
-	CompletedTerminates []*commonpb.WorkflowExecution
+type executionCommitOutcome struct {
+	appliedStarts             int
+	removedActions            int
+	committedRetries          int
+	duplicateInvalidations    int
+	stateChangedInvalidations int
+	executeTaskScheduled      bool
 }
 
-// Append combines two executeResults (no deduplication is done).
-func (e *executeResult) Append(o executeResult) executeResult {
-	return executeResult{
-		CompletedStarts:     append(e.CompletedStarts, o.CompletedStarts...),
-		RetryableStarts:     append(e.RetryableStarts, o.RetryableStarts...),
-		FailedStarts:        append(e.FailedStarts, o.FailedStarts...),
-		CompletedCancels:    append(e.CompletedCancels, o.CompletedCancels...),
-		CompletedTerminates: append(e.CompletedTerminates, o.CompletedTerminates...),
-	}
-}
+func (i *Invoker) commitExecutionResult(
+	ctx chasm.MutableContext,
+	result executionBatchResult,
+) (outcome executionCommitOutcome) {
+	removeTerminations := revalidateWorkflowResults(i.TerminateWorkflows, result.terminations, &outcome)
+	i.TerminateWorkflows = deleteIndexed(i.TerminateWorkflows, removeTerminations)
+	removeCancels := revalidateWorkflowResults(i.CancelWorkflows, result.cancellations, &outcome)
+	i.CancelWorkflows = deleteIndexed(i.CancelWorkflows, removeCancels)
 
-// recordExecuteResult updates the Invoker's internal state with the results of a
-// completed InvokerExecuteTask. It returns the number of *new* actions recorded
-// (starts that transitioned from "no RunId" to "has RunId" in this call) and
-// the number of completed results that were dropped because they were previously
-// recorded.
-func (i *Invoker) recordExecuteResult(ctx chasm.MutableContext, result *executeResult) (newlyStarted, droppedDuplicates int) {
-	completed := make(map[string]*schedulespb.BufferedStart) // request ID -> BufferedStart with RunId/StartTime
-	failed := make(map[string]bool)                          // request ID -> is present
-	retryable := make(map[string]*schedulespb.BufferedStart) // request ID -> *BufferedStart
-	canceled := make(map[string]bool)                        // run ID -> is present
-	terminated := make(map[string]bool)                      // run ID -> is present
-
-	for _, start := range result.CompletedStarts {
-		completed[start.RequestId] = start
-	}
-	for _, start := range result.FailedStarts {
-		failed[start.RequestId] = true
-	}
-	for _, start := range result.RetryableStarts {
-		retryable[start.RequestId] = start
-	}
-	for _, wf := range result.CompletedCancels {
-		canceled[wf.RunId] = true
-	}
-	for _, wf := range result.CompletedTerminates {
-		terminated[wf.RunId] = true
-	}
-
-	// Remove failed (non-retryable) starts from the buffer.
-	removedStarts := 0
-	retriedStarts := 0
-	i.BufferedStarts = slices.DeleteFunc(i.GetBufferedStarts(), func(start *schedulespb.BufferedStart) bool {
-		failed := failed[start.RequestId]
-		if failed {
-			removedStarts++
-		}
-		return failed
-	})
-	i.CancelWorkflows = slices.DeleteFunc(i.GetCancelWorkflows(), func(we *commonpb.WorkflowExecution) bool {
-		canceled := canceled[we.RunId]
-		if canceled {
-			removedStarts++
-		}
-		return canceled
-	})
-	i.TerminateWorkflows = slices.DeleteFunc(i.GetTerminateWorkflows(), func(we *commonpb.WorkflowExecution) bool {
-		terminated := terminated[we.RunId]
-		if terminated {
-			removedStarts++
-		}
-		return terminated
-	})
-
-	// Update BufferedStarts with results, dropping duplicates.
-	for _, start := range i.GetBufferedStarts() {
-		if start.RunId != "" {
-			if _, isDuplicate := completed[start.RequestId]; isDuplicate {
-				droppedDuplicates++
+	removeStarts := make(map[int]bool)
+	for _, startResult := range result.starts {
+		index := startResult.loaded.index
+		if index < 0 || index >= len(i.BufferedStarts) ||
+			!proto.Equal(i.BufferedStarts[index], startResult.loaded.expected) {
+			if startResult.outcome == startExecutionCompleted && index >= 0 && index < len(i.BufferedStarts) &&
+				isAlreadyRecordedStart(i.BufferedStarts[index], startResult.loaded.expected) {
+				outcome.duplicateInvalidations++
+			} else {
+				outcome.stateChangedInvalidations++
 			}
 			continue
 		}
-		if completedStart, ok := completed[start.RequestId]; ok {
-			schedulerinternal.MarkStartStarted(start, completedStart.GetRunId(), completedStart.GetStartTime())
+
+		start := i.BufferedStarts[index]
+		switch startResult.outcome {
+		case startExecutionCompleted:
+			schedulerinternal.MarkStartStarted(start, startResult.runID, startResult.startTime)
 			start.HasCallback = true
-			newlyStarted++
-		}
-		if retry, ok := retryable[start.RequestId]; ok {
-			schedulerinternal.MarkStartRetrying(start, start.GetAttempt()+1, retry.GetBackoffTime())
-			retriedStarts++
+			outcome.appliedStarts++
+		case startExecutionRetryable:
+			schedulerinternal.MarkStartRetrying(start, start.GetAttempt()+1, startResult.backoffTime)
+			outcome.committedRetries++
+		case startExecutionFailed:
+			removeStarts[index] = true
+			outcome.removedActions++
 		}
 	}
+	i.BufferedStarts = deleteIndexed(i.BufferedStarts, removeStarts)
 
 	i.getOrCreateEventLog(ctx).LogEvent(ctx,
 		fmt.Sprintf("recordExecuteResult kicked off %d starts, removed %d starts, retried %d starts",
-			newlyStarted,
-			removedStarts,
-			retriedStarts))
-
+			outcome.appliedStarts,
+			outcome.removedActions,
+			outcome.committedRetries))
 	i.addTasks(ctx)
-	return newlyStarted, droppedDuplicates
+	outcome.executeTaskScheduled = i.hasExecutableWork()
+	return outcome
+}
+
+func isAlreadyRecordedStart(live, expected *schedulespb.BufferedStart) bool {
+	if live.GetRunId() == "" {
+		return false
+	}
+	liveWithoutResult := common.CloneProto(live)
+	liveWithoutResult.RunId = ""
+	liveWithoutResult.StartTime = nil
+	liveWithoutResult.HasCallback = false
+	return proto.Equal(liveWithoutResult, expected)
+}
+
+func revalidateWorkflowResults(
+	live []*commonpb.WorkflowExecution,
+	results []loadedWorkflowExecution,
+	outcome *executionCommitOutcome,
+) map[int]bool {
+	remove := make(map[int]bool, len(results))
+	for _, result := range results {
+		if result.index < 0 || result.index >= len(live) || !proto.Equal(live[result.index], result.expected) {
+			outcome.stateChangedInvalidations++
+			continue
+		}
+		remove[result.index] = true
+		outcome.removedActions++
+	}
+	return remove
+}
+
+func deleteIndexed[T any](values []T, remove map[int]bool) []T {
+	index := 0
+	return slices.DeleteFunc(values, func(T) bool {
+		removed := remove[index]
+		index++
+		return removed
+	})
 }
 
 // runningWorkflowID returns the workflow ID associated with the given
@@ -346,12 +335,16 @@ func (i *Invoker) addTasks(ctx chasm.MutableContext) {
 
 	// Execute drains work that's ready now: pending cancels/terminates, and
 	// starts that are past their backoff.
-	if len(i.GetCancelWorkflows()) > 0 ||
-		len(i.GetTerminateWorkflows()) > 0 ||
-		len(i.getEligibleBufferedStarts()) > 0 {
+	if i.hasExecutableWork() {
 		i.getOrCreateEventLog(ctx).LogEvent(ctx, "scheduled executeTask")
 		ctx.AddTask(i, chasm.TaskAttributes{}, &schedulerpb.InvokerExecuteTask{})
 	}
+}
+
+func (i *Invoker) hasExecutableWork() bool {
+	return len(i.GetCancelWorkflows()) > 0 ||
+		len(i.GetTerminateWorkflows()) > 0 ||
+		len(i.getEligibleBufferedStarts()) > 0
 }
 
 // hasUnprocessedStarts reports whether any BufferedStart is still awaiting its
