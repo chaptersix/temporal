@@ -3,7 +3,6 @@ package scheduler_test
 import (
 	"context"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -673,11 +672,8 @@ func TestExecuteTask_ExceedsMaxActionsPerExecution(t *testing.T) {
 }
 
 func TestExecuteTask_SharedBudgetPreservesActionCategoryOrder(t *testing.T) {
-	var orderMutex sync.Mutex
 	var order []string
 	record := func(action string) {
-		orderMutex.Lock()
-		defer orderMutex.Unlock()
 		order = append(order, action)
 	}
 
