@@ -54,6 +54,14 @@ func extractFailures(suites *junit.Testsuites, artifactName string, runID int64,
 					JobID:      jobID,
 					MatrixName: matrixName,
 					Timestamp:  timestamp,
+					Message:    testcase.Failure.Message,
+					Body:       testcase.Failure.Data,
+				}
+				if testcase.SystemOut != nil {
+					failure.SystemOut = testcase.SystemOut.Data
+				}
+				if testcase.SystemErr != nil {
+					failure.SystemErr = testcase.SystemErr.Data
 				}
 				failures = append(failures, failure)
 			}
