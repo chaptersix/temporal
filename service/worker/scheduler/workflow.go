@@ -145,11 +145,8 @@ type (
 		// V1 scheduler version while preserving the recorded version as a monotonic floor.
 		versionOverride func() int
 
-		// lastVersionCeiling is the last dynamic-config value checked for an unsupported-ceiling warning.
-		lastVersionCeiling int
-		// hasLastVersionCeiling distinguishes the first check from a valid zero-valued ceiling.
-		hasLastVersionCeiling bool
-
+		// State produced by updateTweakables must remain in TweakablePolicies. MutableSideEffect
+		// callbacks do not run during replay, so scheduler fields are not restored from history.
 		tweakables TweakablePolicies
 
 		currentTimer         workflow.Future
@@ -200,6 +197,9 @@ type (
 		// VersionCeiling captures the raw worker.schedulerV1VersionCeiling value, even when Version
 		// is retained. This makes a ceiling change part of the recorded tweakables value.
 		VersionCeiling int
+		// VersionCeilingSet distinguishes a captured zero ceiling from history written before this
+		// flag was introduced.
+		VersionCeilingSet bool
 		// EnableCHASMMigration captures history.enableCHASMSchedulerMigration and
 		// history.chasmSchedulerMigrationRolloutPercent to enable automatic CHASM migration.
 		EnableCHASMMigration bool
@@ -1428,6 +1428,7 @@ func (s *scheduler) updateTweakables() {
 	get := func(ctx workflow.Context) any {
 		p := CurrentTweakablePolicies
 		p.Version, p.VersionCeiling = s.determineVersion(p.Version)
+		p.VersionCeilingSet = true
 		// Only set migration config at/after the TriggerImmediatelyTimestamp version.
 		if p.Version >= TriggerImmediatelyTimestamp {
 			p.EnableCHASMMigration = s.enableCHASMMigration()
@@ -1893,15 +1894,9 @@ func (s *scheduler) hasMinVersion(version SchedulerWorkflowVersion) bool {
 // tweakables even when the effective version is retained.
 func (s *scheduler) determineVersion(defaultVersion SchedulerWorkflowVersion) (SchedulerWorkflowVersion, int) {
 	ceiling := s.versionCeiling()
-	// Warn for a newly observed ceiling or a changed value. hasLastVersionCeiling distinguishes
-	// the initial observation from a valid ceiling of zero, which is the field's zero value.
-	if ceiling != s.lastVersionCeiling || !s.hasLastVersionCeiling {
-		if ceiling > int(defaultVersion) {
-			s.logger.Warn("worker.schedulerV1VersionCeiling above the version this binary records; no effect",
-				"ceiling", ceiling, "recordedVersion", defaultVersion)
-		}
-		s.lastVersionCeiling = ceiling
-		s.hasLastVersionCeiling = true
+	if shouldWarnForVersionCeiling(s.tweakables, defaultVersion, ceiling) {
+		s.logger.Warn("worker.schedulerV1VersionCeiling above the version this binary records; no effect",
+			"ceiling", ceiling, "recordedVersion", defaultVersion)
 	}
 	override := -1
 	if s.versionOverride != nil {
@@ -1913,6 +1908,10 @@ func (s *scheduler) determineVersion(defaultVersion SchedulerWorkflowVersion) (S
 	}
 
 	return determineVersionTransition(defaultVersion, s.tweakables.Version, ceiling, override)
+}
+
+func shouldWarnForVersionCeiling(tweakables TweakablePolicies, defaultVersion SchedulerWorkflowVersion, ceiling int) bool {
+	return ceiling > int(defaultVersion) && (!tweakables.VersionCeilingSet || ceiling != tweakables.VersionCeiling)
 }
 
 // determineVersionTransition applies the ceiling and eligible override, then retains
