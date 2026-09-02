@@ -121,7 +121,7 @@ func TestDetermineVersionTransitions(t *testing.T) {
 	}
 }
 
-func TestDetermineVersionTransitionCeilingTruthTable(t *testing.T) {
+func TestDetermineVersionTransitionCeilingMatrix(t *testing.T) {
 	var table struct {
 		TestCases []struct {
 			DefaultVersion  SchedulerWorkflowVersion `json:"defaultVersion"`
@@ -135,7 +135,7 @@ func TestDetermineVersionTransitionCeilingTruthTable(t *testing.T) {
 		} `json:"testCases"`
 	}
 
-	data, err := os.ReadFile(filepath.Join("testdata", "version_ceiling_truth_table.json"))
+	data, err := os.ReadFile(filepath.Join("testdata", "version_ceiling_matrix.json"))
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(data, &table))
 	require.NotEmpty(t, table.TestCases)
@@ -151,7 +151,7 @@ func TestDetermineVersionTransitionCeilingTruthTable(t *testing.T) {
 	}
 }
 
-func TestDetermineVersionTransitionOverrideTruthTable(t *testing.T) {
+func TestDetermineVersionTransitionOverrideMatrix(t *testing.T) {
 	var table struct {
 		TestCases []struct {
 			DefaultVersion  SchedulerWorkflowVersion `json:"defaultVersion"`
@@ -167,7 +167,7 @@ func TestDetermineVersionTransitionOverrideTruthTable(t *testing.T) {
 		} `json:"testCases"`
 	}
 
-	data, err := os.ReadFile(filepath.Join("testdata", "version_override_truth_table.json"))
+	data, err := os.ReadFile(filepath.Join("testdata", "version_override_matrix.json"))
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(data, &table))
 	require.NotEmpty(t, table.TestCases)
