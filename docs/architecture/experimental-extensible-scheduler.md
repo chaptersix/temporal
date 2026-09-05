@@ -46,8 +46,8 @@ The linked dependency revisions are:
 
 | Checkout | Revision | Branch |
 | --- | --- | --- |
-| API | `181d052558a750032a1b95de96961ba9987e00fe` | `experiment/saa-scheduler-api` |
-| Generated API | `2938c7453bd7ea9add85dd8a5294d0c1ba464d3c` | `experiment/saa-scheduler-generated` |
+| API | `40766d34ea6c0d2e59c100c1cf20cdf4fb286fe4` | `experiment/saa-scheduler-api` |
+| Generated API | `5fd10bc0a6cd7694373353cf6e00a0886a0b8167` | `experiment/saa-scheduler-generated` |
 | SDK | `a6bed7c8ed3c4b90c467f003571c98b44ea8785b` | `experiment/saa-scheduler-sdk` |
 
 The generated API checkout is the `api-go` module at the generated revision;
@@ -248,7 +248,8 @@ remain unchanged.
 
 The runnable example completed with workflow and activity results,
 `temporal.buffer_latest` overlap skips, native activity termination, and schedule
-cleanup. Public API `buf lint` and server `make proto GO_API_VER=v1.63.5` passed.
+cleanup. Public API `make api-linter`, `buf lint`, and `make http-api-docs`, plus server
+`make proto GO_API_VER=v1.63.5`, passed.
 
 Planning uses detached snapshots and bounded buffers. Execution reconciliation
 matches stable occurrence identity and retry state; a selected start reserves
