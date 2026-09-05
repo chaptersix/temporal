@@ -4,6 +4,7 @@ import (
 	enumspb "go.temporal.io/api/enums/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/lib/scheduler/internal"
 	"go.temporal.io/server/common/util"
 	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 )
@@ -15,6 +16,12 @@ func (h *InvokerProcessBufferTaskHandler) processBufferLegacy(
 ) (result processBufferResult) {
 	runningWorkflows := invoker.runningWorkflowExecutions()
 	isRunning := len(runningWorkflows) > 0
+	// A selected start owns the overlap slot while its start RPC is in flight.
+	for _, start := range invoker.BufferedStarts {
+		if start.Attempt > 0 && !internal.IsCompleted(start) && internal.TracksExecution(start) {
+			isRunning = true
+		}
+	}
 	result.missedCatchupByActionRunning = make(map[bool]int64)
 
 	// Processing ignores starts that are already executing or backing off. An existing
@@ -48,7 +55,7 @@ func (h *InvokerProcessBufferTaskHandler) processBufferLegacy(
 	// checked before consumeScheduledAction so that a start past its catchup
 	// window doesn't consume a LimitedActions slot.
 	for _, start := range readyStarts {
-		deadline := h.startWorkflowDeadline(ctx, scheduler, start)
+		deadline := h.startActionDeadline(ctx, scheduler, start)
 		if ctx.Now(invoker).After(deadline) {
 			// Action was buffered in time but expired before execution
 			// (e.g., due to overlap deferral, retries, or system delay).
@@ -78,7 +85,7 @@ func (h *InvokerProcessBufferTaskHandler) processBufferLegacy(
 		}
 
 		keepStarts[start] = struct{}{}
-		result.startWorkflows = append(result.startWorkflows, start)
+		result.startActions = append(result.startActions, start)
 	}
 
 	result.discardStarts = util.FilterSlice(pendingBufferedStarts, func(start *schedulespb.BufferedStart) bool {
@@ -88,9 +95,9 @@ func (h *InvokerProcessBufferTaskHandler) processBufferLegacy(
 
 	// Terminate overrides cancel if both are requested.
 	if action.NeedTerminate {
-		result.terminateWorkflows = runningWorkflows
+		result.terminateExecutions = workflowExecutions(runningWorkflows)
 	} else if action.NeedCancel {
-		result.cancelWorkflows = runningWorkflows
+		result.cancelExecutions = workflowExecutions(runningWorkflows)
 	}
 
 	return

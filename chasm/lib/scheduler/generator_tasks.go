@@ -101,7 +101,7 @@ func (g *GeneratorTaskHandler) Execute(
 		scheduler,
 		t1, t2,
 		scheduler.overlapPolicy(),
-		scheduler.WorkflowID(),
+		scheduler.targetIDBase(),
 		"",
 		false,
 		limit,

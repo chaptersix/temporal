@@ -36,7 +36,7 @@ func TestPlanBufferProcessing_OverlapPolicies(t *testing.T) {
 					ActualTime:    now,
 					DesiredTime:   now,
 				}},
-				RunningWorkflows:     []WorkflowExecutionSnapshot{{WorkflowID: "running", RunID: "run"}},
+				RunningExecutions:    []ExecutionSnapshot{{TargetID: "running", RunID: "run"}},
 				DefaultOverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
 				CatchupWindow:        time.Hour,
 				MinimumCatchupWindow: 5 * time.Second,
@@ -47,8 +47,8 @@ func TestPlanBufferProcessing_OverlapPolicies(t *testing.T) {
 			require.Len(t, plan.Decisions, 1)
 			require.Equal(t, test.action, plan.Decisions[0].Action)
 			require.Equal(t, test.reason, plan.Decisions[0].Reason)
-			require.Len(t, plan.CancelWorkflows, test.cancelCount)
-			require.Len(t, plan.TerminateWorkflows, test.terminateCount)
+			require.Len(t, plan.CancelExecutions, test.cancelCount)
+			require.Len(t, plan.TerminateExecutions, test.terminateCount)
 			require.Equal(t, test.overlapSkipped, plan.OverlapSkipped)
 		})
 	}
@@ -165,10 +165,10 @@ func TestPlanBufferProcessing_BufferOneDoesNotMergeDuplicateRequestIDs(t *testin
 	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
 	snapshot := BufferProcessingSnapshot{
 		Starts: []BufferedStartSnapshot{
-			{RequestID: "duplicate", WorkflowID: "first", Attempt: bufferedStartDeferredAttempt, OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE, ActualTime: now},
-			{RequestID: "duplicate", WorkflowID: "second", Attempt: bufferedStartDeferredAttempt, OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE, ActualTime: now},
+			{RequestID: "duplicate", TargetID: "first", Attempt: bufferedStartDeferredAttempt, OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE, ActualTime: now},
+			{RequestID: "duplicate", TargetID: "second", Attempt: bufferedStartDeferredAttempt, OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE, ActualTime: now},
 		},
-		RunningWorkflows:     []WorkflowExecutionSnapshot{{WorkflowID: "running", RunID: "run"}},
+		RunningExecutions:    []ExecutionSnapshot{{TargetID: "running", RunID: "run"}},
 		DefaultOverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
 		CatchupWindow:        time.Hour,
 		MinimumCatchupWindow: time.Second,

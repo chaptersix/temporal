@@ -101,7 +101,7 @@ func TestExecuteTask_SharedBudgetStopsBeforeStarts(t *testing.T) {
 	require.Equal(t, "none", reason)
 }
 
-func TestExecuteTask_CommitInvalidatesChangedLoadedStart(t *testing.T) {
+func TestExecuteTask_CommitMergesCompletionBeforeStartAcknowledgment(t *testing.T) {
 	env := newInvokerExecuteTestEnv(t)
 	ctx := env.MutableContext()
 	invoker := env.Scheduler.Invoker.Get(ctx)
@@ -134,10 +134,10 @@ func TestExecuteTask_CommitInvalidatesChangedLoadedStart(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, env.CloseTransaction())
 
-	require.Empty(t, invoker.BufferedStarts[0].GetRunId())
+	require.Equal(t, "loaded-run", invoker.BufferedStarts[0].GetRunId())
 	require.Equal(t, completed, invoker.BufferedStarts[0].GetCompleted())
-	require.Zero(t, env.Scheduler.Info.ActionCount)
-	require.True(t, executeTaskScheduled)
+	require.EqualValues(t, 1, env.Scheduler.Info.ActionCount)
+	require.False(t, executeTaskScheduled)
 }
 
 func TestExecuteTask_CommitInvalidatesChangedWorkflowTarget(t *testing.T) {

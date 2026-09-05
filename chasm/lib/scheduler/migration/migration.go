@@ -289,7 +289,7 @@ func convertBufferedStartsLegacyToCHASM(
 		}
 
 		if v2Start.WorkflowId == "" {
-			v2Start.WorkflowId = schedulerinternal.GenerateWorkflowID(
+			v2Start.WorkflowId = schedulerinternal.GenerateTimestampTargetID(
 				baseWorkflowID,
 				v1Start.GetNominalTime().AsTime(),
 			)
@@ -331,12 +331,10 @@ func convertRunningWorkflowsToBufferedStarts(
 
 	bufferedStarts := make([]*schedulespb.BufferedStart, len(runningWorkflows))
 	for i, wf := range runningWorkflows {
-		bufferedStarts[i] = &schedulespb.BufferedStart{
+		start := &schedulespb.BufferedStart{
 			NominalTime: timestamppb.New(migrationTime),
 			ActualTime:  timestamppb.New(migrationTime),
-			StartTime:   timestamppb.New(migrationTime),
 			WorkflowId:  wf.WorkflowId,
-			RunId:       wf.RunId,
 			// RequestId will be used with AttachRequestID to register Nexus
 			// callbacks for tracking workflow completion after migration.
 			// Include the RunId in the tag to ensure each running workflow
@@ -350,12 +348,13 @@ func convertRunningWorkflowsToBufferedStarts(
 				migrationTime,
 				migrationTime,
 			),
-			Attempt:   1,
-			Completed: nil,
 			// Migrated running workflows must have a Nexus callback attached once the
 			// migrated schedule target has been created.
 			HasCallback: false,
 		}
+		schedulerinternal.MarkStartReady(start)
+		schedulerinternal.MarkStartStarted(start, wf.RunId, timestamppb.New(migrationTime))
+		bufferedStarts[i] = start
 	}
 
 	return bufferedStarts
@@ -400,12 +399,10 @@ func convertRecentActionsToBufferedStarts(
 			continue
 		}
 
-		bufferedStarts = append(bufferedStarts, &schedulespb.BufferedStart{
+		start := &schedulespb.BufferedStart{
 			NominalTime: action.ScheduleTime,
 			ActualTime:  action.ActualTime,
-			StartTime:   action.ActualTime,
 			WorkflowId:  action.StartWorkflowResult.WorkflowId,
-			RunId:       action.StartWorkflowResult.RunId,
 			RequestId: schedulerinternal.GenerateRequestID(
 				namespaceID,
 				scheduleID,
@@ -414,12 +411,14 @@ func convertRecentActionsToBufferedStarts(
 				action.ScheduleTime.AsTime(),
 				action.ActualTime.AsTime(),
 			),
-			Attempt: 1,
-			Completed: &schedulespb.CompletedResult{
-				Status:    action.StartWorkflowStatus,
-				CloseTime: timestamppb.New(migrationTime),
-			},
+		}
+		schedulerinternal.MarkStartReady(start)
+		schedulerinternal.MarkStartStarted(start, action.StartWorkflowResult.RunId, action.ActualTime)
+		schedulerinternal.MarkStartCompleted(start, &schedulespb.CompletedResult{
+			Status:    action.StartWorkflowStatus,
+			CloseTime: timestamppb.New(migrationTime),
 		})
+		bufferedStarts = append(bufferedStarts, start)
 	}
 
 	return bufferedStarts

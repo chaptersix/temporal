@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	schedulepb "go.temporal.io/api/schedule/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
-	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/metrics"
@@ -191,7 +191,7 @@ func (b *BackfillerTaskHandler) processBackfill(
 		startTime,
 		endTime,
 		request.GetOverlapPolicy(),
-		scheduler.WorkflowID(),
+		scheduler.targetIDBase(),
 		backfiller.GetBackfillId(),
 		true,
 		&limit,
@@ -209,6 +209,17 @@ func (b *BackfillerTaskHandler) processBackfill(
 		result.LastProcessedTime = specResult.LastActionTime
 	}
 	result.BufferedStarts = specResult.BufferedStarts
+	policy, err := scheduler.resolvedPolicy(request.GetOverlapPolicy(), request.GetCustomOverlapPolicy())
+	if err != nil {
+		return result, err
+	}
+	for _, start := range result.BufferedStarts {
+		start.OverlapPolicy = policy.Builtin
+		start.CustomOverlapPolicy = nil
+		if policy.Custom != "" {
+			start.CustomOverlapPolicy = &schedulepb.CustomOverlapPolicy{Name: policy.Custom}
+		}
+	}
 
 	return
 }
@@ -234,7 +245,11 @@ func (b *BackfillerTaskHandler) processTrigger(
 	backfiller *Backfiller,
 ) (result backfillProgressResult, err error) {
 	request := backfiller.GetTriggerRequest()
-	overlapPolicy := scheduler.resolveOverlapPolicy(request.GetOverlapPolicy())
+	policy, err := scheduler.resolvedPolicy(request.GetOverlapPolicy(), request.GetCustomOverlapPolicy())
+	if err != nil {
+		return result, err
+	}
+	overlapPolicy := policy.Builtin
 
 	// Add a single manual start and mark the Backfiller as complete. For batch
 	// backfill requests, a deterministic start time is trivial as they follow the
@@ -244,7 +259,6 @@ func (b *BackfillerTaskHandler) processTrigger(
 	nowpb := backfiller.GetLastProcessedTime()
 	now := nowpb.AsTime()
 	requestID := generateRequestID(scheduler, backfiller.GetBackfillId(), now, now)
-	workflowID := schedulerinternal.GenerateWorkflowID(scheduler.WorkflowID(), now)
 	result.BufferedStarts = []*schedulespb.BufferedStart{
 		{
 			NominalTime:   nowpb,
@@ -253,8 +267,13 @@ func (b *BackfillerTaskHandler) processTrigger(
 			OverlapPolicy: overlapPolicy,
 			Manual:        true,
 			RequestId:     requestID,
-			WorkflowId:    workflowID,
 		},
+	}
+	for _, start := range result.BufferedStarts {
+		scheduler.newBufferedExecution(start, scheduler.targetIDBase())
+		if policy.Custom != "" {
+			start.CustomOverlapPolicy = &schedulepb.CustomOverlapPolicy{Name: policy.Custom}
+		}
 	}
 	result.Complete = true
 

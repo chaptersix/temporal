@@ -98,6 +98,9 @@ message InvokerState {
   google.protobuf.Timestamp last_processed_time = 5;
 
   reserved 6;
+  repeated temporal.api.common.v1.Execution cancel_executions = 7;
+  repeated temporal.api.common.v1.Execution terminate_executions = 8;
+  int64 next_occurrence = 9;
 }
 
 // CHASM scheduler's Backfiller internal state. Backfill requests are 1:1
