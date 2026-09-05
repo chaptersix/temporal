@@ -41,6 +41,7 @@ var (
 
 	SearchAttributeFieldInt01 = newSearchAttributeFieldInt(1)
 	SearchAttributeFieldInt02 = newSearchAttributeFieldInt(2)
+	SearchAttributeFieldInt03 = newSearchAttributeFieldInt(3)
 
 	SearchAttributeFieldDouble01 = newSearchAttributeFieldDouble(1)
 	SearchAttributeFieldDouble02 = newSearchAttributeFieldDouble(2)

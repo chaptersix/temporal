@@ -82,13 +82,19 @@ const ScheduleNextActionTimeName = "ScheduleNextActionTime"
 const ScheduleIdleCloseTimeName = "ScheduleIdleCloseTime"
 const ScheduleRunningWorkflowCountName = "ScheduleRunningWorkflowCount"
 const ScheduleBufferedStartsCountName = "ScheduleBufferedStartsCount"
+const ScheduleActionKindName = "ScheduleActionKind"
+const ScheduleActionTypeName = "ScheduleActionType"
+const ScheduleRunningExecutionCountName = "ScheduleRunningExecutionCount"
 
 var (
-	executionStatusSearchAttribute              = chasm.NewSearchAttributeKeyword("ExecutionStatus", chasm.SearchAttributeFieldLowCardinalityKeyword01)
-	scheduleNextActionTimeSearchAttribute       = chasm.NewSearchAttributeDateTime(ScheduleNextActionTimeName, chasm.SearchAttributeFieldDateTime01)
-	scheduleIdleCloseTimeSearchAttribute        = chasm.NewSearchAttributeDateTime(ScheduleIdleCloseTimeName, chasm.SearchAttributeFieldDateTime02)
-	scheduleRunningWorkflowCountSearchAttribute = chasm.NewSearchAttributeInt(ScheduleRunningWorkflowCountName, chasm.SearchAttributeFieldInt01)
-	scheduleBufferedStartsCountSearchAttribute  = chasm.NewSearchAttributeInt(ScheduleBufferedStartsCountName, chasm.SearchAttributeFieldInt02)
+	executionStatusSearchAttribute               = chasm.NewSearchAttributeKeyword("ExecutionStatus", chasm.SearchAttributeFieldLowCardinalityKeyword01)
+	scheduleNextActionTimeSearchAttribute        = chasm.NewSearchAttributeDateTime(ScheduleNextActionTimeName, chasm.SearchAttributeFieldDateTime01)
+	scheduleIdleCloseTimeSearchAttribute         = chasm.NewSearchAttributeDateTime(ScheduleIdleCloseTimeName, chasm.SearchAttributeFieldDateTime02)
+	scheduleRunningWorkflowCountSearchAttribute  = chasm.NewSearchAttributeInt(ScheduleRunningWorkflowCountName, chasm.SearchAttributeFieldInt01)
+	scheduleBufferedStartsCountSearchAttribute   = chasm.NewSearchAttributeInt(ScheduleBufferedStartsCountName, chasm.SearchAttributeFieldInt02)
+	scheduleActionKindSearchAttribute            = chasm.NewSearchAttributeKeyword(ScheduleActionKindName, chasm.SearchAttributeFieldKeyword02)
+	scheduleActionTypeSearchAttribute            = chasm.NewSearchAttributeKeyword(ScheduleActionTypeName, chasm.SearchAttributeFieldKeyword01)
+	scheduleRunningExecutionCountSearchAttribute = chasm.NewSearchAttributeInt(ScheduleRunningExecutionCountName, chasm.SearchAttributeFieldInt03)
 )
 
 var initialSerializedConflictToken = serializeConflictToken(scheduler.InitialConflictToken)
@@ -370,12 +376,18 @@ func (s *Scheduler) LifecycleState(ctx chasm.Context) chasm.LifecycleState {
 
 func (s *Scheduler) ContextMetadata(_ chasm.Context) map[string]string {
 	md := make(map[string]string, 2)
-	if wfType := s.Schedule.GetAction().GetStartWorkflow().GetWorkflowType().GetName(); wfType != "" {
-		md[contextutil.MetadataKeyWorkflowType] = wfType
+	metadata := s.actionMetadata()
+	typeKey, queueKey := contextutil.MetadataKeyWorkflowType, contextutil.MetadataKeyWorkflowTaskQueue
+	if metadata.Kind == enumspb.EXECUTION_TYPE_ACTIVITY {
+		typeKey, queueKey = contextutil.MetadataKeyStandaloneActivityType, contextutil.MetadataKeyStandaloneActivityTaskQueue
 	}
-	if tq := s.Schedule.GetAction().GetStartWorkflow().GetTaskQueue().GetName(); tq != "" {
-		md[contextutil.MetadataKeyWorkflowTaskQueue] = tq
+	if metadata.Type != "" {
+		md[typeKey] = metadata.Type
 	}
+	if metadata.TaskQueue != "" {
+		md[queueKey] = metadata.TaskQueue
+	}
+
 	if len(md) == 0 {
 		return nil
 	}
@@ -1136,6 +1148,8 @@ func (s *Scheduler) SearchAttributes(ctx chasm.Context) []chasm.SearchAttributeK
 	out := []chasm.SearchAttributeKeyValue{
 		executionStatusSearchAttribute.Value(s.executionStatus()),
 		chasm.SearchAttributeTemporalSchedulePaused.Value(s.Schedule.GetState().GetPaused()),
+		scheduleActionKindSearchAttribute.Value(s.actionMetadata().Kind.String()),
+		scheduleActionTypeSearchAttribute.Value(s.actionMetadata().Type),
 	}
 	if !s.Closed {
 		if gen := s.Generator.Get(ctx); len(gen.FutureActionTimes) > 0 {
@@ -1152,6 +1166,7 @@ func (s *Scheduler) SearchAttributes(ctx chasm.Context) []chasm.SearchAttributeK
 		// Emitted even when zero so that exact and range queries both work.
 		out = append(out,
 			scheduleRunningWorkflowCountSearchAttribute.Value(runningWorkflowCount),
+			scheduleRunningExecutionCountSearchAttribute.Value(int64(len(invoker.runningExecutions()))),
 			scheduleBufferedStartsCountSearchAttribute.Value(bufferedStartsCount),
 		)
 	}
@@ -1194,12 +1209,15 @@ func (s *Scheduler) ListInfo(
 	recentActions = util.SliceTail(recentActions, recentActionCountForList)
 
 	return &schedulepb.ScheduleListInfo{
-		Spec:              spec,
-		WorkflowType:      s.Schedule.Action.GetStartWorkflow().GetWorkflowType(),
-		Notes:             s.Schedule.State.Notes,
-		Paused:            s.Schedule.State.Paused,
-		RecentActions:     recentActions,
-		FutureActionTimes: generator.FutureActionTimes,
+		Spec:                  spec,
+		WorkflowType:          s.Schedule.Action.GetStartWorkflow().GetWorkflowType(),
+		ActionKind:            s.actionMetadata().Kind,
+		ActionType:            s.actionMetadata().Type,
+		RunningExecutionCount: int64(len(s.Invoker.Get(ctx).runningExecutions())),
+		Notes:                 s.Schedule.State.Notes,
+		Paused:                s.Schedule.State.Paused,
+		RecentActions:         recentActions,
+		FutureActionTimes:     generator.FutureActionTimes,
 	}
 }
 

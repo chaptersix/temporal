@@ -47,7 +47,7 @@ func (activityAction) Start(ctx context.Context, clients actionClients, input ac
 		ScheduleToCloseTimeout: spec.ScheduleToCloseTimeout, ScheduleToStartTimeout: spec.ScheduleToStartTimeout,
 		StartToCloseTimeout: spec.StartToCloseTimeout, HeartbeatTimeout: spec.HeartbeatTimeout, RetryPolicy: spec.RetryPolicy,
 		Input: spec.Input, IdReusePolicy: reuse, IdConflictPolicy: enumspb.ACTIVITY_ID_CONFLICT_POLICY_FAIL,
-		SearchAttributes: spec.SearchAttributes, Header: spec.Header,
+		SearchAttributes: scheduler.startActionSearchAttributes(start.GetNominalTime().AsTime()), Header: spec.Header,
 		UserMetadata: spec.UserMetadata, Priority: spec.Priority, CompletionCallbacks: []*commonpb.Callback{input.Callback}, StartDelay: spec.StartDelay,
 	})
 	if err != nil {

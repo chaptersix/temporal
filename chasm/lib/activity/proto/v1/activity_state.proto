@@ -161,6 +161,10 @@ message ActivityState {
 
   // Used to de-dupe update requests.
   string last_update_options_request_id = 23;
+
+  // Scheduling metadata is stored separately from namespace-defined attributes.
+  string scheduled_by_id = 24;
+  google.protobuf.Timestamp scheduled_start_time = 25;
 }
 
 message ActivityCancelState {
