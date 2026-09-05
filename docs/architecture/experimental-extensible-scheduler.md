@@ -188,6 +188,16 @@ contain result payloads.
 
 ## Review boundaries
 
+The published draft layers are [source API](https://github.com/chaptersix/temporal-api/pull/4),
+[generated API-Go](https://github.com/chaptersix/api-go/pull/1),
+[action contracts](https://github.com/chaptersix/temporal/pull/59),
+[standalone activities](https://github.com/chaptersix/temporal/pull/60),
+[visibility](https://github.com/chaptersix/temporal/pull/61),
+[SDK](https://github.com/chaptersix/temporal-sdk-go/pull/1), and
+[integration coverage/example](https://github.com/chaptersix/temporal/pull/62).
+The server review base is `95d50ed2a8b406ed6ef7e13d558dbf544dd550d8`; the
+validated implementation is `f7f30fc4be01f16ac838f6106f47484643eb4a40`.
+
 This is an experimental linked stack. Keep the local work file and dependency
 pins reproducible, preserve published branches, and organize review layers
 around generic APIs/results, action and policy contracts, activity execution,
