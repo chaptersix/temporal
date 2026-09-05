@@ -3,6 +3,8 @@ package activity
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"time"
 
 	"github.com/nexus-rpc/sdk-go/nexus"
 	apiactivitypb "go.temporal.io/api/activity/v1" //nolint:importas
@@ -23,7 +25,9 @@ import (
 	"go.temporal.io/server/common/metrics"
 	commonnexus "go.temporal.io/server/common/nexus"
 	"go.temporal.io/server/common/nexus/nexusrpc"
+	"go.temporal.io/server/common/payload"
 	"go.temporal.io/server/common/retrypolicy"
+	"go.temporal.io/server/common/searchattribute/sadefs"
 	serviceerrors "go.temporal.io/server/common/serviceerror"
 	"go.temporal.io/server/service/history/consts"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -160,35 +164,56 @@ func NewStandaloneActivity(
 	ctx chasm.MutableContext,
 	request *workflowservice.StartActivityExecutionRequest,
 ) (*Activity, error) {
+	searchAttributes := maps.Clone(request.GetSearchAttributes().GetIndexedFields())
+	var scheduledByID string
+	if value := searchAttributes[sadefs.TemporalScheduledById]; value != nil {
+		if err := payload.Decode(value, &scheduledByID); err != nil {
+			return nil, fmt.Errorf("decode scheduled-by ID: %w", err)
+		}
+		delete(searchAttributes, sadefs.TemporalScheduledById)
+	}
+	var scheduledStartTime time.Time
+	if value := searchAttributes[sadefs.TemporalScheduledStartTime]; value != nil {
+		if err := payload.Decode(value, &scheduledStartTime); err != nil {
+			return nil, fmt.Errorf("decode scheduled start time: %w", err)
+		}
+		delete(searchAttributes, sadefs.TemporalScheduledStartTime)
+	}
 	visibility := chasm.NewVisibilityWithData(
 		ctx,
-		request.GetSearchAttributes().GetIndexedFields(),
+		searchAttributes,
 		nil,
 	)
 
-	activity := &Activity{
-		ActivityState: &activitypb.ActivityState{
-			ActivityType:           request.ActivityType,
-			TaskQueue:              request.GetTaskQueue(),
-			ScheduleToCloseTimeout: request.GetScheduleToCloseTimeout(),
-			ScheduleToStartTimeout: request.GetScheduleToStartTimeout(),
-			StartToCloseTimeout:    request.GetStartToCloseTimeout(),
-			HeartbeatTimeout:       request.GetHeartbeatTimeout(),
-			RetryPolicy:            request.GetRetryPolicy(),
-			Priority:               request.Priority,
-			StartDelay:             request.GetStartDelay(),
-			OriginalOptions: &apiactivitypb.ActivityOptions{
-				TaskQueue:              common.CloneProto(request.GetTaskQueue()),
-				ScheduleToCloseTimeout: common.CloneProto(request.GetScheduleToCloseTimeout()),
-				ScheduleToStartTimeout: common.CloneProto(request.GetScheduleToStartTimeout()),
-				StartToCloseTimeout:    common.CloneProto(request.GetStartToCloseTimeout()),
-				HeartbeatTimeout:       common.CloneProto(request.GetHeartbeatTimeout()),
-				RetryPolicy:            common.CloneProto(request.GetRetryPolicy()),
-				Priority:               common.CloneProto(request.GetPriority()),
-				StartDelay:             common.CloneProto(request.GetStartDelay()),
-			},
+	state := &activitypb.ActivityState{
+		ActivityType:           request.ActivityType,
+		TaskQueue:              request.GetTaskQueue(),
+		ScheduleToCloseTimeout: request.GetScheduleToCloseTimeout(),
+		ScheduleToStartTimeout: request.GetScheduleToStartTimeout(),
+		StartToCloseTimeout:    request.GetStartToCloseTimeout(),
+		HeartbeatTimeout:       request.GetHeartbeatTimeout(),
+		RetryPolicy:            request.GetRetryPolicy(),
+		Priority:               request.Priority,
+		StartDelay:             request.GetStartDelay(),
+		OriginalOptions: &apiactivitypb.ActivityOptions{
+			TaskQueue:              common.CloneProto(request.GetTaskQueue()),
+			ScheduleToCloseTimeout: common.CloneProto(request.GetScheduleToCloseTimeout()),
+			ScheduleToStartTimeout: common.CloneProto(request.GetScheduleToStartTimeout()),
+			StartToCloseTimeout:    common.CloneProto(request.GetStartToCloseTimeout()),
+			HeartbeatTimeout:       common.CloneProto(request.GetHeartbeatTimeout()),
+			RetryPolicy:            common.CloneProto(request.GetRetryPolicy()),
+			Priority:               common.CloneProto(request.GetPriority()),
+			StartDelay:             common.CloneProto(request.GetStartDelay()),
 		},
-		LastAttempt: chasm.NewDataField(ctx, &activitypb.ActivityAttemptState{}),
+	}
+	state.ScheduledById = scheduledByID
+	if !scheduledStartTime.IsZero() {
+		state.ScheduledStartTime = timestamppb.New(scheduledStartTime)
+	}
+
+	activity := &Activity{
+		ActivityState: state,
+		LastAttempt:   chasm.NewDataField(ctx, &activitypb.ActivityAttemptState{}),
 		RequestData: chasm.NewDataField(ctx, &activitypb.ActivityRequestData{
 			Input:  request.Input,
 			Header: request.Header,
@@ -700,10 +725,17 @@ func (a *Activity) validateActivityTaskToken(
 // SearchAttributes implements chasm.VisibilitySearchAttributesProvider interface.
 // Returns the current search attribute values for this activity execution.
 func (a *Activity) SearchAttributes(_ chasm.Context) []chasm.SearchAttributeKeyValue {
-	return []chasm.SearchAttributeKeyValue{
+	attributes := []chasm.SearchAttributeKeyValue{
 		TypeSearchAttribute.Value(a.GetActivityType().GetName()),
 		StatusSearchAttribute.Value(InternalStatusToAPIStatus(a.GetStatus()).String()),
 		chasm.SearchAttributeTaskQueue.Value(a.GetTaskQueue().GetName()),
 		chasm.SearchAttributeExecutionTime.Value(a.firstDispatchTime()),
 	}
+	if a.GetScheduledById() != "" {
+		attributes = append(attributes, chasm.SearchAttributeTemporalScheduledByID.Value(a.GetScheduledById()))
+	}
+	if scheduledStartTime := a.GetScheduledStartTime(); scheduledStartTime != nil {
+		attributes = append(attributes, chasm.SearchAttributeTemporalScheduledStartTime.Value(scheduledStartTime.AsTime()))
+	}
+	return attributes
 }

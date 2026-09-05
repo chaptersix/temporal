@@ -72,6 +72,35 @@ func TestSearchAttributesIncludesExecutionTime(t *testing.T) {
 	}
 }
 
+func TestNewStandaloneActivity_ExtractsScheduledMetadata(t *testing.T) {
+	now := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	ctx := &chasm.MockMutableContext{MockContext: chasm.MockContext{
+		HandleNow: func(chasm.Component) time.Time { return now },
+	}}
+	activity, err := NewStandaloneActivity(ctx, &workflowservice.StartActivityExecutionRequest{
+		Namespace:           "ns",
+		ActivityId:          "act",
+		ActivityType:        &commonpb.ActivityType{Name: "T"},
+		TaskQueue:           &taskqueuepb.TaskQueue{Name: "tq"},
+		StartToCloseTimeout: durationpb.New(time.Minute),
+		SearchAttributes: &commonpb.SearchAttributes{IndexedFields: map[string]*commonpb.Payload{
+			sadefs.TemporalScheduledById: chasm.SearchAttributeTemporalScheduledByID.Value("schedule-id").Value.MustEncode(),
+			sadefs.TemporalScheduledStartTime: chasm.SearchAttributeTemporalScheduledStartTime.Value(now).
+				Value.MustEncode(),
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "schedule-id", activity.GetScheduledById())
+	require.Equal(t, now, activity.GetScheduledStartTime().AsTime())
+
+	attributes := make(map[string]any)
+	for _, attribute := range activity.SearchAttributes(ctx) {
+		attributes[attribute.Field] = attribute.Value.Value()
+	}
+	require.Equal(t, "schedule-id", attributes[sadefs.TemporalScheduledById])
+	require.Equal(t, now, attributes[sadefs.TemporalScheduledStartTime])
+}
+
 func TestHandleStarted(t *testing.T) {
 	testTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	testRequestID := "test-request-id"
