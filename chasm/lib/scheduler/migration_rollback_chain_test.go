@@ -36,10 +36,16 @@ func (e *rollbackReceiptFaultEngine) UpdateComponent(ctx context.Context, ref ch
 }
 
 func TestRollbackChainOwnership(t *testing.T) {
-	for _, scenario := range []string{"owned_current", "owned_descendant", "foreign_chain", "first_run_removed", "response_loss", "source_close_loss", "receipt_response_loss"} {
+	for _, scenario := range []string{"owned_current", "owned_descendant", "foreign_chain", "first_run_removed", "response_loss", "source_close_loss", "receipt_response_loss", "closed_descendant"} {
 		t.Run(scenario, func(t *testing.T) {
 			e, handler, history := newRollbackScenario(t)
 			engine := &rollbackReceiptFaultEngine{Engine: e.engine, armed: scenario == "source_close_loss" || scenario == "receipt_response_loss", afterCommit: scenario == "receipt_response_loss"}
+			if scenario == "closed_descendant" {
+				require.NoError(t, e.updateScheduler(func(s *scheduler.Scheduler, _ chasm.MutableContext) error {
+					s.WorkflowMigration.StartPending = false
+					return nil
+				}))
+			}
 			if scenario == "source_close_loss" {
 				engine.skip = 2
 			}
@@ -58,7 +64,7 @@ func TestRollbackChainOwnership(t *testing.T) {
 				if scenario == "owned_current" {
 					owner, run = "rollback", "first-run"
 				}
-				if scenario != "response_loss" {
+				if scenario != "response_loss" && scenario != "closed_descendant" {
 					history.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, serviceerror.NewWorkflowExecutionAlreadyStarted("collision", owner, run)).Times(1)
 				} else {
 					run = ""
