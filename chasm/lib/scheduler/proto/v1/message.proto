@@ -71,6 +71,12 @@ message WorkflowMigrationState {
 
   // Stable request ID used to start and reconcile the destination workflow.
   string request_id = 3;
+
+  // Durable acceptance receipt; prevents recreating a destination after it closes.
+  string destination_first_run_id = 4;
+
+  // Consumed durably before the only destination start attempt. Missing means reconcile only.
+  bool start_pending = 5;
 }
 
 // CHASM scheduler's Generator internal state.
