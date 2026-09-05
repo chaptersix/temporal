@@ -2,7 +2,6 @@ package scheduler_test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -19,10 +18,7 @@ func TestBackfillCapacityNativeControl(t *testing.T) {
 	testBackfillCapacityProgress(t, 450)
 }
 
-func TestBackfillCapacityCounterexample(t *testing.T) {
-	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") != "1" {
-		t.Skip("set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1")
-	}
+func TestBackfillCapacityProgress(t *testing.T) {
 	for _, n := range []int{451, 1000} {
 		t.Run(fmt.Sprint(n), func(t *testing.T) { testBackfillCapacityProgress(t, n) })
 	}
