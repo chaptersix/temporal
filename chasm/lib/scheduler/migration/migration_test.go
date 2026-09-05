@@ -48,6 +48,8 @@ func TestLegacyToCreateFromMigrationStateRequest(t *testing.T) {
 				NominalTime:   timestamppb.New(now),
 				ActualTime:    timestamppb.New(now.Add(time.Second)),
 				OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+				Attempt:       3,
+				BackoffTime:   timestamppb.New(now.Add(time.Minute)),
 			},
 		},
 		OngoingBackfills: []*schedulepb.BackfillRequest{
@@ -110,15 +112,21 @@ func TestLegacyToCreateFromMigrationStateRequest(t *testing.T) {
 		switch {
 		case start.RunId == "" && start.Completed == nil:
 			buffered++
+			require.Zero(t, start.Attempt)
+			require.Nil(t, start.BackoffTime)
 		case start.RunId != "" && start.Completed == nil:
 			running++
 			require.Equal(t, "wf-1", start.WorkflowId)
 			require.Equal(t, "run-1", start.RunId)
+			require.Equal(t, int64(1), start.Attempt)
+			require.Equal(t, now, start.StartTime.AsTime())
 			require.False(t, start.HasCallback)
 		case start.Completed != nil:
 			completed++
 			require.Equal(t, "wf-2", start.WorkflowId)
 			require.Equal(t, "run-2", start.RunId)
+			require.Equal(t, int64(1), start.Attempt)
+			require.Equal(t, now.Add(-time.Millisecond), start.StartTime.AsTime())
 			require.Equal(t, enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED, start.Completed.Status)
 		default:
 			t.Fatalf("unexpected buffered start state: RunId=%q, Completed=%v", start.RunId, start.Completed)

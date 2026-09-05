@@ -304,8 +304,7 @@ func convertBufferedStartsLegacyToCHASM(
 			}
 		}
 
-		v2Start.Attempt = 0
-		v2Start.BackoffTime = nil
+		schedulerinternal.MarkStartMigratedUnprocessed(v2Start)
 		v2Start.OverlapPolicy = schedulerinternal.ResolveOverlapPolicy(
 			v2Start.GetOverlapPolicy(),
 			scheduleOverlapPolicy,

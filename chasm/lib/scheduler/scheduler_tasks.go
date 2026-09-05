@@ -16,6 +16,7 @@ import (
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
+	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
@@ -216,7 +217,7 @@ func (r *SchedulerCallbacksTaskHandler) Execute(
 				if result, ok := results[start.RequestId]; ok {
 					start.HasCallback = true
 					if result.completed != nil {
-						start.Completed = result.completed
+						schedulerinternal.MarkStartCompleted(start, result.completed)
 					}
 				}
 			}

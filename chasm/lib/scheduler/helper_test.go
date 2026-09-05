@@ -20,6 +20,7 @@ import (
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/testing/mockapi/workflowservicemock/v1"
 	"go.temporal.io/server/common/testing/testlogger"
 	"go.temporal.io/server/common/testing/testvars"
 	"go.temporal.io/server/service/history/tasks"
@@ -92,7 +93,11 @@ func defaultConfig() *scheduler.Config {
 	}
 }
 
-func newTestLibrary(logger log.Logger, specProcessor scheduler.SpecProcessor) *scheduler.Library {
+func newTestLibrary(
+	logger log.Logger,
+	specProcessor scheduler.SpecProcessor,
+	frontendClient workflowservice.WorkflowServiceClient,
+) *scheduler.Library {
 	config := defaultConfig()
 	specBuilder := newLegacySpecBuilder(0, 0)
 	invokerOpts := scheduler.InvokerTaskHandlerOptions{
@@ -100,6 +105,7 @@ func newTestLibrary(logger log.Logger, specProcessor scheduler.SpecProcessor) *s
 		MetricsHandler: metrics.NoopMetricsHandler,
 		BaseLogger:     logger,
 		SpecProcessor:  specProcessor,
+		FrontendClient: frontendClient,
 	}
 	return scheduler.NewLibrary(
 		config,
@@ -137,19 +143,16 @@ func newTestLibrary(logger log.Logger, specProcessor scheduler.SpecProcessor) *s
 
 // testEnv holds all components needed for scheduler tests.
 type testEnv struct {
-	t             *testing.T
-	Ctrl          *gomock.Controller
-	Registry      *chasm.Registry
-	Node          *chasm.Node
-	NodeBackend   *chasm.MockNodeBackend
-	TimeSource    *clock.EventTimeSource
-	Scheduler     *scheduler.Scheduler
-	SpecProcessor scheduler.SpecProcessor
-	MockEngine    *chasm.MockEngine
-	Logger        log.Logger
-
-	// allowStuckReason, when non-empty, suppresses the stuckness invariant
-	// asserted by CloseTransaction. See AllowStuck.
+	t                *testing.T
+	Ctrl             *gomock.Controller
+	Registry         *chasm.Registry
+	Node             *chasm.Node
+	NodeBackend      *chasm.MockNodeBackend
+	TimeSource       *clock.EventTimeSource
+	Scheduler        *scheduler.Scheduler
+	SpecProcessor    scheduler.SpecProcessor
+	MockEngine       *chasm.MockEngine
+	Logger           log.Logger
 	allowStuckReason string
 }
 
@@ -179,18 +182,10 @@ func withMockEngine() testEnvOption {
 	}
 }
 
-// withSchedule overrides defaultSchedule(), for tests that need a spec other
-// than the package default 1-minute interval (e.g. an exhausted spec, which is
-// what drives the Generator into its idle branch).
 func withSchedule(schedule *schedulepb.Schedule) testEnvOption {
-	return func(c *testEnvConfig) {
-		c.schedule = schedule
-	}
+	return func(c *testEnvConfig) { c.schedule = schedule }
 }
 
-// expiredSchedule returns a schedule whose spec has already ended, so the
-// Generator finds no next wakeup and takes its idle branch. This is the shape
-// of a real schedule that has run to the end of its subscription window.
 func expiredSchedule(now time.Time) *schedulepb.Schedule {
 	schedule := defaultSchedule()
 	schedule.Spec.StartTime = timestamppb.New(now.Add(-2 * time.Hour))
@@ -215,9 +210,10 @@ func newRealSpecProcessor(ctrl *gomock.Controller, logger log.Logger) scheduler.
 
 // engineTestConfig holds configuration options for newTestEngineContext.
 type engineTestConfig struct {
-	specProcessor scheduler.SpecProcessor
-	timeSource    *clock.EventTimeSource
-	engineOpts    []chasmtest.EngineOption
+	specProcessor  scheduler.SpecProcessor
+	frontendClient workflowservice.WorkflowServiceClient
+	timeSource     *clock.EventTimeSource
+	engineOpts     []chasmtest.EngineOption
 }
 
 // engineTestOption is a functional option for configuring newTestEngineContext.
@@ -228,6 +224,12 @@ type engineTestOption func(*engineTestConfig)
 func withEngineSpecProcessor(sp scheduler.SpecProcessor) engineTestOption {
 	return func(c *engineTestConfig) {
 		c.specProcessor = sp
+	}
+}
+
+func withEngineFrontendClient(frontendClient workflowservice.WorkflowServiceClient) engineTestOption {
+	return func(c *engineTestConfig) {
+		c.frontendClient = frontendClient
 	}
 }
 
@@ -246,48 +248,6 @@ func withEngineMetricsHandler(handler metrics.Handler) engineTestOption {
 	}
 }
 
-func newEngineTestConfig(opts ...engineTestOption) *engineTestConfig {
-	config := &engineTestConfig{}
-	for _, opt := range opts {
-		opt(config)
-	}
-	return config
-}
-
-// newTestEngineContext builds a CHASM registry with the core and scheduler
-// libraries registered, wraps it in a chasmtest.Engine, and returns the
-// engine along with an engine-bound context ready for chasm.StartExecution /
-// ReadComponent / etc.
-func newTestEngineContext(t *testing.T, logger log.Logger, opts ...engineTestOption) (*chasmtest.Engine, context.Context) {
-	return newTestEngineContextFromConfig(t, logger, newEngineTestConfig(opts...))
-}
-
-func newTestEngineContextFromConfig(
-	t *testing.T,
-	logger log.Logger,
-	config *engineTestConfig,
-) (*chasmtest.Engine, context.Context) {
-	specProcessor := config.specProcessor
-	if specProcessor == nil {
-		specProcessor = newRealSpecProcessor(gomock.NewController(t), logger)
-	}
-
-	registry := chasm.NewRegistry(logger)
-	require.NoError(t, registry.Register(&chasm.CoreLibrary{}))
-	require.NoError(t, registry.Register(newTestLibrary(logger, specProcessor)))
-
-	config.engineOpts = append(config.engineOpts, chasmtest.WithInvariantCheck(
-		func(t *testing.T, node *chasm.Node, root chasm.RootComponent) {
-			requireValidSchedulerState(t, registry, node, root)
-		},
-	))
-	engine := chasmtest.NewEngine(t, registry, config.engineOpts...)
-	return engine, chasm.NewEngineContext(context.Background(), engine)
-}
-
-// schedulerTestEngine bundles a CHASM test engine, a created Scheduler root
-// component, and convenience accessors, for tests that drive a Scheduler
-// through its actual task handlers rather than the newTestEnv rapid harness.
 type schedulerTestEngine struct {
 	engine     *chasmtest.Engine
 	engineCtx  context.Context
@@ -296,10 +256,6 @@ type schedulerTestEngine struct {
 	timeSource *clock.EventTimeSource
 }
 
-// newSchedulerTestEngine builds a schedulerTestEngine and creates a schedule
-// on it via the real CreateSchedule handler path. If no time source is
-// supplied via withEngineTimeSource, a controllable one is created and
-// wired in automatically.
 func newSchedulerTestEngine(
 	t *testing.T,
 	schedule *schedulepb.Schedule,
@@ -338,8 +294,6 @@ func newSchedulerTestEngine(
 	}
 }
 
-// updateScheduler runs update against the Scheduler root component through
-// the engine's UpdateComponent path.
 func (e *schedulerTestEngine) updateScheduler(
 	update func(*scheduler.Scheduler, chasm.MutableContext) error,
 ) error {
@@ -354,8 +308,6 @@ func (e *schedulerTestEngine) updateScheduler(
 	return err
 }
 
-// readScheduler runs read against the Scheduler root component through the
-// engine's read-only ReadComponent path.
 func (e *schedulerTestEngine) readScheduler(
 	read func(*scheduler.Scheduler, chasm.Context) error,
 ) error {
@@ -368,6 +320,70 @@ func (e *schedulerTestEngine) readScheduler(
 		struct{}{},
 	)
 	return err
+}
+
+type invokerExecuteEngine struct {
+	*schedulerTestEngine
+	handler        *scheduler.InvokerExecuteTaskHandler
+	frontendClient *workflowservicemock.MockWorkflowServiceClient
+}
+
+func newInvokerExecuteEngine(t *testing.T) *invokerExecuteEngine {
+	t.Helper()
+
+	ctrl := gomock.NewController(t)
+	frontendClient := workflowservicemock.NewMockWorkflowServiceClient(ctrl)
+	env := newSchedulerTestEngine(t, defaultSchedule(), withEngineFrontendClient(frontendClient))
+	handler := scheduler.NewInvokerExecuteTaskHandler(scheduler.InvokerTaskHandlerOptions{
+		Config:         defaultConfig(),
+		MetricsHandler: metrics.NoopMetricsHandler,
+		BaseLogger:     env.logger,
+		FrontendClient: frontendClient,
+	})
+	return &invokerExecuteEngine{
+		schedulerTestEngine: env,
+		handler:             handler,
+		frontendClient:      frontendClient,
+	}
+}
+
+func newEngineTestConfig(opts ...engineTestOption) *engineTestConfig {
+	config := &engineTestConfig{}
+	for _, opt := range opts {
+		opt(config)
+	}
+	return config
+}
+
+// newTestEngineContext builds a CHASM registry with the core and scheduler
+// libraries registered, wraps it in a chasmtest.Engine, and returns the
+// engine along with an engine-bound context ready for chasm.StartExecution /
+// ReadComponent / etc.
+func newTestEngineContext(t *testing.T, logger log.Logger, opts ...engineTestOption) (*chasmtest.Engine, context.Context) {
+	return newTestEngineContextFromConfig(t, logger, newEngineTestConfig(opts...))
+}
+
+func newTestEngineContextFromConfig(
+	t *testing.T,
+	logger log.Logger,
+	config *engineTestConfig,
+) (*chasmtest.Engine, context.Context) {
+	specProcessor := config.specProcessor
+	if specProcessor == nil {
+		specProcessor = newRealSpecProcessor(gomock.NewController(t), logger)
+	}
+
+	registry := chasm.NewRegistry(logger)
+	require.NoError(t, registry.Register(&chasm.CoreLibrary{}))
+	require.NoError(t, registry.Register(newTestLibrary(logger, specProcessor, config.frontendClient)))
+	config.engineOpts = append(config.engineOpts, chasmtest.WithInvariantCheck(
+		func(t *testing.T, node *chasm.Node, root chasm.RootComponent) {
+			requireValidSchedulerState(t, registry, node, root)
+		},
+	))
+
+	engine := chasmtest.NewEngine(t, registry, config.engineOpts...)
+	return engine, chasm.NewEngineContext(context.Background(), engine)
 }
 
 // newTestEnv creates a new test environment with the given options.
@@ -393,18 +409,13 @@ func newTestEnv(t *testing.T, opts ...testEnvOption) *testEnv {
 	if err := registry.Register(&chasm.CoreLibrary{}); err != nil {
 		t.Fatalf("failed to register core library: %v", err)
 	}
-	if err := registry.Register(newTestLibrary(logger, specProcessor)); err != nil {
+	if err := registry.Register(newTestLibrary(logger, specProcessor, nil)); err != nil {
 		t.Fatalf("failed to register scheduler library: %v", err)
 	}
 
 	timeSource := clock.NewEventTimeSource()
 	now := time.Now()
 	timeSource.Update(now)
-
-	schedule := config.schedule
-	if schedule == nil {
-		schedule = defaultSchedule()
-	}
 
 	tv := testvars.New(t)
 	nodeBackend := &chasm.MockNodeBackend{
@@ -423,6 +434,10 @@ func newTestEnv(t *testing.T, opts ...testEnvOption) *testEnv {
 
 	node := chasm.NewEmptyTree(registry, timeSource, nodeBackend, nodePathEncoder, logger, metrics.NoopMetricsHandler)
 	ctx := chasm.NewMutableContext(context.Background(), node)
+	schedule := config.schedule
+	if schedule == nil {
+		schedule = defaultSchedule()
+	}
 	sched, err := scheduler.NewScheduler(ctx, namespace, namespaceID, scheduleID, schedule, nil)
 	if err != nil {
 		t.Fatalf("failed to create scheduler: %v", err)
@@ -469,20 +484,8 @@ func (e *testEnv) ReadContext() chasm.Context {
 	return chasm.NewContext(context.Background(), e.Node)
 }
 
-// CloseTransaction closes the current CHASM transaction and then asserts the
-// stuckness invariant: a scheduler that is not in a terminal state must carry
-// at least one live logical task, or nothing will ever wake it again.
-//
-// This runs on every test in the package that closes through testEnv, so the
-// existing suite doubles as a stuckness detector at no extra cost. Tests that
-// deliberately construct a state with no pending work must opt out explicitly
-// via AllowStuck.
-//
-// The invariant is checked only on a successful close, since Node.Snapshot
-// requires a clean tree.
 func (e *testEnv) CloseTransaction() error {
 	e.t.Helper()
-
 	_, err := e.Node.CloseTransaction()
 	if err != nil {
 		return err
@@ -494,17 +497,10 @@ func (e *testEnv) CloseTransaction() error {
 	return nil
 }
 
-// AllowStuck opts this test out of the stuckness invariant asserted by
-// CloseTransaction, for tests that deliberately drive the scheduler into a
-// state with no pending work.
-//
-// reason is mandatory: an unexplained opt-out is indistinguishable from a
-// silently tolerated bug, and the set of tests that need one is itself a
-// finding worth reviewing.
 func (e *testEnv) AllowStuck(reason string) {
 	e.t.Helper()
 	if reason == "" {
-		e.t.Fatal("AllowStuck requires a reason explaining why this test tolerates a stuck scheduler")
+		e.t.Fatal("AllowStuck requires a reason")
 	}
 	e.allowStuckReason = reason
 }
@@ -584,7 +580,7 @@ func setupTestInfra(t *testing.T, specProcessor scheduler.SpecProcessor) *testIn
 	if err != nil {
 		t.Fatalf("failed to register core library: %v", err)
 	}
-	err = registry.Register(newTestLibrary(logger, specProcessor))
+	err = registry.Register(newTestLibrary(logger, specProcessor, nil))
 	if err != nil {
 		t.Fatalf("failed to register scheduler library: %v", err)
 	}

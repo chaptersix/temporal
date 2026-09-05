@@ -12,11 +12,64 @@ import (
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/tests"
+	"go.temporal.io/server/chasm/lib/tests/gen/testspb/v1"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/payload"
 	"go.temporal.io/server/service/history/tasks"
 )
+
+func TestInvariantCheckRunsAfterSuccessfulTransitions(t *testing.T) {
+	var calls []string
+	check := func(name string) chasmtest.InvariantCheck {
+		return func(checkT *testing.T, node *chasm.Node, root chasm.RootComponent) {
+			checkT.Helper()
+			require.Same(checkT, t, checkT)
+			require.IsType(checkT, &tests.PayloadStore{}, root)
+			require.NotPanics(checkT, func() { node.Snapshot(nil) })
+			calls = append(calls, name)
+		}
+	}
+
+	e, ref := startStoreWithEngineOptions(t, time.Hour, []chasmtest.EngineOption{
+		chasmtest.WithInvariantCheck(check("first")),
+		chasmtest.WithInvariantCheck(check("second")),
+	})
+	require.Equal(t, []string{"first", "second"}, calls)
+
+	_, _, err := chasm.UpdateComponent(engineContext(e), ref,
+		func(*tests.PayloadStore, chasm.MutableContext, any) (any, error) { return nil, nil }, nil,
+		chasm.WithRequestID("invariant-check"))
+	require.NoError(t, err)
+	require.Equal(t, []string{"first", "second", "first", "second"}, calls)
+
+	_, _, err = chasm.UpdateComponent(engineContext(e), ref,
+		func(*tests.PayloadStore, chasm.MutableContext, any) (any, error) { return nil, nil }, nil,
+		chasm.WithRequestID("invariant-check"))
+	require.ErrorIs(t, err, chasm.ErrRequestIDAlreadyUsed)
+	require.Equal(t, []string{"first", "second", "first", "second"}, calls)
+
+	transitionErr := errors.New("transition failed")
+	_, _, err = chasm.UpdateComponent(engineContext(e), ref,
+		func(*tests.PayloadStore, chasm.MutableContext, any) (any, error) { return nil, transitionErr }, nil)
+	require.ErrorIs(t, err, transitionErr)
+	require.Equal(t, []string{"first", "second", "first", "second"}, calls)
+
+	executed, err := e.FirePureTasks(ref, time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	require.Equal(t, 1, executed)
+	require.Equal(t, []string{"first", "second", "first", "second", "first", "second"}, calls)
+
+	key := chasm.ExecutionKey{NamespaceID: "test-ns", BusinessID: "update-with-start"}
+	result, err := chasm.UpdateWithStartExecution(engineContext(e), key,
+		func(mc chasm.MutableContext, _ any) (*tests.PayloadStore, error) { return tests.NewPayloadStore(mc) },
+		func(*tests.PayloadStore, chasm.MutableContext, any) (any, error) { return nil, nil }, nil)
+	require.NoError(t, err)
+	require.True(t, result.Created)
+	require.Equal(t, []string{
+		"first", "second", "first", "second", "first", "second", "first", "second",
+	}, calls)
+}
 
 // TestTasksArePhysicallyGenerated: a task a component adds must reach the backend as a physical task, in
 // the category its TaskAttributes imply, whether it was added while starting the execution or while
@@ -41,75 +94,41 @@ func TestTasksArePhysicallyGenerated(t *testing.T) {
 	})
 }
 
-func TestInvariantCheckRunsAfterSuccessfulTransitions(t *testing.T) {
-	var calls []string
-	check := func(name string) chasmtest.InvariantCheck {
-		return func(checkT *testing.T, node *chasm.Node, root chasm.RootComponent) {
-			checkT.Helper()
-			require.Same(checkT, t, checkT)
-			require.IsType(checkT, &tests.PayloadStore{}, root)
-			require.NotPanics(checkT, func() { node.Snapshot(nil) })
-			calls = append(calls, name)
-		}
-	}
+func TestFireSideEffectTasks(t *testing.T) {
+	const ttl = time.Hour
+	e, ref := startStore(t, ttl)
 
-	e, ref := startStoreWithEngineOptions(
-		t,
-		time.Hour,
-		[]chasmtest.EngineOption{
-			chasmtest.WithInvariantCheck(check("first")),
-			chasmtest.WithInvariantCheck(check("second")),
-		},
-	)
-	require.Equal(t, []string{"first", "second"}, calls)
-
+	var expirationTime time.Time
 	_, _, err := chasm.UpdateComponent(engineContext(e), ref,
-		func(*tests.PayloadStore, chasm.MutableContext, any) (any, error) {
-			return nil, nil
-		}, nil, chasm.WithRequestID("invariant-check"))
+		func(store *tests.PayloadStore, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
+			expirationTime = store.State.ExpirationTimes["first"].AsTime()
+			ctx.AddTask(
+				store,
+				chasm.TaskAttributes{ScheduledTime: expirationTime},
+				&testspb.TestPayloadTTLSideEffectTask{PayloadKey: "first"},
+			)
+			return struct{}{}, nil
+		}, struct{}{})
 	require.NoError(t, err)
-	require.Equal(t, []string{"first", "second", "first", "second"}, calls)
+	require.Equal(t, 1, countSideEffectTasks(t, e, ref, tasks.CategoryTimer))
 
-	_, _, err = chasm.UpdateComponent(engineContext(e), ref,
-		func(*tests.PayloadStore, chasm.MutableContext, any) (any, error) {
-			return nil, nil
-		}, nil, chasm.WithRequestID("invariant-check"))
-	require.ErrorIs(t, err, chasm.ErrRequestIDAlreadyUsed)
-	require.Equal(t, []string{"first", "second", "first", "second"}, calls)
+	executed, err := e.FireSideEffectTasks(ref, expirationTime.Add(-time.Nanosecond))
+	require.NoError(t, err)
+	require.Equal(t, 0, executed)
+	require.Equal(t, 1, countSideEffectTasks(t, e, ref, tasks.CategoryTimer))
 
-	transitionErr := errors.New("transition failed")
-	_, _, err = chasm.UpdateComponent(engineContext(e), ref,
-		func(*tests.PayloadStore, chasm.MutableContext, any) (any, error) {
-			return nil, transitionErr
-		}, nil)
-	require.ErrorIs(t, err, transitionErr)
-	require.Equal(t, []string{"first", "second", "first", "second"}, calls)
-
-	executed, err := e.FirePureTasks(ref, time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC))
+	executed, err = e.FireSideEffectTasks(ref, expirationTime)
 	require.NoError(t, err)
 	require.Equal(t, 1, executed)
-	require.Equal(t, []string{"first", "second", "first", "second", "first", "second"}, calls)
+	require.Equal(t, 0, countSideEffectTasks(t, e, ref, tasks.CategoryTimer))
 
-	key := chasm.ExecutionKey{NamespaceID: "test-ns", BusinessID: "update-with-start"}
-	result, err := chasm.UpdateWithStartExecution(
-		engineContext(e),
-		key,
-		func(mc chasm.MutableContext, _ any) (*tests.PayloadStore, error) {
-			return tests.NewPayloadStore(mc)
-		},
-		func(*tests.PayloadStore, chasm.MutableContext, any) (any, error) {
-			return nil, nil
-		},
-		nil,
-	)
+	executed, err = e.FireSideEffectTasks(ref, expirationTime)
 	require.NoError(t, err)
-	require.True(t, result.Created)
-	require.Equal(t, []string{
-		"first", "second",
-		"first", "second",
-		"first", "second",
-		"first", "second",
-	}, calls)
+	require.Equal(t, 0, executed)
+
+	_, err = chasm.ReadComponent(engineContext(e), ref, (*tests.PayloadStore).GetPayload, "first")
+	var notFound *serviceerror.NotFound
+	require.ErrorAs(t, err, &notFound)
 }
 
 func TestUpdateComponentDeduplicatesRequestID(t *testing.T) {
@@ -131,7 +150,6 @@ func TestUpdateComponentDeduplicatesRequestID(t *testing.T) {
 	updatedRef, err = update()
 	var failedPrecondition *serviceerror.FailedPrecondition
 	require.ErrorAs(t, err, &failedPrecondition)
-	require.ErrorIs(t, err, chasm.ErrRequestIDAlreadyUsed)
 	require.Nil(t, updatedRef)
 	require.Equal(t, 1, updateCount)
 }
@@ -243,6 +261,24 @@ func countTasks(t *testing.T, e *chasmtest.Engine, ref chasm.ComponentRef, categ
 	byCategory, err := e.Tasks(ref)
 	require.NoError(t, err)
 	return len(byCategory[category])
+}
+
+func countSideEffectTasks(
+	t *testing.T,
+	e *chasmtest.Engine,
+	ref chasm.ComponentRef,
+	category tasks.Category,
+) int {
+	t.Helper()
+	byCategory, err := e.Tasks(ref)
+	require.NoError(t, err)
+	count := 0
+	for _, task := range byCategory[category] {
+		if _, ok := task.(*tasks.ChasmTask); ok {
+			count++
+		}
+	}
+	return count
 }
 
 func engineContext(e *chasmtest.Engine) context.Context {

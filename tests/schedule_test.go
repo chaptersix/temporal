@@ -4598,7 +4598,7 @@ func testTriggerImmediatelyOnActiveSchedule(t *testing.T, newContext contextFact
 
 // testTriggerImmediatelyOnPausedSchedule verifies that TriggerImmediately fires
 // an action even when the schedule is paused. Manual starts bypass the paused
-// gate via useScheduledAction's Manual carve-out in processBuffer.
+// gate because processBuffer does not consume action capacity for manual starts.
 func testTriggerImmediatelyOnPausedSchedule(t *testing.T, newContext contextFactory) {
 	s := newScheduleEnv(t, scheduleCommonOpts(t)...)
 
