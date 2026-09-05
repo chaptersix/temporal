@@ -41,11 +41,11 @@ func GenerateRequestID(
 	)
 }
 
-// GenerateWorkflowID generates a deterministic workflow ID for a buffered
-// action by combining the base workflow ID with the truncated nominal time.
-func GenerateWorkflowID(baseWorkflowID string, nominalTime time.Time) string {
+// GenerateTimestampTargetID generates a deterministic target ID for a buffered
+// action by combining the base target ID with the truncated nominal time.
+func GenerateTimestampTargetID(baseTargetID string, nominalTime time.Time) string {
 	nominalTimeSec := nominalTime.Truncate(time.Second)
-	return fmt.Sprintf("%s-%s", baseWorkflowID, nominalTimeSec.UTC().Format(time.RFC3339))
+	return fmt.Sprintf("%s-%s", baseTargetID, nominalTimeSec.UTC().Format(time.RFC3339))
 }
 
 // GenerateBackfillerID generates a unique ID for a Backfiller component.

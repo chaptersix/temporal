@@ -3,6 +3,7 @@ package internal
 import (
 	"time"
 
+	enumspb "go.temporal.io/api/enums/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -35,8 +36,8 @@ func ClassifyBufferedStart(
 		return BufferedStartStateInvalid
 	}
 
-	hasRun := start.GetRunId() != ""
-	hasCompletion := start.GetCompleted() != nil
+	hasRun := RunID(start) != ""
+	hasCompletion := IsCompleted(start)
 	hasBackoff := start.GetBackoffTime() != nil
 
 	switch start.GetAttempt() {
@@ -104,8 +105,18 @@ func MarkStartStarted(
 	runID string,
 	startTime *timestamppb.Timestamp,
 ) {
-	start.RunId = runID
+	if start.GetExecution() != nil {
+		start.Execution.RunId = runID
+		if start.Execution.GetType() == enumspb.EXECUTION_TYPE_WORKFLOW {
+			start.RunId = runID
+		}
+	} else {
+		start.RunId = runID
+	}
 	start.StartTime = startTime
+	if start.GetCompletion() != nil {
+		start.Completion.Execution = Execution(start)
+	}
 }
 
 // MarkStartCompleted records a start's terminal workflow result.

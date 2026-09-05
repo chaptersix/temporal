@@ -22,22 +22,24 @@ type appliedBufferPlan struct {
 func newBufferProcessingSnapshot(invoker *Invoker, scheduler *Scheduler, catchupWindow time.Duration) schedulerinternal.BufferProcessingSnapshot {
 	state := scheduler.Schedule.GetState()
 	snapshot := schedulerinternal.BufferProcessingSnapshot{
-		Starts:               make([]schedulerinternal.BufferedStartSnapshot, 0, len(invoker.GetBufferedStarts())),
-		DefaultOverlapPolicy: scheduler.overlapPolicy(),
-		CatchupWindow:        catchupWindow,
-		MinimumCatchupWindow: startWorkflowMinDeadline,
-		Paused:               state.GetPaused(),
-		LimitedActions:       state.GetLimitedActions(),
-		RemainingActions:     state.GetRemainingActions(),
+		Starts:                     make([]schedulerinternal.BufferedStartSnapshot, 0, len(invoker.GetBufferedStarts())),
+		DefaultOverlapPolicy:       scheduler.Schedule.GetPolicies().GetOverlapPolicy(),
+		DefaultCustomOverlapPolicy: scheduler.Schedule.GetPolicies().GetCustomOverlapPolicy().GetName(),
+		Policies:                   actionPolicies(scheduler.Schedule.GetAction()),
+		CatchupWindow:              catchupWindow,
+		MinimumCatchupWindow:       startActionMinDeadline,
+		Paused:                     state.GetPaused(),
+		LimitedActions:             state.GetLimitedActions(),
+		RemainingActions:           state.GetRemainingActions(),
 	}
 	for index, start := range invoker.GetBufferedStarts() {
 		projected := projectBufferedStart(start, index)
 		snapshot.Starts = append(snapshot.Starts, projected)
-		if projected.RunID != "" && !projected.Completed &&
-			schedulerinternal.TracksCompletionResult(start.GetOverlapPolicy()) {
-			snapshot.RunningWorkflows = append(snapshot.RunningWorkflows, schedulerinternal.WorkflowExecutionSnapshot{
-				WorkflowID: projected.WorkflowID,
-				RunID:      projected.RunID,
+		if (projected.RunID != "" || projected.Attempt > 0) && !projected.Completed && schedulerinternal.TracksExecution(start) {
+			snapshot.RunningExecutions = append(snapshot.RunningExecutions, schedulerinternal.ExecutionSnapshot{
+				TargetID: projected.TargetID,
+				Kind:     projected.Kind,
+				RunID:    projected.RunID,
 			})
 		}
 	}
@@ -46,16 +48,18 @@ func newBufferProcessingSnapshot(invoker *Invoker, scheduler *Scheduler, catchup
 
 func projectBufferedStart(start *schedulespb.BufferedStart, occurrence int) schedulerinternal.BufferedStartSnapshot {
 	return schedulerinternal.BufferedStartSnapshot{
-		Occurrence:    occurrence,
-		RequestID:     start.GetRequestId(),
-		WorkflowID:    start.GetWorkflowId(),
-		RunID:         start.GetRunId(),
-		Attempt:       start.GetAttempt(),
-		Manual:        start.GetManual(),
-		OverlapPolicy: start.GetOverlapPolicy(),
-		ActualTime:    start.GetActualTime().AsTime(),
-		DesiredTime:   start.GetDesiredTime().AsTime(),
-		Completed:     start.GetCompleted() != nil,
+		Occurrence:          occurrence,
+		RequestID:           start.GetRequestId(),
+		TargetID:            schedulerinternal.TargetID(start),
+		Kind:                schedulerinternal.Execution(start).GetType(),
+		RunID:               schedulerinternal.RunID(start),
+		Attempt:             start.GetAttempt(),
+		Manual:              start.GetManual(),
+		OverlapPolicy:       start.GetOverlapPolicy(),
+		CustomOverlapPolicy: start.GetCustomOverlapPolicy().GetName(),
+		ActualTime:          start.GetActualTime().AsTime(),
+		DesiredTime:         start.GetDesiredTime().AsTime(),
+		Completed:           schedulerinternal.IsCompleted(start),
 	}
 }
 
@@ -97,16 +101,17 @@ func applyBufferPlan(
 	if applied.invalidatedDecisions == 0 {
 		applied.result.overlapSkipped = plan.OverlapSkipped
 		applied.result.overlapSkippedByPolicy = maps.Clone(plan.OverlapSkippedByPolicy)
+		applied.result.overlapSkippedByCustomPolicy = maps.Clone(plan.OverlapSkippedByCustomPolicy)
 	}
 
-	for _, target := range plan.TerminateWorkflows {
-		if currentRunningWorkflow(invoker, target) {
-			applied.result.terminateWorkflows = append(applied.result.terminateWorkflows, workflowExecutionFromSnapshot(target))
+	for _, target := range plan.TerminateExecutions {
+		if currentRunningExecution(invoker, target) {
+			applied.result.terminateExecutions = append(applied.result.terminateExecutions, executionFromSnapshot(target))
 		}
 	}
-	for _, target := range plan.CancelWorkflows {
-		if currentRunningWorkflow(invoker, target) {
-			applied.result.cancelWorkflows = append(applied.result.cancelWorkflows, workflowExecutionFromSnapshot(target))
+	for _, target := range plan.CancelExecutions {
+		if currentRunningExecution(invoker, target) {
+			applied.result.cancelExecutions = append(applied.result.cancelExecutions, executionFromSnapshot(target))
 		}
 	}
 
@@ -168,7 +173,7 @@ func applyBufferDecision(result *processBufferResult, decision schedulerinternal
 	result.processedStarts[start] = true
 	switch decision.Action {
 	case schedulerinternal.BufferDecisionExecute:
-		result.startWorkflows = append(result.startWorkflows, start)
+		result.startActions = append(result.startActions, start)
 	case schedulerinternal.BufferDecisionDiscard:
 		result.discardStarts = append(result.discardStarts, start)
 	default:
@@ -191,24 +196,32 @@ func recordAppliedDecisionMetrics(result *processBufferResult, decision schedule
 
 func bufferProcessingSnapshotsEqual(left, right schedulerinternal.BufferProcessingSnapshot) bool {
 	return left.DefaultOverlapPolicy == right.DefaultOverlapPolicy &&
+		left.DefaultCustomOverlapPolicy == right.DefaultCustomOverlapPolicy &&
 		left.CatchupWindow == right.CatchupWindow &&
 		left.MinimumCatchupWindow == right.MinimumCatchupWindow &&
 		left.Paused == right.Paused &&
 		left.LimitedActions == right.LimitedActions &&
 		left.RemainingActions == right.RemainingActions &&
 		slices.Equal(left.Starts, right.Starts) &&
-		slices.Equal(left.RunningWorkflows, right.RunningWorkflows)
+		slices.Equal(left.RunningExecutions, right.RunningExecutions)
 }
 
-func currentRunningWorkflow(invoker *Invoker, target schedulerinternal.WorkflowExecutionSnapshot) bool {
+func currentRunningExecution(invoker *Invoker, target schedulerinternal.ExecutionSnapshot) bool {
+	if target.RunID == "" {
+		return false
+	}
 	for _, start := range invoker.GetBufferedStarts() {
-		if start.GetWorkflowId() == target.WorkflowID && start.GetRunId() == target.RunID && start.GetCompleted() == nil {
+		if schedulerinternal.TargetID(start) == target.TargetID && schedulerinternal.RunID(start) == target.RunID && !schedulerinternal.IsCompleted(start) {
 			return true
 		}
 	}
 	return false
 }
 
-func workflowExecutionFromSnapshot(execution schedulerinternal.WorkflowExecutionSnapshot) *commonpb.WorkflowExecution {
-	return &commonpb.WorkflowExecution{WorkflowId: execution.WorkflowID, RunId: execution.RunID}
+func executionFromSnapshot(execution schedulerinternal.ExecutionSnapshot) *commonpb.Execution {
+	kind := execution.Kind
+	if kind == 0 {
+		kind = enumspb.EXECUTION_TYPE_WORKFLOW
+	}
+	return &commonpb.Execution{Type: kind, BusinessId: execution.TargetID, RunId: execution.RunID}
 }

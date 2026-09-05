@@ -133,6 +133,14 @@ func NewScheduler(
 	input *schedulepb.Schedule,
 	patch *schedulepb.SchedulePatch,
 ) (*Scheduler, error) {
+	if err := ValidateScheduleActionPolicies(input, patch); err != nil {
+		return nil, err
+	}
+	if input.GetAction().GetStartActivity() != nil {
+		if err := implementation(input.GetAction()).Validate(input.GetAction()); err != nil {
+			return nil, err
+		}
+	}
 	var zero time.Time
 
 	sched := &Scheduler{
@@ -245,6 +253,9 @@ func (s *Scheduler) applyPausePatch(ctx chasm.MutableContext, patch *schedulepb.
 
 // handlePatch creates backfillers to fulfill the given patch request.
 func (s *Scheduler) handlePatch(ctx chasm.MutableContext, patch *schedulepb.SchedulePatch) error {
+	if err := ValidateScheduleActionPolicies(s.Schedule, patch); err != nil {
+		return err
+	}
 	if patch == nil {
 		return nil
 	}
@@ -411,7 +422,11 @@ func (s *Scheduler) NewImmediateBackfiller(
 	}
 	// Trigger backfills fire a single action at creation time; processTrigger uses
 	// LastProcessedTime as that action's deterministic time, so it must be set.
-	backfiller.LastProcessedTime = timestamppb.New(ctx.Now(s))
+	triggerTime := ctx.Now(s)
+	if request.GetScheduledTime() != nil && !request.GetScheduledTime().AsTime().IsZero() {
+		triggerTime = request.GetScheduledTime().AsTime()
+	}
+	backfiller.LastProcessedTime = timestamppb.New(triggerTime)
 	return backfiller
 }
 
@@ -619,15 +634,12 @@ func (s *Scheduler) recordRecentAction(
 	start *schedulespb.BufferedStart,
 	status enumspb.WorkflowExecutionStatus,
 ) {
-	s.Info.RecentActions = append(s.Info.RecentActions, &schedulepb.ScheduleActionResult{
-		ScheduleTime: start.GetActualTime(),
-		ActualTime:   start.GetStartTime(),
-		StartWorkflowResult: &commonpb.WorkflowExecution{
-			WorkflowId: start.GetWorkflowId(),
-			RunId:      start.GetRunId(),
-		},
-		StartWorkflowStatus: status,
-	})
+	result := actionResult(start)
+	if result.GetActionExecutionResult().GetExecution().GetType() == enumspb.EXECUTION_TYPE_WORKFLOW {
+		result.StartWorkflowStatus = status
+		result.ActionExecutionResult.Status = &commonpb.ActionExecutionResult_WorkflowStatus{WorkflowStatus: status}
+	}
+	s.Info.RecentActions = append(s.Info.RecentActions, result)
 	slices.SortFunc(s.Info.RecentActions, func(a, b *schedulepb.ScheduleActionResult) int {
 		return a.GetActualTime().AsTime().Compare(b.GetActualTime().AsTime())
 	})
@@ -715,7 +727,7 @@ func (s *Scheduler) HandleNexusCompletion(
 		)
 		return nil
 	}
-	if start.GetCompleted() != nil {
+	if internal.IsCompleted(start) {
 		// Completion callbacks may be validly redelivered, for example after a workflow reset.
 		// Preserve state but keep the duplicate observable through the log and metric.
 		s.recordIgnoredCallback(
@@ -728,7 +740,7 @@ func (s *Scheduler) HandleNexusCompletion(
 		return nil
 	}
 	workflowID := start.GetWorkflowId()
-	tracksCompletionResult := internal.TracksCompletionResult(start.GetOverlapPolicy())
+	tracksCompletionResult := implementation(s.Schedule.GetAction()).ParticipatesInCompletionHistory() && internal.TracksExecution(start)
 
 	// Record how long it took for the callback to arrive after the action completed.
 	// Use ctx.Now instead of time.Since to use a consistent time source across nodes,
@@ -741,10 +753,9 @@ func (s *Scheduler) HandleNexusCompletion(
 	// Handle last completed/failed status and payloads.
 	//
 	// TODO - also record payload sizes once we have metrics wired into CHASM context.
-	var wfStatus enumspb.WorkflowExecutionStatus
+	wfStatus := implementation(s.Schedule.GetAction()).Completion(info, internal.Execution(start)).Result.GetWorkflowStatus()
 	switch outcome := info.Outcome.(type) {
 	case *persistencespb.ChasmNexusCompletion_Failure:
-		wfStatus = executionStatusFromFailure(outcome.Failure)
 		if tracksCompletionResult {
 			previousResult := s.LastCompletionResult.Get(ctx) // Most-recent success is kept after failure.
 			s.LastCompletionResult = chasm.NewDataField(ctx, &schedulerpb.LastCompletionResult{
@@ -753,14 +764,12 @@ func (s *Scheduler) HandleNexusCompletion(
 			})
 		}
 	case *persistencespb.ChasmNexusCompletion_Success:
-		wfStatus = enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED
 		if tracksCompletionResult {
 			s.LastCompletionResult = chasm.NewDataField(ctx, &schedulerpb.LastCompletionResult{
 				Success: outcome.Success,
 			})
 		}
 	default:
-		wfStatus = enumspb.WORKFLOW_EXECUTION_STATUS_FAILED
 	}
 
 	// Handle pause-on-failure.
@@ -780,6 +789,8 @@ func (s *Scheduler) HandleNexusCompletion(
 		Status:    wfStatus,
 		CloseTime: info.CloseTime,
 	}
+	start.Completion = &commonpb.ActionExecutionResult{Execution: common.CloneProto(internal.Execution(start)), Status: &commonpb.ActionExecutionResult_WorkflowStatus{WorkflowStatus: wfStatus}}
+	start.CompletionTime = info.CloseTime
 	invoker.recordCompletedAction(ctx, completed, info.RequestId)
 
 	// Generate immediately after recording completions, so that an idle task
@@ -810,7 +821,7 @@ func (s *Scheduler) Describe(
 
 	// Describe must not mutate the cached component: default on a clone, not s.Schedule.
 	schedule := common.CloneProto(s.Schedule)
-	if schedule.GetPolicies().GetOverlapPolicy() == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
+	if schedule.GetPolicies().GetOverlapPolicy() == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED && schedule.GetPolicies().GetCustomOverlapPolicy() == nil {
 		schedule.Policies.OverlapPolicy = s.overlapPolicy()
 	}
 	schedule.Policies.CatchupWindow = durationpb.New(
@@ -833,6 +844,9 @@ func (s *Scheduler) Describe(
 	invoker := s.Invoker.Get(ctx)
 	info := common.CloneProto(s.Info)
 	info.RunningWorkflows = invoker.runningWorkflowExecutions()
+	info.RunningExecutions = invoker.runningExecutions()
+	info.ActionKind = s.actionMetadata().Kind
+	info.ActionType = s.actionMetadata().Type
 	info.RecentActions = s.recentActions(ctx)
 	info.FutureActionTimes = futureActionTimes
 	// Only starts that have not reached StartWorkflowExecution count as buffered.
@@ -956,6 +970,10 @@ func (s *Scheduler) MigrateToWorkflow(
 	ctx chasm.MutableContext,
 	req *schedulerpb.MigrateToWorkflowRequest,
 ) (*schedulerpb.MigrateToWorkflowResponse, error) {
+	if s.Schedule.GetAction().GetStartActivity() != nil {
+		return nil, serviceerror.NewInvalidArgument("activity schedules cannot migrate to the workflow-backed scheduler")
+	}
+
 	if s.Sentinel {
 		return nil, ErrSentinel
 	}
@@ -1000,6 +1018,18 @@ func (s *Scheduler) Update(
 	}
 	if !s.validateConflictToken(req.FrontendRequest.ConflictToken) {
 		return nil, ErrConflictTokenMismatch
+	}
+
+	if err := validateActionKind(s.Schedule.GetAction(), req.FrontendRequest.GetSchedule().GetAction()); err != nil {
+		return nil, err
+	}
+	if err := ValidateScheduleActionPolicies(req.FrontendRequest.GetSchedule(), nil); err != nil {
+		return nil, err
+	}
+	if req.FrontendRequest.GetSchedule().GetAction().GetStartActivity() != nil {
+		if err := implementation(req.FrontendRequest.GetSchedule().GetAction()).Validate(req.FrontendRequest.GetSchedule().GetAction()); err != nil {
+			return nil, err
+		}
 	}
 
 	// Update custom search attributes.
@@ -1170,15 +1200,15 @@ func (s *Scheduler) ListInfo(
 	}
 }
 
-// startWorkflowSearchAttributes returns the search attributes to be applied to
-// workflows kicked off. Includes custom search attributes and Temporal-managed.
-func (s *Scheduler) startWorkflowSearchAttributes(
+// startActionSearchAttributes returns the search attributes to be applied to
+// started executions, including user and Temporal-managed attributes.
+func (s *Scheduler) startActionSearchAttributes(
 	nominal time.Time,
 ) *commonpb.SearchAttributes {
 	scheduledStartTime := chasm.SearchAttributeTemporalScheduledStartTime.Value(nominal)
 	scheduledByID := chasm.SearchAttributeTemporalScheduledByID.Value(s.ScheduleId)
 	fields := payload.MergeMapOfPayload(
-		s.Schedule.GetAction().GetStartWorkflow().GetSearchAttributes().GetIndexedFields(),
+		s.actionMetadata().SearchAttributes.GetIndexedFields(),
 		map[string]*commonpb.Payload{
 			scheduledStartTime.Field: scheduledStartTime.Value.MustEncode(),
 			scheduledByID.Field:      scheduledByID.Value.MustEncode(),

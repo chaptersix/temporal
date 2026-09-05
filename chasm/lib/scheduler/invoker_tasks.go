@@ -45,7 +45,7 @@ type (
 
 const (
 	// Lower bound for the deadline in which buffered actions are dropped.
-	startWorkflowMinDeadline = 5 * time.Second
+	startActionMinDeadline = 5 * time.Second
 )
 
 // Invoker task invalidation and buffered-start drop reasons. Limited cardinality
@@ -102,7 +102,7 @@ func (h *InvokerProcessBufferTaskHandler) Execute(
 
 	// Make sure we have something to start.
 	executionInfo := scheduler.Schedule.GetAction().GetStartWorkflow()
-	if executionInfo == nil {
+	if executionInfo == nil && scheduler.Schedule.GetAction().GetStartActivity() == nil {
 		return queueerrors.NewUnprocessableTaskError("schedules must have an Action set")
 	}
 
@@ -129,6 +129,9 @@ func (h *InvokerProcessBufferTaskHandler) recordBufferProcessingMetrics(
 			metrics.StringTag(metrics.ScheduleOverlapPolicyTag, overlapPolicy.String()),
 		).Counter(metrics.ScheduleOverlapSkipped.Name()).Record(count)
 	}
+	for name, count := range result.overlapSkippedByCustomPolicy {
+		metricsHandler.WithTags(metrics.StringTag(metrics.ScheduleOverlapPolicyTag, name)).Counter(metrics.ScheduleOverlapSkipped.Name()).Record(count)
+	}
 	for actionRunning, count := range result.missedCatchupByActionRunning {
 		newTaggedMetricsHandler(h.metricsHandler, scheduler).WithTags(
 			metrics.StringTag(metrics.ScheduleMissedReasonTag, metrics.ScheduleMissedReasonBufferExpired),
@@ -137,10 +140,10 @@ func (h *InvokerProcessBufferTaskHandler) recordBufferProcessingMetrics(
 	}
 }
 
-// startWorkflowDeadline returns the latest time at which a buffered workflow
+// startActionDeadline returns the latest time at which a buffered workflow
 // should be started, instead of dropped. The deadline puts an upper bound on
 // the number of retry attempts per buffered start.
-func (h *InvokerProcessBufferTaskHandler) startWorkflowDeadline(
+func (h *InvokerProcessBufferTaskHandler) startActionDeadline(
 	ctx chasm.Context,
 	scheduler *Scheduler,
 	start *schedulespb.BufferedStart,
@@ -159,7 +162,7 @@ func (h *InvokerProcessBufferTaskHandler) startWorkflowDeadline(
 	tweakables := h.config.Tweakables(scheduler.Namespace)
 	timeout = catchupWindow(scheduler, tweakables)
 
-	timeout = max(timeout, startWorkflowMinDeadline)
+	timeout = max(timeout, startActionMinDeadline)
 
 	return start.ActualTime.AsTime().Add(timeout)
 }

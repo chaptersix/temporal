@@ -36,7 +36,7 @@ func TestSameTimePendingStartsReceiveUniqueIdentities(t *testing.T) {
 	// The first start keeps the undecorated workflow ID, so a migrated action
 	// still dedups against one the V1 scheduler had already started.
 	require.Equal(t,
-		schedulerinternal.GenerateWorkflowID("workflow-id", when.AsTime()),
+		schedulerinternal.GenerateTimestampTargetID("workflow-id", when.AsTime()),
 		converted[0].GetWorkflowId())
 }
 

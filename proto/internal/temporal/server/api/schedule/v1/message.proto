@@ -53,6 +53,14 @@ message BufferedStart {
   // attached. False when a BufferedStart originated from a migrated V1
   // workflow. Only used by CHASM scheduler, for migration from V1.
   bool has_callback = 13;
+  // Generic execution identity. Workflow fields remain a compatibility projection.
+  temporal.api.common.v1.Execution execution = 14;
+  temporal.api.common.v1.ActionExecutionResult completion = 15;
+  google.protobuf.Timestamp completion_time = 16;
+  temporal.api.schedule.v1.CustomOverlapPolicy custom_overlap_policy = 17;
+  // Assigned on enqueue, independent of request IDs and buffer position.
+  string occurrence_id = 18;
+  bool start_accepted = 19;
 }
 
 // Result when a workflow execution has completed.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -1268,7 +1267,7 @@ func runBufferProcessing(t *testing.T, input bufferProcessingComparisonInput, pl
 	ctx := env.MutableContext()
 	env.Scheduler.Schedule = proto.Clone(input.schedule).(*schedulepb.Schedule)
 	env.Scheduler.Info.CreateTime = timestamppb.New(input.lastProcessedTime)
-	env.Scheduler.LastEventTime = timestamppb.New(env.TimeSource.Now())
+	env.Scheduler.LastEventTime = timestamppb.New(input.lastProcessedTime)
 	initialConflictToken := input.initialConflictToken
 	if initialConflictToken == 0 {
 		initialConflictToken = env.Scheduler.ConflictToken
@@ -1334,7 +1333,7 @@ func normalizeTasks(tasksByCategory map[tasks.Category][]tasks.Task) []string {
 	for category := range tasksByCategory {
 		categories = append(categories, category)
 	}
-	sort.Slice(categories, func(i, j int) bool { return categories[i].ID() < categories[j].ID() })
+	slices.SortFunc(categories, func(a, b tasks.Category) int { return a.ID() - b.ID() })
 	var normalized []string
 	for _, category := range categories {
 		for index, task := range tasksByCategory[category] {
@@ -1367,11 +1366,11 @@ func normalizeMetrics(snapshot metricstest.CaptureSnapshot) []string {
 			for key, value := range recording.Tags {
 				tags = append(tags, key+"="+value)
 			}
-			sort.Strings(tags)
+			slices.Sort(tags)
 			normalized = append(normalized, fmt.Sprintf("%s:%v:%s", name, recording.Value, strings.Join(tags, ",")))
 		}
 	}
-	sort.Strings(normalized)
+	slices.Sort(normalized)
 	return normalized
 }
 

@@ -5,8 +5,8 @@ import (
 	"time"
 
 	enumspb "go.temporal.io/api/enums/v1"
+	schedulepb "go.temporal.io/api/schedule/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
-	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/metrics"
@@ -32,7 +32,7 @@ type (
 			scheduler *Scheduler,
 			start, end time.Time,
 			overlapPolicy enumspb.ScheduleOverlapPolicy,
-			workflowID string,
+			targetIDBase string,
 			backfillID string,
 			manual bool,
 			limit *int,
@@ -78,19 +78,23 @@ func (s *SpecProcessorImpl) ProcessTimeRange(
 	scheduler *Scheduler,
 	start, end time.Time,
 	overlapPolicy enumspb.ScheduleOverlapPolicy,
-	workflowID string,
+	targetIDBase string,
 	backfillID string,
 	manual bool,
 	limit *int,
 ) (*ProcessedTimeRange, error) {
 	tweakables := s.config.Tweakables(scheduler.Namespace)
 	metricsHandler := newTaggedMetricsHandler(s.metricsHandler, scheduler)
-	overlapPolicy = scheduler.resolveOverlapPolicy(overlapPolicy)
+	resolved, resolveErr := scheduler.resolvedPolicy(overlapPolicy, nil)
+	if resolveErr != nil {
+		return nil, resolveErr
+	}
+	overlapPolicy = resolved.Builtin
 
 	s.logger.Debug("ProcessTimeRange",
 		tag.Time("start", start),
 		tag.Time("end", end),
-		tag.Any("overlap-policy", overlapPolicy),
+		tag.String("overlap-policy", resolved.String()),
 		tag.Bool("manual", manual))
 
 	// Peek at paused/remaining actions state and don't bother if we're not going to
@@ -173,14 +177,18 @@ func (s *SpecProcessorImpl) ProcessTimeRange(
 			droppedCount++
 			continue
 		}
-		bufferedStarts = append(bufferedStarts, &schedulespb.BufferedStart{
+		bufferedStart := &schedulespb.BufferedStart{
 			NominalTime:   timestamppb.New(next.Nominal),
 			ActualTime:    timestamppb.New(next.Next),
 			OverlapPolicy: overlapPolicy,
 			Manual:        manual,
 			RequestId:     generateRequestID(scheduler, backfillID, next.Nominal, next.Next),
-			WorkflowId:    schedulerinternal.GenerateWorkflowID(workflowID, next.Nominal),
-		})
+		}
+		if resolved.Custom != "" {
+			bufferedStart.CustomOverlapPolicy = &schedulepb.CustomOverlapPolicy{Name: resolved.Custom}
+		}
+		scheduler.newBufferedExecution(bufferedStart, targetIDBase)
+		bufferedStarts = append(bufferedStarts, bufferedStart)
 
 		if limit != nil {
 			if (*limit)--; *limit <= 0 {

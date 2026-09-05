@@ -2,8 +2,6 @@ package scheduler
 
 import (
 	"context"
-	"fmt"
-	"slices"
 	"time"
 
 	schedulespb "go.temporal.io/server/api/schedule/v1"
@@ -12,7 +10,6 @@ import (
 	schedulerinternal "go.temporal.io/server/chasm/lib/scheduler/internal"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
-	"go.temporal.io/server/common/util"
 	queueerrors "go.temporal.io/server/service/history/queues/errors"
 	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 )
@@ -60,18 +57,26 @@ func ContextWithTweakables(ctx chasm.Context, tweakables Tweakables) chasm.Conte
 // RecentActionCount exposes the completed-retention limit for tests.
 const RecentActionCount = recentActionCount
 
+// ComputeLastEventTime exposes the non-monotonic, recompute-from-state value so
+// tests can pin the regression it is subject to.
 func (s *Scheduler) ComputeLastEventTime(ctx chasm.Context) time.Time {
 	return s.computeLastEventTime(ctx)
 }
 
+// GetLastEventTimeFloored exposes the monotonic read path (recomputed value
+// floored at the persisted high water mark).
 func (s *Scheduler) GetLastEventTimeFloored(ctx chasm.Context) time.Time {
 	return s.getLastEventTime(ctx)
 }
 
+// AdvanceLastEventTime exposes the high-water-mark write performed by the
+// Generator tick.
 func (s *Scheduler) AdvanceLastEventTime(ctx chasm.MutableContext) time.Time {
 	return s.advanceLastEventTime(ctx)
 }
 
+// IdleDeadline exposes the deadline the idle task is armed against and that
+// SchedulerIdleTaskHandler.Validate recomputes.
 func (s *Scheduler) IdleDeadline(ctx chasm.Context, idleTime time.Duration) time.Time {
 	return s.idleDeadline(ctx, idleTime)
 }
@@ -81,64 +86,43 @@ func (i *Invoker) ApplyCompletedRetention() {
 	i.applyCompletedRetention()
 }
 
-// RecordExecuteResult retains the pre-refactor request-ID matching behavior as
-// a test-only oracle for existing event-log and race characterizations.
+// RecordExecuteResult adapts the old test helper to the execution batch commit
+// path. It intentionally matches starts by request ID because callers model
+// the legacy frontend response shape.
 func (i *Invoker) RecordExecuteResult(
 	ctx chasm.MutableContext,
 	completed []*schedulespb.BufferedStart,
 	retryable []*schedulespb.BufferedStart,
 ) (newlyStarted, droppedDuplicates int, startOnlyActions []*schedulespb.BufferedStart) {
-	completedByRequestID := make(map[string]*schedulespb.BufferedStart)
-	retryableByRequestID := make(map[string]*schedulespb.BufferedStart)
-	for _, start := range completed {
-		completedByRequestID[start.GetRequestId()] = start
-	}
-	for _, start := range retryable {
-		retryableByRequestID[start.GetRequestId()] = start
-	}
-
-	retriedStarts := 0
-	startedUntracked := make(map[string]struct{})
-	var latestStartTime time.Time
-	for _, start := range i.GetBufferedStarts() {
-		if start.GetRunId() != "" {
-			if _, duplicate := completedByRequestID[start.GetRequestId()]; duplicate {
-				droppedDuplicates++
+	result := executionBatchResult{}
+	for _, completion := range completed {
+		for index, start := range i.BufferedStarts {
+			if start.GetRequestId() == completion.GetRequestId() {
+				result.starts = append(result.starts, startExecutionResult{
+					loaded:    loadedBufferedStart{index: index, expected: start},
+					outcome:   startExecutionCompleted,
+					runID:     completion.GetRunId(),
+					startTime: completion.GetStartTime(),
+				})
+				break
 			}
-			continue
 		}
-		if completedStart, ok := completedByRequestID[start.GetRequestId()]; ok {
-			newlyStarted++
-			latestStartTime = util.MaxTime(latestStartTime, completedStart.GetStartTime().AsTime())
-			if !schedulerinternal.TracksCompletionResult(start.GetOverlapPolicy()) {
-				startOnlyActions = append(startOnlyActions, completedStart)
-				startedUntracked[start.GetRequestId()] = struct{}{}
-				continue
+	}
+	for _, retry := range retryable {
+		for index, start := range i.BufferedStarts {
+			if start.GetRequestId() == retry.GetRequestId() {
+				result.starts = append(result.starts, startExecutionResult{
+					loaded:      loadedBufferedStart{index: index, expected: start},
+					outcome:     startExecutionRetryable,
+					backoffTime: retry.GetBackoffTime(),
+				})
+				break
 			}
-			schedulerinternal.MarkStartStarted(start, completedStart.GetRunId(), completedStart.GetStartTime())
-			start.HasCallback = true
-		}
-		if retry, ok := retryableByRequestID[start.GetRequestId()]; ok {
-			schedulerinternal.MarkStartRetrying(start, start.GetAttempt()+1, retry.GetBackoffTime())
-			retriedStarts++
 		}
 	}
-	i.BufferedStarts = slices.DeleteFunc(i.BufferedStarts, func(start *schedulespb.BufferedStart) bool {
-		_, remove := startedUntracked[start.GetRequestId()]
-		return remove
-	})
-	i.getOrCreateEventLog(ctx).LogEvent(ctx,
-		fmt.Sprintf("recordExecuteResult kicked off %d starts, removed 0 starts, retried %d starts", newlyStarted, retriedStarts))
-	i.addTasks(ctx)
-	i.Scheduler.Get(ctx).advanceLastEventTimeTo(latestStartTime)
-	if newlyStarted > 0 {
-		i.Scheduler.Get(ctx).Generator.Get(ctx).Generate(ctx)
-	}
-	return newlyStarted, droppedDuplicates, startOnlyActions
-}
-
-func (s *Scheduler) RecordStartOnlyActions(ctx chasm.MutableContext, starts []*schedulespb.BufferedStart) {
-	s.recordStartOnlyActions(ctx, starts)
+	outcome := i.commitExecutionResult(ctx, result)
+	i.Scheduler.Get(ctx).advanceLastEventTimeTo(outcome.latestStartTime)
+	return outcome.appliedStarts, outcome.duplicateInvalidations, outcome.startOnlyActions
 }
 
 type ExecutionBatchForTest struct {
@@ -220,6 +204,13 @@ func (h *InvokerProcessBufferTaskHandler) ExecuteProcessBufferLegacyForTest(
 	invoker.recordProcessBufferResult(ctx, &result)
 	h.recordBufferProcessingMetrics(scheduler, result)
 	return nil
+}
+
+func (s *Scheduler) RecordStartOnlyActions(
+	ctx chasm.MutableContext,
+	starts []*schedulespb.BufferedStart,
+) {
+	s.recordStartOnlyActions(ctx, starts)
 }
 
 func (b *BackfillerTaskHandler) ProcessBackfill(
