@@ -1,0 +1,50 @@
+[
+  {
+    "source": "/tmp/temporal-worktrees/backfill-review/BACKFILL_REVIEW.md",
+    "archive": "research/scheduler-migration-2026-09-04/backfill-review/BACKFILL_REVIEW.md"
+  },
+  {
+    "source": "/tmp/temporal-worktrees/backfill-review/chasm/lib/scheduler/backfill_migration_review_test.go",
+    "archive": "research/scheduler-migration-2026-09-04/backfill-review/chasm/lib/scheduler/backfill_migration_review_test.go"
+  },
+  {
+    "source": "/tmp/temporal-worktrees/rollback/RESEARCH_ROLLBACK.md",
+    "archive": "research/scheduler-migration-2026-09-04/rollback/RESEARCH_ROLLBACK.md"
+  },
+  {
+    "source": "/tmp/temporal-worktrees/rollback/chasm/lib/scheduler/migration_ownership_research_test.go",
+    "archive": "research/scheduler-migration-2026-09-04/rollback/chasm/lib/scheduler/migration_ownership_research_test.go"
+  },
+  {
+    "source": "/tmp/temporal-worktrees/rollback/service/frontend/migration_sentinel_research_test.go",
+    "archive": "research/scheduler-migration-2026-09-04/rollback/service/frontend/migration_sentinel_research_test.go"
+  },
+  {
+    "source": "/tmp/temporal-worktrees/rollback/service/worker/scheduler/migration_ownership_research_test.go",
+    "archive": "research/scheduler-migration-2026-09-04/rollback/service/worker/scheduler/migration_ownership_research_test.go"
+  },
+  {
+    "source": "/tmp/temporal-worktrees/signals/docs/research/scheduler-migration-signal-fencing.md",
+    "archive": "research/scheduler-migration-2026-09-04/signals/docs/research/scheduler-migration-signal-fencing.md"
+  },
+  {
+    "source": "/tmp/temporal-worktrees/signals/service/worker/scheduler/migration_signal_replay_research_test.go",
+    "archive": "research/scheduler-migration-2026-09-04/signals/service/worker/scheduler/migration_signal_replay_research_test.go"
+  },
+  {
+    "source": "/tmp/temporal-worktrees/signals/service/worker/scheduler/migration_signal_window_research_test.go",
+    "archive": "research/scheduler-migration-2026-09-04/signals/service/worker/scheduler/migration_signal_window_research_test.go"
+  },
+  {
+    "source": "/tmp/temporal-worktrees/forward-handoff/FORWARD_HANDOFF_FINDINGS.md",
+    "archive": "research/scheduler-migration-2026-09-04/forward-handoff/FORWARD_HANDOFF_FINDINGS.md"
+  },
+  {
+    "source": "/tmp/temporal-worktrees/forward-handoff/chasm/lib/scheduler/forward_handoff_repro_test.go",
+    "archive": "research/scheduler-migration-2026-09-04/forward-handoff/chasm/lib/scheduler/forward_handoff_repro_test.go"
+  },
+  {
+    "source": "/tmp/temporal-worktrees/forward-handoff/service/worker/scheduler/forward_handoff_repro_test.go",
+    "archive": "research/scheduler-migration-2026-09-04/forward-handoff/service/worker/scheduler/forward_handoff_repro_test.go"
+  }
+]
