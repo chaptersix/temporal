@@ -133,12 +133,44 @@ func BuiltinPolicy(policy enumspb.ScheduleOverlapPolicy) PolicyDefinition {
 	}
 }
 
+func BufferLatestPolicy() PolicyDefinition {
+	return PolicyDefinition{Identity: PolicyIdentity{Custom: BufferLatestPolicyName}, Plan: func(s PolicySnapshot) PolicyDecision {
+		if len(s.Running) == 0 && s.Selected == nil {
+			return PolicyDecision{Start: true}
+		}
+		decision := PolicyDecision{Wait: true}
+		for _, waiting := range s.Waiting {
+			if waiting.CustomOverlapPolicy != BufferLatestPolicyName {
+				continue
+			}
+			if waiting.ActualTime.After(s.Occurrence.ActualTime) || waiting.ActualTime.Equal(s.Occurrence.ActualTime) && waiting.Occurrence > s.Occurrence.Occurrence {
+				return PolicyDecision{}
+			}
+			decision.Replace = append(decision.Replace, waiting)
+		}
+		return decision
+	}}
+}
+
 func WorkflowPolicies() *PolicyRegistry {
 	definitions := make([]PolicyDefinition, 0, 6)
 	for _, policy := range []enumspb.ScheduleOverlapPolicy{enumspb.SCHEDULE_OVERLAP_POLICY_SKIP, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL, enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER, enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL} {
 		definitions = append(definitions, BuiltinPolicy(policy))
 	}
 	r, err := NewPolicyRegistry(definitions, PolicyIdentity{Builtin: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP}, ExecutionOperations{Cancel: true, Terminate: true})
+	if err != nil {
+		log.NewCLILogger().Fatal("invalid scheduler overlap policy registry", tag.Error(err))
+	}
+	return r
+}
+
+func ActivityPolicies() *PolicyRegistry {
+	definitions := make([]PolicyDefinition, 0, 6)
+	for _, policy := range []enumspb.ScheduleOverlapPolicy{enumspb.SCHEDULE_OVERLAP_POLICY_SKIP, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL, enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL} {
+		definitions = append(definitions, BuiltinPolicy(policy))
+	}
+	definitions = append(definitions, BufferLatestPolicy())
+	r, err := NewPolicyRegistry(definitions, PolicyIdentity{}, ExecutionOperations{Terminate: true})
 	if err != nil {
 		log.NewCLILogger().Fatal("invalid scheduler overlap policy registry", tag.Error(err))
 	}
