@@ -19,6 +19,7 @@ func TestMigrateToWorkflow_PausesSchedule(t *testing.T) {
 	_, err := sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
 		NamespaceId: namespaceID,
 		ScheduleId:  scheduleID,
+		RequestId:   "request-id",
 	})
 	require.NoError(t, err)
 
@@ -37,12 +38,14 @@ func TestMigrateToWorkflow_SavesPreMigrationState(t *testing.T) {
 	_, err := sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
 		NamespaceId: namespaceID,
 		ScheduleId:  scheduleID,
+		RequestId:   "request-id",
 	})
 	require.NoError(t, err)
 
 	require.NotNil(t, sched.WorkflowMigration)
 	require.True(t, sched.WorkflowMigration.PreMigrationPaused)
 	require.Equal(t, "user paused", sched.WorkflowMigration.PreMigrationNotes)
+	require.Equal(t, "request-id", sched.WorkflowMigration.RequestId)
 }
 
 func TestMigrateToWorkflow_SavesPreMigrationState_Unpaused(t *testing.T) {
@@ -53,6 +56,7 @@ func TestMigrateToWorkflow_SavesPreMigrationState_Unpaused(t *testing.T) {
 	_, err := sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
 		NamespaceId: namespaceID,
 		ScheduleId:  scheduleID,
+		RequestId:   "request-id",
 	})
 	require.NoError(t, err)
 
@@ -67,6 +71,7 @@ func TestMigrateToWorkflow_Idempotent(t *testing.T) {
 	_, err := sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
 		NamespaceId: namespaceID,
 		ScheduleId:  scheduleID,
+		RequestId:   "request-id",
 	})
 	require.NoError(t, err)
 
@@ -74,8 +79,43 @@ func TestMigrateToWorkflow_Idempotent(t *testing.T) {
 	_, err = sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
 		NamespaceId: namespaceID,
 		ScheduleId:  scheduleID,
+		RequestId:   "request-id",
 	})
 	require.NoError(t, err)
+}
+
+func TestMigrateToWorkflow_RejectsMissingRequestID(t *testing.T) {
+	sched, ctx, _ := setupSchedulerForTest(t)
+
+	_, err := sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
+		NamespaceId: namespaceID,
+		ScheduleId:  scheduleID,
+	})
+
+	var invalidArgumentErr *serviceerror.InvalidArgument
+	require.ErrorAs(t, err, &invalidArgumentErr)
+	require.Nil(t, sched.WorkflowMigration)
+}
+
+func TestMigrateToWorkflow_RejectsDifferentPendingRequest(t *testing.T) {
+	sched, ctx, _ := setupSchedulerForTest(t)
+
+	_, err := sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
+		NamespaceId: namespaceID,
+		ScheduleId:  scheduleID,
+		RequestId:   "request-id",
+	})
+	require.NoError(t, err)
+
+	_, err = sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
+		NamespaceId: namespaceID,
+		ScheduleId:  scheduleID,
+		RequestId:   "different-request-id",
+	})
+
+	var alreadyExistsErr *serviceerror.AlreadyExists
+	require.ErrorAs(t, err, &alreadyExistsErr)
+	require.Equal(t, "request-id", sched.WorkflowMigration.GetRequestId())
 }
 
 func TestMigrateToWorkflow_Sentinel(t *testing.T) {
@@ -84,6 +124,7 @@ func TestMigrateToWorkflow_Sentinel(t *testing.T) {
 	_, err := sentinel.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
 		NamespaceId: namespaceID,
 		ScheduleId:  scheduleID,
+		RequestId:   "request-id",
 	})
 
 	var notFoundErr *serviceerror.NotFound
@@ -97,6 +138,7 @@ func TestPatch_UnpauseBlockedDuringMigration(t *testing.T) {
 	_, err := sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
 		NamespaceId: namespaceID,
 		ScheduleId:  scheduleID,
+		RequestId:   "request-id",
 	})
 	require.NoError(t, err)
 
@@ -123,6 +165,7 @@ func TestPatch_RejectedDuringMigration(t *testing.T) {
 	_, err := sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
 		NamespaceId: namespaceID,
 		ScheduleId:  scheduleID,
+		RequestId:   "request-id",
 	})
 	require.NoError(t, err)
 
@@ -152,6 +195,7 @@ func TestUpdate_RejectedDuringMigration(t *testing.T) {
 	_, err := sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
 		NamespaceId: namespaceID,
 		ScheduleId:  scheduleID,
+		RequestId:   "request-id",
 	})
 	require.NoError(t, err)
 
@@ -179,6 +223,7 @@ func TestDelete_RejectedDuringMigration(t *testing.T) {
 	_, err := sched.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{
 		NamespaceId: namespaceID,
 		ScheduleId:  scheduleID,
+		RequestId:   "request-id",
 	})
 	require.NoError(t, err)
 

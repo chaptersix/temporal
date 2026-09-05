@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
@@ -112,6 +111,7 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 		searchAttributes map[string]*commonpb.Payload
 		memo             map[string]*commonpb.Payload
 		now              time.Time
+		requestID        string
 	}
 	var result readResult
 
@@ -159,6 +159,7 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 				searchAttributes: searchAttributes,
 				memo:             memo,
 				now:              now,
+				requestID:        schedulerState.GetWorkflowMigration().GetRequestId(),
 			}
 			return struct{}{}, nil
 		},
@@ -166,6 +167,9 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 	)
 	if err != nil {
 		return fmt.Errorf("failed to read scheduler state: %w", err)
+	}
+	if result.requestID == "" {
+		return serviceerror.NewFailedPrecondition("workflow migration has no durable request ID")
 	}
 
 	logger = log.With(
@@ -205,7 +209,7 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 	}
 	workflowID := legacyscheduler.WorkflowIDPrefix + result.scheduleID
 	startReq := &workflowservice.StartWorkflowExecutionRequest{
-		RequestId:                uuid.NewString(),
+		RequestId:                result.requestID,
 		Namespace:                result.namespace,
 		WorkflowId:               workflowID,
 		WorkflowType:             &commonpb.WorkflowType{Name: legacyscheduler.WorkflowType},
@@ -224,9 +228,15 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 		common.CreateHistoryStartWorkflowRequest(result.namespaceID, startReq, nil, nil, result.now),
 	)
 	if err != nil {
-		// Treat already-started as success for idempotency.
-		if _, ok := errors.AsType[*serviceerror.WorkflowExecutionAlreadyStarted](err); !ok {
+		if alreadyStarted, ok := errors.AsType[*serviceerror.WorkflowExecutionAlreadyStarted](err); !ok {
 			return fmt.Errorf("failed to start V1 scheduler workflow: %w", err)
+		} else if alreadyStarted.StartRequestId != result.requestID {
+			return serviceerror.NewAlreadyExistsf(
+				"V1 scheduler workflow %q belongs to request %q, not migration %q",
+				workflowID,
+				alreadyStarted.StartRequestId,
+				result.requestID,
+			)
 		}
 	}
 

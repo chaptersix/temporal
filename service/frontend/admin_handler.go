@@ -2297,6 +2297,10 @@ func (adh *AdminHandler) migrateScheduleToWorkflow(
 	request *adminservice.MigrateScheduleRequest,
 	namespaceID string,
 ) (*adminservice.MigrateScheduleResponse, error) {
+	migrationRequestID := request.GetRequestId()
+	if migrationRequestID == "" {
+		migrationRequestID = uuid.NewString()
+	}
 	workflowID := scheduler.WorkflowIDPrefix + request.GetScheduleId()
 	descResp, err := adh.historyClient.DescribeWorkflowExecution(ctx, &historyservice.DescribeWorkflowExecutionRequest{
 		NamespaceId: namespaceID,
@@ -2311,7 +2315,8 @@ func (adh *AdminHandler) migrateScheduleToWorkflow(
 	case common.IsNotFoundError(err):
 	case err != nil:
 		return nil, err
-	case descResp.GetWorkflowExecutionInfo().GetType().GetName() == dummy.DummyWFTypeName:
+	case descResp.GetWorkflowExecutionInfo().GetType().GetName() == dummy.DummyWFTypeName &&
+		descResp.GetWorkflowExecutionInfo().GetStatus() == enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING:
 		sentinelIdleTimeRemaining := max(time.Until(descResp.GetWorkflowExecutionInfo().GetStartTime().AsTime().Add(chasmscheduler.SentinelIdleTime)), 0)
 		adh.logger.Warn(
 			"schedule migration to workflow blocked by workflow sentinel",
@@ -2332,7 +2337,7 @@ func (adh *AdminHandler) migrateScheduleToWorkflow(
 			NamespaceId: namespaceID,
 			ScheduleId:  request.GetScheduleId(),
 			Identity:    request.GetIdentity(),
-			RequestId:   request.GetRequestId(),
+			RequestId:   migrationRequestID,
 		},
 	)
 	if err != nil {

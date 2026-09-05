@@ -68,6 +68,9 @@ message WorkflowMigrationState {
 
   // The schedule's notes before migration was initiated.
   string pre_migration_notes = 2;
+
+  // Stable request ID used to start and reconcile the destination workflow.
+  string request_id = 3;
 }
 
 // CHASM scheduler's Generator internal state.
