@@ -984,6 +984,7 @@ func (s *Scheduler) MigrateToWorkflow(
 	// Save pre-migration paused state, mark migration as pending, then pause.
 	s.WorkflowMigration = &schedulerpb.WorkflowMigrationState{
 		PreMigrationPaused: s.Schedule.State.Paused,
+		StartPending:       true,
 		PreMigrationNotes:  s.Schedule.State.Notes,
 		RequestId:          req.GetRequestId(),
 	}

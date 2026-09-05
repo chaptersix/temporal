@@ -11,6 +11,7 @@ import (
 	"go.temporal.io/api/serviceerror"
 	taskqueuepb "go.temporal.io/api/taskqueue/v1"
 	"go.temporal.io/api/workflowservice/v1"
+	"go.temporal.io/server/api/historyservice/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
@@ -112,6 +113,7 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 		memo             map[string]*commonpb.Payload
 		now              time.Time
 		requestID        string
+		receipt          string
 	}
 	var result readResult
 
@@ -160,6 +162,7 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 				memo:             memo,
 				now:              now,
 				requestID:        schedulerState.GetWorkflowMigration().GetRequestId(),
+				receipt:          schedulerState.GetWorkflowMigration().GetDestinationFirstRunId(),
 			}
 			return struct{}{}, nil
 		},
@@ -178,6 +181,10 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 		tag.ScheduleID(result.scheduleID),
 	)
 	logger.Info("schedule migration to workflow started")
+
+	if result.receipt != "" {
+		return h.closeSource(ctx, schedulerRef, result.requestID)
+	}
 
 	// Serialize the V1 workflow input.
 	inputPayloads, err := sdk.PreferProtoDataConverter.ToPayloads(result.args)
@@ -223,37 +230,110 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 		Priority:                 &commonpb.Priority{},
 	}
 
-	_, err = h.historyClient.StartWorkflowExecution(
-		ctx,
-		common.CreateHistoryStartWorkflowRequest(result.namespaceID, startReq, nil, nil, result.now),
-	)
+	claimed, _, err := chasm.UpdateComponent(ctx, schedulerRef,
+		func(s *Scheduler, _ chasm.MutableContext, _ any) (bool, error) {
+			if s.Closed {
+				return false, ErrClosed
+			}
+			if s.WorkflowMigration.GetRequestId() != result.requestID {
+				return false, ErrMigrationPending
+			}
+			pending := s.WorkflowMigration.StartPending
+			s.WorkflowMigration.StartPending = false
+			return pending, nil
+		}, nil)
 	if err != nil {
-		if alreadyStarted, ok := errors.AsType[*serviceerror.WorkflowExecutionAlreadyStarted](err); !ok {
-			return fmt.Errorf("failed to start V1 scheduler workflow: %w", err)
-		} else if alreadyStarted.StartRequestId != result.requestID {
-			return serviceerror.NewAlreadyExistsf(
-				"V1 scheduler workflow %q belongs to request %q, not migration %q",
-				workflowID,
-				alreadyStarted.StartRequestId,
-				result.requestID,
-			)
+		return fmt.Errorf("failed to claim migration start: %w", err)
+	}
+	var firstRunID string
+	if claimed {
+		response, startErr := h.historyClient.StartWorkflowExecution(ctx,
+			common.CreateHistoryStartWorkflowRequest(result.namespaceID, startReq, nil, nil, result.now))
+		if startErr != nil {
+			alreadyStarted, ok := errors.AsType[*serviceerror.WorkflowExecutionAlreadyStarted](startErr)
+			if !ok {
+				return fmt.Errorf("failed to start V1 scheduler workflow: %w", startErr)
+			}
+			if alreadyStarted.StartRequestId == result.requestID {
+				firstRunID = alreadyStarted.RunId
+			} else {
+				firstRunID, err = h.verifyDestinationChain(ctx, result.namespaceID, workflowID, alreadyStarted.RunId, result.requestID)
+			}
+		} else {
+			firstRunID = response.GetFirstExecutionRunId()
+			if firstRunID == "" {
+				firstRunID = response.GetRunId()
+			}
 		}
+	} else {
+		// A previous start may have committed and continued as new or closed. Never restart its snapshot.
+		firstRunID, err = h.verifyDestinationChain(ctx, result.namespaceID, workflowID, "", result.requestID)
+	}
+	if err != nil {
+		return err
+	}
+	if firstRunID == "" {
+		return serviceerror.NewFailedPrecondition("migration destination returned no run identity")
 	}
 
-	// Mark the CHASM scheduler as closed now that the V1 workflow is running.
-	_, _, err = chasm.UpdateComponent(
-		ctx,
-		schedulerRef,
-		func(s *Scheduler, ctx chasm.MutableContext, _ any) (chasm.NoValue, error) {
+	_, _, err = chasm.UpdateComponent(ctx, schedulerRef,
+		func(s *Scheduler, _ chasm.MutableContext, _ any) (chasm.NoValue, error) {
+			if s.Closed {
+				return nil, nil
+			}
+			if s.WorkflowMigration.GetRequestId() != result.requestID {
+				return nil, ErrMigrationPending
+			}
+			s.WorkflowMigration.DestinationFirstRunId = firstRunID
+			return nil, nil
+		}, nil)
+	if err != nil {
+		return fmt.Errorf("failed to persist migration destination receipt: %w", err)
+	}
+	return h.closeSource(ctx, schedulerRef, result.requestID)
+}
+
+func (h *SchedulerMigrateToWorkflowTaskHandler) closeSource(ctx context.Context, ref chasm.ComponentRef, requestID string) error {
+	_, _, err := chasm.UpdateComponent(ctx, ref,
+		func(s *Scheduler, _ chasm.MutableContext, _ any) (chasm.NoValue, error) {
+			if s.Closed {
+				return nil, nil
+			}
+			if s.WorkflowMigration.GetRequestId() != requestID {
+				return nil, ErrMigrationPending
+			}
 			s.Closed = true
 			s.WorkflowMigration = nil
 			return nil, nil
-		},
-		nil,
-	)
+		}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to close CHASM scheduler after migration: %w", err)
 	}
-
 	return nil
+}
+
+func (h *SchedulerMigrateToWorkflowTaskHandler) verifyDestinationChain(
+	ctx context.Context, namespaceID, workflowID, runID, requestID string,
+) (string, error) {
+	current, err := h.historyClient.GetMutableState(ctx, &historyservice.GetMutableStateRequest{
+		NamespaceId: namespaceID, Execution: &commonpb.WorkflowExecution{WorkflowId: workflowID, RunId: runID},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve migration destination chain: %w", err)
+	}
+	firstRunID := current.GetFirstExecutionRunId()
+	if firstRunID == "" {
+		return "", serviceerror.NewFailedPrecondition("migration destination has no first-run identity")
+	}
+	first, err := h.historyClient.DescribeMutableState(ctx, &historyservice.DescribeMutableStateRequest{
+		NamespaceId: namespaceID, Execution: &commonpb.WorkflowExecution{WorkflowId: workflowID, RunId: firstRunID},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to verify migration destination owner: %w", err)
+	}
+	state := first.GetDatabaseMutableState().GetExecutionState()
+	if state.GetRunId() != firstRunID || state.GetCreateRequestId() != requestID {
+		return "", serviceerror.NewAlreadyExistsf("V1 scheduler workflow %q belongs to another migration", workflowID)
+	}
+	return firstRunID, nil
 }

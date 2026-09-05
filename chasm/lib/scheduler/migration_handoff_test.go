@@ -14,6 +14,7 @@ import (
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/api/historyservice/v1"
 	"go.temporal.io/server/api/historyservicemock/v1"
+	persistencespb "go.temporal.io/server/api/persistence/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler"
@@ -34,6 +35,7 @@ type migrationCloseFaultEngine struct {
 	chasm.Engine
 	afterCommit bool
 	armed       bool
+	skip        int
 }
 
 func requireMigrationCounterexamples(t *testing.T) {
@@ -46,6 +48,10 @@ func requireMigrationCounterexamples(t *testing.T) {
 func (e *migrationCloseFaultEngine) UpdateComponent(
 	ctx context.Context, ref chasm.ComponentRef, update func(chasm.MutableContext, chasm.Component) error, opts ...chasm.TransitionOption,
 ) ([]byte, error) {
+	if e.skip > 0 {
+		e.skip--
+		return e.Engine.UpdateComponent(ctx, ref, update, opts...)
+	}
 	if !e.armed {
 		return e.Engine.UpdateComponent(ctx, ref, update, opts...)
 	}
@@ -105,7 +111,7 @@ func TestMigrationScenario_RollbackRetryBoundaries(t *testing.T) {
 	for _, boundary := range []string{"success", "before_destination", "after_destination", "before_source_close", "after_source_close"} {
 		t.Run(boundary, func(t *testing.T) {
 			e, handler, historyClient := newRollbackScenario(t)
-			faultEngine := &migrationCloseFaultEngine{Engine: e.engine,
+			faultEngine := &migrationCloseFaultEngine{Engine: e.engine, skip: 1,
 				armed: boundary == "before_source_close" || boundary == "after_source_close", afterCommit: boundary == "after_source_close"}
 			var destination *schedulespb.StartScheduleArgs
 			var destinationRequestID string
@@ -132,7 +138,26 @@ func TestMigrationScenario_RollbackRetryBoundaries(t *testing.T) {
 					}
 					return &historyservice.StartWorkflowExecutionResponse{RunId: "destination-run"}, nil
 				})
+			historyClient.EXPECT().GetMutableState(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+				func(context.Context, *historyservice.GetMutableStateRequest, ...grpc.CallOption) (*historyservice.GetMutableStateResponse, error) {
+					if destination == nil {
+						return nil, serviceerror.NewNotFound("no destination")
+					}
+					return &historyservice.GetMutableStateResponse{FirstExecutionRunId: "destination-run"}, nil
+				})
+			historyClient.EXPECT().DescribeMutableState(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+				func(context.Context, *historyservice.DescribeMutableStateRequest, ...grpc.CallOption) (*historyservice.DescribeMutableStateResponse, error) {
+					return &historyservice.DescribeMutableStateResponse{DatabaseMutableState: &persistencespb.WorkflowMutableState{ExecutionState: &persistencespb.WorkflowExecutionState{RunId: "destination-run", CreateRequestId: destinationRequestID}}}, nil
+				})
 			dropped, err := executeRollbackTask(t, e, handler, faultEngine)
+			if boundary == "before_destination" {
+				require.Error(t, err)
+				_, err = executeRollbackTask(t, e, handler, faultEngine)
+				require.Error(t, err)
+				require.Zero(t, creations)
+				return
+			}
+
 			require.False(t, dropped)
 			if boundary == "success" {
 				require.NoError(t, err)
