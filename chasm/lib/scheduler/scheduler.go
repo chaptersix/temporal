@@ -971,14 +971,21 @@ func (s *Scheduler) MigrateToWorkflow(
 	if s.Closed {
 		return nil, ErrClosed
 	}
+	if req.GetRequestId() == "" {
+		return nil, serviceerror.NewInvalidArgument("migration request ID is required")
+	}
 	if s.WorkflowMigration != nil {
-		return &schedulerpb.MigrateToWorkflowResponse{}, nil
+		if s.WorkflowMigration.GetRequestId() == req.GetRequestId() {
+			return &schedulerpb.MigrateToWorkflowResponse{}, nil
+		}
+		return nil, serviceerror.NewAlreadyExists("a different workflow migration is already pending")
 	}
 
 	// Save pre-migration paused state, mark migration as pending, then pause.
 	s.WorkflowMigration = &schedulerpb.WorkflowMigrationState{
 		PreMigrationPaused: s.Schedule.State.Paused,
 		PreMigrationNotes:  s.Schedule.State.Notes,
+		RequestId:          req.GetRequestId(),
 	}
 	s.Schedule.State.Paused = true
 	s.Schedule.State.Notes = "paused for migration to workflow-backed scheduler"

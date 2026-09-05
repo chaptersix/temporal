@@ -2180,6 +2180,32 @@ func (s *adminHandlerSuite) TestMigrateScheduleToWorkflow() {
 	s.Equal("test-request-id", capturedReq.RequestId)
 }
 
+func (s *adminHandlerSuite) TestMigrateScheduleToWorkflowGeneratesRequestID() {
+	s.mockNamespaceCache.EXPECT().GetNamespaceID(s.namespace).Return(s.namespaceID, nil)
+	s.mockHistoryClient.EXPECT().DescribeWorkflowExecution(gomock.Any(), gomock.Any()).Return(
+		nil, serviceerror.NewNotFound("workflow not found"))
+
+	var capturedReq *schedulerpb.MigrateToWorkflowRequest
+	s.handler.schedulerClient = &fakeSchedulerClient{
+		migrateToWorkflowFn: func(_ context.Context, req *schedulerpb.MigrateToWorkflowRequest) (*schedulerpb.MigrateToWorkflowResponse, error) {
+			capturedReq = req
+			return &schedulerpb.MigrateToWorkflowResponse{}, nil
+		},
+	}
+
+	resp, err := s.handler.MigrateSchedule(context.Background(), &adminservice.MigrateScheduleRequest{
+		Namespace:  s.namespace.String(),
+		ScheduleId: "test-schedule",
+		Target:     adminservice.MigrateScheduleRequest_SCHEDULER_TARGET_WORKFLOW,
+		Identity:   "test-identity",
+	})
+	s.NoError(err)
+	s.NotNil(resp)
+	s.NotEmpty(capturedReq.GetRequestId())
+	_, err = uuid.Parse(capturedReq.GetRequestId())
+	s.NoError(err)
+}
+
 func (s *adminHandlerSuite) TestMigrateScheduleToWorkflowExistingWorkflow() {
 	s.mockNamespaceCache.EXPECT().GetNamespaceID(s.namespace).Return(s.namespaceID, nil)
 	s.mockHistoryClient.EXPECT().DescribeWorkflowExecution(gomock.Any(), &historyservice.DescribeWorkflowExecutionRequest{
@@ -2232,7 +2258,8 @@ func (s *adminHandlerSuite) TestMigrateScheduleToWorkflowBlockedByWorkflowSentin
 		},
 	}).Return(&historyservice.DescribeWorkflowExecutionResponse{
 		WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
-			Type: &commonpb.WorkflowType{Name: dummy.DummyWFTypeName},
+			Type:   &commonpb.WorkflowType{Name: dummy.DummyWFTypeName},
+			Status: enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING,
 		},
 	}, nil)
 

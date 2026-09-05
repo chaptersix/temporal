@@ -188,8 +188,10 @@ type WorkflowMigrationState struct {
 	PreMigrationPaused bool `protobuf:"varint,1,opt,name=pre_migration_paused,json=preMigrationPaused,proto3" json:"pre_migration_paused,omitempty"`
 	// The schedule's notes before migration was initiated.
 	PreMigrationNotes string `protobuf:"bytes,2,opt,name=pre_migration_notes,json=preMigrationNotes,proto3" json:"pre_migration_notes,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Stable request ID used to start and reconcile the destination workflow.
+	RequestId     string `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkflowMigrationState) Reset() {
@@ -232,6 +234,13 @@ func (x *WorkflowMigrationState) GetPreMigrationPaused() bool {
 func (x *WorkflowMigrationState) GetPreMigrationNotes() string {
 	if x != nil {
 		return x.PreMigrationNotes
+	}
+	return ""
+}
+
+func (x *WorkflowMigrationState) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
 	}
 	return ""
 }
@@ -762,10 +771,12 @@ const file_temporal_server_chasm_lib_scheduler_proto_v1_message_proto_rawDesc = 
 	" \x01(\bR\bsentinel\x12s\n" +
 	"\x12workflow_migration\x18\v \x01(\v2D.temporal.server.chasm.lib.scheduler.proto.v1.WorkflowMigrationStateR\x11workflowMigration\x12B\n" +
 	"\x0fidle_close_time\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\ridleCloseTime\x12B\n" +
-	"\x0flast_event_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\rlastEventTime\"z\n" +
+	"\x0flast_event_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\rlastEventTime\"\x99\x01\n" +
 	"\x16WorkflowMigrationState\x120\n" +
 	"\x14pre_migration_paused\x18\x01 \x01(\bR\x12preMigrationPaused\x12.\n" +
-	"\x13pre_migration_notes\x18\x02 \x01(\tR\x11preMigrationNotes\"\xa8\x01\n" +
+	"\x13pre_migration_notes\x18\x02 \x01(\tR\x11preMigrationNotes\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x03 \x01(\tR\trequestId\"\xa8\x01\n" +
 	"\x0eGeneratorState\x12J\n" +
 	"\x13last_processed_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x11lastProcessedTime\x12J\n" +
 	"\x13future_action_times\x18\x04 \x03(\v2\x1a.google.protobuf.TimestampR\x11futureActionTimes\"\xeb\x02\n" +

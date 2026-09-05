@@ -108,6 +108,7 @@ func TestMigrationScenario_RollbackRetryBoundaries(t *testing.T) {
 			faultEngine := &migrationCloseFaultEngine{Engine: e.engine,
 				armed: boundary == "before_source_close" || boundary == "after_source_close", afterCommit: boundary == "after_source_close"}
 			var destination *schedulespb.StartScheduleArgs
+			var destinationRequestID string
 			attempts, creations := 0, 0
 			historyClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
 				func(_ context.Context, req *historyservice.StartWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.StartWorkflowExecutionResponse, error) {
@@ -116,8 +117,11 @@ func TestMigrationScenario_RollbackRetryBoundaries(t *testing.T) {
 						return nil, serviceerror.NewUnavailable("injected before destination commit")
 					}
 					if destination != nil {
-						return nil, serviceerror.NewWorkflowExecutionAlreadyStarted("retry", "first-request", "destination-run")
+						require.Equal(t, destinationRequestID, req.StartRequest.RequestId)
+						return nil, serviceerror.NewWorkflowExecutionAlreadyStarted("retry", destinationRequestID, "destination-run")
 					}
+					destinationRequestID = req.StartRequest.RequestId
+					require.Equal(t, "rollback", destinationRequestID)
 					destination = &schedulespb.StartScheduleArgs{}
 					require.NoError(t, sdk.PreferProtoDataConverter.FromPayloads(req.StartRequest.Input, destination))
 					protorequire.ProtoEqual(t, payload.EncodeString("memo"), req.StartRequest.Memo.Fields["custom"])
@@ -166,6 +170,24 @@ func TestMigrationCounterexample_RollbackDestinationCollision(t *testing.T) {
 		return nil
 	}))
 	require.Error(t, err, "an unrelated destination is a conflict, not a successful handoff")
+}
+
+func TestMigrationScenario_RollbackWithoutDurableRequestIDFailsClosed(t *testing.T) {
+	e, handler, _ := newRollbackScenario(t)
+	require.NoError(t, e.updateScheduler(func(s *scheduler.Scheduler, _ chasm.MutableContext) error {
+		s.WorkflowMigration.RequestId = ""
+		return nil
+	}))
+
+	_, err := executeRollbackTask(t, e, handler, e.engine)
+
+	var failedPreconditionErr *serviceerror.FailedPrecondition
+	require.ErrorAs(t, err, &failedPreconditionErr)
+	require.NoError(t, e.readScheduler(func(s *scheduler.Scheduler, _ chasm.Context) error {
+		require.False(t, s.Closed)
+		require.NotNil(t, s.WorkflowMigration)
+		return nil
+	}))
 }
 
 func TestMigrationScenario_NativeBackfillResumesAfterWatermark(t *testing.T) {
