@@ -1,0 +1,227 @@
+[
+  {
+    "number": 11942,
+    "title": "Use DescribeWorkflowExecution for migration verification",
+    "url": "https://github.com/temporalio/temporal/pull/11942"
+  },
+  {
+    "number": 11924,
+    "title": "Fix CHASM sentinel handling during scheduler migration",
+    "url": "https://github.com/temporalio/temporal/pull/11924"
+  },
+  {
+    "number": 11880,
+    "title": "Fix scheduler migration data transforms",
+    "url": "https://github.com/temporalio/temporal/pull/11880"
+  },
+  {
+    "number": 11878,
+    "title": "Preserve fresh backfill boundary during V1 migration",
+    "url": "https://github.com/temporalio/temporal/pull/11878"
+  },
+  {
+    "number": 11843,
+    "title": "Validate cron schedule in SignalWithStart request validator",
+    "url": "https://github.com/temporalio/temporal/pull/11843"
+  },
+  {
+    "number": 11761,
+    "title": "add time skipping to (both chasm-based and wf-based) schedules",
+    "url": "https://github.com/temporalio/temporal/pull/11761"
+  },
+  {
+    "number": 11758,
+    "title": "Add durable batch schedule migration",
+    "url": "https://github.com/temporalio/temporal/pull/11758"
+  },
+  {
+    "number": 11752,
+    "title": "worker/workerdeployment: bound schedule-to-close on default activity options",
+    "url": "https://github.com/temporalio/temporal/pull/11752"
+  },
+  {
+    "number": 11746,
+    "title": "Use PostgreSQL tuple cursor for scheduled task pagination",
+    "url": "https://github.com/temporalio/temporal/pull/11746"
+  },
+  {
+    "number": 11732,
+    "title": "Combine schedule completion tracking fixes",
+    "url": "https://github.com/temporalio/temporal/pull/11732"
+  },
+  {
+    "number": 11568,
+    "title": "Honor Schedule immediate-trigger scheduled time",
+    "url": "https://github.com/temporalio/temporal/pull/11568"
+  },
+  {
+    "number": 11557,
+    "title": "Activate pending starts after schedule migration",
+    "url": "https://github.com/temporalio/temporal/pull/11557"
+  },
+  {
+    "number": 11532,
+    "title": "Reproduce migrated zero catchup compatibility gap",
+    "url": "https://github.com/temporalio/temporal/pull/11532"
+  },
+  {
+    "number": 11493,
+    "title": "fix(activity): close standalone activity as TIMED_OUT instead of FAILED on worker-reported schedule timeout",
+    "url": "https://github.com/temporalio/temporal/pull/11493"
+  },
+  {
+    "number": 11463,
+    "title": "Schedule v2 replay fidelity",
+    "url": "https://github.com/temporalio/temporal/pull/11463"
+  },
+  {
+    "number": 11432,
+    "title": "Guard the CHASM pure-task invalidation invariant for scheduler tasks",
+    "url": "https://github.com/temporalio/temporal/pull/11432"
+  },
+  {
+    "number": 11351,
+    "title": "Reject empty workflow ID in CreateSchedule",
+    "url": "https://github.com/temporalio/temporal/pull/11351"
+  },
+  {
+    "number": 11326,
+    "title": "Honor SchedulePolicies.keep_original_workflow_id",
+    "url": "https://github.com/temporalio/temporal/pull/11326"
+  },
+  {
+    "number": 11316,
+    "title": "Prevent scheduler retries past catchup deadline",
+    "url": "https://github.com/temporalio/temporal/pull/11316"
+  },
+  {
+    "number": 11197,
+    "title": "Fix closed scheduler migration completion",
+    "url": "https://github.com/temporalio/temporal/pull/11197"
+  },
+  {
+    "number": 11134,
+    "title": "Fix: v1->V2 schedules migration guard & fix",
+    "url": "https://github.com/temporalio/temporal/pull/11134"
+  },
+  {
+    "number": 11102,
+    "title": "Migrate schedule tests to parallel suites",
+    "url": "https://github.com/temporalio/temporal/pull/11102"
+  },
+  {
+    "number": 10958,
+    "title": "fix: schedules-scanner: fix up some metrics to avoid noise, add signal",
+    "url": "https://github.com/temporalio/temporal/pull/10958"
+  },
+  {
+    "number": 10929,
+    "title": "Add tdbg schedule audit command",
+    "url": "https://github.com/temporalio/temporal/pull/10929"
+  },
+  {
+    "number": 10919,
+    "title": "Exclude scheduled-to-stop members from resolver availability",
+    "url": "https://github.com/temporalio/temporal/pull/10919"
+  },
+  {
+    "number": 10896,
+    "title": "[Scheduler] Skip recomputing FutureActionTimes after handling completion events",
+    "url": "https://github.com/temporalio/temporal/pull/10896"
+  },
+  {
+    "number": 10834,
+    "title": "migration: add namespace tag to catchup_ready_shard_count metric",
+    "url": "https://github.com/temporalio/temporal/pull/10834"
+  },
+  {
+    "number": 10729,
+    "title": "schedulertest: V2->V1->V2 scheduler migration round-trip test",
+    "url": "https://github.com/temporalio/temporal/pull/10729"
+  },
+  {
+    "number": 10728,
+    "title": "schedulertest: rapid property test for scheduler invariants",
+    "url": "https://github.com/temporalio/temporal/pull/10728"
+  },
+  {
+    "number": 10727,
+    "title": "schedulertest: scheduler invariants and deterministic tables",
+    "url": "https://github.com/temporalio/temporal/pull/10727"
+  },
+  {
+    "number": 10726,
+    "title": "schedulertest: CHASM scheduler lifecycle driver harness",
+    "url": "https://github.com/temporalio/temporal/pull/10726"
+  },
+  {
+    "number": 10650,
+    "title": "Port v1.23.0-rc16 scheduler workflow into current package",
+    "url": "https://github.com/temporalio/temporal/pull/10650"
+  },
+  {
+    "number": 10588,
+    "title": "Expose CHASM schedule next action visibility",
+    "url": "https://github.com/temporalio/temporal/pull/10588"
+  },
+  {
+    "number": 10501,
+    "title": "Remove childInfo.NamespaceId backfill code",
+    "url": "https://github.com/temporalio/temporal/pull/10501"
+  },
+  {
+    "number": 10382,
+    "title": "Fix schedule interval offsets with microsecond precision",
+    "url": "https://github.com/temporalio/temporal/pull/10382"
+  },
+  {
+    "number": 10376,
+    "title": "Add tdbg schedule audit command",
+    "url": "https://github.com/temporalio/temporal/pull/10376"
+  },
+  {
+    "number": 10299,
+    "title": "Fix typo: \"intialized\" \u2192 \"initialized\" in scheduler comments",
+    "url": "https://github.com/temporalio/temporal/pull/10299"
+  },
+  {
+    "number": 10113,
+    "title": "fix: deduplicate schedule StructuredCalendar entries on create/update",
+    "url": "https://github.com/temporalio/temporal/pull/10113"
+  },
+  {
+    "number": 10067,
+    "title": "Schedule: support ScheduleSpec.rrule (RRULE) for calendar recurrence",
+    "url": "https://github.com/temporalio/temporal/pull/10067"
+  },
+  {
+    "number": 9257,
+    "title": "Add schedule_to_start_timeout to WorkflowTaskScheduledEvent",
+    "url": "https://github.com/temporalio/temporal/pull/9257"
+  },
+  {
+    "number": 8138,
+    "title": "Respect priority levels in rescheduler",
+    "url": "https://github.com/temporalio/temporal/pull/8138"
+  },
+  {
+    "number": 7985,
+    "title": "Migrate to official Elasticsearch v8 client and AWS SDK v2",
+    "url": "https://github.com/temporalio/temporal/pull/7985"
+  },
+  {
+    "number": 7531,
+    "title": "Count local sleep in schedule_rate_limited metric",
+    "url": "https://github.com/temporalio/temporal/pull/7531"
+  },
+  {
+    "number": 7446,
+    "title": "Remove migrated cluster handlers",
+    "url": "https://github.com/temporalio/temporal/pull/7446"
+  },
+  {
+    "number": 6431,
+    "title": "Implementing API for HSM-based Scheduler",
+    "url": "https://github.com/temporalio/temporal/pull/6431"
+  }
+]
