@@ -134,6 +134,9 @@ func TestLegacyToCreateFromMigrationStateRequest(t *testing.T) {
 		require.Equal(t, id, backfiller.BackfillId)
 		require.NotNil(t, backfiller.GetBackfillRequest())
 		require.Equal(t, now.Add(-time.Hour), backfiller.GetBackfillRequest().StartTime.AsTime())
+		require.Equal(t, now.Add(-time.Hour), backfiller.GetLastProcessedTime().AsTime())
+		require.Zero(t, backfiller.GetAttempt())
+		require.True(t, backfiller.GetHasRecordedProgress())
 	}
 
 	// Last completion result
@@ -144,6 +147,45 @@ func TestLegacyToCreateFromMigrationStateRequest(t *testing.T) {
 	// Search attributes and memo: user-defined SAs are preserved as-is.
 	require.Equal(t, searchAttrs.GetIndexedFields(), migrationState.SearchAttributes)
 	require.Equal(t, memo.GetFields(), migrationState.Memo)
+}
+
+func FuzzLegacyBackfillCursorMigration(f *testing.F) {
+	f.Add(int64(0), int32(0))
+	f.Add(int64(-60), int32(999_000_000))
+	f.Add(int64(86_400), int32(1))
+	f.Fuzz(func(t *testing.T, secondOffset int64, nanos int32) {
+		const maxOffsetSeconds = int64(10 * 365 * 24 * time.Hour / time.Second)
+		secondOffset %= maxOffsetSeconds
+		nanos %= int32(time.Second)
+		cursor := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC).
+			Add(time.Duration(secondOffset)*time.Second + time.Duration(nanos))
+		backfill := &schedulepb.BackfillRequest{
+			StartTime:     timestamppb.New(cursor),
+			EndTime:       timestamppb.New(cursor.Add(time.Hour)),
+			OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+		}
+		request := LegacyToCreateFromMigrationStateRequest(
+			newTestSchedule(),
+			&schedulepb.ScheduleInfo{},
+			&schedulespb.InternalState{
+				Namespace:        "test-ns",
+				NamespaceId:      "test-ns-id",
+				ScheduleId:       "test-sched-id",
+				OngoingBackfills: []*schedulepb.BackfillRequest{backfill},
+			},
+			nil,
+			nil,
+			cursor.Add(time.Hour),
+		)
+
+		require.Len(t, request.State.Backfillers, 1)
+		for _, converted := range request.State.Backfillers {
+			require.Equal(t, cursor, converted.GetLastProcessedTime().AsTime())
+			require.Zero(t, converted.GetAttempt())
+			require.True(t, converted.GetHasRecordedProgress())
+			require.Equal(t, backfill.GetOverlapPolicy(), converted.GetBackfillRequest().GetOverlapPolicy())
+		}
+	})
 }
 
 func TestLegacyToCreateFromMigrationStateRequest_StripsSystemSearchAttributes(t *testing.T) {

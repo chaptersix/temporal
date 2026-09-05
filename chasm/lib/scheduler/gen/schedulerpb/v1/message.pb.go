@@ -391,9 +391,11 @@ type BackfillerState struct {
 	// advanced when the initial task or an incomplete task's successor is
 	// scheduled, making tasks with older stamps stale. It is not advanced when a
 	// task fails or completes the Backfiller.
-	TaskStamp     int64 `protobuf:"varint,9,opt,name=task_stamp,json=taskStamp,proto3" json:"task_stamp,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	TaskStamp int64 `protobuf:"varint,9,opt,name=task_stamp,json=taskStamp,proto3" json:"task_stamp,omitempty"`
+	// Distinguishes a valid Unix-epoch cursor from an unset progress watermark.
+	HasRecordedProgress bool `protobuf:"varint,10,opt,name=has_recorded_progress,json=hasRecordedProgress,proto3" json:"has_recorded_progress,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *BackfillerState) Reset() {
@@ -477,6 +479,13 @@ func (x *BackfillerState) GetTaskStamp() int64 {
 		return x.TaskStamp
 	}
 	return 0
+}
+
+func (x *BackfillerState) GetHasRecordedProgress() bool {
+	if x != nil {
+		return x.HasRecordedProgress
+	}
+	return false
 }
 
 type isBackfillerState_Request interface {
@@ -773,7 +782,7 @@ const file_temporal_server_chasm_lib_scheduler_proto_v1_message_proto_rawDesc = 
 	"\x0fbuffered_starts\x18\x02 \x03(\v2..temporal.server.api.schedule.v1.BufferedStartR\x0ebufferedStarts\x12T\n" +
 	"\x10cancel_workflows\x18\x03 \x03(\v2).temporal.api.common.v1.WorkflowExecutionR\x0fcancelWorkflows\x12Z\n" +
 	"\x13terminate_workflows\x18\x04 \x03(\v2).temporal.api.common.v1.WorkflowExecutionR\x12terminateWorkflows\x12J\n" +
-	"\x13last_processed_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x11lastProcessedTimeJ\x04\b\x06\x10\a\"\xfa\x02\n" +
+	"\x13last_processed_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x11lastProcessedTimeJ\x04\b\x06\x10\a\"\xae\x03\n" +
 	"\x0fBackfillerState\x12V\n" +
 	"\x10backfill_request\x18\x01 \x01(\v2).temporal.api.schedule.v1.BackfillRequestH\x00R\x0fbackfillRequest\x12^\n" +
 	"\x0ftrigger_request\x18\x02 \x01(\v23.temporal.api.schedule.v1.TriggerImmediatelyRequestH\x00R\x0etriggerRequest\x12\x1f\n" +
@@ -782,7 +791,9 @@ const file_temporal_server_chasm_lib_scheduler_proto_v1_message_proto_rawDesc = 
 	"\x13last_processed_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x11lastProcessedTime\x12\x18\n" +
 	"\aattempt\x18\b \x01(\x03R\aattempt\x12\x1d\n" +
 	"\n" +
-	"task_stamp\x18\t \x01(\x03R\ttaskStampB\t\n" +
+	"task_stamp\x18\t \x01(\x03R\ttaskStamp\x122\n" +
+	"\x15has_recorded_progress\x18\n" +
+	" \x01(\bR\x13hasRecordedProgressB\t\n" +
 	"\arequest\"\x8d\x01\n" +
 	"\x14LastCompletionResult\x129\n" +
 	"\asuccess\x18\x01 \x01(\v2\x1f.temporal.api.common.v1.PayloadR\asuccess\x12:\n" +
