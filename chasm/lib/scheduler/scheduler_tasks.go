@@ -226,6 +226,9 @@ func (r *SchedulerCallbacksTaskHandler) Execute(
 
 			// Now that running workflow state has been refreshed, scheduler tasks can be
 			// fired.
+			for _, backfillerField := range s.Backfillers {
+				backfillerField.Get(ctx).scheduleInitialTask(ctx)
+			}
 			invoker.addTasks(ctx)
 			generator.Generate(ctx)
 
