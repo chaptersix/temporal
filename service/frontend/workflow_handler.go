@@ -3904,6 +3904,9 @@ func (wh *WorkflowHandler) CreateSchedule(
 	if request.Schedule == nil {
 		request.Schedule = &schedulepb.Schedule{}
 	}
+	if err := chasmscheduler.ValidateScheduleActionPolicies(request.Schedule, request.InitialPatch); err != nil {
+		return nil, err
+	}
 	if err := wh.validateScheduleOverlapPolicies(request.Schedule, request.InitialPatch, namespaceName.String()); err != nil {
 		return nil, err
 	}
@@ -3922,6 +3925,9 @@ func (wh *WorkflowHandler) CreateSchedule(
 	if startWorkflow := request.GetSchedule().GetAction().GetStartWorkflow(); startWorkflow != nil {
 		metricsHandler := wh.metricsScope(ctx).WithTags(metrics.HeaderCallsiteTag("CreateSchedule"))
 		metrics.HeaderSize.With(metricsHandler).Record(int64(startWorkflow.GetHeader().Size()))
+	}
+	if request.GetSchedule().GetAction().GetStartActivity() != nil && !useChasmScheduler {
+		return nil, serviceerror.NewFailedPrecondition("activity schedules require the CHASM scheduler")
 	}
 
 	if useChasmScheduler {
@@ -4725,6 +4731,9 @@ func (wh *WorkflowHandler) UpdateSchedule(
 	if request.Schedule == nil {
 		request.Schedule = &schedulepb.Schedule{}
 	}
+	if err := chasmscheduler.ValidateScheduleActionPolicies(request.Schedule, nil); err != nil {
+		return nil, err
+	}
 	if err := wh.validateScheduleOverlapPolicies(request.Schedule, nil, namespaceName.String()); err != nil {
 		return nil, err
 	}
@@ -4760,6 +4769,10 @@ func (wh *WorkflowHandler) UpdateSchedule(
 		if !isSchedulerErrorLegacyRoutable(err) {
 			return nil, err
 		}
+	}
+
+	if request.GetSchedule().GetAction().GetStartActivity() != nil {
+		return nil, serviceerror.NewFailedPrecondition("activity schedules require the CHASM scheduler")
 	}
 
 	// Reject memo updates for V1 schedules.
@@ -6989,11 +7002,16 @@ func (wh *WorkflowHandler) validateSchedulePayloadSize(
 	memo *commonpb.Memo,
 	operation string,
 ) error {
-	action := schedule.GetAction().GetStartWorkflow()
-	if action == nil {
-		return serviceerror.NewInvalidArgument("Only StartWorkflow action is supported for schedules")
+	var input *commonpb.Payloads
+	switch action := schedule.GetAction().GetAction().(type) {
+	case *schedulepb.ScheduleAction_StartWorkflow:
+		input = action.StartWorkflow.GetInput()
+	case *schedulepb.ScheduleAction_StartActivity:
+		input = action.StartActivity.GetInput()
+	default:
+		return serviceerror.NewInvalidArgument("schedule action is required")
 	}
-	payloadSize := memo.Size() + action.GetInput().Size()
+	payloadSize := memo.Size() + input.Size()
 	sizeLimitError := wh.config.BlobSizeLimitError(namespaceName)
 	sizeLimitWarn := wh.config.BlobSizeLimitWarn(namespaceName)
 	return common.CheckEventBlobSizeLimit(

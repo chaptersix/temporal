@@ -739,6 +739,9 @@ func (s *Scheduler) HandleNexusCompletion(
 		)
 		return nil
 	}
+	if s.Schedule.GetAction().GetStartActivity() != nil {
+		return s.recordActivityCompletion(ctx, invoker, start, info)
+	}
 	workflowID := start.GetWorkflowId()
 	tracksCompletionResult := implementation(s.Schedule.GetAction()).ParticipatesInCompletionHistory() && internal.TracksExecution(start)
 

@@ -6158,6 +6158,59 @@ func (s *WorkflowHandlerSuite) TestScheduleValidation() {
 	}
 }
 
+func (s *WorkflowHandlerSuite) TestActivitySchedulePolicyAndRoutingValidation() {
+	config := s.newConfig()
+	config.EnableSchedules = dc.GetBoolPropertyFnFilteredByNamespace(true)
+	wh := s.getWorkflowHandler(config)
+
+	activitySchedule := func(policy enumspb.ScheduleOverlapPolicy, custom string) *schedulepb.Schedule {
+		policies := &schedulepb.SchedulePolicies{OverlapPolicy: policy}
+		if custom != "" {
+			policies.CustomOverlapPolicy = &schedulepb.CustomOverlapPolicy{Name: custom}
+		}
+		return &schedulepb.Schedule{
+			Action: &schedulepb.ScheduleAction{Action: &schedulepb.ScheduleAction_StartActivity{
+				StartActivity: &schedulepb.StartActivityExecutionInfo{
+					ActivityId:   "activity-id",
+					ActivityType: &commonpb.ActivityType{Name: "activity-type"},
+					TaskQueue:    &taskqueuepb.TaskQueue{Name: "task-queue"},
+				},
+			}},
+			Policies: policies,
+		}
+	}
+	create := func(schedule *schedulepb.Schedule) error {
+		_, err := wh.CreateSchedule(context.Background(), &workflowservice.CreateScheduleRequest{
+			Namespace:  s.testNamespace.String(),
+			ScheduleId: "test-schedule",
+			RequestId:  uuid.NewString(),
+			Schedule:   schedule,
+		})
+		return err
+	}
+
+	s.Run("requires explicit policy", func() {
+		err := create(activitySchedule(enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED, ""))
+		var invalidArgument *serviceerror.InvalidArgument
+		s.ErrorAs(err, &invalidArgument)
+		s.ErrorContains(err, "unsupported or missing overlap policy")
+	})
+
+	s.Run("rejects cancel other", func() {
+		err := create(activitySchedule(enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER, ""))
+		var invalidArgument *serviceerror.InvalidArgument
+		s.ErrorAs(err, &invalidArgument)
+		s.ErrorContains(err, "unsupported or missing overlap policy")
+	})
+
+	s.Run("rejects legacy scheduler routing", func() {
+		err := create(activitySchedule(enumspb.SCHEDULE_OVERLAP_POLICY_SKIP, ""))
+		var failedPrecondition *serviceerror.FailedPrecondition
+		s.ErrorAs(err, &failedPrecondition)
+		s.ErrorContains(err, "activity schedules require the CHASM scheduler")
+	})
+}
+
 func (s *WorkflowHandlerSuite) TestUpdateSchedule_ValidationAndErrors() {
 	config := s.newConfig()
 	config.EnableSchedules = dc.GetBoolPropertyFnFilteredByNamespace(true)

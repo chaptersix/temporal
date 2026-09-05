@@ -58,7 +58,12 @@ type actionImplementation interface {
 	ParticipatesInCompletionHistory() bool
 }
 
-func implementation(_ *schedulepb.ScheduleAction) actionImplementation { return workflowAction{} }
+func implementation(action *schedulepb.ScheduleAction) actionImplementation {
+	if action.GetStartActivity() != nil {
+		return activityAction{}
+	}
+	return workflowAction{}
+}
 
 func (s *Scheduler) actionMetadata() actionMetadata {
 	return implementation(s.Schedule.GetAction()).Metadata(s.Schedule.GetAction())
