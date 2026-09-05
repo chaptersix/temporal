@@ -28,6 +28,16 @@ type Invoker struct {
 	EventLog chasm.Field[*EventLog]
 }
 
+// canMigrateToWorkflow excludes phases whose retry and overlap decisions V1 cannot resume.
+func (i *Invoker) canMigrateToWorkflow() bool {
+	if len(i.CancelWorkflows) > 0 || len(i.TerminateWorkflows) > 0 {
+		return false
+	}
+	return !slices.ContainsFunc(i.BufferedStarts, func(start *schedulespb.BufferedStart) bool {
+		return start.GetAttempt() > 0 && start.GetRunId() == "" && start.GetCompleted() == nil
+	})
+}
+
 func (i *Invoker) LifecycleState(ctx chasm.Context) chasm.LifecycleState {
 	return chasm.LifecycleStateRunning
 }
