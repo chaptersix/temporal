@@ -48,6 +48,7 @@ type (
 		pqMgr      physicalTaskQueueManager
 		config     *taskQueueConfig
 		tqCtx      context.Context
+		tqCancel   context.CancelFunc
 		isDraining bool
 		db         *taskQueueDB
 		taskWriter *priTaskWriter
@@ -65,6 +66,7 @@ type (
 		// skipFinalUpdate controls behavior on Stop: if it's false, we try to write one final
 		// update before unloading
 		skipFinalUpdate atomic.Bool
+		stopOnce        sync.Once
 	}
 
 	priorityKey int32
@@ -83,10 +85,12 @@ func newPriBacklogManager(
 	metricsHandler metrics.Handler,
 	isDraining bool,
 ) *priBacklogManagerImpl {
+	backlogCtx, backlogCancel := context.WithCancel(tqCtx)
 	bmg := &priBacklogManagerImpl{
 		pqMgr:               pqMgr,
 		config:              config,
-		tqCtx:               tqCtx,
+		tqCtx:               backlogCtx,
+		tqCancel:            backlogCancel,
 		isDraining:          isDraining,
 		db:                  newTaskQueueDB(config, taskManager, pqMgr.QueueKey(), logger, metricsHandler, isDraining),
 		subqueuesByPriority: make(map[priorityKey]subqueueIndex),
@@ -123,25 +127,29 @@ func (c *priBacklogManagerImpl) Start() {
 }
 
 func (c *priBacklogManagerImpl) Stop() {
-	// Maybe try to write one final update of ack level. Skip the update if we never
-	// initialized. Also skip if we're stopping due to lost ownership (the update will
-	// fail in that case). Ignore any errors. Don't bother with GC, the next reload will
-	// handle that.
-	if !c.initializedError.Ready() || c.skipFinalUpdate.Load() {
-		return
-	}
+	c.stopOnce.Do(func() {
+		defer c.tqCancel()
 
-	c.subqueueLock.Lock()
-	for i, r := range c.subqueues {
-		_, ackLevel := r.getLevels()
-		// oldestTime can be time.Time{} here since countDelta is 0
-		c.db.updateAckLevelAndBacklogStats(subqueueIndex(i), ackLevel, 0, time.Time{})
-	}
-	c.subqueueLock.Unlock()
+		// Maybe try to write one final update of ack level. Skip the update if we never
+		// initialized. Also skip if we're stopping due to lost ownership (the update will
+		// fail in that case). Ignore any errors. Don't bother with GC, the next reload will
+		// handle that.
+		if !c.initializedError.Ready() || c.skipFinalUpdate.Load() {
+			return
+		}
 
-	ctx, cancel := context.WithTimeout(c.tqCtx, ioTimeout)
-	_ = c.db.SyncState(ctx)
-	cancel()
+		c.subqueueLock.Lock()
+		for i, r := range c.subqueues {
+			_, ackLevel := r.getLevels()
+			// oldestTime can be time.Time{} here since countDelta is 0
+			c.db.updateAckLevelAndBacklogStats(subqueueIndex(i), ackLevel, 0, time.Time{})
+		}
+		c.subqueueLock.Unlock()
+
+		ctx, cancel := context.WithTimeout(c.tqCtx, ioTimeout)
+		_ = c.db.SyncState(ctx)
+		cancel()
+	})
 }
 
 func (c *priBacklogManagerImpl) initState(state taskQueueState, err error) {

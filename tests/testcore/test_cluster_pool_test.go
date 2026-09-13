@@ -2,6 +2,7 @@ package testcore
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.temporal.io/server/common/dynamicconfig"
@@ -24,6 +25,33 @@ func TestClusterPool_GlobalOverridesSurviveTestCleanup(t *testing.T) {
 		require.NotEmpty(t, got, "key %s missing after cleanup", k)
 		require.Equal(t, v, got[0].Value, "key %s wrong after cleanup", k)
 	}
+}
+
+func TestMatchingTimeoutDefaults(t *testing.T) {
+	require.Equal(t, 30*time.Second, defaultDynamicConfigOverrides[dynamicconfig.MatchingMaxTaskQueueIdleTime.Key()])
+	require.Equal(t, 5*time.Second, defaultDynamicConfigOverrides[dynamicconfig.MatchingLongPollExpirationInterval.Key()])
+	require.Equal(t, 5*time.Second, defaultDynamicConfigOverrides[dynamicconfig.MatchingGetUserDataLongPollTimeout.Key()])
+}
+
+func TestMatchingTimeoutOverridePrecedence(t *testing.T) {
+	dc := dynamicconfig.NewMemoryClient()
+	for key, value := range defaultDynamicConfigOverrides {
+		dc.PartialOverrideValue(key, value)
+	}
+
+	key := dynamicconfig.MatchingLongPollExpirationInterval.Key()
+	override := dynamicconfig.ConstrainedValue{
+		Constraints: dynamicconfig.Constraints{Namespace: "test-namespace"},
+		Value:       10 * time.Second,
+	}
+	cleanup := dc.PartialOverrideValue(key, []dynamicconfig.ConstrainedValue{override})
+	require.Equal(t, []dynamicconfig.ConstrainedValue{
+		override,
+		{Value: 5 * time.Second},
+	}, dc.GetValue(key))
+
+	cleanup()
+	require.Equal(t, []dynamicconfig.ConstrainedValue{{Value: 5 * time.Second}}, dc.GetValue(key))
 }
 
 func TestClusterPool_MaxLeasesRecyclesOnNextAcquire(t *testing.T) {

@@ -326,9 +326,12 @@ func (c *physicalTaskQueueManagerImpl) Stop(unloadCause unloadCause) {
 	}
 	// this may attempt to write one final ack update, do this before canceling tqCtx
 	c.backlogMgr.Stop()
-	if m := c.getDrainBacklogMgr(); m != nil {
-		m.Stop()
+	c.drainBacklogMgrLock.Lock()
+	if c.drainBacklogMgr != nil {
+		c.drainBacklogMgr.Stop()
+		c.drainBacklogMgr = nil
 	}
+	c.drainBacklogMgrLock.Unlock()
 	c.matcher.Stop()
 	c.liveness.Stop()
 	c.tqCtxCancel()
@@ -439,9 +442,11 @@ func (c *physicalTaskQueueManagerImpl) FinishedDraining() {
 	}
 
 	c.drainBacklogMgrLock.Lock()
+	defer c.drainBacklogMgrLock.Unlock()
 	drainMgr := c.drainBacklogMgr
-	c.drainBacklogMgr = nil
-	c.drainBacklogMgrLock.Unlock()
+	if drainMgr == nil {
+		return
+	}
 
 	// Update active manager's OtherHasTasks field and persist
 	ctx, cancel := context.WithTimeout(c.tqCtx, ioTimeout)
@@ -457,6 +462,7 @@ func (c *physicalTaskQueueManagerImpl) FinishedDraining() {
 	// Do final gc before stopping since this is the last chance to clean up
 	drainMgr.FinalGC()
 	drainMgr.Stop()
+	c.drainBacklogMgr = nil
 	c.logger.Info("Drain completed, unloaded draining backlog manager")
 }
 

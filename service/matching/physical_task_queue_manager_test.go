@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"math/rand"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -855,6 +856,97 @@ func TestDrainCompletionNoReloadDraining(t *testing.T) {
 	// verify no new persistence calls on pri queue
 	assert.Equal(t, prevPriStats.updateCount, priQueueData.persistenceStats().updateCount,
 		"no new UpdateTaskQueue calls should be made to drained table after reload")
+}
+
+func TestFinishedDrainingStopsOnlyDrainingBacklogManager(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name           string
+		enableFairness bool
+	}{
+		{name: "priority-active"},
+		{name: "fairness-active", enableFairness: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tqMgr := newDrainingTestPhysicalTaskQueueManager(t, tc.enableFairness)
+			defer tqMgr.Stop(unloadCauseShuttingDown)
+			drainMgr := tqMgr.getDrainBacklogMgr()
+			require.NotNil(t, drainMgr)
+
+			tqMgr.FinishedDraining()
+			require.Nil(t, tqMgr.getDrainBacklogMgr())
+			require.NoError(t, tqMgr.tqCtx.Err())
+			require.NoError(t, newBacklogManagerContext(t, tqMgr.backlogMgr).Err())
+			require.ErrorIs(t, newBacklogManagerContext(t, drainMgr).Err(), context.Canceled)
+
+			poller, pollResult := runOneShotPoller(context.Background(), tqMgr)
+			defer poller.Cancel()
+			task := newInternalTaskForSyncMatch(&persistencespb.TaskInfo{
+				CreateTime: timestamppb.New(time.Now()),
+			}, nil, 0, nil)
+			outcome, err := tqMgr.TrySyncMatch(context.Background(), task)
+			require.NoError(t, err)
+			require.Equal(t, syncMatchSuccess, outcome)
+			require.IsType(t, &internalTask{}, <-pollResult)
+		})
+	}
+}
+
+func TestShutdownRacesDrainCompletion(t *testing.T) {
+	t.Parallel()
+
+	for _, enableFairness := range []bool{false, true} {
+		enableFairness := enableFairness
+		t.Run(map[bool]string{false: "priority-active", true: "fairness-active"}[enableFairness], func(t *testing.T) {
+			t.Parallel()
+			tqMgr := newDrainingTestPhysicalTaskQueueManager(t, enableFairness)
+			drainMgr := tqMgr.getDrainBacklogMgr()
+			require.NotNil(t, drainMgr)
+
+			var wg sync.WaitGroup
+			wg.Go(func() { tqMgr.Stop(unloadCauseShuttingDown) })
+			wg.Go(tqMgr.FinishedDraining)
+			wg.Wait()
+
+			require.ErrorIs(t, tqMgr.tqCtx.Err(), context.Canceled)
+			require.ErrorIs(t, newBacklogManagerContext(t, tqMgr.backlogMgr).Err(), context.Canceled)
+			require.ErrorIs(t, newBacklogManagerContext(t, drainMgr).Err(), context.Canceled)
+			require.Nil(t, tqMgr.getDrainBacklogMgr())
+		})
+	}
+}
+
+func newDrainingTestPhysicalTaskQueueManager(t *testing.T, enableFairness bool) *physicalTaskQueueManagerImpl {
+	t.Helper()
+	controller := gomock.NewController(t)
+	logger := testlogger.NewTestLogger(t, testlogger.FailOnAnyUnexpectedError)
+	config := defaultTestConfig()
+	config.UpdateAckInterval = dynamicconfig.GetDurationPropertyFnFilteredByTaskQueue(time.Hour)
+	nsName := namespace.Name("ns-name")
+	ns, registry := createMockNamespaceCache(controller, nsName)
+	engine := createTestMatchingEngine(logger, controller, config, nil, registry)
+	physicalTaskQueueKey := defaultTqId()
+	prtn := physicalTaskQueueKey.Partition()
+	tqConfig := newTaskQueueConfig(prtn.TaskQueue(), engine.config, nsName)
+	onFatalErr := func(unloadCause) { t.Fatal("user data manager called onFatalErr") }
+	udMgr := newUserDataManager(engine.taskManager, engine.matchingRawClient, onFatalErr, nil, nil, prtn, tqConfig, engine.logger, engine.namespaceRegistry)
+	prtnMgr, err := newTaskQueuePartitionManager(engine, ns, prtn, tqConfig, engine.logger, nil, metrics.NoopMetricsHandler, udMgr)
+	require.NoError(t, err)
+	engine.partitions[prtn.Key()] = prtnMgr
+	prtnMgr.config.NewMatcher = true
+	prtnMgr.config.EnableFairness = enableFairness
+
+	tqMgr, err := newPhysicalTaskQueueManager(prtnMgr, physicalTaskQueueKey)
+	require.NoError(t, err)
+	prtnMgr.defaultQueueFuture.Set(tqMgr, nil)
+	tqMgr.Start()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, tqMgr.WaitUntilInitialized(ctx))
+	return tqMgr
 }
 
 // syncMatchOneTask offers a task to a waiting local poller and blocks until PollTask has returned,

@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
@@ -230,6 +231,92 @@ func (s *BacklogManagerTestSuite) TestTaskWriterShutdown() {
 
 	err = s.blm.SpoolTask(&persistencespb.TaskInfo{})
 	s.Error(err)
+}
+
+func (s *BacklogManagerTestSuite) TestStopCancelsUninitializedManager() {
+	if !s.newMatcher {
+		s.T().Skip("manager-owned contexts are only used by the new backlog managers")
+	}
+
+	ctx := newBacklogManagerContext(s.T(), s.blm)
+	s.blm.Stop()
+	s.Require().ErrorIs(ctx.Err(), context.Canceled)
+}
+
+func (s *BacklogManagerTestSuite) TestStopCancelsWhenFinalUpdateSkipped() {
+	if !s.newMatcher {
+		s.T().Skip("manager-owned contexts are only used by the new backlog managers")
+	}
+
+	ctx := newBacklogManagerContext(s.T(), s.blm)
+	setSkipFinalUpdate(s.T(), s.blm)
+	s.blm.Stop()
+	s.Require().ErrorIs(ctx.Err(), context.Canceled)
+}
+
+func (s *BacklogManagerTestSuite) TestStopIsConcurrentAndIdempotent() {
+	if !s.newMatcher {
+		s.T().Skip("manager-owned contexts are only used by the new backlog managers")
+	}
+
+	s.blm.Start()
+	s.Require().NoError(s.blm.WaitUntilInitialized(context.Background()))
+	db := s.blm.getDB()
+	s.Require().NoError(db.UpdateScaleState(context.Background(), &persistencespb.PartitionScaleState{Target: 2}, false))
+	queueData := s.taskMgr.getQueueDataByKey(s.ptqMgr.QueueKey())
+	updatesBefore := queueData.persistenceStats().updateCount
+
+	var wg sync.WaitGroup
+	for range 16 {
+		wg.Go(s.blm.Stop)
+	}
+	wg.Wait()
+
+	s.Require().ErrorIs(newBacklogManagerContext(s.T(), s.blm).Err(), context.Canceled)
+	s.Equal(updatesBefore+1, queueData.persistenceStats().updateCount)
+}
+
+func (s *BacklogManagerTestSuite) TestStopCancelsAfterFinalUpdateFailure() {
+	if !s.newMatcher {
+		s.T().Skip("manager-owned contexts are only used by the new backlog managers")
+	}
+
+	s.blm.Start()
+	s.Require().NoError(s.blm.WaitUntilInitialized(context.Background()))
+	db := s.blm.getDB()
+	s.Require().NoError(db.UpdateScaleState(context.Background(), &persistencespb.PartitionScaleState{Target: 2}, false))
+	queueData := s.taskMgr.getQueueDataByKey(s.ptqMgr.QueueKey())
+	queueData.Lock()
+	queueData.rangeID++
+	queueData.Unlock()
+
+	s.blm.Stop()
+	s.Require().ErrorIs(newBacklogManagerContext(s.T(), s.blm).Err(), context.Canceled)
+}
+
+func newBacklogManagerContext(t *testing.T, manager backlogManager) context.Context {
+	t.Helper()
+	switch manager := manager.(type) {
+	case *priBacklogManagerImpl:
+		return manager.tqCtx
+	case *fairBacklogManagerImpl:
+		return manager.tqCtx
+	default:
+		require.Failf(t, "unexpected backlog manager type", "%T", manager)
+		return nil
+	}
+}
+
+func setSkipFinalUpdate(t *testing.T, manager backlogManager) {
+	t.Helper()
+	switch manager := manager.(type) {
+	case *priBacklogManagerImpl:
+		manager.skipFinalUpdate.Store(true)
+	case *fairBacklogManagerImpl:
+		manager.skipFinalUpdate.Store(true)
+	default:
+		require.Failf(t, "unexpected backlog manager type", "%T", manager)
+	}
 }
 
 func (s *BacklogManagerTestSuite) TestReadBatchDone() {
