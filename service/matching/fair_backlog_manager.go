@@ -29,6 +29,7 @@ type (
 		pqMgr      physicalTaskQueueManager
 		config     *taskQueueConfig
 		tqCtx      context.Context
+		tqCancel   context.CancelFunc
 		isDraining bool
 		db         *taskQueueDB
 		taskWriter *fairTaskWriter
@@ -48,6 +49,7 @@ type (
 		// skipFinalUpdate controls behavior on Stop: if it's false, we try to write one final
 		// update before unloading
 		skipFinalUpdate atomic.Bool
+		stopOnce        sync.Once
 	}
 )
 
@@ -69,10 +71,12 @@ func newFairBacklogManager(
 	// use it incorectly. TODO(fairness): consider a cleaner way of doing this.
 	taskManager := persistence.TaskManager(fairTaskManager)
 
+	backlogCtx, backlogCancel := context.WithCancel(tqCtx)
 	bmg := &fairBacklogManagerImpl{
 		pqMgr:               pqMgr,
 		config:              config,
-		tqCtx:               tqCtx,
+		tqCtx:               backlogCtx,
+		tqCancel:            backlogCancel,
 		isDraining:          isDraining,
 		db:                  newTaskQueueDB(config, taskManager, pqMgr.QueueKey(), logger, metricsHandler, isDraining),
 		subqueuesByPriority: make(map[priorityKey]subqueueIndex),
@@ -110,25 +114,29 @@ func (c *fairBacklogManagerImpl) Start() {
 }
 
 func (c *fairBacklogManagerImpl) Stop() {
-	// Maybe try to write one final update of ack level. Skip the update if we never
-	// initialized. Also skip if we're stopping due to lost ownership (the update will
-	// fail in that case). Ignore any errors. Don't bother with GC, the next reload will
-	// handle that.
-	if !c.initializedError.Ready() || c.skipFinalUpdate.Load() {
-		return
-	}
+	c.stopOnce.Do(func() {
+		defer c.tqCancel()
 
-	c.subqueueLock.Lock()
-	for i, r := range c.subqueues {
-		_, ackLevel := r.getLevels()
-		// oldestTime can be time.Time{} here since countDelta is 0
-		c.db.updateFairAckLevel(subqueueIndex(i), ackLevel, 0, -1, time.Time{})
-	}
-	c.subqueueLock.Unlock()
+		// Maybe try to write one final update of ack level. Skip the update if we never
+		// initialized. Also skip if we're stopping due to lost ownership (the update will
+		// fail in that case). Ignore any errors. Don't bother with GC, the next reload will
+		// handle that.
+		if !c.initializedError.Ready() || c.skipFinalUpdate.Load() {
+			return
+		}
 
-	ctx, cancel := context.WithTimeout(c.tqCtx, ioTimeout)
-	_ = c.db.SyncState(ctx)
-	cancel()
+		c.subqueueLock.Lock()
+		for i, r := range c.subqueues {
+			_, ackLevel := r.getLevels()
+			// oldestTime can be time.Time{} here since countDelta is 0
+			c.db.updateFairAckLevel(subqueueIndex(i), ackLevel, 0, -1, time.Time{})
+		}
+		c.subqueueLock.Unlock()
+
+		ctx, cancel := context.WithTimeout(c.tqCtx, ioTimeout)
+		_ = c.db.SyncState(ctx)
+		cancel()
+	})
 }
 
 func (c *fairBacklogManagerImpl) initState(state taskQueueState, err error) {

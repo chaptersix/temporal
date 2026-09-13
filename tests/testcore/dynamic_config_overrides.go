@@ -58,6 +58,9 @@ var (
 		dynamicconfig.ArchivalProcessorSchedulerWorkerCount.Key():               64,
 		dynamicconfig.ReplicationProcessorSchedulerWorkerCount.Key():            64,
 		dynamicconfig.ReplicationLowPriorityProcessorSchedulerWorkerCount.Key(): 64,
+		dynamicconfig.MatchingMaxTaskQueueIdleTime.Key():                        30 * time.Second,
+		dynamicconfig.MatchingLongPollExpirationInterval.Key():                  5 * time.Second,
+		dynamicconfig.MatchingGetUserDataLongPollTimeout.Key():                  5 * time.Second,
 		// Better to read through in tests than add artificial sleeps (which is what we previously had).
 		dynamicconfig.ForceSearchAttributesCacheRefreshOnRead.Key(): true,
 

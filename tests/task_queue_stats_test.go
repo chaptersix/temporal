@@ -71,6 +71,8 @@ func newTaskQueueStatsContext(
 		testcore.WithDynamicConfig(dynamicconfig.FrontendEnableWorkerVersioningWorkflowAPIs, true),
 		testcore.WithDynamicConfig(dynamicconfig.MatchingUseNewMatcher, usePriMatcher),
 		testcore.WithDynamicConfig(dynamicconfig.MatchingPriorityLevels, 5), // maxPriority
+		// Rate assertions compare in-memory windows across several operations and retries.
+		testcore.WithDynamicConfig(dynamicconfig.MatchingMaxTaskQueueIdleTime, 5*time.Minute),
 	}
 	opts = append(opts, behavior.Options()...)
 	opts = append(opts, extraOpts...)
