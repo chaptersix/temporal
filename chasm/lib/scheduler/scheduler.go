@@ -117,13 +117,14 @@ const (
 )
 
 var (
-	ErrConflictTokenMismatch = serviceerror.NewFailedPrecondition("mismatched conflict token")
-	ErrClosed                = serviceerror.NewFailedPrecondition("schedule closed")
-	ErrTooManyBackfillers    = serviceerror.NewFailedPrecondition("too many concurrent backfillers")
-	ErrInvalidQuery          = serviceerror.NewInvalidArgument("missing or invalid query")
-	ErrSentinel              = serviceerror.NewNotFound("schedule is a sentinel")
-	ErrSentinelBlocked       = serviceerror.NewUnavailable("schedule is a sentinel; please retry after sentinel expires")
-	ErrMigrationPending      = serviceerror.NewUnavailable("schedule has a pending migration to workflow; please retry later")
+	ErrConflictTokenMismatch   = serviceerror.NewFailedPrecondition("mismatched conflict token")
+	ErrClosed                  = serviceerror.NewFailedPrecondition("schedule closed")
+	ErrTooManyBackfillers      = serviceerror.NewFailedPrecondition("too many concurrent backfillers")
+	ErrInvalidQuery            = serviceerror.NewInvalidArgument("missing or invalid query")
+	ErrSentinel                = serviceerror.NewNotFound("schedule is a sentinel")
+	ErrSentinelBlocked         = serviceerror.NewUnavailable("schedule is a sentinel; please retry after sentinel expires")
+	ErrMigrationActionsPending = serviceerror.NewUnavailable("schedule has in-flight actions; retry migration after they finish")
+	ErrMigrationPending        = serviceerror.NewUnavailable("schedule has a pending migration to workflow; please retry later")
 )
 
 // NewScheduler returns an initialized CHASM scheduler root component.
@@ -973,6 +974,10 @@ func (s *Scheduler) MigrateToWorkflow(
 	}
 	if s.WorkflowMigration != nil {
 		return &schedulerpb.MigrateToWorkflowResponse{}, nil
+	}
+
+	if !s.Invoker.Get(ctx).canMigrateToWorkflow() {
+		return nil, ErrMigrationActionsPending
 	}
 
 	// Save pre-migration paused state, mark migration as pending, then pause.
