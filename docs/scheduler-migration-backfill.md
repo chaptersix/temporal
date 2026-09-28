@@ -1,4 +1,4 @@
-# Workflow-to-CHASM backfill cursor migration
+# Workflow-to-CHASM backfill migration safety
 
 ## Invariant
 
@@ -24,10 +24,20 @@ TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 go test -tags test_dep ./chasm/lib/sche
 ## Cause and fix boundary
 
 `convertBackfillsLegacyToCHASM` clones each V1 request but clears the CHASM
-`LastProcessedTime` and attempt. `BackfillerTaskHandler.processBackfill` interprets that state as
-a fresh inclusive range. The conversion must preserve the V1 `StartTime` as the CHASM exclusive
-cursor and mark the backfiller as progressed, while preserving the request, overlap policy, and
-buffer-capacity behavior.
+`LastProcessedTime`. `BackfillerTaskHandler.processBackfill` interprets that state as a fresh
+inclusive range. The conversion must preserve the V1 `StartTime` as the CHASM exclusive cursor,
+which is CHASM's recorded-progress marker, while leaving the task attempt at zero and preserving
+the request, overlap policy, and buffer-capacity behavior. Setting `Attempt` to one is unsafe:
+creation schedules `TaskStamp` one and validation requires the stamp to exceed the attempt.
+
+A timestamp value alone cannot distinguish an unset cursor from a valid Unix-epoch cursor. The
+CHASM state therefore records progress explicitly while retaining the nonzero-timestamp inference
+for older persisted state.
+
+Migrated backfillers also wait behind the same callback reconciliation barrier as the generator
+and invoker. Starting one immediately can process the imported buffer against stale running
+workflow entries and incorrectly apply overlap policy before their completion status is refreshed.
+The callback task starts each deferred backfiller idempotently after reconciliation.
 
 This is independent of the opposite CHASM-to-workflow fresh-range boundary covered by upstream
 PR #11878.
@@ -35,6 +45,7 @@ PR #11878.
 ## Operational impact
 
 The defect can start a scheduled action twice after migration. The fix adds no ordinary scheduler
-hot-path work: it only copies a timestamp and initializes an attempt while constructing migration
-state. Retry, crash recovery, namespace failover, and a 10x increase in migrations do not add new
-reads or writes; every retry reconstructs equivalent cursor state.
+hot-path work: it copies a timestamp and a progress bit while constructing migration state. Retry,
+crash recovery, namespace failover, and a 10x increase in migrations do not add new reads or
+writes; every retry reconstructs equivalent cursor state. Callback-bearing migrations defer
+existing backfill tasks into the already-required reconciliation transition.

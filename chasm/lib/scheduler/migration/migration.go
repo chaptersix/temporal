@@ -435,14 +435,19 @@ func convertBackfillsLegacyToCHASM(
 	backfillers := make(map[string]*schedulerpb.BackfillerState, len(legacyBackfills))
 	for _, v1Backfill := range legacyBackfills {
 		backfillID := schedulerinternal.GenerateBackfillerID()
+		var lastProcessedTime *timestamppb.Timestamp
+		if v1Backfill.GetStartTime() != nil {
+			lastProcessedTime = common.CloneProto(v1Backfill.GetStartTime())
+		}
 
 		backfillers[backfillID] = &schedulerpb.BackfillerState{
 			Request: &schedulerpb.BackfillerState_BackfillRequest{
 				BackfillRequest: common.CloneProto(v1Backfill),
 			},
-			BackfillId:        backfillID,
-			LastProcessedTime: nil,
-			Attempt:           0,
+			BackfillId:          backfillID,
+			LastProcessedTime:   lastProcessedTime,
+			Attempt:             0,
+			HasRecordedProgress: lastProcessedTime != nil,
 		}
 	}
 

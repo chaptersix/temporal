@@ -128,6 +128,9 @@ message BackfillerState {
   // scheduled, making tasks with older stamps stale. It is not advanced when a
   // task fails or completes the Backfiller.
   int64 task_stamp = 9;
+
+  // Distinguishes a valid Unix-epoch cursor from an unset progress watermark.
+  bool has_recorded_progress = 10;
 }
 
 // CHASM scheduler retains the payload data for the last completed workflow. Both

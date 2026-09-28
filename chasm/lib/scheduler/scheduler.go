@@ -328,8 +328,15 @@ func CreateSchedulerFromMigration(
 	sched.Invoker = chasm.NewComponentField(ctx, newInvokerWithState(ctx, state.GetInvokerState()))
 	sched.Generator = chasm.NewComponentField(ctx, newGeneratorWithState(ctx, state.GetGeneratorState()))
 
+	needsCallbacks := slices.ContainsFunc(state.GetInvokerState().GetBufferedStarts(), needsCallback)
 	for backfillID, backfillerState := range state.GetBackfillers() {
-		sched.Backfillers[backfillID] = chasm.NewComponentField(ctx, newBackfillerWithState(ctx, backfillerState))
+		var backfiller *Backfiller
+		if needsCallbacks {
+			backfiller = newBackfillerWithStateWithoutTask(ctx, backfillerState)
+		} else {
+			backfiller = newBackfillerWithState(ctx, backfillerState)
+		}
+		sched.Backfillers[backfillID] = chasm.NewComponentField(ctx, backfiller)
 	}
 
 	visibility := chasm.NewVisibility(ctx)
@@ -339,7 +346,7 @@ func CreateSchedulerFromMigration(
 
 	// Defer generation until SchedulerCallbacksTask resolves stale running-workflow
 	// state; if there are none, generate directly.
-	if slices.ContainsFunc(state.GetInvokerState().GetBufferedStarts(), needsCallback) {
+	if needsCallbacks {
 		ctx.AddTask(sched, chasm.TaskAttributes{}, &schedulerpb.SchedulerCallbacksTask{})
 	} else {
 		sched.Generator.Get(ctx).Generate(ctx)
