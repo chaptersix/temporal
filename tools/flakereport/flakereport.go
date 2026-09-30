@@ -61,6 +61,10 @@ func NewCliApp() *cli.App {
 					Value: defaultWorkflowID,
 					Usage: "GitHub Actions workflow ID",
 				},
+				&cli.Int64Flag{
+					Name:  "source-run-id",
+					Usage: "Analyze one workflow run instead of a lookback window",
+				},
 				&cli.IntFlag{
 					Name:  "max-links",
 					Value: defaultMaxLinks,
@@ -120,6 +124,7 @@ func NewCliApp() *cli.App {
 			},
 			Action: runGenerateCommand,
 		},
+		newSummarizeCommand(),
 	}
 
 	return app
@@ -240,6 +245,7 @@ func runGenerateCommand(c *cli.Context) (err error) {
 	branch := c.String("branch")
 	days := c.Int("days")
 	workflowID := c.Int64("workflow-id")
+	sourceRunID := c.Int64("source-run-id")
 	maxLinks := c.Int("max-links")
 	concurrency := c.Int("concurrency")
 	rps := c.Int("rps")
@@ -277,9 +283,25 @@ func runGenerateCommand(c *cli.Context) (err error) {
 	// Fetch and analyze workflow runs
 	now := time.Now()
 	reportSince := now.AddDate(0, 0, -days)
-	runs, successfulRuns, err := fetchAndAnalyzeWorkflowRuns(ctx, repo, workflowID, branch, reportSince, time.Time{})
-	if err != nil {
-		return err
+	var runs []github.Run
+	var successfulRuns int
+	if sourceRunID != 0 {
+		run, runErr := github.GetRun(ctx, repo, sourceRunID)
+		if runErr != nil {
+			return runErr
+		}
+		runs = []github.Run{run}
+		if run.Conclusion == github.ConclusionSuccess {
+			successfulRuns = 1
+		}
+		reportSince = run.CreatedAt
+		now = run.CreatedAt
+		fmt.Printf("Using source workflow run %d (%s)\n", sourceRunID, run.HeadSHA)
+	} else {
+		runs, successfulRuns, err = fetchAndAnalyzeWorkflowRuns(ctx, repo, workflowID, branch, reportSince, time.Time{})
+		if err != nil {
+			return err
+		}
 	}
 	if len(runs) == 0 {
 		return nil
@@ -363,7 +385,7 @@ func runGenerateCommand(c *cli.Context) (err error) {
 		// Extend the run set with the incremental window (days→bisectDays) to avoid
 		// re-fetching runs we already have from the report window.
 		bisectRuns := runs
-		if bisectDays > days {
+		if sourceRunID == 0 && bisectDays > days {
 			bisectSince := now.AddDate(0, 0, -bisectDays)
 			fmt.Printf("Fetching incremental runs for bisect (days %d–%d)...\n", days, bisectDays)
 			extraRuns, _, extraErr := fetchAndAnalyzeWorkflowRuns(ctx, repo, workflowID, branch, bisectSince, reportSince)
@@ -394,6 +416,9 @@ func runGenerateCommand(c *cli.Context) (err error) {
 	// Write failure JSON data
 	if err = writeFailuresJSON(outputDir, allFailures, repo); err != nil {
 		return fmt.Errorf("failed to write failures.json: %w", err)
+	}
+	if err = writeAnalysisInput(outputDir, buildAnalysisInput(repo, runs, summary, allFailures, bisectReports)); err != nil {
+		return err
 	}
 
 	// Write GitHub summary (to GITHUB_STEP_SUMMARY if set, otherwise to output dir)
