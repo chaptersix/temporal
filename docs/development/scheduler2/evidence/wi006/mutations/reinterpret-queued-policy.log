@@ -1,0 +1,13 @@
+=== RUN   TestAllowAllMixedBlockingAndFrozenQueuePolicy
+=== PAUSE TestAllowAllMixedBlockingAndFrozenQueuePolicy
+=== CONT  TestAllowAllMixedBlockingAndFrozenQueuePolicy
+    allowall_test.go:132: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/allowall_test.go:132
+        	Error:      	Not equal: 
+        	            	expected: 3
+        	            	actual  : 6
+        	Test:       	TestAllowAllMixedBlockingAndFrozenQueuePolicy
+--- FAIL: TestAllowAllMixedBlockingAndFrozenQueuePolicy (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.612s
+FAIL

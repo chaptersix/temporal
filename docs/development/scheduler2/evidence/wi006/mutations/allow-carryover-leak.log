@@ -1,0 +1,11 @@
+=== RUN   TestAllowAllPayloadIsolationAndNoPause
+=== PAUSE TestAllowAllPayloadIsolationAndNoPause
+=== CONT  TestAllowAllPayloadIsolationAndNoPause
+    allowall_test.go:204: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/allowall_test.go:204
+        	Error:      	Should be false
+        	Test:       	TestAllowAllPayloadIsolationAndNoPause
+--- FAIL: TestAllowAllPayloadIsolationAndNoPause (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.588s
+FAIL

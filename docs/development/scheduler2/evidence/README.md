@@ -147,3 +147,13 @@ not counter equality; no automated correspondence or liveness proof. Drain paylo
 loading is selective; generation still reads its combined definition/template.
 CHASM node publication/reload tests do not prove backend crash atomicity or fair
 task delivery. ALLOW_ALL, cancel/terminate and manual/backfill remain M2 work.
+
+## WI-006 evidence in progress (not accepted)
+
+E37: [contract](../work-items/WI-006.md), D35–D38; keyed summaries and ALLOW_ALL
+start-only semantics. [Initial isolation failure](wi006/isolation-initial.log) exposed
+CHASM sibling-component preparation;39b5099c3 uses separate DATA maps/root task index.
+E38: [model](../model/allowall/README.md), [results](../model/allowall/evidence/results.json);
+bounds100/200 exhaust109320 visited/73988 valid/18220 unique states, nine safety/six
+witness checks and three mutants. Explicit saturated fixture/one ambiguous key, no
+liveness/refinement claim. Final tests/mutations/race/lint/review still gate acceptance.

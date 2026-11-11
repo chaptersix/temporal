@@ -492,6 +492,7 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D35 | Keyed operation summaries | decided for WI-006 | Unfinished count and separate blocking owner; event-addressed record loading; preserve latest-admission identity on older results; cap4 terminal-only eviction. | Implementation37cb2c020; acceptance pending |
 | D36 | ALLOW_ALL start-only semantics | decided for WI-006 | Frozen policy, bypass buffer FIFO, no carryover/pause, distinct settled start intent, same-instant task identity; new capacity drops no debit. | Independent evidence pending |
 | D37 | Capacity-wait drain | decided for WI-006 | Accepted eligible queue waits without retry spin while all slots unfinished; keyed terminal/configuration rechecks and rearms; ineligible disposal needs no slot. | Independent evidence pending |
+| D38 | Transaction-wide metadata isolation | decided for WI-006 | Operation/request DATA maps plus exact root PendingStarts deadline index; CHASM cleanup reads no unrelated operation values. Issuance rechecks keyed metadata; no old-layout migration. | Fix39b5099c3; poisoned commit regression |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 

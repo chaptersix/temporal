@@ -1,0 +1,11 @@
+=== RUN   TestAllowAllCapacityWaitingDrainWakesWithoutGenerator
+=== PAUSE TestAllowAllCapacityWaitingDrainWakesWithoutGenerator
+=== CONT  TestAllowAllCapacityWaitingDrainWakesWithoutGenerator
+    allowall_test.go:163: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/allowall_test.go:163
+        	Error:      	Should be true
+        	Test:       	TestAllowAllCapacityWaitingDrainWakesWithoutGenerator
+--- FAIL: TestAllowAllCapacityWaitingDrainWakesWithoutGenerator (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.592s
+FAIL

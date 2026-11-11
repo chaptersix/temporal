@@ -1,0 +1,13 @@
+=== RUN   TestAllowAllKeyedIssuanceCapacityAndRecovery
+=== PAUSE TestAllowAllKeyedIssuanceCapacityAndRecovery
+=== CONT  TestAllowAllKeyedIssuanceCapacityAndRecovery
+    allowall_test.go:65: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/allowall_test.go:65
+        	Error:      	Not equal: 
+        	            	expected: 4
+        	            	actual  : 1
+        	Test:       	TestAllowAllKeyedIssuanceCapacityAndRecovery
+--- FAIL: TestAllowAllKeyedIssuanceCapacityAndRecovery (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.584s
+FAIL
