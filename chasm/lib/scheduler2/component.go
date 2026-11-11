@@ -118,7 +118,11 @@ func (s *Scheduler) request(ctx chasm.Context, operationID string) (*workflowser
 	if state.Operation == nil || state.Operation.ID != operationID {
 		return nil, nil
 	}
-	if _, ok := decision.Issue(state, ctx.Now(s).UnixNano()); !ok {
+	now := ctx.Now(s).UnixNano()
+	if state.Operation.Phase == decision.Pending && now < state.Operation.RetryAt {
+		return nil, serviceerror.NewUnavailable("workflow start is not due")
+	}
+	if _, ok := decision.Issue(state, now); !ok {
 		return nil, nil
 	}
 	op := s.Operations[operationID].Get(ctx)

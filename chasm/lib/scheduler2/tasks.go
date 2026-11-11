@@ -13,7 +13,13 @@ import (
 // StartHandler issues the cloned request outside the execution lock.
 type StartHandler struct {
 	chasm.SideEffectTaskHandlerBase[*scheduler2pb.StartTask]
-	Start func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)
+	start  func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)
+	permit chan struct{}
+}
+
+// NewStartHandler bounds concurrent local issuance to one RPC.
+func NewStartHandler(start func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)) *StartHandler {
+	return &StartHandler{start: start, permit: make(chan struct{}, 1)}
 }
 
 func (*StartHandler) Validate(ctx chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.StartTask) (bool, error) {
@@ -23,6 +29,15 @@ func (*StartHandler) Validate(ctx chasm.Context, s *Scheduler, attrs chasm.TaskI
 }
 
 func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ chasm.TaskAttributes, task *scheduler2pb.StartTask) error {
+	if h == nil || h.start == nil {
+		return serviceerror.NewUnavailable("local workflow starter is not configured")
+	}
+	select {
+	case h.permit <- struct{}{}:
+		defer func() { <-h.permit }()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -32,13 +47,10 @@ func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ ch
 	}
 	event := decision.Event{Kind: decision.Expire, Incarnation: ref.RunID, OperationID: task.OperationId}
 	if request != nil {
-		if h == nil || h.Start == nil {
-			return serviceerror.NewUnavailable("local workflow starter is not configured")
-		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		chain, startErr := h.Start(ctx, request)
+		chain, startErr := h.start(ctx, request)
 		if startErr != nil {
 			event.Kind = decision.RetryableFailure
 		} else {
@@ -46,7 +58,10 @@ func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ ch
 			event.ChainID = chain
 		}
 	}
-	_, _, err = chasm.UpdateComponent(ctx, ref,
+	// Task validity can change while the RPC is in flight. Merge against the same
+	// execution incarnation and let operation identity/phase validate the result.
+	resultRef := chasm.NewComponentRef[*Scheduler](ref.ExecutionKey)
+	_, _, err = chasm.UpdateComponent(ctx, resultRef,
 		func(s *Scheduler, ctx chasm.MutableContext, event decision.Event) (chasm.NoValue, error) {
 			return nil, s.Apply(ctx, event)
 		}, event)
