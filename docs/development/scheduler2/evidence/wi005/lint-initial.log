@@ -1,0 +1,688 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 11.840959ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (compiled_files|exports_file|files|imports|name|deps|types_sizes) took 42.495253166s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 235.478ms"
+level=info msg="[linters_context/goanalysis] analyzers took 9m59.029537294s with top 10 stages: goimports: 2m58.118708167s, revive: 52.183374199s, buildir: 37.193466131s, nilness: 21.66729883s, gci: 21.55676296s, S1038: 13.570686133s, testifylint: 12.606916433s, forbidigo: 10.619332211s, fact_deprecated: 6.552089405s, printf: 6.078761258s"
+level=info msg="[runner] Applying suggested fixes"
+level=info msg="[runner] fixer took 9.708µs with stages: all: 9.708µs"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 213 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 5 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 33 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 168 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 436 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 39 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 15 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 25 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 29 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 138 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 15 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 278 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 2609 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 221 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 150 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=warning msg="[runner/nolint_filter] Found unknown linters in //nolint directives: cognitive-complexity, confusing-results"
+level=info msg="[runner] Issues before processing: 13172, after processing: 44"
+level=info msg="[runner] Processors filtering stat (in/out): nolint_filter: 8403/7159, max_from_linter: 44/44, exclusion_paths: 13172/13172, fixer: 45/45, uniq_by_line: 45/44, max_per_file_from_linter: 44/44, source_code: 44/44, path_prettifier: 44/44, sort_results: 44/44, invalid_issue: 13172/13172, max_same_issues: 44/44, path_shortener: 44/44, path_absoluter: 13172/13172, cgo: 13172/13172, filename_unadjuster: 13172/13172, generated_file_filter: 13172/12777, exclusion_rules: 12777/8403, diff: 7159/45, severity-rules: 44/44, path_relativity: 13172/13172"
+level=info msg="[runner] processing took 917.837417ms with stages: nolint_filter: 422.415501ms, diff: 413.520625ms, exclusion_rules: 37.164166ms, generated_file_filter: 32.822208ms, path_relativity: 8.148416ms, source_code: 1.946501ms, exclusion_paths: 1.0305ms, invalid_issue: 278.375µs, cgo: 256.417µs, path_absoluter: 110.292µs, fixer: 64.959µs, filename_unadjuster: 51.459µs, uniq_by_line: 13.416µs, path_shortener: 6.999µs, sort_results: 5.917µs, max_per_file_from_linter: 791ns, max_same_issues: 417ns, path_prettifier: 250ns, max_from_linter: 125ns, severity-rules: 83ns"
+level=info msg="[runner] linters took 1m8.459954084s with stages: goanalysis_metalinter: 1m7.542046792s"
+../chasm/lib/activity/handler.go:247:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := TransitionEagerStarted.Apply(newActivity, mutableContext, eagerStartEvent{
+			requestID: request.GetRequestId(),
+		}); err != nil {
+			return nil, nil, err
+		}
+../chasm/lib/activity/handler_test.go:86:9: import-shadowing: The name 'test' shadows an import name (revive)
+	for _, test := range testCases {
+	       ^
+../chasm/lib/namespacereplication/tasks.go:1105:4: multiline-if-init: if-init statement should not span multiple lines (revive)
+			if err := TransitionPeerCompleted.Apply(c, mctx, EventPeerCompleted{
+				Time:       now,
+				TargetCell: task.GetTargetCell(),
+				Outcome:    record.outcome,
+				Attempts:   completedAttempts,
+				Err:        execErr,
+			}); err != nil {
+				return peerOutcomeRecord{}, err
+			}
+../chasm/lib/nexusoperation/operation.go:156:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if err := callback.ValidateAndAttach(
+		ctx,
+		op,
+		frontendReq.GetRequestId(),
+		regTime,
+		frontendReq.GetCompletionCallbacks(),
+		frontendReq.GetNamespace(),
+		callbackValidator,
+	); err != nil {
+		return nil, err
+	}
+../chasm/lib/nexusoperation/operation.go:167:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if err := op.attachLinks(
+		ctx,
+		frontendReq.GetLinks(),
+		frontendReq.GetRequestId(),
+		linkValidator,
+		frontendReq.GetNamespace(),
+	); err != nil {
+		return nil, err
+	}
+../chasm/lib/scheduler2/component.go:73:1: cognitive-complexity: function (*Scheduler).Apply has cognitive complexity 30 (> max enabled 25) (revive)
+func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error {
+	event.Now = ctx.Now(s).UnixNano()
+	before := s.state(ctx)
+	if event.Kind == decision.Drain && event.Incarnation == s.Incarnation && decision.NeedsDrain(before) {
+		if !s.HasGenerator {
+			return serviceerror.NewFailedPrecondition("buffered admission requires a configured template")
+		}
+		g := s.Generator.Get(ctx)
+		event.CatchupWindow = g.CatchupWindow
+		if decision.DrainIndex(before, event.Now, event.CatchupWindow) >= 0 {
+			event.Request = g.Definition.Get(ctx).Request
+		}
+	}
+	if err := s.prepareCompletion(before, &event); err != nil {
+		return err
+	}
+	if event.Kind == decision.Callback && event.Outcome == decision.Failure && event.Incarnation == s.Incarnation && before.Operation != nil && before.Operation.ID == event.OperationID && before.Operation.Phase != decision.Completed && s.CarryoverSet {
+		c := s.Carryover.Get(ctx)
+		before.Carryover = &decision.Carryover{Result: c.Result, Failure: c.Failure, FailurePresent: c.FailurePresent}
+	}
+
+	next, err := decision.Step(before, event)
+	if err != nil {
+		return err
+	}
+	if (event.Kind == decision.Due || event.Kind == decision.Drain) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID) {
+		if err := s.freezeAdmission(ctx, next.Operation); err != nil {
+			return err
+		}
+	}
+	if len(next.Queue) > 0 && !s.HasGenerator {
+		return serviceerror.NewFailedPrecondition("buffering requires a configured template")
+	}
+	if decision.NeedsDrain(next) && !s.DrainArmed && s.DrainToken == math.MaxUint64 {
+		return serviceerror.NewFailedPrecondition("drain token exhausted")
+	}
+	eviction, err := s.retentionEviction(ctx, before, next)
+	if err != nil {
+		return err
+	}
+	if eviction != "" {
+		delete(s.Operations, eviction)
+	}
+	hasGenerator := s.HasGenerator
+	drainToken, drainArmed, drainAt := s.DrainToken, s.DrainArmed, s.DrainAt
+	s.RootState = &scheduler2pb.RootState{
+		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
+		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
+		DrainToken: drainToken, DrainArmed: drainArmed, DrainAt: drainAt, Policy: next.Root.Policy, BufferDropped: next.Root.BufferDropped,
+		HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
+	}
+	for _, q := range next.Queue {
+		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy})
+	}
+	if next.Carryover != nil {
+		s.Carryover = chasm.NewDataField(ctx, &scheduler2pb.CarryoverState{Result: bytes.Clone(next.Carryover.Result), Failure: bytes.Clone(next.Carryover.Failure), FailurePresent: next.Carryover.FailurePresent})
+	}
+	if op := next.Operation; op != nil {
+		s.OperationId = op.ID
+		metadata := &scheduler2pb.OperationState{
+			OccurrenceId: op.OccurrenceID, ActionId: op.ActionID, Id: op.ID, ChainId: op.ChainID,
+			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase),
+		}
+		if field, ok := s.Operations[op.ID]; ok {
+			field.Get(ctx).OperationState = metadata
+		} else {
+			s.Operations[op.ID] = chasm.NewComponentField(ctx, &Operation{
+				OperationState: metadata,
+				Request:        chasm.NewDataField(ctx, &scheduler2pb.Payload{Data: bytes.Clone(op.Request)}),
+			})
+		}
+	}
+	oldWake, hadWake := decision.Wake(before)
+	wake, hasWake := decision.Wake(next)
+	if hasWake && (!hadWake || oldWake != wake) {
+		ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, wake)},
+			&scheduler2pb.StartTask{OperationId: next.Operation.ID})
+	}
+	s.reconcileDrain(ctx, next)
+	return nil
+}
+../chasm/lib/scheduler2/internal/decision/decision.go:176:1: cognitive-complexity: function applyResult has cognitive complexity 27 (> max enabled 25) (revive)
+func applyResult(next State, event Event) (State, error) {
+	op := next.Operation
+	if op == nil || event.OperationID != op.ID {
+		return next, nil
+	}
+	if event.ChainID != "" && op.ChainID != "" && event.ChainID != op.ChainID {
+		return next, serviceerror.NewFailedPrecondition("conflicting workflow chain")
+	}
+	switch event.Kind {
+	case Acknowledged, Complete, Callback:
+		if event.ChainID == "" {
+			return next, serviceerror.NewInvalidArgument("workflow chain is required")
+		}
+		if event.Kind != Acknowledged && op.Phase != Completed {
+			if err := complete(&next, event); err != nil {
+				return State{}, err
+			}
+		}
+		if op.ChainID == "" {
+			op.ChainID = event.ChainID
+			next.Root.Started++
+		}
+		if event.Kind == Complete || event.Kind == Callback {
+			op.Phase = Completed
+		} else if op.Phase != Completed {
+			op.Phase = Started
+		}
+	case RetryableFailure:
+		if op.Phase == Pending {
+			if event.Now >= op.Deadline {
+				op.Phase = Ambiguous
+			} else {
+				// Clamp before addition to avoid overflowing a timestamp near its limit.
+				op.RetryAt = min(max(event.Now, op.RetryAt), op.Deadline-RetryBackoff) + RetryBackoff
+			}
+		}
+	case Expire:
+		if op.Phase == Pending && event.Now >= op.Deadline {
+			op.Phase = Ambiguous
+		}
+	default:
+		return next, serviceerror.NewInvalidArgument("unknown operation result")
+	}
+	return next, nil
+}
+../common/persistence/sql/execution_util.go:1206:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := lockAndCheckExecution(
+			ctx,
+			tx,
+			shardID,
+			row.NamespaceID,
+			workflowID,
+			row.RunID,
+			condition,
+			dbRecordVersion,
+		); err != nil {
+			return err
+		}
+../common/persistence/sql/execution_util.go:1229:4: multiline-if-init: if-init statement should not span multiple lines (revive)
+			if err := lockAndCheckExecution(
+				ctx,
+				tx,
+				shardID,
+				row.NamespaceID,
+				workflowID,
+				row.RunID,
+				condition,
+				dbRecordVersion,
+			); err != nil {
+				return err
+			}
+../common/persistence/sql/task_v2.go:203:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := lockTaskQueue(ctx,
+			tx,
+			queueHash,
+			queueID,
+			request.ConditionRangeID,
+			sqlplugin.MatchingTaskVersion2,
+		); err != nil {
+			return err
+		}
+../service/frontend/admin_handler.go:1048:1: cognitive-complexity: function (*AdminHandler).ApplyNamespaceMutation has cognitive complexity 29 (> max enabled 25) (revive)
+func (adh *AdminHandler) ApplyNamespaceMutation(
+	ctx context.Context,
+	request *adminservice.ApplyNamespaceMutationRequest,
+) (_ *adminservice.ApplyNamespaceMutationResponse, retError error) {
+	startTime := time.Now()
+	defer log.CapturePanic(adh.logger, &retError)
+	var payloadTask, legacyTask *replicationspb.NamespaceTaskAttributes
+	var comparisonPanic error
+	comparisonOutcome, comparisonReason := "error", "invalid_request"
+	defer func() {
+		if comparisonPanic != nil {
+			retError = comparisonPanic
+			comparisonOutcome, comparisonReason = "error", "panic"
+		}
+		if request.GetShadow() {
+			adh.recordShadowReceiveComparison(request, payloadTask, legacyTask, comparisonOutcome, comparisonReason, retError)
+		}
+	}()
+	// Recover comparison panics before recording the RPC outcome.
+	defer log.CapturePanic(adh.logger, &comparisonPanic)
+
+	if request == nil {
+		return nil, serviceerror.NewInvalidArgument("request is required")
+	}
+	// Shadow must expose the same feature prerequisite as authoritative applies.
+	if !adh.clusterMetadata.IsGlobalNamespaceEnabled() {
+		comparisonReason = "global_namespace_disabled"
+		return nil, serviceerror.NewFailedPrecondition("global namespace replication is disabled on this cluster")
+	}
+	if request.GetRemovedPeer() && request.GetShadow() {
+		return nil, serviceerror.NewInvalidArgument("removed_peer is only valid for authoritative updates")
+	}
+	if len(request.GetNamespaceTaskPayload()) == 0 {
+		comparisonReason = "missing_payload"
+		return nil, serviceerror.NewInvalidArgument("namespace_task_payload is required")
+	}
+	if request.GetShadow() && len(request.GetShadowLegacyTaskPayload()) == 0 {
+		comparisonReason = "missing_legacy_reference"
+		return nil, serviceerror.NewInvalidArgument("shadow_legacy_task_payload is required")
+	}
+	if request.GetShadow() {
+		comparisonReason = "invalid_legacy_reference"
+		legacyTask = &replicationspb.NamespaceTaskAttributes{}
+		if err := proto.Unmarshal(request.GetShadowLegacyTaskPayload(), legacyTask); err != nil {
+			legacyTask = nil
+			return nil, serviceerror.NewInvalidArgumentf("decode shadow_legacy_task_payload: %v", err)
+		}
+	}
+
+	payloadTask = &replicationspb.NamespaceTaskAttributes{}
+	if err := proto.Unmarshal(request.GetNamespaceTaskPayload(), payloadTask); err != nil {
+		payloadTask = nil
+		comparisonOutcome, comparisonReason = "error", "invalid_payload"
+		return nil, serviceerror.NewInvalidArgumentf("decode namespace_task_payload: %v", err)
+	}
+	if !request.GetShadow() {
+		ctx = nsreplication.WithTaskMetricsContext(ctx, nsreplication.TaskMetricsContext{
+			SourceCluster: request.GetSourceCluster(), TargetCluster: adh.clusterMetadata.GetCurrentClusterName(),
+			Transport: nsreplication.CHASMReplicationTransport,
+		})
+		ctx = adh.withAuthoritativeNamespaceMutationEvent(ctx, request, payloadTask)
+		// CHASM deliveries can arrive out of order. Persist a removal even when this
+		// peer has not received its earlier addition: the config version fences
+		// that delayed addition. Otherwise it can create stale membership after
+		// the source has stopped targeting this peer. Legacy never sets this marker.
+		if request.GetRemovedPeer() {
+			clusters := payloadTask.GetReplicationConfig().GetClusters()
+			if payloadTask.GetNamespaceOperation() != enumsspb.NAMESPACE_OPERATION_UPDATE || len(clusters) == 0 ||
+				slices.ContainsFunc(clusters, func(c *replicationpb.ClusterReplicationConfig) bool {
+					return c.GetClusterName() == adh.clusterMetadata.GetCurrentClusterName()
+				}) {
+				err := serviceerror.NewInvalidArgument("removed_peer requires an update whose cluster list excludes the receiver")
+				adh.observeAuthoritativeNamespaceMutation(request, payloadTask, nsreplication.CHASMApplyOutcomeError, err, startTime)
+				return nil, err
+			}
+		}
+		// Absorb transient Unavailable errors, including cell-wide metadata CAS
+		// contention and an UPDATE losing a missing-row CREATE race to an older
+		// snapshot. ExecuteWithOutcome converts that duplicate to Unavailable so
+		// the next attempt applies the newer update through apply-if-higher.
+		// Returning Unavailable signals a destination failure at the source and
+		// can open the shared destination circuit breaker, delaying other mutations.
+		// Each attempt rereads metadata; durable retries remain in CHASM.
+		policy := backoff.NewExponentialRetryPolicy(20 * time.Millisecond).
+			WithBackoffCoefficient(2).
+			WithMaximumAttempts(namespaceMutationApplyMaxAttempts)
+		outcome, err := backoff.ThrottleRetryContextWithReturn(ctx, func(ctx context.Context) (nsreplication.ApplyOutcome, error) {
+			return adh.namespaceMutationExecutor.ExecuteWithOutcome(ctx, payloadTask, nsreplication.MutationApplyOptions{
+				Admission: nsreplication.AdmissionOptions{RemovedPeer: request.GetRemovedPeer()},
+			})
+		}, policy, func(err error) bool {
+			_, retryable := errors.AsType[*serviceerror.Unavailable](err)
+			return retryable
+		})
+		if err != nil {
+			adh.observeAuthoritativeNamespaceMutation(request, payloadTask, nsreplication.CHASMApplyOutcomeError, err, startTime)
+			return nil, err
+		}
+		wireOutcome, err := namespaceMutationResponseOutcome(outcome)
+		if err != nil {
+			adh.observeAuthoritativeNamespaceMutation(request, payloadTask, nsreplication.CHASMApplyOutcomeError, err, startTime)
+			return nil, err
+		}
+		adh.observeAuthoritativeNamespaceMutation(request, payloadTask, authoritativeReceiveOutcome(outcome), nil, startTime)
+		return &adminservice.ApplyNamespaceMutationResponse{Outcome: wireOutcome}, nil
+	}
+	// Compare the byte payloads after decoding with the same schema. The typed
+	// gRPC field can encode unknown map fields in a different order.
+	if proto.Equal(legacyTask, payloadTask) {
+		comparisonOutcome, comparisonReason = "match", "none"
+		return &adminservice.ApplyNamespaceMutationResponse{
+			Outcome: adminservice.ApplyNamespaceMutationResponse_OUTCOME_SHADOW_MATCH,
+		}, nil
+	}
+	comparisonOutcome, comparisonReason = "mismatch", "legacy_payload_mismatch"
+	adh.logger.Warn(
+		"namespace replication shadow receive mismatch",
+		tag.WorkflowNamespaceID(legacyTask.GetId()),
+		tag.NewStringTag("reason", "legacy_payload_mismatch"),
+		tag.NewStringsTag("differing_fields", nsreplication.DifferingNamespaceTaskFields(legacyTask, payloadTask)),
+		tag.NewStringTag("legacy_fingerprint", hex.EncodeToString(nsreplication.NamespaceTaskFingerprintFromPayload(request.GetShadowLegacyTaskPayload()))),
+		tag.NewStringTag("actual_fingerprint", hex.EncodeToString(nsreplication.NamespaceTaskFingerprintFromPayload(request.GetNamespaceTaskPayload()))),
+	)
+
+	return &adminservice.ApplyNamespaceMutationResponse{
+		Outcome: adminservice.ApplyNamespaceMutationResponse_OUTCOME_SHADOW_MISMATCH,
+	}, nil
+}
+../service/frontend/workflow_handler.go:2493:4: multiline-if-init: if-init statement should not span multiple lines (revive)
+			if err := wh.validateAndPopulateWorkflowTimeSkippingConfig(
+				updateOpts.GetWorkflowExecutionOptions().GetTimeSkippingConfig(),
+				namespace.Name(request.GetNamespace()),
+			); err != nil {
+				return nil, err
+			}
+../service/frontend/workflow_handler.go:6002:5: multiline-if-init: if-init statement should not span multiple lines (revive)
+				if err := wh.validateAndPopulateWorkflowTimeSkippingConfig(
+					updateOpts.GetWorkflowExecutionOptions().GetTimeSkippingConfig(),
+					namespace.Name(request.GetNamespace()),
+				); err != nil {
+					return nil, err
+				}
+../service/frontend/workflow_handler.go:6013:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := wh.validateAndPopulateWorkflowTimeSkippingConfig(
+			op.UpdateWorkflowOptionsOperation.GetWorkflowExecutionOptions().GetTimeSkippingConfig(),
+			namespace.Name(request.GetNamespace()),
+		); err != nil {
+			return nil, err
+		}
+../service/history/api/create_workflow_util.go:71:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if err := newMutableState.ValidateCallbackAddition(nil, chasmworkflow.CallbackAddition{
+		RequestID: startRequest.StartRequest.GetRequestId(),
+		Callbacks: startRequest.StartRequest.GetCompletionCallbacks(),
+	}); err != nil {
+		return nil, err
+	}
+../service/history/api/signalwithstartworkflow/signal_with_start_workflow.go:89:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if outcome, err := dedupSignalWithStartRequest(
+		ctx,
+		shard,
+		namespaceEntry,
+		currentWorkflowLease,
+		signalWithStartRequest.GetRequestId(),
+	); err != nil {
+		return startOutcome{}, err
+	} else if outcome != nil {
+		return *outcome, nil
+	}
+../service/history/api/signalwithstartworkflow/signal_with_start_workflow.go:366:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := createAsCurrent(
+			ctx,
+			shardContext,
+			newWorkflowLease,
+			newWorkflow,
+			newWorkflowEventsSeq,
+			workflowIDReusePolicy,
+			failedErr,
+		); err != nil {
+			return startOutcome{}, err
+		}
+../service/history/api/signalwithstartworkflow/signal_with_start_workflow.go:395:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if err := api.NewWorkflowVersionCheck(
+		shardContext,
+		failedErr.LastWriteVersion,
+		mutableState,
+	); err != nil {
+		return err
+	}
+../service/history/api/signalwithstartworkflow/signal_with_start_workflow.go:412:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if err := api.ResolveWorkflowIDReusePolicy(
+		shardContext,
+		workflowKey,
+		namespaceEntry,
+		failedErr.Status,
+		failedErr.RequestIDs,
+		failedErr.FirstExecutionRunID,
+		workflowIDReusePolicy,
+		currentWorkflowStartTime,
+	); err != nil {
+		return err
+	}
+../service/history/chasm_engine.go:748:4: multiline-if-init: if-init statement should not span multiple lines (revive)
+			if err := chasmTree.Terminate(
+				request.TerminateComponentRequest,
+				chasm.ExecutionForceTerminationReasonDeleteExecution,
+			); err != nil {
+				return err
+			}
+../service/history/hsm/nexusoperations/statemachine.go:385:4: multiline-if-init: if-init statement should not span multiple lines (revive)
+			if err := hsm.MachineTransition(child, func(c Cancelation) (hsm.TransitionOutput, error) {
+				return TransitionCancelationScheduled.Apply(c, EventCancelationScheduled{
+					Time: event.Time,
+					Node: child,
+				})
+			}); err != nil {
+				return hsm.TransitionOutput{}, err
+			}
+../service/history/replication/progress_cache_test.go:192:4: multiline-if-init: if-init statement should not span multiple lines (revive)
+			if err := s.progressCache.Update(s.runID, targetClusterID, []*persistencespb.VersionedTransition{
+				{NamespaceFailoverVersion: 80, TransitionCount: int64(i + 2)},
+			}, nil); err != nil {
+				updateErr = err
+				return
+			}
+../service/history/shard/context_impl.go:689:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if err := s.validateWorkflowEventsTransactionIDs(
+		ctx,
+		request.ResetWorkflowEvents,
+		request.NewWorkflowEvents,
+		request.CurrentWorkflowEvents,
+	); err != nil {
+		return nil, err
+	}
+../service/history/shard/context_impl.go:903:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := s.validateTransactionIDs(
+			ctx,
+			request.BranchToken,
+			request.Events[0].EventId,
+			request.PrevTransactionID,
+			request.TransactionID,
+		); err != nil {
+			return 0, err
+		}
+../service/history/shard/context_impl.go:951:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if err := s.validateTransactionIDs(
+		ctx,
+		request.BranchToken,
+		request.NodeID,
+		request.PrevTransactionID,
+		request.TransactionID,
+	); err != nil {
+		return nil, err
+	}
+../service/history/shard/context_impl.go:972:4: multiline-if-init: if-init statement should not span multiple lines (revive)
+			if err := s.validateTransactionIDs(
+				ctx,
+				workflowEvents.BranchToken,
+				workflowEvents.Events[0].EventId,
+				workflowEvents.PrevTxnID,
+				workflowEvents.TxnID,
+			); err != nil {
+				return err
+			}
+../service/history/workflow/context.go:1512:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := c.forceTerminateWorkflow(
+			ctx,
+			shardContext,
+			common.FailureReasonHistorySizeExceedsLimit,
+			chasm.ExecutionForceTerminationReasonHistorySizeExceedsLimit,
+		); err != nil {
+			return false, err
+		}
+../service/history/workflow/context.go:1555:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := c.forceTerminateWorkflow(
+			ctx,
+			shardContext,
+			common.FailureReasonHistoryCountExceedsLimit,
+			chasm.ExecutionForceTerminationReasonHistoryCountExceedsLimit,
+		); err != nil {
+			return false, err
+		}
+../service/history/workflow/context.go:1596:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := c.forceTerminateWorkflow(
+			ctx,
+			shardContext,
+			common.FailureReasonMutableStateSizeExceedsLimit,
+			chasm.ExecutionForceTerminationReasonMutableStateSizeExceedsLimit,
+		); err != nil {
+			return false, err
+		}
+../service/history/workflow/mutable_state_impl.go:9517:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if err := ms.chasmTree.ApplyMutation(chasm.NodesMutation{
+		UpdatedNodes: mutation.UpdatedChasmNodes,
+	}); err != nil {
+		return err
+	}
+../service/history/workflow/mutable_state_impl.go:9568:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if err := ms.chasmTree.ApplySnapshot(chasm.NodesSnapshot{
+		Nodes: snapshot.ChasmNodes,
+	}); err != nil {
+		return err
+	}
+../service/history/workflow/timeskipping.go:443:1: cognitive-complexity: function (*MutableStateImpl).findNextSkipTarget has cognitive complexity 30 (> max enabled 25) (revive)
+func (ms *MutableStateImpl) findNextSkipTarget() *chasm.TimeSkippingTransition {
+	transition := chasm.NewTimeSkippingTransition(ms.Now())
+	for _, timerInfo := range ms.GetPendingTimerInfos() {
+		if ms.trackFutureOrReportDueTaskForWorkflow(transition, timerInfo.ExpiryTime.AsTime(), "user timer") {
+			return nil
+		}
+	}
+
+	// Activities waiting out a retry backoff are skip targets: advance to the earliest
+	// next-attempt time.
+	for _, ai := range ms.GetPendingActivityInfos() {
+		if !activityPendingRetry(ai) {
+			continue
+		}
+		if ms.trackFutureOrReportDueTaskForWorkflow(transition, ai.GetScheduledTime().AsTime(), "activity retry") {
+			return nil
+		}
+	}
+	if !ms.HadOrHasWorkflowTask() {
+		// Support start-with-delay, cron, retry, and CaN-with-backoff: the workflow is
+		// waiting on a WorkflowBackoffTimerTask. ExecutionTime > StartTime means a backoff
+		// is configured. A child workflow can have no workflow task yet without a backoff;
+		// in that case ExecutionTime == StartTime.
+		executionTime := ms.executionInfo.GetExecutionTime().AsTime()
+		startTime := ms.executionInfo.GetStartTime().AsTime()
+		if executionTime.After(startTime) {
+			if ms.trackFutureOrReportDueTaskForWorkflow(transition, executionTime, "workflow backoff") {
+				return nil
+			}
+		}
+	}
+	if ms.HadOrHasWorkflowTask() {
+		// The run/execution timeout is a valid skip target, but only once the workflow has
+		// actually started executing (it has had a workflow task). For example, a freshly-created child has a
+		// brief window — start event applied, first workflow task not yet scheduled — where it
+		// looks idle with no timers. If the timeout were an unconditional target, the child would
+		// skip all the way to its run timeout before ever running its first task, so it never sets
+		// its internal timers.
+		if t := ms.executionInfo.GetWorkflowRunExpirationTime(); t != nil && !t.AsTime().IsZero() {
+			if ms.trackFutureOrReportDueTaskForWorkflow(transition, t.AsTime(), "workflow run timeout") {
+				return nil
+			}
+		}
+		if t := ms.executionInfo.GetWorkflowExecutionExpirationTime(); t != nil && !t.AsTime().IsZero() {
+			if ms.trackFutureOrReportDueTaskForWorkflow(transition, t.AsTime(), "workflow execution timeout") {
+				return nil
+			}
+		}
+	}
+
+	// fast-forward is also a target time, and this is the furthest target time a time skipping can skip to
+	tsi := ms.GetExecutionInfo().GetTimeSkippingInfo()
+	if !tsi.GetFastForwardInfo().GetHasReached() && tsi.GetFastForwardInfo().GetTargetTime() != nil {
+		transition.GateByFastForward(tsi.GetFastForwardInfo())
+	}
+
+	if transition.IsValid() {
+		return transition
+	}
+	return nil
+}
+../service/history/workflow/util.go:139:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if err := TerminateWorkflow(
+		mutableState,
+		terminateReason,
+		terminateDetails,
+		terminateIdentity,
+		deleteAfterTerminate,
+		links,
+	); err != nil {
+		return err
+	}
+../service/matching/matching_engine_test.go:2773:39: SA1019: (*go.temporal.io/server/api/persistence/v1.TaskQueueTypeUserData).GetFairnessState is deprecated: Marked as deprecated in temporal/server/api/persistence/v1/task_queues.proto. (staticcheck)
+		s.Equal(enumsspb.FAIRNESS_STATE_V1, got.GetPerType()[int32(enumspb.TASK_QUEUE_TYPE_WORKFLOW)].GetFairnessState())
+		                                    ^
+../service/matching/task_validation_test.go:147:2: use-waitgroup-go: replace wg.Add()...go {...wg.Done()...} with wg.Go(...) (revive)
+	wg.Add(n)
+	^
+../service/worker/workerdeployment/workflow.go:369:2: multiline-if-init: if-init statement should not span multiple lines (revive)
+	if err := workflow.SetUpdateHandlerWithOptions(
+		ctx,
+		RegisterWorkerInWorkerDeployment,
+		d.handleRegisterWorker,
+		workflow.UpdateHandlerOptions{
+			Validator: d.validateRegisterWorker,
+		},
+	); err != nil {
+		return err
+	}
+../tests/admin_test.go:372:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := workflow.SetUpdateHandler(ctx, awaitStartedUpdate, func(ctx workflow.Context) error {
+			return workflow.Await(ctx, func() bool { return started })
+		}); err != nil {
+			return err
+		}
+../tests/nexus_workflow_update_test.go:1394:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := workflow.SetUpdateHandler(ctx, "update", func(ctx workflow.Context, input string) (string, error) {
+			signalCh := workflow.GetSignalChannel(ctx, "complete-update")
+			signalCh.Receive(ctx, nil)
+			return "updated: " + input, nil
+		}); err != nil {
+			return "", err
+		}
+../tests/nexus_workflow_update_test.go:1743:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := workflow.SetUpdateHandler(ctx, "update", func(ctx workflow.Context, input string) (string, error) {
+			workflow.GetSignalChannel(ctx, "complete-update").Receive(ctx, nil)
+			return "converted: " + input, nil
+		}); err != nil {
+			return "", err
+		}
+../tests/schedule_test.go:2067:20: SA1019: (*go.temporal.io/server/tests/testcore.TestEnv).Context is deprecated: use the suite's Context() method instead. (staticcheck)
+	ctx := newContext(s.Context())
+	                  ^
+../tests/schedule_test.go:2069:2: SA1019: (*go.temporal.io/server/tests/testcore.TestEnv).NoError is deprecated: use require.NoError with the parent test or suite instead. TODO: remove once all tests are migrated to TestEnv (and no longer use functionalTestBase directly). (staticcheck)
+	s.NoError(err)
+	^
+../tests/testcore/gate_test.go:75:2: use-waitgroup-go: replace wg.Add()...go {...wg.Done()...} with wg.Go(...) (revive)
+	wg.Add(n)
+	^
+../tests/update_workflow_sdk_test.go:506:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := workflow.SetUpdateHandler(ctx, env.Tv().HandlerName(), func(ctx workflow.Context, input string) (string, error) {
+			signalCh := workflow.GetSignalChannel(ctx, "complete-update")
+			signalCh.Receive(ctx, nil)
+			return "updated: " + input, nil
+		}); err != nil {
+			return "", err
+		}
+../tests/update_workflow_sdk_test.go:644:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if err := workflow.SetUpdateHandler(ctx, env.Tv().HandlerName(), func(workflow.Context, string) (string, error) {
+			updateComplete = true
+			return updateResult, nil
+		}); err != nil {
+			return "", err
+		}
+44 issues:
+* revive: 41
+* staticcheck: 3
+level=info msg="File cache stats: 28 entries of total size 2.0MiB"
+level=info msg="Memory: 1082 samples, avg is 1866.6MB, max is 4189.9MB"
+level=info msg="Execution took 1m51.252401959s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2
