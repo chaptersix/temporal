@@ -895,3 +895,7 @@ M3; neither current factor models nor manual mappings are a product refinement
 proof. M3/M4 requirements remain unchanged. Next item: backend descriptor and
 complete functional coverage inventory, followed by local frontend/API wiring;
 Lean proofs and correspondence can proceed independently under their own item.
+
+WI-011 source5b86032de integrated as e20467cd1 with identical Git tree and
+verified source fingerprints. [WI-012](docs/development/scheduler2/work-items/WI-012.md)
+is ready for explicit functional backend setup and complete scenario inventory.

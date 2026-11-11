@@ -195,3 +195,11 @@ Delegated independent owners: chasm_guarantees current-mappings.md; tooling_harn
 m2-coverage.md; history_contract read-only local update/source contract review.
 No agent owns another agent's files; tests run through parent if child cache access
 is unavailable. Original checkout and unrelated work remain untouched.
+
+## WI-011 acceptance and M3 handoff
+
+Source5b86032de in /private/tmp/sch-redesign-updates (sch-redesign-updates)
+integrated explicitly as e20467cd1 on sch-redesign. No conflicts; exact Git trees
+and all checks.json source fingerprints match. Retained source worktree, no push.
+Original /Users/alex/repos/temporal remains03ecd1d228 with unrelated changes;
+this item did not modify that checkout. WI-012 starts from this accepted integration.
