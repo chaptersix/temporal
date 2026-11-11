@@ -1,0 +1,13 @@
+=== RUN   TestEffectsUnknownTargetBindingAndFrozenRetry
+=== PAUSE TestEffectsUnknownTargetBindingAndFrozenRetry
+=== CONT  TestEffectsUnknownTargetBindingAndFrozenRetry
+    effects_test.go:60: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/effects_test.go:60
+        	Error:      	Not equal: 
+        	            	expected: 1704067381000000000
+        	            	actual  : 1704067322000000000
+        	Test:       	TestEffectsUnknownTargetBindingAndFrozenRetry
+--- FAIL: TestEffectsUnknownTargetBindingAndFrozenRetry (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.664s
+FAIL

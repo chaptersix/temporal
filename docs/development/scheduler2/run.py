@@ -11,7 +11,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
-PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model")
+PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model")
 
 
 def git(*args):
@@ -33,9 +33,11 @@ def main():
     package = "./chasm/lib/scheduler2"
     common = ["go", "test", "-p", "2", "-parallel", "4", "-tags", "test_dep", "-count=1", "-timeout=10m"]
     checks = 10000 if args.exploration else 100
-    events = 17 if args.profile == "completion" else (128 if args.profile in ("sequential", "buffer", "allowall") or args.exploration else 32)
+    events = 17 if args.profile == "completion" else (128 if args.profile in ("sequential", "buffer", "allowall", "effects") or args.exploration else 32)
     commands = {
         "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Independent|Task)", "-v"]],
+        "effects": [common + [package, package + "/internal/decision", "-run", "TestEffects", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+        "effects-model": [[sys.executable, str(HERE / "model/effects/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],
         "allowall": [common + [package, package + "/internal/decision", "-run", "TestAllowAll", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
         "allowall-model": [[sys.executable, str(HERE / "model/allowall/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],
         "buffer": [common + [package, package + "/internal/decision", "-run", "TestBuffer", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],

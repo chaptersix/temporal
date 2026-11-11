@@ -1,0 +1,16 @@
+Model checking /private/tmp/scheduler2-effects-model-first/baseline-100/effects.json
+configFileName: /private/tmp/scheduler2-effects-model-first/baseline-100/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 20000, queued: 45390, elapsed: 6.934183333s
+Nodes: 40000, queued: 71801, elapsed: 15.646442458s
+Nodes: 60000, queued: 91752, elapsed: 23.189412625s
+Nodes: 80000, queued: 104757, elapsed: 30.564165417s
+Nodes: 100000, queued: 116021, elapsed: 39.579404167s
+
+Interrupted. Stopping state exploration
+Nodes: 111630, queued: 119211, elapsed: 44.6377205s
+Time taken for model checking: 44.63773725s
+Skipping dotfile generation. Too many Nodes: 111630
+Valid Nodes: 84106 Unique states: 35103
+Model checker stopped

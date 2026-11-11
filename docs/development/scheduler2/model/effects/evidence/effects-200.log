@@ -1,0 +1,16 @@
+Model checking /private/tmp/scheduler2-effects-model-witness-fixed/effects-200/effects.json
+configFileName: /private/tmp/scheduler2-effects-model-witness-fixed/effects-200/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:200  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 20000, queued: 25964, elapsed: 5.477184042s
+Nodes: 40000, queued: 30974, elapsed: 11.212023375s
+Nodes: 60000, queued: 24074, elapsed: 16.910089458s
+Nodes: 80000, queued: 11215, elapsed: 22.835677417s
+Nodes: 90058, queued: 0, elapsed: 25.972551667s
+Time taken for model checking: 25.972578959s
+Skipping dotfile generation. Too many Nodes: 90058
+Valid Nodes: 72728 Unique states: 18168
+IsLive: true
+Time taken to check liveness: 608.232958ms
+PASSED: Model checker completed successfully
+Writen 1 node files and 1 link files to dir /private/tmp/scheduler2-effects-model-witness-fixed/effects-200/graph

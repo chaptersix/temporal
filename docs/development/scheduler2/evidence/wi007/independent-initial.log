@@ -1,0 +1,13 @@
+--- FAIL: TestEffectsTerminateSupersedesCancelAndLateEvidence (0.01s)
+    effects_test.go:126: 
+        	Error Trace:	/private/tmp/sch-redesign-effects-tests/chasm/lib/scheduler2/effects_test.go:126
+        	Error:      	Not equal: 
+        	            	expected: 1
+        	            	actual  : 0
+        	Test:       	TestEffectsTerminateSupersedesCancelAndLateEvidence
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.678s
+?   	go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1	[no test files]
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	2.768s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.652s [no tests to run]
+FAIL

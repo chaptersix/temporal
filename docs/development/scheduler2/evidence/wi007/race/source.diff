@@ -1,0 +1,57 @@
+diff --git a/docs/development/scheduler2/profile.json b/docs/development/scheduler2/profile.json
+index 6571ea586..2e8670f5c 100644
+--- a/docs/development/scheduler2/profile.json
++++ b/docs/development/scheduler2/profile.json
+@@ -1,6 +1,6 @@
+ {
+   "version": 1,
+-  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only; WI-005 buffered automatic admission; WI-006 keyed ALLOW_ALL",
++  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only; WI-005 buffered automatic admission; WI-006 keyed ALLOW_ALL; WI-007 fenced cancel/terminate effects",
+   "clock": "execution Unix nanoseconds",
+   "per_schedule": {
+     "enumeration_batch": 1,
+@@ -99,5 +99,18 @@
+     "capacity_queue": "retain eligible accepted queue; no drain loop; terminal evidence/configuration rechecks readiness",
+     "carryover": "ALLOW_ALL clears request fields and never changes carryover or pause",
+     "keyed_loading": "only target operation metadata/request on issuance/results; bounded retention scan on admission"
++  },
++  "effects": {
++    "max_records_per_blocker": 2,
++    "max_request_bytes": 131072,
++    "retry_horizon_seconds_from_binding": 60,
++    "retry_backoff_seconds": 1,
++    "executor_concurrency_per_library": 1,
++    "combined_start_and_effect_concurrency_per_library": 2,
++    "unknown_chain": "retained awaiting target; no RPC or timer",
++    "not_found": "settled absent target; not successful cancellation or completion",
++    "queue": "capacity4; eligible last cancel/terminate replaces unadmitted selection",
++    "completion": "matching target completion clears effects; RPC outcomes never release blocker",
++    "payload": "separate DATA entries; metadata-only validation"
+   }
+ }
+diff --git a/docs/development/scheduler2/run.py b/docs/development/scheduler2/run.py
+index 54bd02fea..c00100b07 100644
+--- a/docs/development/scheduler2/run.py
++++ b/docs/development/scheduler2/run.py
+@@ -11,7 +11,7 @@ import time
+ 
+ ROOT = Path(__file__).resolve().parents[3]
+ HERE = Path(__file__).resolve().parent
+-PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model")
++PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model")
+ 
+ 
+ def git(*args):
+@@ -33,9 +33,11 @@ def main():
+     package = "./chasm/lib/scheduler2"
+     common = ["go", "test", "-p", "2", "-parallel", "4", "-tags", "test_dep", "-count=1", "-timeout=10m"]
+     checks = 10000 if args.exploration else 100
+-    events = 17 if args.profile == "completion" else (128 if args.profile in ("sequential", "buffer", "allowall") or args.exploration else 32)
++    events = 17 if args.profile == "completion" else (128 if args.profile in ("sequential", "buffer", "allowall", "effects") or args.exploration else 32)
+     commands = {
+         "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Independent|Task)", "-v"]],
++        "effects": [common + [package, package + "/internal/decision", "-run", "TestEffects", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
++        "effects-model": [[sys.executable, str(HERE / "model/effects/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],
+         "allowall": [common + [package, package + "/internal/decision", "-run", "TestAllowAll", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+         "allowall-model": [[sys.executable, str(HERE / "model/allowall/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],
+         "buffer": [common + [package, package + "/internal/decision", "-run", "TestBuffer", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],

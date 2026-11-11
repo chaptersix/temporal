@@ -1,0 +1,77 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+HORIZON_FROM_DEMAND = False
+
+action Init:
+    now = 0
+    phase = "desired"
+    bound_at = -1
+    deadline = -1
+    retry_at = -1
+    attempts = 0
+    deliveries = []
+    blocker = True
+    late_settled = False
+
+atomic action WaitUnknown:
+    require phase == "desired" and now == 0
+    now = 60
+
+atomic action Bind:
+    require phase == "desired"
+    bound_at = now
+    deadline = 60 if HORIZON_FROM_DEMAND else now + 60
+    retry_at = now
+    phase = "pending"
+
+atomic action Issue:
+    require phase == "pending" and now >= retry_at and now < deadline and attempts < 2
+    deliveries.append(["wf", "first-run", "", bound_at, deadline, now])
+    attempts += 1
+    phase = "inflight"
+
+atomic action Advance:
+    require bound_at >= 0 and now < bound_at + 60
+    now = bound_at + 1 if now == bound_at else bound_at + 60
+    if now >= deadline and phase == "pending":
+        phase = "ambiguous"
+
+atomic action Result:
+    require attempts > 0 and phase in ["inflight", "pending", "ambiguous"]
+    outcome = oneof ["success", "notfound", "unknown"]
+    if outcome != "unknown":
+        late_settled = now >= deadline
+        phase = "accepted" if outcome == "success" else "no-target"
+    elif now >= deadline:
+        phase = "ambiguous"
+    else:
+        retry_at = now + 1
+        phase = "pending"
+
+always assertion BindingStartsHorizon:
+    return (bound_at < 0 and deadline == -1 and attempts == 0) or (bound_at >= 0 and deadline == bound_at + 60)
+
+always assertion RetryGuardAndFence:
+    prior = -1
+    for request in deliveries:
+        if request[:3] != ["wf", "first-run", ""] or request[3] != bound_at or request[4] != deadline or request[5] >= deadline or request[5] <= prior:
+            return False
+        prior = request[5]
+    return blocker
+
+exists assertion DelayedBindingStillIssues:
+    return bound_at == 60 and attempts > 0
+
+exists assertion DelayedBindingExpires:
+    return bound_at == 60 and phase == "ambiguous"
+
+exists assertion DelayedRetry:
+    return bound_at == 60 and attempts == 2
+
+exists assertion LateSettlementAfterDelayedHorizon:
+    return bound_at == 60 and late_settled

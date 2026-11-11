@@ -1,0 +1,14 @@
+=== RUN   TestEffectsTerminateSupersedesCancelAndLateEvidence
+=== PAUSE TestEffectsTerminateSupersedesCancelAndLateEvidence
+=== CONT  TestEffectsTerminateSupersedesCancelAndLateEvidence
+    effects_test.go:96: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/effects_test.go:31
+        	            				/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/effects_test.go:96
+        	Error:      	Not equal: 
+        	            	expected: 6
+        	            	actual  : 2
+        	Test:       	TestEffectsTerminateSupersedesCancelAndLateEvidence
+--- FAIL: TestEffectsTerminateSupersedesCancelAndLateEvidence (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.659s
+FAIL

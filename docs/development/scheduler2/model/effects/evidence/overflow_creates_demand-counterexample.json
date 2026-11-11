@@ -1,0 +1,591 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Init",
+      "returns": "{}",
+      "roles": null,
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[3].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"next_entry\":4,\"policy\":{\"2\":\"buffer\",\"3\":\"buffer\"},\"queue\":[2,3]}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted_demands": [],
+        "blocker": true,
+        "budget": 4,
+        "demands": [],
+        "drained": false,
+        "expected_remaining": [],
+        "expected_selected": 0,
+        "expected_superseded": [],
+        "ineligible": 0,
+        "next_entry": 4,
+        "overflow": false,
+        "policy": {
+          "2": "buffer",
+          "3": "buffer"
+        },
+        "queue": [
+          2,
+          3
+        ],
+        "selected": 0,
+        "superseded": []
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:ineligible=0",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Enqueue",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted_demands": [],
+        "blocker": true,
+        "budget": 4,
+        "demands": [],
+        "drained": false,
+        "expected_remaining": [],
+        "expected_selected": 0,
+        "expected_superseded": [],
+        "ineligible": 0,
+        "next_entry": 4,
+        "overflow": false,
+        "policy": {
+          "2": "buffer",
+          "3": "buffer"
+        },
+        "queue": [
+          2,
+          3
+        ],
+        "selected": 0,
+        "superseded": []
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "Enqueue": 1
+        }
+      },
+      "threads": [
+        {
+          "id": 10,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Enqueue",
+              "pc": "Actions[1].Block.Stmts[1].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 1
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Enqueue",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted_demands": [
+          "cancel"
+        ],
+        "blocker": true,
+        "budget": 4,
+        "demands": [
+          "cancel"
+        ],
+        "drained": false,
+        "expected_remaining": [],
+        "expected_selected": 0,
+        "expected_superseded": [],
+        "ineligible": 0,
+        "next_entry": 5,
+        "overflow": false,
+        "policy": {
+          "2": "buffer",
+          "3": "buffer",
+          "4": "cancel"
+        },
+        "queue": [
+          2,
+          3,
+          4
+        ],
+        "selected": 0,
+        "superseded": []
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "Enqueue": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:kind=\"cancel\"",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Enqueue",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted_demands": [
+          "cancel"
+        ],
+        "blocker": true,
+        "budget": 4,
+        "demands": [
+          "cancel"
+        ],
+        "drained": false,
+        "expected_remaining": [],
+        "expected_selected": 0,
+        "expected_superseded": [],
+        "ineligible": 0,
+        "next_entry": 5,
+        "overflow": false,
+        "policy": {
+          "2": "buffer",
+          "3": "buffer",
+          "4": "cancel"
+        },
+        "queue": [
+          2,
+          3,
+          4
+        ],
+        "selected": 0,
+        "superseded": []
+      },
+      "stats": {
+        "totalActions": 2,
+        "counts": {
+          "Enqueue": 2
+        }
+      },
+      "threads": [
+        {
+          "id": 43,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Enqueue",
+              "pc": "Actions[1].Block.Stmts[1].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 1
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Enqueue",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted_demands": [
+          "cancel"
+        ],
+        "blocker": true,
+        "budget": 4,
+        "demands": [
+          "cancel"
+        ],
+        "drained": false,
+        "expected_remaining": [],
+        "expected_selected": 0,
+        "expected_superseded": [],
+        "ineligible": 0,
+        "next_entry": 6,
+        "overflow": false,
+        "policy": {
+          "2": "buffer",
+          "3": "buffer",
+          "4": "cancel",
+          "5": "cancel"
+        },
+        "queue": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "selected": 0,
+        "superseded": []
+      },
+      "stats": {
+        "totalActions": 2,
+        "counts": {
+          "Enqueue": 2
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:kind=\"cancel\"",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Overflow",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted_demands": [
+          "cancel"
+        ],
+        "blocker": true,
+        "budget": 4,
+        "demands": [
+          "cancel"
+        ],
+        "drained": false,
+        "expected_remaining": [],
+        "expected_selected": 0,
+        "expected_superseded": [],
+        "ineligible": 0,
+        "next_entry": 6,
+        "overflow": false,
+        "policy": {
+          "2": "buffer",
+          "3": "buffer",
+          "4": "cancel",
+          "5": "cancel"
+        },
+        "queue": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "selected": 0,
+        "superseded": []
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "Enqueue": 2,
+          "Overflow": 1
+        }
+      },
+      "threads": [
+        {
+          "id": 143,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Overflow",
+              "pc": "Actions[2].Block.Stmts[1].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 1
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Overflow",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          1
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted_demands": [
+          "cancel"
+        ],
+        "blocker": true,
+        "budget": 4,
+        "demands": [
+          "cancel",
+          "terminate"
+        ],
+        "drained": false,
+        "expected_remaining": [],
+        "expected_selected": 0,
+        "expected_superseded": [],
+        "ineligible": 0,
+        "next_entry": 6,
+        "overflow": true,
+        "policy": {
+          "2": "buffer",
+          "3": "buffer",
+          "4": "cancel",
+          "5": "cancel"
+        },
+        "queue": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "selected": 0,
+        "superseded": []
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "Enqueue": 2,
+          "Overflow": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:kind=\"terminate\"",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]

@@ -1,0 +1,89 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+FIRST_EFFECT_WINS = False
+OVERFLOW_CREATES_DEMAND = False
+
+action Init:
+    queue = [2, 3]
+    policy = {2: "buffer", 3: "buffer"}
+    next_entry = 4
+    ineligible = oneof [0, 4, 5]
+    blocker = True
+    demands = []
+    accepted_demands = []
+    overflow = False
+    drained = False
+    selected = 0
+    expected_selected = 0
+    expected_remaining = []
+    superseded = []
+    expected_superseded = []
+    budget = 4
+
+atomic action Enqueue:
+    require blocker and next_entry <= 5
+    kind = oneof ["cancel", "terminate"]
+    queue.append(next_entry)
+    policy[next_entry] = kind
+    next_entry += 1
+    demands = sorted(list(set(demands + [kind])))
+    accepted_demands = sorted(list(set(accepted_demands + [kind])))
+
+atomic action Overflow:
+    require blocker and len(queue) == 4 and not overflow
+    kind = oneof ["cancel", "terminate"]
+    overflow = True
+    if OVERFLOW_CREATES_DEMAND:
+        demands = sorted(list(set(demands + [kind])))
+
+atomic action MatchingCompletion:
+    require blocker
+    blocker = False
+
+atomic action Drain:
+    require not blocker and not drained
+    eligible = [entry for entry in queue if entry != ineligible]
+    replacement = [entry for entry in eligible if policy[entry] != "buffer"]
+    expected_selected = replacement[-1] if len(replacement) > 0 else eligible[0]
+    expected_remaining = [entry for entry in eligible if entry != expected_selected and policy[entry] == "buffer" and entry != eligible[0]]
+    expected_superseded = [entry for entry in eligible if entry != expected_selected and entry not in expected_remaining]
+    candidate = 0
+    remaining = []
+    for entry in eligible:
+        if candidate == 0:
+            candidate = entry
+        elif policy[entry] != "buffer" and not (FIRST_EFFECT_WINS and policy[candidate] != "buffer"):
+            superseded.append(candidate)
+            candidate = entry
+        else:
+            remaining.append(entry)
+    selected = candidate
+    queue = remaining
+    budget -= 1
+    drained = True
+
+always assertion SelectionAfterEligibility:
+    return not drained or (selected == expected_selected and queue == expected_remaining and superseded == expected_superseded)
+
+always assertion AcceptedDemandOnly:
+    return demands == accepted_demands and len(queue) <= 4
+
+always assertion AdmissionOnlyDebit:
+    return budget == 4 - (1 if drained else 0)
+
+exists assertion ReplacementPreservesBuffer:
+    return drained and len(superseded) == 2 and queue == [3]
+
+exists assertion FilterBeforeReplacement:
+    return drained and ineligible == 5 and selected == 4
+
+exists assertion LaterCancelReplacesTerminate:
+    return drained and 4 in policy and 5 in policy and policy[4] == "terminate" and policy[5] == "cancel" and selected == 5
+
+exists assertion OverflowWithoutDemand:
+    return overflow

@@ -1,0 +1,58 @@
+=== RUN   TestEffectsSavedReplay
+=== PAUSE TestEffectsSavedReplay
+=== RUN   TestEffectsTaskLostAckFrozenRetryAndNotFound
+=== PAUSE TestEffectsTaskLostAckFrozenRetryAndNotFound
+=== RUN   TestEffectsTaskTerminateOverInFlightCancel
+=== PAUSE TestEffectsTaskTerminateOverInFlightCancel
+=== RUN   TestEffectsTaskPermitAndDetachedRequest
+=== PAUSE TestEffectsTaskPermitAndDetachedRequest
+=== RUN   TestEffectsTaskCancellationAfterRemoteAcceptance
+=== PAUSE TestEffectsTaskCancellationAfterRemoteAcceptance
+=== RUN   TestEffectsUnknownTargetBindingAndFrozenRetry
+=== PAUSE TestEffectsUnknownTargetBindingAndFrozenRetry
+=== RUN   TestEffectsTerminateSupersedesCancelAndLateEvidence
+=== PAUSE TestEffectsTerminateSupersedesCancelAndLateEvidence
+=== RUN   TestEffectsQueueOverflowCreatesNoDemand
+=== PAUSE TestEffectsQueueOverflowCreatesNoDemand
+=== RUN   TestEffectsMetadataAndUnrelatedPayloadIsolation
+=== PAUSE TestEffectsMetadataAndUnrelatedPayloadIsolation
+=== RUN   TestEffectsDelayedBindingAfterParallelAdmission
+=== PAUSE TestEffectsDelayedBindingAfterParallelAdmission
+=== RUN   TestEffectsClockRollbackPreservesObligation
+=== PAUSE TestEffectsClockRollbackPreservesObligation
+=== CONT  TestEffectsSavedReplay
+=== CONT  TestEffectsTerminateSupersedesCancelAndLateEvidence
+=== CONT  TestEffectsTaskPermitAndDetachedRequest
+=== CONT  TestEffectsUnknownTargetBindingAndFrozenRetry
+--- PASS: TestEffectsTaskPermitAndDetachedRequest (0.01s)
+=== CONT  TestEffectsTaskCancellationAfterRemoteAcceptance
+--- PASS: TestEffectsUnknownTargetBindingAndFrozenRetry (0.01s)
+=== CONT  TestEffectsClockRollbackPreservesObligation
+--- PASS: TestEffectsTerminateSupersedesCancelAndLateEvidence (0.01s)
+=== CONT  TestEffectsDelayedBindingAfterParallelAdmission
+--- PASS: TestEffectsTaskCancellationAfterRemoteAcceptance (0.00s)
+=== CONT  TestEffectsMetadataAndUnrelatedPayloadIsolation
+--- PASS: TestEffectsClockRollbackPreservesObligation (0.00s)
+=== CONT  TestEffectsQueueOverflowCreatesNoDemand
+--- PASS: TestEffectsSavedReplay (0.01s)
+=== CONT  TestEffectsTaskTerminateOverInFlightCancel
+--- PASS: TestEffectsDelayedBindingAfterParallelAdmission (0.00s)
+=== CONT  TestEffectsTaskLostAckFrozenRetryAndNotFound
+--- PASS: TestEffectsMetadataAndUnrelatedPayloadIsolation (0.00s)
+--- PASS: TestEffectsQueueOverflowCreatesNoDemand (0.00s)
+--- PASS: TestEffectsTaskTerminateOverInFlightCancel (0.00s)
+--- PASS: TestEffectsTaskLostAckFrozenRetryAndNotFound (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	1.174s
+=== RUN   TestEffectsIndependentProperties
+=== PAUSE TestEffectsIndependentProperties
+=== RUN   TestEffectsFreeSelectionAndOverflow
+=== PAUSE TestEffectsFreeSelectionAndOverflow
+=== CONT  TestEffectsIndependentProperties
+=== CONT  TestEffectsFreeSelectionAndOverflow
+--- PASS: TestEffectsFreeSelectionAndOverflow (0.00s)
+=== NAME  TestEffectsIndependentProperties
+    effects_test.go:14: [rapid] OK, passed 10000 tests (2.049626208s)
+--- PASS: TestEffectsIndependentProperties (2.05s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	2.607s

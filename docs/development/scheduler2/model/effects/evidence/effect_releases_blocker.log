@@ -1,0 +1,54 @@
+Model checking /private/tmp/scheduler2-effects-model-witness-fixed/effect_releases_blocker/effects.json
+configFileName: /private/tmp/scheduler2-effects-model-witness-fixed/effect_releases_blocker/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 164, queued: 664, elapsed: 53.932834ms
+Time taken for model checking: 53.971166ms
+Writen graph dotfile: /private/tmp/scheduler2-effects-model-witness-fixed/effect_releases_blocker/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-effects-model-witness-fixed/effect_releases_blocker/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  OnlyCompletionReleasesTarget
+------
+Init
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":false,"completed":false,"drain_task":false,"drained":false,"effects":{},"frozen":{},"initial_budget":4,"issued":[],"next_entry":4,"now":0,"retry_at":{},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":false,"saw_updated_retry":false,"snapshots":{},"started":0,"terminate_demand":false,"updated":false}
+------
+EnqueueOverlap
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":false,"completed":false,"drain_task":false,"drained":false,"effects":{},"frozen":{},"initial_budget":4,"issued":[],"next_entry":4,"now":0,"retry_at":{},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":false,"saw_updated_retry":false,"snapshots":{},"started":0,"terminate_demand":false,"updated":false}
+------
+Any:kind="cancel"
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":false,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"desired"},"frozen":{},"initial_budget":4,"issued":[],"next_entry":5,"now":0,"retry_at":{},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{},"started":0,"terminate_demand":false,"updated":false}
+------
+BindAcknowledgment
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"ready"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":false}
+------
+Issue
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"ready"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":false}
+------
+Any:kind="cancel"
+--
+state: {"attempts":{"cancel":1,"terminate":0},"blocker":1,"budget":4,"busy":"cancel","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"inflight"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],false,0]],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":false}
+------
+Result
+--
+state: {"attempts":{"cancel":1,"terminate":0},"blocker":1,"budget":4,"busy":"cancel","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"inflight"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],false,0]],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":false}
+------
+Any:delivery=["cancel", ["namespace", "workflow", "chain-1", "", "1/cancel", 0, 60, 1], False, 0]
+--
+state: {"attempts":{"cancel":1,"terminate":0},"blocker":1,"budget":4,"busy":"cancel","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"inflight"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],false,0]],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":false}
+------
+Any:result="success"
+--
+state: {"attempts":{"cancel":1,"terminate":0},"blocker":0,"budget":4,"busy":"","carryover":0,"chain_known":true,"completed":false,"drain_task":true,"drained":false,"effects":{"cancel":"accepted"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],false,0]],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":false}
+------
+Writen graph json: /private/tmp/scheduler2-effects-model-witness-fixed/effect_releases_blocker/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-effects-model-witness-fixed/effect_releases_blocker/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-effects-model-witness-fixed/effect_releases_blocker/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-effects-model-witness-fixed/effect_releases_blocker/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-effects-model-witness-fixed/effect_releases_blocker/graph/error-states.html

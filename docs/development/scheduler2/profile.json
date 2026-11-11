@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only; WI-005 buffered automatic admission; WI-006 keyed ALLOW_ALL",
+  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only; WI-005 buffered automatic admission; WI-006 keyed ALLOW_ALL; WI-007 fenced cancel/terminate effects",
   "clock": "execution Unix nanoseconds",
   "per_schedule": {
     "enumeration_batch": 1,
@@ -99,5 +99,18 @@
     "capacity_queue": "retain eligible accepted queue; no drain loop; terminal evidence/configuration rechecks readiness",
     "carryover": "ALLOW_ALL clears request fields and never changes carryover or pause",
     "keyed_loading": "only target operation metadata/request on issuance/results; bounded retention scan on admission"
+  },
+  "effects": {
+    "max_records_per_blocker": 2,
+    "max_request_bytes": 131072,
+    "retry_horizon_seconds_from_binding": 60,
+    "retry_backoff_seconds": 1,
+    "executor_concurrency_per_library": 1,
+    "combined_start_and_effect_concurrency_per_library": 2,
+    "unknown_chain": "retained awaiting target; no RPC or timer",
+    "not_found": "settled absent target; not successful cancellation or completion",
+    "queue": "capacity4; eligible last cancel/terminate replaces unadmitted selection",
+    "completion": "matching target completion clears effects; RPC outcomes never release blocker",
+    "payload": "separate DATA entries; metadata-only validation"
   }
 }

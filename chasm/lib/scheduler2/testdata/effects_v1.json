@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "clock_domain": "execution_nanoseconds",
+  "incarnation": "incarnation",
+  "base": "2024-01-01T00:00:00Z",
+  "revision": 1,
+  "seed": "",
+  "catchup": "600s",
+  "remaining": 10,
+  "policy": 4,
+  "chain": "first-run",
+  "spec": {
+    "interval": [
+      {
+        "interval": "1s"
+      }
+    ],
+    "startTime": "2024-01-01T00:00:00Z",
+    "endTime": "2024-01-01T00:00:01Z"
+  },
+  "request": {
+    "namespace": "namespace",
+    "workflowId": "workflow",
+    "workflowType": {
+      "name": "type"
+    },
+    "taskQueue": {
+      "name": "queue"
+    }
+  },
+  "steps": [
+    {
+      "kind": "generate",
+      "now": 1,
+      "publish": true,
+      "phase": "awaiting",
+      "deadline": 0,
+      "retry": 0,
+      "remaining": 9,
+      "started": 0,
+      "unfinished": 1,
+      "queue": 1,
+      "tasks": 1,
+      "timers": 0,
+      "latest": 0,
+      "blocking": true
+    },
+    {
+      "kind": "ack",
+      "now": 100,
+      "publish": false,
+      "phase": "awaiting",
+      "deadline": 0,
+      "retry": 0,
+      "remaining": 9,
+      "started": 0,
+      "unfinished": 1,
+      "queue": 1,
+      "tasks": 1,
+      "timers": 0,
+      "latest": 0,
+      "blocking": true
+    },
+    {
+      "kind": "restart",
+      "now": 100,
+      "publish": true,
+      "phase": "awaiting",
+      "deadline": 0,
+      "retry": 0,
+      "remaining": 9,
+      "started": 0,
+      "unfinished": 1,
+      "queue": 1,
+      "tasks": 1,
+      "timers": 0,
+      "latest": 0,
+      "blocking": true
+    },
+    {
+      "kind": "ack",
+      "now": 100,
+      "publish": true,
+      "phase": "pending",
+      "deadline": 160,
+      "retry": 100,
+      "remaining": 9,
+      "started": 1,
+      "unfinished": 1,
+      "queue": 1,
+      "tasks": 1,
+      "timers": 0,
+      "latest": 0,
+      "blocking": true
+    },
+    {
+      "kind": "failed",
+      "now": 101,
+      "publish": true,
+      "phase": "pending",
+      "deadline": 160,
+      "retry": 102,
+      "remaining": 9,
+      "started": 1,
+      "unfinished": 1,
+      "queue": 1,
+      "tasks": 1,
+      "timers": 0,
+      "latest": 0,
+      "blocking": true
+    },
+    {
+      "kind": "restart",
+      "now": 102,
+      "publish": true,
+      "phase": "pending",
+      "deadline": 160,
+      "retry": 102,
+      "remaining": 9,
+      "started": 1,
+      "unfinished": 1,
+      "queue": 1,
+      "tasks": 1,
+      "timers": 0,
+      "latest": 0,
+      "blocking": true
+    },
+    {
+      "kind": "not_found",
+      "now": 102,
+      "publish": true,
+      "phase": "absent",
+      "deadline": 160,
+      "retry": 102,
+      "remaining": 9,
+      "started": 1,
+      "unfinished": 1,
+      "queue": 1,
+      "tasks": 0,
+      "timers": 0,
+      "latest": 0,
+      "blocking": true
+    },
+    {
+      "kind": "complete",
+      "now": 103,
+      "publish": true,
+      "phase": "none",
+      "deadline": 0,
+      "retry": 0,
+      "remaining": 9,
+      "started": 1,
+      "unfinished": 0,
+      "queue": 1,
+      "tasks": 0,
+      "timers": 1,
+      "latest": 0,
+      "blocking": false
+    },
+    {
+      "kind": "drain",
+      "now": 103,
+      "publish": true,
+      "phase": "none",
+      "deadline": 0,
+      "retry": 0,
+      "remaining": 8,
+      "started": 1,
+      "unfinished": 1,
+      "queue": 0,
+      "tasks": 1,
+      "timers": 0,
+      "latest": 1,
+      "blocking": true
+    }
+  ]
+}

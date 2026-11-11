@@ -1,0 +1,50 @@
+Model checking /private/tmp/scheduler2-effects-model-witness-fixed/overflow_creates_demand/selection.json
+configFileName: /private/tmp/scheduler2-effects-model-witness-fixed/overflow_creates_demand/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 46, queued: 86, elapsed: 7.53425ms
+Time taken for model checking: 7.561375ms
+Writen graph dotfile: /private/tmp/scheduler2-effects-model-witness-fixed/overflow_creates_demand/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-effects-model-witness-fixed/overflow_creates_demand/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  AcceptedDemandOnly
+------
+Init
+--
+state: {}
+------
+Any:ineligible=0
+--
+state: {"accepted_demands":[],"blocker":true,"budget":4,"demands":[],"drained":false,"expected_remaining":[],"expected_selected":0,"expected_superseded":[],"ineligible":0,"next_entry":4,"overflow":false,"policy":{"2":"buffer","3":"buffer"},"queue":[2,3],"selected":0,"superseded":[]}
+------
+Enqueue
+--
+state: {"accepted_demands":[],"blocker":true,"budget":4,"demands":[],"drained":false,"expected_remaining":[],"expected_selected":0,"expected_superseded":[],"ineligible":0,"next_entry":4,"overflow":false,"policy":{"2":"buffer","3":"buffer"},"queue":[2,3],"selected":0,"superseded":[]}
+------
+Any:kind="cancel"
+--
+state: {"accepted_demands":["cancel"],"blocker":true,"budget":4,"demands":["cancel"],"drained":false,"expected_remaining":[],"expected_selected":0,"expected_superseded":[],"ineligible":0,"next_entry":5,"overflow":false,"policy":{"2":"buffer","3":"buffer","4":"cancel"},"queue":[2,3,4],"selected":0,"superseded":[]}
+------
+Enqueue
+--
+state: {"accepted_demands":["cancel"],"blocker":true,"budget":4,"demands":["cancel"],"drained":false,"expected_remaining":[],"expected_selected":0,"expected_superseded":[],"ineligible":0,"next_entry":5,"overflow":false,"policy":{"2":"buffer","3":"buffer","4":"cancel"},"queue":[2,3,4],"selected":0,"superseded":[]}
+------
+Any:kind="cancel"
+--
+state: {"accepted_demands":["cancel"],"blocker":true,"budget":4,"demands":["cancel"],"drained":false,"expected_remaining":[],"expected_selected":0,"expected_superseded":[],"ineligible":0,"next_entry":6,"overflow":false,"policy":{"2":"buffer","3":"buffer","4":"cancel","5":"cancel"},"queue":[2,3,4,5],"selected":0,"superseded":[]}
+------
+Overflow
+--
+state: {"accepted_demands":["cancel"],"blocker":true,"budget":4,"demands":["cancel"],"drained":false,"expected_remaining":[],"expected_selected":0,"expected_superseded":[],"ineligible":0,"next_entry":6,"overflow":false,"policy":{"2":"buffer","3":"buffer","4":"cancel","5":"cancel"},"queue":[2,3,4,5],"selected":0,"superseded":[]}
+------
+Any:kind="terminate"
+--
+state: {"accepted_demands":["cancel"],"blocker":true,"budget":4,"demands":["cancel","terminate"],"drained":false,"expected_remaining":[],"expected_selected":0,"expected_superseded":[],"ineligible":0,"next_entry":6,"overflow":true,"policy":{"2":"buffer","3":"buffer","4":"cancel","5":"cancel"},"queue":[2,3,4,5],"selected":0,"superseded":[]}
+------
+Writen graph json: /private/tmp/scheduler2-effects-model-witness-fixed/overflow_creates_demand/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-effects-model-witness-fixed/overflow_creates_demand/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-effects-model-witness-fixed/overflow_creates_demand/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-effects-model-witness-fixed/overflow_creates_demand/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-effects-model-witness-fixed/overflow_creates_demand/graph/error-states.html

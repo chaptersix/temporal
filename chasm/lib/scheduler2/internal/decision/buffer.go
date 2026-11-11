@@ -38,7 +38,7 @@ func enqueue(next State, event Event) (State, error) {
 	return next, nil
 }
 
-// DrainIndex chooses the first currently eligible waiter without preparing payloads.
+// DrainIndex selects an eligible waiter, applying overlap replacement without preparing payloads.
 func DrainIndex(state State, now, catchup int64) int {
 	if occupied(state) || state.Root.Paused || (state.Root.Limited && state.Root.Remaining <= 0) || catchup < 0 {
 		return -1

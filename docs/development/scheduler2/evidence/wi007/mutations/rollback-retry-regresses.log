@@ -1,0 +1,13 @@
+=== RUN   TestEffectsClockRollbackPreservesObligation
+=== PAUSE TestEffectsClockRollbackPreservesObligation
+=== CONT  TestEffectsClockRollbackPreservesObligation
+    effects_test.go:228: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/effects_test.go:228
+        	Error:      	Not equal: 
+        	            	expected: 1704067202000000000
+        	            	actual  : 1704067201000000000
+        	Test:       	TestEffectsClockRollbackPreservesObligation
+--- FAIL: TestEffectsClockRollbackPreservesObligation (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.658s
+FAIL
