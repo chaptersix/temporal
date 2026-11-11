@@ -17,13 +17,13 @@ authorship. The following signed commit contains the additions described here.
 | [#35](https://github.com/chaptersix/temporal/pull/35) | `task_validity_engine_test.go` ports generator, idle, callback-repair and migration validation cases. `schedulertest/task_validity_test.go` distinguishes stale physical deliveries from valid current work, checks retry equality/rearming, and detects an advertised idle deadline with no valid logical task. |
 | [#41](https://github.com/chaptersix/temporal/pull/41) | `TestDeferredBufferOneProperty` adapts the occupancy/accounting property to actual handlers. Existing `TestCompletedHistoryDoesNotConsumeBackfillCapacity`, capacity arithmetic tests and duplicate-result tests remain part of the required package run; no experimental planner refactor is imported. |
 | [#51](https://github.com/chaptersix/temporal/pull/51), [#52](https://github.com/chaptersix/temporal/pull/52) | Ports 450/451/1000-range finite-drain tests and the positive-capacity admission fix. The test supplies capacity by consuming each batch; it checks unique identities, bounds and termination, not cross-schedule fairness. |
-| [#42](https://github.com/chaptersix/temporal/pull/42), [#43](https://github.com/chaptersix/temporal/pull/43) | Native exclusive-cursor control plus opt-in migrated cursor/epoch and callback-reconciliation counterexamples in `migration_backfill_test.go`. Existing stamped/legacy task tests remain required. The migration schema/progress-bit fix is not imported. |
-| [#53](https://github.com/chaptersix/temporal/pull/53), [#55](https://github.com/chaptersix/temporal/pull/55) | Native phase controls, conversion evidence and opt-in rollback phase counterexamples. The driver reports execution/retry/cancel/terminate obligations made unexecutable by migration; it no longer exempts every migrating state from its ledger. The rollback production gate is not imported. |
-| [#59](https://github.com/chaptersix/temporal/pull/59), [#62](https://github.com/chaptersix/temporal/pull/62) | Controlled acceptance/response events, buffer reordering during an outstanding RPC, repeated result reconciliation, and a directed selected-start reservation detector. Workflow scenarios are adapted without importing experimental activity APIs or action schemas. |
+| [#42](https://github.com/chaptersix/temporal/pull/42), [#43](https://github.com/chaptersix/temporal/pull/43) | Native exclusive-cursor control plus migrated cursor/epoch and callback-reconciliation regressions in `migration_backfill_test.go`, with the cursor and reconciliation-ordering fixes. Watermark presence replaces the separate progress bit, so no schema change is imported. |
+| [#53](https://github.com/chaptersix/temporal/pull/53), [#55](https://github.com/chaptersix/temporal/pull/55) | Native phase controls, conversion evidence, rollback phase regressions and the rollback production gate. The driver reports execution/retry/cancel/terminate obligations made unexecutable by migration; it no longer exempts every migrating state from its ledger. |
+| [#59](https://github.com/chaptersix/temporal/pull/59), [#62](https://github.com/chaptersix/temporal/pull/62) | Controlled acceptance/response events, buffer reordering during an outstanding RPC, repeated result reconciliation, and directed selected-start reservation regressions with a minimal reservation fix. Workflow scenarios are adapted without importing experimental activity APIs or action schemas. |
 | [#70](https://github.com/chaptersix/temporal/pull/70) | Duplicate callbacks before/after local start recording for ALLOW_ALL, SKIP and BUFFER_ALL, plus the early ALLOW_ALL callback guard. This branch retains callback attachment; the separate rollout-dependent callback-omission change is not imported. |
 | [#44](https://github.com/chaptersix/temporal/pull/44), [#45](https://github.com/chaptersix/temporal/pull/45) | `migration_handoff_test.go` and the V1 SDK workflow scenarios exercise lost responses, source-close boundaries, destination collisions and signal admission. |
 | [#56](https://github.com/chaptersix/temporal/pull/56) | `service/frontend/migration_delete_race_test.go` includes the native control and an opt-in held-create/delete counterexample. V1 termination is mocked. |
-| [#57](https://github.com/chaptersix/temporal/pull/57) | `migration_chain_counterexample_test.go` adapts owned-descendant, foreign-chain and expired-first-run ownership checks to this baseline. Receipt persistence and the production ownership protocol are not imported. |
+| [#57](https://github.com/chaptersix/temporal/pull/57) | `migration_chain_ownership_test.go` adapts owned-descendant, foreign-chain and expired-first-run ownership checks to this baseline, with the persisted request ID and first-run ownership check. Receipt and start-pending persistence are not imported because they make a pre-commit Unavailable permanent. |
 
 ## Driver changes
 
@@ -54,14 +54,20 @@ Go `go1.27.3 darwin/arm64` and Rapid `v1.3.0`.
 
 ```sh
 CGO_ENABLED=0 go test -tags test_dep ./chasm/chasmtest/... ./chasm/lib/scheduler/... ./service/frontend ./service/worker/scheduler -count=1
-CGO_ENABLED=0 go test -tags test_dep ./chasm/lib/scheduler/schedulertest -run TestSchedulerProperties -rapid.checks=1000 -count=1
+CGO_ENABLED=0 make property-test TEST_RACE_FLAG=off
 python3 chasm/lib/scheduler/schedulertest/check_mutations.py
 CGO_ENABLED=0 make lint-code-fast GOLANGCI_LINT_BASE_REV=03ecd1d228d2b8d9d433da55785afc9aeeead918 GOLANGCI_LINT_FIX=false
 ```
 
-The package tests, 1,000 Rapid cases, all three mutation checks and fast lint pass. Mutations
-remove the early callback guard, deferred rearming, and positive-capacity
-admission independently; each produces assertion failures in its targeted tests.
+The package tests, 5,000 Rapid cases, all four mutation checks and fast lint pass. Mutations
+remove the early callback guard, deferred rearming, positive-capacity admission
+and the selected-start reservation independently; each produces assertion
+failures in its targeted tests.
+
+`make property-test` is also a dedicated CI job. The unit-test job retries
+failures, and each retry draws a new Rapid seed, so a rare violation could be
+retried away there. The dedicated job runs more cases with no retries and
+uploads the minimized failfiles from `testdata/rapid`.
 The original early callback run failed on `accepted-start-lost`, with ActionCount
 still zero after external acceptance. The fix preserves exactly one counted start.
 
@@ -76,26 +82,62 @@ The seeded replay is:
 CGO_ENABLED=0 go test -tags test_dep ./chasm/lib/scheduler/schedulertest -run TestSchedulerProperties -rapid.seed=7487548259739501542 -count=1
 ```
 
+## Production fixes made for reproduced bugs
+
+Each fix has a default-run regression; none is gated.
+
+- **Backfill cursor replay.** A migrated backfiller carries the V1 exclusive
+  cursor as its watermark. Watermark presence, not value, marks recorded
+  progress, so an epoch cursor is honoured.
+  `TestMigrationBackfill_MigratedResumesAfterWatermark`.
+- **Backfill before callback reconciliation.** Migrated backfillers get their
+  first task only after `SchedulerCallbacksTask` reconciles imported running
+  state. `TestMigrationBackfill_WaitsForCallbackReconciliation`.
+- **Fresh backfill rollback boundary.** Rollback shifts an unstarted range back
+  1ms to keep its inclusive first point on V1's exclusive cursor.
+  `TestMigrationScenario_RollbackFreshBackfill`.
+- **Rollback execution phases.** `MigrateToWorkflow` and the migrate task return
+  the retryable `ErrMigrationActionsPending` while a selected start is
+  unrecorded or cancel/terminate requests are queued, because V1 state cannot
+  represent them. `TestRollbackPhaseGate`, `TestRollbackPhaseTransferable`.
+- **Rollback destination ownership.** `WorkflowMigrationState.request_id` is
+  persisted and sent on every start attempt. An already-started destination is
+  accepted only if its start request, or the create request of its chain's first
+  run, matches. A foreign chain or a missing first run leaves the source open.
+  A migration persisted without an ID is assigned one before its first attempt;
+  if an earlier binary already created its destination under a random ID, the
+  task fails closed and needs an operator.
+  `TestMigrationRollbackDestinationCollision`, `TestMigrationRollbackChainOwnership`.
+- **Selected-start reservation.** A selected but unacknowledged start holds the
+  overlap slot. Deferred starts are reconsidered when a start records its run or
+  is dropped, so a failed start cannot strand the buffer and TERMINATE_OTHER and
+  CANCEL_OTHER still act. `TestSelectedStartReservesOverlapSlot`,
+  `TestFailedSelectedStartReleasesOverlapSlot`,
+  `TestSelectedStartReservationStillTerminatesOther`.
+
 ## Unresolved counterexamples and limits
 
-The migration cases are evidence, not fixes. Enable their intended correctness
-assertions explicitly; this command is expected to fail on this branch:
+Four migration cases remain evidence, not fixes. Enable their intended
+correctness assertions explicitly; this command is expected to fail:
 
 ```sh
-TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 CGO_ENABLED=0 go test -tags test_dep ./chasm/lib/scheduler ./service/frontend ./service/worker/scheduler -run 'TestMigrationCounterexample|TestMigrationBackfill_(Migrated|Waits)|TestMigrationDeleteCounterexample|TestRollbackPhaseCounterexample' -count=1
+TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 CGO_ENABLED=0 go test -tags test_dep ./service/frontend ./service/worker/scheduler -run TestMigrationCounterexample -count=1
 ```
 
-Observed failures include non-epoch migrated cursor replay, callback-barrier
-ordering, rollback execution phases, foreign ownership, source signals during
-handoff, ambiguous committed create responses, fresh rollback range boundaries,
-delete/create ordering, and descendant ownership verification. The epoch case is
-included but does not fail in this fixture; that is not a proof of epoch-state
-representation. None of these tests establishes namespace failover safety.
+- `TestMigrationCounterexample_TriggerDuringSnapshot`: a signal accepted while
+  the migrate activity is pending is dropped with the old snapshot.
+- `TestMigrationCounterexample_ForwardDestinationCollision`: the forward
+  activity accepts an unrelated existing CHASM schedule as its destination.
+- `TestMigrationCounterexample_LostCreateResponse`: after an ambiguous create,
+  the V1 source keeps executing transferred work.
+- `TestMigrationCounterexample_DeleteDuringCreate`: a create held across
+  `DeleteSchedule` commits an active scheduler afterwards.
 
-`TestSelectedStartReservationCounterexample` is an always-run detector asserting
-the observed two selected BUFFER_ALL starts before the first acknowledgement.
-It records the remaining reservation gap; replace that characterization with a
-one-slot correctness assertion when the production fix is ported.
+All four need a handoff protocol that fences source admission and identifies the
+migration at the destination; no local production change closes them. The
+lost-response case also asserts behaviour at existing workflow versions, so its
+fix must be version-gated and its test adjusted. None of these tests establishes
+namespace failover safety.
 
 The default driver remains a bounded, single-schedule environment. Request IDs
 are unique per generated occurrence. The external ledger retains deduplication

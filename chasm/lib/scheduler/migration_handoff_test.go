@@ -2,7 +2,6 @@ package scheduler_test
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -33,13 +32,6 @@ type migrationCloseFaultEngine struct {
 	chasm.Engine
 	afterCommit bool
 	armed       bool
-}
-
-func requireMigrationCounterexamples(t *testing.T) {
-	t.Helper()
-	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") != "1" {
-		t.Skip("known migration counterexample; set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 to run")
-	}
 }
 
 func (e *migrationCloseFaultEngine) UpdateComponent(

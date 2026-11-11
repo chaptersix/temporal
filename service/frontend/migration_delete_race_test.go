@@ -42,7 +42,7 @@ func (c *migrationDeleteRaceClient) DeleteSchedule(_ context.Context, req *sched
 }
 
 func TestMigrationDeleteNativeControl(t *testing.T) { testMigrationDeleteRace(t, false) }
-func TestMigrationDeleteCounterexample(t *testing.T) {
+func TestMigrationCounterexample_DeleteDuringCreate(t *testing.T) {
 	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") != "1" {
 		t.Skip("known migration counterexample; set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 to run")
 	}

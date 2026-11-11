@@ -150,7 +150,7 @@ func TestMigrationScenario_NativeBackfillIncludesStart(t *testing.T) {
 	checkRollbackBackfillStart(t, false)
 }
 
-func TestMigrationCounterexample_RollbackFreshBackfill(t *testing.T) {
+func TestMigrationScenario_RollbackFreshBackfill(t *testing.T) {
 	checkRollbackBackfillStart(t, true)
 }
 
