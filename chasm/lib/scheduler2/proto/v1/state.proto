@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package temporal.server.chasm.lib.scheduler2.proto.v1;
+
+option go_package = "go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1;scheduler2pb";
+
+// RootState holds the bounded scheduler control summary.
+message RootState {
+  // Incarnation is the execution run ID.
+  string incarnation = 1;
+  // Revision identifies the current definition.
+  int64 revision = 2;
+  // Cursor is the last disposed nominal Unix nanosecond.
+  int64 cursor = 3;
+  // Paused prevents admission.
+  bool paused = 4;
+  // Limited enables the remaining action budget.
+  bool limited = 5;
+  // Remaining counts admissions available.
+  int64 remaining = 6;
+  // Started counts operations with evidence of acceptance.
+  int64 started = 7;
+  // OperationId identifies the single operation in this prototype.
+  string operation_id = 8;
+}
+
+// Phase distinguishes an operation's durable progress from delivery attempts.
+enum Phase {
+  PHASE_UNSPECIFIED = 0;
+  PHASE_PENDING = 1;
+  PHASE_STARTED = 2;
+  PHASE_COMPLETED = 3;
+  PHASE_AMBIGUOUS = 4;
+}
+
+// OperationState holds metadata without decoding request payloads.
+message OperationState {
+  // OccurrenceId identifies the nominal automatic occurrence.
+  string occurrence_id = 1;
+  // ActionId identifies the one-time admission.
+  string action_id = 2;
+  // Id is the immutable external request identity.
+  string id = 3;
+  // ChainId is the first accepted workflow run ID.
+  string chain_id = 4;
+  // Nominal is the occurrence's Unix nanosecond.
+  int64 nominal = 5;
+  // Deadline is the exclusive issuance deadline in execution Unix nanoseconds.
+  int64 deadline = 6;
+  // RetryAt is the next issuance time in execution Unix nanoseconds.
+  int64 retry_at = 7;
+  // Phase is the durable progress of the operation.
+  Phase phase = 8;
+}
+
+// Payload keeps large values on a separately loaded node.
+message Payload {
+  // Data is an immutable serialized request or synthetic diagnostic payload.
+  bytes data = 1;
+}
+
+// StartTask drives a committed operation and survives physical redelivery.
+message StartTask {
+  // OperationId identifies the durable request.
+  string operation_id = 1;
+}
