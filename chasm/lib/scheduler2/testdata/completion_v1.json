@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "incarnation": "incarnation",
+  "admission_time_ns": 1000000000,
+  "initial_remaining": 1,
+  "initial_carryover": {"result": "EgVwcmlvcg==", "failure": "CgNvbGQ=", "failure_present": true},
+  "request": {"namespace":"namespace","workflowId":"workflow","workflowType":{"name":"type"},"taskQueue":{"name":"queue"}},
+  "steps": [
+    {
+      "kind":"callback", "operation_id":"incarnation/automatic/1000000000/action/start", "chain":"chain", "outcome":"failure", "status":"failed", "failure":"CgNuZXc=",
+      "expected_phase":"completed", "expected_started":1, "expected_paused":true,
+      "expected_carryover":{"result":"EgVwcmlvcg==","failure":"CgNuZXc=","failure_present":true}
+    },
+    {
+      "kind":"callback", "operation_id":"incarnation/automatic/1000000000/action/start", "chain":"chain", "outcome":"success", "status":"completed",
+      "expected_phase":"completed", "expected_started":1, "expected_paused":true,
+      "expected_carryover":{"result":"EgVwcmlvcg==","failure":"CgNuZXc=","failure_present":true}
+    },
+    {
+      "kind":"metadata", "operation_id":"incarnation/automatic/1000000000/action/start", "chain":"chain", "status":"completed",
+      "expected_phase":"completed", "expected_started":1, "expected_paused":true,
+      "expected_carryover":{"result":"EgVwcmlvcg==","failure":"CgNuZXc=","failure_present":true}
+    },
+    {
+      "kind":"update", "revision":2, "pause_on_failure":false,
+      "expected_phase":"completed", "expected_started":1, "expected_paused":false,
+      "expected_carryover":{"result":"EgVwcmlvcg==","failure":"CgNuZXc=","failure_present":true}
+    },
+    {
+      "kind":"callback", "operation_id":"incarnation/automatic/1000000000/action/start", "chain":"chain", "outcome":"failure", "status":"failed", "failure":"CgRsYXRl",
+      "expected_phase":"completed", "expected_started":1, "expected_paused":false,
+      "expected_carryover":{"result":"EgVwcmlvcg==","failure":"CgNuZXc=","failure_present":true}
+    }
+  ]
+}
