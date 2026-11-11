@@ -1,0 +1,518 @@
+bf06a556a Make V2 schedule idle close a single reconciled lifecycle check
+a8d5795b3 Merge branch 'main' into yx/grpc-size
+5f5db96ca Fix V2 schedules closing before their final action starts
+46497d4cf Sync main for CHASM update-with-start child persistence fix
+49cb784f2 test: Cover migrated action times and reserved memo filtering
+7092fa307 Preserve migrated running action times
+2423c5c6b Fix scheduler migration fidelity
+073c3997b Merge branch 'main' into ppv/shard-persistence-limit-cause
+fa745d313 Merge branch 'main' into qian/feat-nsrepl-chasm-authoritative-observability
+3b7d3f31b Merge origin/main into stuartwells/conflict-resolution-branch-tag
+65876c274 Merge branch 'main' into qian/feat-nsrepl-chasm-authoritative
+d14cce572 Merge main and fix namespace handler test construction
+9d378baf9 Merge remote-tracking branch 'origin/main' into kannan/durable-worker-heartbeats
+3ba562269 [cloud 3.165] Fix V2 scheduler skipping pending jittered actions (#12796)
+a86c52713 Fix V2 schedules forwarding empty last completion result (#12688) (#12702)
+cffce66ee [cloud 3.164] Fix V2 scheduler skipping pending jittered actions (#12777)
+3a1dde242 test: reproduce CHASM schedule skip during jitter window
+cfc9c01f0 Fix V2 schedules forwarding empty last completion result (#12688) (#12701)
+4218b850d Merge origin/main into batch-eager
+b28942602 Skip schedule action delay metrics with time skipping enabled
+86657cda9 Remove obsolete schedule clock TODO
+8b317ec53 Allow schedule time skipping with ALLOW_ALL overlap
+5444a3c18 update api and move tsc to patch
+5daec713c refine ut
+a542fe80d reject schedule time skipping with allow all, reject migration when tsi is not nil
+c13300611 update api and rebase main
+7746c3ab6 clean code and fix bugs
+54331e200 don't migrate schedules that has time skipping
+eaca67e7b Disable time skipping when migrating schedules to V1
+49f0ca0cb add describe time skipping info
+5d51ff744 implement time skipping for schedule v2
+e4e14247e Merge branch 'main' into server-side-retry/1-config
+de6039e06 Move WorkflowIDToHistoryShard and ScheduledTaskMinPrecision to common/primitives
+10b733bf8 Define CHASM physical task types in chasm instead of the history task package
+8e673f2f7 Make Nexus callback log severity changes independent of request ID logging
+550261447 Generate CHASM history-routed clients into their own package
+c0db6d232 Make CHASM protos' go_package match where the Go code is generated
+47360a559 Merge remote-tracking branch 'origin/main' into interceptors-2
+983d9b663 Merge remote-tracking branch 'origin/main' into eager
+701f8071a Merge branch 'main' into alex/tdbg-schedule-audit
+78cc0a688 Preserve scheduler backfill cursors across migration
+fde46615a Merge remote-tracking branch 'origin/main' into eager
+154380c70 implement time skipping for schedule v2
+b566726c8 Merge remote-tracking branch 'origin/main' into eager
+b06a74f8c fix lint
+9114a9c60 Clarify scheduler completion outcomes
+a4d927439 Clarify scheduler callback retry
+97c2ae982 Handle scheduler completions across migration
+0ddb7d560 Merge remote-tracking branch 'upstream/main' into sch-028
+061c6a9f6 Merge remote-tracking branch 'refs/remotes/origin/main' into eager
+8c78934b6 Cherry-pick: List matching perf (#11014) to release/v1.31.x (#12069)
+5527af5f2 Cherry-pick #11014: List matching perf (#11981)
+e0258853b Merge remote-tracking branch 'origin/main' into kannan/disable-scaler-test
+5173187c5 Merge remote-tracking branch 'origin/main' into stuartwells/gradual-connect-shedding-tasks
+36fa15b82 Revert "Instrument the CHASM callback delivery and disposition paths (#11912)"
+f7f30fc4b Exercise scheduler action lifecycles and document the local experiment
+f01d672a4 Project schedule executions and activity scheduling metadata into visibility
+f2f174e16 Schedule standalone activities with registered overlap policies
+b148da8b0 Generalize CHASM scheduler action and overlap policy contracts
+95d50ed2a Merge sch-readable-execution-phases into main baseline
+39c52cb91 Cover reconciliation after an owned descendant closes
+c841d2d6e Verify rollback chain ownership and persist destination acceptance
+9a0bb23f8 Retain invoker ownership until rollback actions are transferable
+13fb9d203 Allow serialized backfillers to use positive shared capacity
+d46dbf15a Reproduce rollback loss of invoker execution phases
+13bf41172 Allow final backfiller cleanup without another buffered batch
+282aed6cc Reproduce backfiller starvation above shared capacity
+735701fda Fence scheduler rollback destination ownership
+89e4fa767 Document scheduler migration defect research
+ad21de785 Preserve scheduler backfill migration cursor
+c9b3351b0 Add scheduler backfill migration regression
+5c54f7fab Merge branch 'main' into stuartwells/gradual-connect-shedding-tasks
+a5c8f8930 Fix CHASM sentinel handling for workflow migration
+ed14acbe6 Share CHASM scheduler sentinel detection
+62f297a0e Fix CHASM sentinel migration error handling
+40f5f5e20 Fix scheduler migration fidelity
+fbefb3262 Address scheduler migration feedback
+1408e77d9 Fix closed scheduler migration completion
+fa3ff3aab fix: deterministic tie-break for pending triggers with equal ActualTime
+ec337577f Sort BufferedStarts by due time on CHASM-to-V1 rollback (#11827)
+412459fe5 fix: append pending trigger starts after the queue, don't reposition by time
+f4296da84 fix: merge trigger starts instead of globally re-sorting BufferedStarts
+288614c4d fix: sort BufferedStarts by due time on CHASM-to-V1 rollback
+fcd5229b5 Cherry-pick #11631, #11702, #11703 to cloud/v1.32.0-162: scheduler lifecycle, idle-deadline and scanner fixes (#11823)
+a2ad06bcc test(chasm-scheduler): fix lint findings in idle task dedup test
+d1902eb59 fix(chasm-scheduler): dedupe idle pure task with singleton registration
+fa3e49363 Clarify buffered start count semantics
+d2cf0db7d Suppress expected ALLOW_ALL callback warnings
+005e2d926 Keep ALLOW_ALL callbacks for rolling upgrades
+cf922dc03 Resolve overlap policy during migration
+78bd05489 Move start-only recording to execute task
+f41e92ce7 Clarify resolved schedule overlap policy
+2c3d456ea Rearm idle timer after ALLOW_ALL start
+88bb679a8 Assert evicted ALLOW_ALL starts leave buffer
+dc996efd0 Cap mixed schedule recent actions
+a534e6ffa Assert ALLOW_ALL recent history eviction
+8593c7900 Merge remote-tracking branch 'upstream/main' into sch-038
+d79a74cd9 Clarify scheduler callback tracking
+43808a3f6 Share ALLOW_ALL tracking predicate
+bb9080fa6 Document callback redelivery handling
+8521bdcbe Refine ignored schedule callback metrics
+682d93106 Read the ALLOW_ALL exclusion from the start, not the live schedule policy
+9cc1b3c4c Merge branch 'main' into chasm-allow-unmanaged-fields
+d1f20fc43 implement ts schedule on top of chasm
+f65f31163 Add time skipping to CHASM framework
+887ead8cc Merge remote-tracking branch 'upstream/main' into HEAD
+6b6f317bf Fix scheduler service call timeout
+afe85f206 chasm: allow intentional unmanaged fields
+8e20a9df9 Add CHASM scheduler pure property tests
+e6c239bd4 Keep buffer planning input immutable
+56f082bc6 Preserve duplicate buffered start occurrences
+55f047081 Fix duplicate buffered start planning
+3fea0d1ce Share schedule completion tracking predicate
+aa24acbcb Refactor invoker execute action budget
+14ef0ac5f test: add scheduler-specific chasm test engine helper
+8583e56fc [Scheduler] Refine buffer capacity tests
+3163bb466 Simplify scheduler action order test
+2f25061aa Split CHASM scheduler execute task implementation
+108f9566b Separate CHASM scheduler execution phases
+10de8bf51 Complete scheduler buffer planner verification
+5fd33f52b Use scheduler engine test helpers
+388ef9523 Use CHASM scheduler buffer planner unconditionally
+2a540f27d Exercise persisted scheduler side effect tasks
+9c4f9da3c Separate CHASM scheduler buffer planning
+2c52bb03f Consolidate BufferedStart lifecycle helpers
+ce7be9ec7 Centralize CHASM scheduler lifecycle transitions
+d0d4e474e Separate CHASM scheduler action capacity APIs
+ba1cb84f2 Fix scheduler validity test lint
+ba876d2b6 Consolidate scheduler engine test helpers
+3b5f407c8 Improve CHASM task test helpers
+029708c0e Characterize CHASM scheduler task validity
+233f79d23 Persist resolved schedule overlap policies
+a4296defb Store ALLOW_ALL recent actions in schedule info
+78e7cfe31 Fix ALLOW_ALL schedule completion tracking
+4b0f0534a Fix invoker action limit across phases
+53a1c8c6c test: use newTestEngineContext helper in watermark regression test
+8ef7f1eae Merge remote-tracking branch 'upstream/main' into SCH-104
+f9e84476a [Scheduler] Exclude retained completion history from Generator buffer capacity
+0aa8ff0c5 refactor: use util.MaxTime for time watermark comparisons
+17b3e1a7f fix: floor future action times at generator watermark
+e804f988f fix: prevent negative RemainingActions from panicking future action computation
+0b9912c87 Merge branch 'main' into awln/archetype-metric-fqn
+8e96d10ad Merge remote-tracking branch 'upstream/main' into codex/flakereport-rollup-update
+01efa3772 Merge branch 'main' into qian/dropStuckSourceReplTask
+8a83267ca Merge branch 'main' into sb/fix-test-task-manager
+4c38178dd Merge remote-tracking branch 'upstream/main' into sch-037
+786414618 Add action type tag to schedule action delay metric
+c994796c3 Fix workflow service import alias
+b0034d9b3 Merge branch 'main' into sch-037
+1eb72b4de Fix CHASM pause-on-failure conflict token
+efac98117 Merge branch 'main' into qian/dropStuckSourceReplTask
+0237c7ae6 fix(scheduler): reschedule legacy Backfiller tasks
+bc709439f fix(scheduler): log stale Backfiller tasks
+905f35782 refactor(scheduler): use stamps for Backfiller tasks
+a83e8d4ed test(scheduler): cover legacy Backfiller task handoff
+0c1391a90 Merge branch 'main' into sch-074
+14b03a1be fix(scheduler): fence Backfiller tasks by generation
+a30caa8e2 Merge remote-tracking branch 'upstream/main' into sch-037
+185228559 Limit versioning override forwarding to CHASM
+c005ce58a Merge branch 'main' of github.com:temporalio/temporal into spk/failed-preconditions
+b775d20c5 Keep initial schedule conflict token stable
+d0f8daea1 Merge branch 'main' into docs/lint-before-push
+b9bc66131 Fix CHASM initial schedule pause state
+a08f64a02 Document scheduler override test intent
+af4788102 Guard CHASM schedule workflow field forwarding
+e528d40b6 Guard CHASM schedule workflow field forwarding
+a9f61cd9c Prevent scheduler retries past catchup deadline
+d70127563 Forward schedule versioning overrides
+42f414b89 Use append formatting for scheduler request IDs
+60f03c619 Hash scheduler request ID inputs
+dc1a58f5e Align scheduler UUID namespace convention
+ed5e50925 Use UUIDv5 for scheduler request IDs
+28f28bc6c Refine scheduler request IDs
+4999eb8f0 Bound generated scheduler request IDs
+15d6f5ebf [CHASM] reject custom search attributes with Temporal prefix
+44623675f Fix deferred backfill cursor expectation
+4a322a300 Complete scheduler property test imports
+6ba6ca09d Fix scheduler property test races
+d09072df1 Add scheduler property test coverage
+a735b8ab3 Fix durable scheduler CI checks
+ffba0158d Add scheduler durable trace property campaign
+b690a2816 Add durable CHASM delivery test contract
+140d6d437 Record closed callback audit coverage
+4d9ca7f29 Defer scheduler identity audit boundaries
+aeb726236 Apply scheduler RPC deadlines consistently
+98c00a3f0 Drop scheduler retries past the catchup deadline
+a455213f5 Record scheduler request ID audit evidence
+f1864fa22 Recover from terminal scheduler migration failures
+0384b19e9 Allow the configured maximum scheduler start attempts
+82348f812 Record scheduler cancellation retry audit evidence
+4feb25065 Retry failed scheduler cancellation requests
+77c749d23 Exercise callback RPC profiles in scheduler properties
+b94b45483 Draw RPC profiles in scheduler retry property
+fce563cbc Use RPC profile for migration retry
+9442c8192 Use RPC profiles in scheduler properties
+df14404d2 Add replayable RPC behavior families
+629747d9c Add scheduler RPC behavior profiles
+55259114a Canonicalize scheduler spec time values
+d5501a569 Characterize scheduler backfill redelivery
+8e3cc9afc Ensure concurrent scheduler backfills progress
+b54ad4616 Admit scheduler triggers outside range quota
+e0129a078 Cover deferred scheduler backfill model
+28174561e Record scheduler override contract boundary
+489332521 Cover scheduler audit pause transitions
+34abc57d4 Add scheduler Schedule V2 audit matrix
+5025073cf Align CHASM property test harness
+d9c00c345 Expand scheduler property test coverage
+23739a023 Add scheduler property test foundation
+235b93897 [Scheduler] Use CHASM WithRequestID Against PatchSchedule/UpdateSchedule
+f9f043e30 Fence migration callbacks in scheduler
+94acce179 Preserve fresh backfill boundary in V1 migration
+bc3e325aa Simplify migrated backfill cursor state
+e6b561224 Fix scheduler migration callback attachment race
+29eb69710 Fix migrated backfill cursor semantics
+8bbf1aca9 Merge branch 'main' into chasm-nil-libraries
+7271dbad7 Reapply "Cherry-pick List matching perf (#11014) to 157 (#11091)" (#11127)
+ef89dd75b Reuse schedule union search cursors
+5841fa39e Optimize schedule exclusion searches
+7e688c212 Reapply "Cherry-pick List matching perf (#11014) to 158 (#11088)" (#11128)
+1c365b3f4 Balance scheduler property campaign shards
+fb72db870 Revert "Cherry-pick List matching perf (#11014) to 158 (#11088)" (#11116)
+2bb102036 Revert "Cherry-pick List matching perf (#11014) to 157 (#11091)" (#11115)
+2039da962 Fix scheduler property campaign timeout
+255d365c5 test: cover scheduler execution status search attributes
+81abb9ab1 Fix scheduler property test lint
+8d388a69b Add CHASM scheduler differential property model
+f3ad5eb55 Add CHASM scheduler reload property models
+704bf875f Add scheduler boundary and interaction property models
+cb199594b Fix callback recovery after schedule deletion
+fc006b59f Add scheduler task interleaving property models
+12ea4007e Add scheduler migration recovery property models
+855c72800 Add scheduler lifecycle property models
+3ba51da28 Add scheduler failure idempotency property model
+083c3069f Add scheduler overlap backfill property model
+1531d61de Add scheduler timing API property model
+f444e11d7 Add deterministic CHASM task test driver
+169a6846d Cherry-pick List matching perf (#11014) into 159 (#11089)
+9d847b631 Cherry-pick List matching perf (#11014) to 158 (#11088)
+a4e64e19e Cherry-pick List matching perf (#11014) to 157 (#11091)
+3c5ae5eb9 Merge branch 'main' into test-env-resource-cleanup
+87188019b Merge branch 'main' into v2-v1-migrate-bug
+fbac1339d Fix scheduler migration quiescing
+505605002 Fix CHASM backfill workflow ID reuse
+94b4103d1 test: replace scheduler functional coverage with unit test
+285e83ae3 Treat zero schedule catchup window as unset
+eda28d9aa style: simplify schedule search attribute handling
+05dc18ffb Merge remote-tracking branch 'upstream/main' into fix/chasm-schedule-create-update-system-sa-leak
+7f14ddc43 Log compute limits
+89f4d3ec6 Add compute metrics
+3ef1cc529 Reject provably empty schedule specs
+c87c96e92 Harden scheduler matching limit edge cases
+a61a1f546 Small simplifications / feedback
+c9c6209b1 Merge branch 'main' into list-matching-perf
+a75ead1a1 Merge remote-tracking branch 'origin/main' into fix-conf2
+7a3ea84f2 WIP perf patch for ListMatchingTimes
+ff22507a9 Merge remote-tracking branch 'origin/main' into fix-ef-conflict
+3e6e9166b fix: strip system SAs from CHASM schedule create/update paths
+12707a7ee remove generator code
+07dd9bdc2 Add nil library generators
+9a29db452 Add nil library interface and generators
+9c8d490d7 Merge remote-tracking branch 'origin/main' into events-framework
+2eec4a233 fix: strip system SAs from V1→CHASM schedule migration state
+7d9a75890 Activity operator commands for standalone activities
+050c85321 Add shared registry with nil libraries for tdbg
+5e972f5ae [Scheduler] Skip recomputing FutureActionTimes after handling completion events
+3e0a72ae3 Merge branch 'main' into kannan/standalone-activity-cancel-commands
+766dcb45a Clone scheduler future action times
+c0ed3aad8 Merge branch 'main' into sched-visi-statesize
+17ff17704 [Scheduler] Avoid oscillations of stateSizeBytes in the Memo by rounding to nearest 1KB
+200442a9b fix: Backport a scheduler audit-log nil-check missing (#10785)
+3d17424f3 Fix upgrade panic: Lazily initialize scheduler event logs (#10780)
+51d9b88ba Close gRPC client connections and watcher goroutines on shutdown
+d41b7ab71 Pass fx.Lifecycle instead of ctx to NewConnectionPool and NewClient
+e8b212830 Fix history/matching/RPC goroutine leaks (the OOM root cause)
+455bd1ec9 Merge branch 'main' into tdbg-decode-chasm-callbacks
+8492a6f33 [Scheduler] Unalias search attributes during V2->V1 migration (rollba… (#10744)
+493b40e40 Merge branch 'main' into alex/scheduler-workflow-sentinel-rollback
+0df547eaf Activity operator commands for standalone activities
+daa1f62f2 fix: gate the token encoding with a dynamic config for mixed brain scenarios (#10705)
+efa1d5367 Move workflow sentinel check to admin migration
+0452beb1d Inline workflow sentinel check
+fe5c0c46b Block scheduler rollback on workflow sentinel
+4399d0d84 fix: gate the token encoding with a dynamic config for mixed brain scenarios (#10685)
+0e03985cb chore: recut v1.32.0-157 from main (09e706e10)
+0ef5f72f0 [Scheduler] Add RunningWorkflowCount/BufferedStartsCount to visibility (#10611)
+89bd362de fix: write callback request ID to mutable state for CaN (#10605)
+a03db5248 [Scheduler] Add a log for nexus completions with mismatched request IDs (#10612)
+1855712ea Close stale gRPC connections in downstream client caches (#10250)
+22515af2d feat: add scheduler observability metrics for missed actions (#10503)
+95d502324 [Scheduler] Log decisions and task events via the EventLog (#10530)
+e846f219e [Scheduler] Rework and instrument CHASM scheduler tasks, add a bunch of coverage (#10369)
+234c1c4fb [Scheduler] Plumb Tweakables through Scheduler's CHASM context values, use in EventLog (#10517)
+51aa44d76 chore: recut v1.32.0-157 from main (697eb2a9a)
+402370323 Merge branch 'main' into kannan/move-dispatch-response-to-error
+3aebc0786 Backport scheduler visibility counts (#10611) to cloud/v1.32.0-157 (#10631)
+d29ce00be fix: Backport scheduler changes to cloud/v1.32.0-157 (#10608)
+946676ab1 fix: write callback request ID to mutable state for CaN (#10605) (#10617)
+99cd4cd4d fix: write callback request ID to mutable state for CaN (#10605) (#10616)
+bc93fd9c5 fix: write callback request ID to mutable state for CaN (#10605) (#10615)
+55e6f9766 Cherry-pick: Close stale gRPC connections in downstream client caches (#10250) (#10601)
+9732e3341 fix: skip buffer_expired metric on paused/exhausted schedules, fix comments
+b69184398 chore: merge upstream/main into sch-callback-latency
+a1c34c131 Merge main into kannan/count-workers
+ec715879f fix: review feedback on scheduler observability metrics
+911361eee fix: address PR review feedback and improve action_running attribution
+71aaadba6 refactor: simplify metric helpers and rename workflow references to action
+722f70ec6 feat: add schedule_action_start_to_close_delay metric, rename workflow_running tag
+84ff2b3bf feat: add scheduler observability metrics for missed actions
+ea1a0af35 fix: schedule generator not started after migration with no running workflows
+f895f3a93 Merge branch 'main' into ppv/matchingFairness
+a7bbc5cc0 test: replace chasm test engine tests with functional tests for patch idle fix
+bf1abaf85 Patch/idle task on single action schedule (#10353)
+8b3fee924 Merge branch 'main' into sch-callback-gen
+9de43f7c0 refactor: remove unused singleActionSchedule from helper_test.go
+7f789bda0 refactor: remove integration_test.go and chasmtest engine additions
+fdf6a1ed9 test: add calendar-based schedule lifecycle tests and functional closure tests
+fcf9a7bc6 refactor: revert ExecuteSideEffectTask comment, simplify MaxTime and Validate doc
+b4409ef8c fix: address lint issues (gci formatting, importas)
+064978898 refactor: restore ExecuteSideEffectTask comment, simplify MaxTime and Validate doc
+72c20914e refactor: revert ExecuteSideEffectTask rename in chasmtest
+5ca5d1fa1 test: add two-action schedule lifecycle test
+f2495c158 test: add single-date schedule integration test documenting idle task bug
+6806b8d53 Merge branch 'main' into nick/tdigest
+2f69904ff fix: call Generate after Patch trigger/backfill to prevent task loss on idle schedules
+4469732c4 fix: call Generate after Patch trigger/backfill to prevent task loss on idle schedules
+6170a8b98 fix: call Generate after Patch trigger/backfill to prevent task loss on idle schedules
+cf4614aef fix: re-kick generator on unpause to resume CHASM schedule processing (#9889) [3.154 backport] (#10288)
+332659588 test: reproduce scheduler idle task invariant bugs
+515aaf727 fix: schedule_action_delay metric and add schedule_generate_latency (#10201)
+8a577e5df [Scheduler] Always attempt DeleteSchedule on both stacks (#10197)
+37ce27795 [Scheduler] Populate Info.BufferSize (#10196)
+7e32c4bd9 [Scheduler] Fix the race between SchedulerCallbacksTask and InvokerProcessBufferTask that lead to dropped actions (#10195)
+74b6b6229 fix: concurrent map write for migrating schedules back to v1 (#10164)
+318ac16a6 fix: normalize schedule migration log messages for Loki searchability
+5f3e63153 fix: add missing migration metrics for CHASM-to-workflow direction
+93c1abe37 Merge branch 'main' of github.com:temporalio/temporal into kannan/add-rate-limited-to-task-hook-v2
+6a0a30078 fix: record schedule_generate_latency before limit check
+2dc2404a1 fix: schedule_action_delay metric and add schedule_generate_latency
+d6cb6ea40 Merge branch 'main' into fix/non-retryable-invalid-compute-config
+7de44be96 fix: remove extra blank line in scheduler.go
+98396ded8 refactor: use shared CleanSpec in CHASM scheduler
+69a97a47a full conflicts
+527b828ad Remove RPCFactory conn cache + add membership-based eviction to history connectionPool
+951bdc7a8 Merge branch 'main' into shivam/test-optimization
+66b096362 Merge remote-tracking branch 'upstream/main' into workflow-delete-execution-test-env
+13c2a92a3 Merge remote-tracking branch 'origin/main' into kannan/worker-commands-partition-metrics
+37a0296b4 Merge branch 'main' into awln-relative-timestamp-query-support
+1693f89a6 Merge branch 'main' into awln/chasm-test-engine-base
+1bbad7d0c removed chasm scheduler
+207d546ad Update chasm/lib/scheduler/scheduler.go
+b670cec9e Merge branch 'main' into fix/schedule-retention-on-unpause
+ab0e979bb Address comments
+d315b80e1 fix: cache ctx.Now() in NewSentinel to ensure idle task is scheduled (#9906)
+43e3d2969 fix: re-kick generator on unpause to resume CHASM schedule processing (#9889)
+b6b638e62 Merge branch 'main' into test/chasm-scheduler-unpause-resumes-processing
+9c6bf5297 Merge branch 'main' into awln/chasm-test-engine-base
+267e89644 Remove unnecessary helper to create Root
+97e81c5d1 fix: cache ctx.Now() in GeneratorTaskHandler.Execute
+4cd246f74 fix: cache ctx.Now() in NewSentinel to ensure idle task is scheduled
+98d12af5c fix: move the Generate call to existing unpause check
+0d06f381f Merge branch 'main' into user-metadata-test-env
+04109bcae Merge branch 'main' into workflow-buffered-events-test-env
+b8804a65e Merge branch 'main' into stickytq-test-env
+edb5a8081 feat: add memo to UpdateSchedule (#9566)
+623e57718 Merge branch 'main' into fix/schedule-retention-on-unpause
+8c3a9a431 test: remove unused context variable in scheduler test
+4b1667146 fix: re-kick generator on unpause to resume CHASM schedule processing
+7fff54cc0 chasm/scheduler: re-kick generator on unpause to reset retention timer
+ea21b9bd9 Add chasm test engine for engine-backed tests
+389d9c603 Merge branch 'main' into manual-build-cli
+11607bd3b Merge branch 'main' into fix/schedule-already-exists-sdk-error
+49081b1f9 Merge branch 'main' of github.com:temporalio/temporal into spk/signal-with-start
+c5ff9be94 merge main
+1a22f687c feat: add memo to UpdateSchedule
+0a8da22af Merge branch 'main' into activity-api-batch-unpause-test-env
+b9fc5f5ea Merge branch 'main' into workflow-timer-test-env
+d31940e2c Merge branch 'main' into workflow-delete-execution-test-env
+47ad467a7 Merge branch 'main' into describe-test-env
+5553cf73f Merge branch 'main' into stickytq-test-env
+b6ffae0bf adding more tests
+7cda152fd feat: land worker deployment and test infra updates
+6072c83d4 Merge main and resolve proto indentation conflict
+d1ada3e53 SignalWithStart from workflow
+1c0e11bf5 Merge main and resolve conflicts
+6109883c4 fix: add default case to switch to satisfy revive linter
+6c9daab15 fix: ensure unique RequestIds for migrated running workflows
+13a0e4fdf fix: deduplicate RecentActions during V1-to-V2 schedule migration
+16ae83612 Merge branch 'main' into manual-build-cli
+bbead0714 fix: address PR review comments
+d3484be05 fix: add ErrClosed checks and sentinel detection for deleted schedules
+d92a03110 merge conflicts
+366ac9611 test: add failing test for CHASM schedule delete-then-describe
+89623272c CHASM update consistency level
+31c50f9cb fix: route closed CHASM schedule operations to V1 workflow stack
+ecca52a3c Merge branch 'main' into chasm-archetype-metric-tag-rerun
+af8682a8a fix: handle sentinel schedules in CHASM migration paths
+c5c0564bd Merge branch 'main' into fix/promote-image-multiarch
+887203767 Merge branch 'main' into chasm-archetype-metric-tag
+64c6462c7 fix: resolve post-merge test failures for V2-to-V1 migration
+5f3b0b62f Merge remote-tracking branch 'upstream/main' into feat/chasm-to-workflow-migration
+e13ef37f7 refactor: add NewNilLibrary to scheduler for registration-only contexts
+62f5ba6d4 Merge remote-tracking branch 'upstream/main' into feat/chasm-to-workflow-migration
+05797a07c fix: address code review feedback for V2-to-V1 migration
+b6dad763f refactor: nest scheduler workflow migration state
+328920f18 fix: address second round of review feedback for V2-to-V1 migration
+90a028ab5 fix: address review feedback for V2-to-V1 scheduler migration
+7cb246726 Merge branch 'main' into rodrigozhou/del-vis-task-retention-flag
+69b2117f3 feat: add CHASM-to-workflow (V2-to-V1) scheduler migration
+b1babc779 Merge branch 'main' into chasm-archetype-metric-tag
+0d630e48f Merge branch 'main' of github.com:temporalio/temporal into spk/continuation-token-eos
+c405336ad Merge branch 'main' into bump-cli-version-1.6.1
+c29c62b40 Merge remote-tracking branch 'upstream/main' into chasm-sch-v1-v2
+e590c27c4 fix: address PR review comments for scheduler migration
+ec500c875 fix: use BufferedStart request ID for migration callback attachment
+ee45b7051 test: add functional test for callback attachment to completed workflow
+8c68c7e57 feat: attach CHASM completion callbacks to running workflows during migration
+5a342234b Merge branch 'main' of github.com:temporalio/temporal into spk/update-aborted-err
+5c717515c fix: match CreateSchedule pattern in CreateFromMigrationState handler
+878acc094 refactor: use shared constructors for scheduler components in migration path
+e5b355522 fix: use AlreadyExists error for duplicate migration, matching CreateSchedule
+3bfee8db7 refactor: replace Makefile with Mage build system
+89f6578e5 refactor: rename migration RPCs and signals to be direction-specific
+7861af825 refactor: address PR review feedback for V1-to-CHASM migration
+e1f6b8614 chore: merge main into chasm-sch-v1-v2
+18a5a00dc merge conflict
+24a81572f chore: add TODO comments for MigrateSchedule handler
+c321d297b Merge branch 'main' into chasm-sch-v1-v2
+087736c86 Merge branch 'main' into tagged-api
+c3ada2dc7 chore: merge upstream/main into chasm-sch-v1-v2
+7628d8f4a test: consolidate CHASM migration tests
+2d7fdeb90 fix: wrap migration state in MigrateScheduleRequest and add V1-to-V2 migration test
+147b5633c Merge branch 'main' into ppv/connFix2
+dfa302e78 Merge branch 'main' of github.com:temporalio/temporal into spk/update-aborted-err
+fbfe65fe7 feat: Add CreateSchedulerFromMigration for CHASM scheduler
+41d272f4e feat: Add MigrateSchedule RPC for V1 to V2 scheduler migration
+c52541559 Merge branch 'main' into alex/fix-typos
+1f5dddd83 Merge remote-tracking branch 'upstream/main' into alex/v1-v2-sch
+47fbd0598 Merge branch 'main' of github.com:temporalio/temporal into fix-allow-no-pollers-unset-current-issue
+03bec028e Merge branch 'main' into alex/sch-migration
+8035bb040 fix: preserve original paused state during schedule migration
+af60d816b Merge branch 'main' of github.com:temporalio/temporal into spk/update-aborted-err
+708cbf29c fix: typos and lint issues
+48d9b5c8a fix typos
+a3307d566 Merge branch 'main' of github.com:temporalio/temporal into spk/update-aborted-err
+b22f5a90b Merge branch 'main' into alex/sch-migration
+5813ef214 lint and fix tests
+3e9bda701 refactor
+8907f160c remove protos that are not required
+5cf3e5f55 refactor: simplify SchedulerMigrationState and remove unused code
+ca7bb3695 Merge branch 'main' of github.com:temporalio/temporal into spk/update-aborted-err
+4b778c0dd Address comments
+67af4d98b refactor: consolidate MigrateSchedule request/response protos
+5138e300f fix: address PR review comments
+bd3423aec refactor: update scheduler protos and migration package
+ae136e160 feat: add MigrateSchedule proto and conversion functions
+c749a5c63 linting
+84cdb10e5 fix: clarify RequestId comment to mention AttachRequestID
+b5fb2bf68 refactor: address PR feedback on scheduler migration
+2babe294e feat: add scheduler migration logic for V1/V2 conversions with BufferedStarts unification
+93215042a refactor and update with changes from main
+f0c4f0392 feat: add scheduler migration logic for Legacy↔CHASM state conversion
+ecfe97a4a Merge branch 'main' into will/debug-historyproxy-unimplemented
+12b39cfd5 Merge branch 'main' into chasm-update-with-new
+b7b91cba8 Merge branch 'main' into chasm-update-with-new
+471f6607c refactor: simplify migration package
+4deabd51d refactor: simplify migration by having workflow call conversion directly
+2781941a1 feat: implement V1 to V2 schedule migration
+79894f6b8 feat: add MigrateSchedule proto and conversion functions
+c0a60cc4b feat: add MigrateSchedule proto and conversion functions
+058068153 linting
+2ce44ee8d fix: clarify RequestId comment to mention AttachRequestID
+63c17a0f8 refactor: address PR feedback on scheduler migration
+126cd99f6 Merge origin/main into kannan/temp_task_started_verification_timer
+ae9bf3d63 feat: add scheduler migration logic for V1/V2 conversions with BufferedStarts unification
+15dc60c33 Merge remote-tracking branch 'upstream/main' into alex/sch-migration
+fe64eeecb refactor and update with changes from main
+f10d0f165 Merge remote-tracking branch 'upstream/main' into alex/sch-migration
+15ab902e8 Merge remote-tracking branch 'upstream/main' into alex/sch-migration
+dd791ccbc fix tests and update old scheduler
+59107c329 [Scheduler] Set an initial UpdateTime
+0b7c61036 feat: add scheduler migration logic for Legacy↔CHASM state conversion
+ae4ce0f3b Merge remote-tracking branch 'upstream/main' into err_query_before_first_decision
+7cfd13b04 Merge branch 'main' into parent-close-policy-transfer-task
+c3283bf66 ref correction
+e40645935 Merge branch 'main' into alex/chasm-docs
+f87047b3d Merge branch 'main' into alex/find-contrib
+921552faa Merge branch 'main' into alex/docker-fix
+fce469f71 Merge branch 'main' into alex/correct-build
+d3f6c6dc6 Merge branch 'main' into alex/docker-build
+04552408a Merge branch 'main' into revert-8750-RE-20
+88b0e52ad Merge branch 'main' into standalone-activity
+bc3224cd3 [Scheduled Actions] panic wrap handler (#8805)
+6bcca7f84 Fix CHASM Scheduler memo provider (#8779)
+9e354d528 Merge branch 'main' into alex/validate-features-changes
+aea1e854b Merge branch 'main' into standalone-activity
+08907ee7d Merge branch 'main' into revert-8750-RE-20
+5635457e3 starting point
+a013e4654 chasm-generate-task feedback 3
+7f263be12 chasm-backfill-task feedback 3
+dc3ce66c0 chasm-library-and-config feedback 4
+d822db2c5 chasm-port-hsm-components feedback 4
+03cf63183 chasm-library-and-config feedback 3
+378785453 chasm-port-hsm-components feedback 3
+535d05037 chasm-generate-task feedback 2
+f772271d6 Merge branch 'main' into chasm-generate-task
+23b17ba44 chasm-backfill-task feedback 2
+5bb2686e3 Merge branch 'main' into chasm-backfill-task
+d271792a3 chasm-library-and-config feedback 2
+23edfca0b Merge branch 'main' into chasm-library-and-config
+4d32a397c chasm-port-hsm-components feedback 2
+84f878b23 Merge branch 'main' into chasm-port-hsm-components
+4ed6bd7f6 generator task PR feedback #1
+93721e672 backfiller tasks PR feedback
+d9b35a9ce chasm-port-hsm-components feedback #1
+634f4f63e [Scheduled Actions] CHASM Generate Task
+f75f7c7d3 [Scheduled Actions] CHASM Backfill task
+0279a9e84 [Scheduled Actions] CHASM library and config
+d0b68b2d4 [Scheduled Actions] Port HSM components -> CHASM

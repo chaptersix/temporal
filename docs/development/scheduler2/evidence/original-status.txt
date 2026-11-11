@@ -1,0 +1,26 @@
+ M chasm/chasmtest/test_engine.go
+ M chasm/lib/scheduler/spec_processor.go
+?? chasm/chasmtest/checkpoint_internal_test.go
+?? chasm/chasmtest/checkpoint_test.go
+?? chasm/lib/scheduler/backfill_recovery_verification_test.go
+?? chasm/lib/scheduler/clock_jump_verification_test.go
+?? chasm/lib/scheduler/idle_recovery_verification_test.go
+?? chasm/lib/scheduler/lifecycle_recovery_verification_test.go
+?? chasm/lib/scheduler/overlap_matrix_verification_test.go
+?? chasm/lib/scheduler/recovery_external_effects_test.go
+?? chasm/lib/scheduler/simulation_test.go
+?? chasm/lib/scheduler/spec_processor_properties_test.go
+?? chasm/lib/scheduler/trace_provenance_test.go
+?? chasm/lib/scheduler/trace_test.go
+?? chasm/lib/scheduler/update_recovery_verification_test.go
+?? chasm/lib/scheduler/verification/
+?? chasm/tree_task_fencing_verification_test.go
+?? common/persistence/tests/chasm_atomicity.go
+?? docs/architecture/chasm-scheduler-contract.md
+?? docs/architecture/chasm-scheduler-m3-matrix.md
+?? docs/architecture/chasm-scheduler-redesign-plan.md
+?? docs/architecture/chasm-scheduler-verification-plan.md
+?? docs/architecture/chasm-spec-processing-verification.md
+?? service/history/task_generation_verification_test.go
+?? tests/chasm_external_recovery_test.go
+?? tests/chasm_recovery_test.go

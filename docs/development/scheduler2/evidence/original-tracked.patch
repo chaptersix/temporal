@@ -1,0 +1,191 @@
+diff --git a/chasm/chasmtest/test_engine.go b/chasm/chasmtest/test_engine.go
+index 9ddad53c4..392a9c643 100644
+--- a/chasm/chasmtest/test_engine.go
++++ b/chasm/chasmtest/test_engine.go
+@@ -2,6 +2,7 @@ package chasmtest
+ 
+ import (
+ 	"context"
++	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"maps"
+@@ -9,6 +10,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
++	"github.com/google/uuid"
+ 	enumspb "go.temporal.io/api/enums/v1"
+ 	"go.temporal.io/api/serviceerror"
+ 	enumsspb "go.temporal.io/server/api/enums/v1"
+@@ -22,6 +24,7 @@ import (
+ 	"go.temporal.io/server/common/namespace"
+ 	"go.temporal.io/server/common/testing/testlogger"
+ 	"go.temporal.io/server/service/history/tasks"
++	"google.golang.org/protobuf/proto"
+ )
+ 
+ type (
+@@ -48,6 +51,7 @@ type (
+ 		allExecutions   map[runKey]*execution
+ 		notifier        *executionNotifier
+ 		invariantChecks []InvariantCheck
++		checkpoints     map[runKey]executionCheckpoint
+ 	}
+ 
+ 	execution struct {
+@@ -59,6 +63,18 @@ type (
+ 		requestIDs      map[string]struct{}
+ 		// commitTransition advances the backend's committed transition count.
+ 		commitTransition func()
++		restoreBackend   func(int64, *persistencespb.WorkflowExecutionState)
++	}
++
++	executionCheckpoint struct {
++		nodes    map[string][]byte
++		metadata []byte
++	}
++	checkpointMetadata struct {
++		State           []byte
++		TransitionCount int64
++		CreateRequestID string
++		RequestIDs      map[string]struct{}
+ 	}
+ 
+ 	businessKey struct {
+@@ -124,6 +140,7 @@ func NewEngine(
+ 		currentExecutions: make(map[businessKey]*execution),
+ 		allExecutions:     make(map[runKey]*execution),
+ 		notifier:          newExecutionNotifier(),
++		checkpoints:       make(map[runKey]executionCheckpoint),
+ 	}
+ 
+ 	for _, opt := range opts {
+@@ -133,6 +150,88 @@ func NewEngine(
+ 	return e
+ }
+ 
++// CommitCheckpoint stores a detached, serialized snapshot in this test engine's
++// simulated storage. Closing a transaction alone does not update this checkpoint.
++// Physical task queues and external effects are not part of this storage model.
++func (e *Engine) CommitCheckpoint(ref chasm.ComponentRef) error {
++	x, err := e.executionForRef(ref)
++	if err != nil {
++		return err
++	}
++	if x.node.IsDirty() {
++		return errors.New("cannot checkpoint a dirty CHASM tree")
++	}
++	nodes := make(map[string][]byte)
++	for path, node := range x.node.Snapshot(nil).Nodes {
++		data, err := proto.Marshal(node)
++		if err != nil {
++			return fmt.Errorf("serialize node %q: %w", path, err)
++		}
++		nodes[path] = data
++	}
++	state, err := proto.Marshal(x.backend.GetExecutionState())
++	if err != nil {
++		return fmt.Errorf("serialize execution state: %w", err)
++	}
++	metadata, err := json.Marshal(checkpointMetadata{State: state, TransitionCount: x.backend.CurrentVersionedTransition().TransitionCount, CreateRequestID: x.createRequestID, RequestIDs: x.requestIDs})
++	if err != nil {
++		return fmt.Errorf("serialize checkpoint metadata: %w", err)
++	}
++	e.checkpoints[newRunKey(x.key)] = executionCheckpoint{nodes: nodes, metadata: metadata}
++	return nil
++}
++
++// CrashAndReload discards volatile state and rebuilds the execution from the last
++// simulated checkpoint. It does not restore or publish physical queue tasks.
++func (e *Engine) CrashAndReload(ref chasm.ComponentRef) error {
++	current, err := e.executionForRef(ref)
++	if err != nil {
++		return err
++	}
++	saved, ok := e.checkpoints[newRunKey(current.key)]
++	if !ok {
++		return errors.New("no checkpoint for execution")
++	}
++	nodes := make(map[string]*persistencespb.ChasmNode, len(saved.nodes))
++	for path, data := range saved.nodes {
++		node := &persistencespb.ChasmNode{}
++		if err := proto.Unmarshal(data, node); err != nil {
++			return fmt.Errorf("deserialize node %q: %w", path, err)
++		}
++		nodes[path] = node
++	}
++	var metadata checkpointMetadata
++	if err := json.Unmarshal(saved.metadata, &metadata); err != nil {
++		return fmt.Errorf("deserialize checkpoint metadata: %w", err)
++	}
++	state := &persistencespb.WorkflowExecutionState{}
++	if err := proto.Unmarshal(metadata.State, state); err != nil {
++		return fmt.Errorf("deserialize execution state: %w", err)
++	}
++	restored := e.newExecution(current.key)
++	restored.restoreBackend(metadata.TransitionCount, state)
++	restored.createRequestID = metadata.CreateRequestID
++	restored.requestIDs = maps.Clone(metadata.RequestIDs)
++	restored.node, err = chasm.NewTreeFromDB(nodes, e.registry, e.timeSource, restored.backend, chasm.DefaultPathEncoder, e.logger, e.metrics)
++	if err != nil {
++		return fmt.Errorf("reload CHASM tree: %w", err)
++	}
++	root, err := restored.node.Component(chasm.NewContext(context.Background(), restored.node), chasm.ComponentRef{})
++	if err != nil {
++		return fmt.Errorf("reload root component: %w", err)
++	}
++	var rootOK bool
++	restored.root, rootOK = root.(chasm.RootComponent)
++	if !rootOK {
++		return fmt.Errorf("reloaded root %T is not a root component", root)
++	}
++	e.allExecutions[newRunKey(restored.key)] = restored
++	if e.currentExecutions[newBusinessKey(restored.key)] == current {
++		e.currentExecutions[newBusinessKey(restored.key)] = restored
++	}
++	return nil
++}
++
+ // Tasks returns all physical tasks scheduled for the execution identified by ref, grouped by category.
+ // Logical tasks accumulate across every [Engine.UpdateComponent], [Engine.StartExecution], and
+ // [Engine.UpdateWithStartExecution] call on the execution, and convert to physical tasks on CloseTransaction,
+@@ -538,6 +637,9 @@ func (e *Engine) startAndUpdateNew(
+ }
+ 
+ func (e *Engine) newExecution(key chasm.ExecutionKey) *execution {
++	if key.RunID == "" {
++		key.RunID = uuid.NewString()
++	}
+ 	// bsMu (backend state mutex) guards transitionCount and execState, which are shared
+ 	// across handler closures. It is separate from MockNodeBackend's internal mu to avoid deadlocks.
+ 	var (
+@@ -614,6 +716,13 @@ func (e *Engine) newExecution(key chasm.ExecutionKey) *execution {
+ 			e.logger,
+ 			e.metrics,
+ 		),
++		restoreBackend: func(count int64, state *persistencespb.WorkflowExecutionState) {
++			bsMu.Lock()
++			defer bsMu.Unlock()
++			transitionCount = count
++			execState.State = state.State
++			execState.Status = state.Status
++		},
+ 		commitTransition: func() {
+ 			bsMu.Lock()
+ 			defer bsMu.Unlock()
+diff --git a/chasm/lib/scheduler/spec_processor.go b/chasm/lib/scheduler/spec_processor.go
+index 6908d56a0..848b4938f 100644
+--- a/chasm/lib/scheduler/spec_processor.go
++++ b/chasm/lib/scheduler/spec_processor.go
+@@ -119,7 +119,9 @@ func (s *SpecProcessorImpl) ProcessTimeRange(
+ 	// invocations. The code below will set a "last action" even when none is taken,
+ 	// simply to indicate that processing can permanently skip that period of time
+ 	// (e.g., it was prior to an update or past a catchup).
+-	lastAction := end
++	// Keep the cursor before a pending occurrence's nominal time when its
++	// jittered time is beyond end; enumeration resumes from nominal time.
++	lastAction := start
+ 
+ 	var next legacyscheduler.GetNextTimeResult
+ 	var err error

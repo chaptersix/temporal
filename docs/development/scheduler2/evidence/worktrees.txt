@@ -1,0 +1,12 @@
+worktree /Users/alex/repos/temporal
+HEAD 9ab3a9f770da20df7d94bcc0030f28eec7b0b947
+branch refs/heads/main
+
+worktree /private/tmp/sch-redesign-model
+HEAD 85b80a1836dbc73741cb52586297dc35e6c937ca
+branch refs/heads/sch-redesign-model
+
+worktree /Users/alex/repos/wt/sch-redesign/temporal
+HEAD 85b80a1836dbc73741cb52586297dc35e6c937ca
+branch refs/heads/sch-redesign
+
