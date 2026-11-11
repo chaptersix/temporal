@@ -6,7 +6,7 @@
 | --- | --- |
 | Status | Authorized local execution through M1 |
 | Updated | 2026-11-10 |
-| Current milestone | M2 partial: WI-005 accepted; WI-006 keyed ALLOW_ALL implementing |
+| Current milestone | M2 partial: WI-006 accepted; WI-007 cancel/terminate next |
 | Implementation status | WI-000 through WI-004 accepted |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing through all milestones M2–M4; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
@@ -149,7 +149,7 @@ Phases describe coverage areas, not a requirement to finish all modeling before 
 | --- | --- | --- | --- |
 | M0 | Workspace provenance, first-slice contract, early CHASM guarantees | passed | E4–E8 |
 | M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | passed | E9–E16; bounded scope and trusted boundaries below |
-| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-005 E17–E36; remaining ALLOW_ALL/cancel/terminate/manual/backfill work pending |
+| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-006 E17–E41; remaining cancel/terminate/manual/backfill work pending |
 | M3 | Differential API and shared functional coverage with no unexplained differences | pending | — |
 | M4 | Load/state-growth report and explicit migration support boundary | pending | — |
 
@@ -755,3 +755,8 @@ WI-005 accepted at443587c3e with E32–E36: independent bounded model,10000 Rapi
 cases, CHASM drain/replay, nine total mutants, race/lint and final review. All
 M2–M4 execution remains authorized locally. WI-006 contracts are source-reviewed
 in work-items/WI-006.md; no human review pause.
+
+WI-006 accepted at58ad6c3d6 with E37–E41: keyed ALLOW_ALL, separate start-only
+settlement and blocking owner, cap4 recovery, DATA-map metadata isolation across
+CHASM commit, exact root pending-task index. Model/property/replay/mutations/race/
+lint/review gates pass. WI-007 durable cancel/terminate is next; M2–M4 goal active.

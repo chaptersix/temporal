@@ -148,12 +148,22 @@ loading is selective; generation still reads its combined definition/template.
 CHASM node publication/reload tests do not prove backend crash atomicity or fair
 task delivery. ALLOW_ALL, cancel/terminate and manual/backfill remain M2 work.
 
-## WI-006 evidence in progress (not accepted)
+## Accepted WI-006 evidence (partial M2)
 
-E37: [contract](../work-items/WI-006.md), D35–D38; keyed summaries and ALLOW_ALL
-start-only semantics. [Initial isolation failure](wi006/isolation-initial.log) exposed
-CHASM sibling-component preparation;39b5099c3 uses separate DATA maps/root task index.
-E38: [model](../model/allowall/README.md), [results](../model/allowall/evidence/results.json);
-bounds100/200 exhaust109320 visited/73988 valid/18220 unique states, nine safety/six
-witness checks and three mutants. Explicit saturated fixture/one ambiguous key, no
-liveness/refinement claim. Final tests/mutations/race/lint/review still gate acceptance.
+Source **58ad6c3d6**, clean at final allowall/race profile start. Prerequisite8065ee20c;
+contracta81fa9f57. D35–D38 establish keyed ALLOW_ALL and transaction-wide isolation.
+
+| ID | Kind / claim | Artifact and result |
+|---|---|---|
+| E37 | source-inspection / contract | [WI-006](../work-items/WI-006.md), [review](wi006/review.md); separate blocking/count summaries, frozen policy, start-only terminal intents, capacity drop/wait and data-map task index. |
+| E38 | bounded-model / reachability | [results](../model/allowall/evidence/results.json), [scope](../model/allowall/README.md);109320 visited/73988 valid/18220 unique states at100/200, nine safety/six witnesses, three mutants. Saturated fixture/one ambiguous older key/one waiter; no liveness or automated refinement. |
+| E39 | property / CHASM / replay | [manifest](wi006/allowall/manifest.json), [log](wi006/allowall/0.log);10000 Rapid scenarios5–128 commands, keyed accounting/policy/ownership oracle, four same-instant tasks, cap4 recovery/eviction, old immutable retry, mixed blocker/queue, early callback, config-only disposal, exact pending index, failed publication/reload and standalone allowall_v1.json replay. |
+| E40 | generation / race / lint / mutation | [checks](wi006/checks.json), [race](wi006/race/manifest.json), [lint](wi006/lint.log), [mutants](wi006/mutations/manifest.json); schema regenerated, full scheduler2/registry race and scoped normal/minimal lint pass; six source mutants detected/restored. |
+| E41 | review / provenance | [review](wi006/review.md), [initial real isolation failure](wi006/isolation-initial.log), [registry](../worktrees.md); poisoned unrelated metadata and request remain unread through full commit/reload after D38 fix. Independent review clear. Original checkout untouched by task, initial untracked paths retained. |
+
+Data maps/root PendingStarts prevent CHASM cleanup from preparing unrelated operation
+values. This is value-deserialization evidence, not fewer physical DB reads. The local
+layout change has no migration support. Root summary/adapter composition is checked by
+concrete tests; model failed-publication/stale-delivery steps declare trusted boundaries.
+Real storage-backend crash recovery, cancel/terminate, manual/backfill, public APIs,
+proof correspondence and load evidence remain subsequent work under the active goal.

@@ -34,3 +34,9 @@ global pause/budget exhaustion, because model ingress stays enabled afterward.
 Existing WI-005 tests cover paused/budget disposal. Model source and results unchanged.
 Rapid oracle covers keyed ALLOW_ALL/SKIP summaries and keeps terminal history; real
 CHASM tests separately cover cap4 eviction, buffering, callbacks and selective loads.
+
+Final acceptance source58ad6c3d6: allowall profile10000 scenarios seed1 and full
+scheduler2/nil-registry race pass, scoped normal/minimal lint passes after test
+convention fixes. All six Go mutants and three independent model mutants detected.
+Five model specification hashes verified after integration. All existing scheduler2
+tests pass with the new layout. Task worktrees clean/retained; no original writes.

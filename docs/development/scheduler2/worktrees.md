@@ -128,3 +128,15 @@ and model worktree/private/tmp/sch-redesign-allowall-model both created at
 a81fa9f57. Tests consume37cb2c020 asf767da097; own new allowall test/replay files only.
 Model owns model/allowall/ only. history_contract read-only review/source contracts.
 Parent performs commits if delegate Git access is restricted; all worktrees retained.
+
+WI-006 final disposition (retained):
+
+- Tests worktree created ata81fa9f57; implementation37cb2c020 transferredasf767da097,
+  data-map fix39b5099c3 transferredasbdd90aa64. Contributionac90ccac9 integrated
+  asf4afcd722; parent convention fixes212f69733. Test worktree clean/retained.
+- Model contributionbddc8284d integrated35fb48687; all five case hashes verified.
+  Model worktree clean/retained; incomplete obsolete processes terminated after
+  live PID inspection, accepted bounded run exhausted. Timeout cleanup hardened.
+- Final source58ad6c3d6 clean at profile start; independent review clear.
+- Original checkout had no task writes; current inventory/hash and initial untracked
+  path retention recorded in evidence/wi006. No push/routing/rollout/migration.

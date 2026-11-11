@@ -1,0 +1,50 @@
+=== RUN   TestAllowAllSavedReplay
+=== PAUSE TestAllowAllSavedReplay
+=== RUN   TestAllowAllKeyedIssuanceCapacityAndRecovery
+=== PAUSE TestAllowAllKeyedIssuanceCapacityAndRecovery
+=== RUN   TestAllowAllMixedBlockingAndFrozenQueuePolicy
+=== PAUSE TestAllowAllMixedBlockingAndFrozenQueuePolicy
+=== RUN   TestAllowAllCapacityWaitingDrainWakesWithoutGenerator
+=== PAUSE TestAllowAllCapacityWaitingDrainWakesWithoutGenerator
+=== RUN   TestAllowAllPayloadIsolationAndNoPause
+=== PAUSE TestAllowAllPayloadIsolationAndNoPause
+=== RUN   TestAllowAllKeyedPayloadAndMetadataIsolation
+=== PAUSE TestAllowAllKeyedPayloadAndMetadataIsolation
+=== RUN   TestAllowAllConfigDisposesCapacityWaitingQueue
+=== PAUSE TestAllowAllConfigDisposesCapacityWaitingQueue
+=== RUN   TestAllowAllBoundChainConflictIsAtomic
+=== PAUSE TestAllowAllBoundChainConflictIsAtomic
+=== RUN   TestAllowAllOldRetrySurvivesDefinitionUpdate
+=== PAUSE TestAllowAllOldRetrySurvivesDefinitionUpdate
+=== CONT  TestAllowAllSavedReplay
+=== CONT  TestAllowAllKeyedPayloadAndMetadataIsolation
+=== CONT  TestAllowAllCapacityWaitingDrainWakesWithoutGenerator
+=== CONT  TestAllowAllPayloadIsolationAndNoPause
+--- PASS: TestAllowAllKeyedPayloadAndMetadataIsolation (0.01s)
+=== CONT  TestAllowAllOldRetrySurvivesDefinitionUpdate
+--- PASS: TestAllowAllPayloadIsolationAndNoPause (0.01s)
+=== CONT  TestAllowAllMixedBlockingAndFrozenQueuePolicy
+--- PASS: TestAllowAllCapacityWaitingDrainWakesWithoutGenerator (0.01s)
+=== CONT  TestAllowAllKeyedIssuanceCapacityAndRecovery
+--- PASS: TestAllowAllOldRetrySurvivesDefinitionUpdate (0.00s)
+=== CONT  TestAllowAllBoundChainConflictIsAtomic
+--- PASS: TestAllowAllMixedBlockingAndFrozenQueuePolicy (0.00s)
+=== CONT  TestAllowAllConfigDisposesCapacityWaitingQueue
+--- PASS: TestAllowAllBoundChainConflictIsAtomic (0.00s)
+--- PASS: TestAllowAllConfigDisposesCapacityWaitingQueue (0.00s)
+--- PASS: TestAllowAllSavedReplay (0.01s)
+--- PASS: TestAllowAllKeyedIssuanceCapacityAndRecovery (0.01s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.829s
+=== RUN   TestAllowAllKeyedProperties
+=== PAUSE TestAllowAllKeyedProperties
+=== RUN   TestAllowAllDrainCapacityAndDisposition
+=== PAUSE TestAllowAllDrainCapacityAndDisposition
+=== CONT  TestAllowAllKeyedProperties
+=== CONT  TestAllowAllDrainCapacityAndDisposition
+--- PASS: TestAllowAllDrainCapacityAndDisposition (0.00s)
+=== NAME  TestAllowAllKeyedProperties
+    allowall_test.go:17: [rapid] OK, passed 10000 tests (3.306039541s)
+--- PASS: TestAllowAllKeyedProperties (3.31s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	4.358s

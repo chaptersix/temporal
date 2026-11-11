@@ -1,7 +1,8 @@
 # Local scheduler2 verification
 
-This is a deliberately bounded prototype: one predetermined automatic occurrence,
-SKIP overlap, immutable start, early completion, and retained ambiguous expiry.
+The current bounded prototype supports resumable automatic enumeration, SKIP,
+BUFFER_ONE/ALL and keyed ALLOW_ALL starts, immutable retries and completion carryover.
+The sections below preserve the contracts/evidence of successive local slices.
 Only offline decoding registers scheduler2 in production-linked code; no service
 routing or FX module selects it. Use explicit local library wiring in tests.
 
@@ -151,3 +152,28 @@ The model omits calendar arithmetic/catchup/rollback, which have separate Go tes
 No composition theorem or liveness guarantee after permanent ambiguous acceptance
 is claimed. Other overlap modes, manual/backfill fairness and production routing
 remain outside this slice.
+
+## WI-005 / WI-006 buffered and keyed admission
+
+```sh
+python3 docs/development/scheduler2/run.py buffer --exploration --seed 1 --output /private/tmp/scheduler2-verification/buffer
+python3 docs/development/scheduler2/run.py allowall --exploration --seed 1 --output /private/tmp/scheduler2-verification/allowall
+python3 docs/development/scheduler2/run.py allowall-model --output /private/tmp/scheduler2-verification/allowall-model
+```
+
+Queues retain up to4 automatic occurrence identities without budget debit. Drain
+uses current eligibility/template/carryover and queue-time workflow identity/policy.
+Completion independently arms drain after generator exhaustion. ALLOW_ALL bypasses
+the tracked blocker/queue but consumes bounded intent capacity; full-capacity new
+admission drops/counts without debit, existing accepted queue waits without spinning.
+
+Four retained operation records separate Pending/Started/Ambiguous from Completed
+and StartOnly. ALLOW_ALL acknowledgment/early completion settles only the start
+intent, never changes carryover/pause, and permits terminal eviction. Keyed older
+results preserve the latest admission and unrelated blocking owner. Metadata and
+requests live in separate DATA maps; an exact root PendingStarts deadline index
+lets task validation avoid reading every operation. Real poisoned metadata tests
+cover full CloseTransaction/reload. Physical persistence reads are not reduced.
+
+No persisted-layout migration, public API routing, cancel/terminate or manual/backfill
+claim follows. Those remaining gates are tracked in the active M2–M4 plan.
