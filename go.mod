@@ -93,6 +93,7 @@ require (
 	gopkg.in/validator.v2 v2.0.1
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.51.0
+	pgregory.net/rapid v1.2.0
 )
 
 require (
