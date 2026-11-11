@@ -5,7 +5,6 @@ import (
 	"time"
 
 	schedulepb "go.temporal.io/api/schedule/v1"
-
 	"go.temporal.io/server/common/primitives/timestamp"
 )
 

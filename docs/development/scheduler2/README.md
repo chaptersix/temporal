@@ -1,4 +1,4 @@
-# Local scheduler2 M1 verification
+# Local scheduler2 verification
 
 This is a deliberately bounded prototype: one predetermined automatic occurrence,
 SKIP overlap, immutable start, early completion, and retained ambiguous expiry.
@@ -48,7 +48,7 @@ states. The FizzBee adapter mapping is in model/README.md: nanoseconds collapse
 to pre-deadline/expiry atoms, whole request collapses to revision, and snapshot
 publication maps to atomic CommitAdmission/FailCommit. It is a manual refinement
 mapping, not an automated cross-language trace importer. Lean consumes no M1
-calendar trace because calendar enumeration is not implemented. Differential API
+calendar trace; WI-002 adds a separate executable enumeration draft. Differential API
 trace execution belongs to M3. M1 replay permits only the recorded serial event
 order; no claim about general concurrent ordering follows from that format.
 
@@ -76,3 +76,21 @@ weak fairness. D20 records a conservative one-RPC gate per local library instanc
 per-schedule concurrent executor partitioning is deferred beyond this single-
 schedule experiment. Full calendar, public API, retention, failover, migration,
 load and proof claims remain outside M1.
+
+## WI-002 enumeration
+
+The standalone pure core is not wired into CHASM admission yet. Its bounded
+contract and intentional legacy divergences are in enumeration-contract.md.
+
+```sh
+python3 docs/development/scheduler2/run.py enumeration --exploration --seed 1 --output /private/tmp/scheduler2-verification/enumeration
+CGO_ENABLED=0 GOMAXPROCS=4 go test -p 2 -parallel 4 -tags test_dep -count=1 ./chasm/lib/scheduler2/... ./service/worker/scheduler
+CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast GOLANGCI_LINT_BASE_REV=00b65430a GOLANGCI_LINT_FIX=false
+```
+
+The saved pending_jitter_v1.json fixture replays without generator reconstruction,
+recompiling the definition and JSON continuation at every step. The pinned TZif
+fixture checks selected US gap/fold cases; full timezone coverage is not claimed.
+The independent Lean v4.24.0 draft and commands are in lean/README.md. Proposition
+definitions and executable examples are not completed proofs or Go correspondence.
+M2 policy/callback/backfill work and M3 proofs remain pending.

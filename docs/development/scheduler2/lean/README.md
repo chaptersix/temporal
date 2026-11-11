@@ -11,10 +11,10 @@ them. There are no assumed theorem declarations or unfinished proof placeholders
 Completed SP2/SP3 proofs and their axiom audit remain M3 gates. Executable examples
 are discriminating fixtures, not universal proofs or Go correspondence evidence.
 
-Compile locally once the integrator pins and supplies Lean:
+Compile locally with Lean v4.24.0 (no proof completion is implied):
 
 ```sh
-cd /private/tmp/sch-redesign-enumeration-spec/docs/development/scheduler2/lean
+cd docs/development/scheduler2/lean
 lean -o Enumeration.olean Enumeration.lean
 LEAN_PATH=. lean Examples.lean
 ```

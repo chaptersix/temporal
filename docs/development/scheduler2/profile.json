@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "scope": "single automatic occurrence, SKIP, local only",
+  "scope": "M1 dispatch slice plus standalone WI-002 enumeration; local only",
   "clock": "execution Unix nanoseconds",
   "per_schedule": {
     "enumeration_batch": 1,
@@ -14,10 +14,43 @@
     "retry_backoff_seconds": 1
   },
   "executor_concurrency_per_library": 1,
-  "routine": {"scenarios": 100, "events": 32, "seed": 1},
-  "exploration": {"scenarios": 10000, "events": 128, "seed_policy": "explicit --seed recorded in manifest"},
+  "routine": {
+    "scenarios": 100,
+    "events": 32,
+    "seed": 1
+  },
+  "exploration": {
+    "scenarios": 10000,
+    "events": 128,
+    "seed_policy": "explicit --seed recorded in manifest"
+  },
   "recovery": "one authenticated completion; an explicit finite suffix, not a liveness proof",
-  "model": {"action_bounds": [100, 200], "concurrent_actions": 1, "timeout_seconds_per_case": 300},
-  "tools": {"go": "go1.27.3", "rapid": "v1.2.0", "fizzbee": "v0.5.4", "lean": "unavailable; M3 gate"},
-  "limits": "unsupported ingress rejected; expiry retains ambiguity; no retention eviction in bounded slice"
+  "model": {
+    "action_bounds": [
+      100,
+      200
+    ],
+    "concurrent_actions": 1,
+    "timeout_seconds_per_case": 300
+  },
+  "tools": {
+    "go": "go1.27.3",
+    "rapid": "v1.2.0",
+    "fizzbee": "v0.5.4",
+    "lean": "v4.24.0; executable draft only; M3 proofs pending"
+  },
+  "limits": "unsupported ingress rejected; expiry retains ambiguity; no retention eviction in bounded slice",
+  "enumeration": {
+    "range": "[2000-01-01,2101-01-01) UTC",
+    "max_spec_bytes": 65536,
+    "max_terms": 64,
+    "max_ranges": 1024,
+    "max_probes": 1024,
+    "max_outputs": 128,
+    "routine_probes": 8,
+    "routine_outputs": 4,
+    "timezone_fixture_sha256": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+    "independence": "bounded second-scan oracle; shares timezone conversion and Farm32 primitives",
+    "integration": "not wired to CHASM admission"
+  }
 }

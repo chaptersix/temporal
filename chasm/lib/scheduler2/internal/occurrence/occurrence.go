@@ -192,11 +192,7 @@ func (e *Enumerator) Run(state State, through time.Time, limits Limits) (Result,
 				result.Status = Waiting
 				return result, nil
 			}
-			if !pending.Excluded {
-				result.Occurrences = append(result.Occurrences, *pending)
-			}
-			result.State.DisposedThrough = pending.Nominal
-			result.State.Pending = nil
+			result.disposePending()
 			continue
 		}
 		if result.Probes == limits.Probes {
@@ -208,6 +204,15 @@ func (e *Enumerator) Run(state State, through time.Time, limits Limits) (Result,
 		}
 
 	}
+}
+
+func (r *Result) disposePending() {
+	pending := r.State.Pending
+	if !pending.Excluded {
+		r.Occurrences = append(r.Occurrences, *pending)
+	}
+	r.State.DisposedThrough = pending.Nominal
+	r.State.Pending = nil
 }
 
 func (e *Enumerator) probe(result *Result) error {
