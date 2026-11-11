@@ -1,0 +1,15 @@
+Model checking /private/tmp/scheduler2-buffer-model-second/baseline-100/buffer.json
+configFileName: /private/tmp/scheduler2-buffer-model-second/baseline-100/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 20000, queued: 66990, elapsed: 10.361011834s
+Nodes: 40000, queued: 103837, elapsed: 22.372113417s
+Nodes: 60000, queued: 79310, elapsed: 35.688923792s
+Nodes: 69207, queued: 0, elapsed: 43.246912917s
+Time taken for model checking: 43.246923708s
+Skipping dotfile generation. Too many Nodes: 69207
+Valid Nodes: 69207 Unique states: 69196
+IsLive: true
+Time taken to check liveness: 130.696959ms
+PASSED: Model checker completed successfully
+Writen 1 node files and 1 link files to dir /private/tmp/scheduler2-buffer-model-second/baseline-100/graph
