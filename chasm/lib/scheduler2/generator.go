@@ -145,7 +145,12 @@ func (*GenerateHandler) Execute(ctx chasm.MutableContext, g *Generator, attrs ch
 	case occurrence.Waiting:
 		g.arm(ctx, result.State.Pending.Actual)
 	case occurrence.Yield, occurrence.Limited:
-		g.arm(ctx, now.Add(time.Millisecond))
+		wake := now.Add(time.Millisecond)
+		end := time.Date(2101, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond)
+		if wake.After(end) {
+			wake = end
+		}
+		g.arm(ctx, wake)
 	case occurrence.Empty, occurrence.Impossible, occurrence.Exhausted:
 		g.Token++
 	default:
