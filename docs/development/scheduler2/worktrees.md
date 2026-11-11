@@ -103,3 +103,10 @@ WI-004 final disposition (retained):
   hash recorded; initial untracked entries retained. Other actors' changes remain.
 - Final profiles started on clean 9064bed65; documentation-only acceptance follows.
   No push, production routing, rollout, migration or worktree/branch deletion.
+
+WI-005 assignments: integrator owns implementation/schema and central records;
+history_contract read-only contract/review. New isolated
+/private/tmp/sch-redesign-buffer-tests owns buffer test files/testdata;
+/private/tmp/sch-redesign-buffer-model owns model/buffer/. Both created from the
+committed D32–D34 contract prerequisite below; API transferred explicitly to tests.
+No concurrent writes to shared files; all worktrees retained.
