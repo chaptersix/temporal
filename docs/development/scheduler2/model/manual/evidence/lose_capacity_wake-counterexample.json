@@ -1,0 +1,601 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Init",
+      "returns": "{}",
+      "roles": null,
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[0].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Any:override=\"inherit\"",
+      "returns": "{}",
+      "roles": [],
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[3].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"current_policy\":\"all\",\"initial_policy\":\"all\",\"override\":\"inherit\"}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:override=\"inherit\"",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Any:nominal=-10",
+      "returns": "{}",
+      "roles": [],
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[5].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"current_policy\":\"all\",\"initial_policy\":\"all\",\"nominal\":-10,\"now\":0,\"override\":\"inherit\"}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:nominal=-10",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Any:existing_queue=0",
+      "returns": "{}",
+      "roles": [],
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[6].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"current_policy\":\"all\",\"existing_queue\":0,\"initial_policy\":\"all\",\"nominal\":-10,\"now\":0,\"override\":\"inherit\"}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:existing_queue=0",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Any:blocker=False",
+      "returns": "{}",
+      "roles": [],
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[7].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"blocker\":false,\"current_policy\":\"all\",\"existing_queue\":0,\"initial_policy\":\"all\",\"nominal\":-10,\"now\":0,\"override\":\"inherit\"}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:blocker=False",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": false,
+        "admitted_after_wait": false,
+        "automatic_cursor": 7,
+        "blocker": false,
+        "budget": 0,
+        "capacity_wait_seen": false,
+        "catchup": 0,
+        "current_policy": "all",
+        "disposed": false,
+        "disposition_observed": false,
+        "existing_queue": 0,
+        "expected_policy": "",
+        "expected_request": [],
+        "frozen_policy": "",
+        "frozen_workflow": "",
+        "initial_policy": "all",
+        "nominal": -10,
+        "now": 0,
+        "override": "inherit",
+        "paused": true,
+        "pending": true,
+        "policy": "all",
+        "policy_changed_before_transfer": false,
+        "queued": false,
+        "request": [],
+        "retired": [],
+        "revision": 1,
+        "sequence": 1,
+        "space_without_slot": false,
+        "task": false,
+        "token": 0,
+        "transfer_revision": 0,
+        "transferred_without_slot_after_wait": false,
+        "unfinished": 4,
+        "updated": false,
+        "updated_while_queued": false,
+        "want": false,
+        "woke_after_capacity": false
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:unfinished=4",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "ExternalCapacityProgress",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": false,
+        "admitted_after_wait": false,
+        "automatic_cursor": 7,
+        "blocker": false,
+        "budget": 0,
+        "capacity_wait_seen": false,
+        "catchup": 0,
+        "current_policy": "all",
+        "disposed": false,
+        "disposition_observed": false,
+        "existing_queue": 0,
+        "expected_policy": "",
+        "expected_request": [],
+        "frozen_policy": "",
+        "frozen_workflow": "",
+        "initial_policy": "all",
+        "nominal": -10,
+        "now": 0,
+        "override": "inherit",
+        "paused": true,
+        "pending": true,
+        "policy": "all",
+        "policy_changed_before_transfer": false,
+        "queued": false,
+        "request": [],
+        "retired": [],
+        "revision": 1,
+        "sequence": 1,
+        "space_without_slot": false,
+        "task": false,
+        "token": 0,
+        "transfer_revision": 0,
+        "transferred_without_slot_after_wait": false,
+        "unfinished": 4,
+        "updated": false,
+        "updated_while_queued": false,
+        "want": false,
+        "woke_after_capacity": false
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "ExternalCapacityProgress": 1
+        }
+      },
+      "threads": [
+        {
+          "id": 39,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "ExternalCapacityProgress",
+              "pc": "Actions[3].Block.Stmts[1].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 1
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "ExternalCapacityProgress",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          3
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": false,
+        "admitted_after_wait": false,
+        "automatic_cursor": 7,
+        "blocker": false,
+        "budget": 0,
+        "capacity_wait_seen": false,
+        "catchup": 0,
+        "current_policy": "all",
+        "disposed": false,
+        "disposition_observed": false,
+        "existing_queue": 0,
+        "expected_policy": "",
+        "expected_request": [],
+        "frozen_policy": "",
+        "frozen_workflow": "",
+        "initial_policy": "all",
+        "nominal": -10,
+        "now": 0,
+        "override": "inherit",
+        "paused": true,
+        "pending": true,
+        "policy": "all",
+        "policy_changed_before_transfer": false,
+        "queued": false,
+        "request": [],
+        "retired": [],
+        "revision": 1,
+        "sequence": 1,
+        "space_without_slot": false,
+        "task": false,
+        "token": 0,
+        "transfer_revision": 0,
+        "transferred_without_slot_after_wait": false,
+        "unfinished": 3,
+        "updated": false,
+        "updated_while_queued": false,
+        "want": true,
+        "woke_after_capacity": false
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "ExternalCapacityProgress": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:resource=\"operation\"",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]

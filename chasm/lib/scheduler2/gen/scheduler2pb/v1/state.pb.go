@@ -334,11 +334,11 @@ type RootState struct {
 	Revision int64 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	// Cursor is the last disposed nominal Unix nanosecond.
 	Cursor int64 `protobuf:"varint,3,opt,name=cursor,proto3" json:"cursor,omitempty"`
-	// Paused prevents admission.
+	// Paused prevents automatic admission; manual commands remain eligible.
 	Paused bool `protobuf:"varint,4,opt,name=paused,proto3" json:"paused,omitempty"`
 	// Limited enables the remaining action budget.
 	Limited bool `protobuf:"varint,5,opt,name=limited,proto3" json:"limited,omitempty"`
-	// Remaining counts admissions available.
+	// Remaining counts automatic admissions available.
 	Remaining int64 `protobuf:"varint,6,opt,name=remaining,proto3" json:"remaining,omitempty"`
 	// Started counts operations with evidence of acceptance.
 	Started int64 `protobuf:"varint,7,opt,name=started,proto3" json:"started,omitempty"`
@@ -617,7 +617,7 @@ func (x *RootState) GetManualAt() int64 {
 // OperationState holds metadata without decoding request payloads.
 type OperationState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// OccurrenceId identifies the nominal automatic occurrence.
+	// OccurrenceId identifies an automatic nominal time or a manual command sequence.
 	OccurrenceId string `protobuf:"bytes,1,opt,name=occurrence_id,json=occurrenceId,proto3" json:"occurrence_id,omitempty"`
 	// ActionId identifies the one-time admission.
 	ActionId string `protobuf:"bytes,2,opt,name=action_id,json=actionId,proto3" json:"action_id,omitempty"`

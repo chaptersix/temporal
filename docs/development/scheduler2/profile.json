@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only; WI-005 buffered automatic admission; WI-006 keyed ALLOW_ALL; WI-007 fenced cancel/terminate effects",
+  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only; WI-005 buffered automatic admission; WI-006 keyed ALLOW_ALL; WI-007 fenced cancel/terminate effects; WI-008 durable manual commands",
   "clock": "execution Unix nanoseconds",
   "per_schedule": {
     "enumeration_batch": 1,
@@ -112,5 +112,16 @@
     "queue": "capacity4; eligible last cancel/terminate replaces unadmitted selection",
     "completion": "matching target completion clears effects; RPC outcomes never release blocker",
     "payload": "separate DATA entries; metadata-only validation"
+  },
+  "manual": {
+    "pending_capacity": 4,
+    "sequence": "monotonic uint64 per incarnation; exhaustion rejects",
+    "timestamp": "exactly representable int64 Unix nanoseconds; supplied time is identity not timer",
+    "transfer_batch": 1,
+    "capacity": "fullqueue waits; ALLOW_ALL/free admission wait for slot",
+    "eligibility": "bypass pause, budget debit, catchup and automatic cursor",
+    "dedup": "CHASM WithRequestID; bounded framework count/age; independent of start record retention",
+    "workflow_reuse": "ALLOW_DUPLICATE",
+    "fairness": "sustained mixed ingress arbitration pending WI-009"
   }
 }

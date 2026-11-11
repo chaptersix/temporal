@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "clock_domain": "execution_nanoseconds",
+  "incarnation": "incarnation",
+  "now": "2024-01-01T00:00:00Z",
+  "catchup": "60s",
+  "policy": 1,
+  "spec": {},
+  "request": {
+    "namespace": "namespace",
+    "workflowId": "workflow",
+    "workflowType": {
+      "name": "type"
+    },
+    "taskQueue": {
+      "name": "queue"
+    }
+  },
+  "steps": [
+    {
+      "kind": "trigger_failed",
+      "request_id": "a",
+      "command": {
+        "scheduledTime": "2024-01-01T01:00:00Z",
+        "overlapPolicy": "SCHEDULE_OVERLAP_POLICY_ALLOW_ALL"
+      },
+      "target": 0,
+      "sequence": 0,
+      "pending": [],
+      "operations": {},
+      "started": 0,
+      "unfinished": 0,
+      "timers": 0,
+      "starts": 0
+    },
+    {
+      "kind": "trigger",
+      "request_id": "a",
+      "command": {
+        "scheduledTime": "2024-01-01T01:00:00Z",
+        "overlapPolicy": "SCHEDULE_OVERLAP_POLICY_ALLOW_ALL"
+      },
+      "target": 0,
+      "sequence": 1,
+      "pending": [
+        1
+      ],
+      "operations": {},
+      "started": 0,
+      "unfinished": 0,
+      "timers": 1,
+      "starts": 0
+    },
+    {
+      "kind": "trigger",
+      "request_id": "a",
+      "command": {
+        "overlapPolicy": "SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER"
+      },
+      "target": 0,
+      "sequence": 1,
+      "pending": [
+        1
+      ],
+      "operations": {},
+      "started": 0,
+      "unfinished": 0,
+      "timers": 1,
+      "starts": 0
+    },
+    {
+      "kind": "trigger",
+      "request_id": "",
+      "command": {
+        "scheduledTime": "2024-01-01T01:00:00Z",
+        "overlapPolicy": "SCHEDULE_OVERLAP_POLICY_ALLOW_ALL"
+      },
+      "target": 0,
+      "sequence": 2,
+      "pending": [
+        1,
+        2
+      ],
+      "operations": {},
+      "started": 0,
+      "unfinished": 0,
+      "timers": 1,
+      "starts": 0
+    },
+    {
+      "kind": "transfer_failed",
+      "request_id": "",
+      "target": 0,
+      "sequence": 2,
+      "pending": [
+        1,
+        2
+      ],
+      "operations": {},
+      "started": 0,
+      "unfinished": 0,
+      "timers": 1,
+      "starts": 0
+    },
+    {
+      "kind": "restart",
+      "request_id": "",
+      "target": 0,
+      "sequence": 2,
+      "pending": [
+        1,
+        2
+      ],
+      "operations": {},
+      "started": 0,
+      "unfinished": 0,
+      "timers": 1,
+      "starts": 0
+    },
+    {
+      "kind": "transfer",
+      "request_id": "",
+      "target": 0,
+      "sequence": 2,
+      "pending": [
+        2
+      ],
+      "operations": {
+        "1": "pending"
+      },
+      "started": 0,
+      "unfinished": 1,
+      "timers": 1,
+      "starts": 1
+    },
+    {
+      "kind": "ack",
+      "request_id": "",
+      "target": 1,
+      "sequence": 2,
+      "pending": [
+        2
+      ],
+      "operations": {
+        "1": "start_only"
+      },
+      "started": 1,
+      "unfinished": 0,
+      "timers": 1,
+      "starts": 0
+    },
+    {
+      "kind": "transfer",
+      "request_id": "",
+      "target": 0,
+      "sequence": 2,
+      "pending": [],
+      "operations": {
+        "1": "start_only",
+        "2": "pending"
+      },
+      "started": 1,
+      "unfinished": 1,
+      "timers": 0,
+      "starts": 1
+    },
+    {
+      "kind": "trigger",
+      "request_id": "a",
+      "command": {},
+      "target": 0,
+      "sequence": 2,
+      "pending": [],
+      "operations": {
+        "1": "start_only",
+        "2": "pending"
+      },
+      "started": 1,
+      "unfinished": 1,
+      "timers": 0,
+      "starts": 1
+    }
+  ]
+}

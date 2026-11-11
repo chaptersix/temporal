@@ -1,0 +1,11 @@
+=== RUN   TestManualSameTimeBypassesPauseBudgetCursor
+=== PAUSE TestManualSameTimeBypassesPauseBudgetCursor
+=== CONT  TestManualSameTimeBypassesPauseBudgetCursor
+    manual_test.go:169: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/manual_test.go:169
+        	Error:      	Should be zero, but was -2
+        	Test:       	TestManualSameTimeBypassesPauseBudgetCursor
+--- FAIL: TestManualSameTimeBypassesPauseBudgetCursor (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.672s
+FAIL

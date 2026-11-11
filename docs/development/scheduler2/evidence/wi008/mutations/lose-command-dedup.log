@@ -1,0 +1,13 @@
+=== RUN   TestManualPublicDedupAtomicityAndChangedBody
+=== PAUSE TestManualPublicDedupAtomicityAndChangedBody
+=== CONT  TestManualPublicDedupAtomicityAndChangedBody
+    manual_test.go:127: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/manual_test.go:127
+        	Error:      	Not equal: 
+        	            	expected: 0x1
+        	            	actual  : 0x2
+        	Test:       	TestManualPublicDedupAtomicityAndChangedBody
+--- FAIL: TestManualPublicDedupAtomicityAndChangedBody (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.669s
+FAIL

@@ -154,3 +154,14 @@ WI-006 final disposition (retained):
 - Worktrees retained. Original checkout received no task writes; concurrent unrelated
   commit03ecd1d22 tracked a previously untracked file, whose path remains present.
 - No push, production routing, rollout or migration. WI-008 investigation is local.
+
+
+## WI-008 local execution in progress
+
+- Integrator source97e9a7eca, reviewfixf525eacab; contract0232beba7.
+- /private/tmp/sch-redesign-manual-tests, branchsch-redesign-manual-tests, receives
+  implementationc544a1aa4 and fix5be8f38f0. Owns manual oracle/adapter/replay files.
+- /private/tmp/sch-redesign-manual-model, branchsch-redesign-manual-model, independent
+  model/manual contribution copied by parent; reviewer checked temporal witnesses
+  and mapping limits. Both worktrees retained; all execution and commits local.
+- WI-008 acceptance pending final concrete review regressions and checks.

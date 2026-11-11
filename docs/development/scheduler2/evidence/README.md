@@ -186,3 +186,19 @@ separate transport from selection and supplement delayed binding. They do not
 cover all eligibility/transport products or all-ineligible queues. Concrete tests
 cover CHASM publication/value isolation, not physical database atomicity. Original
 checkout received no task writes; no production routing, migration or rollout.
+
+
+## WI-008 evidence in verification (partial M2)
+
+Implementation97e9a7eca, review fixf525eacab; prerequisite0c07f4a24.
+
+| ID | Kind / claim | Artifact and current result |
+|---|---|---|
+| E47 | source-inspection / contract | [WI-008](../work-items/WI-008.md), D43–D46; command identity separate from operation retention, manual eligibility overrides, bounded accepted-wait ingress. |
+| E48 | framework-test | [History dedup tests](wi008/framework-dedup.log); both request-ID storage layouts, empty IDs, count/age retention and type separation pass. Not a scheduler2 public API test. |
+| E49 | implementation baseline | [generation](wi008/generation.log), [reviewed baseline](wi008/reviewed-baseline.log), [source lint](wi008/lint-source.log); schema generation, existing scheduler2/registry tests and initial scoped lint pass. |
+
+Independent review found unnecessary template loading for policy-only disposal;
+fixf525eacab avoids it and adds deterministic equal-nominal retention ordering.
+Independent regression/model/property/replay, mutation and final race/lint evidence
+remain pending; WI-008 is not accepted and M2–M4 remain incomplete.

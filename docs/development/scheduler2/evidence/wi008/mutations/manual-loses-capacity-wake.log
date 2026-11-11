@@ -1,0 +1,12 @@
+=== RUN   TestManualFullUnfinishedWaitAndSameTimeEviction
+=== PAUSE TestManualFullUnfinishedWaitAndSameTimeEviction
+=== CONT  TestManualFullUnfinishedWaitAndSameTimeEviction
+    manual_test.go:341: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/manual_test.go:44
+        	            				/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/manual_test.go:341
+        	Error:      	Should be true
+        	Test:       	TestManualFullUnfinishedWaitAndSameTimeEviction
+--- FAIL: TestManualFullUnfinishedWaitAndSameTimeEviction (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.678s
+FAIL

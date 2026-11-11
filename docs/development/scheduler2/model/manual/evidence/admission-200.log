@@ -1,0 +1,13 @@
+Model checking /private/tmp/scheduler2-manual-model-reviewed/admission-200/admission.json
+configFileName: /private/tmp/scheduler2-manual-model-reviewed/admission-200/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:200  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 20000, queued: 16227, elapsed: 6.782077625s
+Nodes: 34452, queued: 0, elapsed: 12.297951375s
+Time taken for model checking: 12.29800425s
+Skipping dotfile generation. Too many Nodes: 34452
+Valid Nodes: 34060 Unique states: 17434
+IsLive: true
+Time taken to check liveness: 179.908917ms
+PASSED: Model checker completed successfully
+Writen 1 node files and 1 link files to dir /private/tmp/scheduler2-manual-model-reviewed/admission-200/graph

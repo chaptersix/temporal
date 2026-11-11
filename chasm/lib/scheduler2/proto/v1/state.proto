@@ -14,11 +14,11 @@ message RootState {
   int64 revision = 2;
   // Cursor is the last disposed nominal Unix nanosecond.
   int64 cursor = 3;
-  // Paused prevents admission.
+  // Paused prevents automatic admission; manual commands remain eligible.
   bool paused = 4;
   // Limited enables the remaining action budget.
   bool limited = 5;
-  // Remaining counts admissions available.
+  // Remaining counts automatic admissions available.
   int64 remaining = 6;
   // Started counts operations with evidence of acceptance.
   int64 started = 7;
@@ -79,7 +79,7 @@ enum Phase {
 
 // OperationState holds metadata without decoding request payloads.
 message OperationState {
-  // OccurrenceId identifies the nominal automatic occurrence.
+  // OccurrenceId identifies an automatic nominal time or a manual command sequence.
   string occurrence_id = 1;
   // ActionId identifies the one-time admission.
   string action_id = 2;

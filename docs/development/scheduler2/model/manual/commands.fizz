@@ -1,0 +1,113 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+DUPLICATE_REWRITES_BODY = False
+ID_FROM_NOMINAL = False
+REJECT_RECORDS_ID = False
+
+action Init:
+    calls = ["A", "", "B", "", "C", "A", "D"]
+    call = 0
+    sequence = 0
+    pending = []
+    records = []
+    dedup = {}
+    body = {}
+    snapshots = {}
+    identities = []
+    accepted = []
+    recorded_success = []
+    expired = False
+    replay_after_expiry = False
+    full_rejected = False
+    exhausted_rejected = False
+    retention_evicted = False
+    duplicate_after_eviction = False
+    duplicate_changed_body = False
+
+atomic action Call:
+    require call < len(calls)
+    request = calls[call]
+    if request != "" and request in dedup:
+        call += 1
+    elif len(pending) == 4 or sequence == 6:
+        if len(pending) == 4:
+            full_rejected = True
+        if sequence == 6:
+            exhausted_rejected = True
+        if REJECT_RECORDS_ID and request != "":
+            dedup[request] = 0
+    else:
+        sequence += 1
+        pending.append(sequence)
+        body[sequence] = call
+        snapshots[sequence] = call
+        accepted.append([request, sequence, 100])
+        identities.append("manual/100" if ID_FROM_NOMINAL else "manual/" + str(sequence))
+        if request != "":
+            dedup[request] = sequence
+            recorded_success.append([request, sequence])
+        if request == "A" and expired:
+            replay_after_expiry = True
+        call += 1
+
+atomic action DuplicateChangedBody:
+    require "A" in dedup
+    seq = dedup["A"]
+    duplicate_changed_body = True
+    if seq not in records and seq not in pending:
+        duplicate_after_eviction = True
+    if DUPLICATE_REWRITES_BODY:
+        body[seq] = 999
+
+atomic action TransferAndRetainTerminal:
+    require len(pending) > 0
+    seq = pending.pop(0)
+    # Operation completion is abstracted; only retention independence is checked.
+    if len(records) == 4:
+        records.pop(0)
+        retention_evicted = True
+    records.append(seq)
+
+atomic action ExpireFrameworkID:
+    require "A" in dedup and not expired
+    dedup.pop("A")
+    expired = True
+
+atomic action FailedPublication:
+    # Framework acceptance + dedup publication are assumed one atomic transaction.
+    pass
+
+always assertion BoundedIndependentPending:
+    return len(pending) <= 4 and len(records) <= 4 and sequence == len(accepted) and sequence <= 6
+
+always assertion DistinctSameNominalIdentity:
+    return len(identities) == len(set(identities)) and all([entry[2] == 100 for entry in accepted])
+
+always assertion FirstSuccessfulBodyWins:
+    return body == snapshots
+
+always assertion RejectionDoesNotConsumeID:
+    return all([[request, seq] in recorded_success for request, seq in dedup.items()])
+
+exists assertion FullPendingRejects:
+    return full_rejected
+
+exists assertion SequenceExhaustionRejects:
+    return exhausted_rejected
+
+exists assertion ExpiredRetryGetsNewSequence:
+    return replay_after_expiry and len([entry for entry in accepted if entry[0] == "A"]) == 2
+
+exists assertion DedupSurvivesStartEviction:
+    return retention_evicted and duplicate_after_eviction
+
+exists assertion ChangedBodyDuplicateIgnored:
+    return duplicate_changed_body and body == snapshots
+
+exists assertion EmptyIDsAreIndependent:
+    return len([entry for entry in accepted if entry[0] == ""]) == 2

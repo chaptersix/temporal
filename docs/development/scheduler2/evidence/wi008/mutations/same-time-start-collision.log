@@ -1,0 +1,11 @@
+=== RUN   TestManualSameTimeBypassesPauseBudgetCursor
+=== PAUSE TestManualSameTimeBypassesPauseBudgetCursor
+=== CONT  TestManualSameTimeBypassesPauseBudgetCursor
+    manual_test.go:159: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/manual_test.go:159
+        	Error:      	"[incarnation/manual/1704153600000000000/action/start]" should have 2 item(s), but has 1
+        	Test:       	TestManualSameTimeBypassesPauseBudgetCursor
+--- FAIL: TestManualSameTimeBypassesPauseBudgetCursor (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.671s
+FAIL

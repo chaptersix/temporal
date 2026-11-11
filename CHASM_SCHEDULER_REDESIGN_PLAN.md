@@ -6,8 +6,8 @@
 | --- | --- |
 | Status | Authorized local execution through M4 |
 | Updated | 2026-11-11 |
-| Current milestone | M2 partial: WI-007 accepted; WI-008 manual trigger investigation |
-| Implementation status | WI-000 through WI-007 accepted; WI-008 investigating |
+| Current milestone | M2 partial: WI-007 accepted; WI-008 manual trigger verification |
+| Implementation status | WI-000 through WI-007 accepted; WI-008 implemented, verification pending |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing through all milestones M2–M4; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
 | Execution environment | Local development, model checking, simulation, and functional testing only |
@@ -499,6 +499,11 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D41 | Effect outcomes | decided for WI-007 | Success Accepted; NotFound Absent; expiry Ambiguous. No outcome releases blocker or changes start accounting/carryover. | E42–E46 |
 | D42 | Effect publication/isolation | decided for WI-007 | Root metadata plus DATA requests; atomic binding/task; metadata-only validation; terminate supersedes future cancel, completion clears target. | E42–E46 |
 
+| D43 | Manual command identity/dedup | decided for WI-008 | Cap4 pending; monotonic per-incarnation sequence independent of timestamp/cursor/start retention; CHASM bounded request-ID dedup atomic with acceptance. | Implementation97e9a7eca; verification pending |
+| D44 | Manual transfer/capacity | decided for WI-008 | At most1 transfer; full queue waits; free/ALLOW_ALL admission needs operation slot; blocked tracked policy can queue/dispose without slot. Resolve unspecified policy at transfer. | WI-008 |
+| D45 | Manual eligibility | decided for WI-008 | Bypass pause, budget debit, catchup and automatic cursor; supplied ScheduledTime is workflow identity, including future; stable sequence start ID; ALLOW_DUPLICATE reuse. | WI-008 |
+| D46 | Manual snapshots/wakes | decided for WI-008 | Metadata-only acceptance/disposal; current template at transfer/admission; token/deadline task, no spin at capacity; immutable60s admission horizon. Mixed-ingress fairness remains WI-009. | Fixf525eacab; verification pending |
+
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 
 ## 9. Evidence ledger
@@ -783,3 +788,10 @@ WI-007 accepted at688eba86d after physical-task boundary and permit sensitivity
 checks. E42–E46 now final; [review](docs/development/scheduler2/evidence/wi007/review.md)
 records limitations. [WI-008](docs/development/scheduler2/work-items/WI-008.md) captures
 source-backed manual trigger investigation. No human hold or production change.
+
+
+WI-008 implementation97e9a7eca and loading/retention fixf525eacab pass existing
+scheduler2/registry tests. Existing History request-ID engine tests pass both
+framework storage layouts, count/age retention and empty IDs. Independent manual
+models/oracles/replays and final race/mutations remain acceptance gates. Work stays
+local and no milestone completion has been inferred from this checkpoint.

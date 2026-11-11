@@ -1,0 +1,28 @@
+=== RUN   TestManualTimestampDefaultsAndInvalidInputs
+=== PAUSE TestManualTimestampDefaultsAndInvalidInputs
+=== CONT  TestManualTimestampDefaultsAndInvalidInputs
+=== RUN   TestManualTimestampDefaultsAndInvalidInputs/default
+=== PAUSE TestManualTimestampDefaultsAndInvalidInputs/default
+=== RUN   TestManualTimestampDefaultsAndInvalidInputs/past
+=== PAUSE TestManualTimestampDefaultsAndInvalidInputs/past
+=== RUN   TestManualTimestampDefaultsAndInvalidInputs/invalid_nanos
+=== PAUSE TestManualTimestampDefaultsAndInvalidInputs/invalid_nanos
+=== RUN   TestManualTimestampDefaultsAndInvalidInputs/outside_nanosecond_range
+=== PAUSE TestManualTimestampDefaultsAndInvalidInputs/outside_nanosecond_range
+=== CONT  TestManualTimestampDefaultsAndInvalidInputs/default
+=== CONT  TestManualTimestampDefaultsAndInvalidInputs/invalid_nanos
+=== CONT  TestManualTimestampDefaultsAndInvalidInputs/outside_nanosecond_range
+=== CONT  TestManualTimestampDefaultsAndInvalidInputs/past
+=== NAME  TestManualTimestampDefaultsAndInvalidInputs/outside_nanosecond_range
+    manual_test.go:285: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/manual_test.go:285
+        	Error:      	An error is expected but got nil.
+        	Test:       	TestManualTimestampDefaultsAndInvalidInputs/outside_nanosecond_range
+--- FAIL: TestManualTimestampDefaultsAndInvalidInputs (0.00s)
+    --- PASS: TestManualTimestampDefaultsAndInvalidInputs/invalid_nanos (0.01s)
+    --- FAIL: TestManualTimestampDefaultsAndInvalidInputs/outside_nanosecond_range (0.01s)
+    --- PASS: TestManualTimestampDefaultsAndInvalidInputs/past (0.01s)
+    --- PASS: TestManualTimestampDefaultsAndInvalidInputs/default (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.690s
+FAIL
