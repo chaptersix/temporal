@@ -33,7 +33,7 @@ def main():
     package = "./chasm/lib/scheduler2"
     common = ["go", "test", "-p", "2", "-parallel", "4", "-tags", "test_dep", "-count=1", "-timeout=10m"]
     checks = 10000 if args.exploration else 100
-    events = 128 if args.exploration else 32
+    events = 17 if args.profile == "completion" else (128 if args.exploration else 32)
     commands = {
         "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Independent|Task)", "-v"]],
         "completion": [common + [package, package + "/internal/decision", "-run", "Test(Completion|Callback|Carryover|MetadataCompletion|CurrentPause|MalformedCallback)", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],

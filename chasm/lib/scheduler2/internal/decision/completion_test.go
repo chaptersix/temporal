@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	enumspb "go.temporal.io/api/enums/v1"
+	"go.temporal.io/server/common/testing/await"
 	"pgregory.net/rapid"
 )
 
@@ -222,7 +223,7 @@ func TestCallbackConcurrentBufferOwnership(t *testing.T) {
 		}()
 	}
 	for range 8 {
-		require.NoError(t, <-outcomes)
+		require.NoError(t, await.Rcv(t, outcomes))
 	}
 	require.Equal(t, before, input)
 	require.Equal(t, []byte("immutable"), event.Result)
