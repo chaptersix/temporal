@@ -73,15 +73,8 @@ func (s *Scheduler) state(ctx chasm.Context) decision.State {
 func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error {
 	event.Now = ctx.Now(s).UnixNano()
 	before := s.state(ctx)
-	if event.Kind == decision.Drain && event.Incarnation == s.Incarnation && decision.NeedsDrain(before) {
-		if !s.HasGenerator {
-			return serviceerror.NewFailedPrecondition("buffered admission requires a configured template")
-		}
-		g := s.Generator.Get(ctx)
-		event.CatchupWindow = g.CatchupWindow
-		if decision.DrainIndex(before, event.Now, event.CatchupWindow) >= 0 {
-			event.Request = g.Definition.Get(ctx).Request
-		}
+	if err := s.prepareDrain(ctx, before, &event); err != nil {
+		return err
 	}
 	if err := s.prepareCompletion(before, &event); err != nil {
 		return err

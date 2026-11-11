@@ -38,3 +38,18 @@ func (*DrainHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm
 	}
 	return s.Apply(ctx, decision.Event{Kind: decision.Drain, Incarnation: s.Incarnation})
 }
+
+func (s *Scheduler) prepareDrain(ctx chasm.Context, state decision.State, event *decision.Event) error {
+	if event.Kind != decision.Drain || event.Incarnation != s.Incarnation || !decision.NeedsDrain(state) {
+		return nil
+	}
+	if !s.HasGenerator {
+		return serviceerror.NewFailedPrecondition("buffered admission requires a configured template")
+	}
+	g := s.Generator.Get(ctx)
+	event.CatchupWindow = g.CatchupWindow
+	if decision.DrainIndex(state, event.Now, event.CatchupWindow) >= 0 {
+		event.Request = g.Definition.Get(ctx).Request
+	}
+	return nil
+}
