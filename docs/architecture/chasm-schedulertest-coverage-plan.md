@@ -153,6 +153,8 @@ admission fencing remain separate integration coverage. No new in-memory helper
 is presented as persistence or crash evidence. The source-close fault wrapper
 only tests transaction outcome/response ordering in the component engine.
 
-A race-enabled test build was attempted but blocked by the host SDK/linker:
-`Security.tbd: unknown architecture arm64e.x1`. This is not a successful race run.
-Normal tests use `CGO_ENABLED=0`; rerun the race check on a working C toolchain.
+The package tests above, `make property-test` at 5,000 cases, and the four gated
+counterexamples also run under the race detector with no data race reported.
+On a macOS host whose default SDK is newer than its linker, the race build fails
+with `unknown architecture arm64e.x1`; set `SDKROOT` to the SDK matching the
+installed Command Line Tools.
