@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "scope": "single automatic occurrence, SKIP, local only",
+  "clock": "execution Unix nanoseconds",
+  "per_schedule": {
+    "enumeration_batch": 1,
+    "admission_batch": 1,
+    "scan_batch": 1,
+    "pending_actions": 1,
+    "live_operations": 1,
+    "backfill_requests": 0,
+    "terminal_records": 1,
+    "retry_horizon_seconds": 60,
+    "retry_backoff_seconds": 1
+  },
+  "executor_concurrency_per_library": 1,
+  "routine": {"scenarios": 100, "events": 32, "seed": 1},
+  "exploration": {"scenarios": 10000, "events": 128, "seed_policy": "explicit --seed recorded in manifest"},
+  "recovery": "one authenticated completion; an explicit finite suffix, not a liveness proof",
+  "model": {"action_bounds": [100, 200], "concurrent_actions": 1, "timeout_seconds_per_case": 300},
+  "tools": {"go": "go1.27.3", "rapid": "v1.2.0", "fizzbee": "v0.5.4", "lean": "unavailable; M3 gate"},
+  "limits": "unsupported ingress rejected; expiry retains ambiguity; no retention eviction in bounded slice"
+}

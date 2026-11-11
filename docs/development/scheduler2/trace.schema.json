@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scheduler2 M1 explicit replay trace v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "clock_domain",
+    "definition_revision",
+    "incarnation",
+    "initial_time_ns",
+    "remaining",
+    "request",
+    "events"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "clock_domain": {
+      "const": "execution_nanoseconds"
+    },
+    "definition_revision": {
+      "const": 1
+    },
+    "incarnation": {
+      "const": "incarnation"
+    },
+    "initial_time_ns": {
+      "const": 1000000000
+    },
+    "remaining": {
+      "const": 1
+    },
+    "request": {
+      "type": "object",
+      "description": "Synthetic StartWorkflowExecutionRequest using generated Go JSON tags; frozen deterministically at admission."
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "advance_time",
+              "occurrence_due",
+              "update_definition",
+              "deliver_start",
+              "external_accept",
+              "rpc_result",
+              "complete",
+              "commit_fail",
+              "crash",
+              "restart"
+            ]
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "time_ns": {
+            "type": "integer",
+            "minimum": 1000000000,
+            "maximum": 2000000000
+          },
+          "chain": {
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "lost_ack",
+              "success"
+            ]
+          },
+          "result_present": {
+            "const": false
+          }
+        }
+      }
+    }
+  }
+}

@@ -85,81 +85,99 @@ func Step(state State, event Event) (State, error) {
 	}
 	switch event.Kind {
 	case Due:
-		if event.Nominal <= state.Root.Cursor || event.Nominal > event.Now {
-			return next, nil
-		}
-		if state.Operation != nil {
-			return next, serviceerror.NewFailedPrecondition("single occurrence capacity exhausted")
-		}
-		if event.Now > math.MaxInt64-RetryHorizon {
-			return next, serviceerror.NewInvalidArgument("admission time exceeds supported range")
-		}
-		next.Root.Cursor = event.Nominal
-		if state.Root.Paused || (state.Root.Limited && state.Root.Remaining <= 0) || event.Now > event.CatchupDeadline {
-			return next, nil
-		}
-		if len(event.Request) == 0 || state.Root.Incarnation == "" {
-			return clone(state), serviceerror.NewInvalidArgument("admission requires incarnation and request")
-		}
-		occurrenceID := fmt.Sprintf("automatic/%d", event.Nominal)
-		actionID := state.Root.Incarnation + "/" + occurrenceID + "/action"
-		next.Operation = &Operation{
-			OccurrenceID: occurrenceID, ActionID: actionID, ID: actionID + "/start",
-			Nominal: event.Nominal, Deadline: event.Now + RetryHorizon,
-			RetryAt: event.Now, Phase: Pending, Request: bytes.Clone(event.Request),
-		}
-		if next.Root.Limited {
-			next.Root.Remaining--
-		}
+		return admit(next, event)
 	case Update:
-		if event.Revision <= state.Root.Revision {
-			return next, nil
-		}
-		if event.Remaining < 0 {
-			return next, serviceerror.NewInvalidArgument("remaining actions must be nonnegative")
-		}
-		next.Root.Revision = event.Revision
-		next.Root.Paused = event.Paused
-		next.Root.Limited = event.Limited
-		next.Root.Remaining = event.Remaining
+		return update(next, event)
 	case Acknowledged, Complete, RetryableFailure, Expire:
-		op := next.Operation
-		if op == nil || event.OperationID != op.ID {
-			return next, nil
-		}
-		if event.ChainID != "" && op.ChainID != "" && event.ChainID != op.ChainID {
-			return next, serviceerror.NewFailedPrecondition("conflicting workflow chain")
-		}
-		switch event.Kind {
-		case Acknowledged, Complete:
-			if event.ChainID == "" {
-				return next, serviceerror.NewInvalidArgument("workflow chain is required")
-			}
-			if op.ChainID == "" {
-				op.ChainID = event.ChainID
-				next.Root.Started++
-			}
-			if event.Kind == Complete {
-				op.Phase = Completed
-			} else if op.Phase != Completed {
-				op.Phase = Started
-			}
-		case RetryableFailure:
-			if op.Phase == Pending {
-				if event.Now >= op.Deadline {
-					op.Phase = Ambiguous
-				} else {
-					// Clamp before addition to avoid overflowing a timestamp near its limit.
-					op.RetryAt = min(event.Now, op.Deadline-RetryBackoff) + RetryBackoff
-				}
-			}
-		case Expire:
-			if op.Phase == Pending && event.Now >= op.Deadline {
-				op.Phase = Ambiguous
-			}
-		}
+		return applyResult(next, event)
 	default:
 		return next, serviceerror.NewInvalidArgument("unknown scheduler event")
+	}
+}
+
+func admit(next State, event Event) (State, error) {
+	if event.Nominal <= next.Root.Cursor || event.Nominal > event.Now {
+		return next, nil
+	}
+	if next.Operation != nil {
+		return next, serviceerror.NewFailedPrecondition("single occurrence capacity exhausted")
+	}
+	if event.Now > math.MaxInt64-RetryHorizon {
+		return next, serviceerror.NewInvalidArgument("admission time exceeds supported range")
+	}
+	previousCursor := next.Root.Cursor
+	next.Root.Cursor = event.Nominal
+	if next.Root.Paused || (next.Root.Limited && next.Root.Remaining <= 0) || event.Now > event.CatchupDeadline {
+		return next, nil
+	}
+	if len(event.Request) == 0 || next.Root.Incarnation == "" {
+		next.Root.Cursor = previousCursor
+		return next, serviceerror.NewInvalidArgument("admission requires incarnation and request")
+	}
+	occurrenceID := fmt.Sprintf("automatic/%d", event.Nominal)
+	actionID := next.Root.Incarnation + "/" + occurrenceID + "/action"
+	next.Operation = &Operation{
+		OccurrenceID: occurrenceID, ActionID: actionID, ID: actionID + "/start",
+		Nominal: event.Nominal, Deadline: event.Now + RetryHorizon,
+		RetryAt: event.Now, Phase: Pending, Request: bytes.Clone(event.Request),
+	}
+	if next.Root.Limited {
+		next.Root.Remaining--
+	}
+	return next, nil
+}
+
+func update(next State, event Event) (State, error) {
+	if event.Revision <= next.Root.Revision {
+		return next, nil
+	}
+	if event.Remaining < 0 {
+		return next, serviceerror.NewInvalidArgument("remaining actions must be nonnegative")
+	}
+	next.Root.Revision = event.Revision
+	next.Root.Paused = event.Paused
+	next.Root.Limited = event.Limited
+	next.Root.Remaining = event.Remaining
+	return next, nil
+}
+
+func applyResult(next State, event Event) (State, error) {
+	op := next.Operation
+	if op == nil || event.OperationID != op.ID {
+		return next, nil
+	}
+	if event.ChainID != "" && op.ChainID != "" && event.ChainID != op.ChainID {
+		return next, serviceerror.NewFailedPrecondition("conflicting workflow chain")
+	}
+	switch event.Kind {
+	case Acknowledged, Complete:
+		if event.ChainID == "" {
+			return next, serviceerror.NewInvalidArgument("workflow chain is required")
+		}
+		if op.ChainID == "" {
+			op.ChainID = event.ChainID
+			next.Root.Started++
+		}
+		if event.Kind == Complete {
+			op.Phase = Completed
+		} else if op.Phase != Completed {
+			op.Phase = Started
+		}
+	case RetryableFailure:
+		if op.Phase == Pending {
+			if event.Now >= op.Deadline {
+				op.Phase = Ambiguous
+			} else {
+				// Clamp before addition to avoid overflowing a timestamp near its limit.
+				op.RetryAt = min(event.Now, op.Deadline-RetryBackoff) + RetryBackoff
+			}
+		}
+	case Expire:
+		if op.Phase == Pending && event.Now >= op.Deadline {
+			op.Phase = Ambiguous
+		}
+	default:
+		return next, serviceerror.NewInvalidArgument("unknown operation result")
 	}
 	return next, nil
 }

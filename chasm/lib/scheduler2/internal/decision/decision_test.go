@@ -190,6 +190,8 @@ func TestEventSequences(t *testing.T) {
 					}
 				case Update:
 					revision++
+				default:
+					// A duplicate occurrence leaves the reference state unchanged.
 				}
 			}
 			if !bytes.Equal(state.Operation.Request, frozen) || state.Operation.ID != "inc/automatic/10/action/start" {
