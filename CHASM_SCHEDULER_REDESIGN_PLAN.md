@@ -149,7 +149,7 @@ Phases describe coverage areas, not a requirement to finish all modeling before 
 | --- | --- | --- | --- |
 | M0 | Workspace provenance, first-slice contract, early CHASM guarantees | passed | E4–E8 |
 | M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | passed | E9–E16; bounded scope and trusted boundaries below |
-| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-008 E17–E52; remaining backfill/fairness/spec work pending |
+| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-009 E17–E58; remaining lifecycle/update/spec mapping work pending |
 | M3 | Differential API and shared functional coverage with no unexplained differences | pending | — |
 | M4 | Load/state-growth report and explicit migration support boundary | pending | — |
 
@@ -819,3 +819,14 @@ rerun passes its finite conditional-liveness fixture and all six sensitivity che
 This is implementation progress, not WI-009/M2 acceptance: integrated capacity
 properties, rejection atomicity, Go mutations, race/lint and composition review
 remain. M3/M4 scope and local-only authorization remain unchanged.
+
+
+WI-009 accepted: source **bd7b316fd**, E53–E58. One root coordinator now owns
+bounded automatic/backfill scanning and all admissions; accepted ingress uses
+persisted vacancy/resource turns with cap4 commands/operations/queue. Two10000-case
+properties, real Node publication/reload and saved replay, all overlap dispositions,
+fullqueue mixed-capacity recovery, finite conditional-liveness models (including
+concrete cap4 occupancy), ten model/seven Go mutants, race/lint and independent
+review pass. Model fairness and refinement limits remain explicit; this is not
+full M2 completion. [WI-010](docs/development/scheduler2/work-items/WI-010.md) is
+next for lifecycle, activity anchor and update/delete-recreate boundaries.

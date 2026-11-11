@@ -253,3 +253,9 @@ four safety/six witnesses/one conditional liveness and four named mutants. This
 removes the one-slot abstraction for that fixture; independent review retains
 CPU fairness, policy/definition change, two-ready-request and refinement limits.
 Final independent item acceptance review is pending; no full M2–M4 claim.
+
+
+WI-009 accepted at source **bd7b316fd** after independent final review found no
+blocking item gap. E53–E58 retain their finite bounds and trusted framework/CPU
+fairness boundaries. [Review record](wi009/review.md) maps resolved findings and
+remaining milestone obligations. WI-010 is the next proposed item; M2 is partial.
