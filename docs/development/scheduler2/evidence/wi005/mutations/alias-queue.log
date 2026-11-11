@@ -1,0 +1,41 @@
+=== RUN   TestBufferQueueOwnership
+=== PAUSE TestBufferQueueOwnership
+=== CONT  TestBufferQueueOwnership
+=== RUN   TestBufferQueueOwnership/2
+    buffer_test.go:317: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/buffer_test.go:317
+        	Error:      	Not equal: 
+        	            	expected: []decision.Queued{decision.Queued{Nominal:20, Actual:20, WorkflowID:"workflow-20", Policy:3}, decision.Queued{Nominal:21, Actual:21, WorkflowID:"workflow-21", Policy:3}, decision.Queued{Nominal:22, Actual:22, WorkflowID:"workflow-22", Policy:3}}
+        	            	actual  : []decision.Queued{decision.Queued{Nominal:20, Actual:20, WorkflowID:"output-mutated", Policy:3}, decision.Queued{Nominal:21, Actual:21, WorkflowID:"workflow-21", Policy:3}, decision.Queued{Nominal:22, Actual:22, WorkflowID:"workflow-22", Policy:3}}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -4,3 +4,3 @@
+        	            	   Actual: (int64) 20,
+        	            	-  WorkflowID: (string) (len=11) "workflow-20",
+        	            	+  WorkflowID: (string) (len=14) "output-mutated",
+        	            	   Policy: (enums.ScheduleOverlapPolicy) 3
+        	Test:       	TestBufferQueueOwnership/2
+=== RUN   TestBufferQueueOwnership/8
+    buffer_test.go:317: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/buffer_test.go:317
+        	Error:      	Not equal: 
+        	            	expected: []decision.Queued{decision.Queued{Nominal:20, Actual:20, WorkflowID:"workflow-20", Policy:3}, decision.Queued{Nominal:21, Actual:21, WorkflowID:"workflow-21", Policy:3}, decision.Queued{Nominal:22, Actual:22, WorkflowID:"workflow-22", Policy:3}}
+        	            	actual  : []decision.Queued{decision.Queued{Nominal:20, Actual:20, WorkflowID:"workflow-20", Policy:3}, decision.Queued{Nominal:21, Actual:21, WorkflowID:"output-mutated", Policy:3}, decision.Queued{Nominal:22, Actual:22, WorkflowID:"workflow-22", Policy:3}}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -10,3 +10,3 @@
+        	            	   Actual: (int64) 21,
+        	            	-  WorkflowID: (string) (len=11) "workflow-21",
+        	            	+  WorkflowID: (string) (len=14) "output-mutated",
+        	            	   Policy: (enums.ScheduleOverlapPolicy) 3
+        	Test:       	TestBufferQueueOwnership/8
+--- FAIL: TestBufferQueueOwnership (0.00s)
+    --- FAIL: TestBufferQueueOwnership/2 (0.00s)
+    --- FAIL: TestBufferQueueOwnership/8 (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.221s
+FAIL

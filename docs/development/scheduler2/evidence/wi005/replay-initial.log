@@ -1,0 +1,125 @@
+=== RUN   TestBufferSavedReplay
+=== PAUSE TestBufferSavedReplay
+=== RUN   TestBufferAutomaticCapacity
+=== PAUSE TestBufferAutomaticCapacity
+=== RUN   TestBufferCompletionDrainsExhaustedGenerator
+=== PAUSE TestBufferCompletionDrainsExhaustedGenerator
+=== RUN   TestBufferDrainPublicationAndStaleToken
+=== PAUSE TestBufferDrainPublicationAndStaleToken
+=== RUN   TestBufferIneligibleDrainAvoidsPayloads
+=== PAUSE TestBufferIneligibleDrainAvoidsPayloads
+=== CONT  TestBufferSavedReplay
+=== CONT  TestBufferDrainPublicationAndStaleToken
+=== CONT  TestBufferCompletionDrainsExhaustedGenerator
+=== CONT  TestBufferAutomaticCapacity
+=== RUN   TestBufferAutomaticCapacity/one
+=== PAUSE TestBufferAutomaticCapacity/one
+=== RUN   TestBufferAutomaticCapacity/all_below
+=== PAUSE TestBufferAutomaticCapacity/all_below
+=== RUN   TestBufferAutomaticCapacity/all_exact
+=== PAUSE TestBufferAutomaticCapacity/all_exact
+=== RUN   TestBufferAutomaticCapacity/all_overflow
+=== PAUSE TestBufferAutomaticCapacity/all_overflow
+=== CONT  TestBufferIneligibleDrainAvoidsPayloads
+=== RUN   TestBufferIneligibleDrainAvoidsPayloads/paused
+=== PAUSE TestBufferIneligibleDrainAvoidsPayloads/paused
+=== RUN   TestBufferIneligibleDrainAvoidsPayloads/budget
+=== PAUSE TestBufferIneligibleDrainAvoidsPayloads/budget
+=== RUN   TestBufferIneligibleDrainAvoidsPayloads/catchup
+=== PAUSE TestBufferIneligibleDrainAvoidsPayloads/catchup
+=== CONT  TestBufferAutomaticCapacity/one
+--- FAIL: TestBufferSavedReplay (0.01s)
+panic: runtime error: invalid memory address or nil pointer dereference [recovered, repanicked]
+[signal SIGSEGV: segmentation violation code=0x2 addr=0x18 pc=0x101c1559c]
+
+goroutine 21 [running]:
+testing.tRunner.func1.2({0x103b19160, 0x103fd2ca0})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2125 +0x1a0
+testing.tRunner.func1()
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2128 +0x2c8
+panic({0x103b19160?, 0x103fd2ca0?})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859 +0x120
+go.temporal.io/server/chasm/lib/scheduler2.TestBufferSavedReplay(0x26d144c0b208)
+	/private/tmp/sch-redesign-buffer-tests/chasm/lib/scheduler2/buffer_replay_test.go:101 +0xdbc
+testing.tRunner(0x26d144c0b208, 0x103f32c38)
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2260 +0x3b8
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	1.021s
+=== RUN   TestBufferCapacityAndNoAdmissionDebit
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit
+=== RUN   TestBufferPolicySnapshotAndFIFOAfterUpdate
+=== PAUSE TestBufferPolicySnapshotAndFIFOAfterUpdate
+=== RUN   TestBufferRollbackDoesNotUndisposeObservedDueTime
+=== PAUSE TestBufferRollbackDoesNotUndisposeObservedDueTime
+=== RUN   TestBufferOccupiedDrainPreservesQueue
+=== PAUSE TestBufferOccupiedDrainPreservesQueue
+=== RUN   TestBufferProperties
+=== PAUSE TestBufferProperties
+=== RUN   TestBufferExpiredPrefixAndRefillOrdering
+=== PAUSE TestBufferExpiredPrefixAndRefillOrdering
+=== RUN   TestBufferQueueOwnership
+=== PAUSE TestBufferQueueOwnership
+=== CONT  TestBufferCapacityAndNoAdmissionDebit
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/one_first
+=== CONT  TestBufferProperties
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/one_first
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/one_excess
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/one_excess
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/all_below
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/all_below
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/all_exact
+=== CONT  TestBufferRollbackDoesNotUndisposeObservedDueTime
+=== CONT  TestBufferOccupiedDrainPreservesQueue
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/all_exact
+--- PASS: TestBufferRollbackDoesNotUndisposeObservedDueTime (0.00s)
+=== CONT  TestBufferPolicySnapshotAndFIFOAfterUpdate
+=== RUN   TestBufferOccupiedDrainPreservesQueue/phase_1
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/all_overflow
+=== PAUSE TestBufferOccupiedDrainPreservesQueue/phase_1
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/all_overflow
+=== RUN   TestBufferOccupiedDrainPreservesQueue/phase_2
+=== CONT  TestBufferQueueOwnership
+=== PAUSE TestBufferOccupiedDrainPreservesQueue/phase_2
+=== RUN   TestBufferOccupiedDrainPreservesQueue/phase_4
+=== RUN   TestBufferQueueOwnership/2
+=== PAUSE TestBufferOccupiedDrainPreservesQueue/phase_4
+--- PASS: TestBufferPolicySnapshotAndFIFOAfterUpdate (0.00s)
+=== CONT  TestBufferExpiredPrefixAndRefillOrdering
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/one_first
+=== RUN   TestBufferQueueOwnership/8
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/all_overflow
+--- PASS: TestBufferQueueOwnership (0.00s)
+    --- PASS: TestBufferQueueOwnership/2 (0.00s)
+    --- PASS: TestBufferQueueOwnership/8 (0.00s)
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/all_exact
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/one_excess
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/all_below
+=== RUN   TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_false
+=== PAUSE TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_false
+=== CONT  TestBufferOccupiedDrainPreservesQueue/phase_1
+=== RUN   TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_true
+=== PAUSE TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_true
+=== CONT  TestBufferOccupiedDrainPreservesQueue/phase_4
+--- PASS: TestBufferCapacityAndNoAdmissionDebit (0.00s)
+    --- PASS: TestBufferCapacityAndNoAdmissionDebit/one_first (0.00s)
+    --- PASS: TestBufferCapacityAndNoAdmissionDebit/all_overflow (0.00s)
+    --- PASS: TestBufferCapacityAndNoAdmissionDebit/all_exact (0.00s)
+    --- PASS: TestBufferCapacityAndNoAdmissionDebit/one_excess (0.00s)
+    --- PASS: TestBufferCapacityAndNoAdmissionDebit/all_below (0.00s)
+=== CONT  TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_false
+=== CONT  TestBufferOccupiedDrainPreservesQueue/phase_2
+=== CONT  TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_true
+--- PASS: TestBufferOccupiedDrainPreservesQueue (0.00s)
+    --- PASS: TestBufferOccupiedDrainPreservesQueue/phase_1 (0.00s)
+    --- PASS: TestBufferOccupiedDrainPreservesQueue/phase_4 (0.00s)
+    --- PASS: TestBufferOccupiedDrainPreservesQueue/phase_2 (0.00s)
+--- PASS: TestBufferExpiredPrefixAndRefillOrdering (0.00s)
+    --- PASS: TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_false (0.00s)
+    --- PASS: TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_true (0.00s)
+=== NAME  TestBufferProperties
+    buffer_test.go:109: [rapid] OK, passed 10000 tests (42.231125ms)
+--- PASS: TestBufferProperties (0.04s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.455s
+FAIL

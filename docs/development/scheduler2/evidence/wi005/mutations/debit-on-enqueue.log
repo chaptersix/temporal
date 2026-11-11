@@ -1,0 +1,63 @@
+=== RUN   TestBufferCapacityAndNoAdmissionDebit
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit
+=== CONT  TestBufferCapacityAndNoAdmissionDebit
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/one_first
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/one_first
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/one_excess
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/one_excess
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/all_below
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/all_below
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/all_exact
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/all_exact
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/all_overflow
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/all_overflow
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/one_first
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/all_exact
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/all_below
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/all_overflow
+=== NAME  TestBufferCapacityAndNoAdmissionDebit/one_first
+    buffer_test.go:48: 
+=== NAME  TestBufferCapacityAndNoAdmissionDebit/all_overflow
+    buffer_test.go:48: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/buffer_test.go:48
+        	Error:      	Not equal: 
+        	            	expected: 9
+        	            	actual  : 5
+        	Test:       	TestBufferCapacityAndNoAdmissionDebit/all_overflow
+=== NAME  TestBufferCapacityAndNoAdmissionDebit/all_exact
+    buffer_test.go:48: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/buffer_test.go:48
+        	Error:      	Not equal: 
+        	            	expected: 9
+        	            	actual  : 5
+        	Test:       	TestBufferCapacityAndNoAdmissionDebit/all_exact
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/one_excess
+=== NAME  TestBufferCapacityAndNoAdmissionDebit/one_first
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/buffer_test.go:48
+        	Error:      	Not equal: 
+        	            	expected: 9
+        	            	actual  : 8
+        	Test:       	TestBufferCapacityAndNoAdmissionDebit/one_first
+=== NAME  TestBufferCapacityAndNoAdmissionDebit/all_below
+    buffer_test.go:48: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/buffer_test.go:48
+        	Error:      	Not equal: 
+        	            	expected: 9
+        	            	actual  : 6
+        	Test:       	TestBufferCapacityAndNoAdmissionDebit/all_below
+=== NAME  TestBufferCapacityAndNoAdmissionDebit/one_excess
+    buffer_test.go:48: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/buffer_test.go:48
+        	Error:      	Not equal: 
+        	            	expected: 9
+        	            	actual  : 8
+        	Test:       	TestBufferCapacityAndNoAdmissionDebit/one_excess
+--- FAIL: TestBufferCapacityAndNoAdmissionDebit (0.00s)
+    --- FAIL: TestBufferCapacityAndNoAdmissionDebit/all_overflow (0.00s)
+    --- FAIL: TestBufferCapacityAndNoAdmissionDebit/all_exact (0.00s)
+    --- FAIL: TestBufferCapacityAndNoAdmissionDebit/one_first (0.00s)
+    --- FAIL: TestBufferCapacityAndNoAdmissionDebit/all_below (0.00s)
+    --- FAIL: TestBufferCapacityAndNoAdmissionDebit/one_excess (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.211s
+FAIL

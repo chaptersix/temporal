@@ -1,0 +1,11 @@
+=== RUN   TestBufferCompletionDrainsExhaustedGenerator
+=== PAUSE TestBufferCompletionDrainsExhaustedGenerator
+=== CONT  TestBufferCompletionDrainsExhaustedGenerator
+    buffer_test.go:81: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/buffer_test.go:81
+        	Error:      	Should be true
+        	Test:       	TestBufferCompletionDrainsExhaustedGenerator
+--- FAIL: TestBufferCompletionDrainsExhaustedGenerator (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.581s
+FAIL

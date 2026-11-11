@@ -1,0 +1,20 @@
+=== RUN   TestBufferCompletionDrainsExhaustedGenerator
+=== PAUSE TestBufferCompletionDrainsExhaustedGenerator
+=== CONT  TestBufferCompletionDrainsExhaustedGenerator
+    buffer_test.go:91: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/common/testing/protorequire/require.go:56
+        	            				/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/buffer_test.go:91
+        	Error:      	Proto mismatch (-want +got):
+        	            	  (*workflowservice.StartWorkflowExecutionRequest)(Inverse(protocmp.Transform, protocmp.Message{
+        	            	  	... // 4 identical entries
+        	            	  	"request_id":    string("incarnation/automatic/1704067201000000000/action/start"),
+        	            	  	"task_queue":    protocmp.Message{"@type": s"temporal.api.taskqueue.v1.TaskQueue", "name": string("queue")},
+        	            	- 	"workflow_id":   string("workflow-2024-01-01T00:00:01Z"),
+        	            	+ 	"workflow_id":   string("updated-prefix"),
+        	            	  	"workflow_type": protocmp.Message{"@type": s"temporal.api.common.v1.WorkflowType", "name": string("type")},
+        	            	  }))
+        	Test:       	TestBufferCompletionDrainsExhaustedGenerator
+--- FAIL: TestBufferCompletionDrainsExhaustedGenerator (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.576s
+FAIL

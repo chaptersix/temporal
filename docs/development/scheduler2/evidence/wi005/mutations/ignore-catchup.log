@@ -1,0 +1,13 @@
+=== RUN   TestBufferExpiredPrefixAndRefillOrdering
+=== PAUSE TestBufferExpiredPrefixAndRefillOrdering
+=== CONT  TestBufferExpiredPrefixAndRefillOrdering
+    buffer_test.go:262: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/buffer_test.go:262
+        	Error:      	Not equal: 
+        	            	expected: 22
+        	            	actual  : 20
+        	Test:       	TestBufferExpiredPrefixAndRefillOrdering
+--- FAIL: TestBufferExpiredPrefixAndRefillOrdering (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.222s
+FAIL
