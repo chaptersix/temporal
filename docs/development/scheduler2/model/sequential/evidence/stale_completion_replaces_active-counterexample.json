@@ -1,0 +1,415 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": null,
+      "state": {
+        "active": 0,
+        "carryover": 0,
+        "completed": [],
+        "cursor": 0,
+        "deadline": 2,
+        "dispositions": [],
+        "failed_publication": false,
+        "failure_before_first": false,
+        "frozen": {},
+        "history": [],
+        "phases": {},
+        "remaining": 6,
+        "retained": [],
+        "retired_tokens": [],
+        "skipped_ambiguous": false,
+        "stale_after_eviction": false,
+        "started": [],
+        "timer": true,
+        "token": 1,
+        "yielded": false
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "active": 1,
+        "carryover": 0,
+        "completed": [],
+        "cursor": 1,
+        "deadline": 3,
+        "dispositions": [
+          "admit"
+        ],
+        "failed_publication": false,
+        "failure_before_first": false,
+        "frozen": {
+          "1": 0
+        },
+        "history": [
+          1
+        ],
+        "phases": {
+          "1": "pending"
+        },
+        "remaining": 5,
+        "retained": [
+          1
+        ],
+        "retired_tokens": [
+          1
+        ],
+        "skipped_ambiguous": false,
+        "stale_after_eviction": false,
+        "started": [],
+        "timer": true,
+        "token": 2,
+        "yielded": false
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "RunGenerator": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "RunGenerator",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "active": 1,
+        "carryover": 1,
+        "completed": [
+          1
+        ],
+        "cursor": 1,
+        "deadline": 3,
+        "dispositions": [
+          "admit"
+        ],
+        "failed_publication": false,
+        "failure_before_first": false,
+        "frozen": {
+          "1": 0
+        },
+        "history": [
+          1
+        ],
+        "phases": {
+          "1": "completed"
+        },
+        "remaining": 5,
+        "retained": [
+          1
+        ],
+        "retired_tokens": [
+          1
+        ],
+        "skipped_ambiguous": false,
+        "stale_after_eviction": false,
+        "started": [
+          1
+        ],
+        "timer": true,
+        "token": 2,
+        "yielded": false
+      },
+      "stats": {
+        "totalActions": 2,
+        "counts": {
+          "FirstCompletion": 1,
+          "RunGenerator": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "FirstCompletion",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "active": 2,
+        "carryover": 1,
+        "completed": [
+          1
+        ],
+        "cursor": 2,
+        "deadline": 4,
+        "dispositions": [
+          "admit",
+          "admit"
+        ],
+        "failed_publication": false,
+        "failure_before_first": false,
+        "frozen": {
+          "1": 0,
+          "2": 1
+        },
+        "history": [
+          1,
+          2
+        ],
+        "phases": {
+          "1": "completed",
+          "2": "pending"
+        },
+        "remaining": 4,
+        "retained": [
+          1,
+          2
+        ],
+        "retired_tokens": [
+          1,
+          2
+        ],
+        "skipped_ambiguous": false,
+        "stale_after_eviction": false,
+        "started": [
+          1
+        ],
+        "timer": true,
+        "token": 3,
+        "yielded": false
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "FirstCompletion": 1,
+          "RunGenerator": 2
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "RunGenerator",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          2
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "active": 1,
+        "carryover": 1,
+        "completed": [
+          1
+        ],
+        "cursor": 2,
+        "deadline": 4,
+        "dispositions": [
+          "admit",
+          "admit"
+        ],
+        "failed_publication": false,
+        "failure_before_first": false,
+        "frozen": {
+          "1": 0,
+          "2": 1
+        },
+        "history": [
+          1,
+          2
+        ],
+        "phases": {
+          "1": "completed",
+          "2": "pending"
+        },
+        "remaining": 4,
+        "retained": [
+          1,
+          2
+        ],
+        "retired_tokens": [
+          1,
+          2
+        ],
+        "skipped_ambiguous": false,
+        "stale_after_eviction": false,
+        "started": [
+          1
+        ],
+        "timer": true,
+        "token": 3,
+        "yielded": false
+      },
+      "stats": {
+        "totalActions": 4,
+        "counts": {
+          "FirstCompletion": 1,
+          "RunGenerator": 2,
+          "StaleCompletion": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "StaleCompletion",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]
