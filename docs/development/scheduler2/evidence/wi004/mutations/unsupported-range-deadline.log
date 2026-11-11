@@ -1,0 +1,13 @@
+=== RUN   TestGenerationRangeEndResumesWithoutUnsupportedClock
+=== PAUSE TestGenerationRangeEndResumesWithoutUnsupportedClock
+=== CONT  TestGenerationRangeEndResumesWithoutUnsupportedClock
+    generation_test.go:221: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/generation_test.go:221
+        	Error:      	Not equal: 
+        	            	expected: 4133980799999999999
+        	            	actual  : 4133980800000999999
+        	Test:       	TestGenerationRangeEndResumesWithoutUnsupportedClock
+--- FAIL: TestGenerationRangeEndResumesWithoutUnsupportedClock (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.710s
+FAIL

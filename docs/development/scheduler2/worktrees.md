@@ -86,3 +86,20 @@ history_contract read-only review. New model worktree
 /private/tmp/sch-redesign-sequential-tests owns sequential/generator test additions.
 Both start from committed WI-004 contract prerequisite, with explicit API patch
 transfer before test implementation; source/creation identities verified below.
+
+WI-004 final disposition (retained):
+
+- Both new worktrees were created at contract prerequisite
+  b57e10e188403637de441e05b1029dcaf662f824; inventory captured in
+  evidence/wi004/worktrees.txt. Parent base c19c343fe is WI-003 acceptance.
+- Sequential tests: API 7531dc5b9 and fixes a263dbcfe/cc65b328a explicitly transferred;
+  contribution 14186acb2 integrated as 715a43e85. Parent fixed a test context binding
+  in 9064bed65. Worktree clean at 14186acb2, retained.
+- Sequential model: contribution ec1102709 integrated as 352b4f2e9. Model bytes and
+  five case hashes verified against accepted results. Worktree clean, retained.
+- Reviewer history_contract: independent source/test/model review at final source;
+  no blocker after both behavior fixes. No concurrent shared-source writes.
+- Original checkout remains outside task writes. Latest status and tracked-patch
+  hash recorded; initial untracked entries retained. Other actors' changes remain.
+- Final profiles started on clean 9064bed65; documentation-only acceptance follows.
+  No push, production routing, rollout, migration or worktree/branch deletion.

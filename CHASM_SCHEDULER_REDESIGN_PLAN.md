@@ -6,8 +6,8 @@
 | --- | --- |
 | Status | Authorized local execution through M1 |
 | Updated | 2026-11-10 |
-| Current milestone | M2 active: WI-004 sequential generation integration |
-| Implementation status | WI-000 through WI-003 accepted; WI-004 implementing |
+| Current milestone | M2 partial: WI-004 accepted; WI-005 buffering proposed |
+| Implementation status | WI-000 through WI-004 accepted |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing through local M2 work items; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
 | Execution environment | Local development, model checking, simulation, and functional testing only |
@@ -149,7 +149,7 @@ Phases describe coverage areas, not a requirement to finish all modeling before 
 | --- | --- | --- | --- |
 | M0 | Workspace provenance, first-slice contract, early CHASM guarantees | passed | E4–E8 |
 | M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | passed | E9–E16; bounded scope and trusted boundaries below |
-| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002 enumeration E17–E21 and WI-003 completion E22–E26; remaining policy/integration pending |
+| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-004 E17–E31; remaining buffer/overlap/backfill work pending |
 | M3 | Differential API and shared functional coverage with no unexplained differences | pending | — |
 | M4 | Load/state-growth report and explicit migration support boundary | pending | — |
 
@@ -504,6 +504,7 @@ Evidence kinds: `source-inspection`, `abstract-theorem`, `bounded-model-check`, 
 | E14–E16 | generation/lint/loading/review | Code checks, payload separation and acceptance | [review](docs/development/scheduler2/evidence/m1/review.md) | 0 lint issues; three payload values avoided; M1 accepted |
 | E17–E21 | contract/property/replay/race/lint/specification/mutation | Standalone bounded occurrence enumeration | [WI-002 ledger](docs/development/scheduler2/evidence/README.md) | Accepted at 637fe096d; 10000 Rapid cases, three mutants, compiled Lean draft; M2 partial |
 | E22–E26 | contract/model/property/CHASM/race/lint/mutation | First-completion carryover and current pause policy | [WI-003 ledger](docs/development/scheduler2/evidence/README.md) | Accepted at aee04d35b; model173584 nodes at100/200,10000 Rapid cases, six total mutants; M2 partial |
+| E27–E31 | contract/model/property/CHASM/race/lint/mutation | Sequential generation, strict SKIP and cap4 retention | [WI-004 ledger](docs/development/scheduler2/evidence/README.md) | Accepted at 9064bed65;3076 model states at100/200,10000 Rapid cases, seven total mutants; M2 partial |
 
 For each future evidence record include:
 
@@ -736,3 +737,9 @@ WI-003 accepted at aee04d35b22d8085e133a09f58df426249f5a89c (E22–E26).
 Completion/carryover and current pause policy are implemented locally with separate
 payload storage and immutable admitted requests. Next: WI-004 sequential occurrence
 integration, then remaining overlap/backfill/retention work. No human approval hold.
+
+WI-004 accepted at 9064bed65b0cf67659925986df04ea7ad27c8dcb (E27–E31).
+Resumable enumeration now drives registered local CHASM pure tasks and sequential
+SKIP admissions. Four retained operation records, current carryover, independent
+generation tokens and immutable request snapshots survive reload/failure traces.
+WI-005 queue admission/drain is proposed next; full overlaps/backfill remain open.

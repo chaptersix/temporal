@@ -75,7 +75,7 @@ Go source unchanged. WI-002 acceptance includes that independently reviewed fix.
 | ID | Kind / claim | Artifact and result |
 |---|---|---|
 | E17 | source-inspection / contract | [D22–D26](../enumeration-contract.md), [review](wi002/review.md); SC1–SC7 bounded semantics, DIV2–DIV4 explicit; autonomous acceptance, no human pause. |
-| E18 | property-test / unit-test / replay | [manifest](wi002/enumeration/manifest.json), [log](wi002/enumeration/0.log); independent second-scan oracle, 10000 Rapid cases seed1; periods1–6s, phases0..period-1, jitter0–6000ms, probes1–8, outputs1–4, split windows across30s. SP1–SP4/SP6 examples/properties; SP5 update examples and selected SP7 pinned US gap/fold cases. Versioned complete JSON replay, malformed-input/state and ownership checks pass. |
+| E18 | property-test / unit-test / replay | [manifest](wi002/enumeration/manifest.json), [log](wi002/enumeration/0.log); independent second-scan oracle, 10000 Rapid cases seed 1; periods1–6s, phases0..period-1, jitter0–6000ms, probes1–8, outputs1–4, split windows across30s. SP1–SP4/SP6 examples/properties; SP5 update examples and selected SP7 pinned US gap/fold cases. Versioned complete JSON replay, malformed-input/state and ownership checks pass. |
 | E19 | unit-test / race / lint | [checks](wi002/checks.json), [combined](wi002/combined.log), [race](wi002/race.log), [lint](wi002/lint.log); all scheduler2 + existing scheduler tests, race and normal/minimal lint pass. No schema regeneration required. |
 | E20 | executable specification (not theorem) | [Lean source](../lean/Enumeration.lean), [examples](../lean/Examples.lean), tool/hash/commands in checks.json; Lean4.24.0 compilation and discriminating examples pass; SP1–SP6 proposition definitions, no completed proofs or correspondence claim. |
 | E21 | mutation-test / independent review | [mutations](wi002/mutations/manifest.json), [review](wi002/review.md), [restored baseline](wi002/restored.log); all three source mutants detected; source restored and focused suite passes. |
@@ -100,8 +100,8 @@ resolve bounded C6/C7/C4 completion behavior; this does not accept full M2.
 | ID | Kind / claim | Artifact and result |
 |---|---|---|
 | E22 | source-inspection / contract | [WI-003](../work-items/WI-003.md), [review](wi003/review.md); first completion wins, explicit absence/null/failure, current pause policy, failure/status validation; DIV5 follows current CHASM no-result clearing. |
-| E23 | bounded-model-check / reachability | [model](../model/completion/completion.fizz), [results](../model/completion/evidence/results.json), [mapping](../model/completion/README.md); 173584 nodes /162732 unique states, empty frontier at100/200; five safety assertions/seven witnesses and three mutants pass expected checks. No liveness claim. |
-| E24 | property-test / CHASM-test / replay | [manifest](wi003/completion/manifest.json), [log](wi003/completion/0.log); 10000 Rapid cases seed1, first callback plus1–16 duplicates, bytes0–32; presence/status/identity/policy matrix, actual serialize/reload/failed commit, exact resource boundaries/recovery, aliases and poisoned selective-loading checks pass. Complete JSON replay is scheduler2/testdata/completion_v1.json. |
+| E23 | bounded-model-check / reachability | [model](../model/completion/completion.fizz), [results](../model/completion/evidence/results.json), [mapping](../model/completion/README.md); 173584 nodes /162732 unique states, empty frontier at 100/200; five safety assertions/seven witnesses and three mutants pass expected checks. No liveness claim. |
+| E24 | property-test / CHASM-test / replay | [manifest](wi003/completion/manifest.json), [log](wi003/completion/0.log); 10000 Rapid cases seed 1, first callback plus1–16 duplicates, bytes0–32; presence/status/identity/policy matrix, actual serialize/reload/failed commit, exact resource boundaries/recovery, aliases and poisoned selective-loading checks pass. Complete JSON replay is scheduler2/testdata/completion_v1.json. |
 | E25 | generation / race / lint | [checks](wi003/checks.json), [generation](wi003/generation.log), [race manifest](wi003/race/manifest.json), [lint](wi003/lint.log); make proto, all scheduler2 packages plus nil registry, full race and normal/minimal lint pass. |
 | E26 | mutation / review / provenance | [Go mutants](wi003/mutations/manifest.json), [review](wi003/review.md), [registry](../worktrees.md); all three source mutants caught and restored, independent findings resolved. Original checkout untouched by task, worktrees retained, local commits only. |
 
@@ -109,3 +109,22 @@ The model's initialized carryover is an explicit abstraction; the prior M1 model
 covers retry identity/horizon, and composition is not proved. Continued-as-new,
 reset, retention, sequential action admission and full overlap/backfill are future
 work. No second action or production callback route is claimed by WI-003.
+
+## Accepted WI-004 evidence (partial M2)
+
+Source **9064bed65b0cf67659925986df04ea7ad27c8dcb**; clean source for final profiles.
+Prerequisite c19c343fe (WI-003); contract prerequisite b57e10e18. D29–D31 cover
+strict sequential SKIP, cap4 retention and independent generation tokens.
+
+| ID | Kind / claim | Artifact and result |
+|---|---|---|
+| E27 | source-inspection / contract | [WI-004](../work-items/WI-004.md), [review](wi004/review.md); Pending/Started/Ambiguous occupancy, actual-time catchup, completed-only eviction, bounded generator token/deadline. DIV6 prevents lost-ack overlap. |
+| E28 | bounded-model-check / reachability | [source](../model/sequential/sequential.fizz), [results](../model/sequential/evidence/results.json); 3076 states and empty frontier at 100/200, seven safety assertions/six witnesses, three named mutants detected. Six occurrences and cap4; no liveness or automated refinement claim. |
+| E29 | property-test / CHASM-test / replay | [manifest](wi004/sequential/manifest.json), [log](wi004/sequential/0.log); 10000 Rapid scenarios up to 128 commands, budget 1–8; real pure-task dispatch, failed multi-output publication, physical successors, second/third-request carryover, retention, jitter/update/clock/resource boundaries, poisoned skipped-path carryover and input ownership pass. Explicit generation_v1.json replay succeeds twice. |
+| E30 | generation / race / lint / mutation | [checks](wi004/checks.json), [race](wi004/race/manifest.json), [lint](wi004/lint.log), [Go mutations](wi004/mutations/manifest.json); make proto, full scheduler2+registry race and normal/minimal lint pass. Four Go defects detected; restored source passes final profiles. |
+| E31 | review / provenance | [review](wi004/review.md), [registry](../worktrees.md); two behavior findings fixed, independent acceptance review clear. Original checkout untouched by task; worktrees retained and commits local. |
+
+Atomic DB publication and fair physical delivery remain assumptions; CHASM node
+serialization, task validation/reconstruction and rollback publication are tested.
+Other overlaps, queue admission/drain, manual/backfill fairness and general retention
+remain future work. The generation task is not selected by production routing.

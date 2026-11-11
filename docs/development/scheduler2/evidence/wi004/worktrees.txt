@@ -1,0 +1,48 @@
+worktree /Users/alex/repos/temporal
+HEAD 9ab3a9f770da20df7d94bcc0030f28eec7b0b947
+branch refs/heads/main
+
+worktree /private/tmp/sch-redesign-completion-model
+HEAD 7d08e4c594cf61b4a0e1d77286211f2b5feff51f
+branch refs/heads/sch-redesign-completion-model
+
+worktree /private/tmp/sch-redesign-completion-tests
+HEAD b7b156b342d264704224c7b0adfb38a966bcf15c
+branch refs/heads/sch-redesign-completion-tests
+
+worktree /private/tmp/sch-redesign-enumeration-spec
+HEAD 005266ca83675717493b6a42e92367ae41058303
+branch refs/heads/sch-redesign-enumeration-spec
+
+worktree /private/tmp/sch-redesign-enumeration-tests
+HEAD 136bc30dc30ba9797897327a5c977008f5fdd3dd
+branch refs/heads/sch-redesign-enumeration-tests
+
+worktree /private/tmp/sch-redesign-harness
+HEAD f087e85f0b6bd4893e055a9fac7abc56a0f19475
+branch refs/heads/sch-redesign-harness
+
+worktree /private/tmp/sch-redesign-model
+HEAD 3159ec6d145127d24f47af4c9830aba47b95f06c
+branch refs/heads/sch-redesign-model
+
+worktree /private/tmp/sch-redesign-reducer
+HEAD fe9806be4fd550fdc1fdbc694daf593f5a9cc4b1
+branch refs/heads/sch-redesign-reducer
+
+worktree /private/tmp/sch-redesign-sequential-model
+HEAD ec110270943bd2e854fa4b6fde1e777d8d3f7ddf
+branch refs/heads/sch-redesign-sequential-model
+
+worktree /private/tmp/sch-redesign-sequential-tests
+HEAD 14186acb29a2d98f7bd37d9cdadc1f6591f5deb5
+branch refs/heads/sch-redesign-sequential-tests
+
+worktree /private/tmp/temporal-idle-verification-13016
+HEAD 9ab3a9f770da20df7d94bcc0030f28eec7b0b947
+detached
+
+worktree /Users/alex/repos/wt/sch-redesign/temporal
+HEAD 9064bed65b0cf67659925986df04ea7ad27c8dcb
+branch refs/heads/sch-redesign
+

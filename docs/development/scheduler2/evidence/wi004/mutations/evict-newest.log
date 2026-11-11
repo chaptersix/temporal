@@ -1,0 +1,11 @@
+=== RUN   TestSequentialCarryoverRetentionAndLateResults
+=== PAUSE TestSequentialCarryoverRetentionAndLateResults
+=== CONT  TestSequentialCarryoverRetentionAndLateResults
+    sequential_test.go:65: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/sequential_test.go:65
+        	Error:      	chasm.Map[string,*go.temporal.io/server/chasm/lib/scheduler2.Operation]{"incarnation/automatic/1000000000/action/start":chasm.Field[*go.temporal.io/server/chasm/lib/scheduler2.Operation]{Internal:chasm.fieldInternal{ft:0, v:interface {}(nil), node:(*chasm.Node)(0x4544daceaf00), detached:false}}, "incarnation/automatic/2000000000/action/start":chasm.Field[*go.temporal.io/server/chasm/lib/scheduler2.Operation]{Internal:chasm.fieldInternal{ft:0, v:interface {}(nil), node:(*chasm.Node)(0x4544dacea0c0), detached:false}}, "incarnation/automatic/3000000000/action/start":chasm.Field[*go.temporal.io/server/chasm/lib/scheduler2.Operation]{Internal:chasm.fieldInternal{ft:0, v:interface {}(nil), node:(*chasm.Node)(0x4544dacea180), detached:false}}, "incarnation/automatic/6000000000/action/start":chasm.Field[*go.temporal.io/server/chasm/lib/scheduler2.Operation]{Internal:chasm.fieldInternal{ft:0, v:interface {}(nil), node:(*chasm.Node)(0x4544daceaea0), detached:false}}} should not contain "incarnation/automatic/1000000000/action/start"
+        	Test:       	TestSequentialCarryoverRetentionAndLateResults
+--- FAIL: TestSequentialCarryoverRetentionAndLateResults (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.707s
+FAIL

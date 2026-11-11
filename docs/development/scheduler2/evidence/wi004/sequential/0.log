@@ -1,0 +1,85 @@
+=== RUN   TestGenerationSavedReplay
+=== PAUSE TestGenerationSavedReplay
+=== RUN   TestGenerationAtomicBatchAndSecondCarryover
+=== PAUSE TestGenerationAtomicBatchAndSecondCarryover
+=== RUN   TestGenerationDuplicateTokenAndClockRollback
+=== PAUSE TestGenerationDuplicateTokenAndClockRollback
+=== RUN   TestGenerationJitterUpdateSupersedesPending
+=== PAUSE TestGenerationJitterUpdateSupersedesPending
+=== RUN   TestGenerationCatchupUsesActualTime
+=== PAUSE TestGenerationCatchupUsesActualTime
+=== RUN   TestGenerationRangeEndResumesWithoutUnsupportedClock
+=== PAUSE TestGenerationRangeEndResumesWithoutUnsupportedClock
+=== RUN   TestGenerationExcludedBudgetKeepsSuccessor
+=== PAUSE TestGenerationExcludedBudgetKeepsSuccessor
+=== RUN   TestGenerationSkippedAdmissionAvoidsCarryover
+=== PAUSE TestGenerationSkippedAdmissionAvoidsCarryover
+=== RUN   TestGenerationConfigurationOwnsInputs
+=== PAUSE TestGenerationConfigurationOwnsInputs
+=== RUN   TestSequentialCarryoverRetentionAndLateResults
+=== PAUSE TestSequentialCarryoverRetentionAndLateResults
+=== RUN   TestSequentialSkipOccupiesUntilCompletion
+=== PAUSE TestSequentialSkipOccupiesUntilCompletion
+=== RUN   TestSequentialUnfinishedCapacityRejectsAtomically
+=== PAUSE TestSequentialUnfinishedCapacityRejectsAtomically
+=== RUN   TestSequentialFailureCarriesPriorSuccessIntoThirdRequest
+=== PAUSE TestSequentialFailureCarriesPriorSuccessIntoThirdRequest
+=== CONT  TestGenerationSavedReplay
+=== CONT  TestGenerationExcludedBudgetKeepsSuccessor
+=== CONT  TestGenerationRangeEndResumesWithoutUnsupportedClock
+=== CONT  TestSequentialFailureCarriesPriorSuccessIntoThirdRequest
+--- PASS: TestGenerationRangeEndResumesWithoutUnsupportedClock (0.01s)
+=== CONT  TestGenerationCatchupUsesActualTime
+--- PASS: TestSequentialFailureCarriesPriorSuccessIntoThirdRequest (0.02s)
+=== CONT  TestSequentialUnfinishedCapacityRejectsAtomically
+--- PASS: TestGenerationExcludedBudgetKeepsSuccessor (0.02s)
+=== CONT  TestGenerationJitterUpdateSupersedesPending
+--- PASS: TestGenerationCatchupUsesActualTime (0.01s)
+=== CONT  TestSequentialSkipOccupiesUntilCompletion
+=== RUN   TestSequentialSkipOccupiesUntilCompletion/phase_1
+=== PAUSE TestSequentialSkipOccupiesUntilCompletion/phase_1
+=== RUN   TestSequentialSkipOccupiesUntilCompletion/phase_2
+=== PAUSE TestSequentialSkipOccupiesUntilCompletion/phase_2
+=== RUN   TestSequentialSkipOccupiesUntilCompletion/phase_4
+=== PAUSE TestSequentialSkipOccupiesUntilCompletion/phase_4
+=== CONT  TestSequentialCarryoverRetentionAndLateResults
+--- PASS: TestGenerationJitterUpdateSupersedesPending (0.01s)
+=== CONT  TestGenerationDuplicateTokenAndClockRollback
+--- PASS: TestGenerationSavedReplay (0.03s)
+--- PASS: TestGenerationDuplicateTokenAndClockRollback (0.00s)
+=== CONT  TestGenerationAtomicBatchAndSecondCarryover
+=== CONT  TestGenerationConfigurationOwnsInputs
+--- PASS: TestGenerationConfigurationOwnsInputs (0.00s)
+=== CONT  TestGenerationSkippedAdmissionAvoidsCarryover
+=== RUN   TestGenerationSkippedAdmissionAvoidsCarryover/paused
+=== PAUSE TestGenerationSkippedAdmissionAvoidsCarryover/paused
+=== RUN   TestGenerationSkippedAdmissionAvoidsCarryover/budget
+=== PAUSE TestGenerationSkippedAdmissionAvoidsCarryover/budget
+=== RUN   TestGenerationSkippedAdmissionAvoidsCarryover/catchup
+=== PAUSE TestGenerationSkippedAdmissionAvoidsCarryover/catchup
+=== CONT  TestSequentialSkipOccupiesUntilCompletion/phase_1
+=== CONT  TestSequentialSkipOccupiesUntilCompletion/phase_4
+=== CONT  TestSequentialSkipOccupiesUntilCompletion/phase_2
+--- PASS: TestGenerationAtomicBatchAndSecondCarryover (0.01s)
+=== CONT  TestGenerationSkippedAdmissionAvoidsCarryover/paused
+--- PASS: TestSequentialCarryoverRetentionAndLateResults (0.02s)
+=== CONT  TestGenerationSkippedAdmissionAvoidsCarryover/budget
+--- PASS: TestSequentialSkipOccupiesUntilCompletion (0.00s)
+    --- PASS: TestSequentialSkipOccupiesUntilCompletion/phase_1 (0.00s)
+    --- PASS: TestSequentialSkipOccupiesUntilCompletion/phase_4 (0.00s)
+    --- PASS: TestSequentialSkipOccupiesUntilCompletion/phase_2 (0.01s)
+=== CONT  TestGenerationSkippedAdmissionAvoidsCarryover/catchup
+--- PASS: TestGenerationSkippedAdmissionAvoidsCarryover (0.00s)
+    --- PASS: TestGenerationSkippedAdmissionAvoidsCarryover/catchup (0.00s)
+    --- PASS: TestGenerationSkippedAdmissionAvoidsCarryover/paused (0.01s)
+    --- PASS: TestGenerationSkippedAdmissionAvoidsCarryover/budget (0.00s)
+--- PASS: TestSequentialUnfinishedCapacityRejectsAtomically (1.63s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	2.627s
+=== RUN   TestSequentialProperties
+=== PAUSE TestSequentialProperties
+=== CONT  TestSequentialProperties
+    sequential_test.go:14: [rapid] OK, passed 10000 tests (18.937875ms)
+--- PASS: TestSequentialProperties (0.02s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.321s

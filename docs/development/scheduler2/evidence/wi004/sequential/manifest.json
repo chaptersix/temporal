@@ -1,0 +1,162 @@
+{
+  "profile": "sequential",
+  "source_sha": "9064bed65b0cf67659925986df04ea7ad27c8dcb",
+  "status_before": "",
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source_files": {
+    "chasm/lib/scheduler2/completion.go": "1969d6256d6e4c4c2dbc806e6b7ee223683d454f1c7cbfe3979d2e0f0b8398b3",
+    "chasm/lib/scheduler2/completion_replay_test.go": "65698819229bd0f64bcc33d1698512d7f2058c0a6b01d430e1fa8f6aa35d2f16",
+    "chasm/lib/scheduler2/completion_test.go": "cf637ea7019063d96594fa1f064bbfc2b1dc4b90c86d429fdc5a1a97363f52a9",
+    "chasm/lib/scheduler2/component.go": "9d8c1cbcf0098144780b6b32987f3d3cedd45d2ebabf230297e92ea1f33d433a",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go": "9463f8114c245bb0c989ba1901ab22f81a1277e054f324c5e986e193d02f4d37",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "b00fe572f35fc6276be24534f06088b38b8f919bc649d66b0f4e105a11f97603",
+    "chasm/lib/scheduler2/generation_replay_test.go": "ca7e5059c30132a5cc9376c14a27d5e62992251fecf654e8707ebc68878cf2b7",
+    "chasm/lib/scheduler2/generation_test.go": "c04ac08871ba64519c2db3ff39e2707c11010acc982302782fd19439036361ce",
+    "chasm/lib/scheduler2/generator.go": "9c91625ad05016b95c57d1dcc93e9d8d74088211da4147d6f6c3db053844d178",
+    "chasm/lib/scheduler2/internal/decision/completion.go": "3972664e4360524fcf9d1fee682da70440d0f31518c622bf9513c30d7963e2a3",
+    "chasm/lib/scheduler2/internal/decision/completion_test.go": "bdfda5e8e31052fe15e49730de22315f8cf3684fa5c7bdf78d9f0c96f58552ff",
+    "chasm/lib/scheduler2/internal/decision/decision.go": "9cdd53dc31e61e5253b4c3fee37330530c1e21d1de9eb83dc5da5f7d71253bbc",
+    "chasm/lib/scheduler2/internal/decision/decision_test.go": "5ec51d5b81b8b4451a7108dbbfae9afc804c4af178760135aaf629c5d0792943",
+    "chasm/lib/scheduler2/internal/decision/sequential_test.go": "af705f6bc13a7e49fed264fc02e1e6cdb3dffe7de6756c4d2dc2bd06060853e9",
+    "chasm/lib/scheduler2/internal/occurrence/boundaries_test.go": "23647440f47c4c5a9fdae417074369902953486f86fe8cac5ba9752cb683b80a",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence.go": "a2bd64980ffa6e105f380c03ecc36fee9c57e09dd800787b29a7813fb94f942b",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence_test.go": "ed11486cbb44f6a29222bd1dbf769cf72eaa07aa942aa0b273807895f2dcee81",
+    "chasm/lib/scheduler2/internal/occurrence/replay_test.go": "4f8d7a2f0814c77a628d0d9c2c6a7db0d3971455358f939c27b1c7c5d0322db7",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/America_New_York.tzif": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/README.md": "6619efd90c249cdcb7cdf56cc1f739c360ba34a3142841ef5cb0d876fc1b53d2",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/generator-regressions/TestEnumerationProperties-20261110193611-6103.fail": "6d9f2a0ea0ccd738813fe91e1067fd9852e05af6ff7a434607e5ac5717532966",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/pending_jitter_v1.json": "4b092a385daa1d708da4895da8c4faeed1e5981d12191da8751dae675cda84be",
+    "chasm/lib/scheduler2/library.go": "37ff21d69cadf8a7166895dae07cbfdd77d4e68ce3b4d52cc5dc84fcbaee298f",
+    "chasm/lib/scheduler2/persistence_test.go": "6cfe3abf9883a07522a677db334d9b9b9e1570510061c9de9618fc9ae4c2ca4c",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "05e7873170198907e4ff345bd3445a65eb4bf73fc0ced39e72bf5510ec1e6cf6",
+    "chasm/lib/scheduler2/replay_test.go": "b5b7d15ddbf3a739264cbe388e7d74855134f6054aaa6f63e64bce429634d5b3",
+    "chasm/lib/scheduler2/sequential_test.go": "3f473dc4b213e2a096576510fb00a81584484809b4977e223c45bb1318a85535",
+    "chasm/lib/scheduler2/tasks.go": "4aaa661477fdc4111a3f2b0580300b954e814cb72504164011b30e7f201eb1d2",
+    "chasm/lib/scheduler2/tasks_test.go": "7c6ce7443b6aee9b7e09dc4fb29f34835e7aad22244a024069f91474b233c4d6",
+    "chasm/lib/scheduler2/testdata/completion_v1.json": "80ebc978e5f40c33f4d43b31d51240418539c4450472e60f80f710d573cbf755",
+    "chasm/lib/scheduler2/testdata/generation_v1.json": "a0b55b8e32834606f61a8b8af833ecfab98763b8b5475ac657f964625421f8cf",
+    "chasm/lib/scheduler2/testdata/lost_ack_v1.json": "33d6c6518800ac2eb1e7612f41e1e20eba88028da2c7f3ee6a71175235c5ff6f",
+    "chasm/lib/scheduler2/testdata/retry_input_defect_v1.json": "ae3926f1615c1169f71deac57b93d4f60bbb752b5361fa49c990d0aab68af8ef",
+    "service/worker/scheduler/candidate.go": "794011c72c2705bc4a4d4bb76d603c794ae9d180bb2ec379edc3708722ccef09",
+    "service/worker/scheduler/spec.go": "c34ce2e2aee0bb05fe7bf2fdc8017638b36127c69e671fbe3c6bf69d48c9da84"
+  },
+  "configuration": {
+    "version": 1,
+    "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only",
+    "clock": "execution Unix nanoseconds",
+    "per_schedule": {
+      "enumeration_batch": 1,
+      "admission_batch": 1,
+      "scan_batch": 1,
+      "pending_actions": 1,
+      "live_operations": 1,
+      "backfill_requests": 0,
+      "terminal_records": 1,
+      "retry_horizon_seconds": 60,
+      "retry_backoff_seconds": 1
+    },
+    "executor_concurrency_per_library": 1,
+    "routine": {
+      "scenarios": 100,
+      "events": 32,
+      "seed": 1
+    },
+    "exploration": {
+      "scenarios": 10000,
+      "events": 128,
+      "seed_policy": "explicit --seed recorded in manifest"
+    },
+    "recovery": "one authenticated completion; an explicit finite suffix, not a liveness proof",
+    "model": {
+      "action_bounds": [
+        100,
+        200
+      ],
+      "concurrent_actions": 1,
+      "timeout_seconds_per_case": 300
+    },
+    "tools": {
+      "go": "go1.27.3",
+      "rapid": "v1.2.0",
+      "fizzbee": "v0.5.4",
+      "lean": "v4.24.0; executable draft only; M3 proofs pending"
+    },
+    "limits": "unsupported ingress rejected; expiry retains ambiguity; no retention eviction in bounded slice",
+    "enumeration": {
+      "range": "[2000-01-01,2101-01-01) UTC",
+      "max_spec_bytes": 65536,
+      "max_terms": 64,
+      "max_ranges": 1024,
+      "max_probes": 1024,
+      "max_outputs": 128,
+      "routine_probes": 8,
+      "routine_outputs": 4,
+      "timezone_fixture_sha256": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+      "independence": "bounded second-scan oracle; shares timezone conversion and Farm32 primitives",
+      "integration": "not wired to CHASM admission"
+    },
+    "completion": {
+      "max_value_bytes": 65536,
+      "max_carryover_bytes": 131072,
+      "policy": "single-operation SKIP; current pause-on-failure; first completion wins",
+      "presence": "empty result absent; opaque metadata/null retained; failure presence explicit",
+      "integration": "local callback event only, no public routing or sequential admission"
+    },
+    "generation": {
+      "max_retained_operations": 4,
+      "active_slots": 1,
+      "occupancy": [
+        "Pending",
+        "Started",
+        "Ambiguous"
+      ],
+      "eviction": "oldest Completed only",
+      "probes": 8,
+      "outputs": 4,
+      "continuation_delay_ns": 1000000,
+      "continuation_clock_end": "clamped to 2101-01-01 minus1ns",
+      "max_catchup_days": 365,
+      "max_seed_bytes": 65536,
+      "max_request_template_bytes": 65536,
+      "integration": "local pure-task generator; production routing absent"
+    }
+  },
+  "seed": 1,
+  "scenarios": 10000,
+  "event_limit": 128,
+  "go_version": "go version go1.27.3 darwin/arm64",
+  "python_version": "3.14.6 (main, Jun 10 2026, 10:03:53) [Clang 21.0.0 (clang-2100.0.123.102)]",
+  "environment": {
+    "GOMAXPROCS": "4",
+    "CGO_ENABLED": "0"
+  },
+  "trace_schema": 1,
+  "results": [
+    {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=10m",
+        "./chasm/lib/scheduler2",
+        "./chasm/lib/scheduler2/internal/decision",
+        "-run",
+        "Test(Sequential|Generation)",
+        "-rapid.seed=1",
+        "-rapid.checks=10000",
+        "-v"
+      ],
+      "exit_code": 0,
+      "result": "passed",
+      "seconds": 4.487463416997343,
+      "log": "/private/tmp/scheduler2-wi004-accepted/sequential/0.log"
+    }
+  ],
+  "result": "passed"
+}

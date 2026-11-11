@@ -1,0 +1,109 @@
+{
+  "source_sha": "9064bed65b0cf67659925986df04ea7ad27c8dcb",
+  "results": [
+    {
+      "mutation": "pending-does-not-occupy",
+      "path": "chasm/lib/scheduler2/internal/decision/decision.go",
+      "original_sha256": "9cdd53dc31e61e5253b4c3fee37330530c1e21d1de9eb83dc5da5f7d71253bbc",
+      "mutant_sha256": "023881e8e71946dfbeaf3890017fa945f469fe5da485a811fa2ee2c442f35996",
+      "old": "next.Operation.Phase != Completed",
+      "new": "next.Operation.Phase == Started",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2",
+        "-run",
+        "^TestSequentialSkipOccupiesUntilCompletion$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    },
+    {
+      "mutation": "lost-generation-wakeup",
+      "path": "chasm/lib/scheduler2/generator.go",
+      "original_sha256": "9c91625ad05016b95c57d1dcc93e9d8d74088211da4147d6f6c3db053844d178",
+      "mutant_sha256": "2da8dcd66b388606bad10f898a1cf42da4309e3af48fdf5df0900f11fab3004e",
+      "old": "g.arm(ctx, wake)",
+      "new": "g.Armed = false",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2",
+        "-run",
+        "^TestGenerationExcludedBudgetKeepsSuccessor$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    },
+    {
+      "mutation": "unsupported-range-deadline",
+      "path": "chasm/lib/scheduler2/generator.go",
+      "original_sha256": "9c91625ad05016b95c57d1dcc93e9d8d74088211da4147d6f6c3db053844d178",
+      "mutant_sha256": "caedc14a0ebdc8f3346a275908c5b6d5b8002d25a96e698b78467cf8735a184c",
+      "old": "wake = end",
+      "new": "wake = now.Add(time.Millisecond)",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2",
+        "-run",
+        "^TestGenerationRangeEndResumesWithoutUnsupportedClock$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    },
+    {
+      "mutation": "evict-newest",
+      "path": "chasm/lib/scheduler2/component.go",
+      "original_sha256": "9d8c1cbcf0098144780b6b32987f3d3cedd45d2ebabf230297e92ea1f33d433a",
+      "mutant_sha256": "457a932e911a6940a596b0fcbeab0ed83123f0c7891988a34379e8e1eef2ff48",
+      "old": "op.Nominal < oldest.Nominal",
+      "new": "op.Nominal > oldest.Nominal",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2",
+        "-run",
+        "^TestSequentialCarryoverRetentionAndLateResults$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    }
+  ]
+}

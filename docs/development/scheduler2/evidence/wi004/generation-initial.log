@@ -1,0 +1,4 @@
+[1;36mGenerate CHASM proto image...[0m
+[1;36mLinting proto definitions...[0m
+chasm/lib/scheduler2/proto/v1/state.proto:1:1:Enum zero value name "ENUMERATION_STATUS_ACTIVE" should be suffixed with "_UNSPECIFIED".
+make: *** [lint-protos] Error 100

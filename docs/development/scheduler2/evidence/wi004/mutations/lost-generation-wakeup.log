@@ -1,0 +1,13 @@
+=== RUN   TestGenerationExcludedBudgetKeepsSuccessor
+=== PAUSE TestGenerationExcludedBudgetKeepsSuccessor
+=== CONT  TestGenerationExcludedBudgetKeepsSuccessor
+    generation_test.go:247: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/generation_test.go:247
+        	Error:      	Not equal: 
+        	            	expected: 1704067221001000000
+        	            	actual  : 1704067221000000000
+        	Test:       	TestGenerationExcludedBudgetKeepsSuccessor
+--- FAIL: TestGenerationExcludedBudgetKeepsSuccessor (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.698s
+FAIL
