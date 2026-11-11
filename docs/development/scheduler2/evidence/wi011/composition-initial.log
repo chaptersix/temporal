@@ -1,0 +1,17 @@
+--- FAIL: TestUpdateCompositionLeasedHistoricalRebase (0.01s)
+    update_composition_test.go:107: 
+        	Error Trace:	/private/tmp/sch-redesign-updates/common/testing/protorequire/require.go:56
+        	            				/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_composition_test.go:107
+        	Error:      	Proto mismatch (-want +got):
+        	            	  (*workflowservice.StartWorkflowExecutionRequest)(Inverse(protocmp.Transform, protocmp.Message{
+        	            	  	"@type":                  s"temporal.api.workflowservice.v1.StartWorkflowExecutionRequest",
+        	            	  	"input":                  protocmp.Message{"@type": s"temporal.api.common.v1.Payloads", "payloads": []protocmp.Message{{"@type": s"temporal.api.common.v1.Payload", "data": []uint8("frozen"), "metadata": map[string][]uint8{"encoding": "binary/plain"}}}},
+        	            	- 	"last_completion_result": s`{payloads:[{data:"carryover"}]}`,
+        	            	  	"namespace":              string("namespace"),
+        	            	  	"request_id":             string("incarnation/backfill/1/1704067202000000000/action/start"),
+        	            	  	... // 4 identical entries
+        	            	  }))
+        	Test:       	TestUpdateCompositionLeasedHistoricalRebase
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	3.118s
+FAIL

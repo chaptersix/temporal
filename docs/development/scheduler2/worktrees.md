@@ -180,3 +180,18 @@ WI-006 final disposition (retained):
   sch-redesign-backfill-model, basec96e3526f; model/backfill only, still in progress.
 - Integrator owns coordinator/layout/admission changes and central records; reviewer
   read-only. Original checkout untouched; all work remains local with no migration.
+
+
+## WI-010 acceptance and WI-011 ownership
+
+WI-010 accepted activity/idle source5993fc195 in /private/tmp/sch-redesign-lifecycle
+was integrated into sch-redesign as53ccfe669; provenance commit4e0b5d4d4 preserves
+the prior terminal-fence integration note. The only conflict was that work-item
+paragraph; code/tests/evidence match source. The lifecycle worktree is retained.
+
+WI-011 uses /private/tmp/sch-redesign-updates, branchsch-redesign-updates,
+base4e0b5d4d4. Parent owns implementation, central plan, work records and evidence.
+Delegated independent owners: chasm_guarantees current-mappings.md; tooling_harness
+m2-coverage.md; history_contract read-only local update/source contract review.
+No agent owns another agent's files; tests run through parent if child cache access
+is unavailable. Original checkout and unrelated work remain untouched.

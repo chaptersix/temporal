@@ -1,0 +1,7 @@
+=== RUN   TestUpdateComposedProperties
+=== PAUSE TestUpdateComposedProperties
+=== CONT  TestUpdateComposedProperties
+    update_property_test.go:28: [rapid] OK, passed 100 tests (188.037458ms)
+--- PASS: TestUpdateComposedProperties (0.19s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.863s

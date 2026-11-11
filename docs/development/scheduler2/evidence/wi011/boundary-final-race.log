@@ -1,0 +1,187 @@
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery
+=== RUN   TestEffectsTaskDeadlineBoundary
+=== PAUSE TestEffectsTaskDeadlineBoundary
+=== RUN   TestCoordinatorScanBudgetNeighbors
+=== PAUSE TestCoordinatorScanBudgetNeighbors
+=== RUN   TestUpdateSavedReplay
+=== PAUSE TestUpdateSavedReplay
+=== CONT  TestEffectsTaskDeadlineBoundary
+=== CONT  TestCoordinatorScanBudgetNeighbors
+=== RUN   TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery
+=== CONT  TestUpdateSavedReplay
+=== PAUSE TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== RUN   TestUpdateSavedReplay/testdata/update_v1.json
+=== RUN   TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_7
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes
+=== RUN   TestEffectsTaskDeadlineBoundary/exact
+=== PAUSE TestUpdateSavedReplay/testdata/update_v1.json
+=== PAUSE TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_7
+=== PAUSE TestEffectsTaskDeadlineBoundary/exact
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes
+=== RUN   TestUpdateSavedReplay/testdata/update_obligation_v1.json
+=== PAUSE TestUpdateSavedReplay/testdata/update_obligation_v1.json
+=== RUN   TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_8
+=== RUN   TestEffectsTaskDeadlineBoundary/one_nanosecond_after
+=== PAUSE TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_8
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery
+=== PAUSE TestEffectsTaskDeadlineBoundary/one_nanosecond_after
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes
+=== CONT  TestUpdateSavedReplay/testdata/update_v1.json
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery/limit-1
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery/limit-1
+=== RUN   TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_9
+=== PAUSE TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_9
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds
+=== RUN   TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_7
+=== CONT  TestUpdateSavedReplay/testdata/update_obligation_v1.json
+=== PAUSE TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_7
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery/limit+0
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery/limit+0
+=== RUN   TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_8
+=== PAUSE TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_8
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery/limit+1
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery/limit+1
+=== RUN   TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_9
+=== CONT  TestEffectsTaskDeadlineBoundary/exact
+=== PAUSE TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_9
+=== CONT  TestEffectsTaskDeadlineBoundary/one_nanosecond_after
+=== CONT  TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit-1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit-1
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+0
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+0
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit-1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit-1
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+0
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+0
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit-1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit-1
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+0
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+0
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+1
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery/limit+0
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery/limit+1
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery/limit-1
+--- PASS: TestEffectsTaskDeadlineBoundary (0.00s)
+    --- PASS: TestEffectsTaskDeadlineBoundary/exact (0.05s)
+    --- PASS: TestEffectsTaskDeadlineBoundary/one_nanosecond_after (0.05s)
+    --- PASS: TestEffectsTaskDeadlineBoundary/one_nanosecond_before (0.04s)
+=== CONT  TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_7
+=== CONT  TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_7
+=== CONT  TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_9
+=== CONT  TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_8
+=== CONT  TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_8
+--- PASS: TestUpdateSavedReplay (0.00s)
+    --- PASS: TestUpdateSavedReplay/testdata/update_obligation_v1.json (0.09s)
+    --- PASS: TestUpdateSavedReplay/testdata/update_v1.json (0.12s)
+=== CONT  TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_9
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+0
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit-1
+--- PASS: TestCoordinatorScanBudgetNeighbors (0.00s)
+    --- PASS: TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_7 (0.01s)
+    --- PASS: TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_7 (0.01s)
+    --- PASS: TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_9 (0.02s)
+    --- PASS: TestCoordinatorScanBudgetNeighbors/historical_true/exclusions_8 (0.02s)
+    --- PASS: TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_8 (0.01s)
+    --- PASS: TestCoordinatorScanBudgetNeighbors/historical_false/exclusions_9 (0.01s)
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit-1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+0
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit-1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+0
+--- PASS: TestConfigurationIdleLimitNeighborsAndRecovery (0.00s)
+    --- PASS: TestConfigurationIdleLimitNeighborsAndRecovery/limit+0 (0.03s)
+    --- PASS: TestConfigurationIdleLimitNeighborsAndRecovery/limit-1 (0.01s)
+    --- PASS: TestConfigurationIdleLimitNeighborsAndRecovery/limit+1 (14.65s)
+--- PASS: TestConfigurationResourceLimitNeighborsAndRecovery (0.00s)
+    --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes (0.00s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+1 (14.54s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit-1 (0.01s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+0 (0.01s)
+    --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes (0.00s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+0 (0.01s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit-1 (0.01s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+1 (14.61s)
+    --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds (0.00s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit-1 (0.01s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+0 (0.01s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+1 (14.60s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	16.875s
+?   	go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1	[no test files]
+testing: warning: no tests to run
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	1.365s [no tests to run]
+=== RUN   TestLimitsProbeBoundaryAndResume
+=== PAUSE TestLimitsProbeBoundaryAndResume
+=== RUN   TestLimitsOutputBoundaryAndResume
+=== PAUSE TestLimitsOutputBoundaryAndResume
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery
+=== PAUSE TestLimitsDefinitionBoundariesAndRecovery
+=== CONT  TestLimitsDefinitionBoundariesAndRecovery
+=== CONT  TestLimitsOutputBoundaryAndResume
+=== CONT  TestLimitsProbeBoundaryAndResume
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/terms
+=== PAUSE TestLimitsDefinitionBoundariesAndRecovery/terms
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/ranges
+=== PAUSE TestLimitsDefinitionBoundariesAndRecovery/ranges
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/bytes
+=== PAUSE TestLimitsDefinitionBoundariesAndRecovery/bytes
+=== CONT  TestLimitsDefinitionBoundariesAndRecovery/terms
+=== CONT  TestLimitsDefinitionBoundariesAndRecovery/bytes
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/terms/63
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/bytes/65535
+=== RUN   TestLimitsOutputBoundaryAndResume/127
+=== RUN   TestLimitsProbeBoundaryAndResume/1023
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/bytes/65536
+=== RUN   TestLimitsOutputBoundaryAndResume/128
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/bytes/65537
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/terms/64
+=== RUN   TestLimitsProbeBoundaryAndResume/1024
+=== CONT  TestLimitsDefinitionBoundariesAndRecovery/ranges
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/ranges/1023
+=== RUN   TestLimitsOutputBoundaryAndResume/129
+=== RUN   TestLimitsProbeBoundaryAndResume/1025
+--- PASS: TestLimitsOutputBoundaryAndResume (0.01s)
+    --- PASS: TestLimitsOutputBoundaryAndResume/127 (0.00s)
+    --- PASS: TestLimitsOutputBoundaryAndResume/128 (0.00s)
+    --- PASS: TestLimitsOutputBoundaryAndResume/129 (0.00s)
+--- PASS: TestLimitsProbeBoundaryAndResume (0.01s)
+    --- PASS: TestLimitsProbeBoundaryAndResume/1023 (0.00s)
+    --- PASS: TestLimitsProbeBoundaryAndResume/1024 (0.00s)
+    --- PASS: TestLimitsProbeBoundaryAndResume/1025 (0.00s)
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/terms/65
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/ranges/1024
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/ranges/1025
+--- PASS: TestLimitsDefinitionBoundariesAndRecovery (0.00s)
+    --- PASS: TestLimitsDefinitionBoundariesAndRecovery/bytes (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/bytes/65535 (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/bytes/65536 (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/bytes/65537 (0.00s)
+    --- PASS: TestLimitsDefinitionBoundariesAndRecovery/terms (0.01s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/terms/63 (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/terms/64 (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/terms/65 (0.00s)
+    --- PASS: TestLimitsDefinitionBoundariesAndRecovery/ranges (0.02s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/ranges/1023 (0.01s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/ranges/1024 (0.01s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/ranges/1025 (0.01s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	1.838s
+?   	go.temporal.io/server/chasm/lib/scheduler2/scheduler2test	[no test files]

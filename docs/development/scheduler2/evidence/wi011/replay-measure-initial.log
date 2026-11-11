@@ -1,0 +1,60 @@
+=== RUN   TestInstrumentationTransitionBoundaries
+=== PAUSE TestInstrumentationTransitionBoundaries
+=== RUN   TestUpdateSavedReplay
+=== PAUSE TestUpdateSavedReplay
+=== RUN   TestUpdateFinalAutomaticIntentHoldsIdle
+=== PAUSE TestUpdateFinalAutomaticIntentHoldsIdle
+=== CONT  TestUpdateSavedReplay
+=== CONT  TestUpdateFinalAutomaticIntentHoldsIdle
+=== CONT  TestInstrumentationTransitionBoundaries
+=== RUN   TestInstrumentationTransitionBoundaries/keyed_completion
+=== PAUSE TestInstrumentationTransitionBoundaries/keyed_completion
+=== RUN   TestInstrumentationTransitionBoundaries/automatic_scan
+=== PAUSE TestInstrumentationTransitionBoundaries/automatic_scan
+=== RUN   TestInstrumentationTransitionBoundaries/automatic_handoff
+=== PAUSE TestInstrumentationTransitionBoundaries/automatic_handoff
+=== RUN   TestInstrumentationTransitionBoundaries/full_update
+=== PAUSE TestInstrumentationTransitionBoundaries/full_update
+=== CONT  TestInstrumentationTransitionBoundaries/full_update
+=== CONT  TestInstrumentationTransitionBoundaries/automatic_scan
+=== NAME  TestInstrumentationTransitionBoundaries/full_update
+    instrumentation_test.go:106: P3.3 materialized_before=1 materialized_after=3 paths=["" "Generator" "Generator/Definition"]
+    instrumentation_test.go:107: P3.3 boundary="full update" avoided_DATA_values=2 successful_named_output_values=1 modified_nodes=3 deleted_nodes=0 node_proto_bytes=480 published_tasks=0 serialized_task_data_bytes=0 persistence_reads=unmeasured_Node_store
+=== CONT  TestInstrumentationTransitionBoundaries/automatic_handoff
+=== NAME  TestInstrumentationTransitionBoundaries/automatic_scan
+    instrumentation_test.go:106: P3.3 materialized_before=1 materialized_after=3 paths=["" "Generator" "Generator/Definition"]
+    instrumentation_test.go:107: P3.3 boundary="automatic scan" avoided_DATA_values=2 successful_named_output_values=1 modified_nodes=3 deleted_nodes=0 node_proto_bytes=502 published_tasks=1 serialized_task_data_bytes=53 persistence_reads=unmeasured_Node_store
+=== CONT  TestInstrumentationTransitionBoundaries/keyed_completion
+=== NAME  TestInstrumentationTransitionBoundaries/automatic_handoff
+    instrumentation_test.go:106: P3.3 materialized_before=1 materialized_after=6 paths=["" "Generator" "Generator/Definition" "Operations" "Operations/incarnation/automatic/1704067200000000000/action/start" "Requests/incarnation/automatic/1704067200000000000/action/start"]
+--- PASS: TestUpdateFinalAutomaticIntentHoldsIdle (0.03s)
+=== NAME  TestInstrumentationTransitionBoundaries/automatic_handoff
+    instrumentation_test.go:107: P3.3 boundary="automatic handoff" avoided_DATA_values=2 successful_named_output_values=1 modified_nodes=6 deleted_nodes=0 node_proto_bytes=1124 published_tasks=2 serialized_task_data_bytes=194 persistence_reads=unmeasured_Node_store
+=== NAME  TestUpdateSavedReplay
+    update_replay_test.go:137: 
+        	Error Trace:	/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_replay_test.go:137
+        	Error:      	Not equal: 
+        	            	expected: []byte{}
+        	            	actual  : []byte(nil)
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,3 +1,2 @@
+        	            	-([]uint8) {
+        	            	-}
+        	            	+([]uint8) <nil>
+        	            	 
+        	Test:       	TestUpdateSavedReplay
+--- FAIL: TestUpdateSavedReplay (0.03s)
+=== NAME  TestInstrumentationTransitionBoundaries/keyed_completion
+    instrumentation_test.go:106: P3.3 materialized_before=1 materialized_after=3 paths=["" "Generator" "Operations/incarnation/automatic/1704067200000000000/action/start"]
+    instrumentation_test.go:107: P3.3 boundary="keyed completion" avoided_DATA_values=2 successful_named_output_values=1 modified_nodes=3 deleted_nodes=0 node_proto_bytes=590 published_tasks=0 serialized_task_data_bytes=0 persistence_reads=unmeasured_Node_store
+--- PASS: TestInstrumentationTransitionBoundaries (0.00s)
+    --- PASS: TestInstrumentationTransitionBoundaries/full_update (0.02s)
+    --- PASS: TestInstrumentationTransitionBoundaries/automatic_scan (0.02s)
+    --- PASS: TestInstrumentationTransitionBoundaries/automatic_handoff (0.01s)
+    --- PASS: TestInstrumentationTransitionBoundaries/keyed_completion (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.843s
+FAIL

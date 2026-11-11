@@ -1,0 +1,38 @@
+=== RUN   TestInstrumentationTransitionBoundaries
+=== PAUSE TestInstrumentationTransitionBoundaries
+=== RUN   TestUpdateCompositionLeasedHistoricalRebase
+=== PAUSE TestUpdateCompositionLeasedHistoricalRebase
+=== RUN   TestUpdateCompositionQueuedIdentityCurrentCarryoverAndRetry
+=== PAUSE TestUpdateCompositionQueuedIdentityCurrentCarryoverAndRetry
+=== CONT  TestInstrumentationTransitionBoundaries
+=== CONT  TestUpdateCompositionLeasedHistoricalRebase
+=== RUN   TestInstrumentationTransitionBoundaries/keyed_completion
+=== CONT  TestUpdateCompositionQueuedIdentityCurrentCarryoverAndRetry
+=== PAUSE TestInstrumentationTransitionBoundaries/keyed_completion
+=== RUN   TestInstrumentationTransitionBoundaries/automatic_scan
+=== PAUSE TestInstrumentationTransitionBoundaries/automatic_scan
+=== RUN   TestInstrumentationTransitionBoundaries/automatic_handoff
+=== PAUSE TestInstrumentationTransitionBoundaries/automatic_handoff
+=== RUN   TestInstrumentationTransitionBoundaries/full_update
+=== PAUSE TestInstrumentationTransitionBoundaries/full_update
+=== CONT  TestInstrumentationTransitionBoundaries/automatic_scan
+=== CONT  TestInstrumentationTransitionBoundaries/automatic_handoff
+=== NAME  TestInstrumentationTransitionBoundaries/automatic_scan
+    instrumentation_test.go:98: P3.3 boundary="automatic scan" avoided_DATA_values=2 successful_named_output_values=1 modified_nodes=3 deleted_nodes=0 node_proto_bytes=502 published_tasks=1 serialized_task_data_bytes=53 persistence_reads=unmeasured_Node_store
+=== CONT  TestInstrumentationTransitionBoundaries/full_update
+=== NAME  TestInstrumentationTransitionBoundaries/automatic_handoff
+    instrumentation_test.go:98: P3.3 boundary="automatic handoff" avoided_DATA_values=2 successful_named_output_values=1 modified_nodes=6 deleted_nodes=0 node_proto_bytes=1124 published_tasks=2 serialized_task_data_bytes=194 persistence_reads=unmeasured_Node_store
+=== CONT  TestInstrumentationTransitionBoundaries/keyed_completion
+=== NAME  TestInstrumentationTransitionBoundaries/full_update
+    instrumentation_test.go:98: P3.3 boundary="full update" avoided_DATA_values=2 successful_named_output_values=1 modified_nodes=3 deleted_nodes=0 node_proto_bytes=480 published_tasks=0 serialized_task_data_bytes=0 persistence_reads=unmeasured_Node_store
+=== NAME  TestInstrumentationTransitionBoundaries/keyed_completion
+    instrumentation_test.go:98: P3.3 boundary="keyed completion" avoided_DATA_values=2 successful_named_output_values=1 modified_nodes=3 deleted_nodes=0 node_proto_bytes=590 published_tasks=0 serialized_task_data_bytes=0 persistence_reads=unmeasured_Node_store
+--- PASS: TestInstrumentationTransitionBoundaries (0.00s)
+    --- PASS: TestInstrumentationTransitionBoundaries/automatic_scan (0.02s)
+    --- PASS: TestInstrumentationTransitionBoundaries/automatic_handoff (0.02s)
+    --- PASS: TestInstrumentationTransitionBoundaries/full_update (0.01s)
+    --- PASS: TestInstrumentationTransitionBoundaries/keyed_completion (0.02s)
+--- PASS: TestUpdateCompositionLeasedHistoricalRebase (0.05s)
+--- PASS: TestUpdateCompositionQueuedIdentityCurrentCarryoverAndRetry (0.05s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	1.883s

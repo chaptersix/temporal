@@ -135,3 +135,43 @@ physical successor dispatch even when time rolls back in flight.
 | Retry horizon | No new starts at/after admission+60s; retain ambiguity; valid late evidence accepted | Boundary and real executor tests; remote retention remains explicit assumption. |
 | Metadata observation | Root/selected operation metadata only; no request/diagnostic payload decoding | Poisoned three-payload CHASM test; no visibility/DB-fetch reduction claim. |
 | Public Schedule commands, List/Count and visibility ordering | Not routed to scheduler2 | Existing scheduler preserved; public API suite belongs M3. |
+
+
+## Current bounded contract supplements (WI-011)
+
+The sections above preserve the M1 baseline. Current policy/capacity/lifecycle
+behavior is specified by WI-002–WI-010 and design/current-mappings.md; it includes
+six overlap policies, manual/backfill ingress, cap4 terminal retention and the
+D51–D54 terminal/activity/idle rules. M1 retain-all and single-operation limits are
+not current scheduler2 limits. Full public compatibility remains a separate gate.
+
+### C7 local workflow-chain contract
+
+ChainID is the first execution run ID for the admitted workflow chain. The start
+result adapter and completion caller must supply that normalized identity; an
+arbitrary current run ID is not interchangeable. Once bound, a different nonempty
+chain identity on a live operation is rejected. Matching final Completed/Failed/
+TimedOut/Canceled/Terminated statuses can settle that operation after continued
+runs only when the normalized first-execution identity matches. Intermediate
+CONTINUED_AS_NEW is not final and is rejected while the operation is live.
+Already settled/evicted operations retain the documented first-terminal/stale
+no-op behavior; their late malformed callback cannot reopen accounting.
+
+A reset that retains the same first-execution identity is represented by the same
+local chain; one that has a different identity is not accepted as completion of
+the bound operation. This is the reducer's identity rule, not evidence of how
+History assigns reset identities. Actual continue-as-new/reset lineage resolution,
+authentication, terminal-status translation and callback routing must be checked
+in M3. No inference from a local string fixture establishes those translations.
+
+Cancel/terminate use an empty current RunID and frozen FirstExecutionRunID, matching
+History's first-execution checks in service/history/api/requestcancelworkflow/api.go
+and terminateworkflow/api.go. Subsequent workflow-ID reuse with another first-run
+identity must not receive the old effect. Local manual/backfill requests use the
+accepted ALLOW_DUPLICATE reuse policy; public request correspondence is still M3.
+External start dedup remains conditional on the frozen60s issuance horizon; local
+request-ID retention and operation-record retention do not extend remote dedup.
+
+Tests: existing chain-conflict/first-terminal checks plus
+TestUpdateChainCompletionFence exercise normalized local inputs across atomic
+configuration replacement. They do not execute actual ContinueAsNew or Reset.

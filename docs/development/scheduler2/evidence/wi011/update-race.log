@@ -1,0 +1,54 @@
+=== RUN   TestUpdateRequestDedupAndAtomicPublication
+=== PAUSE TestUpdateRequestDedupAndAtomicPublication
+=== RUN   TestUpdateRequestDedupBoundedRetention
+=== PAUSE TestUpdateRequestDedupBoundedRetention
+=== RUN   TestUpdateConfigurationPublishesWholeReplacement
+=== PAUSE TestUpdateConfigurationPublishesWholeReplacement
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites
+=== RUN   TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+=== PAUSE TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+=== CONT  TestUpdateRequestDedupAndAtomicPublication
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites
+=== CONT  TestUpdateConfigurationPublishesWholeReplacement
+=== CONT  TestUpdateRequestDedupBoundedRetention
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/stale_revision
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/stale_revision
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/negative_remaining
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/negative_remaining
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/missing_request
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/missing_request
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/work_token
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/work_token
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/generation_token
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/generation_token
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/idle_token
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/idle_token
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/closed
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/closed
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/unconfigured
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/unconfigured
+=== CONT  TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+--- PASS: TestUpdateConfigurationPublishesWholeReplacement (0.02s)
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/negative_remaining
+--- PASS: TestUpdateRequestDedupBoundedRetention (0.02s)
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/generation_token
+--- PASS: TestUpdateRequestDedupAndAtomicPublication (0.03s)
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/unconfigured
+--- PASS: TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters (0.03s)
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/closed
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/idle_token
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/missing_request
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/work_token
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/stale_revision
+--- PASS: TestUpdateConfigurationRejectsBeforeWrites (0.00s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/negative_remaining (14.17s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/closed (14.18s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/generation_token (14.22s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/unconfigured (14.25s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/missing_request (14.21s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/idle_token (14.24s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/stale_revision (14.21s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/work_token (14.26s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	30.262s

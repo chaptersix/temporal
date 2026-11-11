@@ -1,0 +1,30 @@
+=== RUN   TestUpdateComposedProperties
+=== PAUSE TestUpdateComposedProperties
+=== CONT  TestUpdateComposedProperties
+    update_property_test.go:30: [rapid] failed after 0 tests: (*T).FailNow() called
+        To reproduce, specify -run="TestUpdateComposedProperties" -rapid.failfile="testdata/rapid/TestUpdateComposedProperties/TestUpdateComposedProperties-20261111161803-21007.fail" (or -rapid.seed=1)
+        Failed test output:
+    update_property_test.go:48: [rapid] draw queued_buffer_policy: 2
+    update_property_test.go:162: [rapid] draw replacement_count: 1
+    update_property_test.go:143: [rapid] draw before_drain_0_catchup: 0
+    update_property_test.go:143: [rapid] draw before_drain_0_policy: 1
+    update_property_test.go:143: [rapid] draw before_drain_0_paused: false
+    update_property_test.go:143: [rapid] draw before_drain_0_limited: false
+    update_property_test.go:143: [rapid] draw before_drain_0_budget: 0
+    update_property_test.go:143: [rapid] draw before_drain_0_failure_pause: false
+    update_property_test.go:144: [rapid] draw before_drain_0_interval: false
+    update_property_test.go:147: [rapid] draw before_drain_0_reject: false
+    update_property_test.go:85: 
+        	Error Trace:	/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_property_test.go:85
+        	            				/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_property_test.go:160
+        	            				/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_property_test.go:164
+        	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+        	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:234
+        	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+        	            				/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_property_test.go:30
+        	Error:      	"map[]" should have 1 item(s), but has 0
+        	Test:       	TestUpdateComposedProperties
+--- FAIL: TestUpdateComposedProperties (0.10s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.821s
+FAIL

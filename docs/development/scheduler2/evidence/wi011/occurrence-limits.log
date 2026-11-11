@@ -1,0 +1,56 @@
+=== RUN   TestLimitsProbeBoundaryAndResume
+=== PAUSE TestLimitsProbeBoundaryAndResume
+=== RUN   TestLimitsOutputBoundaryAndResume
+=== PAUSE TestLimitsOutputBoundaryAndResume
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery
+=== PAUSE TestLimitsDefinitionBoundariesAndRecovery
+=== CONT  TestLimitsProbeBoundaryAndResume
+=== CONT  TestLimitsDefinitionBoundariesAndRecovery
+=== CONT  TestLimitsOutputBoundaryAndResume
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/terms
+=== PAUSE TestLimitsDefinitionBoundariesAndRecovery/terms
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/ranges
+=== PAUSE TestLimitsDefinitionBoundariesAndRecovery/ranges
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/bytes
+=== PAUSE TestLimitsDefinitionBoundariesAndRecovery/bytes
+=== CONT  TestLimitsDefinitionBoundariesAndRecovery/terms
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/terms/63
+=== CONT  TestLimitsDefinitionBoundariesAndRecovery/bytes
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/bytes/65535
+=== RUN   TestLimitsProbeBoundaryAndResume/1023
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/terms/64
+=== RUN   TestLimitsOutputBoundaryAndResume/127
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/terms/65
+=== RUN   TestLimitsOutputBoundaryAndResume/128
+=== RUN   TestLimitsProbeBoundaryAndResume/1024
+=== RUN   TestLimitsOutputBoundaryAndResume/129
+=== CONT  TestLimitsDefinitionBoundariesAndRecovery/ranges
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/ranges/1023
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/bytes/65536
+--- PASS: TestLimitsOutputBoundaryAndResume (0.00s)
+    --- PASS: TestLimitsOutputBoundaryAndResume/127 (0.00s)
+    --- PASS: TestLimitsOutputBoundaryAndResume/128 (0.00s)
+    --- PASS: TestLimitsOutputBoundaryAndResume/129 (0.00s)
+=== RUN   TestLimitsProbeBoundaryAndResume/1025
+--- PASS: TestLimitsProbeBoundaryAndResume (0.00s)
+    --- PASS: TestLimitsProbeBoundaryAndResume/1023 (0.00s)
+    --- PASS: TestLimitsProbeBoundaryAndResume/1024 (0.00s)
+    --- PASS: TestLimitsProbeBoundaryAndResume/1025 (0.00s)
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/bytes/65537
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/ranges/1024
+=== RUN   TestLimitsDefinitionBoundariesAndRecovery/ranges/1025
+--- PASS: TestLimitsDefinitionBoundariesAndRecovery (0.00s)
+    --- PASS: TestLimitsDefinitionBoundariesAndRecovery/terms (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/terms/63 (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/terms/64 (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/terms/65 (0.00s)
+    --- PASS: TestLimitsDefinitionBoundariesAndRecovery/bytes (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/bytes/65535 (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/bytes/65536 (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/bytes/65537 (0.00s)
+    --- PASS: TestLimitsDefinitionBoundariesAndRecovery/ranges (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/ranges/1023 (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/ranges/1024 (0.00s)
+        --- PASS: TestLimitsDefinitionBoundariesAndRecovery/ranges/1025 (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.666s

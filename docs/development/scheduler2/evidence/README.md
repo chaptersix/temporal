@@ -284,3 +284,16 @@ WI-010 accepted after [independent review](wi010/acceptance-review.md) and
 [final staged-source lint](wi010/acceptance-lint.log). Intermediate failures remain
 recorded with their resolutions. WI-011 is the next dependency-ordered M2 item;
 this acceptance does not close M2–M4.
+
+
+## WI-011 atomic update and current mappings (accepted)
+
+| ID | Kind / claim | Artifact and current result |
+|---|---|---|
+| E67 | contract/source review | [atomic update](../design/atomic-update.md), [current mapping inventory](../design/current-mappings.md), [coverage audit](../design/m2-coverage.md); D55/D56 coherent, remaining M2 gaps explicit. |
+| E68 | Node update / replay sensitivity | [progress](wi011/progress.md), [baseline](wi011/baseline.log), [update race](wi011/update-race.log), [five mutants](wi011/update-mutations/manifest.json); whole replacement, rejection preflight, bounded request replay and immutable requests pass; [saved replay race](wi011/replay-measure-race.log) passes. |
+| E69 | composed transitions / measurement | [composition race](wi011/composition-instrumentation-race.log), [History read boundary](wi011/history-read-race.log); historical lease rebase and queued current input pass, cold1/warm0 API reads measured. [materialized-node measurements](wi011/replay-measure-race.log) pass; no database IO reduction claim. |
+| E70 | generated atomic-update relation | [strengthened10000-case manifest](wi011/updates-exploration-final/manifest.json), [full scheduler2 race](wi011/final-race.log), [early failure/chain race](wi011/failure-chain-race.log); exact pending-start tasks, blocker, chain, immutable deadline and accepted-input controls/source/request projection pass. [Shrunk fault](wi011/update-obligation-mutation/manifest.json) and [standalone replay sensitivity](wi011/update-obligation-replay-mutation/manifest.json) detect lost start authority and restore source. Shared testing.T helper failures are not claimed to shrink. |
+| E71 | numeric boundary and recovery | [configuration](wi011/configuration-limits.log), [enumeration](wi011/occurrence-limits.log), [focused race](wi011/boundary-final-race.log); limit neighbors, rejected publication and recovery pass, including scan8 and effect deadline. [Effect request-byte race](wi011/effect-limits-race.log) passes both effect kinds; [complete matrix](../design/m2-coverage.md) records structural bounds and recovery. [Independent acceptance review](wi011/acceptance-review.md) passes; M2 complete. |
+
+WI-011 and M2 accepted E67–E71 with [final scoped lint](wi011/acceptance-lint.log) and [source fingerprints](wi011/checks.json). M3/P2.5 and M4 remain open.

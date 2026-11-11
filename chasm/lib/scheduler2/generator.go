@@ -43,6 +43,12 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 	if s.Closed {
 		return serviceerror.NewNotFound("schedule is closed")
 	}
+	return s.configureGeneration(ctx, config, nil)
+}
+
+// configureGeneration prepares the full successor before publishing any fields.
+// Both control entry points check terminal authority before calling it.
+func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config GenerationConfig, controls *UpdateConfig) error {
 	if !decision.ValidPolicy(config.Policy) || config.Request == nil || config.Request.WorkflowId == "" || proto.Size(config.Request) > 64*1024 || len(config.Seed) > 64*1024 || config.CatchupWindow < 0 || config.CatchupWindow > 365*24*time.Hour || config.Revision < s.Revision {
 		return serviceerror.NewInvalidArgument("invalid local generation configuration")
 	}
@@ -92,6 +98,12 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 		return err
 	}
 	preview := s.stateFor(ctx, "")
+	if controls != nil {
+		preview.Root.Paused = controls.Paused
+		preview.Root.Limited = controls.Limited
+		preview.Root.Remaining = controls.Remaining
+		preview.Root.PauseOnFailure = controls.PauseOnFailure
+	}
 	if !preview.Root.ActivitySet || atNano > preview.Root.ActivityAt {
 		preview.Root.ActivityAt = atNano
 	}
@@ -109,6 +121,10 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 	g.Superseded = encodeCandidate(superseded)
 	g.LastStatus = scheduler2pb.ENUMERATION_STATUS_ACTIVE
 	s.ActivitySet, s.ActivityAt = preview.Root.ActivitySet, preview.Root.ActivityAt
+	s.Paused = preview.Root.Paused
+	s.Limited = preview.Root.Limited
+	s.Remaining = preview.Root.Remaining
+	s.PauseOnFailure = preview.Root.PauseOnFailure
 	s.HasGenerator = true
 	s.Revision = config.Revision
 	s.Policy = config.Policy

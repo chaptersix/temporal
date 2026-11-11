@@ -1,0 +1,6 @@
+=== RUN   TestUpdateFinalAutomaticIntentHoldsIdle
+=== PAUSE TestUpdateFinalAutomaticIntentHoldsIdle
+=== CONT  TestUpdateFinalAutomaticIntentHoldsIdle
+--- PASS: TestUpdateFinalAutomaticIntentHoldsIdle (0.01s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.683s

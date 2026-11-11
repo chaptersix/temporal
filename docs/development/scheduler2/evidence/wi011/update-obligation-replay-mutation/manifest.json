@@ -1,0 +1,35 @@
+{
+  "source_sha": "4e0b5d4d429b81e3372b4c73073fb7b3011a5797",
+  "results": [
+    {
+      "mutation": "update-drops-start-obligations-replay",
+      "path": "chasm/lib/scheduler2/generator.go",
+      "test": "TestUpdateSavedReplay",
+      "original_sha256": "4e2f40cdd6aa9c4695457d0f5ee9b5ecf3a65fc06a4af3f72a16cbbc0ba14942",
+      "mutant_sha256": "0be37b15707618985cab0a15c5c1f10e31e7dd565faf719fd907e2c5769de8d5",
+      "old": "g.Continuation = encodeContinuation(state)",
+      "new": "s.PendingStarts = nil\n\tg.Continuation = encodeContinuation(state)",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2",
+        "-run",
+        "^TestUpdateSavedReplay$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "detected": true,
+      "restored_sha256": "4e2f40cdd6aa9c4695457d0f5ee9b5ecf3a65fc06a4af3f72a16cbbc0ba14942",
+      "restored": true
+    }
+  ]
+}

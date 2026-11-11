@@ -1,0 +1,42 @@
+=== RUN   TestInstrumentationTransitionBoundaries
+=== PAUSE TestInstrumentationTransitionBoundaries
+=== CONT  TestInstrumentationTransitionBoundaries
+=== RUN   TestInstrumentationTransitionBoundaries/keyed_completion
+=== PAUSE TestInstrumentationTransitionBoundaries/keyed_completion
+=== RUN   TestInstrumentationTransitionBoundaries/automatic_scan
+=== PAUSE TestInstrumentationTransitionBoundaries/automatic_scan
+=== RUN   TestInstrumentationTransitionBoundaries/automatic_handoff
+=== PAUSE TestInstrumentationTransitionBoundaries/automatic_handoff
+=== RUN   TestInstrumentationTransitionBoundaries/full_update
+=== PAUSE TestInstrumentationTransitionBoundaries/full_update
+=== CONT  TestInstrumentationTransitionBoundaries/automatic_handoff
+=== CONT  TestInstrumentationTransitionBoundaries/keyed_completion
+=== CONT  TestInstrumentationTransitionBoundaries/automatic_scan
+=== CONT  TestInstrumentationTransitionBoundaries/full_update
+    instrumentation_test.go:46: 
+        	Error Trace:	/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/instrumentation_test.go:46
+        	Error:      	Should be empty, but was []
+        	Test:       	TestInstrumentationTransitionBoundaries/full_update
+=== NAME  TestInstrumentationTransitionBoundaries/automatic_scan
+    instrumentation_test.go:46: 
+        	Error Trace:	/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/instrumentation_test.go:46
+        	Error:      	Should be empty, but was []
+        	Test:       	TestInstrumentationTransitionBoundaries/automatic_scan
+=== NAME  TestInstrumentationTransitionBoundaries/automatic_handoff
+    instrumentation_test.go:46: 
+        	Error Trace:	/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/instrumentation_test.go:46
+        	Error:      	Should be empty, but was []
+        	Test:       	TestInstrumentationTransitionBoundaries/automatic_handoff
+=== NAME  TestInstrumentationTransitionBoundaries/keyed_completion
+    instrumentation_test.go:46: 
+        	Error Trace:	/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/instrumentation_test.go:46
+        	Error:      	Should be empty, but was []
+        	Test:       	TestInstrumentationTransitionBoundaries/keyed_completion
+--- FAIL: TestInstrumentationTransitionBoundaries (0.00s)
+    --- FAIL: TestInstrumentationTransitionBoundaries/automatic_scan (0.01s)
+    --- FAIL: TestInstrumentationTransitionBoundaries/full_update (0.01s)
+    --- FAIL: TestInstrumentationTransitionBoundaries/automatic_handoff (0.01s)
+    --- FAIL: TestInstrumentationTransitionBoundaries/keyed_completion (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.934s
+FAIL

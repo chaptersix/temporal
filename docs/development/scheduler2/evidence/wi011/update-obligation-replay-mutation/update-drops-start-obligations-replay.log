@@ -1,0 +1,50 @@
+=== RUN   TestUpdateSavedReplay
+=== PAUSE TestUpdateSavedReplay
+=== CONT  TestUpdateSavedReplay
+=== RUN   TestUpdateSavedReplay/testdata/update_v1.json
+=== PAUSE TestUpdateSavedReplay/testdata/update_v1.json
+=== RUN   TestUpdateSavedReplay/testdata/update_obligation_v1.json
+=== PAUSE TestUpdateSavedReplay/testdata/update_obligation_v1.json
+=== CONT  TestUpdateSavedReplay/testdata/update_v1.json
+=== CONT  TestUpdateSavedReplay/testdata/update_obligation_v1.json
+    update_replay_test.go:47: 
+        	Error Trace:	/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_replay_test.go:149
+        	            				/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_replay_test.go:47
+        	Error:      	Not equal: 
+        	            	expected: map[string]int64{"incarnation/manual/1/action/start":1704067200000000000}
+        	            	actual  : map[string]int64(nil)
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,4 +1,2 @@
+        	            	-(map[string]int64) (len=1) {
+        	            	- (string) (len=33) "incarnation/manual/1/action/start": (int64) 1704067200000000000
+        	            	-}
+        	            	+(map[string]int64) <nil>
+        	            	 
+        	Test:       	TestUpdateSavedReplay/testdata/update_obligation_v1.json
+=== NAME  TestUpdateSavedReplay/testdata/update_v1.json
+    update_replay_test.go:47: 
+        	Error Trace:	/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_replay_test.go:149
+        	            				/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_replay_test.go:47
+        	Error:      	Not equal: 
+        	            	expected: map[string]int64{"incarnation/manual/1/action/start":1704067200000000000}
+        	            	actual  : map[string]int64(nil)
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,4 +1,2 @@
+        	            	-(map[string]int64) (len=1) {
+        	            	- (string) (len=33) "incarnation/manual/1/action/start": (int64) 1704067200000000000
+        	            	-}
+        	            	+(map[string]int64) <nil>
+        	            	 
+        	Test:       	TestUpdateSavedReplay/testdata/update_v1.json
+--- FAIL: TestUpdateSavedReplay (0.00s)
+    --- FAIL: TestUpdateSavedReplay/testdata/update_obligation_v1.json (0.01s)
+    --- FAIL: TestUpdateSavedReplay/testdata/update_v1.json (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.928s
+FAIL

@@ -1,0 +1,70 @@
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery/limit-1
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery/limit-1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit-1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit-1
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+0
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit-1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+0
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+1
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery/limit+0
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery/limit+0
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery/limit+1
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery/limit+1
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery/limit-1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit-1
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+0
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+0
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+1
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit-1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit-1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit-1
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+0
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+0
+=== RUN   TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+1
+=== PAUSE TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+0
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery/limit+0
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery/limit+1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit-1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+0
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit-1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+1
+=== CONT  TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+0
+--- PASS: TestConfigurationIdleLimitNeighborsAndRecovery (0.00s)
+    --- PASS: TestConfigurationIdleLimitNeighborsAndRecovery/limit-1 (0.01s)
+    --- PASS: TestConfigurationIdleLimitNeighborsAndRecovery/limit+0 (0.00s)
+    --- PASS: TestConfigurationIdleLimitNeighborsAndRecovery/limit+1 (0.99s)
+--- PASS: TestConfigurationResourceLimitNeighborsAndRecovery (0.00s)
+    --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds (0.00s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit-1 (0.00s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+0 (0.00s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/catchup_nanoseconds/limit+1 (0.98s)
+    --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes (0.00s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit-1 (0.00s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+0 (0.00s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/seed_bytes/limit+1 (0.99s)
+    --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes (0.00s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit-1 (0.01s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+0 (0.01s)
+        --- PASS: TestConfigurationResourceLimitNeighborsAndRecovery/template_bytes/limit+1 (1.04s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	1.803s

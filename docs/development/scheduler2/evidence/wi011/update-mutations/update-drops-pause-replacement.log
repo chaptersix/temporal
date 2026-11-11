@@ -1,0 +1,11 @@
+=== RUN   TestUpdateConfigurationPublishesWholeReplacement
+=== PAUSE TestUpdateConfigurationPublishesWholeReplacement
+=== CONT  TestUpdateConfigurationPublishesWholeReplacement
+    update_test.go:39: 
+        	Error Trace:	/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_test.go:39
+        	Error:      	Should be true
+        	Test:       	TestUpdateConfigurationPublishesWholeReplacement
+--- FAIL: TestUpdateConfigurationPublishesWholeReplacement (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.688s
+FAIL

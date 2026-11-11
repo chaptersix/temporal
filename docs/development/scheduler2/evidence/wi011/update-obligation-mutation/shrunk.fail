@@ -1,0 +1,43 @@
+# 2026/11/11 16:18:03.187399 [TestUpdateComposedProperties] [rapid] draw queued_buffer_policy: 2
+# 2026/11/11 16:18:03.188013 [TestUpdateComposedProperties] [rapid] draw replacement_count: 1
+# 2026/11/11 16:18:03.188016 [TestUpdateComposedProperties] [rapid] draw before_drain_0_catchup: 0
+# 2026/11/11 16:18:03.188017 [TestUpdateComposedProperties] [rapid] draw before_drain_0_policy: 1
+# 2026/11/11 16:18:03.188018 [TestUpdateComposedProperties] [rapid] draw before_drain_0_paused: false
+# 2026/11/11 16:18:03.188019 [TestUpdateComposedProperties] [rapid] draw before_drain_0_limited: false
+# 2026/11/11 16:18:03.188020 [TestUpdateComposedProperties] [rapid] draw before_drain_0_budget: 0
+# 2026/11/11 16:18:03.188022 [TestUpdateComposedProperties] [rapid] draw before_drain_0_failure_pause: false
+# 2026/11/11 16:18:03.188023 [TestUpdateComposedProperties] [rapid] draw before_drain_0_interval: false
+# 2026/11/11 16:18:03.188024 [TestUpdateComposedProperties] [rapid] draw before_drain_0_reject: false
+# 2026/11/11 16:18:03.188214 [TestUpdateComposedProperties] 
+# 	Error Trace:	/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_property_test.go:85
+# 	            				/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_property_test.go:160
+# 	            				/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_property_test.go:164
+# 	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_property_test.go:30
+# 	Error:      	"map[]" should have 1 item(s), but has 0
+# 	Test:       	TestUpdateComposedProperties
+# 
+v0.4.8#1
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

@@ -77,6 +77,7 @@ func (s *chasmEngineSuite) scheduler2DeleteRecreateFences(kind string) {
 	records := make(map[string]*persistencespb.WorkflowMutableState)
 	current := ""
 	var published []tasks.Task
+	persistenceReads := 0
 	failDelete := false
 	deleteRejected := false
 	// Shard handleWriteErrorLocked classifies this as definitely not committed.
@@ -101,6 +102,7 @@ func (s *chasmEngineSuite) scheduler2DeleteRecreateFences(kind string) {
 		return tests.CreateWorkflowExecutionResponse, nil
 	}).AnyTimes()
 	s.mockExecutionManager.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, r *persistence.GetWorkflowExecutionRequest) (*persistence.GetWorkflowExecutionResponse, error) {
+		persistenceReads++
 		record, found := records[r.RunID]
 		if !found {
 			return nil, serviceerror.NewNotFound("execution removed")
@@ -167,6 +169,19 @@ func (s *chasmEngineSuite) scheduler2DeleteRecreateFences(kind string) {
 		s.Require().NoError(err)
 	}
 	configure(aRef)
+	// Count whole mutable-state persistence API fetches, not physical DB page IO.
+	reload(a.ExecutionKey)
+	readsBefore := persistenceReads
+	readRoot := func(_ chasm.Context, c chasm.Component) error {
+		s.Require().Equal(a.ExecutionKey.RunID, c.(*scheduler2.Scheduler).Incarnation)
+		return nil
+	}
+	s.Require().NoError(s.engine.ReadComponent(ctx, aRef, readRoot))
+	s.Require().Equal(1, persistenceReads-readsBefore, "cold cache requires one mutable-state fetch")
+	readsWarm := persistenceReads
+	s.Require().NoError(s.engine.ReadComponent(ctx, aRef, readRoot))
+	s.Require().Equal(0, persistenceReads-readsWarm, "warm cache reuses the loaded mutable state")
+	s.T().Log("P3.3 persistence API GetWorkflowExecution: cold root read=1; warm root read=0; whole mutable-state fetch, no physical DB IO claim")
 	var oldIdleAt int64
 	var oldIdleToken uint64
 	s.Require().NoError(s.engine.ReadComponent(ctx, aRef, func(_ chasm.Context, c chasm.Component) error {

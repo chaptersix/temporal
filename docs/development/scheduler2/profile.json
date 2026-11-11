@@ -1,15 +1,17 @@
 {
   "version": 1,
-  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only; WI-005 buffered automatic admission; WI-006 keyed ALLOW_ALL; WI-007 fenced cancel/terminate effects; WI-008 durable manual commands",
+  "scope": "Current bounded scheduler2: six policies, unified coordinator, manual/backfill, lifecycle and atomic update; local only",
   "clock": "execution Unix nanoseconds",
   "per_schedule": {
     "enumeration_batch": 1,
     "admission_batch": 1,
-    "scan_batch": 1,
-    "pending_actions": 1,
-    "live_operations": 1,
-    "backfill_requests": 0,
-    "terminal_records": 1,
+    "raw_probes_per_coordinator_scan": 8,
+    "queued_occurrences": 4,
+    "manual_commands": 4,
+    "backfill_requests": 4,
+    "live_operations": 4,
+    "retained_operations": 4,
+    "effects_per_blocker": 2,
     "retry_horizon_seconds": 60,
     "retry_backoff_seconds": 1
   },
@@ -24,7 +26,7 @@
     "events": 128,
     "seed_policy": "explicit --seed recorded in manifest"
   },
-  "recovery": "one authenticated completion; an explicit finite suffix, not a liveness proof",
+  "recovery": "Profile-specific finite controlled suffixes; independent finite models carry explicit conditional fairness, not implied by suffixes",
   "model": {
     "action_bounds": [
       100,
@@ -39,7 +41,7 @@
     "fizzbee": "v0.5.4",
     "lean": "v4.24.0; executable draft only; M3 proofs pending"
   },
-  "limits": "unsupported ingress rejected; expiry retains ambiguity; no retention eviction in bounded slice",
+  "limits": "Automatic overload disposition and accepted-command waiting per D47\u2013D50; terminal-only cap4 retention, unresolved starts retained; no migration",
   "enumeration": {
     "range": "[2000-01-01,2101-01-01) UTC",
     "max_spec_bytes": 65536,
@@ -51,24 +53,23 @@
     "routine_outputs": 4,
     "timezone_fixture_sha256": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
     "independence": "bounded second-scan oracle; shares timezone conversion and Farm32 primitives",
-    "integration": "not wired to CHASM admission"
+    "integration": "Bounded occurrence core used by sole root coordinator; separate scan/handoff"
   },
   "completion": {
     "max_value_bytes": 65536,
     "max_carryover_bytes": 131072,
-    "policy": "single-operation SKIP; current pause-on-failure; first completion wins",
+    "policy": "Frozen admitted policy; ALLOW_ALL start-only; current pause-on-failure for tracked completions; first completion wins",
     "presence": "empty result absent; opaque metadata/null retained; failure presence explicit",
-    "integration": "local callback event only, no public routing or sequential admission"
+    "integration": "Local callback event and actual exact-run History test bridge; public authentication/routing M3"
   },
   "generation": {
     "max_retained_operations": 4,
-    "active_slots": 1,
     "occupancy": [
       "Pending",
       "Started",
       "Ambiguous"
     ],
-    "eviction": "oldest Completed only",
+    "eviction": "oldest terminal record (Completed or StartOnly), ordered by nominal time then operation ID; never evict unfinished",
     "probes": 8,
     "outputs": 1,
     "continuation_delay_ns": 1000000,
@@ -76,19 +77,22 @@
     "max_catchup_days": 365,
     "max_seed_bytes": 65536,
     "max_request_template_bytes": 65536,
-    "integration": "local root coordinator; separate scan and handoff publication; production routing absent"
+    "integration": "local root coordinator; separate scan and handoff publication; production routing absent",
+    "tracked_blocker_slots": 1,
+    "max_unfinished_intents": 4,
+    "occupancy_scope": "Pending/Started/Ambiguous tracked intent occupies the single non-ALLOW blocker; global unfinished cap4 includes unresolved ALLOW_ALL intents"
   },
   "buffer": {
     "capacity": 4,
     "admission_batch": 1,
-    "scan_batch": 4,
     "policies": [
       "BUFFER_ONE",
       "BUFFER_ALL"
     ],
     "overflow": "drop automatic arrival and increment BufferDropped; no debit",
     "drain": "shared coordinator; completion reconciles readiness after generation exhausted",
-    "snapshot": "queue-time workflow ID and resolved policy; admission-time template, catchup and carryover"
+    "snapshot": "queue-time workflow ID and resolved policy; admission-time template, catchup and carryover",
+    "selection_scope": "inspect at most capacity4 retained queue entries; coordinator raw source scan quantum8"
   },
   "allowall": {
     "max_retained_operations": 4,
@@ -122,10 +126,10 @@
     "eligibility": "bypass pause, budget debit, catchup and automatic cursor",
     "dedup": "CHASM WithRequestID; bounded framework count/age; independent of start record retention",
     "workflow_reuse": "ALLOW_DUPLICATE",
-    "fairness": "WI-009 concrete vacancy lease and operation turn; acceptance pending"
+    "fairness": "Accepted WI-009 concrete vacancy lease and operation turn, conditional recurring capacity"
   },
   "backfill_range": {
-    "scope": "WI-009 pending-preserving helper used by coordinator draft",
+    "scope": "Accepted WI-009 pending-preserving range helper",
     "bounds": "inclusive within [2000,2101); actual <= fixed end",
     "probes_per_peek": 8,
     "maximum_probes": 1024,
@@ -135,7 +139,7 @@
     "update": "new revision rebase after disposed nominal, never execution now"
   },
   "backfill": {
-    "status": "WI-009 integrated draft; acceptance pending",
+    "status": "Accepted WI-009 bounded local implementation",
     "active_requests": 4,
     "pending_per_request": 1,
     "bounds": "inclusive [2000,2101); jittered actual <= fixed end",
@@ -146,7 +150,7 @@
     "fairness": "conditional on successful fair publication/delivery, adequate recurring capacity and stable definitions; finite model not a cap4 refinement proof"
   },
   "lifecycle": {
-    "status": "WI-010 activity and idle increment; acceptance pending",
+    "status": "Accepted WI-010 at5993fc195; integrated53ccfe669",
     "scenario_events": 35,
     "event_bound_scope": "ActivityNodeProperties scenario events, excluding initial fixture setup; directed tests have separate fixed traces",
     "retained_operations": 4,
@@ -156,5 +160,34 @@
     "idle_zero": "disabled",
     "progress": "eventually stable eligibility and deadline; advancing time, fair delivery and successful publication assumed",
     "evidence_limit": "real Node publication/reload; finite model is not a Go refinement proof"
-  }
+  },
+  "updates": {
+    "status": "WI-011 verification",
+    "scenario_events": 19,
+    "event_bound_scope": "UpdateComposedProperties plus initial setup; directed cases have their own fixed traces",
+    "source_choices": "empty or simple interval; automatic scans not driven by property",
+    "queue_capacity_fixture": 1,
+    "operation_fixture": 2,
+    "policies": "all six future controls; BUFFER_ONE/BUFFER_ALL frozen waiter",
+    "oracle": "accepted-input controls, source, phases, counters, frozen requests, pending-start keys/wakes, logical start tasks, blocker and chain",
+    "limits": "not coordinator arbitration, full capacity or calendar enumeration product",
+    "shrinking": "direct Rapid assertions shrink; unexpected failures in shared testing.T helpers may not"
+  },
+  "historical_m1": {
+    "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only; WI-005 buffered automatic admission; WI-006 keyed ALLOW_ALL; WI-007 fenced cancel/terminate effects; WI-008 durable manual commands",
+    "per_schedule": {
+      "enumeration_batch": 1,
+      "admission_batch": 1,
+      "scan_batch": 1,
+      "pending_actions": 1,
+      "live_operations": 1,
+      "backfill_requests": 0,
+      "terminal_records": 1,
+      "retry_horizon_seconds": 60,
+      "retry_backoff_seconds": 1
+    },
+    "limits": "unsupported ingress rejected; expiry retains ambiguity; no retention eviction in bounded slice",
+    "recovery": "one authenticated completion; an explicit finite suffix, not a liveness proof"
+  },
+  "executor_concurrency_scope": "Separate Start and Effect handlers each permit1 per library instance; combined maximum2, not a shared global permit"
 }

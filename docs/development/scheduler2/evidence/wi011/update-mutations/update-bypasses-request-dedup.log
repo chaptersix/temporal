@@ -1,0 +1,11 @@
+=== RUN   TestUpdateRequestDedupAndAtomicPublication
+=== PAUSE TestUpdateRequestDedupAndAtomicPublication
+=== CONT  TestUpdateRequestDedupAndAtomicPublication
+    update_request_test.go:45: 
+        	Error Trace:	/private/tmp/sch-redesign-updates/chasm/lib/scheduler2/update_request_test.go:45
+        	Error:      	Should be true
+        	Test:       	TestUpdateRequestDedupAndAtomicPublication
+--- FAIL: TestUpdateRequestDedupAndAtomicPublication (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.701s
+FAIL

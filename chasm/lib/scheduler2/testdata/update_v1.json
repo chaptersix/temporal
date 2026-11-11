@@ -1,0 +1,14 @@
+{
+ "version":1,"clock_domain":"execution_nanoseconds","now":"2024-01-01T00:00:00Z",
+ "initial":{"spec":{},"request":{"namespace":"namespace","workflowId":"old","workflowType":{"name":"type"},"taskQueue":{"name":"queue"}},"seed":"old-seed","revision":2,"catchup_seconds":60,"policy":1,"paused":false,"limited":true,"remaining":5,"pause_on_failure":false},
+ "replacement":{"spec":{"interval":[{"interval":"60s"}]},"request":{"namespace":"namespace","workflowId":"new","workflowType":{"name":"new-type"},"taskQueue":{"name":"new-queue"}},"seed":"new-seed","revision":3,"catchup_seconds":120,"policy":3,"paused":true,"limited":true,"remaining":7,"pause_on_failure":true},
+ "frozen_request":{"namespace":"namespace","workflowId":"old-2024-01-01T00:00:00Z","workflowType":{"name":"type"},"taskQueue":{"name":"queue"},"requestId":"incarnation/manual/1/action/start","workflowIdReusePolicy":"WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE"},
+ "steps":[
+  {"kind":"update","seconds":1,"request_id":"replacement","publish":false,"error":"publication","replacement":false,"generation_delta":0,"work_armed":false},
+  {"kind":"restart","seconds":1,"publish":true,"error":"","replacement":false,"generation_delta":0,"work_armed":false},
+  {"kind":"update","seconds":2,"request_id":"replacement","publish":true,"error":"","replacement":true,"generation_delta":1,"work_armed":true},
+  {"kind":"duplicate_invalid","seconds":3,"request_id":"replacement","publish":true,"error":"","replacement":true,"generation_delta":1,"work_armed":true},
+  {"kind":"update","seconds":4,"request_id":"fresh-stale","publish":true,"error":"stale","replacement":true,"generation_delta":1,"work_armed":true},
+  {"kind":"restart","seconds":4,"publish":true,"error":"","replacement":true,"generation_delta":1,"work_armed":true}
+ ]
+}

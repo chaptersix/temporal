@@ -202,10 +202,12 @@ func TestEffectsTaskCancellationAfterRemoteAcceptance(t *testing.T) {
 
 func TestEffectsTaskDeadlineBoundary(t *testing.T) {
 	t.Parallel()
-	for _, offset := range []int64{-1, 0} {
+	for _, offset := range []int64{-1, 0, 1} {
 		name := "exact"
 		if offset < 0 {
 			name = "one_nanosecond_before"
+		} else if offset > 0 {
+			name = "one_nanosecond_after"
 		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

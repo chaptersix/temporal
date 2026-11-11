@@ -1,0 +1,18 @@
+=== RUN   TestUpdateChainCompletionFence
+=== PAUSE TestUpdateChainCompletionFence
+=== RUN   TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover
+=== PAUSE TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover
+=== CONT  TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover
+=== CONT  TestUpdateChainCompletionFence
+=== RUN   TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/disable_failure_pause
+=== PAUSE TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/disable_failure_pause
+=== RUN   TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/enable_failure_pause
+=== PAUSE TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/enable_failure_pause
+=== CONT  TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/disable_failure_pause
+=== CONT  TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/enable_failure_pause
+--- PASS: TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover (0.00s)
+    --- PASS: TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/disable_failure_pause (0.05s)
+    --- PASS: TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/enable_failure_pause (0.05s)
+--- PASS: TestUpdateChainCompletionFence (37.23s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	39.058s

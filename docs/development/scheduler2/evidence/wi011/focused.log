@@ -1,0 +1,46 @@
+=== RUN   TestUpdateConfigurationPublishesWholeReplacement
+=== PAUSE TestUpdateConfigurationPublishesWholeReplacement
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites
+=== RUN   TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+=== PAUSE TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+=== CONT  TestUpdateConfigurationPublishesWholeReplacement
+=== CONT  TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/stale_revision
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/stale_revision
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/negative_remaining
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/negative_remaining
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/missing_request
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/missing_request
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/work_token
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/work_token
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/generation_token
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/generation_token
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/idle_token
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/idle_token
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/closed
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/closed
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/unconfigured
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/unconfigured
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/stale_revision
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/generation_token
+--- PASS: TestUpdateConfigurationPublishesWholeReplacement (0.01s)
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/missing_request
+--- PASS: TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters (0.01s)
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/negative_remaining
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/work_token
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/closed
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/idle_token
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/unconfigured
+--- PASS: TestUpdateConfigurationRejectsBeforeWrites (0.00s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/missing_request (0.98s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/stale_revision (0.99s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/negative_remaining (0.98s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/generation_token (1.00s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/closed (0.98s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/work_token (0.98s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/idle_token (0.98s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/unconfigured (0.99s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	5.563s

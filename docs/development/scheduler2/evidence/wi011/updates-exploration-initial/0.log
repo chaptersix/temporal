@@ -1,0 +1,92 @@
+=== RUN   TestUpdateChainCompletionFence
+=== PAUSE TestUpdateChainCompletionFence
+=== RUN   TestUpdateCompositionLeasedHistoricalRebase
+=== PAUSE TestUpdateCompositionLeasedHistoricalRebase
+=== RUN   TestUpdateCompositionQueuedIdentityCurrentCarryoverAndRetry
+=== PAUSE TestUpdateCompositionQueuedIdentityCurrentCarryoverAndRetry
+=== RUN   TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover
+=== PAUSE TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover
+=== RUN   TestUpdateComposedProperties
+=== PAUSE TestUpdateComposedProperties
+=== RUN   TestUpdateSavedReplay
+=== PAUSE TestUpdateSavedReplay
+=== RUN   TestUpdateRequestDedupAndAtomicPublication
+=== PAUSE TestUpdateRequestDedupAndAtomicPublication
+=== RUN   TestUpdateRequestDedupBoundedRetention
+=== PAUSE TestUpdateRequestDedupBoundedRetention
+=== RUN   TestUpdateConfigurationPublishesWholeReplacement
+=== PAUSE TestUpdateConfigurationPublishesWholeReplacement
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites
+=== RUN   TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+=== PAUSE TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+=== RUN   TestUpdateFinalAutomaticIntentHoldsIdle
+=== PAUSE TestUpdateFinalAutomaticIntentHoldsIdle
+=== CONT  TestUpdateChainCompletionFence
+=== CONT  TestUpdateRequestDedupAndAtomicPublication
+=== CONT  TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover
+=== CONT  TestUpdateCompositionQueuedIdentityCurrentCarryoverAndRetry
+=== RUN   TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/disable_failure_pause
+=== PAUSE TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/disable_failure_pause
+=== RUN   TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/enable_failure_pause
+=== PAUSE TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/enable_failure_pause
+=== CONT  TestUpdateCompositionLeasedHistoricalRebase
+--- PASS: TestUpdateRequestDedupAndAtomicPublication (0.01s)
+=== CONT  TestUpdateSavedReplay
+--- PASS: TestUpdateCompositionLeasedHistoricalRebase (0.01s)
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/stale_revision
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/stale_revision
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/negative_remaining
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/negative_remaining
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/missing_request
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/missing_request
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/work_token
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/work_token
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/generation_token
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/generation_token
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/idle_token
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/idle_token
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/closed
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/closed
+=== RUN   TestUpdateConfigurationRejectsBeforeWrites/unconfigured
+=== PAUSE TestUpdateConfigurationRejectsBeforeWrites/unconfigured
+=== CONT  TestUpdateFinalAutomaticIntentHoldsIdle
+--- PASS: TestUpdateCompositionQueuedIdentityCurrentCarryoverAndRetry (0.01s)
+=== CONT  TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+--- PASS: TestUpdateFinalAutomaticIntentHoldsIdle (0.00s)
+=== CONT  TestUpdateComposedProperties
+--- PASS: TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters (0.01s)
+=== CONT  TestUpdateConfigurationPublishesWholeReplacement
+--- PASS: TestUpdateConfigurationPublishesWholeReplacement (0.00s)
+=== CONT  TestUpdateRequestDedupBoundedRetention
+--- PASS: TestUpdateSavedReplay (0.01s)
+=== CONT  TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/disable_failure_pause
+--- PASS: TestUpdateRequestDedupBoundedRetention (0.00s)
+=== CONT  TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/enable_failure_pause
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/stale_revision
+--- PASS: TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover (0.00s)
+    --- PASS: TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/enable_failure_pause (0.01s)
+    --- PASS: TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover/disable_failure_pause (0.01s)
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/generation_token
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/unconfigured
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/closed
+--- PASS: TestUpdateChainCompletionFence (2.85s)
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/idle_token
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/missing_request
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/work_token
+=== CONT  TestUpdateConfigurationRejectsBeforeWrites/negative_remaining
+--- PASS: TestUpdateConfigurationRejectsBeforeWrites (0.00s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/stale_revision (1.39s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/generation_token (1.46s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/unconfigured (1.48s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/closed (1.53s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/idle_token (1.42s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/missing_request (1.43s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/work_token (1.45s)
+    --- PASS: TestUpdateConfigurationRejectsBeforeWrites/negative_remaining (1.39s)
+=== NAME  TestUpdateComposedProperties
+    update_property_test.go:28: [rapid] OK, passed 10000 tests (19.165383708s)
+--- PASS: TestUpdateComposedProperties (19.23s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	20.495s

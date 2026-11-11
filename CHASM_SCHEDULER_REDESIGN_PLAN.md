@@ -6,7 +6,7 @@
 | --- | --- |
 | Status | Authorized local execution through M4 |
 | Updated | 2026-11-11 |
-| Current milestone | M2 partial: WI-008 accepted; WI-009 range/coordinator work active |
+| Current milestone | M2 passed; M3 next: backend descriptor, functional inventory and proof completion |
 | Implementation status | WI-000 through WI-008 accepted; WI-009 range helpers implemented, coordinator pending |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing through all milestones M2–M4; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
@@ -113,17 +113,17 @@ Maintain a source-linked defect inventory with: defect ID, minimal reproduction,
 
 | Contract ID | Required coverage | Status |
 | --- | --- | --- |
-| C1 | Calendar, timezone, DST gaps/folds, jitter, exclusions, strict advancement, batch equivalence | open |
-| C2 | Update boundaries, catchup, clock rollback, pending configuration adoption | open |
-| C3 | Six overlap modes, manual overrides, ALLOW_ALL tracking and results | open |
-| C4 | Pause/unpause, pause-on-failure, action budgets and accounting point | open |
-| C5 | Deduplication, conflict tokens, manual trigger identity, external deduplication horizons | open |
-| C6 | Result absence versus explicit null, failure carryover, immutable request snapshots | open |
-| C7 | Workflow-ID reuse, early/duplicate callbacks, continue-as-new/reset | open |
-| C8 | Retention, activity anchor, terminal records, delete/recreate, in-flight update/delete guarantees | open |
-| C9 | Sentinels and migration ownership | open; initial migration unsupported |
-| C10 | API errors, response fields, counts, ordering, eventual visibility observation points | open |
-| C11 | Capacity, overload dispositions, manual/backfill fairness and recovery | open |
+| C1 | Calendar, timezone, DST gaps/folds, jitter, exclusions, strict advancement, batch equivalence | bounded local enumeration implemented; full M3 spec/proof checks open |
+| C2 | Update boundaries, catchup, clock rollback, pending configuration adoption | local atomic update accepted E67–E71; public correspondence M3 |
+| C3 | Six overlap modes, manual overrides, ALLOW_ALL tracking and results | six local policies implemented; E25–E58; API correspondence M3 |
+| C4 | Pause/unpause, pause-on-failure, action budgets and accounting point | local controls/accounting implemented; atomic composition accepted E67–E71 |
+| C5 | Deduplication, conflict tokens, manual trigger identity, external deduplication horizons | local identity/horizons specified; bounded update replay WI-011; public tokens M3 |
+| C6 | Result absence versus explicit null, failure carryover, immutable request snapshots | local payload/snapshot semantics implemented; atomic composition accepted E67–E71 |
+| C7 | Workflow-ID reuse, early/duplicate callbacks, continue-as-new/reset | normalized local first-execution fence specified; actual chain routing/reset M3 |
+| C8 | Retention, activity anchor, terminal records, delete/recreate, in-flight update/delete guarantees | accepted bounded local lifecycle E59–E66; public/DB correspondence remains |
+| C9 | Sentinels and migration ownership | initial migration unsupported; M4 sentinel/migration boundary open |
+| C10 | API errors, response fields, counts, ordering, eventual visibility observation points | local wiring only; full API/visibility correspondence M3 open |
+| C11 | Capacity, overload dispositions, manual/backfill fairness and recovery | bounded cap4 and conditional fairness accepted E53–E58; M4 scaling open |
 
 For C11, define limits and reject/defer/drop behavior independently for automatic occurrences, manual triggers, backfills, and API retries. Specify how blocked ingress resumes. State whether finite backfills must drain under sustained manual traffic and what scheduling policy guarantees it.
 
@@ -149,7 +149,7 @@ Phases describe coverage areas, not a requirement to finish all modeling before 
 | --- | --- | --- | --- |
 | M0 | Workspace provenance, first-slice contract, early CHASM guarantees | passed | E4–E8 |
 | M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | passed | E9–E16; bounded scope and trusted boundaries below |
-| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-010 E17–E66; WI-011 current update/spec/policy mappings remain |
+| M2 | Complete policy, update, backfill, and callback behavior with model mappings | passed | WI-002–WI-011 E17–E71; current mappings, atomic updates, numeric boundaries and independent review |
 | M3 | Differential API and shared functional coverage with no unexplained differences | pending | — |
 | M4 | Load/state-growth report and explicit migration support boundary | pending | — |
 
@@ -202,7 +202,7 @@ Define permitted external waits separately from stuck states. Check liveness ove
 - [x] P1.1: Independently specify transitions, identities, capacity, and invariants.
 - [x] P1.2: Check the first-slice small-state model.
 - [x] P1.3: Detect injected lost-wakeup, cursor-advance, duplicate-accounting, retry-identity, and retry-input defects.
-- [ ] P1.4: Expand the model alongside policy implementation.
+- [x] P1.4: Expand the model alongside policy implementation.
 - [x] P1.5: Draft Lean enumeration definitions and theorem statements against the spec-processing contract; review assumptions before implementation correspondence work.
 
 Exit: bounded exploration passes, targeted mutations fail, and assumptions and unmodeled boundaries are recorded.
@@ -225,7 +225,7 @@ Reuse calendar evaluation through a narrow interface initially. Keep occurrence 
 
 - [x] P2.1: Implement first-slice occurrence/admission, start, result, and completion transitions.
 - [x] P2.2: Test accepted start → lost acknowledgment → update → retry with identical operation identity and request input.
-- [ ] P2.3: Add all historical reproductions, overlap policies, update races, action exhaustion, early completion, stale failure after success, duplicate acknowledgment, full-buffer backfill, manual identity, clock rollback, retention truncation, delete/recreate, and legitimate quiescence.
+- [x] P2.3: Add all historical reproductions, overlap policies, update races, action exhaustion, early completion, stale failure after success, duplicate acknowledgment, full-buffer backfill, manual identity, clock rollback, retention truncation, delete/recreate, and legitimate quiescence.
 - [x] P2.4: Map every event kind to model transitions, including specifically named internal stuttering steps.
 - [ ] P2.5: Use Rapid to generate structured specs and reducer event sequences, checking section 7 properties and S1–S8 after applicable transitions. Save minimized failures as deterministic regression traces.
 
@@ -241,10 +241,10 @@ Malformed public input returns established service errors without partial mutati
 
 - [x] P3.1: Implement and regenerate first-slice schema/registration/adapter sources.
 - [x] P3.2: Test round-trip, task validation, transaction atomicity, cache behavior, and fresh-object reload through actual CHASM paths.
-- [ ] P3.3: Instrument preparation/deserialization, modified nodes, serialized bytes, and persistence reads from the first slice.
+- [x] P3.3: Instrument preparation/deserialization, modified nodes, serialized bytes, and persistence reads from the first slice.
 - [x] P3.4: Demonstrate metadata reads avoid large carryover/diagnostic payloads and keyed callbacks avoid unrelated operations.
-- [ ] P3.5: Expand the adapter only after relevant contract/model decisions are ready.
-- [ ] P3.6: Run applicable concurrent adapter/executor tests with the Go race detector; verify cancellation, timeout, and immutable snapshot ownership behavior.
+- [x] P3.5: Expand the adapter only after relevant contract/model decisions are ready.
+- [x] P3.6: Run applicable concurrent adapter/executor tests with the Go race detector; verify cancellation, timeout, and immutable snapshot ownership behavior.
 
 Exit: actual CHASM paths meet atomicity, restart, and selective-loading obligations. Required generation and focused checks pass.
 
@@ -257,8 +257,8 @@ The abstract transition relation must be independently specified rather than der
 - [x] P4.1: Exercise one automatic occurrence and one explicitly selected overlap policy through admission, durable intent, acceptance, lost acknowledgment, retry, early completion, and restart.
 - [x] P4.2: Shrink failures into replayable event traces.
 - [x] P4.3: Save seed, initial state, tool/binary versions, configuration, source SHA, event ordering, and invariant expectations.
-- [ ] P4.4: Replay historical traces, detect deliberate defects, and cover every production event path as it is added.
-- [ ] P4.5: Drive the deterministic harness with Rapid-generated commands, delivery orders, and fault choices. Check invariants after each commit and append controlled recovery suffixes for bounded progress checks.
+- [x] P4.4: Replay historical traces, detect deliberate defects, and cover every production event path as it is added.
+- [x] P4.5: Drive the deterministic harness with Rapid-generated commands, delivery orders, and fault choices. Check invariants after each commit and append controlled recovery suffixes for bounded progress checks.
 - [x] P4.6: Pass harness self-tests for replay, fresh-object restart, failure boundaries, and dependency-aware shrinking before counting simulation runs as evidence.
 - [x] P4.7: Implement the local verification runner and named evidence-producing profiles defined in section 7.
 
@@ -459,8 +459,8 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D2 | First-slice overlap policy | decided | SKIP, one predetermined automatic occurrence; contract.md, E5 | Resolved M1 slice |
 | D3 | Admission/accounting point and immutable request boundary | decided | Debit once at committed admission, count once on acceptance evidence; freeze complete request; DIV1; E10–E13 | Resolved M1 slice |
 | D4 | External deduplication expiry and terminal retention | decided for M1 | Assume retained remote identity within admission+60s; stop issuance at expiry, retain ambiguity, accept valid late evidence; no terminal eviction | Production retention remains M2+ |
-| D5 | Capacity limits and sustained-ingress fairness | open | Define ingress dispositions and L2 assumptions | M2 |
-| D6 | Retry deadline representation | open | Measure bounded scan versus maintained index | Expanded P3 |
+| D5 | Capacity limits and sustained-ingress fairness | decided for bounded local component | D47–D50, cap4 queues/commands/operations and conditional resource fairness; E53–E58 | M4 scaling remains |
+| D6 | Retry deadline representation | decided for bounded local component | D38 root PendingStarts deadline index and keyed DATA; idle/effect metadata separate | M4 scaling remains |
 | D7 | Local model checker | decided | Use FizzBee; verify/pin local installation and record commands before execution | P1.2 |
 | D8 | Migration support | decided | Unsupported in initial local prototype | Future migration only |
 | D9 | Property-testing tool | decided | Use test-only Rapid for structured specs, reducer sequences, and harness scenarios; preserve standalone replay artifacts | P2.5, P4.5 |
@@ -503,6 +503,17 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D44 | Manual transfer/capacity | decided for WI-008 | At most1 transfer; full queue waits; free/ALLOW_ALL admission needs operation slot; blocked tracked policy can queue/dispose without slot. Resolve unspecified policy at transfer. | WI-008 |
 | D45 | Manual eligibility | decided for WI-008 | Bypass pause, budget debit, catchup and automatic cursor; supplied ScheduledTime is workflow identity, including future; stable sequence start ID; ALLOW_DUPLICATE reuse. | WI-008 |
 | D46 | Manual snapshots/wakes | decided for WI-008 | Metadata-only acceptance/disposal; current template at transfer/admission; token/deadline task, no spin at capacity; immutable60s admission horizon. Mixed-ingress fairness remains WI-009. | Fixf525eacab; accepted E47–E52 |
+
+| D47 | Historical backfill range | accepted WI-009 | Cap4, inclusive fixed range, pending retained; rebase after disposed nominal. | E53–E58 |
+| D48 | Sole coordinator | accepted WI-009 | One scan batch or disposition/handoff per transaction; legacy tasks stale. | E53–E58 |
+| D49 | Capacity lease and resource turns | accepted WI-009 | Concrete vacancy ownership; successful dispositions/admissions rotate appropriate turns. | E53–E58 |
+| D50 | Conditional sustained-ingress progress | accepted WI-009 | Bounded scan/focus rotation with fair publication/delivery, recurring capacity and stable definitions. | E53–E58 |
+| D51 | Terminal authority | accepted WI-010 | Root Closed fence plus exact RunID; authorized preclose RPC may finish, replacement cannot mutate. | E59–E66 |
+| D52 | Activity evidence | accepted WI-010 | Independent root maximum; first retained successful-start observation uses post-RPC wall plus captured virtual offset. | E62–E66 |
+| D53 | Idle eligibility | accepted WI-010 | Accepted/unconfirmed obligations hold open; Started alone does not; zero duration disables close. | E62–E66 |
+| D54 | Idle publication | accepted WI-010 | Exact token/deadline, prewrite overflow validation; conditional stable-idle liveness. | E62–E66 |
+| D55 | Atomic local configuration | accepted E67–E71 | Full source/control replacement prepared before writes; preserves admitted bytes and frozen waiter policies. | E67–E71; strengthened10000-case relation |
+| D56 | Local update replay | accepted E67–E71 | Bounded CHASM request-ID success replay; stale new-ID revision rejects. Separate from public conflict tokens. | E67–E69 |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 
@@ -863,3 +874,24 @@ conditional idle closure with discriminating retention/rearm/recreation evidence
 The final History fixture covers definite delete rejection and exact-run late
 results; it does not claim database or physical queue processor coverage.
 WI-011 now owns remaining M2 current mappings/composed updates; M3/M4 remain open.
+
+
+WI-011 implementation in isolated sch-redesign-updates: D55/D56 full local atomic
+configuration replacement and bounded request replay, E67–E69 source review,
+baseline/race,5 Go mutants and composed lease/request tests. Current mappings and
+coverage inventory identify remaining M2 checks; final replay/measurement validation
+and acceptance remain open. Public API/proof M3 and load/state-growth M4 unchanged.
+
+### WI-011 and M2 acceptance
+
+WI-011 and M2 pass E67–E71 after the [independent acceptance review](docs/development/scheduler2/evidence/wi011/acceptance-review.md).
+Atomic configuration/replay, composed transitions, current mappings, strengthened
+10000-case generated expectations, saved replay sensitivity, numeric neighbors and
+recovery, materialization/persistence-read observations, final race and scoped lint
+are recorded with their limits. Historical failed fixtures remain in the ledger.
+P1.4/P2.3/P3.3/P3.5/P3.6/P4.4/P4.5 close for paths implemented through WI-011.
+P2.5 remains open for full section7 spec-processing coverage and correspondence in
+M3; neither current factor models nor manual mappings are a product refinement
+proof. M3/M4 requirements remain unchanged. Next item: backend descriptor and
+complete functional coverage inventory, followed by local frontend/API wiring;
+Lean proofs and correspondence can proceed independently under their own item.

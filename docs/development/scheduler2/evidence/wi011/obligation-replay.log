@@ -1,0 +1,14 @@
+=== RUN   TestUpdateSavedReplay
+=== PAUSE TestUpdateSavedReplay
+=== CONT  TestUpdateSavedReplay
+=== RUN   TestUpdateSavedReplay/testdata/update_v1.json
+=== PAUSE TestUpdateSavedReplay/testdata/update_v1.json
+=== RUN   TestUpdateSavedReplay/testdata/update_obligation_v1.json
+=== PAUSE TestUpdateSavedReplay/testdata/update_obligation_v1.json
+=== CONT  TestUpdateSavedReplay/testdata/update_v1.json
+=== CONT  TestUpdateSavedReplay/testdata/update_obligation_v1.json
+--- PASS: TestUpdateSavedReplay (0.00s)
+    --- PASS: TestUpdateSavedReplay/testdata/update_obligation_v1.json (0.01s)
+    --- PASS: TestUpdateSavedReplay/testdata/update_v1.json (0.01s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.763s
