@@ -8,6 +8,10 @@
 === PAUSE TestEffectsTaskPermitAndDetachedRequest
 === RUN   TestEffectsTaskCancellationAfterRemoteAcceptance
 === PAUSE TestEffectsTaskCancellationAfterRemoteAcceptance
+=== RUN   TestEffectsTaskDeadlineBoundary
+=== PAUSE TestEffectsTaskDeadlineBoundary
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation
 === RUN   TestEffectsUnknownTargetBindingAndFrozenRetry
 === PAUSE TestEffectsUnknownTargetBindingAndFrozenRetry
 === RUN   TestEffectsTerminateSupersedesCancelAndLateEvidence
@@ -21,29 +25,53 @@
 === RUN   TestEffectsClockRollbackPreservesObligation
 === PAUSE TestEffectsClockRollbackPreservesObligation
 === CONT  TestEffectsSavedReplay
-=== CONT  TestEffectsTerminateSupersedesCancelAndLateEvidence
-=== CONT  TestEffectsTaskPermitAndDetachedRequest
 === CONT  TestEffectsUnknownTargetBindingAndFrozenRetry
---- PASS: TestEffectsTaskPermitAndDetachedRequest (0.01s)
 === CONT  TestEffectsTaskCancellationAfterRemoteAcceptance
+=== CONT  TestEffectsTaskTerminateOverInFlightCancel
+--- PASS: TestEffectsTaskCancellationAfterRemoteAcceptance (0.01s)
+=== CONT  TestEffectsTaskPermitAndDetachedRequest
+--- PASS: TestEffectsTaskTerminateOverInFlightCancel (0.01s)
+=== CONT  TestEffectsMetadataAndUnrelatedPayloadIsolation
 --- PASS: TestEffectsUnknownTargetBindingAndFrozenRetry (0.01s)
 === CONT  TestEffectsClockRollbackPreservesObligation
---- PASS: TestEffectsTerminateSupersedesCancelAndLateEvidence (0.01s)
+--- PASS: TestEffectsTaskPermitAndDetachedRequest (0.00s)
 === CONT  TestEffectsDelayedBindingAfterParallelAdmission
---- PASS: TestEffectsTaskCancellationAfterRemoteAcceptance (0.00s)
-=== CONT  TestEffectsMetadataAndUnrelatedPayloadIsolation
---- PASS: TestEffectsClockRollbackPreservesObligation (0.00s)
+--- PASS: TestEffectsMetadataAndUnrelatedPayloadIsolation (0.00s)
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation/retry
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation/retry
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation/completion
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation/completion
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation/terminate
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation/terminate
+=== CONT  TestEffectsTaskDeadlineBoundary
+=== RUN   TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== PAUSE TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== RUN   TestEffectsTaskDeadlineBoundary/exact
+=== PAUSE TestEffectsTaskDeadlineBoundary/exact
 === CONT  TestEffectsQueueOverflowCreatesNoDemand
 --- PASS: TestEffectsSavedReplay (0.01s)
-=== CONT  TestEffectsTaskTerminateOverInFlightCancel
---- PASS: TestEffectsDelayedBindingAfterParallelAdmission (0.00s)
 === CONT  TestEffectsTaskLostAckFrozenRetryAndNotFound
---- PASS: TestEffectsMetadataAndUnrelatedPayloadIsolation (0.00s)
+--- PASS: TestEffectsClockRollbackPreservesObligation (0.00s)
+=== CONT  TestEffectsTerminateSupersedesCancelAndLateEvidence
+--- PASS: TestEffectsDelayedBindingAfterParallelAdmission (0.00s)
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation/retry
 --- PASS: TestEffectsQueueOverflowCreatesNoDemand (0.00s)
---- PASS: TestEffectsTaskTerminateOverInFlightCancel (0.00s)
+=== CONT  TestEffectsTaskDeadlineBoundary/one_nanosecond_before
 --- PASS: TestEffectsTaskLostAckFrozenRetryAndNotFound (0.00s)
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation/terminate
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation/completion
+--- PASS: TestEffectsTerminateSupersedesCancelAndLateEvidence (0.01s)
+=== CONT  TestEffectsTaskDeadlineBoundary/exact
+--- PASS: TestEffectsTaskOriginalPhysicalInvalidation (0.00s)
+    --- PASS: TestEffectsTaskOriginalPhysicalInvalidation/retry (0.00s)
+    --- PASS: TestEffectsTaskOriginalPhysicalInvalidation/terminate (0.00s)
+    --- PASS: TestEffectsTaskOriginalPhysicalInvalidation/completion (0.00s)
+--- PASS: TestEffectsTaskDeadlineBoundary (0.00s)
+    --- PASS: TestEffectsTaskDeadlineBoundary/one_nanosecond_before (0.00s)
+    --- PASS: TestEffectsTaskDeadlineBoundary/exact (0.00s)
 PASS
-ok  	go.temporal.io/server/chasm/lib/scheduler2	1.174s
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.675s
 === RUN   TestEffectsIndependentProperties
 === PAUSE TestEffectsIndependentProperties
 === RUN   TestEffectsFreeSelectionAndOverflow
@@ -52,7 +80,7 @@ ok  	go.temporal.io/server/chasm/lib/scheduler2	1.174s
 === CONT  TestEffectsFreeSelectionAndOverflow
 --- PASS: TestEffectsFreeSelectionAndOverflow (0.00s)
 === NAME  TestEffectsIndependentProperties
-    effects_test.go:14: [rapid] OK, passed 10000 tests (2.049626208s)
---- PASS: TestEffectsIndependentProperties (2.05s)
+    effects_test.go:14: [rapid] OK, passed 10000 tests (2.373776041s)
+--- PASS: TestEffectsIndependentProperties (2.37s)
 PASS
-ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	2.607s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	3.242s

@@ -168,19 +168,18 @@ concrete tests; model failed-publication/stale-delivery steps declare trusted bo
 Real storage-backend crash recovery, cancel/terminate, manual/backfill, public APIs,
 proof correspondence and load evidence remain subsequent work under the active goal.
 
-## WI-007 evidence in verification (partial M2)
+## Accepted WI-007 evidence (partial M2)
 
-Implementation6175ef959; independent tests/models integrated4e4f3b605. Acceptance
-remains pending explicit physical-task deadline/staleness and executor-permit checks
-identified by independent review. No gate is waived.
+Implementation6175ef959; independent tests/models integrated4e4f3b605. Final source688eba86d passes all item gates after the independent review corrections.
+See [acceptance review](wi007/review.md); no gate is waived.
 
 | ID | Kind / claim | Artifact and current result |
 |---|---|---|
 | E42 | source-inspection / contract | [WI-007](../work-items/WI-007.md), D39–D42; fenced cancel/terminate, binding-time horizon, no effect-driven occupancy release, eligibility-before-replacement. Source review clear. |
 | E43 | bounded-model / reachability | [results](../model/effects/evidence/results.json), [scope](../model/effects/README.md); protocol90058 visited/72728 valid/18168 unique, selection121/121/99, binding176/176/138 at100/200; twelve safety/fourteen temporally strengthened witnesses and six mutants. Manual factorization, no composition/liveness/refinement proof. |
-| E44 | property / CHASM / replay | [manifest](wi007/effects/manifest.json);10000 Rapid scenarios and real CHASM effect publication/reload, frozen retry, poisoned partitions, delayed binding, cancellation and saved replay pass. Additional deadline/stale physical checks pending. |
-| E45 | generation / race / lint / mutation | [race](wi007/race/manifest.json), [mutations](wi007/mutations/manifest.json); full scheduler2/registry race passed before final test additions; six source mutants detected/restored. Final lint and concurrency sensitivity pending. |
-| E46 | review / provenance | [initial fixture failure](wi007/independent-initial.log), [initial lint](wi007/lint-tests-initial.log), [original checkout inventory](wi007/original-status.txt); fixture corrected, witness review corrections retained, remaining review gaps explicitly open. |
+| E44 | property / CHASM / replay | [manifest](wi007/effects/manifest.json);10000 Rapid scenarios and real CHASM effect publication/reload, frozen retry, poisoned partitions, delayed binding, cancellation and saved replay pass. Exact-deadline and stale physical-task checks pass. |
+| E45 | generation / race / lint / mutation | [race](wi007/race/manifest.json), [mutations](wi007/mutations/manifest.json); final full scheduler2/registry race and scoped lint pass; eight source mutants detected/restored, including permit removal and deadline issuance. |
+| E46 | review / provenance | [initial fixture failure](wi007/independent-initial.log), [initial lint](wi007/lint-tests-initial.log), [original checkout inventory](wi007/original-status.txt); fixture corrected, witness review corrections retained, all item review gaps resolved; full milestone gates remain open. |
 
 The product model's actual300s timeout is retained; accepted factored models
 separate transport from selection and supplement delayed binding. They do not

@@ -9,5 +9,5 @@
         	Test:       	TestEffectsClockRollbackPreservesObligation
 --- FAIL: TestEffectsClockRollbackPreservesObligation (0.00s)
 FAIL
-FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.658s
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.656s
 FAIL

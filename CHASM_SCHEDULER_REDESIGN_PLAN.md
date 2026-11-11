@@ -6,8 +6,8 @@
 | --- | --- |
 | Status | Authorized local execution through M4 |
 | Updated | 2026-11-11 |
-| Current milestone | M2 partial: WI-006 accepted; WI-007 cancel/terminate under verification |
-| Implementation status | WI-000 through WI-006 accepted; WI-007 implemented, acceptance pending |
+| Current milestone | M2 partial: WI-007 accepted; WI-008 manual trigger investigation |
+| Implementation status | WI-000 through WI-007 accepted; WI-008 investigating |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing through all milestones M2–M4; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
 | Execution environment | Local development, model checking, simulation, and functional testing only |
@@ -149,7 +149,7 @@ Phases describe coverage areas, not a requirement to finish all modeling before 
 | --- | --- | --- | --- |
 | M0 | Workspace provenance, first-slice contract, early CHASM guarantees | passed | E4–E8 |
 | M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | passed | E9–E16; bounded scope and trusted boundaries below |
-| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-006 E17–E41; remaining cancel/terminate/manual/backfill work pending |
+| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-007 E17–E46; remaining manual/backfill/spec work pending |
 | M3 | Differential API and shared functional coverage with no unexplained differences | pending | — |
 | M4 | Load/state-growth report and explicit migration support boundary | pending | — |
 
@@ -494,6 +494,11 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D37 | Capacity-wait drain | decided for WI-006 | Accepted eligible queue waits without retry spin while all slots unfinished; keyed terminal/configuration rechecks and rearms; ineligible disposal needs no slot. | Independent evidence pending |
 | D38 | Transaction-wide metadata isolation | decided for WI-006 | Operation/request DATA maps plus exact root PendingStarts deadline index; CHASM cleanup reads no unrelated operation values. Issuance rechecks keyed metadata; no old-layout migration. | Fix39b5099c3; poisoned commit regression |
 
+| D39 | Overlap queue replacement | decided for WI-007 | Filter eligibility first; later cancel/terminate replaces unadmitted selection, retaining intervening BUFFER entries. Committed starts immutable. | E42–E46 |
+| D40 | Durable effect binding | decided for WI-007 | Max2 effects; unknown chain waits; freeze target first-run fence and request,60s horizon from binding,1s backoff, one effect permit. | E42–E46 |
+| D41 | Effect outcomes | decided for WI-007 | Success Accepted; NotFound Absent; expiry Ambiguous. No outcome releases blocker or changes start accounting/carryover. | E42–E46 |
+| D42 | Effect publication/isolation | decided for WI-007 | Root metadata plus DATA requests; atomic binding/task; metadata-only validation; terminate supersedes future cancel, completion clears target. | E42–E46 |
+
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 
 ## 9. Evidence ledger
@@ -772,3 +777,9 @@ contention checks requested by review. No human-review pause; work continues loc
 D39–D42 are recorded in [WI-007](docs/development/scheduler2/work-items/WI-007.md).
 M2 remains partial; manual identity, backfill fairness and remaining spec/mapping
 obligations precede full M3 functional/API/proof and M4 load acceptance.
+
+
+WI-007 accepted at688eba86d after physical-task boundary and permit sensitivity
+checks. E42–E46 now final; [review](docs/development/scheduler2/evidence/wi007/review.md)
+records limitations. [WI-008](docs/development/scheduler2/work-items/WI-008.md) captures
+source-backed manual trigger investigation. No human hold or production change.

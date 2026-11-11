@@ -1,6 +1,58 @@
 {
-  "source_sha": "6175ef959f2d1f70c6fcc03bc02ae2318dd3f261",
+  "source_sha": "4e4f3b605bdc8e79baca7ef84134a1c304d7e06d",
   "results": [
+    {
+      "mutation": "expiry-issuance-enabled",
+      "path": "chasm/lib/scheduler2/effects.go",
+      "original_sha256": "7b4d71aed590e49679104141e661ba1394aa289bed2ffa338c0498dcb445df17",
+      "mutant_sha256": "b4cfa7fbc746a1c1c388068ac7956e27366229c7408a3f9d44b3f31c11224cf7",
+      "old": "if now >= effect.Deadline {",
+      "new": "if false {",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2",
+        "-run",
+        "^TestEffectsTaskDeadlineBoundary$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    },
+    {
+      "mutation": "permit-removed",
+      "path": "chasm/lib/scheduler2/effects_tasks.go",
+      "original_sha256": "ea874c86c548d60722faf71fa0a649e9cf7b24f1a196b3fbb2f2999adb7f8eab",
+      "mutant_sha256": "3e909665962b0a6076d456eaa7c0b9310849fad39b21271dbfa9c6c331abed77",
+      "old": "\tselect {\n\tcase h.permit <- struct{}{}:\n\t\tdefer func() { <-h.permit }()\n\tcase <-ctx.Done():\n\t\treturn ctx.Err()\n\t}\n",
+      "new": "",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2",
+        "-run",
+        "^TestEffectsTaskPermitAndDetachedRequest$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    },
     {
       "mutation": "cancel-fence-omitted",
       "path": "chasm/lib/scheduler2/effects.go",

@@ -140,3 +140,17 @@ WI-006 final disposition (retained):
 - Final source58ad6c3d6 clean at profile start; independent review clear.
 - Original checkout had no task writes; current inventory/hash and initial untracked
   path retention recorded in evidence/wi006. No push/routing/rollout/migration.
+
+
+## WI-007 local execution
+
+- Main implementation6175ef959; independent tests/model integrated4e4f3b605;
+  review corrections688eba86d. Final code profiles begin clean at688eba86d.
+- Tests: /private/tmp/sch-redesign-effects-tests, sch-redesign-effects-tests,
+  contractd8a84beff plus implementationfd5fb9e72. Owned test files copied and
+  committed by parent; parent corrected protobuf semantic comparison.
+- Model: /private/tmp/sch-redesign-effects-model, sch-redesign-effects-model,
+  contractd8a84beff; owned models/evidence copied by parent, all hashes verified.
+- Worktrees retained. Original checkout received no task writes; concurrent unrelated
+  commit03ecd1d22 tracked a previously untracked file, whose path remains present.
+- No push, production routing, rollout or migration. WI-008 investigation is local.

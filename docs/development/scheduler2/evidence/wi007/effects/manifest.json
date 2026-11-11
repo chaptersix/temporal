@@ -1,8 +1,8 @@
 {
   "profile": "effects",
-  "source_sha": "6175ef959f2d1f70c6fcc03bc02ae2318dd3f261",
-  "status_before": "M docs/development/scheduler2/profile.json\n M docs/development/scheduler2/run.py\n?? chasm/lib/scheduler2/effects_replay_test.go\n?? chasm/lib/scheduler2/effects_tasks_test.go\n?? chasm/lib/scheduler2/effects_test.go\n?? chasm/lib/scheduler2/internal/decision/effects_test.go\n?? chasm/lib/scheduler2/testdata/effects_v1.json\n?? docs/development/scheduler2/evidence/wi007/independent-initial.log\n?? docs/development/scheduler2/evidence/wi007/lint-source.log\n?? docs/development/scheduler2/model/effects/",
-  "diff_sha256": "ed923222d3c607355e197aa1e66733fbab5b464dcce5fdc7463e38f9eab00869",
+  "source_sha": "688eba86dff6c96e1ba92571230d0feb4018fb66",
+  "status_before": "",
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "source_files": {
     "chasm/lib/scheduler2/allowall_replay_test.go": "e834b0b83e35a40806dabdafa487306b7553e198c8eb87993a303ec34b23c888",
     "chasm/lib/scheduler2/allowall_test.go": "50d3462ded652c16b372c00e50a2cd09b2490a890dfe7b73d0ced08221c991de",
@@ -16,7 +16,7 @@
     "chasm/lib/scheduler2/effects.go": "7b4d71aed590e49679104141e661ba1394aa289bed2ffa338c0498dcb445df17",
     "chasm/lib/scheduler2/effects_replay_test.go": "dd17b652c84e2f193960bf7eec2c9a5b4af99866c588792fede3e44b739dca7a",
     "chasm/lib/scheduler2/effects_tasks.go": "ea874c86c548d60722faf71fa0a649e9cf7b24f1a196b3fbb2f2999adb7f8eab",
-    "chasm/lib/scheduler2/effects_tasks_test.go": "0a5214e85802b7a330574d705c92d7a717096657fd9629d519f453b0a9ffe211",
+    "chasm/lib/scheduler2/effects_tasks_test.go": "289a014196eb394ebf20bd16f66dd4cc96e4b7a71a31d59a64737989a5e624d1",
     "chasm/lib/scheduler2/effects_test.go": "5d5c24dded94b5448c1669136555a8843a246823fec4641b09addcb905e73375",
     "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go": "f1971703da8200d5e803b9f781559f6be162ad0a8151a6dbedf74eae4db1a078",
     "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "2085716e9f1b4a92970d7da6b029522ef8e41a756fdd2c072ed65877fb90f8b1",
@@ -24,14 +24,14 @@
     "chasm/lib/scheduler2/generation_test.go": "63f0658a8d38dffd98467a75053f7812514847915acbba1da41da3fd64bd5486",
     "chasm/lib/scheduler2/generator.go": "8863e3914e88cfa19bbc3eb3c7a6d82048cd75724a163cc4ac70b59417d7e228",
     "chasm/lib/scheduler2/internal/decision/allowall_test.go": "c1e1991777633e6012fd3ddf8ab6d5297bb82d86191cc55b78f72f3e45126f0e",
-    "chasm/lib/scheduler2/internal/decision/buffer.go": "12a5de09886eb68e1b5fda7aeff52dbcc7acfce56d5aac2b2c5f5a93f20b20ae",
+    "chasm/lib/scheduler2/internal/decision/buffer.go": "cea70901f217f4c92a651163a8ca1b4978524be5156a50ac6db8d3ad0ea9114c",
     "chasm/lib/scheduler2/internal/decision/buffer_test.go": "c85d5bfc20e900833aa1c56af03f4ef8105bb993d91e76667e7a5823011dc9dc",
     "chasm/lib/scheduler2/internal/decision/completion.go": "d5d9198759486acdecd31a031c9c55166816c73a4897cc493ac8697214df84b0",
     "chasm/lib/scheduler2/internal/decision/completion_test.go": "246af973db516fabdd715e0a5049f478c18c49ce1dbb8df536853c5ef275844b",
     "chasm/lib/scheduler2/internal/decision/decision.go": "584bcb4a6f165a657df419a8a808edfb19126b9c1797d077bf4df207bea25e0b",
     "chasm/lib/scheduler2/internal/decision/decision_test.go": "5120011b1946b2dcafb9e2fc374adfede34b36d05438f03646eb8675150f7c3c",
     "chasm/lib/scheduler2/internal/decision/effects.go": "4e32a154961b808366b5d72d80b2ce997d1bee6262462117dcc059c20043bb8c",
-    "chasm/lib/scheduler2/internal/decision/effects_test.go": "7b177c90d754127f57fcba250b85524fd6748678912f7a4c34d4a4c14ee7c03d",
+    "chasm/lib/scheduler2/internal/decision/effects_test.go": "8fecd6e9112b3326002d51a4086df733d3451ba40cc74d3a2e7c965e50dcdeda",
     "chasm/lib/scheduler2/internal/decision/sequential_test.go": "983ac0c322ab1e2d8d1fce54974e78eb2a88ad6b29bcddbcaf425d3c8dbc9e38",
     "chasm/lib/scheduler2/internal/occurrence/boundaries_test.go": "23647440f47c4c5a9fdae417074369902953486f86fe8cac5ba9752cb683b80a",
     "chasm/lib/scheduler2/internal/occurrence/occurrence.go": "a2bd64980ffa6e105f380c03ecc36fee9c57e09dd800787b29a7813fb94f942b",
@@ -207,8 +207,8 @@
       ],
       "exit_code": 0,
       "result": "passed",
-      "seconds": 4.636102040996775,
-      "log": "/private/tmp/scheduler2-wi007-final/effects/0.log"
+      "seconds": 4.556257999967784,
+      "log": "/private/tmp/scheduler2-wi007-accepted/effects/0.log"
     }
   ],
   "result": "passed"

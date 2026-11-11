@@ -8,5 +8,5 @@
         	Test:       	TestEffectsUnknownTargetBindingAndFrozenRetry
 --- FAIL: TestEffectsUnknownTargetBindingAndFrozenRetry (0.01s)
 FAIL
-FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.668s
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.675s
 FAIL

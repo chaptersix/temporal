@@ -8,7 +8,7 @@
         	            	expected: 6
         	            	actual  : 2
         	Test:       	TestEffectsTerminateSupersedesCancelAndLateEvidence
---- FAIL: TestEffectsTerminateSupersedesCancelAndLateEvidence (0.00s)
+--- FAIL: TestEffectsTerminateSupersedesCancelAndLateEvidence (0.01s)
 FAIL
-FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.659s
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.667s
 FAIL

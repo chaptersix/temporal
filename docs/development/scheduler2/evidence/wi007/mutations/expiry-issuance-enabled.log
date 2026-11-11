@@ -1,0 +1,21 @@
+=== RUN   TestEffectsTaskDeadlineBoundary
+=== PAUSE TestEffectsTaskDeadlineBoundary
+=== CONT  TestEffectsTaskDeadlineBoundary
+=== RUN   TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== PAUSE TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== RUN   TestEffectsTaskDeadlineBoundary/exact
+=== PAUSE TestEffectsTaskDeadlineBoundary/exact
+=== CONT  TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== CONT  TestEffectsTaskDeadlineBoundary/exact
+    effects_tasks_test.go:229: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/effects_tasks_test.go:229
+        	Error:      	Not equal: 
+        	            	expected: 0
+        	            	actual  : 1
+        	Test:       	TestEffectsTaskDeadlineBoundary/exact
+--- FAIL: TestEffectsTaskDeadlineBoundary (0.00s)
+    --- FAIL: TestEffectsTaskDeadlineBoundary/exact (0.01s)
+    --- PASS: TestEffectsTaskDeadlineBoundary/one_nanosecond_before (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.671s
+FAIL
