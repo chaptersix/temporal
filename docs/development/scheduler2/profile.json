@@ -123,5 +123,15 @@
     "dedup": "CHASM WithRequestID; bounded framework count/age; independent of start record retention",
     "workflow_reuse": "ALLOW_DUPLICATE",
     "fairness": "sustained mixed ingress arbitration pending WI-009"
+  },
+  "backfill_range": {
+    "scope": "WI-009 helper only; coordinator integration pending",
+    "bounds": "inclusive within [2000,2101); actual <= fixed end",
+    "probes_per_peek": 8,
+    "maximum_probes": 1024,
+    "eligible_outputs_per_peek": 0,
+    "pending_candidates": 1,
+    "commit": "DisposeRange and handoff atomic caller obligation",
+    "update": "new revision rebase after disposed nominal, never execution now"
   }
 }

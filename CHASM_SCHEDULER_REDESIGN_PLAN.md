@@ -6,8 +6,8 @@
 | --- | --- |
 | Status | Authorized local execution through M4 |
 | Updated | 2026-11-11 |
-| Current milestone | M2 partial: WI-008 accepted; WI-009 backfill/fairness investigation |
-| Implementation status | WI-000 through WI-008 accepted; WI-009 investigating |
+| Current milestone | M2 partial: WI-008 accepted; WI-009 range/coordinator work active |
+| Implementation status | WI-000 through WI-008 accepted; WI-009 range helpers implemented, coordinator pending |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing through all milestones M2–M4; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
 | Execution environment | Local development, model checking, simulation, and functional testing only |
@@ -801,3 +801,11 @@ WI-008 accepted at12740ef1d with E47–E52, including final review-requested man
 queue/template/carryover and stored-task regressions. [WI-009](docs/development/scheduler2/work-items/WI-009.md)
 records resumable backfill and capacity arbitration investigation. Sustained-ingress
 fairness is still a required M2 gate, not inferred from WI-008's bounded recovery.
+
+
+WI-009 range helpers and reviewed resource-entitlement design are in progress.
+[Design](docs/development/scheduler2/design/backfill-arbitration.md) records two
+starvation counterexamples to naive readiness arbitration. D47–D50 in
+[WI-009](docs/development/scheduler2/work-items/WI-009.md) require one coordinator,
+durable vacancy ownership and operation-slot fairness. Range helper evidence alone
+does not pass WI-009 or M2; all integrated fairness/public API/proof/load gates remain.

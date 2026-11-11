@@ -207,3 +207,14 @@ Final source12740ef1d resolves the review findings; M2–M4 remain incomplete.
 | E50 | bounded-model / reachability | [model results](../model/manual/evidence/results.json), [limits](../model/manual/README.md); commands259 unique, admission17434 unique at100/200; nine safety/fifteen witnesses/eight mutants, manually factored with framework boundary. |
 | E51 | property / CHASM / replay | [manual manifest](wi008/manual/manifest.json);10000 scenarios1–128 commands, actual request-ID DATA child, failed publication, stable identities, same-time records, pause/budget/catchup bypass, capacity recovery, poisoned partitions, current queued payload/carryover and stale stored tasks. Saved version1 replay. |
 | E52 | race / lint / mutation / review | [checks](wi008/checks.json), [race](wi008/race/manifest.json), [lint](wi008/lint.log), [mutants](wi008/mutations/manifest.json), [review](wi008/review.md); all pass, eight Go defects detected/restored. Original checkout untouched by task, worktrees retained. |
+
+
+## WI-009 work in progress
+
+| ID | Kind / claim | Artifact and current result |
+|---|---|---|
+| E53 | design review / counterexample | [arbitration design](../design/backfill-arbitration.md), [WI-009 D47–D50](../work-items/WI-009.md); readiness-only turns and insert-only vacancy turns can starve accepted work. Reviewed concrete vacancy lease addresses those traces under stated external-capacity assumptions; implementation/model gates remain. |
+| E54 | property / unit / source review | [range initial run](wi009/range-initial.log);10000 independent interval cases with probe budgets1/2/8 and directed inclusive/fractional/jitter/exclusion/nominal-rebase tests pass. Helpers retain candidate across waits; caller must preserve fixed end and publish disposal with handoff. Not CHASM integration or fairness evidence. |
+
+WI-009 remains active. No coordinator, backfill API, integrated fairness, model
+refinement or milestone completion is implied by this helper checkpoint.
