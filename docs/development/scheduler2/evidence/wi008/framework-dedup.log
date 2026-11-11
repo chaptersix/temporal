@@ -1,0 +1,35 @@
+=== RUN   TestChasmEngineSuite
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_DifferentRequestIDsWithEviction
+2026-11-11T14:27:02.365-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/Users/alex/repos/wt/sch-redesign/temporal/service/history/shard/task_key_generator.go:155"}
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_NoRequestID
+2026-11-11T14:27:02.367-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/Users/alex/repos/wt/sch-redesign/temporal/service/history/shard/task_key_generator.go:155"}
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_NoRequestID/no_option
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_NoRequestID/empty_request_ID
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_RequestIDDataNode_DifferentRequestIDsWithEviction
+2026-11-11T14:27:02.368-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/Users/alex/repos/wt/sch-redesign/temporal/service/history/shard/task_key_generator.go:155"}
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_RequestIDDataNode_ExpiredRequestIDAccepted
+2026-11-11T14:27:02.368-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/Users/alex/repos/wt/sch-redesign/temporal/service/history/shard/task_key_generator.go:155"}
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_RequestIDIdempotency
+2026-11-11T14:27:02.368-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/Users/alex/repos/wt/sch-redesign/temporal/service/history/shard/task_key_generator.go:155"}
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_RequestIDTypesDedupIndependently
+2026-11-11T14:27:02.369-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/Users/alex/repos/wt/sch-redesign/temporal/service/history/shard/task_key_generator.go:155"}
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_UpdateRequestID
+2026-11-11T14:27:02.369-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/Users/alex/repos/wt/sch-redesign/temporal/service/history/shard/task_key_generator.go:155"}
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_UpdateRequestID/DataNodeEnabled
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_UpdateRequestID/DataNodeDisabled
+=== RUN   TestChasmEngineSuite/TestUpdateComponent_UpdateRequestID/DataNodeDisabledAfterRecord
+--- PASS: TestChasmEngineSuite (0.01s)
+    --- PASS: TestChasmEngineSuite/TestUpdateComponent_DifferentRequestIDsWithEviction (0.00s)
+    --- PASS: TestChasmEngineSuite/TestUpdateComponent_NoRequestID (0.00s)
+        --- PASS: TestChasmEngineSuite/TestUpdateComponent_NoRequestID/no_option (0.00s)
+        --- PASS: TestChasmEngineSuite/TestUpdateComponent_NoRequestID/empty_request_ID (0.00s)
+    --- PASS: TestChasmEngineSuite/TestUpdateComponent_RequestIDDataNode_DifferentRequestIDsWithEviction (0.00s)
+    --- PASS: TestChasmEngineSuite/TestUpdateComponent_RequestIDDataNode_ExpiredRequestIDAccepted (0.00s)
+    --- PASS: TestChasmEngineSuite/TestUpdateComponent_RequestIDIdempotency (0.00s)
+    --- PASS: TestChasmEngineSuite/TestUpdateComponent_RequestIDTypesDedupIndependently (0.00s)
+    --- PASS: TestChasmEngineSuite/TestUpdateComponent_UpdateRequestID (0.00s)
+        --- PASS: TestChasmEngineSuite/TestUpdateComponent_UpdateRequestID/DataNodeEnabled (0.00s)
+        --- PASS: TestChasmEngineSuite/TestUpdateComponent_UpdateRequestID/DataNodeDisabled (0.00s)
+        --- PASS: TestChasmEngineSuite/TestUpdateComponent_UpdateRequestID/DataNodeDisabledAfterRecord (0.00s)
+PASS
+ok  	go.temporal.io/server/service/history	0.994s

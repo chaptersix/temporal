@@ -76,3 +76,15 @@ func dispatchManual(next State, event Event) (State, error) {
 	}
 	return startOperation(next, event, command.Nominal, event.WorkflowID, policy, command.ID)
 }
+
+// ManualNeedsTemplate distinguishes identity/admission work from policy-only disposal.
+func ManualNeedsTemplate(state State) bool {
+	if !CanDispatchManual(state) {
+		return false
+	}
+	policy := manualPolicy(state)
+	if occupied(state) || len(state.Queue) > 0 {
+		return policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || len(state.Queue) == 0)
+	}
+	return true
+}

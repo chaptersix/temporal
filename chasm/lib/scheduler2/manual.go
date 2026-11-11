@@ -46,7 +46,7 @@ func (s *Scheduler) AcceptManual(ctx chasm.MutableContext, request *schedulepb.T
 }
 
 func (s *Scheduler) prepareManual(ctx chasm.Context, state decision.State, event *decision.Event) error {
-	if event.Kind != decision.DispatchManual || !decision.CanDispatchManual(state) {
+	if event.Kind != decision.DispatchManual || !decision.ManualNeedsTemplate(state) {
 		return nil
 	}
 	if !s.HasGenerator {

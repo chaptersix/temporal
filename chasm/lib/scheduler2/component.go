@@ -218,7 +218,7 @@ func (s *Scheduler) retentionEviction(ctx chasm.Context, before, next decision.S
 	var oldest *scheduler2pb.OperationState
 	for _, field := range s.Operations {
 		op := field.Get(ctx)
-		if decision.Terminal(decision.Phase(op.Phase)) && (oldest == nil || op.Nominal < oldest.Nominal) {
+		if decision.Terminal(decision.Phase(op.Phase)) && (oldest == nil || op.Nominal < oldest.Nominal || (op.Nominal == oldest.Nominal && op.Id < oldest.Id)) {
 			oldest = op
 		}
 	}
