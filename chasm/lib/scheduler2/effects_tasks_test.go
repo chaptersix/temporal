@@ -3,6 +3,7 @@ package scheduler2
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1"
 	"go.temporal.io/server/chasm/lib/scheduler2/internal/decision"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/testing/protorequire"
@@ -119,6 +121,9 @@ func TestEffectsTaskPermitAndDetachedRequest(t *testing.T) {
 	t.Parallel()
 	entered := make(chan struct{}, 2)
 	release := make(chan struct{})
+	var releaseOnce sync.Once
+	releaseRPC := func() { releaseOnce.Do(func() { close(release) }) }
+	defer releaseRPC()
 	handler := NewEffectHandler(func(_ context.Context, request *workflowservice.RequestCancelWorkflowExecutionRequest) error {
 		entered <- struct{}{}
 		<-release
@@ -136,9 +141,22 @@ func TestEffectsTaskPermitAndDetachedRequest(t *testing.T) {
 		t.Fatal("RPC did not start")
 	}
 	cancelled, cancel := context.WithCancel(e.ctx)
+	defer cancel()
+	reached := make(chan struct{})
+	checked := &effectsPermitContext{Context: cancelled, reached: reached}
 	second := make(chan error, 1)
-	copyTask := *physical
-	go func() { second <- e.execute(cancelled, node, &copyTask) }()
+	go func() {
+		second <- handler.Execute(checked, chasm.NewComponentRef[*Scheduler](e.key), chasm.TaskAttributes{}, &scheduler2pb.EffectTask{EffectId: id})
+	}()
+	select {
+	case <-reached: // Done() was evaluated by the occupied permit select.
+	case <-entered:
+		t.Fatal("second RPC bypassed occupied permit")
+	case err := <-second:
+		t.Fatalf("second delivery returned before cancellation: %v", err)
+	case <-t.Context().Done():
+		t.Fatal("second delivery did not reach permit select")
+	}
 	cancel()
 	select {
 	case err := <-second:
@@ -151,7 +169,7 @@ func TestEffectsTaskPermitAndDetachedRequest(t *testing.T) {
 		t.Fatal("two concurrent effects exceeded permit")
 	default:
 	}
-	close(release)
+	releaseRPC()
 	select {
 	case err := <-first:
 		require.NoError(t, err)
@@ -180,4 +198,93 @@ func TestEffectsTaskCancellationAfterRemoteAcceptance(t *testing.T) {
 	assertEffectsPhase(e.h, 0, decision.EffectPending)
 	require.NotNil(t, effectSnapshot(e.h, id))
 	require.Equal(t, 1, logicalCount(e.h.durable))
+}
+
+func TestEffectsTaskDeadlineBoundary(t *testing.T) {
+	t.Parallel()
+	for _, offset := range []int64{-1, 0} {
+		name := "exact"
+		if offset < 0 {
+			name = "one_nanosecond_before"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			calls := 0
+			handler := NewEffectHandler(func(context.Context, *workflowservice.RequestCancelWorkflowExecutionRequest) error {
+				calls++
+				return nil
+			}, nil)
+			e, _, physical := newEffectsEngine(t, enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER, handler)
+			s, _ := e.h.root(false)
+			blocker, remaining, started := s.BlockingOperationId, s.Remaining, s.Started
+			queue := proto.Clone(s.RootState).(*scheduler2pb.RootState).Queue
+			e.h.now = s.Effects[0].Deadline + offset
+			require.NoError(t, e.execute(e.ctx, e.h.node, physical))
+			expectedCalls := 0
+			expectedPhase := decision.EffectAmbiguous
+			if offset < 0 {
+				expectedCalls = 1
+				expectedPhase = decision.EffectAccepted
+			}
+			require.Equal(t, expectedCalls, calls)
+			assertEffectsPhase(e.h, 0, expectedPhase)
+			s, _ = e.h.root(false)
+			require.Equal(t, blocker, s.BlockingOperationId)
+			require.Equal(t, remaining, s.Remaining)
+			require.Equal(t, started, s.Started)
+			protorequire.ProtoEqual(t, &scheduler2pb.RootState{Queue: queue}, &scheduler2pb.RootState{Queue: s.Queue})
+			require.Equal(t, int64(1), s.Unfinished)
+			require.False(t, s.DrainArmed)
+		})
+	}
+}
+
+func TestEffectsTaskOriginalPhysicalInvalidation(t *testing.T) {
+	t.Parallel()
+	for _, change := range []string{"retry", "completion", "terminate"} {
+		t.Run(change, func(t *testing.T) {
+			t.Parallel()
+			calls := 0
+			handler := NewEffectHandler(func(context.Context, *workflowservice.RequestCancelWorkflowExecutionRequest) error {
+				calls++
+				return nil
+			}, nil)
+			e, id, physical := newEffectsEngine(t, enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER, handler)
+			_, valid, err := e.h.node.ValidateSideEffectTask(t.Context(), physical)
+			require.NoError(t, err)
+			require.True(t, valid)
+			s, _ := e.h.root(false)
+			switch change {
+			case "retry":
+				effectsResult(e.h, id, decision.EffectFailed, true)
+			case "completion":
+				sequentialComplete(e.h, s.BlockingOperationId, nil)
+			case "terminate":
+				allowUpdate(e.h, enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER)
+				allowDue(e.h, true)
+			default:
+				t.Fatal("unsupported invalidation")
+			}
+			_, valid, err = e.h.node.ValidateSideEffectTask(t.Context(), physical)
+			require.NoError(t, err)
+			require.False(t, valid)
+			// The actual dispatch boundary also refuses the stale envelope before RPC.
+			err = e.execute(e.ctx, e.h.node, physical)
+			require.Zero(t, calls)
+			require.Error(t, err)
+		})
+	}
+}
+
+// Done is evaluated on entry to the handler's permit select, before cancellation.
+// Calling the handler directly avoids unrelated framework context probes.
+type effectsPermitContext struct {
+	context.Context
+	reached chan struct{}
+	once    sync.Once
+}
+
+func (c *effectsPermitContext) Done() <-chan struct{} {
+	c.once.Do(func() { close(c.reached) })
+	return c.Context.Done()
 }

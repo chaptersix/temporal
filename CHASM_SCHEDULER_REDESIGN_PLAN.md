@@ -760,3 +760,15 @@ WI-006 accepted at58ad6c3d6 with E37–E41: keyed ALLOW_ALL, separate start-only
 settlement and blocking owner, cap4 recovery, DATA-map metadata isolation across
 CHASM commit, exact root pending-task index. Model/property/replay/mutations/race/
 lint/review gates pass. WI-007 durable cancel/terminate is next; M2–M4 goal active.
+
+
+### WI-007 verification checkpoint
+
+Implementation6175ef959 and independent contribution4e4f3b605 implement fenced
+cancel/terminate effects. E42–E46 in the [evidence ledger](docs/development/scheduler2/evidence/README.md)
+record10000-scenario tests, bounded factored models, six Go mutants and race checks.
+Acceptance remains pending stronger physical-task deadline/staleness and permit
+contention checks requested by review. No human-review pause; work continues locally.
+D39–D42 are recorded in [WI-007](docs/development/scheduler2/work-items/WI-007.md).
+M2 remains partial; manual identity, backfill fairness and remaining spec/mapping
+obligations precede full M3 functional/API/proof and M4 load acceptance.

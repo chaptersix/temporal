@@ -1,0 +1,119 @@
+=== RUN   TestEffectsSavedReplay
+=== PAUSE TestEffectsSavedReplay
+=== RUN   TestEffectsTaskLostAckFrozenRetryAndNotFound
+=== PAUSE TestEffectsTaskLostAckFrozenRetryAndNotFound
+=== RUN   TestEffectsTaskTerminateOverInFlightCancel
+=== PAUSE TestEffectsTaskTerminateOverInFlightCancel
+=== RUN   TestEffectsTaskPermitAndDetachedRequest
+=== PAUSE TestEffectsTaskPermitAndDetachedRequest
+=== RUN   TestEffectsTaskCancellationAfterRemoteAcceptance
+=== PAUSE TestEffectsTaskCancellationAfterRemoteAcceptance
+=== RUN   TestEffectsTaskDeadlineBoundary
+=== PAUSE TestEffectsTaskDeadlineBoundary
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation
+=== RUN   TestEffectsUnknownTargetBindingAndFrozenRetry
+=== PAUSE TestEffectsUnknownTargetBindingAndFrozenRetry
+=== RUN   TestEffectsTerminateSupersedesCancelAndLateEvidence
+=== PAUSE TestEffectsTerminateSupersedesCancelAndLateEvidence
+=== RUN   TestEffectsQueueOverflowCreatesNoDemand
+=== PAUSE TestEffectsQueueOverflowCreatesNoDemand
+=== RUN   TestEffectsMetadataAndUnrelatedPayloadIsolation
+=== PAUSE TestEffectsMetadataAndUnrelatedPayloadIsolation
+=== RUN   TestEffectsDelayedBindingAfterParallelAdmission
+=== PAUSE TestEffectsDelayedBindingAfterParallelAdmission
+=== RUN   TestEffectsClockRollbackPreservesObligation
+=== PAUSE TestEffectsClockRollbackPreservesObligation
+=== CONT  TestEffectsSavedReplay
+=== CONT  TestEffectsUnknownTargetBindingAndFrozenRetry
+=== CONT  TestEffectsTaskCancellationAfterRemoteAcceptance
+=== CONT  TestEffectsTaskTerminateOverInFlightCancel
+--- PASS: TestEffectsTaskCancellationAfterRemoteAcceptance (0.01s)
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation/retry
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation/retry
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation/completion
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation/completion
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation/terminate
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation/terminate
+=== CONT  TestEffectsTaskDeadlineBoundary
+=== RUN   TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== PAUSE TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== RUN   TestEffectsTaskDeadlineBoundary/exact
+=== PAUSE TestEffectsTaskDeadlineBoundary/exact
+=== CONT  TestEffectsTaskPermitAndDetachedRequest
+--- PASS: TestEffectsUnknownTargetBindingAndFrozenRetry (0.01s)
+=== CONT  TestEffectsTaskLostAckFrozenRetryAndNotFound
+--- PASS: TestEffectsTaskTerminateOverInFlightCancel (0.01s)
+=== CONT  TestEffectsMetadataAndUnrelatedPayloadIsolation
+--- PASS: TestEffectsTaskPermitAndDetachedRequest (0.00s)
+=== CONT  TestEffectsClockRollbackPreservesObligation
+--- PASS: TestEffectsSavedReplay (0.01s)
+=== CONT  TestEffectsDelayedBindingAfterParallelAdmission
+--- PASS: TestEffectsMetadataAndUnrelatedPayloadIsolation (0.00s)
+=== CONT  TestEffectsQueueOverflowCreatesNoDemand
+--- PASS: TestEffectsTaskLostAckFrozenRetryAndNotFound (0.00s)
+=== CONT  TestEffectsTerminateSupersedesCancelAndLateEvidence
+--- PASS: TestEffectsClockRollbackPreservesObligation (0.00s)
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation/retry
+--- PASS: TestEffectsDelayedBindingAfterParallelAdmission (0.00s)
+=== CONT  TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+--- PASS: TestEffectsQueueOverflowCreatesNoDemand (0.00s)
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation/terminate
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation/completion
+=== NAME  TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+    effects_tasks_test.go:235: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/effects_tasks_test.go:235
+        	Error:      	Not equal: 
+        	            	expected: []*scheduler2pb.QueuedOccurrence{(*scheduler2pb.QueuedOccurrence)(0x75294c1d4190)}
+        	            	actual  : []*scheduler2pb.QueuedOccurrence{(*scheduler2pb.QueuedOccurrence)(0x75294c1d4370)}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -16,3 +16,3 @@
+        	            	   unknownFields: ([]uint8) <nil>,
+        	            	-  sizeCache: (int32) 0
+        	            	+  sizeCache: (int32) 51
+        	            	  })
+        	Test:       	TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== CONT  TestEffectsTaskDeadlineBoundary/exact
+--- PASS: TestEffectsTerminateSupersedesCancelAndLateEvidence (0.01s)
+--- PASS: TestEffectsTaskOriginalPhysicalInvalidation (0.00s)
+    --- PASS: TestEffectsTaskOriginalPhysicalInvalidation/retry (0.00s)
+    --- PASS: TestEffectsTaskOriginalPhysicalInvalidation/terminate (0.00s)
+    --- PASS: TestEffectsTaskOriginalPhysicalInvalidation/completion (0.00s)
+=== NAME  TestEffectsTaskDeadlineBoundary/exact
+    effects_tasks_test.go:235: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/effects_tasks_test.go:235
+        	Error:      	Not equal: 
+        	            	expected: []*scheduler2pb.QueuedOccurrence{(*scheduler2pb.QueuedOccurrence)(0x75294c4b37c0)}
+        	            	actual  : []*scheduler2pb.QueuedOccurrence{(*scheduler2pb.QueuedOccurrence)(0x75294c4b3a40)}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -16,3 +16,3 @@
+        	            	   unknownFields: ([]uint8) <nil>,
+        	            	-  sizeCache: (int32) 0
+        	            	+  sizeCache: (int32) 51
+        	            	  })
+        	Test:       	TestEffectsTaskDeadlineBoundary/exact
+--- FAIL: TestEffectsTaskDeadlineBoundary (0.00s)
+    --- FAIL: TestEffectsTaskDeadlineBoundary/one_nanosecond_before (0.00s)
+    --- FAIL: TestEffectsTaskDeadlineBoundary/exact (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	1.064s
+=== RUN   TestEffectsIndependentProperties
+=== PAUSE TestEffectsIndependentProperties
+=== RUN   TestEffectsFreeSelectionAndOverflow
+=== PAUSE TestEffectsFreeSelectionAndOverflow
+=== CONT  TestEffectsIndependentProperties
+=== CONT  TestEffectsFreeSelectionAndOverflow
+--- PASS: TestEffectsFreeSelectionAndOverflow (0.00s)
+=== NAME  TestEffectsIndependentProperties
+    effects_test.go:14: [rapid] OK, passed 10000 tests (2.107161583s)
+--- PASS: TestEffectsIndependentProperties (2.11s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	2.552s
+FAIL

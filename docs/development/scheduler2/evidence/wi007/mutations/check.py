@@ -5,11 +5,13 @@ import os
 from pathlib import Path
 import subprocess
 
-out = Path('/private/tmp/scheduler2-wi007-final/mutations')
+out = Path('/private/tmp/scheduler2-wi007-reviewed/mutations')
 out.mkdir(parents=True, exist_ok=True)
 core = Path('chasm/lib/scheduler2/internal/decision/effects.go')
 adapter = Path('chasm/lib/scheduler2/effects.go')
 cases = [
+    ('expiry-issuance-enabled', Path('chasm/lib/scheduler2/effects.go'), 'if now >= effect.Deadline {', 'if false {', 'TestEffectsTaskDeadlineBoundary', './chasm/lib/scheduler2'),
+    ('permit-removed', Path('chasm/lib/scheduler2/effects_tasks.go'), '\tselect {\n\tcase h.permit <- struct{}{}:\n\t\tdefer func() { <-h.permit }()\n\tcase <-ctx.Done():\n\t\treturn ctx.Err()\n\t}\n', '', 'TestEffectsTaskPermitAndDetachedRequest', './chasm/lib/scheduler2'),
     ('cancel-fence-omitted', adapter, 'FirstExecutionRunId: effect.ChainID, RequestId:', 'FirstExecutionRunId: "", RequestId:', 'TestEffectsUnknownTargetBindingAndFrozenRetry', './chasm/lib/scheduler2'),
     ('cancel-not-superseded', core, 'effect.Phase = EffectSuperseded', 'effect.Phase = EffectPending', 'TestEffectsTerminateSupersedesCancelAndLateEvidence', './chasm/lib/scheduler2'),
     ('effect-releases-blocker', core, 'effect.Phase = EffectAccepted', 'effect.Phase = EffectAccepted; next.Root.BlockingOperationID = ""', 'TestEffectsUnknownTargetBindingAndFrozenRetry', './chasm/lib/scheduler2'),
