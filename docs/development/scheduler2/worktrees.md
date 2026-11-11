@@ -121,3 +121,10 @@ WI-005 final disposition (retained):
 - Original checkout had no task writes; initial untracked entries retained. Current
   inventory/hash recorded in evidence/wi005; concurrent changes are preserved.
 - All worktrees remain. No push, production routing, rollout or migration.
+
+WI-006 assignments: integrator owns shared implementation/schema/existing-test
+adaptations and central records. Tests worktree/private/tmp/sch-redesign-allowall-tests
+and model worktree/private/tmp/sch-redesign-allowall-model both created at
+a81fa9f57. Tests consume37cb2c020 asf767da097; own new allowall test/replay files only.
+Model owns model/allowall/ only. history_contract read-only review/source contracts.
+Parent performs commits if delegate Git access is restricted; all worktrees retained.

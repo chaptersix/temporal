@@ -6,7 +6,7 @@
 | --- | --- |
 | Status | Authorized local execution through M1 |
 | Updated | 2026-11-10 |
-| Current milestone | M2 partial: WI-005 accepted; WI-006 keyed ALLOW_ALL next |
+| Current milestone | M2 partial: WI-005 accepted; WI-006 keyed ALLOW_ALL implementing |
 | Implementation status | WI-000 through WI-004 accepted |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing through all milestones M2–M4; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
@@ -489,6 +489,9 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D32 | Bounded automatic buffers | decided for WI-005 | BUFFER_ONE first waiter; BUFFER_ALL FIFO cap4; strict unfinished occupancy; overflow counted without debit; current eligibility at drain. | Implementation/tests in progress |
 | D33 | Queued configuration adoption | decided for WI-005 | Queue-time fully suffixed workflow ID and resolved policy survive update; current template/catchup/carryover frozen at admission. Follow V2 source. | WI-005 contract |
 | D34 | Independent drain obligation | decided for WI-005 | Completion arms root token/deadline even when generator exhausted; scan at most4, admit at most1. Already due queued entries recheck catchup upper bound after clock rollback; physical DrainAt remains lower bound. | WI-005 contract |
+| D35 | Keyed operation summaries | decided for WI-006 | Unfinished count and separate blocking owner; event-addressed record loading; preserve latest-admission identity on older results; cap4 terminal-only eviction. | Implementation37cb2c020; acceptance pending |
+| D36 | ALLOW_ALL start-only semantics | decided for WI-006 | Frozen policy, bypass buffer FIFO, no carryover/pause, distinct settled start intent, same-instant task identity; new capacity drops no debit. | Independent evidence pending |
+| D37 | Capacity-wait drain | decided for WI-006 | Accepted eligible queue waits without retry spin while all slots unfinished; keyed terminal/configuration rechecks and rearms; ineligible disposal needs no slot. | Independent evidence pending |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 
@@ -745,7 +748,7 @@ WI-004 accepted at 9064bed65b0cf67659925986df04ea7ad27c8dcb (E27–E31).
 Resumable enumeration now drives registered local CHASM pure tasks and sequential
 SKIP admissions. Four retained operation records, current carryover, independent
 generation tokens and immutable request snapshots survive reload/failure traces.
-WI-005 queue admission/drain accepted; WI-006 keyed ALLOW_ALL next; full overlaps/backfill remain open.
+WI-005 queue admission/drain accepted; WI-006 keyed ALLOW_ALL implementing; full overlaps/backfill remain open.
 
 WI-005 accepted at443587c3e with E32–E36: independent bounded model,10000 Rapid
 cases, CHASM drain/replay, nine total mutants, race/lint and final review. All

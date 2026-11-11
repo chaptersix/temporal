@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only; WI-005 buffered automatic admission",
+  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only; WI-005 buffered automatic admission; WI-006 keyed ALLOW_ALL",
   "clock": "execution Unix nanoseconds",
   "per_schedule": {
     "enumeration_batch": 1,
@@ -89,5 +89,15 @@
     "overflow": "drop automatic arrival and increment BufferDropped; no debit",
     "drain": "independent token/deadline; completion arms after generation exhausted",
     "snapshot": "queue-time workflow ID and resolved policy; admission-time template, catchup and carryover"
+  },
+  "allowall": {
+    "max_retained_operations": 4,
+    "max_unfinished_intents": 4,
+    "occupancy": "one non-ALLOW_ALL blocking owner independent of latest admission",
+    "terminal": "Completed tracked or StartOnly settled intent",
+    "capacity_ingress": "new automatic admission drops/counts without debit when all records unfinished",
+    "capacity_queue": "retain eligible accepted queue; no drain loop; terminal evidence/configuration rechecks readiness",
+    "carryover": "ALLOW_ALL clears request fields and never changes carryover or pause",
+    "keyed_loading": "only target operation metadata/request on issuance/results; bounded retention scan on admission"
   }
 }
