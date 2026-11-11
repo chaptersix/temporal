@@ -164,7 +164,7 @@ func TestBufferIneligibleDrainAvoidsPayloads(t *testing.T) {
 			h.commit(true)
 			poisoned := 0
 			for path, node := range h.durable {
-				if path == "Carryover" || strings.Contains(path, "Definition") || strings.Contains(path, "Request") || strings.Contains(path, "Diagnostics") {
+				if node.Data != nil && (path == "Carryover" || strings.Contains(path, "Definition") || strings.Contains(path, "Request") || strings.Contains(path, "Diagnostics")) {
 					node.Data.Data = []byte{0xff}
 					poisoned++
 				}

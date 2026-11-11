@@ -1,0 +1,23 @@
+--- FAIL: TestMetadataTransitionsAvoidPayloadDeserialization (0.00s)
+panic: runtime error: invalid memory address or nil pointer dereference [recovered, repanicked]
+[signal SIGSEGV: segmentation violation code=0x2 addr=0x18 pc=0x103fe61ac]
+
+goroutine 60 [running]:
+testing.tRunner.func1.2({0x105edd228, 0x106396ca0})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2125 +0x1a0
+testing.tRunner.func1()
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2128 +0x2c8
+panic({0x105edd228?, 0x106396ca0?})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859 +0x120
+go.temporal.io/server/chasm/lib/scheduler2.TestMetadataTransitionsAvoidPayloadDeserialization(0x6eadefd36b48)
+	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/persistence_test.go:222 +0x3ac
+testing.tRunner(0x6eadefd36b48, 0x1062f7450)
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2260 +0x3b8
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	1.103s
+?   	go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1	[no test files]
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	1.163s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	(cached)
+ok  	go.temporal.io/server/chasm/lib/all	0.698s
+FAIL

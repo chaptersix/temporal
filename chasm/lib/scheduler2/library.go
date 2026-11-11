@@ -16,7 +16,6 @@ func (*Library) Name() string                 { return "scheduler2" }
 func (*Library) Components() []*chasm.RegistrableComponent {
 	return []*chasm.RegistrableComponent{
 		chasm.NewRegistrableComponent[*Scheduler]("scheduler"),
-		chasm.NewRegistrableComponent[*Operation]("operation"),
 		chasm.NewRegistrableComponent[*Generator]("generator"),
 	}
 }

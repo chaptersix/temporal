@@ -228,8 +228,10 @@ type RootState struct {
 	BlockingOperationId string `protobuf:"bytes,19,opt,name=blocking_operation_id,json=blockingOperationId,proto3" json:"blocking_operation_id,omitempty"`
 	// CapacityDropped counts new automatic arrivals dropped at operation capacity.
 	CapacityDropped int64 `protobuf:"varint,20,opt,name=capacity_dropped,json=capacityDropped,proto3" json:"capacity_dropped,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// PendingStarts validates bounded start tasks without loading operation records.
+	PendingStarts map[string]int64 `protobuf:"bytes,21,rep,name=pending_starts,json=pendingStarts,proto3" json:"pending_starts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RootState) Reset() {
@@ -400,6 +402,13 @@ func (x *RootState) GetCapacityDropped() int64 {
 		return x.CapacityDropped
 	}
 	return 0
+}
+
+func (x *RootState) GetPendingStarts() map[string]int64 {
+	if x != nil {
+		return x.PendingStarts
+	}
+	return nil
 }
 
 // OperationState holds metadata without decoding request payloads.
@@ -1209,7 +1218,7 @@ var File_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto protoreflect.
 
 const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "" +
 	"\n" +
-	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\x82\x06\n" +
+	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\xb8\a\n" +
 	"\tRootState\x12 \n" +
 	"\vincarnation\x18\x01 \x01(\tR\vincarnation\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x16\n" +
@@ -1235,7 +1244,11 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"unfinished\x18\x12 \x01(\x03R\n" +
 	"unfinished\x122\n" +
 	"\x15blocking_operation_id\x18\x13 \x01(\tR\x13blockingOperationId\x12)\n" +
-	"\x10capacity_dropped\x18\x14 \x01(\x03R\x0fcapacityDropped\"\x81\x03\n" +
+	"\x10capacity_dropped\x18\x14 \x01(\x03R\x0fcapacityDropped\x12r\n" +
+	"\x0epending_starts\x18\x15 \x03(\v2K.temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntryR\rpendingStarts\x1a@\n" +
+	"\x12PendingStartsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\x81\x03\n" +
 	"\x0eOperationState\x12#\n" +
 	"\roccurrence_id\x18\x01 \x01(\tR\foccurrenceId\x12\x1b\n" +
 	"\taction_id\x18\x02 \x01(\tR\bactionId\x12\x0e\n" +
@@ -1328,7 +1341,7 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(
 }
 
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []any{
 	(Phase)(0),                     // 0: temporal.server.chasm.lib.scheduler2.proto.v1.Phase
 	(EnumerationStatus)(0),         // 1: temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
@@ -1344,24 +1357,26 @@ var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []a
 	(*GenerateTask)(nil),           // 11: temporal.server.chasm.lib.scheduler2.proto.v1.GenerateTask
 	(*QueuedOccurrence)(nil),       // 12: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
 	(*DrainTask)(nil),              // 13: temporal.server.chasm.lib.scheduler2.proto.v1.DrainTask
-	(v1.ScheduleOverlapPolicy)(0),  // 14: temporal.api.enums.v1.ScheduleOverlapPolicy
+	nil,                            // 14: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+	(v1.ScheduleOverlapPolicy)(0),  // 15: temporal.api.enums.v1.ScheduleOverlapPolicy
 }
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_depIdxs = []int32{
-	14, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	15, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
 	12, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
-	0,  // 2: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
-	14, // 3: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	7,  // 4: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	1,  // 5: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	8,  // 6: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
-	1,  // 7: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	7,  // 8: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	14, // 9: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	14, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.pending_starts:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+	0,  // 3: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
+	15, // 4: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	7,  // 5: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	1,  // 6: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	8,  // 7: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+	1,  // 8: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	7,  // 9: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	15, // 10: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() }
@@ -1375,7 +1390,7 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc), len(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

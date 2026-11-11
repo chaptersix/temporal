@@ -279,7 +279,7 @@ func TestGenerationSkippedAdmissionAvoidsCarryover(t *testing.T) {
 			}
 			h.commit(true)
 			for path, node := range h.durable {
-				if path == "Carryover" {
+				if node.Data != nil && (path == "Carryover") {
 					node.Data.Data = []byte{0xff}
 				}
 			}

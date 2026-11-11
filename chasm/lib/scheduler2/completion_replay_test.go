@@ -110,7 +110,7 @@ func TestCompletionSavedReplay(t *testing.T) {
 			require.True(t, s.CarryoverSet)
 			require.Zero(t, logicalCount(h.durable))
 			protorequire.ProtoEqual(t, step.ExpectedCarryover, carry)
-			observations = append(observations, completionObservation{Root: proto.Clone(s.RootState).(*scheduler2pb.RootState), Operation: proto.Clone(op.OperationState).(*scheduler2pb.OperationState), Carryover: proto.Clone(carry).(*scheduler2pb.CarryoverState)})
+			observations = append(observations, completionObservation{Root: proto.Clone(s.RootState).(*scheduler2pb.RootState), Operation: proto.Clone(op).(*scheduler2pb.OperationState), Carryover: proto.Clone(carry).(*scheduler2pb.CarryoverState)})
 		}
 		if run == 1 {
 			require.Equal(t, previous, observations)

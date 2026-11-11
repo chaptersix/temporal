@@ -22,10 +22,9 @@ func NewStartHandler(start func(context.Context, *workflowservice.StartWorkflowE
 	return &StartHandler{start: start, permit: make(chan struct{}, 1)}
 }
 
-func (*StartHandler) Validate(ctx chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.StartTask) (bool, error) {
-	state := s.stateFor(ctx, task.OperationId)
-	wake, pending := decision.Wake(state)
-	return pending && task.OperationId == state.Operation.ID && attrs.ScheduledTime.UnixNano() == wake, nil
+func (*StartHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.StartTask) (bool, error) {
+	wake, pending := s.PendingStarts[task.OperationId]
+	return pending && attrs.ScheduledTime.UnixNano() == wake, nil
 }
 
 func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ chasm.TaskAttributes, task *scheduler2pb.StartTask) error {

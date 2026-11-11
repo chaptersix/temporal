@@ -127,7 +127,7 @@ func TestSequentialUnfinishedCapacityRejectsAtomically(t *testing.T) {
 	s, ctx := h.root(true)
 	for index := 0; index < 4; index++ {
 		id := fmt.Sprintf("unfinished-%d", index)
-		s.Operations[id] = chasm.NewComponentField(ctx.(chasm.MutableContext), &Operation{OperationState: &scheduler2pb.OperationState{Id: id, Phase: scheduler2pb.PHASE_STARTED}})
+		s.Operations[id] = chasm.NewDataField(ctx.(chasm.MutableContext), &scheduler2pb.OperationState{Id: id, Phase: scheduler2pb.PHASE_STARTED})
 	}
 	h.commit(true)
 	before := cloneNodes(h.durable)
@@ -169,7 +169,7 @@ func TestSequentialFailureCarriesPriorSuccessIntoThirdRequest(t *testing.T) {
 	require.Equal(t, int64(2), s.Started)
 	// Corrupt current carryover after admission; retries use the third snapshot.
 	for path, node := range h.durable {
-		if path == "Carryover" {
+		if node.Data != nil && (path == "Carryover") {
 			node.Data.Data = []byte{0xff}
 		}
 	}

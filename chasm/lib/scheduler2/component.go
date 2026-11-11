@@ -3,6 +3,7 @@ package scheduler2
 
 import (
 	"bytes"
+	"maps"
 	"math"
 	"time"
 
@@ -19,29 +20,20 @@ import (
 type Scheduler struct {
 	chasm.UnimplementedComponent
 	*scheduler2pb.RootState
-	Operations  chasm.Map[string, *Operation]
+	Operations  chasm.Map[string, *scheduler2pb.OperationState]
+	Requests    chasm.Map[string, *scheduler2pb.Payload]
 	Generator   chasm.Field[*Generator]
 	Carryover   chasm.Field[*scheduler2pb.CarryoverState]
 	Diagnostics chasm.Field[*scheduler2pb.Payload]
 }
 
-// Operation separates frequently accessed metadata from the frozen request.
-type Operation struct {
-	chasm.UnimplementedComponent
-	*scheduler2pb.OperationState
-	Request chasm.Field[*scheduler2pb.Payload]
-}
-
 func New(incarnation string, remaining int64) *Scheduler {
 	return &Scheduler{RootState: &scheduler2pb.RootState{
 		Incarnation: incarnation, Revision: 1, Limited: true, Remaining: remaining,
-	}, Operations: make(chasm.Map[string, *Operation])}
+	}, Operations: make(chasm.Map[string, *scheduler2pb.OperationState]), Requests: make(chasm.Map[string, *scheduler2pb.Payload])}
 }
 
 func (*Scheduler) LifecycleState(chasm.Context) chasm.LifecycleState {
-	return chasm.LifecycleStateRunning
-}
-func (*Operation) LifecycleState(chasm.Context) chasm.LifecycleState {
 	return chasm.LifecycleStateRunning
 }
 func (*Scheduler) ContextMetadata(chasm.Context) map[string]string { return nil }
@@ -116,6 +108,19 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	}
 	if eviction != "" {
 		delete(s.Operations, eviction)
+		delete(s.Requests, eviction)
+	}
+	pendingStarts := maps.Clone(s.PendingStarts)
+	if pendingStarts == nil {
+		pendingStarts = make(map[string]int64)
+	}
+	delete(pendingStarts, eviction)
+	if next.Operation != nil {
+		if wake, pending := decision.Wake(next); pending {
+			pendingStarts[next.Operation.ID] = wake
+		} else {
+			delete(pendingStarts, next.Operation.ID)
+		}
 	}
 	hasGenerator, latestOperationID := s.HasGenerator, s.OperationId
 	drainToken, drainArmed, drainAt := s.DrainToken, s.DrainArmed, s.DrainAt
@@ -124,7 +129,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
 		DrainToken: drainToken, DrainArmed: drainArmed, DrainAt: drainAt, Policy: next.Root.Policy, BufferDropped: next.Root.BufferDropped,
 		Unfinished: next.Root.Unfinished, BlockingOperationId: next.Root.BlockingOperationID, CapacityDropped: next.Root.CapacityDropped,
-		OperationId: latestOperationID, HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
+		PendingStarts: pendingStarts, OperationId: latestOperationID, HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
 	}
 	for _, q := range next.Queue {
 		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy})
@@ -140,13 +145,9 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 			OccurrenceId: op.OccurrenceID, ActionId: op.ActionID, Id: op.ID, ChainId: op.ChainID,
 			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy,
 		}
-		if field, ok := s.Operations[op.ID]; ok {
-			field.Get(ctx).OperationState = metadata
-		} else {
-			s.Operations[op.ID] = chasm.NewComponentField(ctx, &Operation{
-				OperationState: metadata,
-				Request:        chasm.NewDataField(ctx, &scheduler2pb.Payload{Data: bytes.Clone(op.Request)}),
-			})
+		s.Operations[op.ID] = chasm.NewDataField(ctx, metadata)
+		if newAdmission {
+			s.Requests[op.ID] = chasm.NewDataField(ctx, &scheduler2pb.Payload{Data: bytes.Clone(op.Request)})
 		}
 	}
 	oldWake, hadWake := decision.Wake(before)
@@ -172,9 +173,8 @@ func (s *Scheduler) request(ctx chasm.Context, operationID string) (*workflowser
 	if _, ok := decision.Issue(state, now); !ok {
 		return nil, nil
 	}
-	op := s.Operations[operationID].Get(ctx)
 	request := &workflowservice.StartWorkflowExecutionRequest{}
-	if err := proto.Unmarshal(op.Request.Get(ctx).Data, request); err != nil {
+	if err := proto.Unmarshal(s.Requests[operationID].Get(ctx).Data, request); err != nil {
 		return nil, err
 	}
 	return request, nil
@@ -185,7 +185,7 @@ func (s *Scheduler) retentionEviction(ctx chasm.Context, before, next decision.S
 	if next.Operation == nil || (before.Operation != nil && before.Operation.ID == next.Operation.ID) || len(s.Operations) < 4 {
 		return "", nil
 	}
-	var oldest *Operation
+	var oldest *scheduler2pb.OperationState
 	for _, field := range s.Operations {
 		op := field.Get(ctx)
 		if decision.Terminal(decision.Phase(op.Phase)) && (oldest == nil || op.Nominal < oldest.Nominal) {

@@ -100,7 +100,7 @@ func TestBufferSavedReplay(t *testing.T) {
 			}
 			s, readCtx := h.root(false)
 			issued := &workflowservice.StartWorkflowExecutionRequest{}
-			require.NoError(t, proto.Unmarshal(s.Operations[s.OperationId].Get(readCtx).Request.Get(readCtx).Data, issued))
+			require.NoError(t, proto.Unmarshal(s.Requests[s.OperationId].Get(readCtx).Data, issued))
 			require.Equal(t, step.WorkflowID, issued.WorkflowId, "step %d", index)
 			var expected *commonpb.Payloads
 			if step.Carryover != nil {

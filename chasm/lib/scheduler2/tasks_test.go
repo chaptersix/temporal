@@ -167,7 +167,7 @@ func TestTaskCancellationAndConcurrencyBound(t *testing.T) {
 	s, ctx := e.h.root(false)
 	require.Equal(t, int64(1), s.Started)
 	stored := &workflowservice.StartWorkflowExecutionRequest{}
-	require.NoError(t, proto.Unmarshal(s.Operations[s.OperationId].Get(ctx).Request.Get(ctx).Data, stored))
+	require.NoError(t, proto.Unmarshal(s.Requests[s.OperationId].Get(ctx).Data, stored))
 	expected, _ := frozenRequest(t)
 	require.True(t, proto.Equal(expected, stored), "RPC must not alias the complete persisted request")
 }

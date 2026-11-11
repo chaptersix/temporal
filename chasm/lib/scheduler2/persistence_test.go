@@ -212,15 +212,13 @@ func TestMetadataTransitionsAvoidPayloadDeserialization(t *testing.T) {
 	t.Parallel()
 	h := newTreeHarness(t)
 	s, ctx := h.root(true)
-	s.Operations["inert"] = chasm.NewComponentField(ctx.(chasm.MutableContext), &Operation{
-		OperationState: &scheduler2pb.OperationState{Id: "inert", Phase: scheduler2pb.Phase(decision.Started)},
-		Request:        chasm.NewDataField(ctx.(chasm.MutableContext), &scheduler2pb.Payload{Data: bytes.Repeat([]byte("i"), 1<<20)}),
-	})
+	s.Operations["inert"] = chasm.NewDataField(ctx.(chasm.MutableContext), &scheduler2pb.OperationState{Id: "inert", Phase: scheduler2pb.Phase(decision.Started)})
+	s.Requests["inert"] = chasm.NewDataField(ctx.(chasm.MutableContext), &scheduler2pb.Payload{Data: bytes.Repeat([]byte("i"), 1<<20)})
 	h.commit(true)
 	expected := h.admit()
 	poisoned := 0
 	for path, node := range h.durable {
-		if strings.Contains(path, "Request") || strings.Contains(path, "Diagnostics") {
+		if node.Data != nil && (strings.Contains(path, "Request") || strings.Contains(path, "Diagnostics")) {
 			node.Data.Data = []byte{0xff}
 			poisoned++
 		}
@@ -240,8 +238,8 @@ func TestMetadataTransitionsAvoidPayloadDeserialization(t *testing.T) {
 	require.Equal(t, int64(1), s.Started)
 	// The poison is discriminating: explicitly loading it fails deserialization.
 	require.Panics(t, func() { s.Diagnostics.Get(ctx) })
-	require.Panics(t, func() { s.Operations["inert"].Get(ctx).Request.Get(ctx) })
-	require.Panics(t, func() { s.Operations[s.OperationId].Get(ctx).Request.Get(ctx) })
+	require.Panics(t, func() { s.Requests["inert"].Get(ctx) })
+	require.Panics(t, func() { s.Requests[s.OperationId].Get(ctx) })
 }
 func TestDroppedLogicalTaskIsDetected(t *testing.T) {
 	t.Parallel()

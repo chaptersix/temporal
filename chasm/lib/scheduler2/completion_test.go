@@ -98,7 +98,7 @@ func TestCallbackFailedPublicationAndPayloadLoading(t *testing.T) {
 	require.Equal(t, 1, logicalCount(h.durable))
 	poisoned := 0
 	for path, node := range h.durable {
-		if strings.Contains(path, "Request") || strings.Contains(path, "Diagnostics") || path == "Carryover" {
+		if node.Data != nil && (strings.Contains(path, "Request") || strings.Contains(path, "Diagnostics") || path == "Carryover") {
 			node.Data.Data = []byte{0xff}
 			poisoned++
 		}
@@ -113,7 +113,7 @@ func TestCallbackFailedPublicationAndPayloadLoading(t *testing.T) {
 	s, ctx := h.root(false)
 	protorequire.ProtoEqual(t, &scheduler2pb.CarryoverState{}, s.Carryover.Get(ctx))
 	require.Panics(t, func() { s.Diagnostics.Get(ctx) })
-	require.Panics(t, func() { s.Operations[s.OperationId].Get(ctx).Request.Get(ctx) })
+	require.Panics(t, func() { s.Requests[s.OperationId].Get(ctx) })
 	require.Equal(t, int64(1), s.Started)
 }
 func TestCarryoverFrozenAtAdmission(t *testing.T) {
@@ -138,7 +138,7 @@ func TestCarryoverFrozenAtAdmission(t *testing.T) {
 			}
 			protorequire.ProtoEqual(t, expected, h.request())
 			for path, node := range h.durable {
-				if path == "Carryover" {
+				if node.Data != nil && (path == "Carryover") {
 					node.Data.Data = []byte{0xff}
 				}
 			}
@@ -196,7 +196,7 @@ func TestCallbackStaleDoesNotPrepareCarryover(t *testing.T) {
 			seedCarryover(h, &scheduler2pb.CarryoverState{})
 			h.admit()
 			for path, node := range h.durable {
-				if path == "Carryover" || strings.Contains(path, "Request") || strings.Contains(path, "Diagnostics") {
+				if node.Data != nil && (path == "Carryover" || strings.Contains(path, "Request") || strings.Contains(path, "Diagnostics")) {
 					node.Data.Data = []byte{0xff}
 				}
 			}

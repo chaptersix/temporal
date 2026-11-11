@@ -48,6 +48,8 @@ message RootState {
   string blocking_operation_id = 19;
   // CapacityDropped counts new automatic arrivals dropped at operation capacity.
   int64 capacity_dropped = 20;
+  // PendingStarts validates bounded start tasks without loading operation records.
+  map<string, int64> pending_starts = 21;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
