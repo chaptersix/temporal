@@ -14,8 +14,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func TestMigrationCounterexampleRollbackChainOwnership(t *testing.T) {
-	requireMigrationCounterexamples(t)
+func TestMigrationRollbackChainOwnership(t *testing.T) {
 	for _, scenario := range []string{"owned_descendant", "foreign_chain", "first_run_removed"} {
 		t.Run(scenario, func(t *testing.T) {
 			e, handler, history := newRollbackScenario(t)
@@ -40,10 +39,14 @@ func TestMigrationCounterexampleRollbackChainOwnership(t *testing.T) {
 					}}, nil
 				}).AnyTimes()
 			_, err := executeRollbackTask(t, e, handler, e.engine)
-			if scenario == "owned_descendant" {
+			switch scenario {
+			case "owned_descendant":
 				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
+			case "foreign_chain":
+				require.ErrorAs(t, err, new(*serviceerror.AlreadyExists))
+			default:
+				require.ErrorAs(t, err, new(*serviceerror.FailedPrecondition))
+				require.ErrorContains(t, err, "is gone")
 			}
 			require.True(t, verified, "a descendant's start request does not establish ownership of the original migration")
 			require.NoError(t, e.readScheduler(func(s *scheduler.Scheduler, _ chasm.Context) error {

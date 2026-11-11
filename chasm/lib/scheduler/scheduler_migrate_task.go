@@ -12,6 +12,7 @@ import (
 	"go.temporal.io/api/serviceerror"
 	taskqueuepb "go.temporal.io/api/taskqueue/v1"
 	"go.temporal.io/api/workflowservice/v1"
+	"go.temporal.io/server/api/historyservice/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
@@ -112,6 +113,7 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 		searchAttributes map[string]*commonpb.Payload
 		memo             map[string]*commonpb.Payload
 		now              time.Time
+		requestID        string
 	}
 	var result readResult
 
@@ -163,6 +165,7 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 				searchAttributes: searchAttributes,
 				memo:             memo,
 				now:              now,
+				requestID:        schedulerState.GetWorkflowMigration().GetRequestId(),
 			}
 			return struct{}{}, nil
 		},
@@ -170,6 +173,17 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 	)
 	if err != nil {
 		return fmt.Errorf("failed to read scheduler state: %w", err)
+	}
+
+	if result.requestID == "" {
+		// The migration was persisted before request IDs existed, so an earlier
+		// attempt may have started a workflow under a random ID. Assign an ID
+		// now; if such a workflow exists, the ownership check below rejects it
+		// rather than accepting it unproven.
+		result.requestID, err = h.assignRequestID(ctx, schedulerRef)
+		if err != nil {
+			return err
+		}
 	}
 
 	logger = log.With(
@@ -209,7 +223,7 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 	}
 	workflowID := legacyscheduler.WorkflowIDPrefix + result.scheduleID
 	startReq := &workflowservice.StartWorkflowExecutionRequest{
-		RequestId:                uuid.NewString(),
+		RequestId:                result.requestID,
 		Namespace:                result.namespace,
 		WorkflowId:               workflowID,
 		WorkflowType:             &commonpb.WorkflowType{Name: legacyscheduler.WorkflowType},
@@ -228,9 +242,16 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 		common.CreateHistoryStartWorkflowRequest(result.namespaceID, startReq, nil, nil, result.now),
 	)
 	if err != nil {
-		// Treat already-started as success for idempotency.
-		if _, ok := errors.AsType[*serviceerror.WorkflowExecutionAlreadyStarted](err); !ok {
+		alreadyStarted, ok := errors.AsType[*serviceerror.WorkflowExecutionAlreadyStarted](err)
+		if !ok {
 			return fmt.Errorf("failed to start V1 scheduler workflow: %w", err)
+		}
+		// Only a workflow created by this migration is an idempotent success.
+		if alreadyStarted.StartRequestId != result.requestID {
+			err = h.verifyDestinationOwner(ctx, result.namespaceID, workflowID, alreadyStarted.RunId, result.requestID)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -249,5 +270,69 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 		return fmt.Errorf("failed to close CHASM scheduler after migration: %w", err)
 	}
 
+	return nil
+}
+
+// assignRequestID persists a request ID for a migration that has none and
+// returns the stored ID. It keeps an ID that a concurrent attempt already stored.
+func (h *SchedulerMigrateToWorkflowTaskHandler) assignRequestID(
+	ctx context.Context,
+	schedulerRef chasm.ComponentRef,
+) (string, error) {
+	requestID, _, err := chasm.UpdateComponent(
+		ctx,
+		schedulerRef,
+		func(s *Scheduler, _ chasm.MutableContext, _ any) (string, error) {
+			if s.Closed || s.WorkflowMigration == nil {
+				return "", ErrMigrationPending
+			}
+			if s.WorkflowMigration.RequestId == "" {
+				s.WorkflowMigration.RequestId = uuid.NewString()
+			}
+			return s.WorkflowMigration.RequestId, nil
+		},
+		nil,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to assign migration request ID: %w", err)
+	}
+	return requestID, nil
+}
+
+// verifyDestinationOwner checks that the V1 workflow chain containing runID was
+// created by this migration. The current run's start request ID differs from the
+// migration's after continue-as-new, so the check compares the chain's first
+// run against the migration's request ID. It returns an error unless that
+// ownership is proven.
+func (h *SchedulerMigrateToWorkflowTaskHandler) verifyDestinationOwner(
+	ctx context.Context,
+	namespaceID, workflowID, runID, requestID string,
+) error {
+	current, err := h.historyClient.GetMutableState(ctx, &historyservice.GetMutableStateRequest{
+		NamespaceId: namespaceID,
+		Execution:   &commonpb.WorkflowExecution{WorkflowId: workflowID, RunId: runID},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to resolve V1 scheduler workflow chain: %w", err)
+	}
+	firstRunID := current.GetFirstExecutionRunId()
+	if firstRunID == "" {
+		return serviceerror.NewFailedPreconditionf("first run of V1 scheduler workflow %q is unknown", workflowID)
+	}
+	first, err := h.historyClient.DescribeMutableState(ctx, &historyservice.DescribeMutableStateRequest{
+		NamespaceId: namespaceID,
+		Execution:   &commonpb.WorkflowExecution{WorkflowId: workflowID, RunId: firstRunID},
+	})
+	if _, ok := errors.AsType[*serviceerror.NotFound](err); ok {
+		// Without the first run, ownership cannot be proven.
+		return serviceerror.NewFailedPreconditionf("first run %q of V1 scheduler workflow %q is gone; cannot verify it was created by this migration", firstRunID, workflowID)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to verify V1 scheduler workflow owner: %w", err)
+	}
+	state := first.GetDatabaseMutableState().GetExecutionState()
+	if state.GetRunId() != firstRunID || state.GetCreateRequestId() != requestID {
+		return serviceerror.NewAlreadyExistsf("V1 scheduler workflow %q was not created by this migration", workflowID)
+	}
 	return nil
 }

@@ -100,7 +100,7 @@ func TestMigrateToWorkflowTask_DoesNotPropagateDisabledTimeSkipping(t *testing.T
 			},
 		}
 	}
-	env.Scheduler.WorkflowMigration = &schedulerpb.WorkflowMigrationState{}
+	env.Scheduler.WorkflowMigration = &schedulerpb.WorkflowMigrationState{RequestId: "migration-request"}
 
 	readCtx := env.ReadContext()
 	env.ExpectReadComponent(readCtx, env.Scheduler)

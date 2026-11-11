@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/google/uuid"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	schedulepb "go.temporal.io/api/schedule/v1"
@@ -894,10 +895,18 @@ func (s *Scheduler) MigrateToWorkflow(
 		return nil, ErrMigrationActionsPending
 	}
 
+	// The request ID is sent on every start attempt of the destination workflow,
+	// so a retry can recognize its own workflow.
+	requestID := req.GetRequestId()
+	if requestID == "" {
+		requestID = uuid.NewString()
+	}
+
 	// Save pre-migration paused state, mark migration as pending, then pause.
 	s.WorkflowMigration = &schedulerpb.WorkflowMigrationState{
 		PreMigrationPaused: s.Schedule.State.Paused,
 		PreMigrationNotes:  s.Schedule.State.Notes,
+		RequestId:          requestID,
 	}
 	s.Schedule.State.Paused = true
 	s.Schedule.State.Notes = "paused for migration to workflow-backed scheduler"

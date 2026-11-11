@@ -14,6 +14,7 @@ import (
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/api/historyservice/v1"
 	"go.temporal.io/server/api/historyservicemock/v1"
+	persistencespb "go.temporal.io/server/api/persistence/v1"
 	schedulespb "go.temporal.io/server/api/schedule/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler"
@@ -159,15 +160,96 @@ func TestMigrationScenario_RollbackRetryBoundaries(t *testing.T) {
 	}
 }
 
-func TestMigrationCounterexample_RollbackDestinationCollision(t *testing.T) {
-	requireMigrationCounterexamples(t)
+func TestMigrationRollbackDestinationCollision(t *testing.T) {
 	e, handler, historyClient := newRollbackScenario(t)
 	historyClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil,
 		serviceerror.NewWorkflowExecutionAlreadyStarted("unrelated scheduler owns this ID", "unrelated-create-request", "unrelated-run"))
+	historyClient.EXPECT().GetMutableState(gomock.Any(), gomock.Any()).Return(
+		&historyservice.GetMutableStateResponse{FirstExecutionRunId: "unrelated-run"}, nil)
+	historyClient.EXPECT().DescribeMutableState(gomock.Any(), gomock.Any()).Return(
+		&historyservice.DescribeMutableStateResponse{DatabaseMutableState: &persistencespb.WorkflowMutableState{
+			ExecutionState: &persistencespb.WorkflowExecutionState{RunId: "unrelated-run", CreateRequestId: "unrelated-create-request"},
+		}}, nil)
 	_, err := executeRollbackTask(t, e, handler, e.engine)
 	require.NoError(t, e.readScheduler(func(s *scheduler.Scheduler, _ chasm.Context) error {
 		require.False(t, s.Closed, "rollback must retain the source and its acknowledged trigger when a different workflow owns the destination ID")
 		return nil
 	}))
-	require.Error(t, err, "an unrelated destination is a conflict, not a successful handoff")
+	require.ErrorAs(t, err, new(*serviceerror.AlreadyExists), "an unrelated destination is a conflict, not a successful handoff")
+}
+
+func TestMigrationRollbackSendsStoredRequestID(t *testing.T) {
+	e, handler, historyClient := newRollbackScenario(t)
+	var requestIDs []string
+	historyClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
+		func(_ context.Context, req *historyservice.StartWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.StartWorkflowExecutionResponse, error) {
+			requestIDs = append(requestIDs, req.StartRequest.RequestId)
+			if len(requestIDs) == 1 {
+				return nil, serviceerror.NewUnavailable("injected")
+			}
+			return &historyservice.StartWorkflowExecutionResponse{RunId: "destination-run"}, nil
+		})
+	_, err := executeRollbackTask(t, e, handler, e.engine)
+	require.Error(t, err)
+	_, err = executeRollbackTask(t, e, handler, e.engine)
+	require.NoError(t, err)
+	require.Equal(t, []string{"rollback", "rollback"}, requestIDs)
+}
+
+func TestMigrationRollbackAssignsRequestIDToLegacyMigration(t *testing.T) {
+	e, handler, historyClient := newRollbackScenario(t)
+	require.NoError(t, e.updateScheduler(func(s *scheduler.Scheduler, _ chasm.MutableContext) error {
+		s.WorkflowMigration.RequestId = ""
+		return nil
+	}))
+	var requestID string
+	historyClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, req *historyservice.StartWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.StartWorkflowExecutionResponse, error) {
+			requestID = req.StartRequest.RequestId
+			return nil, serviceerror.NewUnavailable("injected")
+		})
+	_, err := executeRollbackTask(t, e, handler, e.engine)
+	require.Error(t, err)
+	require.NotEmpty(t, requestID)
+	require.NoError(t, e.readScheduler(func(s *scheduler.Scheduler, _ chasm.Context) error {
+		require.Equal(t, requestID, s.WorkflowMigration.GetRequestId(), "the ID must be persisted before the first start attempt")
+		require.False(t, s.Closed)
+		return nil
+	}))
+}
+
+func TestMigrationRollbackLegacyMigrationRejectsUnprovenDestination(t *testing.T) {
+	e, handler, historyClient := newRollbackScenario(t)
+	require.NoError(t, e.updateScheduler(func(s *scheduler.Scheduler, _ chasm.MutableContext) error {
+		s.WorkflowMigration.RequestId = ""
+		return nil
+	}))
+	// An attempt made before the upgrade may have started the workflow under a random ID.
+	historyClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil,
+		serviceerror.NewWorkflowExecutionAlreadyStarted("old attempt", "random-pre-upgrade-id", "old-run"))
+	historyClient.EXPECT().GetMutableState(gomock.Any(), gomock.Any()).Return(
+		&historyservice.GetMutableStateResponse{FirstExecutionRunId: "old-run"}, nil)
+	historyClient.EXPECT().DescribeMutableState(gomock.Any(), gomock.Any()).Return(
+		&historyservice.DescribeMutableStateResponse{DatabaseMutableState: &persistencespb.WorkflowMutableState{
+			ExecutionState: &persistencespb.WorkflowExecutionState{RunId: "old-run", CreateRequestId: "random-pre-upgrade-id"},
+		}}, nil)
+	_, err := executeRollbackTask(t, e, handler, e.engine)
+	require.ErrorAs(t, err, new(*serviceerror.AlreadyExists))
+	require.NoError(t, e.readScheduler(func(s *scheduler.Scheduler, _ chasm.Context) error {
+		require.False(t, s.Closed)
+		return nil
+	}))
+}
+
+func TestMigrateToWorkflowGeneratesRequestID(t *testing.T) {
+	s, ctx, _ := setupSchedulerForTest(t)
+	_, err := s.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{})
+	require.NoError(t, err)
+	require.NotEmpty(t, s.WorkflowMigration.GetRequestId())
+	stored := s.WorkflowMigration.GetRequestId()
+
+	// A repeated request does not replace the stored ID.
+	_, err = s.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{RequestId: "other"})
+	require.NoError(t, err)
+	require.Equal(t, stored, s.WorkflowMigration.GetRequestId())
 }
