@@ -223,3 +223,33 @@ refinement or milestone completion is implied by this helper checkpoint.
 E54 helper checkpoint sourceff9ddd706: [clean-source profile](wi009/range/manifest.json)
 and [checks](wi009/range-checks.json) record10000 cases, occurrence package race and
 scoped lint passing. These checks do not satisfy the pending WI-009 integration gate.
+
+
+### WI-009 coordinator verification in progress
+
+| ID | Kind / claim | Artifact and current result |
+|---|---|---|
+| E55 | independent bounded model / conditional liveness | [model scope](../model/backfill/README.md), [parent rerun](wi009/model-integrated-results.json); arbitration7876 unique/cursor144 unique at100/200, eight safety/six witnesses/one weak-fair liveness assertion, six named mutants detected. One contested operation slot; no cap4 refinement claim. |
+| E56 | real Node integration / public adapter | [request checks](wi009/request-tests.log), [directed full queue](wi009/fullqueue.log), [mixed sample](wi009/mixed-initial.log), [delayed capacity sample](wi009/capacity-initial.log); local wrapper dedup/publication/rejection, sole admission owner, fullqueue+tracked+threeALLOW reservation recovery,100 cases each randomized workload. Larger exploration/race pending. |
+| E57 | independent review / sensitivity | [composition audit](../design/backfill-composition.md), [seven Go mutations](wi009/mutations/manifest.json), [scoped lint](wi009/lint-reviewed.log); token preflight and upper-clock clamp review fixes, seven named implementation defects detected/restored. Initial rejection test failure was framework transition bookkeeping, preserved in [log](wi009/request-tests-initial.log). |
+
+These are intermediate observations on the isolated coordinator worktree, not
+WI-009 acceptance. Model extension for concurrent cap4, final exploration/race,
+remaining cursor/arbitration boundary tests and review remain outstanding. The
+original checkout and its unrelated modifications are preserved.
+
+
+E56 final exploration: [manifest](wi009/backfill/manifest.json) records10000 cases
+each for two Rapid workloads. [Checks](wi009/checks.json) link full race and later
+boundary/replay/overlap race runs. Version1 coordinator JSON replay is independent
+of Rapid and covers rejected publication, reload and revision rebase with complete
+frozen requests and resource-turn projections. E57 final lint passes; runner review
+fix preserves the [failed classification run](wi009/model-reviewed/manifest.json)
+and [corrected model run](wi009/model-final/manifest.json).
+
+E58 cap4 supplement: [scope](../model/backfill/CAPACITY.md), [final results](wi009/model-final/capacity/results.json)
+check tracked+ALLOW counted occupancy directly:36674 unique states at100/200,
+four safety/six witnesses/one conditional liveness and four named mutants. This
+removes the one-slot abstraction for that fixture; independent review retains
+CPU fairness, policy/definition change, two-ready-request and refinement limits.
+Final independent item acceptance review is pending; no full M2–M4 claim.

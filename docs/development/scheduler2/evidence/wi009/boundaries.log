@@ -1,0 +1,10 @@
+=== RUN   TestCoordinatorBackfillJitterBeyondEndCompletesWithoutAdmission
+=== PAUSE TestCoordinatorBackfillJitterBeyondEndCompletesWithoutAdmission
+=== RUN   TestCoordinatorBackfillExclusionYieldRotatesRequests
+=== PAUSE TestCoordinatorBackfillExclusionYieldRotatesRequests
+=== CONT  TestCoordinatorBackfillJitterBeyondEndCompletesWithoutAdmission
+=== CONT  TestCoordinatorBackfillExclusionYieldRotatesRequests
+--- PASS: TestCoordinatorBackfillJitterBeyondEndCompletesWithoutAdmission (0.01s)
+--- PASS: TestCoordinatorBackfillExclusionYieldRotatesRequests (0.01s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.742s

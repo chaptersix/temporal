@@ -1,0 +1,191 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Init",
+      "returns": "{}",
+      "roles": null,
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[2].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"source\":[10,20,30],\"start\":10}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "blocked": true,
+        "disposed_through": 9,
+        "dispositions": [],
+        "done": false,
+        "end": 25,
+        "endpoint": [],
+        "expected_disposed": 9,
+        "failed_candidate": [],
+        "pending": [],
+        "published": [],
+        "published_after_failure": false,
+        "rebased_after_pending": false,
+        "revision": 0,
+        "search_after": 9,
+        "source": [
+          10,
+          20,
+          30
+        ],
+        "start": 10,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:end=25",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          2
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "blocked": true,
+        "disposed_through": 9,
+        "dispositions": [],
+        "done": false,
+        "end": 25,
+        "endpoint": [],
+        "expected_disposed": 9,
+        "failed_candidate": [],
+        "pending": [],
+        "published": [],
+        "published_after_failure": false,
+        "rebased_after_pending": false,
+        "revision": 1,
+        "search_after": 100,
+        "source": [
+          10,
+          20,
+          30
+        ],
+        "start": 10,
+        "updated": true
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "UpdateDefinition": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "UpdateDefinition",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]

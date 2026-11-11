@@ -41,12 +41,12 @@ func acceptManual(h *treeHarness, request *schedulepb.TriggerImmediatelyRequest,
 func transferManual(h *treeHarness, publish bool) {
 	h.t.Helper()
 	s, ctx := h.root(true)
-	attrs := chasm.TaskAttributes{ScheduledTime: time.Unix(0, s.ManualAt)}
-	task := &scheduler2pb.ManualTask{Token: s.ManualToken}
-	valid, err := (&ManualHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, task)
+	attrs := chasm.TaskAttributes{ScheduledTime: time.Unix(0, s.Coordination.At)}
+	task := &scheduler2pb.WorkTask{Token: s.Coordination.Token}
+	valid, err := (&WorkHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, task)
 	require.NoError(h.t, err)
 	require.True(h.t, valid)
-	require.NoError(h.t, (&ManualHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, task))
+	require.NoError(h.t, (&WorkHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, task))
 	commitGeneration(h, publish)
 }
 
@@ -185,20 +185,20 @@ func TestManualQueueWaitPolicyResolutionAndCapacityRecovery(t *testing.T) {
 	h, first := bufferedHarness(t, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL, 5)
 	acceptManual(h, &schedulepb.TriggerImmediatelyRequest{}, true)
 	s, _ := h.root(false)
-	require.False(t, s.ManualArmed)
+	require.False(t, s.Coordination.Armed)
 	require.Len(t, s.Manuals, 1)
 	allowUpdate(h, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
 	s, _ = h.root(false)
-	require.False(t, s.ManualArmed, "full queue waits even ALLOW_ALL")
+	require.False(t, s.Coordination.Armed, "full queue waits even ALLOW_ALL")
 	sequentialComplete(h, first.RequestId, nil)
 	fireGeneration(h, true)
 	s, _ = h.root(false)
-	require.True(t, s.ManualArmed)
+	require.True(t, s.Coordination.Armed)
 	require.Len(t, s.Queue, 3)
 	transferManual(h, false)
 	s, _ = h.root(false)
 	require.Len(t, s.Manuals, 1)
-	require.True(t, s.ManualArmed)
+	require.True(t, s.Coordination.Armed)
 	transferManual(h, true)
 	s, ctx := h.root(false)
 	require.Empty(t, s.Manuals)
@@ -222,7 +222,7 @@ func TestManualAcceptancePayloadIsolationAndOverflow(t *testing.T) {
 	acceptManual(h, &schedulepb.TriggerImmediatelyRequest{}, true)
 	s, ctx := h.root(false)
 	require.Len(t, s.Manuals, 1)
-	require.True(t, s.ManualArmed)
+	require.True(t, s.Coordination.Armed)
 	require.Panics(t, func() { s.Generator.Get(ctx).Definition.Get(ctx) })
 	for _, boundary := range []string{"sequence", "token"} {
 		t.Run(boundary, func(t *testing.T) {
@@ -232,7 +232,7 @@ func TestManualAcceptancePayloadIsolationAndOverflow(t *testing.T) {
 			if boundary == "sequence" {
 				s.ManualSequence = math.MaxUint64
 			} else {
-				s.ManualToken = math.MaxUint64
+				s.Coordination.Token = math.MaxUint64
 			}
 			h.commit(true)
 			snapshot := cloneNodes(h.durable)
@@ -300,7 +300,7 @@ func TestManualTimestampDefaultsAndInvalidInputs(t *testing.T) {
 				nominal = tc.scheduled.AsTime().UnixNano()
 			}
 			require.Equal(t, nominal, s.Manuals[0].Nominal)
-			require.Equal(t, h.now, s.ManualAt)
+			require.Equal(t, h.now, s.Coordination.At)
 		})
 	}
 }
@@ -348,13 +348,13 @@ func TestManualFullUnfinishedWaitAndSameTimeEviction(t *testing.T) {
 	require.Len(t, ids, 4)
 	acceptManual(h, command, true)
 	s, _ := h.root(false)
-	require.False(t, s.ManualArmed)
+	require.False(t, s.Coordination.Armed)
 	require.Len(t, s.Manuals, 1)
 	require.Zero(t, pureObligations(h))
 	allowAck(h, ids[1])
 	allowAck(h, ids[0])
 	s, _ = h.root(false)
-	require.True(t, s.ManualArmed)
+	require.True(t, s.Coordination.Armed)
 	transferManual(h, true)
 	s, _ = h.root(false)
 	require.Len(t, s.Operations, 4)
@@ -445,11 +445,11 @@ func TestManualStoredTaskRollbackAndStaleToken(t *testing.T) {
 	command := &schedulepb.TriggerImmediatelyRequest{OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL}
 	acceptManual(h, command, true)
 	acceptManual(h, command, true)
-	var original *scheduler2pb.ManualTask
+	var original *scheduler2pb.WorkTask
 	var attrs chasm.TaskAttributes
 	require.NoError(t, h.node.EachPureTask(time.Unix(0, h.now), func(_ chasm.NodePureTask, a chasm.TaskAttributes, task any) (bool, error) {
-		if manual, ok := task.(*scheduler2pb.ManualTask); ok {
-			original = proto.Clone(manual).(*scheduler2pb.ManualTask)
+		if manual, ok := task.(*scheduler2pb.WorkTask); ok {
+			original = proto.Clone(manual).(*scheduler2pb.WorkTask)
 			attrs = a
 		}
 		return false, nil
@@ -458,7 +458,7 @@ func TestManualStoredTaskRollbackAndStaleToken(t *testing.T) {
 	durable := cloneNodes(h.durable)
 	h.now--
 	s, ctx := h.root(true)
-	require.ErrorContains(t, (&ManualHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, original), "not due")
+	require.ErrorContains(t, (&WorkHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, original), "not due")
 	h.reload()
 	require.Equal(t, durable, h.durable)
 	require.Equal(t, 1, pureObligations(h))
@@ -466,19 +466,19 @@ func TestManualStoredTaskRollbackAndStaleToken(t *testing.T) {
 	transferManual(h, true)
 	s, ctx = h.root(false)
 	require.Len(t, s.Manuals, 1)
-	require.Greater(t, s.ManualToken, original.Token)
-	valid, err := (&ManualHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, original)
+	require.Greater(t, s.Coordination.Token, original.Token)
+	valid, err := (&WorkHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, original)
 	require.NoError(t, err)
 	require.False(t, valid)
 	before := proto.Clone(s.RootState)
 	s, ctx = h.root(true)
-	require.NoError(t, (&ManualHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, original))
+	require.NoError(t, (&WorkHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, original))
 	commitGeneration(h, true)
 	s, _ = h.root(false)
 	protorequire.ProtoEqual(t, before, s.RootState)
 	transferManual(h, true)
 	s, ctx = h.root(false)
-	valid, err = (&ManualHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, original)
+	valid, err = (&WorkHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, original)
 	require.NoError(t, err)
 	require.False(t, valid)
 	require.Empty(t, s.Manuals)

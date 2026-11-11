@@ -1,0 +1,11 @@
+=== RUN   TestCoordinatorHistoricalBackfillAtomicHandoff
+=== PAUSE TestCoordinatorHistoricalBackfillAtomicHandoff
+=== CONT  TestCoordinatorHistoricalBackfillAtomicHandoff
+    coordinator_test.go:97: 
+        	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/coordinator_test.go:97
+        	Error:      	Should be zero, but was -3
+        	Test:       	TestCoordinatorHistoricalBackfillAtomicHandoff
+--- FAIL: TestCoordinatorHistoricalBackfillAtomicHandoff (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.674s
+FAIL

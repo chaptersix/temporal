@@ -34,7 +34,7 @@ func bufferedHarness(t *testing.T, policy enumspb.ScheduleOverlapPolicy, count i
 	h.now = end.UnixNano()
 	request, _ := frozenRequest(t)
 	configureBuffer(h, generationSpec(base, end, time.Second), 1, policy, time.Minute, request)
-	for iteration := 0; iteration < 4 && generationState(h).Armed; iteration++ {
+	for iteration := 0; iteration < 2*count+4 && generationState(h).Armed; iteration++ {
 		h.now = max(h.now, generationState(h).WakeAt)
 		fireGeneration(h, true)
 	}
@@ -78,7 +78,7 @@ func TestBufferCompletionDrainsExhaustedGenerator(t *testing.T) {
 	result := &commonpb.Payload{Metadata: map[string][]byte{"encoding": []byte("json/plain")}, Data: []byte("42")}
 	sequentialComplete(h, first.RequestId, result)
 	s, _ := h.root(false)
-	require.True(t, s.DrainArmed)
+	require.True(t, s.Coordination.Armed)
 	require.Equal(t, 1, pureObligations(h))
 	require.False(t, generationState(h).Armed)
 	fireGeneration(h, true)
@@ -110,7 +110,7 @@ func TestBufferDrainPublicationAndStaleToken(t *testing.T) {
 	h, first := bufferedHarness(t, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL, 3)
 	sequentialComplete(h, first.RequestId, &commonpb.Payload{Data: []byte("result")})
 	s, _ := h.root(false)
-	token, at := s.DrainToken, s.DrainAt
+	token, at := s.Coordination.Token, s.Coordination.At
 	before := cloneNodes(h.durable)
 	physical := len(h.physical)
 	fireGeneration(h, false)
@@ -128,11 +128,11 @@ func TestBufferDrainPublicationAndStaleToken(t *testing.T) {
 	require.Len(t, h.physical, physical+1)
 	sequentialComplete(h, second.RequestId, &commonpb.Payload{Data: []byte("second")})
 	s, ctx := h.root(true)
-	require.Greater(t, s.DrainToken, token)
+	require.Greater(t, s.Coordination.Token, token)
 	current := proto.Clone(s.RootState).(*scheduler2pb.RootState)
-	handler := &DrainHandler{}
+	handler := &WorkHandler{}
 	attrs := chasm.TaskAttributes{ScheduledTime: time.Unix(0, at)}
-	task := &scheduler2pb.DrainTask{Token: token}
+	task := &scheduler2pb.WorkTask{Token: token}
 	valid, err := handler.Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, task)
 	require.NoError(t, err)
 	require.False(t, valid)
@@ -184,7 +184,7 @@ func TestBufferIneligibleDrainAvoidsPayloads(t *testing.T) {
 			h.apply(decision.Event{Kind: decision.Update, Incarnation: "incarnation", Revision: 2, Limited: true, Remaining: 5, Policy: enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL}, true)
 			s, _ = h.root(false)
 			require.Empty(t, s.Queue)
-			require.False(t, s.DrainArmed)
+			require.False(t, s.Coordination.Armed)
 			require.Equal(t, int64(5), s.Remaining)
 		})
 	}

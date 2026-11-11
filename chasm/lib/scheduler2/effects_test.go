@@ -77,7 +77,7 @@ func TestEffectsUnknownTargetBindingAndFrozenRetry(t *testing.T) {
 	require.Equal(t, first.RequestId, s.BlockingOperationId)
 	require.Equal(t, int64(1), s.Unfinished)
 	require.Len(t, s.Queue, 1)
-	require.False(t, s.DrainArmed)
+	require.False(t, s.Coordination.Armed)
 	require.Equal(t, int64(9), s.Remaining)
 }
 
@@ -120,7 +120,7 @@ func TestEffectsTerminateSupersedesCancelAndLateEvidence(t *testing.T) {
 	s, _ = h.root(false)
 	require.Empty(t, s.Effects)
 	require.Empty(t, s.EffectRequests)
-	require.True(t, s.DrainArmed)
+	require.True(t, s.Coordination.Armed)
 	effectsResult(h, terminateID, decision.EffectSucceeded, true)
 	s, _ = h.root(false)
 	require.Empty(t, s.Effects)

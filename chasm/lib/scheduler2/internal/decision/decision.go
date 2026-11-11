@@ -46,6 +46,7 @@ type Root struct {
 }
 
 type Operation struct {
+	BackfillID   uint64
 	ManualID     uint64
 	OccurrenceID string
 	ActionID     string
@@ -87,9 +88,11 @@ const (
 	EffectExpired
 	AcceptManual
 	DispatchManual
+	DispatchBackfill
 )
 
 type Event struct {
+	BackfillID      uint64
 	Kind            Kind
 	Incarnation     string
 	EffectID        string
@@ -124,6 +127,8 @@ func Step(state State, event Event) (State, error) {
 	switch event.Kind {
 	case AcceptManual:
 		next, err = acceptManual(next, event)
+	case DispatchBackfill:
+		next, err = dispatchBackfill(next, event)
 	case DispatchManual:
 		next, err = dispatchManual(next, event)
 	case Due:
@@ -167,10 +172,11 @@ func admit(next State, event Event) (State, error) {
 	if len(event.Request) == 0 || next.Root.Incarnation == "" {
 		return State{}, serviceerror.NewInvalidArgument("admission requires incarnation and request")
 	}
-	return startOperation(next, event, event.Nominal, event.WorkflowID, next.Root.Policy, 0)
+	return startOperation(next, event, Queued{Nominal: event.Nominal, WorkflowID: event.WorkflowID, Policy: next.Root.Policy})
 }
 
-func startOperation(next State, event Event, nominal int64, workflowID string, policy enumspb.ScheduleOverlapPolicy, manualID uint64) (State, error) {
+func startOperation(next State, event Event, candidate Queued) (State, error) {
+	nominal, workflowID, policy, manualID := candidate.Nominal, candidate.WorkflowID, candidate.Policy, candidate.ManualID
 	if event.Now > math.MaxInt64-RetryHorizon {
 		return State{}, serviceerror.NewInvalidArgument("admission time exceeds supported range")
 	}
@@ -182,17 +188,20 @@ func startOperation(next State, event Event, nominal int64, workflowID string, p
 	if manualID != 0 {
 		occurrenceID = fmt.Sprintf("manual/%d", manualID)
 	}
+	if candidate.BackfillID != 0 {
+		occurrenceID = fmt.Sprintf("backfill/%d/%d", candidate.BackfillID, nominal)
+	}
 	actionID := next.Root.Incarnation + "/" + occurrenceID + "/action"
 	next.Operation = &Operation{
 		OccurrenceID: occurrenceID, ActionID: actionID, ID: actionID + "/start",
-		ManualID: manualID, Nominal: nominal, WorkflowID: workflowID, Policy: policy, Deadline: event.Now + RetryHorizon,
+		BackfillID: candidate.BackfillID, ManualID: manualID, Nominal: nominal, WorkflowID: workflowID, Policy: policy, Deadline: event.Now + RetryHorizon,
 		RetryAt: event.Now, Phase: Pending, Request: bytes.Clone(event.Request),
 	}
 	next.Root.Unfinished++
 	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL {
 		next.Root.BlockingOperationID = next.Operation.ID
 	}
-	if next.Root.Limited && manualID == 0 {
+	if next.Root.Limited && manualID == 0 && candidate.BackfillID == 0 {
 		next.Root.Remaining--
 	}
 	return next, nil

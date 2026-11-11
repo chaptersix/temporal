@@ -1,0 +1,13 @@
+Model checking /private/tmp/scheduler2-wi009-final/model-reviewed/model/arbitration-100/arbitration.json
+configFileName: /private/tmp/scheduler2-wi009-final/model-reviewed/model/arbitration-100/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 7889, queued: 0, elapsed: 2.032083s
+Time taken for model checking: 2.03211325s
+Skipping dotfile generation. Too many Nodes: 7889
+Valid Nodes: 7889 Unique states: 7876
+Checking always eventually FiniteBackfillsProgress
+IsLive: true
+Time taken to check liveness: 26.079917ms
+PASSED: Model checker completed successfully
+Writen 1 node files and 1 link files to dir /private/tmp/scheduler2-wi009-final/model-reviewed/model/arbitration-100/graph

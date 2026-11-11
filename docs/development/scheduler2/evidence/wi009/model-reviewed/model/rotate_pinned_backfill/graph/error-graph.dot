@@ -1,0 +1,54 @@
+digraph G {
+    "0" [label="Init
+Actions: 0, Forks: 0
+
+Threads: 0/1
+", color="black" penwidth="1" ];
+    "1" [label="Any:manual_policy=\"skip\"
+Actions: 0, Forks: 1
+
+Threads: 0/1
+", color="black" penwidth="1" ];
+    "0" -> "1" [label="1: Any:manual_policy=\"skip\"", color="forestgreen" penwidth="3"];
+    "2" [label="Any:backfill_policy=\"buffer\"
+Actions: 0, Forks: 2
+
+Threads: 0/1
+", color="black" penwidth="1" ];
+    "1" -> "2" [label="2: Any:backfill_policy=\"buffer\"", color="forestgreen" penwidth="3"];
+    "3" [label="yield
+Actions: 0, Forks: 3
+State: {\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"skip\",\"operation\":\"tracked\",\"operation_turn\":0,\"queue\":4,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false}
+", color="black" penwidth="2" ];
+    "2" -> "3" [label="3: Any:automatic_mode=\"queued\"", color="forestgreen" penwidth="3"];
+    "4" [label="yield
+Actions: 1, Forks: 4
+State: {\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"skip\",\"operation\":\"empty\",\"operation_turn\":0,\"queue\":4,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false}
+", color="black" penwidth="2" ];
+    "3" -> "4" [label="4: MatchingCompletion", color="forestgreen" penwidth="1"];
+    "5" [label="yield
+Actions: 2, Forks: 5
+State: {\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"skip\",\"operation\":\"tracked\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false}
+", color="black" penwidth="2" ];
+    "4" -> "5" [label="5: Drain", color="forestgreen" penwidth="1"];
+    "6" [label="yield
+Actions: 3, Forks: 6
+State: {\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":0,\"lease_candidate\":0,\"manual_identity\":0,\"manual_policy\":\"skip\",\"operation\":\"tracked\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false}
+", color="black" penwidth="2" ];
+    "5" -> "6" [label="6: AcquireVacancy", color="forestgreen" penwidth="1"];
+    "7" [label="yield
+Actions: 4, Forks: 7
+State: {\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"skip\",\"operation\":\"tracked\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false}
+", color="black" penwidth="2" ];
+    "6" -> "7" [label="7: TransferManual", color="forestgreen" penwidth="1"];
+    "8" [label="yield
+Actions: 5, Forks: 8
+State: {\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":1,\"lease_candidate\":0,\"manual_identity\":1,\"manual_policy\":\"skip\",\"operation\":\"tracked\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false}
+", color="black" penwidth="2" ];
+    "7" -> "8" [label="8: AcquireVacancy", color="forestgreen" penwidth="1"];
+    "9" [label="yield
+Actions: 6, Forks: 9
+State: {\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":1,\"lease_candidate\":0,\"manual_identity\":1,\"manual_policy\":\"skip\",\"operation\":\"tracked\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false}
+", color="red" penwidth="2" ];
+    "8" -> "9" [label="9: AutomaticScanOrDrop", color="black" penwidth="1"];
+}

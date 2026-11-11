@@ -1,0 +1,170 @@
+digraph G {
+    "0" [label="Init
+Actions: 0, Forks: 0
+
+Threads: 0/1
+", color="black" penwidth="1" ];
+    "1" [label="Any:manual_policy=\"buffer\"
+Actions: 0, Forks: 1
+
+Threads: 0/1
+", color="black" penwidth="1" ];
+    "0" -> "1" [label="1: Any:manual_policy=\"buffer\"", color="forestgreen" penwidth="3"];
+    "2" [label="Any:backfill_policy=\"buffer\"
+Actions: 0, Forks: 2
+
+Threads: 0/1
+", color="black" penwidth="1" ];
+    "1" -> "2" [label="2: Any:backfill_policy=\"buffer\"", color="forestgreen" penwidth="3"];
+    "3" [label="yield
+Actions: 0, Forks: 3
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":0,\"queue\":4,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "2" -> "3" [label="3: Any:automatic_mode=\"queued\"", color="forestgreen" penwidth="3"];
+    "4" [label="yield
+Actions: 1, Forks: 4
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":0,\"queue\":4,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":false}
+", color="black" penwidth="2" ];
+    "3" -> "4" [label="4: MatchingCompletion", color="forestgreen" penwidth="1"];
+    "5" [label="yield
+Actions: 2, Forks: 5
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "4" -> "5" [label="5: Drain", color="forestgreen" penwidth="1"];
+    "6" [label="yield
+Actions: 3, Forks: 6
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":0,\"lease_candidate\":0,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "5" -> "6" [label="6: AcquireVacancy", color="forestgreen" penwidth="1"];
+    "7" [label="yield
+Actions: 4, Forks: 7
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "6" -> "7" [label="7: TransferManual", color="forestgreen" penwidth="1"];
+    "8" [label="yield
+Actions: 5, Forks: 8
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":false}
+", color="black" penwidth="2" ];
+    "7" -> "8" [label="8: MatchingCompletion", color="forestgreen" penwidth="1"];
+    "9" [label="yield
+Actions: 6, Forks: 9
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "8" -> "9" [label="9: Drain", color="forestgreen" penwidth="1"];
+    "10" [label="yield
+Actions: 7, Forks: 10
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":0,\"backfill_policy\":\"buffer\",\"completed\":[],\"lease\":1,\"lease_candidate\":0,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "9" -> "10" [label="10: AcquireVacancy", color="forestgreen" penwidth="1"];
+    "11" [label="yield
+Actions: 8, Forks: 11
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":2,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "10" -> "11" [label="11: TransferBackfill", color="forestgreen" penwidth="1"];
+    "12" [label="yield
+Actions: 9, Forks: 12
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":2,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":false}
+", color="black" penwidth="2" ];
+    "11" -> "12" [label="12: MatchingCompletion", color="forestgreen" penwidth="1"];
+    "13" [label="yield
+Actions: 10, Forks: 13
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":2,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "12" -> "13" [label="13: Drain", color="forestgreen" penwidth="1"];
+    "14" [label="yield
+Actions: 11, Forks: 14
+State: {\"allows\":3,\"auto_identity\":0,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":2,\"lease_candidate\":0,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":2,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "13" -> "14" [label="14: AcquireVacancy", color="forestgreen" penwidth="1"];
+    "15" [label="yield
+Actions: 12, Forks: 15
+State: {\"allows\":3,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "14" -> "15" [label="15: TransferAutomaticQueued", color="forestgreen" penwidth="1"];
+    "16" [label="yield
+Actions: 13, Forks: 16
+State: {\"allows\":3,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":false}
+", color="black" penwidth="2" ];
+    "15" -> "16" [label="16: MatchingCompletion", color="forestgreen" penwidth="1"];
+    "17" [label="yield
+Actions: 14, Forks: 17
+State: {\"allows\":3,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "16" -> "17" [label="17: Drain", color="forestgreen" penwidth="1"];
+    "18" [label="yield
+Actions: 15, Forks: 18
+State: {\"allows\":3,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":0,\"lease_candidate\":1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "17" -> "18" [label="18: AcquireVacancy", color="forestgreen" penwidth="1"];
+    "19" [label="yield
+Actions: 16, Forks: 19
+State: {\"allows\":3,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "18" -> "19" [label="19: TransferManual", color="forestgreen" penwidth="1"];
+    "20" [label="yield
+Actions: 17, Forks: 20
+State: {\"allows\":3,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":false}
+", color="black" penwidth="2" ];
+    "19" -> "20" [label="20: MatchingCompletion", color="forestgreen" penwidth="1"];
+    "21" [label="yield
+Actions: 18, Forks: 21
+State: {\"allows\":2,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":false}
+", color="black" penwidth="2" ];
+    "20" -> "21" [label="21: AllowSettlement", color="forestgreen" penwidth="1"];
+    "22" [label="yield
+Actions: 19, Forks: 22
+State: {\"allows\":1,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":false}
+", color="black" penwidth="2" ];
+    "21" -> "22" [label="22: AllowSettlement", color="forestgreen" penwidth="1"];
+    "23" [label="yield
+Actions: 20, Forks: 23
+State: {\"allows\":0,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":false}
+", color="black" penwidth="2" ];
+    "22" -> "23" [label="23: AllowSettlement", color="forestgreen" penwidth="1"];
+    "24" [label="yield
+Actions: 21, Forks: 24
+State: {\"allows\":0,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":false}
+", color="black" penwidth="2" ];
+    "23" -> "24" [label="24: AutomaticScanOrDrop", color="black" penwidth="1"];
+    "25" [label="yield
+Actions: 22, Forks: 25
+State: {\"allows\":0,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "24" -> "25" [label="25: Drain", color="forestgreen" penwidth="1"];
+    "26" [label="yield
+Actions: 23, Forks: 26
+State: {\"allows\":0,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":0,\"lease_candidate\":0,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "25" -> "26" [label="26: AcquireVacancy", color="forestgreen" penwidth="1"];
+    "27" [label="yield
+Actions: 24, Forks: 27
+State: {\"allows\":0,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "26" -> "27" [label="27: TransferManual", color="forestgreen" penwidth="1"];
+    "28" [label="yield
+Actions: 25, Forks: 28
+State: {\"allows\":0,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":false}
+", color="black" penwidth="2" ];
+    "27" -> "28" [label="28: MatchingCompletion", color="forestgreen" penwidth="1"];
+    "29" [label="yield
+Actions: 16, Forks: 19
+State: {\"allows\":0,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":false}
+", color="black" penwidth="2" ];
+    "28" -> "29" [label="29: AutomaticScanOrDrop", color="black" penwidth="1"];
+    "30" [label="yield
+Actions: 17, Forks: 20
+State: {\"allows\":0,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "29" -> "30" [label="30: Drain", color="forestgreen" penwidth="1"];
+    "31" [label="yield
+Actions: 18, Forks: 21
+State: {\"allows\":0,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":0,\"lease_candidate\":1,\"manual_identity\":1,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":3,\"queue_turn\":0,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "30" -> "31" [label="31: AcquireVacancy", color="forestgreen" penwidth="1"];
+    "32" [label="yield
+Actions: 19, Forks: 22
+State: {\"allows\":0,\"auto_identity\":1,\"automatic_mode\":\"queued\",\"backfill\":1,\"backfill_policy\":\"buffer\",\"completed\":[0],\"lease\":-1,\"lease_candidate\":-1,\"manual_identity\":0,\"manual_policy\":\"buffer\",\"operation_turn\":1,\"queue\":4,\"queue_turn\":1,\"resumed_after_op_full\":false,\"retained_during_op_full\":false,\"tracked\":true}
+", color="black" penwidth="2" ];
+    "31" -> "32" [label="32: TransferManual", color="forestgreen" penwidth="1"];
+    "32" -> "23" [label="33: MatchingCompletion", color="forestgreen" penwidth="1"];
+}

@@ -1,0 +1,13 @@
+=== RUN   TestCoordinatorCapacityLeaseSurvivesNewIngress
+=== PAUSE TestCoordinatorCapacityLeaseSurvivesNewIngress
+=== CONT  TestCoordinatorCapacityLeaseSurvivesNewIngress
+    coordinator_test.go:215: 
+        	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/coordinator_test.go:215
+        	Error:      	Not equal: 
+        	            	expected: 2
+        	            	actual  : 3
+        	Test:       	TestCoordinatorCapacityLeaseSurvivesNewIngress
+--- FAIL: TestCoordinatorCapacityLeaseSurvivesNewIngress (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.675s
+FAIL

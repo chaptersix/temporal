@@ -64,6 +64,16 @@ message RootState {
   bool manual_armed = 27;
   // ManualAt is the execution-clock transfer deadline.
   int64 manual_at = 28;
+  // Coordination owns the sole scan/admission obligation and resource turns.
+  CoordinationState coordination = 29;
+  // BackfillSequence uniquely identifies accepted ranges in this incarnation.
+  uint64 backfill_sequence = 30;
+  // Backfills contains at most four active range continuations.
+  repeated BackfillState backfills = 31;
+  // BackfillFocus pins a request while its ready candidate waits for handoff.
+  uint64 backfill_focus = 32;
+  // LastBackfill remembers the last serviced request for cyclic selection.
+  uint64 last_backfill = 33;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -101,6 +111,8 @@ message OperationState {
   temporal.api.enums.v1.ScheduleOverlapPolicy policy = 10;
   // ManualId is zero for automatic occurrences and the command sequence otherwise.
   uint64 manual_id = 11;
+  // BackfillId distinguishes a range occurrence from a manual trigger.
+  uint64 backfill_id = 12;
 }
 
 // Payload keeps large values on a separately loaded node.
@@ -217,6 +229,8 @@ message QueuedOccurrence {
   temporal.api.enums.v1.ScheduleOverlapPolicy policy = 4;
   // ManualId preserves command identity through delayed admission.
   uint64 manual_id = 5;
+  // BackfillId identifies the accepted range that owns this nominal occurrence.
+  uint64 backfill_id = 6;
 }
 
 // DrainTask drives an independent bounded queue admission step.
@@ -280,4 +294,50 @@ message ManualCommand {
 message ManualTask {
  // Token fences superseded logical transfer obligations.
  uint64 token = 1;
+}
+
+// WorkClass identifies a coordinator service class, not an executor.
+enum WorkClass {
+ WORK_CLASS_UNSPECIFIED = 0;
+ WORK_CLASS_DRAIN = 1;
+ WORK_CLASS_MANUAL = 2;
+ WORK_CLASS_BACKFILL = 3;
+ WORK_CLASS_AUTOMATIC = 4;
+}
+// CoordinationState persists task fencing separately from resource entitlement.
+message CoordinationState {
+ // Token fences superseded coordinator tasks.
+ uint64 token = 1;
+ // Armed indicates an internal or timed obligation.
+ bool armed = 2;
+ // At is the execution-clock deadline.
+ int64 at = 3;
+ // NextWork controls bounded scan/service selection.
+ WorkClass next_work = 4;
+ // NextQueue chooses the next vacancy contender.
+ WorkClass next_queue = 5;
+ // NextOperation chooses the next operation-slot contender.
+ WorkClass next_operation = 6;
+ // OwnerClass identifies the holder of the one vacancy reservation.
+ WorkClass owner_class = 7;
+ // OwnerKey is empty when no vacancy is reserved.
+ string owner_key = 8;
+}
+// WorkTask drives the sole coordinator obligation.
+message WorkTask {
+ // Token is the persisted task generation.
+ uint64 token = 1;
+}
+// BackfillState holds bounded current-definition range progress without payloads.
+message BackfillState {
+ // Id is the unique accepted request sequence.
+ uint64 id = 1;
+ // Start is the inclusive lower nominal bound in Unix nanoseconds.
+ int64 start = 2;
+ // End is the inclusive upper actual-time bound, immutable after acceptance.
+ int64 end = 3;
+ // Policy is an override resolved at candidate transfer.
+ temporal.api.enums.v1.ScheduleOverlapPolicy policy = 4;
+ // Continuation retains search, disposition and pending candidate separately.
+ OccurrenceContinuation continuation = 5;
 }

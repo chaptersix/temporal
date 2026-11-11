@@ -7,6 +7,7 @@ import (
 
 // Queued contains identity metadata, never an admitted request snapshot.
 type Queued struct {
+	BackfillID uint64
 	ManualID   uint64
 	Nominal    int64
 	Actual     int64
@@ -95,9 +96,9 @@ func drain(next State, event Event) (State, error) {
 		}
 	}
 	next.Queue = retained
-	return startOperation(next, event, candidate.Nominal, candidate.WorkflowID, candidate.Policy, candidate.ManualID)
+	return startOperation(next, event, candidate)
 }
 
 func queueEligible(state State, q Queued, now, catchup int64) bool {
-	return q.ManualID != 0 || (!state.Root.Paused && (!state.Root.Limited || state.Root.Remaining > 0) && (now <= q.Actual || now-q.Actual <= catchup))
+	return q.ManualID != 0 || q.BackfillID != 0 || (!state.Root.Paused && (!state.Root.Limited || state.Root.Remaining > 0) && (now <= q.Actual || now-q.Actual <= catchup))
 }

@@ -1,0 +1,136 @@
+[
+  {
+    "case": "capacity-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-backfill-capacity-first/capacity-100/graph",
+      "/private/tmp/scheduler2-backfill-capacity-first/capacity-100/capacity.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "e508a66631c2f32f55b43072d137054c8c15b5163023a14b5357bfbf3ec1f219",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 15471, elapsed: 8.425718709s",
+      "Nodes: 36687, queued: 0, elapsed: 15.792809792s",
+      "Nodes: 36687",
+      "Valid Nodes: 36687 Unique states: 36674"
+    ]
+  },
+  {
+    "case": "capacity-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-backfill-capacity-first/capacity-200/graph",
+      "/private/tmp/scheduler2-backfill-capacity-first/capacity-200/capacity.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "9b45d4f4ca7aeaa8d386a413c12ab718be043c2d1c9a877e31a48d9356c37e19",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 15471, elapsed: 7.866151166s",
+      "Nodes: 36687, queued: 0, elapsed: 14.802821458s",
+      "Nodes: 36687",
+      "Valid Nodes: 36687 Unique states: 36674"
+    ]
+  },
+  {
+    "case": "naive_rr",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-backfill-capacity-first/naive_rr/graph",
+      "/private/tmp/scheduler2-backfill-capacity-first/naive_rr/capacity.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "NAIVE_RR",
+    "expected_invariant": [
+      "FiniteBackfillsProgress"
+    ],
+    "sha256": "8e64ae6e215d0b8e9485fd9ea1ae329a23dfa8903188513ccb6a47f0da96956a",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 20000, queued: 21685, elapsed: 7.26809875s",
+      "Nodes: 40000, queued: 22795, elapsed: 15.811653958s",
+      "Nodes: 53745, queued: 0, elapsed: 21.783884458s",
+      "Nodes: 53745",
+      "Valid Nodes: 53745 Unique states: 53732"
+    ]
+  },
+  {
+    "case": "unreserved_vacancy",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-backfill-capacity-first/unreserved_vacancy/graph",
+      "/private/tmp/scheduler2-backfill-capacity-first/unreserved_vacancy/capacity.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "UNRESERVED_VACANCY",
+    "expected_invariant": [
+      "ProtectedVacancy"
+    ],
+    "sha256": "0ebb249f5f13d21c2e6478ce34e756c487c69ca7aadd727eb15f41a9d7fd0a1c",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 215, queued: 1013, elapsed: 61.257042ms"
+    ]
+  },
+  {
+    "case": "rotate_pinned_backfill",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-backfill-capacity-first/rotate_pinned_backfill/graph",
+      "/private/tmp/scheduler2-backfill-capacity-first/rotate_pinned_backfill/capacity.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "ROTATE_PINNED_BACKFILL",
+    "expected_invariant": [
+      "PinnedCandidate",
+      "BackfillHandoffOnce"
+    ],
+    "sha256": "722fabbc13bbf5249b83c75807756c5475925bb50ac97e35034cba09f833b66d",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 662, queued: 2268, elapsed: 213.853375ms",
+      "Nodes: 662"
+    ]
+  },
+  {
+    "case": "allow_over_capacity",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-backfill-capacity-first/allow_over_capacity/graph",
+      "/private/tmp/scheduler2-backfill-capacity-first/allow_over_capacity/capacity.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "ALLOW_OVER_CAPACITY",
+    "expected_invariant": [
+      "ConcreteOperationCapacity"
+    ],
+    "sha256": "b51baf451710062dce97e4d611f1b8162213d1df43a6b9fbf2ca27fe65123984",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 34, queued: 204, elapsed: 5.87625ms"
+    ]
+  }
+]

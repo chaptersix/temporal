@@ -1,0 +1,6 @@
+capacity-100 passed=True detected=False
+capacity-200 passed=True detected=False
+naive_rr passed=False detected=True
+unreserved_vacancy passed=False detected=True
+rotate_pinned_backfill passed=False detected=True
+allow_over_capacity passed=False detected=True

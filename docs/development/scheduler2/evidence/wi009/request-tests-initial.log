@@ -1,0 +1,174 @@
+--- FAIL: TestBackfillRejectedRequestDoesNotPublish (0.00s)
+    --- FAIL: TestBackfillRejectedRequestDoesNotPublish/end_at_maximum (0.10s)
+        backfill_request_test.go:105: 
+            	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/backfill_request_test.go:105
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a1f5ab80), "Diagnostics":(*persistence.ChasmNode)(0x413a1f5adc0), "Generator":(*persistence.ChasmNode)(0x413a1f5ac40), "Generator$Definition":(*persistence.ChasmNode)(0x413a1f5ad00)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a1f5b100), "Diagnostics":(*persistence.ChasmNode)(0x413a1f5b340), "Generator":(*persistence.ChasmNode)(0x413a1f5b1c0), "Generator$Definition":(*persistence.ChasmNode)(0x413a1f5b280)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 5,
+            	            	+    TransitionCount: (int64) 6,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestBackfillRejectedRequestDoesNotPublish/end_at_maximum
+            	Messages:   	even committing a rejected call must preserve the tree
+    --- FAIL: TestBackfillRejectedRequestDoesNotPublish/missing_start (0.10s)
+        backfill_request_test.go:105: 
+            	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/backfill_request_test.go:105
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a0ed5540), "Diagnostics":(*persistence.ChasmNode)(0x413a0ed5600), "Generator":(*persistence.ChasmNode)(0x413a0ed53c0), "Generator$Definition":(*persistence.ChasmNode)(0x413a0ed5480)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a0ed59c0), "Diagnostics":(*persistence.ChasmNode)(0x413a0ed5a80), "Generator":(*persistence.ChasmNode)(0x413a0ed5b40), "Generator$Definition":(*persistence.ChasmNode)(0x413a0ed5900)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 5,
+            	            	+    TransitionCount: (int64) 6,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestBackfillRejectedRequestDoesNotPublish/missing_start
+            	Messages:   	even committing a rejected call must preserve the tree
+    --- FAIL: TestBackfillRejectedRequestDoesNotPublish/reversed (0.10s)
+        backfill_request_test.go:105: 
+            	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/backfill_request_test.go:105
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a271b280), "Diagnostics":(*persistence.ChasmNode)(0x413a271b340), "Generator":(*persistence.ChasmNode)(0x413a271b400), "Generator$Definition":(*persistence.ChasmNode)(0x413a271b4c0)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a271ba00), "Diagnostics":(*persistence.ChasmNode)(0x413a271b940), "Generator":(*persistence.ChasmNode)(0x413a271b7c0), "Generator$Definition":(*persistence.ChasmNode)(0x413a271b880)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 5,
+            	            	+    TransitionCount: (int64) 6,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestBackfillRejectedRequestDoesNotPublish/reversed
+            	Messages:   	even committing a rejected call must preserve the tree
+    --- FAIL: TestBackfillRejectedRequestDoesNotPublish/sequence_exhausted (0.12s)
+        backfill_request_test.go:105: 
+            	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/backfill_request_test.go:105
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a0989d80), "Diagnostics":(*persistence.ChasmNode)(0x413a08b4740), "Generator":(*persistence.ChasmNode)(0x413a08b4800), "Generator$Definition":(*persistence.ChasmNode)(0x413a08b4900)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a08a60c0), "Diagnostics":(*persistence.ChasmNode)(0x413a08a6180), "Generator":(*persistence.ChasmNode)(0x413a08a6240), "Generator$Definition":(*persistence.ChasmNode)(0x413a08a6300)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 5,
+            	            	+    TransitionCount: (int64) 6,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestBackfillRejectedRequestDoesNotPublish/sequence_exhausted
+            	Messages:   	even committing a rejected call must preserve the tree
+    --- FAIL: TestBackfillRejectedRequestDoesNotPublish/before_minimum (0.09s)
+        backfill_request_test.go:105: 
+            	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/backfill_request_test.go:105
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a1ffa540), "Diagnostics":(*persistence.ChasmNode)(0x413a1ffa600), "Generator":(*persistence.ChasmNode)(0x413a1ffa6c0), "Generator$Definition":(*persistence.ChasmNode)(0x413a1ffa7c0)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a1ffab00), "Diagnostics":(*persistence.ChasmNode)(0x413a1ffad40), "Generator":(*persistence.ChasmNode)(0x413a1ffabc0), "Generator$Definition":(*persistence.ChasmNode)(0x413a1ffac80)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 5,
+            	            	+    TransitionCount: (int64) 6,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestBackfillRejectedRequestDoesNotPublish/before_minimum
+            	Messages:   	even committing a rejected call must preserve the tree
+    --- FAIL: TestBackfillRejectedRequestDoesNotPublish/unknown_policy (0.09s)
+        backfill_request_test.go:105: 
+            	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/backfill_request_test.go:105
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a08b52c0), "Diagnostics":(*persistence.ChasmNode)(0x413a08b5500), "Generator":(*persistence.ChasmNode)(0x413a08b5380), "Generator$Definition":(*persistence.ChasmNode)(0x413a08b5440)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a08b5840), "Diagnostics":(*persistence.ChasmNode)(0x413a06fd7c0), "Generator":(*persistence.ChasmNode)(0x413a06fd5c0), "Generator$Definition":(*persistence.ChasmNode)(0x413a06fd700)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 5,
+            	            	+    TransitionCount: (int64) 6,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestBackfillRejectedRequestDoesNotPublish/unknown_policy
+            	Messages:   	even committing a rejected call must preserve the tree
+    --- FAIL: TestBackfillRejectedRequestDoesNotPublish/unconfigured (0.10s)
+        backfill_request_test.go:105: 
+            	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/backfill_request_test.go:105
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a0ed5840), "Diagnostics":(*persistence.ChasmNode)(0x413a0ed5d80), "Generator":(*persistence.ChasmNode)(0x413a0ed5c00), "Generator$Definition":(*persistence.ChasmNode)(0x413a0ed5cc0)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a0e20200), "Diagnostics":(*persistence.ChasmNode)(0x413a0e20300), "Generator":(*persistence.ChasmNode)(0x413a0e203c0), "Generator$Definition":(*persistence.ChasmNode)(0x413a0e20d80)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 5,
+            	            	+    TransitionCount: (int64) 6,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestBackfillRejectedRequestDoesNotPublish/unconfigured
+            	Messages:   	even committing a rejected call must preserve the tree
+    --- FAIL: TestBackfillRejectedRequestDoesNotPublish/nil_request (0.09s)
+        backfill_request_test.go:105: 
+            	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/backfill_request_test.go:105
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a0a7b080), "Diagnostics":(*persistence.ChasmNode)(0x413a0a7b300), "Generator":(*persistence.ChasmNode)(0x413a0a7b140), "Generator$Definition":(*persistence.ChasmNode)(0x413a0a7b200)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a0a7b600), "Diagnostics":(*persistence.ChasmNode)(0x413a0a7b840), "Generator":(*persistence.ChasmNode)(0x413a0a7b6c0), "Generator$Definition":(*persistence.ChasmNode)(0x413a0a7b780)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 5,
+            	            	+    TransitionCount: (int64) 6,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestBackfillRejectedRequestDoesNotPublish/nil_request
+            	Messages:   	even committing a rejected call must preserve the tree
+    --- FAIL: TestBackfillRejectedRequestDoesNotPublish/bad_nanos (0.08s)
+        backfill_request_test.go:105: 
+            	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/backfill_request_test.go:105
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a1ffb640), "Diagnostics":(*persistence.ChasmNode)(0x413a1ffb400), "Generator":(*persistence.ChasmNode)(0x413a1ffb4c0), "Generator$Definition":(*persistence.ChasmNode)(0x413a1ffb580)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a1ffb940), "Diagnostics":(*persistence.ChasmNode)(0x413a1ffbb80), "Generator":(*persistence.ChasmNode)(0x413a1ffba00), "Generator$Definition":(*persistence.ChasmNode)(0x413a1ffbac0)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 5,
+            	            	+    TransitionCount: (int64) 6,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestBackfillRejectedRequestDoesNotPublish/bad_nanos
+            	Messages:   	even committing a rejected call must preserve the tree
+    --- FAIL: TestBackfillRejectedRequestDoesNotPublish/missing_end (0.08s)
+        backfill_request_test.go:105: 
+            	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/backfill_request_test.go:105
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a0a35080), "Diagnostics":(*persistence.ChasmNode)(0x413a0a35140), "Generator":(*persistence.ChasmNode)(0x413a0a35200), "Generator$Definition":(*persistence.ChasmNode)(0x413a0a35380)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x413a0a35680), "Diagnostics":(*persistence.ChasmNode)(0x413a0a358c0), "Generator":(*persistence.ChasmNode)(0x413a0a35740), "Generator$Definition":(*persistence.ChasmNode)(0x413a0a35800)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 5,
+            	            	+    TransitionCount: (int64) 6,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestBackfillRejectedRequestDoesNotPublish/missing_end
+            	Messages:   	even committing a rejected call must preserve the tree
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.927s
+FAIL

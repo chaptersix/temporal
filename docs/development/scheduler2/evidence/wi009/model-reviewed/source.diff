@@ -1,0 +1,2384 @@
+diff --git a/CHASM_SCHEDULER_REDESIGN_PLAN.md b/CHASM_SCHEDULER_REDESIGN_PLAN.md
+index 563222132..21a362e7d 100644
+--- a/CHASM_SCHEDULER_REDESIGN_PLAN.md
++++ b/CHASM_SCHEDULER_REDESIGN_PLAN.md
+@@ -809,3 +809,13 @@ starvation counterexamples to naive readiness arbitration. D47–D50 in
+ [WI-009](docs/development/scheduler2/work-items/WI-009.md) require one coordinator,
+ durable vacancy ownership and operation-slot fairness. Range helper evidence alone
+ does not pass WI-009 or M2; all integrated fairness/public API/proof/load gates remain.
++
++
++WI-009 coordinator integration is under verification in the isolated local
++`sch-redesign-coordinator` worktree, based on403e778e1. One WorkTask now owns scan
++and admission; public backfill requests are bounded and deduplicated, and durable
++vacancy ownership coordinates accepted ingress with queue drain. Independent model
++rerun passes its finite conditional-liveness fixture and all six sensitivity checks.
++This is implementation progress, not WI-009/M2 acceptance: integrated capacity
++properties, rejection atomicity, Go mutations, race/lint and composition review
++remain. M3/M4 scope and local-only authorization remain unchanged.
+diff --git a/chasm/lib/scheduler2/allowall_test.go b/chasm/lib/scheduler2/allowall_test.go
+index 4760e6a3c..b25aecb55 100644
+--- a/chasm/lib/scheduler2/allowall_test.go
++++ b/chasm/lib/scheduler2/allowall_test.go
+@@ -122,7 +122,7 @@ func TestAllowAllMixedBlockingAndFrozenQueuePolicy(t *testing.T) {
+ 	s, _ = h.root(false)
+ 	assertAllowPendingStarts(h)
+ 	require.Equal(t, first.RequestId, s.BlockingOperationId)
+-	require.False(t, s.DrainArmed)
++	require.False(t, s.Coordination.Armed)
+ 	sequentialComplete(h, first.RequestId, nil)
+ 	require.Equal(t, 1, pureObligations(h))
+ 	fireGeneration(h, true)
+@@ -153,14 +153,14 @@ func TestAllowAllCapacityWaitingDrainWakesWithoutGenerator(t *testing.T) {
+ 	assertAllowPendingStarts(h)
+ 	require.Equal(t, int64(4), s.Unfinished)
+ 	require.Len(t, s.Queue, 1)
+-	require.False(t, s.DrainArmed)
++	require.False(t, s.Coordination.Armed)
+ 	require.Zero(t, pureObligations(h))
+ 	require.False(t, generationState(h).Armed)
+ 	ids := allowIDs(h)
+ 	allowAck(h, ids[0])
+ 	s, _ = h.root(false)
+ 	assertAllowPendingStarts(h)
+-	require.True(t, s.DrainArmed)
++	require.True(t, s.Coordination.Armed)
+ 	require.Equal(t, 1, pureObligations(h))
+ 	before := cloneNodes(h.durable)
+ 	fireGeneration(h, false)
+@@ -253,21 +253,24 @@ func TestAllowAllConfigDisposesCapacityWaitingQueue(t *testing.T) {
+ 	allowDue(h, true)
+ 	s, _ := h.root(false)
+ 	assertAllowPendingStarts(h)
+-	require.False(t, s.DrainArmed)
++	require.False(t, s.Coordination.Armed)
+ 	require.Equal(t, int64(4), s.Unfinished)
+ 	h.now += int64(time.Second)
+ 	request, _ := frozenRequest(t)
+ 	configureBuffer(h, &schedulepb.ScheduleSpec{}, s.Revision+1, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL, 0, request)
+ 	s, ctx := h.root(true)
+-	require.True(t, s.DrainArmed)
+-	// Configuration arms both generation and drain. Execute the drain directly;
++	require.True(t, s.Coordination.Armed)
++	// Configuration makes drain and generation ready. Execute the drain grant;
+ 	// no acceptance/completion or operation slot is needed for disposal.
+-	require.NoError(t, (&DrainHandler{}).Execute(ctx.(chasm.MutableContext), s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, s.DrainAt)}, &scheduler2pb.DrainTask{Token: s.DrainToken}))
++	require.NoError(t, (&WorkHandler{}).Execute(ctx.(chasm.MutableContext), s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, s.Coordination.At)}, &scheduler2pb.WorkTask{Token: s.Coordination.Token}))
+ 	commitGeneration(h, true)
+ 	s, _ = h.root(false)
+ 	assertAllowPendingStarts(h)
+ 	require.Empty(t, s.Queue)
+-	require.False(t, s.DrainArmed)
++	require.True(t, s.Coordination.Armed) // Empty-source scan is a separate quantum.
++	fireGeneration(h, true)
++	s, _ = h.root(false)
++	require.False(t, s.Coordination.Armed)
+ 	require.Equal(t, int64(4), s.Unfinished)
+ 	require.Equal(t, int64(5), s.Remaining)
+ }
+diff --git a/chasm/lib/scheduler2/buffer.go b/chasm/lib/scheduler2/buffer.go
+index 3e6fa0bf3..c793acd1e 100644
+--- a/chasm/lib/scheduler2/buffer.go
++++ b/chasm/lib/scheduler2/buffer.go
+@@ -1,42 +1,21 @@
+ package scheduler2
+ 
+ import (
+-	"time"
+-
+ 	"go.temporal.io/api/serviceerror"
+ 	"go.temporal.io/server/chasm"
+ 	"go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1"
+ 	"go.temporal.io/server/chasm/lib/scheduler2/internal/decision"
+ )
+ 
+-func (s *Scheduler) reconcileDrain(ctx chasm.MutableContext, state decision.State) {
+-	if !s.canDrain(ctx, state) {
+-		s.DrainArmed = false
+-		return
+-	}
+-	if s.DrainArmed {
+-		return
+-	}
+-	s.DrainToken++
+-	s.DrainArmed = true
+-	s.DrainAt = ctx.Now(s).UnixNano()
+-	ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, s.DrainAt)}, &scheduler2pb.DrainTask{Token: s.DrainToken})
+-}
+-
+ // DrainHandler admits at most one queued occurrence without depending on generation.
+ type DrainHandler struct{ chasm.PureTaskHandlerBase }
+ 
+-func (*DrainHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.DrainTask) (bool, error) {
+-	return s.DrainArmed && s.DrainToken == task.Token && s.DrainAt == attrs.ScheduledTime.UnixNano(), nil
++// Validate rejects legacy drain tasks that bypass coordinator arbitration.
++func (*DrainHandler) Validate(chasm.Context, *Scheduler, chasm.TaskInvocation, *scheduler2pb.DrainTask) (bool, error) {
++	return false, nil
+ }
+-func (*DrainHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.TaskAttributes, task *scheduler2pb.DrainTask) error {
+-	if !s.DrainArmed || s.DrainToken != task.Token || s.DrainAt != attrs.ScheduledTime.UnixNano() {
+-		return nil
+-	}
+-	if ctx.Now(s).Before(time.Unix(0, s.DrainAt)) {
+-		return serviceerror.NewUnavailable("draining is not due")
+-	}
+-	return s.Apply(ctx, decision.Event{Kind: decision.Drain, Incarnation: s.Incarnation})
++func (*DrainHandler) Execute(chasm.MutableContext, *Scheduler, chasm.TaskAttributes, *scheduler2pb.DrainTask) error {
++	return nil
+ }
+ 
+ func (s *Scheduler) prepareDrain(ctx chasm.Context, state decision.State, event *decision.Event) error {
+diff --git a/chasm/lib/scheduler2/buffer_replay_test.go b/chasm/lib/scheduler2/buffer_replay_test.go
+index ddb1c3199..41f972fd6 100644
+--- a/chasm/lib/scheduler2/buffer_replay_test.go
++++ b/chasm/lib/scheduler2/buffer_replay_test.go
+@@ -34,6 +34,7 @@ type bufferTrace struct {
+ 	Steps       []bufferTraceStep `json:"steps"`
+ }
+ type bufferTraceStep struct {
++	Quanta     int               `json:"quanta"`
+ 	Kind       string            `json:"kind"`
+ 	Publish    bool              `json:"publish"`
+ 	Result     *commonpb.Payload `json:"result"`
+@@ -51,13 +52,13 @@ type bufferTraceStep struct {
+ // at each durable boundary, including a rejected drain publication and restart.
+ func TestBufferSavedReplay(t *testing.T) {
+ 	t.Parallel()
+-	data, err := os.ReadFile("testdata/buffer_v1.json")
++	data, err := os.ReadFile("testdata/buffer_v2.json")
+ 	require.NoError(t, err)
+ 	var trace bufferTrace
+ 	decoder := json.NewDecoder(bytes.NewReader(data))
+ 	decoder.DisallowUnknownFields()
+ 	require.NoError(t, decoder.Decode(&trace))
+-	require.Equal(t, 1, trace.Version)
++	require.Equal(t, 2, trace.Version)
+ 	require.Equal(t, "execution_nanoseconds", trace.ClockDomain)
+ 	require.Equal(t, "incarnation", trace.Incarnation)
+ 	for replay := 0; replay < 2; replay++ {
+@@ -76,7 +77,10 @@ func TestBufferSavedReplay(t *testing.T) {
+ 		for index, step := range trace.Steps {
+ 			switch step.Kind {
+ 			case "generate", "drain":
+-				fireGeneration(h, step.Publish)
++				require.True(t, step.Quanta <= 1 || step.Publish, "multi-quantum replay steps require individual publication")
++				for range max(step.Quanta, 1) {
++					fireGeneration(h, step.Publish)
++				}
+ 			case "restart":
+ 				h.reload()
+ 			case "complete":
+diff --git a/chasm/lib/scheduler2/buffer_test.go b/chasm/lib/scheduler2/buffer_test.go
+index 3b9ab2e73..a729bbe9d 100644
+--- a/chasm/lib/scheduler2/buffer_test.go
++++ b/chasm/lib/scheduler2/buffer_test.go
+@@ -34,7 +34,7 @@ func bufferedHarness(t *testing.T, policy enumspb.ScheduleOverlapPolicy, count i
+ 	h.now = end.UnixNano()
+ 	request, _ := frozenRequest(t)
+ 	configureBuffer(h, generationSpec(base, end, time.Second), 1, policy, time.Minute, request)
+-	for iteration := 0; iteration < 4 && generationState(h).Armed; iteration++ {
++	for iteration := 0; iteration < 2*count+4 && generationState(h).Armed; iteration++ {
+ 		h.now = max(h.now, generationState(h).WakeAt)
+ 		fireGeneration(h, true)
+ 	}
+@@ -78,7 +78,7 @@ func TestBufferCompletionDrainsExhaustedGenerator(t *testing.T) {
+ 	result := &commonpb.Payload{Metadata: map[string][]byte{"encoding": []byte("json/plain")}, Data: []byte("42")}
+ 	sequentialComplete(h, first.RequestId, result)
+ 	s, _ := h.root(false)
+-	require.True(t, s.DrainArmed)
++	require.True(t, s.Coordination.Armed)
+ 	require.Equal(t, 1, pureObligations(h))
+ 	require.False(t, generationState(h).Armed)
+ 	fireGeneration(h, true)
+@@ -110,7 +110,7 @@ func TestBufferDrainPublicationAndStaleToken(t *testing.T) {
+ 	h, first := bufferedHarness(t, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL, 3)
+ 	sequentialComplete(h, first.RequestId, &commonpb.Payload{Data: []byte("result")})
+ 	s, _ := h.root(false)
+-	token, at := s.DrainToken, s.DrainAt
++	token, at := s.Coordination.Token, s.Coordination.At
+ 	before := cloneNodes(h.durable)
+ 	physical := len(h.physical)
+ 	fireGeneration(h, false)
+@@ -128,11 +128,11 @@ func TestBufferDrainPublicationAndStaleToken(t *testing.T) {
+ 	require.Len(t, h.physical, physical+1)
+ 	sequentialComplete(h, second.RequestId, &commonpb.Payload{Data: []byte("second")})
+ 	s, ctx := h.root(true)
+-	require.Greater(t, s.DrainToken, token)
++	require.Greater(t, s.Coordination.Token, token)
+ 	current := proto.Clone(s.RootState).(*scheduler2pb.RootState)
+-	handler := &DrainHandler{}
++	handler := &WorkHandler{}
+ 	attrs := chasm.TaskAttributes{ScheduledTime: time.Unix(0, at)}
+-	task := &scheduler2pb.DrainTask{Token: token}
++	task := &scheduler2pb.WorkTask{Token: token}
+ 	valid, err := handler.Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, task)
+ 	require.NoError(t, err)
+ 	require.False(t, valid)
+@@ -184,7 +184,7 @@ func TestBufferIneligibleDrainAvoidsPayloads(t *testing.T) {
+ 			h.apply(decision.Event{Kind: decision.Update, Incarnation: "incarnation", Revision: 2, Limited: true, Remaining: 5, Policy: enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL}, true)
+ 			s, _ = h.root(false)
+ 			require.Empty(t, s.Queue)
+-			require.False(t, s.DrainArmed)
++			require.False(t, s.Coordination.Armed)
+ 			require.Equal(t, int64(5), s.Remaining)
+ 		})
+ 	}
+diff --git a/chasm/lib/scheduler2/component.go b/chasm/lib/scheduler2/component.go
+index bffb220df..2b6925981 100644
+--- a/chasm/lib/scheduler2/component.go
++++ b/chasm/lib/scheduler2/component.go
+@@ -4,7 +4,6 @@ package scheduler2
+ import (
+ 	"bytes"
+ 	"maps"
+-	"math"
+ 	"time"
+ 
+ 	enumspb "go.temporal.io/api/enums/v1"
+@@ -61,14 +60,14 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.Sta
+ 		state.Effects = append(state.Effects, decodeEffect(e))
+ 	}
+ 	for _, q := range s.Queue {
+-		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, WorkflowID: q.WorkflowId, Policy: q.Policy, ManualID: q.ManualId})
++		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, WorkflowID: q.WorkflowId, Policy: q.Policy, ManualID: q.ManualId, BackfillID: q.BackfillId})
+ 	}
+ 	if field, ok := s.Operations[operationID]; ok {
+ 		op := field.Get(ctx)
+ 		state.Operation = &decision.Operation{
+ 			OccurrenceID: op.OccurrenceId, ActionID: op.ActionId, ID: op.Id,
+ 			ChainID: op.ChainId, Nominal: op.Nominal, Deadline: op.Deadline,
+-			ManualID: op.ManualId, RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId, Policy: op.Policy,
++			BackfillID: op.BackfillId, ManualID: op.ManualId, RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId, Policy: op.Policy,
+ 		}
+ 	}
+ 	return state
+@@ -76,12 +75,37 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.Sta
+ 
+ // Apply records the transition and successor task in the same CHASM transaction.
+ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error {
++	if event.Incarnation != s.Incarnation {
++		return nil
++	}
++	if admissionEvent(event.Kind) {
++		return serviceerror.NewFailedPrecondition("admission requires coordinator ownership")
++	}
++	if err := s.applyTransition(ctx, event); err != nil {
++		return err
++	}
++	return s.reconcileWork(ctx)
++}
++
++func admissionEvent(kind decision.Kind) bool {
++	return kind == decision.Due || kind == decision.Drain || kind == decision.DispatchManual || kind == decision.DispatchBackfill
++}
++
++func (s *Scheduler) prepareFailureCarryover(ctx chasm.Context, before *decision.State, event decision.Event) {
++	if event.Kind == decision.Callback && event.Outcome == decision.Failure && event.Incarnation == s.Incarnation && before.Operation != nil && before.Operation.ID == event.OperationID && !decision.Terminal(before.Operation.Phase) && before.Operation.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && s.CarryoverSet {
++		c := s.Carryover.Get(ctx)
++		before.Carryover = &decision.Carryover{Result: c.Result, Failure: c.Failure, FailurePresent: c.FailurePresent}
++	}
++}
++
++// applyTransition is called only by a coordinator grant or a non-admission event.
++func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Event) error {
+ 	if event.Incarnation != s.Incarnation {
+ 		return nil
+ 	}
+ 	event.Now = ctx.Now(s).UnixNano()
+ 	operationID := event.OperationID
+-	if event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.Update || event.Kind == decision.DispatchManual {
++	if admissionEvent(event.Kind) || event.Kind == decision.Update {
+ 		operationID = s.OperationId
+ 	}
+ 	before := s.stateFor(ctx, operationID)
+@@ -94,10 +118,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error
+ 	if err := s.prepareCompletion(before, &event); err != nil {
+ 		return err
+ 	}
+-	if event.Kind == decision.Callback && event.Outcome == decision.Failure && event.Incarnation == s.Incarnation && before.Operation != nil && before.Operation.ID == event.OperationID && !decision.Terminal(before.Operation.Phase) && before.Operation.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && s.CarryoverSet {
+-		c := s.Carryover.Get(ctx)
+-		before.Carryover = &decision.Carryover{Result: c.Result, Failure: c.Failure, FailurePresent: c.FailurePresent}
+-	}
++	s.prepareFailureCarryover(ctx, &before, event)
+ 
+ 	next, err := decision.Step(before, event)
+ 	if err != nil {
+@@ -107,7 +128,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error
+ 	if err != nil {
+ 		return err
+ 	}
+-	newAdmission := (event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.DispatchManual) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID)
++	newAdmission := admissionEvent(event.Kind) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID)
+ 	if newAdmission {
+ 		if err := s.freezeAdmission(ctx, next.Operation); err != nil {
+ 			return err
+@@ -116,16 +137,20 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error
+ 	if len(next.Queue) > 0 && !s.HasGenerator {
+ 		return serviceerror.NewFailedPrecondition("buffering requires a configured template")
+ 	}
+-	if s.canDrain(ctx, next) && !s.DrainArmed && s.DrainToken == math.MaxUint64 {
+-		return serviceerror.NewFailedPrecondition("drain token exhausted")
+-	}
+-	if err := s.checkManualToken(next, event.Kind == decision.DispatchManual); err != nil {
++	if err := s.checkNextWorkToken(ctx, next); err != nil {
+ 		return err
+ 	}
+ 	eviction, err := s.retentionEviction(ctx, before, next)
+ 	if err != nil {
+ 		return err
+ 	}
++	s.publishTransition(ctx, before, next, event.Kind, newAdmission, eviction, effectRequests)
++	return nil
++}
++
++// publishTransition cannot reject: validation and successor-token checks precede
++// every DATA, control-state and task write in this publication phase.
++func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next decision.State, kind decision.Kind, newAdmission bool, eviction string, effectRequests map[string][]byte) {
+ 	if eviction != "" {
+ 		delete(s.Operations, eviction)
+ 		delete(s.Requests, eviction)
+@@ -145,10 +170,12 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error
+ 	hasGenerator, latestOperationID := s.HasGenerator, s.OperationId
+ 	drainToken, drainArmed, drainAt := s.DrainToken, s.DrainArmed, s.DrainAt
+ 	manualToken, manualArmed, manualAt := s.ManualToken, s.ManualArmed, s.ManualAt
+-	if event.Kind == decision.DispatchManual {
++	if kind == decision.DispatchManual {
+ 		manualArmed = false
+ 	}
++	previousRoot := s.RootState
+ 	s.RootState = &scheduler2pb.RootState{
++		Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
+ 		ManualSequence: next.Root.ManualSequence, ManualToken: manualToken, ManualArmed: manualArmed, ManualAt: manualAt,
+ 		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
+ 		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
+@@ -160,7 +187,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error
+ 		s.Manuals = append(s.Manuals, &scheduler2pb.ManualCommand{Id: m.ID, Nominal: m.Nominal, Policy: m.Policy})
+ 	}
+ 	for _, q := range next.Queue {
+-		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy, ManualId: q.ManualID})
++		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy, ManualId: q.ManualID, BackfillId: q.BackfillID})
+ 	}
+ 	if next.Carryover != nil {
+ 		s.Carryover = chasm.NewDataField(ctx, &scheduler2pb.CarryoverState{Result: bytes.Clone(next.Carryover.Result), Failure: bytes.Clone(next.Carryover.Failure), FailurePresent: next.Carryover.FailurePresent})
+@@ -171,7 +198,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error
+ 		}
+ 		metadata := &scheduler2pb.OperationState{
+ 			OccurrenceId: op.OccurrenceID, ActionId: op.ActionID, Id: op.ID, ChainId: op.ChainID,
+-			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy, ManualId: op.ManualID,
++			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy, ManualId: op.ManualID, BackfillId: op.BackfillID,
+ 		}
+ 		s.Operations[op.ID] = chasm.NewDataField(ctx, metadata)
+ 		if newAdmission {
+@@ -185,9 +212,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error
+ 			&scheduler2pb.StartTask{OperationId: next.Operation.ID})
+ 	}
+ 	s.publishEffects(ctx, before, next, effectRequests)
+-	s.reconcileDrain(ctx, next)
+-	s.reconcileManual(ctx, next)
+-	return nil
++
+ }
+ 
+ // request returns a detached request after checking the selected operation's deadline.
+@@ -244,7 +269,7 @@ func (s *Scheduler) freezeAdmission(ctx chasm.Context, op *decision.Operation) e
+ 	if op.WorkflowID != "" {
+ 		request.WorkflowId = op.WorkflowID
+ 	}
+-	if op.ManualID != 0 {
++	if op.ManualID != 0 || op.BackfillID != 0 {
+ 		request.WorkflowIdReusePolicy = enumspb.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+ 	}
+ 	request.RequestId = op.ID
+diff --git a/chasm/lib/scheduler2/effects_replay_test.go b/chasm/lib/scheduler2/effects_replay_test.go
+index 0d4864f16..af1dd4a7e 100644
+--- a/chasm/lib/scheduler2/effects_replay_test.go
++++ b/chasm/lib/scheduler2/effects_replay_test.go
+@@ -33,6 +33,7 @@ type effectsTrace struct {
+ 	Steps       []effectsTraceStep `json:"steps"`
+ }
+ type effectsTraceStep struct {
++	Quanta     int    `json:"quanta"`
+ 	Kind       string `json:"kind"`
+ 	Now        int64  `json:"now"`
+ 	Publish    bool   `json:"publish"`
+@@ -51,13 +52,13 @@ type effectsTraceStep struct {
+ 
+ func TestEffectsSavedReplay(t *testing.T) {
+ 	t.Parallel()
+-	data, err := os.ReadFile("testdata/effects_v1.json")
++	data, err := os.ReadFile("testdata/effects_v2.json")
+ 	require.NoError(t, err)
+ 	var trace effectsTrace
+ 	decoder := json.NewDecoder(bytes.NewReader(data))
+ 	decoder.DisallowUnknownFields()
+ 	require.NoError(t, decoder.Decode(&trace))
+-	require.Equal(t, 1, trace.Version)
++	require.Equal(t, 2, trace.Version)
+ 	require.Equal(t, "execution_nanoseconds", trace.ClockDomain)
+ 	require.Equal(t, "incarnation", trace.Incarnation)
+ 	at := func(second int64) int64 { return trace.Base.Add(time.Duration(second) * time.Second).UnixNano() }
+@@ -83,7 +84,10 @@ func TestEffectsSavedReplay(t *testing.T) {
+ 			event := decision.Event{Incarnation: trace.Incarnation, OperationID: id(0), ChainID: trace.Chain, EffectID: id(0) + "/cancel"}
+ 			switch step.Kind {
+ 			case "generate", "drain":
+-				fireGeneration(h, step.Publish)
++				require.True(t, step.Quanta <= 1 || step.Publish, "multi-quantum replay steps require individual publication")
++				for range max(step.Quanta, 1) {
++					fireGeneration(h, step.Publish)
++				}
+ 			case "restart":
+ 				h.reload()
+ 			case "ack":
+diff --git a/chasm/lib/scheduler2/effects_tasks_test.go b/chasm/lib/scheduler2/effects_tasks_test.go
+index 3662fda0a..7317adb66 100644
+--- a/chasm/lib/scheduler2/effects_tasks_test.go
++++ b/chasm/lib/scheduler2/effects_tasks_test.go
+@@ -234,7 +234,7 @@ func TestEffectsTaskDeadlineBoundary(t *testing.T) {
+ 			require.Equal(t, started, s.Started)
+ 			protorequire.ProtoEqual(t, &scheduler2pb.RootState{Queue: queue}, &scheduler2pb.RootState{Queue: s.Queue})
+ 			require.Equal(t, int64(1), s.Unfinished)
+-			require.False(t, s.DrainArmed)
++			require.False(t, s.Coordination.Armed)
+ 		})
+ 	}
+ }
+diff --git a/chasm/lib/scheduler2/effects_test.go b/chasm/lib/scheduler2/effects_test.go
+index 9e9271eea..640a13d5c 100644
+--- a/chasm/lib/scheduler2/effects_test.go
++++ b/chasm/lib/scheduler2/effects_test.go
+@@ -77,7 +77,7 @@ func TestEffectsUnknownTargetBindingAndFrozenRetry(t *testing.T) {
+ 	require.Equal(t, first.RequestId, s.BlockingOperationId)
+ 	require.Equal(t, int64(1), s.Unfinished)
+ 	require.Len(t, s.Queue, 1)
+-	require.False(t, s.DrainArmed)
++	require.False(t, s.Coordination.Armed)
+ 	require.Equal(t, int64(9), s.Remaining)
+ }
+ 
+@@ -120,7 +120,7 @@ func TestEffectsTerminateSupersedesCancelAndLateEvidence(t *testing.T) {
+ 	s, _ = h.root(false)
+ 	require.Empty(t, s.Effects)
+ 	require.Empty(t, s.EffectRequests)
+-	require.True(t, s.DrainArmed)
++	require.True(t, s.Coordination.Armed)
+ 	effectsResult(h, terminateID, decision.EffectSucceeded, true)
+ 	s, _ = h.root(false)
+ 	require.Empty(t, s.Effects)
+diff --git a/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go b/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go
+index 0bf462f05..bfc911186 100644
+--- a/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go
++++ b/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go
+@@ -599,6 +599,117 @@ func (this *ManualTask) Equal(that interface{}) bool {
+ 	return proto.Equal(this, that1)
+ }
+ 
++// Marshal an object of type CoordinationState to the protobuf v3 wire format
++func (val *CoordinationState) Marshal() ([]byte, error) {
++	return proto.Marshal(val)
++}
++
++// Unmarshal an object of type CoordinationState from the protobuf v3 wire format
++func (val *CoordinationState) Unmarshal(buf []byte) error {
++	return proto.Unmarshal(buf, val)
++}
++
++// Size returns the size of the object, in bytes, once serialized
++func (val *CoordinationState) Size() int {
++	return proto.Size(val)
++}
++
++// Equal returns whether two CoordinationState values are equivalent by recursively
++// comparing the message's fields.
++// For more information see the documentation for
++// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
++func (this *CoordinationState) Equal(that interface{}) bool {
++	if that == nil {
++		return this == nil
++	}
++
++	var that1 *CoordinationState
++	switch t := that.(type) {
++	case *CoordinationState:
++		that1 = t
++	case CoordinationState:
++		that1 = &t
++	default:
++		return false
++	}
++
++	return proto.Equal(this, that1)
++}
++
++// Marshal an object of type WorkTask to the protobuf v3 wire format
++func (val *WorkTask) Marshal() ([]byte, error) {
++	return proto.Marshal(val)
++}
++
++// Unmarshal an object of type WorkTask from the protobuf v3 wire format
++func (val *WorkTask) Unmarshal(buf []byte) error {
++	return proto.Unmarshal(buf, val)
++}
++
++// Size returns the size of the object, in bytes, once serialized
++func (val *WorkTask) Size() int {
++	return proto.Size(val)
++}
++
++// Equal returns whether two WorkTask values are equivalent by recursively
++// comparing the message's fields.
++// For more information see the documentation for
++// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
++func (this *WorkTask) Equal(that interface{}) bool {
++	if that == nil {
++		return this == nil
++	}
++
++	var that1 *WorkTask
++	switch t := that.(type) {
++	case *WorkTask:
++		that1 = t
++	case WorkTask:
++		that1 = &t
++	default:
++		return false
++	}
++
++	return proto.Equal(this, that1)
++}
++
++// Marshal an object of type BackfillState to the protobuf v3 wire format
++func (val *BackfillState) Marshal() ([]byte, error) {
++	return proto.Marshal(val)
++}
++
++// Unmarshal an object of type BackfillState from the protobuf v3 wire format
++func (val *BackfillState) Unmarshal(buf []byte) error {
++	return proto.Unmarshal(buf, val)
++}
++
++// Size returns the size of the object, in bytes, once serialized
++func (val *BackfillState) Size() int {
++	return proto.Size(val)
++}
++
++// Equal returns whether two BackfillState values are equivalent by recursively
++// comparing the message's fields.
++// For more information see the documentation for
++// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
++func (this *BackfillState) Equal(that interface{}) bool {
++	if that == nil {
++		return this == nil
++	}
++
++	var that1 *BackfillState
++	switch t := that.(type) {
++	case *BackfillState:
++		that1 = t
++	case BackfillState:
++		that1 = &t
++	default:
++		return false
++	}
++
++	return proto.Equal(this, that1)
++}
++
+ var (
+ 	Phase_shorthandValue = map[string]int32{
+ 		"Unspecified": 0,
+@@ -686,3 +797,24 @@ func EffectPhaseFromString(s string) (EffectPhase, error) {
+ 	}
+ 	return EffectPhase(0), fmt.Errorf("%s is not a valid EffectPhase", s)
+ }
++
++var (
++	WorkClass_shorthandValue = map[string]int32{
++		"Unspecified": 0,
++		"Drain":       1,
++		"Manual":      2,
++		"Backfill":    3,
++		"Automatic":   4,
++	}
++)
++
++// WorkClassFromString parses a WorkClass value from  either the protojson
++// canonical SCREAMING_CASE enum or the traditional temporal PascalCase enum to WorkClass
++func WorkClassFromString(s string) (WorkClass, error) {
++	if v, ok := WorkClass_value[s]; ok {
++		return WorkClass(v), nil
++	} else if v, ok := WorkClass_shorthandValue[s]; ok {
++		return WorkClass(v), nil
++	}
++	return WorkClass(0), fmt.Errorf("%s is not a valid WorkClass", s)
++}
+diff --git a/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go b/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go
+index 5083e1cdf..418b065c5 100644
+--- a/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go
++++ b/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go
+@@ -325,6 +325,76 @@ func (EffectPhase) EnumDescriptor() ([]byte, []int) {
+ 	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{3}
+ }
+ 
++// WorkClass identifies a coordinator service class, not an executor.
++type WorkClass int32
++
++const (
++	WORK_CLASS_UNSPECIFIED WorkClass = 0
++	WORK_CLASS_DRAIN       WorkClass = 1
++	WORK_CLASS_MANUAL      WorkClass = 2
++	WORK_CLASS_BACKFILL    WorkClass = 3
++	WORK_CLASS_AUTOMATIC   WorkClass = 4
++)
++
++// Enum value maps for WorkClass.
++var (
++	WorkClass_name = map[int32]string{
++		0: "WORK_CLASS_UNSPECIFIED",
++		1: "WORK_CLASS_DRAIN",
++		2: "WORK_CLASS_MANUAL",
++		3: "WORK_CLASS_BACKFILL",
++		4: "WORK_CLASS_AUTOMATIC",
++	}
++	WorkClass_value = map[string]int32{
++		"WORK_CLASS_UNSPECIFIED": 0,
++		"WORK_CLASS_DRAIN":       1,
++		"WORK_CLASS_MANUAL":      2,
++		"WORK_CLASS_BACKFILL":    3,
++		"WORK_CLASS_AUTOMATIC":   4,
++	}
++)
++
++func (x WorkClass) Enum() *WorkClass {
++	p := new(WorkClass)
++	*p = x
++	return p
++}
++
++func (x WorkClass) String() string {
++	switch x {
++	case WORK_CLASS_UNSPECIFIED:
++		return "Unspecified"
++	case WORK_CLASS_DRAIN:
++		return "Drain"
++	case WORK_CLASS_MANUAL:
++		return "Manual"
++	case WORK_CLASS_BACKFILL:
++		return "Backfill"
++	case WORK_CLASS_AUTOMATIC:
++		return "Automatic"
++	default:
++		return strconv.Itoa(int(x))
++	}
++
++}
++
++func (WorkClass) Descriptor() protoreflect.EnumDescriptor {
++	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes[4].Descriptor()
++}
++
++func (WorkClass) Type() protoreflect.EnumType {
++	return &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes[4]
++}
++
++func (x WorkClass) Number() protoreflect.EnumNumber {
++	return protoreflect.EnumNumber(x)
++}
++
++// Deprecated: Use WorkClass.Descriptor instead.
++func (WorkClass) EnumDescriptor() ([]byte, []int) {
++	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{4}
++}
++
+ // RootState holds the bounded scheduler control summary.
+ type RootState struct {
+ 	state protoimpl.MessageState `protogen:"open.v1"`
+@@ -383,7 +453,17 @@ type RootState struct {
+ 	// ManualArmed indicates pending commands can make internal progress.
+ 	ManualArmed bool `protobuf:"varint,27,opt,name=manual_armed,json=manualArmed,proto3" json:"manual_armed,omitempty"`
+ 	// ManualAt is the execution-clock transfer deadline.
+-	ManualAt      int64 `protobuf:"varint,28,opt,name=manual_at,json=manualAt,proto3" json:"manual_at,omitempty"`
++	ManualAt int64 `protobuf:"varint,28,opt,name=manual_at,json=manualAt,proto3" json:"manual_at,omitempty"`
++	// Coordination owns the sole scan/admission obligation and resource turns.
++	Coordination *CoordinationState `protobuf:"bytes,29,opt,name=coordination,proto3" json:"coordination,omitempty"`
++	// BackfillSequence uniquely identifies accepted ranges in this incarnation.
++	BackfillSequence uint64 `protobuf:"varint,30,opt,name=backfill_sequence,json=backfillSequence,proto3" json:"backfill_sequence,omitempty"`
++	// Backfills contains at most four active range continuations.
++	Backfills []*BackfillState `protobuf:"bytes,31,rep,name=backfills,proto3" json:"backfills,omitempty"`
++	// BackfillFocus pins a request while its ready candidate waits for handoff.
++	BackfillFocus uint64 `protobuf:"varint,32,opt,name=backfill_focus,json=backfillFocus,proto3" json:"backfill_focus,omitempty"`
++	// LastBackfill remembers the last serviced request for cyclic selection.
++	LastBackfill  uint64 `protobuf:"varint,33,opt,name=last_backfill,json=lastBackfill,proto3" json:"last_backfill,omitempty"`
+ 	unknownFields protoimpl.UnknownFields
+ 	sizeCache     protoimpl.SizeCache
+ }
+@@ -614,6 +694,41 @@ func (x *RootState) GetManualAt() int64 {
+ 	return 0
+ }
+ 
++func (x *RootState) GetCoordination() *CoordinationState {
++	if x != nil {
++		return x.Coordination
++	}
++	return nil
++}
++
++func (x *RootState) GetBackfillSequence() uint64 {
++	if x != nil {
++		return x.BackfillSequence
++	}
++	return 0
++}
++
++func (x *RootState) GetBackfills() []*BackfillState {
++	if x != nil {
++		return x.Backfills
++	}
++	return nil
++}
++
++func (x *RootState) GetBackfillFocus() uint64 {
++	if x != nil {
++		return x.BackfillFocus
++	}
++	return 0
++}
++
++func (x *RootState) GetLastBackfill() uint64 {
++	if x != nil {
++		return x.LastBackfill
++	}
++	return 0
++}
++
+ // OperationState holds metadata without decoding request payloads.
+ type OperationState struct {
+ 	state protoimpl.MessageState `protogen:"open.v1"`
+@@ -638,7 +753,9 @@ type OperationState struct {
+ 	// Policy is the immutable resolved admission policy.
+ 	Policy v1.ScheduleOverlapPolicy `protobuf:"varint,10,opt,name=policy,proto3,enum=temporal.api.enums.v1.ScheduleOverlapPolicy" json:"policy,omitempty"`
+ 	// ManualId is zero for automatic occurrences and the command sequence otherwise.
+-	ManualId      uint64 `protobuf:"varint,11,opt,name=manual_id,json=manualId,proto3" json:"manual_id,omitempty"`
++	ManualId uint64 `protobuf:"varint,11,opt,name=manual_id,json=manualId,proto3" json:"manual_id,omitempty"`
++	// BackfillId distinguishes a range occurrence from a manual trigger.
++	BackfillId    uint64 `protobuf:"varint,12,opt,name=backfill_id,json=backfillId,proto3" json:"backfill_id,omitempty"`
+ 	unknownFields protoimpl.UnknownFields
+ 	sizeCache     protoimpl.SizeCache
+ }
+@@ -750,6 +867,13 @@ func (x *OperationState) GetManualId() uint64 {
+ 	return 0
+ }
+ 
++func (x *OperationState) GetBackfillId() uint64 {
++	if x != nil {
++		return x.BackfillId
++	}
++	return 0
++}
++
+ // Payload keeps large values on a separately loaded node.
+ type Payload struct {
+ 	state protoimpl.MessageState `protogen:"open.v1"`
+@@ -1319,7 +1443,9 @@ type QueuedOccurrence struct {
+ 	// Policy is resolved when the occurrence enters the queue.
+ 	Policy v1.ScheduleOverlapPolicy `protobuf:"varint,4,opt,name=policy,proto3,enum=temporal.api.enums.v1.ScheduleOverlapPolicy" json:"policy,omitempty"`
+ 	// ManualId preserves command identity through delayed admission.
+-	ManualId      uint64 `protobuf:"varint,5,opt,name=manual_id,json=manualId,proto3" json:"manual_id,omitempty"`
++	ManualId uint64 `protobuf:"varint,5,opt,name=manual_id,json=manualId,proto3" json:"manual_id,omitempty"`
++	// BackfillId identifies the accepted range that owns this nominal occurrence.
++	BackfillId    uint64 `protobuf:"varint,6,opt,name=backfill_id,json=backfillId,proto3" json:"backfill_id,omitempty"`
+ 	unknownFields protoimpl.UnknownFields
+ 	sizeCache     protoimpl.SizeCache
+ }
+@@ -1389,6 +1515,13 @@ func (x *QueuedOccurrence) GetManualId() uint64 {
+ 	return 0
+ }
+ 
++func (x *QueuedOccurrence) GetBackfillId() uint64 {
++	if x != nil {
++		return x.BackfillId
++	}
++	return 0
++}
++
+ // DrainTask drives an independent bounded queue admission step.
+ type DrainTask struct {
+ 	state protoimpl.MessageState `protogen:"open.v1"`
+@@ -1691,12 +1824,248 @@ func (x *ManualTask) GetToken() uint64 {
+ 	return 0
+ }
+ 
++// CoordinationState persists task fencing separately from resource entitlement.
++type CoordinationState struct {
++	state protoimpl.MessageState `protogen:"open.v1"`
++	// Token fences superseded coordinator tasks.
++	Token uint64 `protobuf:"varint,1,opt,name=token,proto3" json:"token,omitempty"`
++	// Armed indicates an internal or timed obligation.
++	Armed bool `protobuf:"varint,2,opt,name=armed,proto3" json:"armed,omitempty"`
++	// At is the execution-clock deadline.
++	At int64 `protobuf:"varint,3,opt,name=at,proto3" json:"at,omitempty"`
++	// NextWork controls bounded scan/service selection.
++	NextWork WorkClass `protobuf:"varint,4,opt,name=next_work,json=nextWork,proto3,enum=temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass" json:"next_work,omitempty"`
++	// NextQueue chooses the next vacancy contender.
++	NextQueue WorkClass `protobuf:"varint,5,opt,name=next_queue,json=nextQueue,proto3,enum=temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass" json:"next_queue,omitempty"`
++	// NextOperation chooses the next operation-slot contender.
++	NextOperation WorkClass `protobuf:"varint,6,opt,name=next_operation,json=nextOperation,proto3,enum=temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass" json:"next_operation,omitempty"`
++	// OwnerClass identifies the holder of the one vacancy reservation.
++	OwnerClass WorkClass `protobuf:"varint,7,opt,name=owner_class,json=ownerClass,proto3,enum=temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass" json:"owner_class,omitempty"`
++	// OwnerKey is empty when no vacancy is reserved.
++	OwnerKey      string `protobuf:"bytes,8,opt,name=owner_key,json=ownerKey,proto3" json:"owner_key,omitempty"`
++	unknownFields protoimpl.UnknownFields
++	sizeCache     protoimpl.SizeCache
++}
++
++func (x *CoordinationState) Reset() {
++	*x = CoordinationState{}
++	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[16]
++	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
++	ms.StoreMessageInfo(mi)
++}
++
++func (x *CoordinationState) String() string {
++	return protoimpl.X.MessageStringOf(x)
++}
++
++func (*CoordinationState) ProtoMessage() {}
++
++func (x *CoordinationState) ProtoReflect() protoreflect.Message {
++	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[16]
++	if x != nil {
++		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
++		if ms.LoadMessageInfo() == nil {
++			ms.StoreMessageInfo(mi)
++		}
++		return ms
++	}
++	return mi.MessageOf(x)
++}
++
++// Deprecated: Use CoordinationState.ProtoReflect.Descriptor instead.
++func (*CoordinationState) Descriptor() ([]byte, []int) {
++	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{16}
++}
++
++func (x *CoordinationState) GetToken() uint64 {
++	if x != nil {
++		return x.Token
++	}
++	return 0
++}
++
++func (x *CoordinationState) GetArmed() bool {
++	if x != nil {
++		return x.Armed
++	}
++	return false
++}
++
++func (x *CoordinationState) GetAt() int64 {
++	if x != nil {
++		return x.At
++	}
++	return 0
++}
++
++func (x *CoordinationState) GetNextWork() WorkClass {
++	if x != nil {
++		return x.NextWork
++	}
++	return WORK_CLASS_UNSPECIFIED
++}
++
++func (x *CoordinationState) GetNextQueue() WorkClass {
++	if x != nil {
++		return x.NextQueue
++	}
++	return WORK_CLASS_UNSPECIFIED
++}
++
++func (x *CoordinationState) GetNextOperation() WorkClass {
++	if x != nil {
++		return x.NextOperation
++	}
++	return WORK_CLASS_UNSPECIFIED
++}
++
++func (x *CoordinationState) GetOwnerClass() WorkClass {
++	if x != nil {
++		return x.OwnerClass
++	}
++	return WORK_CLASS_UNSPECIFIED
++}
++
++func (x *CoordinationState) GetOwnerKey() string {
++	if x != nil {
++		return x.OwnerKey
++	}
++	return ""
++}
++
++// WorkTask drives the sole coordinator obligation.
++type WorkTask struct {
++	state protoimpl.MessageState `protogen:"open.v1"`
++	// Token is the persisted task generation.
++	Token         uint64 `protobuf:"varint,1,opt,name=token,proto3" json:"token,omitempty"`
++	unknownFields protoimpl.UnknownFields
++	sizeCache     protoimpl.SizeCache
++}
++
++func (x *WorkTask) Reset() {
++	*x = WorkTask{}
++	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[17]
++	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
++	ms.StoreMessageInfo(mi)
++}
++
++func (x *WorkTask) String() string {
++	return protoimpl.X.MessageStringOf(x)
++}
++
++func (*WorkTask) ProtoMessage() {}
++
++func (x *WorkTask) ProtoReflect() protoreflect.Message {
++	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[17]
++	if x != nil {
++		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
++		if ms.LoadMessageInfo() == nil {
++			ms.StoreMessageInfo(mi)
++		}
++		return ms
++	}
++	return mi.MessageOf(x)
++}
++
++// Deprecated: Use WorkTask.ProtoReflect.Descriptor instead.
++func (*WorkTask) Descriptor() ([]byte, []int) {
++	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{17}
++}
++
++func (x *WorkTask) GetToken() uint64 {
++	if x != nil {
++		return x.Token
++	}
++	return 0
++}
++
++// BackfillState holds bounded current-definition range progress without payloads.
++type BackfillState struct {
++	state protoimpl.MessageState `protogen:"open.v1"`
++	// Id is the unique accepted request sequence.
++	Id uint64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
++	// Start is the inclusive lower nominal bound in Unix nanoseconds.
++	Start int64 `protobuf:"varint,2,opt,name=start,proto3" json:"start,omitempty"`
++	// End is the inclusive upper actual-time bound, immutable after acceptance.
++	End int64 `protobuf:"varint,3,opt,name=end,proto3" json:"end,omitempty"`
++	// Policy is an override resolved at candidate transfer.
++	Policy v1.ScheduleOverlapPolicy `protobuf:"varint,4,opt,name=policy,proto3,enum=temporal.api.enums.v1.ScheduleOverlapPolicy" json:"policy,omitempty"`
++	// Continuation retains search, disposition and pending candidate separately.
++	Continuation  *OccurrenceContinuation `protobuf:"bytes,5,opt,name=continuation,proto3" json:"continuation,omitempty"`
++	unknownFields protoimpl.UnknownFields
++	sizeCache     protoimpl.SizeCache
++}
++
++func (x *BackfillState) Reset() {
++	*x = BackfillState{}
++	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[18]
++	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
++	ms.StoreMessageInfo(mi)
++}
++
++func (x *BackfillState) String() string {
++	return protoimpl.X.MessageStringOf(x)
++}
++
++func (*BackfillState) ProtoMessage() {}
++
++func (x *BackfillState) ProtoReflect() protoreflect.Message {
++	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[18]
++	if x != nil {
++		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
++		if ms.LoadMessageInfo() == nil {
++			ms.StoreMessageInfo(mi)
++		}
++		return ms
++	}
++	return mi.MessageOf(x)
++}
++
++// Deprecated: Use BackfillState.ProtoReflect.Descriptor instead.
++func (*BackfillState) Descriptor() ([]byte, []int) {
++	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{18}
++}
++
++func (x *BackfillState) GetId() uint64 {
++	if x != nil {
++		return x.Id
++	}
++	return 0
++}
++
++func (x *BackfillState) GetStart() int64 {
++	if x != nil {
++		return x.Start
++	}
++	return 0
++}
++
++func (x *BackfillState) GetEnd() int64 {
++	if x != nil {
++		return x.End
++	}
++	return 0
++}
++
++func (x *BackfillState) GetPolicy() v1.ScheduleOverlapPolicy {
++	if x != nil {
++		return x.Policy
++	}
++	return v1.ScheduleOverlapPolicy(0)
++}
++
++func (x *BackfillState) GetContinuation() *OccurrenceContinuation {
++	if x != nil {
++		return x.Continuation
++	}
++	return nil
++}
++
+ var File_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto protoreflect.FileDescriptor
+ 
+ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "" +
+ 	"\n" +
+-	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\xa1\n" +
+-	"\n" +
++	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\xdc\f\n" +
+ 	"\tRootState\x12 \n" +
+ 	"\vincarnation\x18\x01 \x01(\tR\vincarnation\x12\x1a\n" +
+ 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x16\n" +
+@@ -1730,10 +2099,15 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
+ 	"\amanuals\x18\x19 \x03(\v2<.temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommandR\amanuals\x12!\n" +
+ 	"\fmanual_token\x18\x1a \x01(\x04R\vmanualToken\x12!\n" +
+ 	"\fmanual_armed\x18\x1b \x01(\bR\vmanualArmed\x12\x1b\n" +
+-	"\tmanual_at\x18\x1c \x01(\x03R\bmanualAt\x1a@\n" +
++	"\tmanual_at\x18\x1c \x01(\x03R\bmanualAt\x12d\n" +
++	"\fcoordination\x18\x1d \x01(\v2@.temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationStateR\fcoordination\x12+\n" +
++	"\x11backfill_sequence\x18\x1e \x01(\x04R\x10backfillSequence\x12Z\n" +
++	"\tbackfills\x18\x1f \x03(\v2<.temporal.server.chasm.lib.scheduler2.proto.v1.BackfillStateR\tbackfills\x12%\n" +
++	"\x0ebackfill_focus\x18  \x01(\x04R\rbackfillFocus\x12#\n" +
++	"\rlast_backfill\x18! \x01(\x04R\flastBackfill\x1a@\n" +
+ 	"\x12PendingStartsEntry\x12\x10\n" +
+ 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+-	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\x9e\x03\n" +
++	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\xbf\x03\n" +
+ 	"\x0eOperationState\x12#\n" +
+ 	"\roccurrence_id\x18\x01 \x01(\tR\foccurrenceId\x12\x1b\n" +
+ 	"\taction_id\x18\x02 \x01(\tR\bactionId\x12\x0e\n" +
+@@ -1747,7 +2121,9 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
+ 	"workflowId\x12D\n" +
+ 	"\x06policy\x18\n" +
+ 	" \x01(\x0e2,.temporal.api.enums.v1.ScheduleOverlapPolicyR\x06policy\x12\x1b\n" +
+-	"\tmanual_id\x18\v \x01(\x04R\bmanualId\"\x1d\n" +
++	"\tmanual_id\x18\v \x01(\x04R\bmanualId\x12\x1f\n" +
++	"\vbackfill_id\x18\f \x01(\x04R\n" +
++	"backfillId\"\x1d\n" +
+ 	"\aPayload\x12\x12\n" +
+ 	"\x04data\x18\x01 \x01(\fR\x04data\".\n" +
+ 	"\tStartTask\x12!\n" +
+@@ -1788,14 +2164,16 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
+ 	"\x04seed\x18\x02 \x01(\tR\x04seed\x12\x18\n" +
+ 	"\arequest\x18\x03 \x01(\fR\arequest\"$\n" +
+ 	"\fGenerateTask\x12\x14\n" +
+-	"\x05token\x18\x01 \x01(\x04R\x05token\"\xc8\x01\n" +
++	"\x05token\x18\x01 \x01(\x04R\x05token\"\xe9\x01\n" +
+ 	"\x10QueuedOccurrence\x12\x18\n" +
+ 	"\anominal\x18\x01 \x01(\x03R\anominal\x12\x16\n" +
+ 	"\x06actual\x18\x02 \x01(\x03R\x06actual\x12\x1f\n" +
+ 	"\vworkflow_id\x18\x03 \x01(\tR\n" +
+ 	"workflowId\x12D\n" +
+ 	"\x06policy\x18\x04 \x01(\x0e2,.temporal.api.enums.v1.ScheduleOverlapPolicyR\x06policy\x12\x1b\n" +
+-	"\tmanual_id\x18\x05 \x01(\x04R\bmanualId\"!\n" +
++	"\tmanual_id\x18\x05 \x01(\x04R\bmanualId\x12\x1f\n" +
++	"\vbackfill_id\x18\x06 \x01(\x04R\n" +
++	"backfillId\"!\n" +
+ 	"\tDrainTask\x12\x14\n" +
+ 	"\x05token\x18\x01 \x01(\x04R\x05token\"\xad\x02\n" +
+ 	"\vEffectState\x12\x0e\n" +
+@@ -1815,7 +2193,26 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
+ 	"\x06policy\x18\x03 \x01(\x0e2,.temporal.api.enums.v1.ScheduleOverlapPolicyR\x06policy\"\"\n" +
+ 	"\n" +
+ 	"ManualTask\x12\x14\n" +
+-	"\x05token\x18\x01 \x01(\x04R\x05token*\x84\x01\n" +
++	"\x05token\x18\x01 \x01(\x04R\x05token\"\xd8\x03\n" +
++	"\x11CoordinationState\x12\x14\n" +
++	"\x05token\x18\x01 \x01(\x04R\x05token\x12\x14\n" +
++	"\x05armed\x18\x02 \x01(\bR\x05armed\x12\x0e\n" +
++	"\x02at\x18\x03 \x01(\x03R\x02at\x12U\n" +
++	"\tnext_work\x18\x04 \x01(\x0e28.temporal.server.chasm.lib.scheduler2.proto.v1.WorkClassR\bnextWork\x12W\n" +
++	"\n" +
++	"next_queue\x18\x05 \x01(\x0e28.temporal.server.chasm.lib.scheduler2.proto.v1.WorkClassR\tnextQueue\x12_\n" +
++	"\x0enext_operation\x18\x06 \x01(\x0e28.temporal.server.chasm.lib.scheduler2.proto.v1.WorkClassR\rnextOperation\x12Y\n" +
++	"\vowner_class\x18\a \x01(\x0e28.temporal.server.chasm.lib.scheduler2.proto.v1.WorkClassR\n" +
++	"ownerClass\x12\x1b\n" +
++	"\towner_key\x18\b \x01(\tR\bownerKey\" \n" +
++	"\bWorkTask\x12\x14\n" +
++	"\x05token\x18\x01 \x01(\x04R\x05token\"\xf8\x01\n" +
++	"\rBackfillState\x12\x0e\n" +
++	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x14\n" +
++	"\x05start\x18\x02 \x01(\x03R\x05start\x12\x10\n" +
++	"\x03end\x18\x03 \x01(\x03R\x03end\x12D\n" +
++	"\x06policy\x18\x04 \x01(\x0e2,.temporal.api.enums.v1.ScheduleOverlapPolicyR\x06policy\x12i\n" +
++	"\fcontinuation\x18\x05 \x01(\v2E.temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuationR\fcontinuation*\x84\x01\n" +
+ 	"\x05Phase\x12\x15\n" +
+ 	"\x11PHASE_UNSPECIFIED\x10\x00\x12\x11\n" +
+ 	"\rPHASE_PENDING\x10\x01\x12\x11\n" +
+@@ -1844,7 +2241,13 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
+ 	"\x15EFFECT_PHASE_ACCEPTED\x10\x03\x12\x17\n" +
+ 	"\x13EFFECT_PHASE_ABSENT\x10\x04\x12\x1a\n" +
+ 	"\x16EFFECT_PHASE_AMBIGUOUS\x10\x05\x12\x1b\n" +
+-	"\x17EFFECT_PHASE_SUPERSEDED\x10\x06BMZKgo.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1;scheduler2pbb\x06proto3"
++	"\x17EFFECT_PHASE_SUPERSEDED\x10\x06*\x87\x01\n" +
++	"\tWorkClass\x12\x1a\n" +
++	"\x16WORK_CLASS_UNSPECIFIED\x10\x00\x12\x14\n" +
++	"\x10WORK_CLASS_DRAIN\x10\x01\x12\x15\n" +
++	"\x11WORK_CLASS_MANUAL\x10\x02\x12\x17\n" +
++	"\x13WORK_CLASS_BACKFILL\x10\x03\x12\x18\n" +
++	"\x14WORK_CLASS_AUTOMATIC\x10\x04BMZKgo.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1;scheduler2pbb\x06proto3"
+ 
+ var (
+ 	file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescOnce sync.Once
+@@ -1858,54 +2261,66 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(
+ 	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescData
+ }
+ 
+-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
++var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
++var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+ var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []any{
+ 	(Phase)(0),                     // 0: temporal.server.chasm.lib.scheduler2.proto.v1.Phase
+ 	(EnumerationStatus)(0),         // 1: temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+ 	(EffectKind)(0),                // 2: temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
+ 	(EffectPhase)(0),               // 3: temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
+-	(*RootState)(nil),              // 4: temporal.server.chasm.lib.scheduler2.proto.v1.RootState
+-	(*OperationState)(nil),         // 5: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState
+-	(*Payload)(nil),                // 6: temporal.server.chasm.lib.scheduler2.proto.v1.Payload
+-	(*StartTask)(nil),              // 7: temporal.server.chasm.lib.scheduler2.proto.v1.StartTask
+-	(*CarryoverState)(nil),         // 8: temporal.server.chasm.lib.scheduler2.proto.v1.CarryoverState
+-	(*OccurrenceCandidate)(nil),    // 9: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+-	(*OccurrenceContinuation)(nil), // 10: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+-	(*GeneratorState)(nil),         // 11: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState
+-	(*GenerationDefinition)(nil),   // 12: temporal.server.chasm.lib.scheduler2.proto.v1.GenerationDefinition
+-	(*GenerateTask)(nil),           // 13: temporal.server.chasm.lib.scheduler2.proto.v1.GenerateTask
+-	(*QueuedOccurrence)(nil),       // 14: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
+-	(*DrainTask)(nil),              // 15: temporal.server.chasm.lib.scheduler2.proto.v1.DrainTask
+-	(*EffectState)(nil),            // 16: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
+-	(*EffectTask)(nil),             // 17: temporal.server.chasm.lib.scheduler2.proto.v1.EffectTask
+-	(*ManualCommand)(nil),          // 18: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand
+-	(*ManualTask)(nil),             // 19: temporal.server.chasm.lib.scheduler2.proto.v1.ManualTask
+-	nil,                            // 20: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+-	(v1.ScheduleOverlapPolicy)(0),  // 21: temporal.api.enums.v1.ScheduleOverlapPolicy
++	(WorkClass)(0),                 // 4: temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
++	(*RootState)(nil),              // 5: temporal.server.chasm.lib.scheduler2.proto.v1.RootState
++	(*OperationState)(nil),         // 6: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState
++	(*Payload)(nil),                // 7: temporal.server.chasm.lib.scheduler2.proto.v1.Payload
++	(*StartTask)(nil),              // 8: temporal.server.chasm.lib.scheduler2.proto.v1.StartTask
++	(*CarryoverState)(nil),         // 9: temporal.server.chasm.lib.scheduler2.proto.v1.CarryoverState
++	(*OccurrenceCandidate)(nil),    // 10: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
++	(*OccurrenceContinuation)(nil), // 11: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
++	(*GeneratorState)(nil),         // 12: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState
++	(*GenerationDefinition)(nil),   // 13: temporal.server.chasm.lib.scheduler2.proto.v1.GenerationDefinition
++	(*GenerateTask)(nil),           // 14: temporal.server.chasm.lib.scheduler2.proto.v1.GenerateTask
++	(*QueuedOccurrence)(nil),       // 15: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
++	(*DrainTask)(nil),              // 16: temporal.server.chasm.lib.scheduler2.proto.v1.DrainTask
++	(*EffectState)(nil),            // 17: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
++	(*EffectTask)(nil),             // 18: temporal.server.chasm.lib.scheduler2.proto.v1.EffectTask
++	(*ManualCommand)(nil),          // 19: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand
++	(*ManualTask)(nil),             // 20: temporal.server.chasm.lib.scheduler2.proto.v1.ManualTask
++	(*CoordinationState)(nil),      // 21: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState
++	(*WorkTask)(nil),               // 22: temporal.server.chasm.lib.scheduler2.proto.v1.WorkTask
++	(*BackfillState)(nil),          // 23: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState
++	nil,                            // 24: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
++	(v1.ScheduleOverlapPolicy)(0),  // 25: temporal.api.enums.v1.ScheduleOverlapPolicy
+ }
+ var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_depIdxs = []int32{
+-	21, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+-	14, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
+-	20, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.pending_starts:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+-	16, // 3: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.effects:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
+-	18, // 4: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.manuals:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand
+-	0,  // 5: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
+-	21, // 6: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+-	9,  // 7: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+-	1,  // 8: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+-	10, // 9: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+-	1,  // 10: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+-	9,  // 11: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+-	21, // 12: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+-	2,  // 13: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.kind:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
+-	3,  // 14: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
+-	21, // 15: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+-	16, // [16:16] is the sub-list for method output_type
+-	16, // [16:16] is the sub-list for method input_type
+-	16, // [16:16] is the sub-list for extension type_name
+-	16, // [16:16] is the sub-list for extension extendee
+-	0,  // [0:16] is the sub-list for field type_name
++	25, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
++	15, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
++	24, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.pending_starts:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
++	17, // 3: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.effects:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
++	19, // 4: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.manuals:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand
++	21, // 5: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.coordination:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState
++	23, // 6: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.backfills:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState
++	0,  // 7: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
++	25, // 8: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
++	10, // 9: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
++	1,  // 10: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
++	11, // 11: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
++	1,  // 12: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
++	10, // 13: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
++	25, // 14: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
++	2,  // 15: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.kind:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
++	3,  // 16: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
++	25, // 17: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
++	4,  // 18: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_work:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
++	4,  // 19: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
++	4,  // 20: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_operation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
++	4,  // 21: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.owner_class:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
++	25, // 22: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
++	11, // 23: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
++	24, // [24:24] is the sub-list for method output_type
++	24, // [24:24] is the sub-list for method input_type
++	24, // [24:24] is the sub-list for extension type_name
++	24, // [24:24] is the sub-list for extension extendee
++	0,  // [0:24] is the sub-list for field type_name
+ }
+ 
+ func init() { file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() }
+@@ -1918,8 +2333,8 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() {
+ 		File: protoimpl.DescBuilder{
+ 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
+ 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc), len(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc)),
+-			NumEnums:      4,
+-			NumMessages:   17,
++			NumEnums:      5,
++			NumMessages:   20,
+ 			NumExtensions: 0,
+ 			NumServices:   0,
+ 		},
+diff --git a/chasm/lib/scheduler2/generation_replay_test.go b/chasm/lib/scheduler2/generation_replay_test.go
+index 91669632f..88bd493c6 100644
+--- a/chasm/lib/scheduler2/generation_replay_test.go
++++ b/chasm/lib/scheduler2/generation_replay_test.go
+@@ -42,6 +42,9 @@ type generationTraceStep struct {
+ 	Operations       int               `json:"operations"`
+ 	StartTasks       int               `json:"start_tasks"`
+ 	Timers           int               `json:"timers"`
++	GeneratorToken   uint64            `json:"generator_token"`
++	PendingNominal   *time.Time        `json:"pending_nominal"`
++	Armed            bool              `json:"armed"`
+ 	Token            uint64            `json:"token"`
+ 	Status           string            `json:"status"`
+ 	Wake             time.Time         `json:"wake"`
+@@ -54,16 +57,16 @@ type generationTraceStep struct {
+ // observations through real persisted pure tasks, without a property generator.
+ func TestGenerationSavedReplay(t *testing.T) {
+ 	t.Parallel()
+-	data, err := os.ReadFile("testdata/generation_v1.json")
++	data, err := os.ReadFile("testdata/generation_v2.json")
+ 	require.NoError(t, err)
+ 	var trace generationTrace
+ 	decoder := json.NewDecoder(bytes.NewReader(data))
+ 	decoder.DisallowUnknownFields()
+ 	require.NoError(t, decoder.Decode(&trace))
+-	require.Equal(t, 1, trace.Version)
++	require.Equal(t, 2, trace.Version)
+ 	require.Equal(t, "execution_nanoseconds", trace.ClockDomain)
+ 	require.Equal(t, "incarnation", trace.Incarnation)
+-	statuses := map[string]scheduler2pb.EnumerationStatus{"active": scheduler2pb.ENUMERATION_STATUS_ACTIVE, "limited": scheduler2pb.ENUMERATION_STATUS_LIMITED, "waiting": scheduler2pb.ENUMERATION_STATUS_WAITING}
++	statuses := map[string]scheduler2pb.EnumerationStatus{"active": scheduler2pb.ENUMERATION_STATUS_ACTIVE, "exhausted": scheduler2pb.ENUMERATION_STATUS_EXHAUSTED, "waiting": scheduler2pb.ENUMERATION_STATUS_WAITING}
+ 	var previous []*scheduler2pb.GeneratorState
+ 	for replay := 0; replay < 2; replay++ {
+ 		h := newTreeHarness(t)
+@@ -81,7 +84,11 @@ func TestGenerationSavedReplay(t *testing.T) {
+ 		var observed []*scheduler2pb.GeneratorState
+ 		for _, step := range trace.Steps {
+ 			switch step.Kind {
+-			case "generate":
++			case "scan":
++				require.Nil(t, generationState(h).Continuation.Pending)
++				fireGeneration(h, step.Publish)
++			case "handoff":
++				require.NotNil(t, generationState(h).Continuation.Pending)
+ 				fireGeneration(h, step.Publish)
+ 			case "restart":
+ 				h.reload()
+@@ -103,9 +110,18 @@ func TestGenerationSavedReplay(t *testing.T) {
+ 			require.Len(t, s.Operations, step.Operations)
+ 			require.Equal(t, step.StartTasks, logicalCount(h.durable))
+ 			require.Equal(t, step.Timers, pureObligations(h))
+-			require.Equal(t, step.Token, g.Token)
++			c := coordinationState(h)
++			require.Equal(t, step.Token, c.Token)
++			require.Equal(t, step.GeneratorToken, g.Token)
++			require.Equal(t, step.Armed, c.Armed)
++			if step.PendingNominal == nil {
++				require.Nil(t, g.Continuation.Pending)
++			} else {
++				require.NotNil(t, g.Continuation.Pending)
++				require.Equal(t, step.PendingNominal.UnixNano(), g.Continuation.Pending.Nominal)
++			}
+ 			require.Equal(t, status, g.LastStatus)
+-			require.Equal(t, step.Wake.UnixNano(), g.WakeAt)
++			require.Equal(t, step.Wake.UnixNano(), c.At)
+ 			if step.WorkflowID != "" {
+ 				issued := h.request()
+ 				require.Equal(t, step.WorkflowID, issued.WorkflowId)
+diff --git a/chasm/lib/scheduler2/generation_test.go b/chasm/lib/scheduler2/generation_test.go
+index 08b151909..5c918b9ad 100644
+--- a/chasm/lib/scheduler2/generation_test.go
++++ b/chasm/lib/scheduler2/generation_test.go
+@@ -86,7 +86,15 @@ func fireGeneration(h *treeHarness, publish bool) []tasks.ChasmTaskPure {
+ 	require.Equal(h.t, 1, executed)
+ 	return commitGeneration(h, publish)
+ }
+-func TestGenerationAtomicBatchAndSecondCarryover(t *testing.T) {
++
++// coordinationState reads the persisted task owner independently of source progress.
++func coordinationState(h *treeHarness) *scheduler2pb.CoordinationState {
++	h.t.Helper()
++	s, _ := h.root(false)
++	return proto.Clone(s.Coordination).(*scheduler2pb.CoordinationState)
++}
++
++func TestGenerationAtomicScanAndHandoffAndSecondCarryover(t *testing.T) {
+ 	t.Parallel()
+ 	h := newTreeHarness(t)
+ 	sequentialBudget(h, 8)
+@@ -94,74 +102,89 @@ func TestGenerationAtomicBatchAndSecondCarryover(t *testing.T) {
+ 	h.now = base.Add(5 * time.Second).UnixNano()
+ 	timers := configureGeneration(h, generationSpec(base, base.Add(20*time.Second), time.Second), "", 1, base.Add(-time.Nanosecond), time.Minute)
+ 	require.Len(t, timers, 1)
+-	require.Equal(t, 1, pureObligations(h))
+ 	before := cloneNodes(h.durable)
+-	token := generationState(h).Token
+-	timers = fireGeneration(h, false)
+-	require.Empty(t, timers)
++	require.Empty(t, fireGeneration(h, false)) // Failed scan publishes neither pending nor successor.
+ 	require.Equal(t, before, h.durable)
+ 	require.Empty(t, h.physical)
+-	timers = fireGeneration(h, true)
+-	require.Len(t, timers, 1)
+-	require.Len(t, h.physical, 1)
++	fireGeneration(h, true) // Scan is its own committed transaction, with no admission.
+ 	s, _ := h.root(false)
+-	require.Equal(t, base.Add(3*time.Second).UnixNano(), s.Cursor)
+-	require.Equal(t, int64(7), s.Remaining)
+-	require.Len(t, s.Operations, 1)
++	require.Equal(t, base.Add(-time.Nanosecond).UnixNano(), s.Cursor)
++	require.Equal(t, int64(8), s.Remaining)
++	require.Empty(t, s.Operations)
++	require.Equal(t, base.UnixNano(), generationState(h).Continuation.Pending.Nominal)
++	require.Empty(t, h.physical)
++	before = cloneNodes(h.durable)
++	require.Empty(t, fireGeneration(h, false)) // Failed handoff keeps the complete candidate.
++	require.Equal(t, before, h.durable)
++	require.Empty(t, h.physical)
++	fireGeneration(h, true)
+ 	first := h.request()
+ 	require.Equal(t, "workflow-2024-01-01T00:00:00Z", first.WorkflowId)
+-	g := generationState(h)
+-	require.Greater(t, g.Token, token)
+-	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_LIMITED, g.LastStatus)
+-	require.Equal(t, h.now+int64(time.Millisecond), g.WakeAt)
+-	require.Equal(t, 1, pureObligations(h))
++	require.Len(t, h.physical, 1)
++	s, _ = h.root(false)
++	require.Equal(t, base.UnixNano(), s.Cursor)
++	require.Equal(t, int64(7), s.Remaining)
++	require.Nil(t, generationState(h).Continuation.Pending)
++	// Each subsequent scan and SKIP disposition has a separate publication boundary.
++	for second := 1; second <= 3; second++ {
++		fireGeneration(h, true)
++		require.Equal(t, base.Add(time.Duration(second)*time.Second).UnixNano(), generationState(h).Continuation.Pending.Nominal)
++		fireGeneration(h, true)
++		s, _ = h.root(false)
++		require.Equal(t, base.Add(time.Duration(second)*time.Second).UnixNano(), s.Cursor)
++		require.Len(t, s.Operations, 1)
++		require.Equal(t, int64(7), s.Remaining)
++	}
+ 	result := &commonpb.Payload{Metadata: map[string][]byte{"encoding": []byte("binary/plain")}, Data: []byte("first result")}
+ 	sequentialComplete(h, first.RequestId, result)
+-	h.now = g.WakeAt
+-	fireGeneration(h, true)
++	fireGeneration(h, true) // Scan nominal4.
++	fireGeneration(h, true) // Admit nominal4 with current carryover.
+ 	second := h.request()
+-	require.NotEqual(t, first.RequestId, second.RequestId)
+ 	require.Equal(t, "workflow-2024-01-01T00:00:04Z", second.WorkflowId)
++	require.NotEqual(t, first.RequestId, second.RequestId)
+ 	protorequire.ProtoEqual(t, &commonpb.Payloads{Payloads: []*commonpb.Payload{result}}, second.LastCompletionResult)
++	fireGeneration(h, true) // Scan nominal5.
++	fireGeneration(h, true) // SKIP nominal5.
++	fireGeneration(h, true) // Scan discovers future nominal6.
+ 	s, _ = h.root(false)
+ 	require.Equal(t, int64(6), s.Remaining)
+ 	require.Equal(t, int64(1), s.Started)
+ 	require.Equal(t, base.Add(5*time.Second).UnixNano(), s.Cursor)
+-	g = generationState(h)
+-	require.Equal(t, base.Add(6*time.Second).UnixNano(), g.WakeAt)
++	require.Equal(t, base.Add(6*time.Second).UnixNano(), coordinationState(h).At)
++	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_WAITING, generationState(h).LastStatus)
+ 	require.Equal(t, 1, pureObligations(h))
+ }
++
+ func TestGenerationDuplicateTokenAndClockRollback(t *testing.T) {
+ 	t.Parallel()
+ 	h := newTreeHarness(t)
+ 	base := generationStart()
+ 	h.now = base.UnixNano()
+ 	configureGeneration(h, generationSpec(base.Add(time.Second), base.Add(3*time.Second), time.Second), "", 1, base, time.Minute)
+-	stale := generationState(h)
++	stale := coordinationState(h)
+ 	fireGeneration(h, true)
+-	current := generationState(h)
+-	require.Equal(t, base.Add(time.Second).UnixNano(), current.WakeAt)
++	current := coordinationState(h)
++	require.Equal(t, base.Add(time.Second).UnixNano(), current.At)
+ 	s, ctx := h.root(true)
+-	g := s.Generator.Get(ctx)
+-	handler := &GenerateHandler{}
+-	attrs := chasm.TaskAttributes{ScheduledTime: time.Unix(0, stale.WakeAt)}
+-	task := &scheduler2pb.GenerateTask{Token: stale.Token}
+-	valid, err := handler.Validate(ctx, g, chasm.TaskInvocation{TaskAttributes: attrs}, task)
++	handler := &WorkHandler{}
++	attrs := chasm.TaskAttributes{ScheduledTime: time.Unix(0, stale.At)}
++	task := &scheduler2pb.WorkTask{Token: stale.Token}
++	valid, err := handler.Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, task)
+ 	require.NoError(t, err)
+ 	require.False(t, valid)
+-	require.NoError(t, handler.Execute(ctx.(chasm.MutableContext), g, attrs, task))
++	require.NoError(t, handler.Execute(ctx.(chasm.MutableContext), s, attrs, task))
+ 	commitGeneration(h, true)
+-	protorequire.ProtoEqual(t, current, generationState(h))
++	protorequire.ProtoEqual(t, current, coordinationState(h))
+ 	require.Equal(t, 1, pureObligations(h))
+ 	before := cloneNodes(h.durable)
+-	h.now = current.WakeAt - int64(time.Second)
+-	_, err = deliverGeneration(h, time.Unix(0, current.WakeAt))
++	h.now = current.At - int64(time.Second)
++	_, err = deliverGeneration(h, time.Unix(0, current.At))
+ 	require.ErrorContains(t, err, "not due")
+ 	h.reload()
+ 	require.Equal(t, before, h.durable)
+ 	require.Equal(t, 1, pureObligations(h))
+-	h.now = current.WakeAt
+-	fireGeneration(h, true)
++	h.now = current.At
++	fireGeneration(h, true) // Existing pending candidate is handed off, not rescanned.
+ 	require.NotNil(t, h.request())
+ 	require.Equal(t, 1, pureObligations(h))
+ }
+@@ -202,7 +225,8 @@ func TestGenerationCatchupUsesActualTime(t *testing.T) {
+ 	spec := generationSpec(nominal, nominal, 90*time.Minute)
+ 	spec.Jitter = durationpb.New(24 * time.Hour)
+ 	configureGeneration(h, spec, "", 1, nominal.Add(-time.Nanosecond), time.Second)
+-	fireGeneration(h, true)
++	fireGeneration(h, true) // Scan.
++	fireGeneration(h, true) // Handoff.
+ 	require.NotNil(t, h.request(), "nominal is late but actual lies inside catchup window")
+ 	s, _ := h.root(false)
+ 	require.Zero(t, s.Remaining)
+@@ -215,52 +239,76 @@ func TestGenerationRangeEndResumesWithoutUnsupportedClock(t *testing.T) {
+ 	last := upper.Add(-time.Nanosecond)
+ 	h.now = last.UnixNano()
+ 	configureGeneration(h, generationSpec(upper.Add(-4*time.Second), upper.Add(-time.Second), time.Second), "", 1, upper.Add(-4*time.Second-time.Nanosecond), time.Minute)
+-	fireGeneration(h, true)
++	for second := 4; second >= 1; second-- {
++		token := coordinationState(h).Token
++		fireGeneration(h, true)
++		require.Equal(t, upper.Add(-time.Duration(second)*time.Second).UnixNano(), generationState(h).Continuation.Pending.Nominal)
++		require.Equal(t, last.UnixNano(), coordinationState(h).At)
++		require.Greater(t, coordinationState(h).Token, token)
++		fireGeneration(h, true)
++	}
++	fireGeneration(h, true) // Exhaustion requires its own scan quantum.
+ 	g := generationState(h)
+-	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_LIMITED, g.LastStatus)
+-	require.Equal(t, last.UnixNano(), g.WakeAt)
+-	require.True(t, g.Armed)
+-	token := g.Token
+-	fireGeneration(h, true)
+-	g = generationState(h)
+-	require.Greater(t, g.Token, token)
+ 	require.False(t, g.Armed)
+ 	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_EXHAUSTED, g.LastStatus)
++	require.False(t, coordinationState(h).Armed)
+ 	require.Zero(t, pureObligations(h))
+ }
+ 
+ func TestGenerationExcludedBudgetKeepsSuccessor(t *testing.T) {
+ 	t.Parallel()
+-	h := newTreeHarness(t)
+-	base := generationStart()
+-	h.now = base.Add(21 * time.Second).UnixNano()
+-	spec := generationSpec(base, base.Add(20*time.Second), time.Second)
+-	ranges := func(start, end int32) []*schedulepb.Range {
+-		return []*schedulepb.Range{{Start: start, End: end, Step: 1}}
++	for _, atRangeEnd := range []bool{false, true} {
++		name := "ordinary"
++		if atRangeEnd {
++			name = "last_supported_instant"
++		}
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			h := newTreeHarness(t)
++			base := generationStart()
++			now := base.Add(21 * time.Second)
++			last := time.Date(2101, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond)
++			if atRangeEnd {
++				base = last.Add(time.Nanosecond - 21*time.Second)
++				now = last
++			}
++			h.now = now.UnixNano()
++			spec := generationSpec(base, base.Add(20*time.Second), time.Second)
++			ranges := func(start, end int32) []*schedulepb.Range {
++				return []*schedulepb.Range{{Start: start, End: end, Step: 1}}
++			}
++			spec.ExcludeStructuredCalendar = []*schedulepb.StructuredCalendarSpec{{Second: ranges(0, 59), Minute: ranges(0, 59), Hour: ranges(0, 23), DayOfMonth: ranges(1, 31), Month: ranges(1, 12), DayOfWeek: ranges(0, 6)}}
++			configureGeneration(h, spec, "", 1, base.Add(-time.Nanosecond), time.Minute)
++			fireGeneration(h, true)
++			g := generationState(h)
++			require.Equal(t, scheduler2pb.ENUMERATION_STATUS_YIELD, g.LastStatus)
++			require.Equal(t, base.Add(7*time.Second).UnixNano(), g.Continuation.DisposedThrough)
++			wake := now.Add(time.Millisecond)
++			if wake.After(last) {
++				wake = last
++			}
++			require.Equal(t, wake.UnixNano(), g.WakeAt)
++			require.Equal(t, wake.UnixNano(), coordinationState(h).At)
++			require.Equal(t, 1, pureObligations(h))
++			h.now = g.WakeAt
++			fireGeneration(h, true)
++			g = generationState(h)
++			require.Equal(t, base.Add(15*time.Second).UnixNano(), g.Continuation.DisposedThrough)
++			h.now = g.WakeAt
++			fireGeneration(h, true)
++			g = generationState(h)
++			require.Equal(t, scheduler2pb.ENUMERATION_STATUS_IMPOSSIBLE, g.LastStatus)
++			require.False(t, g.Armed)
++			require.Zero(t, pureObligations(h))
++			s, _ := h.root(false)
++			require.Empty(t, s.OperationId)
++			require.Equal(t, int64(1), s.Remaining)
++			require.Equal(t, base.Add(20*time.Second).UnixNano(), s.Cursor)
++
++		})
+ 	}
+-	spec.ExcludeStructuredCalendar = []*schedulepb.StructuredCalendarSpec{{Second: ranges(0, 59), Minute: ranges(0, 59), Hour: ranges(0, 23), DayOfMonth: ranges(1, 31), Month: ranges(1, 12), DayOfWeek: ranges(0, 6)}}
+-	configureGeneration(h, spec, "", 1, base.Add(-time.Nanosecond), time.Minute)
+-	fireGeneration(h, true)
+-	g := generationState(h)
+-	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_YIELD, g.LastStatus)
+-	require.Equal(t, base.Add(7*time.Second).UnixNano(), g.Continuation.DisposedThrough)
+-	require.Equal(t, h.now+int64(time.Millisecond), g.WakeAt)
+-	require.Equal(t, 1, pureObligations(h))
+-	h.now = g.WakeAt
+-	fireGeneration(h, true)
+-	g = generationState(h)
+-	require.Equal(t, base.Add(15*time.Second).UnixNano(), g.Continuation.DisposedThrough)
+-	h.now = g.WakeAt
+-	fireGeneration(h, true)
+-	g = generationState(h)
+-	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_IMPOSSIBLE, g.LastStatus)
+-	require.False(t, g.Armed)
+-	require.Zero(t, pureObligations(h))
+-	s, _ := h.root(false)
+-	require.Empty(t, s.OperationId)
+-	require.Equal(t, int64(1), s.Remaining)
+-	require.Equal(t, base.Add(20*time.Second).UnixNano(), s.Cursor)
+ }
++
+ func TestGenerationSkippedAdmissionAvoidsCarryover(t *testing.T) {
+ 	t.Parallel()
+ 	for _, reason := range []string{"paused", "budget", "catchup"} {
+@@ -290,7 +338,9 @@ func TestGenerationSkippedAdmissionAvoidsCarryover(t *testing.T) {
+ 				h.now = base.Add(2 * time.Second).UnixNano()
+ 			}
+ 			configureGeneration(h, generationSpec(base, base, time.Second), "", 1, base.Add(-time.Nanosecond), time.Second)
+-			fireGeneration(h, true)
++			fireGeneration(h, true) // Scan.
++			fireGeneration(h, true) // Metadata-only disposition.
++			fireGeneration(h, true) // Exhaustion.
+ 			s, ctx := h.root(false)
+ 			require.Equal(t, first.RequestId, s.OperationId)
+ 			require.Equal(t, base.UnixNano(), s.Cursor)
+diff --git a/chasm/lib/scheduler2/generator.go b/chasm/lib/scheduler2/generator.go
+index ee91f4c7f..b23298827 100644
+--- a/chasm/lib/scheduler2/generator.go
++++ b/chasm/lib/scheduler2/generator.go
+@@ -79,12 +79,9 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
+ 	if g != nil && g.Token == math.MaxUint64 {
+ 		return serviceerror.NewFailedPrecondition("generation token exhausted")
+ 	}
+-	if !s.DrainArmed && s.DrainToken == math.MaxUint64 && decision.CanDrain(s.state(ctx), now.UnixNano(), int64(config.CatchupWindow)) {
+-		return serviceerror.NewFailedPrecondition("drain token exhausted")
+-	}
+-	manualState := s.state(ctx)
+-	manualState.Root.Policy = config.Policy
+-	if err := s.checkManualToken(manualState, false); err != nil {
++	// Configuration arms an immediate scan even for an empty source. Preflight
++	// its coordinator wake before replacing any root, generator or DATA fields.
++	if err := checkWorkWakeToken(s.Coordination, now); err != nil {
+ 		return err
+ 	}
+ 	if g == nil {
+@@ -101,74 +98,24 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
+ 	s.Policy = config.Policy
+ 	s.Cursor = max(s.Cursor, state.DisposedThrough.UnixNano())
+ 	g.arm(ctx, now)
+-	s.reconcileDrain(ctx, s.state(ctx))
+-	s.reconcileManual(ctx, s.state(ctx))
+-	return nil
++	return s.reconcileWork(ctx)
+ }
+ 
+ func (g *Generator) arm(ctx chasm.MutableContext, at time.Time) {
+ 	g.Token++
+ 	g.Armed = true
+ 	g.WakeAt = at.UnixNano()
+-	ctx.AddTask(g, chasm.TaskAttributes{ScheduledTime: at}, &scheduler2pb.GenerateTask{Token: g.Token})
++
+ }
+ 
+ // GenerateHandler runs bounded local enumeration under the execution write lock.
+ type GenerateHandler struct{ chasm.PureTaskHandlerBase }
+ 
+-func (*GenerateHandler) Validate(_ chasm.Context, g *Generator, attrs chasm.TaskInvocation, task *scheduler2pb.GenerateTask) (bool, error) {
+-	return g.Armed && g.Token == task.Token && g.WakeAt == attrs.ScheduledTime.UnixNano(), nil
++// Validate rejects legacy generation tasks after coordinator adoption.
++func (*GenerateHandler) Validate(chasm.Context, *Generator, chasm.TaskInvocation, *scheduler2pb.GenerateTask) (bool, error) {
++	return false, nil
+ }
+-
+-func (*GenerateHandler) Execute(ctx chasm.MutableContext, g *Generator, attrs chasm.TaskAttributes, task *scheduler2pb.GenerateTask) error {
+-	if !g.Armed || g.Token != task.Token || g.WakeAt != attrs.ScheduledTime.UnixNano() {
+-		return nil
+-	}
+-	now := ctx.Now(g)
+-	if now.Before(time.Unix(0, g.WakeAt)) {
+-		return serviceerror.NewUnavailable("generation is not due")
+-	}
+-	if g.Token == math.MaxUint64 {
+-		return serviceerror.NewFailedPrecondition("generation token exhausted")
+-	}
+-	definition := g.Definition.Get(ctx)
+-	spec := &schedulepb.ScheduleSpec{}
+-	if err := proto.Unmarshal(definition.Spec, spec); err != nil {
+-		return err
+-	}
+-	e, err := occurrence.New(spec, definition.Seed, g.Continuation.Revision)
+-	if err != nil {
+-		return err
+-	}
+-	result, err := e.Run(decodeContinuation(g.Continuation), now, occurrence.Limits{Probes: 8, Outputs: 4})
+-	if err != nil {
+-		return err
+-	}
+-	s := g.Scheduler.Get(ctx)
+-	for _, candidate := range result.Occurrences {
+-		if err := s.admitGenerated(ctx, definition.Request, candidate, time.Duration(g.CatchupWindow)); err != nil {
+-			return err
+-		}
+-	}
+-	s.Cursor = max(s.Cursor, result.State.DisposedThrough.UnixNano())
+-	g.Continuation = encodeContinuation(result.State)
+-	g.LastStatus = scheduler2pb.EnumerationStatus(result.Status + 1)
+-	g.Armed = false
+-	switch result.Status {
+-	case occurrence.Waiting:
+-		g.arm(ctx, result.State.Pending.Actual)
+-	case occurrence.Yield, occurrence.Limited:
+-		wake := now.Add(time.Millisecond)
+-		end := time.Date(2101, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond)
+-		if wake.After(end) {
+-			wake = end
+-		}
+-		g.arm(ctx, wake)
+-	case occurrence.Empty, occurrence.Impossible, occurrence.Exhausted:
+-		g.Token++
+-	default:
+-		return serviceerror.NewInternal("unexpected enumeration status")
+-	}
++func (*GenerateHandler) Execute(chasm.MutableContext, *Generator, chasm.TaskAttributes, *scheduler2pb.GenerateTask) error {
+ 	return nil
+ }
+ 
+@@ -182,7 +129,7 @@ func (s *Scheduler) admitGenerated(ctx chasm.MutableContext, template []byte, ca
+ 	if err != nil {
+ 		return err
+ 	}
+-	return s.Apply(ctx, decision.Event{Kind: decision.Due, Incarnation: s.Incarnation, Nominal: candidate.Nominal.UnixNano(), Actual: candidate.Actual.UnixNano(), WorkflowID: request.WorkflowId, CatchupDeadline: candidate.Actual.Add(catchup).UnixNano(), Request: encoded})
++	return s.applyTransition(ctx, decision.Event{Kind: decision.Due, Incarnation: s.Incarnation, Nominal: candidate.Nominal.UnixNano(), Actual: candidate.Actual.UnixNano(), WorkflowID: request.WorkflowId, CatchupDeadline: candidate.Actual.Add(catchup).UnixNano(), Request: encoded})
+ }
+ 
+ func encodeCandidate(c *occurrence.Candidate) *scheduler2pb.OccurrenceCandidate {
+diff --git a/chasm/lib/scheduler2/internal/decision/buffer.go b/chasm/lib/scheduler2/internal/decision/buffer.go
+index 051ba1fbd..796d1c9d1 100644
+--- a/chasm/lib/scheduler2/internal/decision/buffer.go
++++ b/chasm/lib/scheduler2/internal/decision/buffer.go
+@@ -7,6 +7,7 @@ import (
+ 
+ // Queued contains identity metadata, never an admitted request snapshot.
+ type Queued struct {
++	BackfillID uint64
+ 	ManualID   uint64
+ 	Nominal    int64
+ 	Actual     int64
+@@ -95,9 +96,9 @@ func drain(next State, event Event) (State, error) {
+ 		}
+ 	}
+ 	next.Queue = retained
+-	return startOperation(next, event, candidate.Nominal, candidate.WorkflowID, candidate.Policy, candidate.ManualID)
++	return startOperation(next, event, candidate)
+ }
+ 
+ func queueEligible(state State, q Queued, now, catchup int64) bool {
+-	return q.ManualID != 0 || (!state.Root.Paused && (!state.Root.Limited || state.Root.Remaining > 0) && (now <= q.Actual || now-q.Actual <= catchup))
++	return q.ManualID != 0 || q.BackfillID != 0 || (!state.Root.Paused && (!state.Root.Limited || state.Root.Remaining > 0) && (now <= q.Actual || now-q.Actual <= catchup))
+ }
+diff --git a/chasm/lib/scheduler2/internal/decision/decision.go b/chasm/lib/scheduler2/internal/decision/decision.go
+index 228f31bb5..405c1b750 100644
+--- a/chasm/lib/scheduler2/internal/decision/decision.go
++++ b/chasm/lib/scheduler2/internal/decision/decision.go
+@@ -46,6 +46,7 @@ type Root struct {
+ }
+ 
+ type Operation struct {
++	BackfillID   uint64
+ 	ManualID     uint64
+ 	OccurrenceID string
+ 	ActionID     string
+@@ -87,9 +88,11 @@ const (
+ 	EffectExpired
+ 	AcceptManual
+ 	DispatchManual
++	DispatchBackfill
+ )
+ 
+ type Event struct {
++	BackfillID      uint64
+ 	Kind            Kind
+ 	Incarnation     string
+ 	EffectID        string
+@@ -124,6 +127,8 @@ func Step(state State, event Event) (State, error) {
+ 	switch event.Kind {
+ 	case AcceptManual:
+ 		next, err = acceptManual(next, event)
++	case DispatchBackfill:
++		next, err = dispatchBackfill(next, event)
+ 	case DispatchManual:
+ 		next, err = dispatchManual(next, event)
+ 	case Due:
+@@ -167,10 +172,11 @@ func admit(next State, event Event) (State, error) {
+ 	if len(event.Request) == 0 || next.Root.Incarnation == "" {
+ 		return State{}, serviceerror.NewInvalidArgument("admission requires incarnation and request")
+ 	}
+-	return startOperation(next, event, event.Nominal, event.WorkflowID, next.Root.Policy, 0)
++	return startOperation(next, event, Queued{Nominal: event.Nominal, WorkflowID: event.WorkflowID, Policy: next.Root.Policy})
+ }
+ 
+-func startOperation(next State, event Event, nominal int64, workflowID string, policy enumspb.ScheduleOverlapPolicy, manualID uint64) (State, error) {
++func startOperation(next State, event Event, candidate Queued) (State, error) {
++	nominal, workflowID, policy, manualID := candidate.Nominal, candidate.WorkflowID, candidate.Policy, candidate.ManualID
+ 	if event.Now > math.MaxInt64-RetryHorizon {
+ 		return State{}, serviceerror.NewInvalidArgument("admission time exceeds supported range")
+ 	}
+@@ -182,17 +188,20 @@ func startOperation(next State, event Event, nominal int64, workflowID string, p
+ 	if manualID != 0 {
+ 		occurrenceID = fmt.Sprintf("manual/%d", manualID)
+ 	}
++	if candidate.BackfillID != 0 {
++		occurrenceID = fmt.Sprintf("backfill/%d/%d", candidate.BackfillID, nominal)
++	}
+ 	actionID := next.Root.Incarnation + "/" + occurrenceID + "/action"
+ 	next.Operation = &Operation{
+ 		OccurrenceID: occurrenceID, ActionID: actionID, ID: actionID + "/start",
+-		ManualID: manualID, Nominal: nominal, WorkflowID: workflowID, Policy: policy, Deadline: event.Now + RetryHorizon,
++		BackfillID: candidate.BackfillID, ManualID: manualID, Nominal: nominal, WorkflowID: workflowID, Policy: policy, Deadline: event.Now + RetryHorizon,
+ 		RetryAt: event.Now, Phase: Pending, Request: bytes.Clone(event.Request),
+ 	}
+ 	next.Root.Unfinished++
+ 	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL {
+ 		next.Root.BlockingOperationID = next.Operation.ID
+ 	}
+-	if next.Root.Limited && manualID == 0 {
++	if next.Root.Limited && manualID == 0 && candidate.BackfillID == 0 {
+ 		next.Root.Remaining--
+ 	}
+ 	return next, nil
+diff --git a/chasm/lib/scheduler2/internal/decision/manual.go b/chasm/lib/scheduler2/internal/decision/manual.go
+index a7a8759c4..3c62e4638 100644
+--- a/chasm/lib/scheduler2/internal/decision/manual.go
++++ b/chasm/lib/scheduler2/internal/decision/manual.go
+@@ -74,7 +74,7 @@ func dispatchManual(next State, event Event) (State, error) {
+ 	if len(event.Request) == 0 || next.Root.Incarnation == "" {
+ 		return State{}, serviceerror.NewInvalidArgument("manual admission requires incarnation and request")
+ 	}
+-	return startOperation(next, event, command.Nominal, event.WorkflowID, policy, command.ID)
++	return startOperation(next, event, Queued{Nominal: command.Nominal, WorkflowID: event.WorkflowID, Policy: policy, ManualID: command.ID})
+ }
+ 
+ // ManualNeedsTemplate distinguishes identity/admission work from policy-only disposal.
+@@ -88,3 +88,37 @@ func ManualNeedsTemplate(state State) bool {
+ 	}
+ 	return true
+ }
++
++func dispatchBackfill(next State, event Event) (State, error) {
++	if event.BackfillID == 0 || !ValidPolicy(event.Policy) {
++		return State{}, serviceerror.NewInvalidArgument("invalid backfill occurrence")
++	}
++	if len(next.Queue) >= 4 {
++		return next, nil
++	}
++	policy := event.Policy
++	if policy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
++		policy = next.Root.Policy
++	}
++	if policy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
++		policy = enumspb.SCHEDULE_OVERLAP_POLICY_SKIP
++	}
++	candidate := Queued{BackfillID: event.BackfillID, Nominal: event.Nominal, Actual: event.Actual, WorkflowID: event.WorkflowID, Policy: policy}
++	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || len(next.Queue) > 0) {
++		if policy == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(next.Queue) > 0) {
++			return next, nil
++		}
++		if event.WorkflowID == "" {
++			return State{}, serviceerror.NewInvalidArgument("backfill queue requires workflow identity")
++		}
++		next.Queue = append(next.Queue, candidate)
++		return next, nil
++	}
++	if next.Root.Unfinished >= 4 {
++		return next, nil
++	}
++	if len(event.Request) == 0 || next.Root.Incarnation == "" {
++		return State{}, serviceerror.NewInvalidArgument("backfill admission requires incarnation and request")
++	}
++	return startOperation(next, event, candidate)
++}
+diff --git a/chasm/lib/scheduler2/internal/occurrence/backfill.go b/chasm/lib/scheduler2/internal/occurrence/backfill.go
+index 80d684124..74c544ba5 100644
+--- a/chasm/lib/scheduler2/internal/occurrence/backfill.go
++++ b/chasm/lib/scheduler2/internal/occurrence/backfill.go
+@@ -27,10 +27,23 @@ func (e *Enumerator) BeginRange(start, end time.Time) (State, error) {
+ // structurally valid. The caller removes the completed range, rather than polling
+ // or extending its end. Occurrences is always empty: no candidate was handed off.
+ func (e *Enumerator) PeekRange(state State, end time.Time, probes int) (Result, error) {
++	if end.Before(state.Origin) {
++		return Result{}, serviceerror.NewInvalidArgument("backfill end precedes origin")
++	}
++	result, err := e.Peek(state, end, probes)
++	if result.Status == Waiting {
++		result.Status = Exhausted
++	}
++	return result, err
++}
++
++// Peek retains a due eligible candidate until the caller atomically disposes it.
++// A future actual time returns Waiting without advancing nominal disposition.
++func (e *Enumerator) Peek(state State, end time.Time, probes int) (Result, error) {
+ 	if state.Revision != e.revision || state.DefinitionID != e.identity {
+ 		return Result{}, serviceerror.NewFailedPrecondition("continuation belongs to another definition revision")
+ 	}
+-	if !supported(end) || probes < 1 || probes > 1024 || end.Before(state.Origin) {
++	if !supported(end) || probes < 1 || probes > 1024 {
+ 		return Result{}, serviceerror.NewInvalidArgument("unsupported backfill range or probe limit")
+ 	}
+ 	if err := validateState(state); err != nil {
+@@ -53,7 +66,7 @@ func (e *Enumerator) PeekRange(state State, end time.Time, probes int) (Result,
+ 			// Jitter is nonnegative and strictly below the following raw nominal.
+ 			// Thus later raw matches (including excluded ones) cannot return into range.
+ 			if pending.Actual.After(end) {
+-				result.Status = Exhausted
++				result.Status = Waiting
+ 				return result, nil
+ 			}
+ 			if pending.Excluded {
+diff --git a/chasm/lib/scheduler2/library.go b/chasm/lib/scheduler2/library.go
+index 44d7ed541..2a9b1e337 100644
+--- a/chasm/lib/scheduler2/library.go
++++ b/chasm/lib/scheduler2/library.go
+@@ -23,5 +23,5 @@ func (*Library) Components() []*chasm.RegistrableComponent {
+ 	}
+ }
+ func (l *Library) Tasks() []*chasm.RegistrableTask {
+-	return []*chasm.RegistrableTask{chasm.NewRegistrableSideEffectTask("start", l.start), chasm.NewRegistrableSideEffectTask("effect", l.effects), chasm.NewRegistrablePureTask("generate", &GenerateHandler{}), chasm.NewRegistrablePureTask("drain", &DrainHandler{}), chasm.NewRegistrablePureTask("manual", &ManualHandler{})}
++	return []*chasm.RegistrableTask{chasm.NewRegistrablePureTask("work", &WorkHandler{}), chasm.NewRegistrableSideEffectTask("start", l.start), chasm.NewRegistrableSideEffectTask("effect", l.effects), chasm.NewRegistrablePureTask("generate", &GenerateHandler{}), chasm.NewRegistrablePureTask("drain", &DrainHandler{}), chasm.NewRegistrablePureTask("manual", &ManualHandler{})}
+ }
+diff --git a/chasm/lib/scheduler2/manual.go b/chasm/lib/scheduler2/manual.go
+index f6b7cd899..3c7676a93 100644
+--- a/chasm/lib/scheduler2/manual.go
++++ b/chasm/lib/scheduler2/manual.go
+@@ -3,7 +3,6 @@ package scheduler2
+ import (
+ 	"context"
+ 	"errors"
+-	"math"
+ 	"time"
+ 
+ 	schedulepb "go.temporal.io/api/schedule/v1"
+@@ -62,39 +61,13 @@ func (s *Scheduler) prepareManual(ctx chasm.Context, state decision.State, event
+ 	return nil
+ }
+ 
+-func (s *Scheduler) reconcileManual(ctx chasm.MutableContext, state decision.State) {
+-	if !decision.CanDispatchManual(state) {
+-		s.ManualArmed = false
+-		return
+-	}
+-	if s.ManualArmed {
+-		return
+-	}
+-	s.ManualToken++
+-	s.ManualArmed = true
+-	s.ManualAt = ctx.Now(s).UnixNano()
+-	ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, s.ManualAt)}, &scheduler2pb.ManualTask{Token: s.ManualToken})
+-}
+-
+ // ManualHandler transfers at most one accepted command per transaction.
+ type ManualHandler struct{ chasm.PureTaskHandlerBase }
+ 
+-func (*ManualHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.ManualTask) (bool, error) {
+-	return s.ManualArmed && s.ManualToken == task.Token && s.ManualAt == attrs.ScheduledTime.UnixNano(), nil
+-}
+-func (*ManualHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.TaskAttributes, task *scheduler2pb.ManualTask) error {
+-	if !s.ManualArmed || s.ManualToken != task.Token || s.ManualAt != attrs.ScheduledTime.UnixNano() {
+-		return nil
+-	}
+-	if ctx.Now(s).Before(time.Unix(0, s.ManualAt)) {
+-		return serviceerror.NewUnavailable("manual trigger transfer is not due")
+-	}
+-	return s.Apply(ctx, decision.Event{Kind: decision.DispatchManual, Incarnation: s.Incarnation})
++// Validate rejects legacy manual tasks that bypass coordinator arbitration.
++func (*ManualHandler) Validate(chasm.Context, *Scheduler, chasm.TaskInvocation, *scheduler2pb.ManualTask) (bool, error) {
++	return false, nil
+ }
+-
+-func (s *Scheduler) checkManualToken(state decision.State, consuming bool) error {
+-	if decision.CanDispatchManual(state) && (!s.ManualArmed || consuming) && s.ManualToken == math.MaxUint64 {
+-		return serviceerror.NewFailedPrecondition("manual trigger token exhausted")
+-	}
++func (*ManualHandler) Execute(chasm.MutableContext, *Scheduler, chasm.TaskAttributes, *scheduler2pb.ManualTask) error {
+ 	return nil
+ }
+diff --git a/chasm/lib/scheduler2/manual_test.go b/chasm/lib/scheduler2/manual_test.go
+index 084dd0737..2c6a2da8d 100644
+--- a/chasm/lib/scheduler2/manual_test.go
++++ b/chasm/lib/scheduler2/manual_test.go
+@@ -41,12 +41,12 @@ func acceptManual(h *treeHarness, request *schedulepb.TriggerImmediatelyRequest,
+ func transferManual(h *treeHarness, publish bool) {
+ 	h.t.Helper()
+ 	s, ctx := h.root(true)
+-	attrs := chasm.TaskAttributes{ScheduledTime: time.Unix(0, s.ManualAt)}
+-	task := &scheduler2pb.ManualTask{Token: s.ManualToken}
+-	valid, err := (&ManualHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, task)
++	attrs := chasm.TaskAttributes{ScheduledTime: time.Unix(0, s.Coordination.At)}
++	task := &scheduler2pb.WorkTask{Token: s.Coordination.Token}
++	valid, err := (&WorkHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, task)
+ 	require.NoError(h.t, err)
+ 	require.True(h.t, valid)
+-	require.NoError(h.t, (&ManualHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, task))
++	require.NoError(h.t, (&WorkHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, task))
+ 	commitGeneration(h, publish)
+ }
+ 
+@@ -185,20 +185,20 @@ func TestManualQueueWaitPolicyResolutionAndCapacityRecovery(t *testing.T) {
+ 	h, first := bufferedHarness(t, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL, 5)
+ 	acceptManual(h, &schedulepb.TriggerImmediatelyRequest{}, true)
+ 	s, _ := h.root(false)
+-	require.False(t, s.ManualArmed)
++	require.False(t, s.Coordination.Armed)
+ 	require.Len(t, s.Manuals, 1)
+ 	allowUpdate(h, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
+ 	s, _ = h.root(false)
+-	require.False(t, s.ManualArmed, "full queue waits even ALLOW_ALL")
++	require.False(t, s.Coordination.Armed, "full queue waits even ALLOW_ALL")
+ 	sequentialComplete(h, first.RequestId, nil)
+ 	fireGeneration(h, true)
+ 	s, _ = h.root(false)
+-	require.True(t, s.ManualArmed)
++	require.True(t, s.Coordination.Armed)
+ 	require.Len(t, s.Queue, 3)
+ 	transferManual(h, false)
+ 	s, _ = h.root(false)
+ 	require.Len(t, s.Manuals, 1)
+-	require.True(t, s.ManualArmed)
++	require.True(t, s.Coordination.Armed)
+ 	transferManual(h, true)
+ 	s, ctx := h.root(false)
+ 	require.Empty(t, s.Manuals)
+@@ -222,7 +222,7 @@ func TestManualAcceptancePayloadIsolationAndOverflow(t *testing.T) {
+ 	acceptManual(h, &schedulepb.TriggerImmediatelyRequest{}, true)
+ 	s, ctx := h.root(false)
+ 	require.Len(t, s.Manuals, 1)
+-	require.True(t, s.ManualArmed)
++	require.True(t, s.Coordination.Armed)
+ 	require.Panics(t, func() { s.Generator.Get(ctx).Definition.Get(ctx) })
+ 	for _, boundary := range []string{"sequence", "token"} {
+ 		t.Run(boundary, func(t *testing.T) {
+@@ -232,7 +232,7 @@ func TestManualAcceptancePayloadIsolationAndOverflow(t *testing.T) {
+ 			if boundary == "sequence" {
+ 				s.ManualSequence = math.MaxUint64
+ 			} else {
+-				s.ManualToken = math.MaxUint64
++				s.Coordination.Token = math.MaxUint64
+ 			}
+ 			h.commit(true)
+ 			snapshot := cloneNodes(h.durable)
+@@ -300,7 +300,7 @@ func TestManualTimestampDefaultsAndInvalidInputs(t *testing.T) {
+ 				nominal = tc.scheduled.AsTime().UnixNano()
+ 			}
+ 			require.Equal(t, nominal, s.Manuals[0].Nominal)
+-			require.Equal(t, h.now, s.ManualAt)
++			require.Equal(t, h.now, s.Coordination.At)
+ 		})
+ 	}
+ }
+@@ -348,13 +348,13 @@ func TestManualFullUnfinishedWaitAndSameTimeEviction(t *testing.T) {
+ 	require.Len(t, ids, 4)
+ 	acceptManual(h, command, true)
+ 	s, _ := h.root(false)
+-	require.False(t, s.ManualArmed)
++	require.False(t, s.Coordination.Armed)
+ 	require.Len(t, s.Manuals, 1)
+ 	require.Zero(t, pureObligations(h))
+ 	allowAck(h, ids[1])
+ 	allowAck(h, ids[0])
+ 	s, _ = h.root(false)
+-	require.True(t, s.ManualArmed)
++	require.True(t, s.Coordination.Armed)
+ 	transferManual(h, true)
+ 	s, _ = h.root(false)
+ 	require.Len(t, s.Operations, 4)
+@@ -445,11 +445,11 @@ func TestManualStoredTaskRollbackAndStaleToken(t *testing.T) {
+ 	command := &schedulepb.TriggerImmediatelyRequest{OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL}
+ 	acceptManual(h, command, true)
+ 	acceptManual(h, command, true)
+-	var original *scheduler2pb.ManualTask
++	var original *scheduler2pb.WorkTask
+ 	var attrs chasm.TaskAttributes
+ 	require.NoError(t, h.node.EachPureTask(time.Unix(0, h.now), func(_ chasm.NodePureTask, a chasm.TaskAttributes, task any) (bool, error) {
+-		if manual, ok := task.(*scheduler2pb.ManualTask); ok {
+-			original = proto.Clone(manual).(*scheduler2pb.ManualTask)
++		if manual, ok := task.(*scheduler2pb.WorkTask); ok {
++			original = proto.Clone(manual).(*scheduler2pb.WorkTask)
+ 			attrs = a
+ 		}
+ 		return false, nil
+@@ -458,7 +458,7 @@ func TestManualStoredTaskRollbackAndStaleToken(t *testing.T) {
+ 	durable := cloneNodes(h.durable)
+ 	h.now--
+ 	s, ctx := h.root(true)
+-	require.ErrorContains(t, (&ManualHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, original), "not due")
++	require.ErrorContains(t, (&WorkHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, original), "not due")
+ 	h.reload()
+ 	require.Equal(t, durable, h.durable)
+ 	require.Equal(t, 1, pureObligations(h))
+@@ -466,19 +466,19 @@ func TestManualStoredTaskRollbackAndStaleToken(t *testing.T) {
+ 	transferManual(h, true)
+ 	s, ctx = h.root(false)
+ 	require.Len(t, s.Manuals, 1)
+-	require.Greater(t, s.ManualToken, original.Token)
+-	valid, err := (&ManualHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, original)
++	require.Greater(t, s.Coordination.Token, original.Token)
++	valid, err := (&WorkHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, original)
+ 	require.NoError(t, err)
+ 	require.False(t, valid)
+ 	before := proto.Clone(s.RootState)
+ 	s, ctx = h.root(true)
+-	require.NoError(t, (&ManualHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, original))
++	require.NoError(t, (&WorkHandler{}).Execute(ctx.(chasm.MutableContext), s, attrs, original))
+ 	commitGeneration(h, true)
+ 	s, _ = h.root(false)
+ 	protorequire.ProtoEqual(t, before, s.RootState)
+ 	transferManual(h, true)
+ 	s, ctx = h.root(false)
+-	valid, err = (&ManualHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, original)
++	valid, err = (&WorkHandler{}).Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, original)
+ 	require.NoError(t, err)
+ 	require.False(t, valid)
+ 	require.Empty(t, s.Manuals)
+diff --git a/chasm/lib/scheduler2/persistence_test.go b/chasm/lib/scheduler2/persistence_test.go
+index 6f15bb1d3..ff50513e8 100644
+--- a/chasm/lib/scheduler2/persistence_test.go
++++ b/chasm/lib/scheduler2/persistence_test.go
+@@ -94,7 +94,13 @@ func (h *treeHarness) root(mutable bool) (*Scheduler, chasm.Context) {
+ func (h *treeHarness) apply(event decision.Event, publish bool) chasm.NodesMutation {
+ 	h.t.Helper()
+ 	s, ctx := h.root(true)
+-	require.NoError(h.t, s.Apply(ctx.(chasm.MutableContext), event))
++	if event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.DispatchManual || event.Kind == decision.DispatchBackfill {
++		// Transition harness supplies an explicit grant; coordinator tests exercise arbitration.
++		require.NoError(h.t, s.applyTransition(ctx.(chasm.MutableContext), event))
++		require.NoError(h.t, s.reconcileWork(ctx.(chasm.MutableContext)))
++	} else {
++		require.NoError(h.t, s.Apply(ctx.(chasm.MutableContext), event))
++	}
+ 	return h.commit(publish)
+ }
+ func (h *treeHarness) commit(publish bool) chasm.NodesMutation {
+diff --git a/chasm/lib/scheduler2/proto/v1/state.proto b/chasm/lib/scheduler2/proto/v1/state.proto
+index 87af2511e..23c470f0f 100644
+--- a/chasm/lib/scheduler2/proto/v1/state.proto
++++ b/chasm/lib/scheduler2/proto/v1/state.proto
+@@ -64,6 +64,16 @@ message RootState {
+   bool manual_armed = 27;
+   // ManualAt is the execution-clock transfer deadline.
+   int64 manual_at = 28;
++  // Coordination owns the sole scan/admission obligation and resource turns.
++  CoordinationState coordination = 29;
++  // BackfillSequence uniquely identifies accepted ranges in this incarnation.
++  uint64 backfill_sequence = 30;
++  // Backfills contains at most four active range continuations.
++  repeated BackfillState backfills = 31;
++  // BackfillFocus pins a request while its ready candidate waits for handoff.
++  uint64 backfill_focus = 32;
++  // LastBackfill remembers the last serviced request for cyclic selection.
++  uint64 last_backfill = 33;
+ }
+ 
+ // Phase distinguishes an operation's durable progress from delivery attempts.
+@@ -101,6 +111,8 @@ message OperationState {
+   temporal.api.enums.v1.ScheduleOverlapPolicy policy = 10;
+   // ManualId is zero for automatic occurrences and the command sequence otherwise.
+   uint64 manual_id = 11;
++  // BackfillId distinguishes a range occurrence from a manual trigger.
++  uint64 backfill_id = 12;
+ }
+ 
+ // Payload keeps large values on a separately loaded node.
+@@ -217,6 +229,8 @@ message QueuedOccurrence {
+   temporal.api.enums.v1.ScheduleOverlapPolicy policy = 4;
+   // ManualId preserves command identity through delayed admission.
+   uint64 manual_id = 5;
++  // BackfillId identifies the accepted range that owns this nominal occurrence.
++  uint64 backfill_id = 6;
+ }
+ 
+ // DrainTask drives an independent bounded queue admission step.
+@@ -281,3 +295,49 @@ message ManualTask {
+  // Token fences superseded logical transfer obligations.
+  uint64 token = 1;
+ }
++
++// WorkClass identifies a coordinator service class, not an executor.
++enum WorkClass {
++ WORK_CLASS_UNSPECIFIED = 0;
++ WORK_CLASS_DRAIN = 1;
++ WORK_CLASS_MANUAL = 2;
++ WORK_CLASS_BACKFILL = 3;
++ WORK_CLASS_AUTOMATIC = 4;
++}
++// CoordinationState persists task fencing separately from resource entitlement.
++message CoordinationState {
++ // Token fences superseded coordinator tasks.
++ uint64 token = 1;
++ // Armed indicates an internal or timed obligation.
++ bool armed = 2;
++ // At is the execution-clock deadline.
++ int64 at = 3;
++ // NextWork controls bounded scan/service selection.
++ WorkClass next_work = 4;
++ // NextQueue chooses the next vacancy contender.
++ WorkClass next_queue = 5;
++ // NextOperation chooses the next operation-slot contender.
++ WorkClass next_operation = 6;
++ // OwnerClass identifies the holder of the one vacancy reservation.
++ WorkClass owner_class = 7;
++ // OwnerKey is empty when no vacancy is reserved.
++ string owner_key = 8;
++}
++// WorkTask drives the sole coordinator obligation.
++message WorkTask {
++ // Token is the persisted task generation.
++ uint64 token = 1;
++}
++// BackfillState holds bounded current-definition range progress without payloads.
++message BackfillState {
++ // Id is the unique accepted request sequence.
++ uint64 id = 1;
++ // Start is the inclusive lower nominal bound in Unix nanoseconds.
++ int64 start = 2;
++ // End is the inclusive upper actual-time bound, immutable after acceptance.
++ int64 end = 3;
++ // Policy is an override resolved at candidate transfer.
++ temporal.api.enums.v1.ScheduleOverlapPolicy policy = 4;
++ // Continuation retains search, disposition and pending candidate separately.
++ OccurrenceContinuation continuation = 5;
++}
+diff --git a/chasm/lib/scheduler2/sequential_test.go b/chasm/lib/scheduler2/sequential_test.go
+index 3bbbc0ccb..a7464c597 100644
+--- a/chasm/lib/scheduler2/sequential_test.go
++++ b/chasm/lib/scheduler2/sequential_test.go
+@@ -133,7 +133,7 @@ func TestSequentialUnfinishedCapacityRejectsAtomically(t *testing.T) {
+ 	before := cloneNodes(h.durable)
+ 	_, wire := frozenRequest(t)
+ 	s, ctx = h.root(true)
+-	err := s.Apply(ctx.(chasm.MutableContext), decision.Event{Kind: decision.Due, Incarnation: "incarnation", Nominal: h.now, CatchupDeadline: h.now, Request: wire})
++	err := s.applyTransition(ctx.(chasm.MutableContext), decision.Event{Kind: decision.Due, Incarnation: "incarnation", Nominal: h.now, CatchupDeadline: h.now, Request: wire})
+ 	require.ErrorContains(t, err, "capacity")
+ 	h.commit(true)
+ 	require.Len(t, h.durable, len(before))
+diff --git a/docs/development/scheduler2/evidence/README.md b/docs/development/scheduler2/evidence/README.md
+index 6b44bafb8..13871e41e 100644
+--- a/docs/development/scheduler2/evidence/README.md
++++ b/docs/development/scheduler2/evidence/README.md
+@@ -223,3 +223,17 @@ refinement or milestone completion is implied by this helper checkpoint.
+ E54 helper checkpoint sourceff9ddd706: [clean-source profile](wi009/range/manifest.json)
+ and [checks](wi009/range-checks.json) record10000 cases, occurrence package race and
+ scoped lint passing. These checks do not satisfy the pending WI-009 integration gate.
++
++
++### WI-009 coordinator verification in progress
++
++| ID | Kind / claim | Artifact and current result |
++|---|---|---|
++| E55 | independent bounded model / conditional liveness | [model scope](../model/backfill/README.md), [parent rerun](wi009/model-integrated-results.json); arbitration7876 unique/cursor144 unique at100/200, eight safety/six witnesses/one weak-fair liveness assertion, six named mutants detected. One contested operation slot; no cap4 refinement claim. |
++| E56 | real Node integration / public adapter | [request checks](wi009/request-tests.log), [directed full queue](wi009/fullqueue.log), [mixed sample](wi009/mixed-initial.log), [delayed capacity sample](wi009/capacity-initial.log); local wrapper dedup/publication/rejection, sole admission owner, fullqueue+tracked+threeALLOW reservation recovery,100 cases each randomized workload. Larger exploration/race pending. |
++| E57 | independent review / sensitivity | [composition audit](../design/backfill-composition.md), [seven Go mutations](wi009/mutations/manifest.json), [scoped lint](wi009/lint-reviewed.log); token preflight and upper-clock clamp review fixes, seven named implementation defects detected/restored. Initial rejection test failure was framework transition bookkeeping, preserved in [log](wi009/request-tests-initial.log). |
++
++These are intermediate observations on the isolated coordinator worktree, not
++WI-009 acceptance. Model extension for concurrent cap4, final exploration/race,
++remaining cursor/arbitration boundary tests and review remain outstanding. The
++original checkout and its unrelated modifications are preserved.
+diff --git a/docs/development/scheduler2/profile.json b/docs/development/scheduler2/profile.json
+index d0c5698df..30843533c 100644
+--- a/docs/development/scheduler2/profile.json
++++ b/docs/development/scheduler2/profile.json
+@@ -70,13 +70,13 @@
+     ],
+     "eviction": "oldest Completed only",
+     "probes": 8,
+-    "outputs": 4,
++    "outputs": 1,
+     "continuation_delay_ns": 1000000,
+     "continuation_clock_end": "clamped to 2101-01-01 minus1ns",
+     "max_catchup_days": 365,
+     "max_seed_bytes": 65536,
+     "max_request_template_bytes": 65536,
+-    "integration": "local pure-task generator; production routing absent"
++    "integration": "local root coordinator; separate scan and handoff publication; production routing absent"
+   },
+   "buffer": {
+     "capacity": 4,
+@@ -87,7 +87,7 @@
+       "BUFFER_ALL"
+     ],
+     "overflow": "drop automatic arrival and increment BufferDropped; no debit",
+-    "drain": "independent token/deadline; completion arms after generation exhausted",
++    "drain": "shared coordinator; completion reconciles readiness after generation exhausted",
+     "snapshot": "queue-time workflow ID and resolved policy; admission-time template, catchup and carryover"
+   },
+   "allowall": {
+@@ -122,10 +122,10 @@
+     "eligibility": "bypass pause, budget debit, catchup and automatic cursor",
+     "dedup": "CHASM WithRequestID; bounded framework count/age; independent of start record retention",
+     "workflow_reuse": "ALLOW_DUPLICATE",
+-    "fairness": "sustained mixed ingress arbitration pending WI-009"
++    "fairness": "WI-009 concrete vacancy lease and operation turn; acceptance pending"
+   },
+   "backfill_range": {
+-    "scope": "WI-009 helper only; coordinator integration pending",
++    "scope": "WI-009 pending-preserving helper used by coordinator draft",
+     "bounds": "inclusive within [2000,2101); actual <= fixed end",
+     "probes_per_peek": 8,
+     "maximum_probes": 1024,
+@@ -133,5 +133,16 @@
+     "pending_candidates": 1,
+     "commit": "DisposeRange and handoff atomic caller obligation",
+     "update": "new revision rebase after disposed nominal, never execution now"
++  },
++  "backfill": {
++    "status": "WI-009 integrated draft; acceptance pending",
++    "active_requests": 4,
++    "pending_per_request": 1,
++    "bounds": "inclusive [2000,2101); jittered actual <= fixed end",
++    "transaction": "one bounded scan of at most8 probes OR one handoff/disposition",
++    "coordinator": "sole owner of automatic/manual/backfill/drain admissions; legacy task handlers stale",
++    "capacity": "one durable concrete vacancy lease; operation contention persists at cap4",
++    "turns": "queue advances on owner transfer/disposition; operation advances on admission; scan rotates separately",
++    "fairness": "conditional on successful fair publication/delivery, adequate recurring capacity and stable definitions; finite model not a cap4 refinement proof"
+   }
+ }
+diff --git a/docs/development/scheduler2/run.py b/docs/development/scheduler2/run.py
+index fe96e0282..88fb6f87a 100644
+--- a/docs/development/scheduler2/run.py
++++ b/docs/development/scheduler2/run.py
+@@ -11,7 +11,7 @@ import time
+ 
+ ROOT = Path(__file__).resolve().parents[3]
+ HERE = Path(__file__).resolve().parent
+-PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model", "manual", "manual-model", "backfill-range")
++PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model", "manual", "manual-model", "backfill-range", "backfill", "backfill-model")
+ 
+ 
+ def git(*args):
+@@ -36,6 +36,8 @@ def main():
+     events = 17 if args.profile == "completion" else (128 if args.profile in ("sequential", "buffer", "allowall", "effects", "manual") or args.exploration else 32)
+     commands = {
+         "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Independent|Task)", "-v"]],
++        "backfill": [common + [package, package + "/internal/decision", "-run", "Test(Coordinator|Backfill)", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
++        "backfill-model": [[sys.executable, str(HERE / "model/backfill/run.py"), "--fizz", args.fizz, "--output", str(output / "model")], [sys.executable, str(HERE / "model/backfill/run_capacity.py"), "--fizz", args.fizz, "--output", str(output / "capacity")]],
+         "backfill-range": [common + [package + "/internal/occurrence", "-run", "TestBackfillRange", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+         "manual": [common + [package, package + "/internal/decision", "-run", "TestManual", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+         "manual-model": [[sys.executable, str(HERE / "model/manual/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],
+diff --git a/docs/development/scheduler2/work-items/WI-009.md b/docs/development/scheduler2/work-items/WI-009.md
+index 3d703b77c..8ee720c41 100644
+--- a/docs/development/scheduler2/work-items/WI-009.md
++++ b/docs/development/scheduler2/work-items/WI-009.md
+@@ -1,6 +1,6 @@
+ # WI-009 — Resumable backfills and fair capacity acquisition
+ 
+-Status: investigating; depends on accepted WI-008. Full M2 remains open.
++Status: implementation and verification in isolated local coordinator worktree; depends on accepted WI-008. Full M2 remains open.
+ 
+ Source-backed direction from independent inspection:
+ 
+@@ -100,3 +100,37 @@ Helper checkpoint ff9ddd706: clean-source backfill-range profile10000 cases pass
+ full occurrence package race and scoped lint pass. Evidence range-checks.json records
+ commands and source hashes. Independent source/test review clear. Coordinator and
+ backfill CHASM integration remain unimplemented; the active goal continues unchanged.
++
++
++## Coordinator integration checkpoint (acceptance pending)
++
++The isolated `sch-redesign-coordinator` branch now implements one root WorkTask
++and bounded active backfill requests. Automatic scan and handoff are separate
++transactions; generation/buffer/effect replay version2 fixtures describe that
++publication boundary. Version1 fixtures are retained as historical evidence.
++Legacy generation/manual/drain tasks decode but cannot admit. Public Apply rejects
++admission events without coordinator ownership. Request metadata, vacancy owner,
++resource turns and next task share CHASM publication.
++
++Independent source review identified two issues: exclusion-only continuation could
++schedule beyond the supported clock, and coordinator-token exhaustion could reject
++after component mutation. The upper clock clamp is restored with regression
++coverage; rejection atomicity is being repaired and tested by closing/reloading
++a rejected call. Mutable CHASM access changes framework transition stamps even
++without semantic writes, so comparisons preserve all data/tasks while excluding
++only those bookkeeping stamps.
++
++The independently authored arbitration/cursor model is now present under
++`model/backfill`; parent rerun passes100/200 action bounds and detects all six
++named mutations, including an actual weak-fair starvation lasso for naive turns.
++Its one-operation-slot abstraction is not a cap4 refinement proof. Composition,
++capacity-contention properties, Go mutation sensitivity and final race/lint/review
++remain acceptance obligations. No WI-009 or M2 completion is claimed.
++
++Public backfill adapter tests cover framework request-ID DATA, changed-body retry,
++empty IDs, rejected-publication ID reuse, cap4 overload before ID attachment and
++retry after a completed range frees a slot. Boundary-invalid requests and sequence
++exhaustion are followed by CloseTransaction/reload to verify no scheduler-state or
++task mutation. These use a mock engine around real Node persistence, not a database
++or routed frontend. Backfill policy disposal still reads the combined Definition
++DATA to validate continuation; metadata-only definition isolation is not claimed.

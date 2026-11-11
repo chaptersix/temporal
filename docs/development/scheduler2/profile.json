@@ -70,13 +70,13 @@
     ],
     "eviction": "oldest Completed only",
     "probes": 8,
-    "outputs": 4,
+    "outputs": 1,
     "continuation_delay_ns": 1000000,
     "continuation_clock_end": "clamped to 2101-01-01 minus1ns",
     "max_catchup_days": 365,
     "max_seed_bytes": 65536,
     "max_request_template_bytes": 65536,
-    "integration": "local pure-task generator; production routing absent"
+    "integration": "local root coordinator; separate scan and handoff publication; production routing absent"
   },
   "buffer": {
     "capacity": 4,
@@ -87,7 +87,7 @@
       "BUFFER_ALL"
     ],
     "overflow": "drop automatic arrival and increment BufferDropped; no debit",
-    "drain": "independent token/deadline; completion arms after generation exhausted",
+    "drain": "shared coordinator; completion reconciles readiness after generation exhausted",
     "snapshot": "queue-time workflow ID and resolved policy; admission-time template, catchup and carryover"
   },
   "allowall": {
@@ -122,10 +122,10 @@
     "eligibility": "bypass pause, budget debit, catchup and automatic cursor",
     "dedup": "CHASM WithRequestID; bounded framework count/age; independent of start record retention",
     "workflow_reuse": "ALLOW_DUPLICATE",
-    "fairness": "sustained mixed ingress arbitration pending WI-009"
+    "fairness": "WI-009 concrete vacancy lease and operation turn; acceptance pending"
   },
   "backfill_range": {
-    "scope": "WI-009 helper only; coordinator integration pending",
+    "scope": "WI-009 pending-preserving helper used by coordinator draft",
     "bounds": "inclusive within [2000,2101); actual <= fixed end",
     "probes_per_peek": 8,
     "maximum_probes": 1024,
@@ -133,5 +133,16 @@
     "pending_candidates": 1,
     "commit": "DisposeRange and handoff atomic caller obligation",
     "update": "new revision rebase after disposed nominal, never execution now"
+  },
+  "backfill": {
+    "status": "WI-009 integrated draft; acceptance pending",
+    "active_requests": 4,
+    "pending_per_request": 1,
+    "bounds": "inclusive [2000,2101); jittered actual <= fixed end",
+    "transaction": "one bounded scan of at most8 probes OR one handoff/disposition",
+    "coordinator": "sole owner of automatic/manual/backfill/drain admissions; legacy task handlers stale",
+    "capacity": "one durable concrete vacancy lease; operation contention persists at cap4",
+    "turns": "queue advances on owner transfer/disposition; operation advances on admission; scan rotates separately",
+    "fairness": "conditional on successful fair publication/delivery, adequate recurring capacity and stable definitions; finite model not a cap4 refinement proof"
   }
 }

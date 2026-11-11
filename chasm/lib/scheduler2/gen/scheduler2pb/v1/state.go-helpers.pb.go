@@ -599,6 +599,117 @@ func (this *ManualTask) Equal(that interface{}) bool {
 	return proto.Equal(this, that1)
 }
 
+// Marshal an object of type CoordinationState to the protobuf v3 wire format
+func (val *CoordinationState) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type CoordinationState from the protobuf v3 wire format
+func (val *CoordinationState) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *CoordinationState) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two CoordinationState values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *CoordinationState) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *CoordinationState
+	switch t := that.(type) {
+	case *CoordinationState:
+		that1 = t
+	case CoordinationState:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type WorkTask to the protobuf v3 wire format
+func (val *WorkTask) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type WorkTask from the protobuf v3 wire format
+func (val *WorkTask) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *WorkTask) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two WorkTask values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *WorkTask) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *WorkTask
+	switch t := that.(type) {
+	case *WorkTask:
+		that1 = t
+	case WorkTask:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type BackfillState to the protobuf v3 wire format
+func (val *BackfillState) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type BackfillState from the protobuf v3 wire format
+func (val *BackfillState) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *BackfillState) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two BackfillState values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *BackfillState) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *BackfillState
+	switch t := that.(type) {
+	case *BackfillState:
+		that1 = t
+	case BackfillState:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
 var (
 	Phase_shorthandValue = map[string]int32{
 		"Unspecified": 0,
@@ -685,4 +796,25 @@ func EffectPhaseFromString(s string) (EffectPhase, error) {
 		return EffectPhase(v), nil
 	}
 	return EffectPhase(0), fmt.Errorf("%s is not a valid EffectPhase", s)
+}
+
+var (
+	WorkClass_shorthandValue = map[string]int32{
+		"Unspecified": 0,
+		"Drain":       1,
+		"Manual":      2,
+		"Backfill":    3,
+		"Automatic":   4,
+	}
+)
+
+// WorkClassFromString parses a WorkClass value from  either the protojson
+// canonical SCREAMING_CASE enum or the traditional temporal PascalCase enum to WorkClass
+func WorkClassFromString(s string) (WorkClass, error) {
+	if v, ok := WorkClass_value[s]; ok {
+		return WorkClass(v), nil
+	} else if v, ok := WorkClass_shorthandValue[s]; ok {
+		return WorkClass(v), nil
+	}
+	return WorkClass(0), fmt.Errorf("%s is not a valid WorkClass", s)
 }

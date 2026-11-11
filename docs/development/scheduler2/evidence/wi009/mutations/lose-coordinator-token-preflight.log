@@ -1,0 +1,28 @@
+=== RUN   TestCoordinatorTokenRejectionBeforeManualMutation
+=== PAUSE TestCoordinatorTokenRejectionBeforeManualMutation
+=== CONT  TestCoordinatorTokenRejectionBeforeManualMutation
+    coordinator_rejection_test.go:64: 
+        	Error Trace:	/private/tmp/sch-redesign-coordinator/common/testing/protorequire/require.go:56
+        	            				/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/coordinator_rejection_test.go:52
+        	            				/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/coordinator_rejection_test.go:64
+        	Error:      	Proto mismatch (-want +got):
+        	            	  (*persistence.ChasmNode)(Inverse(protocmp.Transform, protocmp.Message{
+        	            	  	"@type": s"temporal.server.api.persistence.v1.ChasmNode",
+        	            	  	"data": protocmp.Message{
+        	            	  		"@type": s"temporal.api.common.v1.DataBlob",
+        	            	  		"data": []uint8{
+        	            	  			0x0a, 0x0b, 0x69, 0x6e, 0x63, 0x61, 0x72, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x10, 0x01, 0x18, //  |..incarnation...|
+        	            	  			0x80, 0xec, 0xa8, 0xae, 0xec, 0x82, 0x84, 0xd3, 0x17, 0x28, 0x01, 0x30, 0x01, 0x58, 0x01,       //  |.........(.0.X.|
+        	            	+ 			0xc0, 0x01, 0x01, 0xca, 0x01, 0x0c, 0x08, 0x01, 0x10, 0x80, 0x80, 0x94, 0x8b, 0xf0, 0x82, 0x84, // +|................|
+        	            	+ 			0xd3, 0x17,                                                                                     // +|..|
+        	            	  			0xea, 0x01, 0x0b, 0x08, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01,             //  |..............|
+        	            	  		},
+        	            	  		"encoding_type": s"ENCODING_TYPE_PROTO3",
+        	            	  	},
+        	            	  	"metadata": protocmp.Message{"@type": s"temporal.server.api.persistence.v1.ChasmNodeMetadata", "component_attributes": protocmp.Message{"@type": s"temporal.server.api.persistence.v1.ChasmComponentAttributes", "type_id": uint32(3600483531)}, "initial_versioned_transition": protocmp.Message{"@type": s"temporal.server.api.persistence.v1.VersionedTransition", "namespace_failover_version": int64(1), "transition_count": int64(2)}},
+        	            	  }))
+        	Test:       	TestCoordinatorTokenRejectionBeforeManualMutation
+--- FAIL: TestCoordinatorTokenRejectionBeforeManualMutation (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.676s
+FAIL

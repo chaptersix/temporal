@@ -1,0 +1,38 @@
+Model checking /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/allow_over_capacity/capacity.json
+configFileName: /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/allow_over_capacity/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 34, queued: 204, elapsed: 5.117458ms
+Time taken for model checking: 5.1375ms
+Writen graph dotfile: /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/allow_over_capacity/graph/graph.dot
+To generate svg, run: 
+dot -Tsvg /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/allow_over_capacity/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  ConcreteOperationCapacity
+------
+Init
+--
+state: {}
+------
+Any:manual_policy="buffer"
+--
+state: {}
+------
+Any:backfill_policy="buffer"
+--
+state: {}
+------
+Any:automatic_mode="allow"
+--
+state: {"allows":3,"auto_identity":0,"automatic_mode":"allow","backfill":0,"backfill_policy":"buffer","completed":[],"lease":-1,"lease_candidate":-1,"manual_identity":0,"manual_policy":"buffer","operation_turn":0,"queue":4,"queue_turn":0,"resumed_after_op_full":false,"retained_during_op_full":false,"tracked":true}
+------
+DirectAutomaticAllow
+--
+state: {"allows":4,"auto_identity":0,"automatic_mode":"allow","backfill":0,"backfill_policy":"buffer","completed":[],"lease":-1,"lease_candidate":-1,"manual_identity":0,"manual_policy":"buffer","operation_turn":0,"queue":4,"queue_turn":0,"resumed_after_op_full":false,"retained_during_op_full":false,"tracked":true}
+------
+Writen graph json: /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/allow_over_capacity/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/allow_over_capacity/graph/error-graph.dot
+To generate an image file, run: 
+dot -Tsvg /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/allow_over_capacity/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/allow_over_capacity/graph/error-states.html
+To open: 
+open /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/allow_over_capacity/graph/error-states.html

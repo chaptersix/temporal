@@ -1,0 +1,7 @@
+capacity-100 passed=True detected=False
+capacity-200 passed=True detected=False
+naive_rr passed=False detected=False
+unreserved_vacancy passed=False detected=False
+rotate_pinned_backfill passed=False detected=False
+allow_over_capacity passed=False detected=False
+Required baseline or named mutation detection missing; inspect run.log

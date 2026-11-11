@@ -1,0 +1,17 @@
+digraph G {
+    "0" [label="Init
+Actions: 0, Forks: 0
+
+Threads: 0/1
+", color="black" penwidth="1" ];
+    "1" [label="yield
+Actions: 0, Forks: 1
+State: {\"blocked\":true,\"disposed_through\":9,\"dispositions\":[],\"done\":false,\"end\":25,\"endpoint\":[],\"expected_disposed\":9,\"failed_candidate\":[],\"pending\":[],\"published\":[],\"published_after_failure\":false,\"rebased_after_pending\":false,\"revision\":0,\"search_after\":9,\"source\":[10,20,30],\"start\":10,\"updated\":false}
+", color="black" penwidth="2" ];
+    "0" -> "1" [label="1: Any:end=25", color="forestgreen" penwidth="3"];
+    "2" [label="yield
+Actions: 1, Forks: 2
+State: {\"blocked\":true,\"disposed_through\":10,\"dispositions\":[],\"done\":false,\"end\":25,\"endpoint\":[],\"expected_disposed\":9,\"failed_candidate\":[],\"pending\":[10,15,0],\"published\":[],\"published_after_failure\":false,\"rebased_after_pending\":false,\"revision\":0,\"search_after\":10,\"source\":[10,20,30],\"start\":10,\"updated\":false}
+", color="red" penwidth="2" ];
+    "1" -> "2" [label="2: Peek", color="black" penwidth="1"];
+}

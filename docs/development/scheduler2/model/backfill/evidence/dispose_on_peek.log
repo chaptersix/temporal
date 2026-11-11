@@ -1,0 +1,30 @@
+Model checking /private/tmp/scheduler2-backfill-model-leases/dispose_on_peek/cursor.json
+configFileName: /private/tmp/scheduler2-backfill-model-leases/dispose_on_peek/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 4, queued: 11, elapsed: 856.5µs
+Time taken for model checking: 863.417µs
+Writen graph dotfile: /private/tmp/scheduler2-backfill-model-leases/dispose_on_peek/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-backfill-model-leases/dispose_on_peek/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  DispositionRequiresCommit
+------
+Init
+--
+state: {}
+------
+Any:end=25
+--
+state: {"blocked":true,"disposed_through":9,"dispositions":[],"done":false,"end":25,"endpoint":[],"expected_disposed":9,"failed_candidate":[],"pending":[],"published":[],"published_after_failure":false,"rebased_after_pending":false,"revision":0,"search_after":9,"source":[10,20,30],"start":10,"updated":false}
+------
+Peek
+--
+state: {"blocked":true,"disposed_through":10,"dispositions":[],"done":false,"end":25,"endpoint":[],"expected_disposed":9,"failed_candidate":[],"pending":[10,15,0],"published":[],"published_after_failure":false,"rebased_after_pending":false,"revision":0,"search_after":10,"source":[10,20,30],"start":10,"updated":false}
+------
+Writen graph json: /private/tmp/scheduler2-backfill-model-leases/dispose_on_peek/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-backfill-model-leases/dispose_on_peek/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-backfill-model-leases/dispose_on_peek/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-backfill-model-leases/dispose_on_peek/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-backfill-model-leases/dispose_on_peek/graph/error-states.html

@@ -11,7 +11,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
-PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model", "manual", "manual-model", "backfill-range")
+PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model", "manual", "manual-model", "backfill-range", "backfill", "backfill-model")
 
 
 def git(*args):
@@ -36,6 +36,8 @@ def main():
     events = 17 if args.profile == "completion" else (128 if args.profile in ("sequential", "buffer", "allowall", "effects", "manual") or args.exploration else 32)
     commands = {
         "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Independent|Task)", "-v"]],
+        "backfill": [common + [package, package + "/internal/decision", "-run", "Test(Coordinator|Backfill)", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+        "backfill-model": [[sys.executable, str(HERE / "model/backfill/run.py"), "--fizz", args.fizz, "--output", str(output / "model")], [sys.executable, str(HERE / "model/backfill/run_capacity.py"), "--fizz", args.fizz, "--output", str(output / "capacity")]],
         "backfill-range": [common + [package + "/internal/occurrence", "-run", "TestBackfillRange", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
         "manual": [common + [package, package + "/internal/decision", "-run", "TestManual", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
         "manual-model": [[sys.executable, str(HERE / "model/manual/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],

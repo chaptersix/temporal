@@ -33,6 +33,7 @@ type effectsTrace struct {
 	Steps       []effectsTraceStep `json:"steps"`
 }
 type effectsTraceStep struct {
+	Quanta     int    `json:"quanta"`
 	Kind       string `json:"kind"`
 	Now        int64  `json:"now"`
 	Publish    bool   `json:"publish"`
@@ -51,13 +52,13 @@ type effectsTraceStep struct {
 
 func TestEffectsSavedReplay(t *testing.T) {
 	t.Parallel()
-	data, err := os.ReadFile("testdata/effects_v1.json")
+	data, err := os.ReadFile("testdata/effects_v2.json")
 	require.NoError(t, err)
 	var trace effectsTrace
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	require.NoError(t, decoder.Decode(&trace))
-	require.Equal(t, 1, trace.Version)
+	require.Equal(t, 2, trace.Version)
 	require.Equal(t, "execution_nanoseconds", trace.ClockDomain)
 	require.Equal(t, "incarnation", trace.Incarnation)
 	at := func(second int64) int64 { return trace.Base.Add(time.Duration(second) * time.Second).UnixNano() }
@@ -83,7 +84,10 @@ func TestEffectsSavedReplay(t *testing.T) {
 			event := decision.Event{Incarnation: trace.Incarnation, OperationID: id(0), ChainID: trace.Chain, EffectID: id(0) + "/cancel"}
 			switch step.Kind {
 			case "generate", "drain":
-				fireGeneration(h, step.Publish)
+				require.True(t, step.Quanta <= 1 || step.Publish, "multi-quantum replay steps require individual publication")
+				for range max(step.Quanta, 1) {
+					fireGeneration(h, step.Publish)
+				}
 			case "restart":
 				h.reload()
 			case "ack":

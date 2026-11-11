@@ -1,0 +1,11 @@
+=== RUN   TestBackfillPublicDedupAndPublication
+=== PAUSE TestBackfillPublicDedupAndPublication
+=== CONT  TestBackfillPublicDedupAndPublication
+    backfill_request_test.go:52: 
+        	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/backfill_request_test.go:52
+        	Error:      	An error is expected but got nil.
+        	Test:       	TestBackfillPublicDedupAndPublication
+--- FAIL: TestBackfillPublicDedupAndPublication (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.659s
+FAIL

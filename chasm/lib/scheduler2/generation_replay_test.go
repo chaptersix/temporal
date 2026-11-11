@@ -42,6 +42,9 @@ type generationTraceStep struct {
 	Operations       int               `json:"operations"`
 	StartTasks       int               `json:"start_tasks"`
 	Timers           int               `json:"timers"`
+	GeneratorToken   uint64            `json:"generator_token"`
+	PendingNominal   *time.Time        `json:"pending_nominal"`
+	Armed            bool              `json:"armed"`
 	Token            uint64            `json:"token"`
 	Status           string            `json:"status"`
 	Wake             time.Time         `json:"wake"`
@@ -54,16 +57,16 @@ type generationTraceStep struct {
 // observations through real persisted pure tasks, without a property generator.
 func TestGenerationSavedReplay(t *testing.T) {
 	t.Parallel()
-	data, err := os.ReadFile("testdata/generation_v1.json")
+	data, err := os.ReadFile("testdata/generation_v2.json")
 	require.NoError(t, err)
 	var trace generationTrace
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	require.NoError(t, decoder.Decode(&trace))
-	require.Equal(t, 1, trace.Version)
+	require.Equal(t, 2, trace.Version)
 	require.Equal(t, "execution_nanoseconds", trace.ClockDomain)
 	require.Equal(t, "incarnation", trace.Incarnation)
-	statuses := map[string]scheduler2pb.EnumerationStatus{"active": scheduler2pb.ENUMERATION_STATUS_ACTIVE, "limited": scheduler2pb.ENUMERATION_STATUS_LIMITED, "waiting": scheduler2pb.ENUMERATION_STATUS_WAITING}
+	statuses := map[string]scheduler2pb.EnumerationStatus{"active": scheduler2pb.ENUMERATION_STATUS_ACTIVE, "exhausted": scheduler2pb.ENUMERATION_STATUS_EXHAUSTED, "waiting": scheduler2pb.ENUMERATION_STATUS_WAITING}
 	var previous []*scheduler2pb.GeneratorState
 	for replay := 0; replay < 2; replay++ {
 		h := newTreeHarness(t)
@@ -81,7 +84,11 @@ func TestGenerationSavedReplay(t *testing.T) {
 		var observed []*scheduler2pb.GeneratorState
 		for _, step := range trace.Steps {
 			switch step.Kind {
-			case "generate":
+			case "scan":
+				require.Nil(t, generationState(h).Continuation.Pending)
+				fireGeneration(h, step.Publish)
+			case "handoff":
+				require.NotNil(t, generationState(h).Continuation.Pending)
 				fireGeneration(h, step.Publish)
 			case "restart":
 				h.reload()
@@ -103,9 +110,18 @@ func TestGenerationSavedReplay(t *testing.T) {
 			require.Len(t, s.Operations, step.Operations)
 			require.Equal(t, step.StartTasks, logicalCount(h.durable))
 			require.Equal(t, step.Timers, pureObligations(h))
-			require.Equal(t, step.Token, g.Token)
+			c := coordinationState(h)
+			require.Equal(t, step.Token, c.Token)
+			require.Equal(t, step.GeneratorToken, g.Token)
+			require.Equal(t, step.Armed, c.Armed)
+			if step.PendingNominal == nil {
+				require.Nil(t, g.Continuation.Pending)
+			} else {
+				require.NotNil(t, g.Continuation.Pending)
+				require.Equal(t, step.PendingNominal.UnixNano(), g.Continuation.Pending.Nominal)
+			}
 			require.Equal(t, status, g.LastStatus)
-			require.Equal(t, step.Wake.UnixNano(), g.WakeAt)
+			require.Equal(t, step.Wake.UnixNano(), c.At)
 			if step.WorkflowID != "" {
 				issued := h.request()
 				require.Equal(t, step.WorkflowID, issued.WorkflowId)

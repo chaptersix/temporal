@@ -1,0 +1,245 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 12.697792ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (files|imports|name|types_sizes|compiled_files|deps|exports_file) took 1.376481584s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 4.663958ms"
+level=info msg="[linters_context/goanalysis] analyzers took 2.517464892s with top 10 stages: goimports: 928.518791ms, revive: 920.225749ms, buildir: 78.211063ms, forbidigo: 63.735751ms, gci: 58.94125ms, typeindex: 43.480807ms, exhaustive: 41.428552ms, SA4000: 36.324833ms, S1038: 35.403418ms, S1040: 34.434ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 15 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 18 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 59 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner] Issues before processing: 105, after processing: 10"
+level=info msg="[runner] Processors filtering stat (in/out): max_from_linter: 10/10, path_absoluter: 105/105, cgo: 105/105, exclusion_rules: 104/12, diff: 12/12, fixer: 12/12, max_per_file_from_linter: 10/10, severity-rules: 10/10, path_prettifier: 10/10, filename_unadjuster: 105/105, invalid_issue: 105/105, exclusion_paths: 105/105, generated_file_filter: 105/104, path_shortener: 10/10, sort_results: 10/10, nolint_filter: 12/12, max_same_issues: 10/10, source_code: 10/10, path_relativity: 105/105, uniq_by_line: 12/10"
+level=info msg="[runner] processing took 71.577083ms with stages: diff: 69.352749ms, nolint_filter: 925.125µs, generated_file_filter: 673.541µs, exclusion_rules: 305.875µs, source_code: 174.542µs, path_relativity: 66.917µs, exclusion_paths: 59.583µs, cgo: 4.709µs, uniq_by_line: 3.542µs, invalid_issue: 2.291µs, max_per_file_from_linter: 2µs, sort_results: 1.999µs, path_shortener: 1.709µs, max_same_issues: 958ns, path_absoluter: 417ns, filename_unadjuster: 417ns, fixer: 334ns, path_prettifier: 208ns, max_from_linter: 84ns, severity-rules: 83ns"
+level=info msg="[runner] linters took 1.780714083s with stages: goanalysis_metalinter: 1.709079584s"
+../chasm/lib/scheduler2/backfill.go:54:10: unchecked-type-assertion: type cast result is unchecked in proto.Clone(previous).(*scheduler2pb.RootState) - type assertion will panic if not matched (revive)
+	next := proto.Clone(previous).(*scheduler2pb.RootState)
+	        ^
+../chasm/lib/scheduler2/buffer.go:13:1: ST1020: comment on exported method Validate should be of the form "Validate ..." (staticcheck)
+// Legacy drain tasks cannot consume operation slots outside arbitration.
+^
+../chasm/lib/scheduler2/component.go:81:2: missing cases in switch of type decision.Kind: decision.Update, decision.Acknowledged, decision.RetryableFailure, decision.Complete, decision.Expire, decision.Callback, decision.EffectSucceeded, decision.EffectNotFound, decision.EffectFailed, decision.EffectExpired, decision.AcceptManual (exhaustive)
+	switch event.Kind {
+	^
+../chasm/lib/scheduler2/component.go:92:1: cognitive-complexity: function (*Scheduler).applyTransition has cognitive complexity 36 (> max enabled 25) (revive)
+func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Event) error {
+	if event.Incarnation != s.Incarnation {
+		return nil
+	}
+	event.Now = ctx.Now(s).UnixNano()
+	operationID := event.OperationID
+	if event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.Update || event.Kind == decision.DispatchManual || event.Kind == decision.DispatchBackfill {
+		operationID = s.OperationId
+	}
+	before := s.stateFor(ctx, operationID)
+	if err := s.prepareManual(ctx, before, &event); err != nil {
+		return err
+	}
+	if err := s.prepareDrain(ctx, before, &event); err != nil {
+		return err
+	}
+	if err := s.prepareCompletion(before, &event); err != nil {
+		return err
+	}
+	if event.Kind == decision.Callback && event.Outcome == decision.Failure && event.Incarnation == s.Incarnation && before.Operation != nil && before.Operation.ID == event.OperationID && !decision.Terminal(before.Operation.Phase) && before.Operation.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && s.CarryoverSet {
+		c := s.Carryover.Get(ctx)
+		before.Carryover = &decision.Carryover{Result: c.Result, Failure: c.Failure, FailurePresent: c.FailurePresent}
+	}
+
+	next, err := decision.Step(before, event)
+	if err != nil {
+		return err
+	}
+	next, effectRequests, err := s.prepareEffects(ctx, next)
+	if err != nil {
+		return err
+	}
+	newAdmission := (event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.DispatchManual || event.Kind == decision.DispatchBackfill) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID)
+	if newAdmission {
+		if err := s.freezeAdmission(ctx, next.Operation); err != nil {
+			return err
+		}
+	}
+	if len(next.Queue) > 0 && !s.HasGenerator {
+		return serviceerror.NewFailedPrecondition("buffering requires a configured template")
+	}
+	eviction, err := s.retentionEviction(ctx, before, next)
+	if err != nil {
+		return err
+	}
+	if eviction != "" {
+		delete(s.Operations, eviction)
+		delete(s.Requests, eviction)
+	}
+	pendingStarts := maps.Clone(s.PendingStarts)
+	if pendingStarts == nil {
+		pendingStarts = make(map[string]int64)
+	}
+	delete(pendingStarts, eviction)
+	if next.Operation != nil {
+		if wake, pending := decision.Wake(next); pending {
+			pendingStarts[next.Operation.ID] = wake
+		} else {
+			delete(pendingStarts, next.Operation.ID)
+		}
+	}
+	hasGenerator, latestOperationID := s.HasGenerator, s.OperationId
+	drainToken, drainArmed, drainAt := s.DrainToken, s.DrainArmed, s.DrainAt
+	manualToken, manualArmed, manualAt := s.ManualToken, s.ManualArmed, s.ManualAt
+	if event.Kind == decision.DispatchManual {
+		manualArmed = false
+	}
+	previousRoot := s.RootState
+	s.RootState = &scheduler2pb.RootState{
+		Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
+		ManualSequence: next.Root.ManualSequence, ManualToken: manualToken, ManualArmed: manualArmed, ManualAt: manualAt,
+		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
+		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
+		DrainToken: drainToken, DrainArmed: drainArmed, DrainAt: drainAt, Policy: next.Root.Policy, BufferDropped: next.Root.BufferDropped,
+		Unfinished: next.Root.Unfinished, BlockingOperationId: next.Root.BlockingOperationID, CapacityDropped: next.Root.CapacityDropped, OverlapSuperseded: next.Root.OverlapSuperseded,
+		PendingStarts: pendingStarts, OperationId: latestOperationID, HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
+	}
+	for _, m := range next.Manuals {
+		s.Manuals = append(s.Manuals, &scheduler2pb.ManualCommand{Id: m.ID, Nominal: m.Nominal, Policy: m.Policy})
+	}
+	for _, q := range next.Queue {
+		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy, ManualId: q.ManualID, BackfillId: q.BackfillID})
+	}
+	if next.Carryover != nil {
+		s.Carryover = chasm.NewDataField(ctx, &scheduler2pb.CarryoverState{Result: bytes.Clone(next.Carryover.Result), Failure: bytes.Clone(next.Carryover.Failure), FailurePresent: next.Carryover.FailurePresent})
+	}
+	if op := next.Operation; op != nil {
+		if newAdmission {
+			s.OperationId = op.ID
+		}
+		metadata := &scheduler2pb.OperationState{
+			OccurrenceId: op.OccurrenceID, ActionId: op.ActionID, Id: op.ID, ChainId: op.ChainID,
+			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy, ManualId: op.ManualID, BackfillId: op.BackfillID,
+		}
+		s.Operations[op.ID] = chasm.NewDataField(ctx, metadata)
+		if newAdmission {
+			s.Requests[op.ID] = chasm.NewDataField(ctx, &scheduler2pb.Payload{Data: bytes.Clone(op.Request)})
+		}
+	}
+	oldWake, hadWake := decision.Wake(before)
+	wake, hasWake := decision.Wake(next)
+	if hasWake && (!hadWake || before.Operation.ID != next.Operation.ID || oldWake != wake) {
+		ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, wake)},
+			&scheduler2pb.StartTask{OperationId: next.Operation.ID})
+	}
+	s.publishEffects(ctx, before, next, effectRequests)
+
+	return nil
+}
+../chasm/lib/scheduler2/coordinator.go:41:1: cognitive-complexity: function (*Scheduler).demands has cognitive complexity 32 (> max enabled 25) (revive)
+func (s *Scheduler) demands(ctx chasm.Context) ([]workDemand, time.Time) {
+	var demands []workDemand
+	var future time.Time
+	now := ctx.Now(s)
+	if !s.HasGenerator {
+		return nil, future
+	}
+	g := s.Generator.Get(ctx)
+	state := s.stateFor(ctx, "")
+	if decision.NeedsDrain(state) {
+		demands = append(demands, workDemand{class: scheduler2pb.WORK_CLASS_DRAIN, key: "drain", operation: decision.DrainIndex(state, now.UnixNano(), g.CatchupWindow) >= 0})
+	}
+	if len(s.Manuals) > 0 {
+		m := s.Manuals[0]
+		demands = append(demands, workDemand{class: scheduler2pb.WORK_CLASS_MANUAL, key: fmt.Sprintf("manual/%d", m.Id), vacancy: true, operation: s.directAdmission(resolvedPolicy(m.Policy, s.Policy))})
+	}
+	if b := s.selectedBackfill(); b != nil {
+		scan := backfillNeedsScan(g, b)
+		key := fmt.Sprintf("backfill/%d", b.Id)
+		if !scan {
+			key = fmt.Sprintf("backfill/%d/%d", b.Id, b.Continuation.Pending.Nominal)
+		}
+		demands = append(demands, workDemand{class: scheduler2pb.WORK_CLASS_BACKFILL, key: key, scan: scan, vacancy: !scan, operation: !scan && s.directAdmission(resolvedPolicy(b.Policy, s.Policy))})
+	}
+	if g.Armed {
+		at := time.Unix(0, g.WakeAt)
+		if at.After(now) {
+			future = at
+		} else {
+			pending := g.Continuation.Pending
+			d := workDemand{class: scheduler2pb.WORK_CLASS_AUTOMATIC, key: "scan", scan: pending == nil || pending.Excluded}
+			if !d.scan {
+				d.key = fmt.Sprintf("automatic/%d/%d", pending.Revision, pending.Nominal)
+				if pending.Actual > now.UnixNano() {
+					return demands, time.Unix(0, pending.Actual)
+				}
+				eligible := !s.Paused && (!s.Limited || s.Remaining > 0) && (now.UnixNano() <= pending.Actual || now.UnixNano()-pending.Actual <= g.CatchupWindow)
+				if eligible {
+					if s.directAdmission(resolvedPolicy(s.Policy, s.Policy)) {
+						d.operation = s.Unfinished < 4
+					} else {
+						p := resolvedPolicy(s.Policy, s.Policy)
+						d.vacancy = len(s.Queue) < 4 && p != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (p != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || len(s.Queue) == 0)
+					}
+				}
+			}
+			demands = append(demands, d)
+		}
+	}
+	return demands, future
+}
+../chasm/lib/scheduler2/coordinator.go:107:7: unchecked-type-assertion: type cast result is unchecked in proto.Clone(s.Coordination).(*scheduler2pb.CoordinationState) - type assertion will panic if not matched (revive)
+		c = proto.Clone(s.Coordination).(*scheduler2pb.CoordinationState)
+		    ^
+../chasm/lib/scheduler2/coordinator.go:151:2: epoch-naming: var at should have one of these suffixes: Nano, Ns (revive)
+	at := wake.UnixNano()
+	^
+../chasm/lib/scheduler2/coordinator.go:197:2: enforce-switch-style: switch must have a default case clause (revive)
+	switch d.class {
+	case scheduler2pb.WORK_CLASS_DRAIN:
+		err = s.applyTransition(ctx, decision.Event{Kind: decision.Drain, Incarnation: s.Incarnation})
+	case scheduler2pb.WORK_CLASS_MANUAL:
+		err = s.applyTransition(ctx, decision.Event{Kind: decision.DispatchManual, Incarnation: s.Incarnation})
+	case scheduler2pb.WORK_CLASS_BACKFILL:
+		if d.scan {
+			err = s.scanBackfill(ctx)
+		} else {
+			err = s.transferBackfill(ctx)
+		}
+	case scheduler2pb.WORK_CLASS_AUTOMATIC:
+		if d.scan {
+			err = s.scanAutomatic(ctx)
+		} else {
+			err = s.transferAutomatic(ctx)
+		}
+	}
+../chasm/lib/scheduler2/generator.go:109:1: ST1020: comment on exported method Validate should be of the form "Validate ..." (staticcheck)
+// Legacy generation tasks are intentionally invalid after coordinator adoption.
+^
+../chasm/lib/scheduler2/manual.go:67:1: ST1020: comment on exported method Validate should be of the form "Validate ..." (staticcheck)
+// Legacy manual tasks cannot bypass the coordinator's resource ownership.
+^
+10 issues:
+* exhaustive: 1
+* revive: 6
+* staticcheck: 3
+level=info msg="File cache stats: 6 entries of total size 38.8KiB"
+level=info msg="Memory: 34 samples, avg is 344.4MB, max is 859.7MB"
+level=info msg="Execution took 3.205032625s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

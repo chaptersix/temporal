@@ -94,7 +94,13 @@ func (h *treeHarness) root(mutable bool) (*Scheduler, chasm.Context) {
 func (h *treeHarness) apply(event decision.Event, publish bool) chasm.NodesMutation {
 	h.t.Helper()
 	s, ctx := h.root(true)
-	require.NoError(h.t, s.Apply(ctx.(chasm.MutableContext), event))
+	if event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.DispatchManual || event.Kind == decision.DispatchBackfill {
+		// Transition harness supplies an explicit grant; coordinator tests exercise arbitration.
+		require.NoError(h.t, s.applyTransition(ctx.(chasm.MutableContext), event))
+		require.NoError(h.t, s.reconcileWork(ctx.(chasm.MutableContext)))
+	} else {
+		require.NoError(h.t, s.Apply(ctx.(chasm.MutableContext), event))
+	}
 	return h.commit(publish)
 }
 func (h *treeHarness) commit(publish bool) chasm.NodesMutation {

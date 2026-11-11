@@ -79,12 +79,9 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 	if g != nil && g.Token == math.MaxUint64 {
 		return serviceerror.NewFailedPrecondition("generation token exhausted")
 	}
-	if !s.DrainArmed && s.DrainToken == math.MaxUint64 && decision.CanDrain(s.state(ctx), now.UnixNano(), int64(config.CatchupWindow)) {
-		return serviceerror.NewFailedPrecondition("drain token exhausted")
-	}
-	manualState := s.state(ctx)
-	manualState.Root.Policy = config.Policy
-	if err := s.checkManualToken(manualState, false); err != nil {
+	// Configuration arms an immediate scan even for an empty source. Preflight
+	// its coordinator wake before replacing any root, generator or DATA fields.
+	if err := checkWorkWakeToken(s.Coordination, now); err != nil {
 		return err
 	}
 	if g == nil {
@@ -101,74 +98,24 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 	s.Policy = config.Policy
 	s.Cursor = max(s.Cursor, state.DisposedThrough.UnixNano())
 	g.arm(ctx, now)
-	s.reconcileDrain(ctx, s.state(ctx))
-	s.reconcileManual(ctx, s.state(ctx))
-	return nil
+	return s.reconcileWork(ctx)
 }
 
 func (g *Generator) arm(ctx chasm.MutableContext, at time.Time) {
 	g.Token++
 	g.Armed = true
 	g.WakeAt = at.UnixNano()
-	ctx.AddTask(g, chasm.TaskAttributes{ScheduledTime: at}, &scheduler2pb.GenerateTask{Token: g.Token})
+
 }
 
 // GenerateHandler runs bounded local enumeration under the execution write lock.
 type GenerateHandler struct{ chasm.PureTaskHandlerBase }
 
-func (*GenerateHandler) Validate(_ chasm.Context, g *Generator, attrs chasm.TaskInvocation, task *scheduler2pb.GenerateTask) (bool, error) {
-	return g.Armed && g.Token == task.Token && g.WakeAt == attrs.ScheduledTime.UnixNano(), nil
+// Validate rejects legacy generation tasks after coordinator adoption.
+func (*GenerateHandler) Validate(chasm.Context, *Generator, chasm.TaskInvocation, *scheduler2pb.GenerateTask) (bool, error) {
+	return false, nil
 }
-
-func (*GenerateHandler) Execute(ctx chasm.MutableContext, g *Generator, attrs chasm.TaskAttributes, task *scheduler2pb.GenerateTask) error {
-	if !g.Armed || g.Token != task.Token || g.WakeAt != attrs.ScheduledTime.UnixNano() {
-		return nil
-	}
-	now := ctx.Now(g)
-	if now.Before(time.Unix(0, g.WakeAt)) {
-		return serviceerror.NewUnavailable("generation is not due")
-	}
-	if g.Token == math.MaxUint64 {
-		return serviceerror.NewFailedPrecondition("generation token exhausted")
-	}
-	definition := g.Definition.Get(ctx)
-	spec := &schedulepb.ScheduleSpec{}
-	if err := proto.Unmarshal(definition.Spec, spec); err != nil {
-		return err
-	}
-	e, err := occurrence.New(spec, definition.Seed, g.Continuation.Revision)
-	if err != nil {
-		return err
-	}
-	result, err := e.Run(decodeContinuation(g.Continuation), now, occurrence.Limits{Probes: 8, Outputs: 4})
-	if err != nil {
-		return err
-	}
-	s := g.Scheduler.Get(ctx)
-	for _, candidate := range result.Occurrences {
-		if err := s.admitGenerated(ctx, definition.Request, candidate, time.Duration(g.CatchupWindow)); err != nil {
-			return err
-		}
-	}
-	s.Cursor = max(s.Cursor, result.State.DisposedThrough.UnixNano())
-	g.Continuation = encodeContinuation(result.State)
-	g.LastStatus = scheduler2pb.EnumerationStatus(result.Status + 1)
-	g.Armed = false
-	switch result.Status {
-	case occurrence.Waiting:
-		g.arm(ctx, result.State.Pending.Actual)
-	case occurrence.Yield, occurrence.Limited:
-		wake := now.Add(time.Millisecond)
-		end := time.Date(2101, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond)
-		if wake.After(end) {
-			wake = end
-		}
-		g.arm(ctx, wake)
-	case occurrence.Empty, occurrence.Impossible, occurrence.Exhausted:
-		g.Token++
-	default:
-		return serviceerror.NewInternal("unexpected enumeration status")
-	}
+func (*GenerateHandler) Execute(chasm.MutableContext, *Generator, chasm.TaskAttributes, *scheduler2pb.GenerateTask) error {
 	return nil
 }
 
@@ -182,7 +129,7 @@ func (s *Scheduler) admitGenerated(ctx chasm.MutableContext, template []byte, ca
 	if err != nil {
 		return err
 	}
-	return s.Apply(ctx, decision.Event{Kind: decision.Due, Incarnation: s.Incarnation, Nominal: candidate.Nominal.UnixNano(), Actual: candidate.Actual.UnixNano(), WorkflowID: request.WorkflowId, CatchupDeadline: candidate.Actual.Add(catchup).UnixNano(), Request: encoded})
+	return s.applyTransition(ctx, decision.Event{Kind: decision.Due, Incarnation: s.Incarnation, Nominal: candidate.Nominal.UnixNano(), Actual: candidate.Actual.UnixNano(), WorkflowID: request.WorkflowId, CatchupDeadline: candidate.Actual.Add(catchup).UnixNano(), Request: encoded})
 }
 
 func encodeCandidate(c *occurrence.Candidate) *scheduler2pb.OccurrenceCandidate {

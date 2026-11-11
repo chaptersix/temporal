@@ -3,7 +3,6 @@ package scheduler2
 import (
 	"context"
 	"errors"
-	"math"
 	"time"
 
 	schedulepb "go.temporal.io/api/schedule/v1"
@@ -62,39 +61,13 @@ func (s *Scheduler) prepareManual(ctx chasm.Context, state decision.State, event
 	return nil
 }
 
-func (s *Scheduler) reconcileManual(ctx chasm.MutableContext, state decision.State) {
-	if !decision.CanDispatchManual(state) {
-		s.ManualArmed = false
-		return
-	}
-	if s.ManualArmed {
-		return
-	}
-	s.ManualToken++
-	s.ManualArmed = true
-	s.ManualAt = ctx.Now(s).UnixNano()
-	ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, s.ManualAt)}, &scheduler2pb.ManualTask{Token: s.ManualToken})
-}
-
 // ManualHandler transfers at most one accepted command per transaction.
 type ManualHandler struct{ chasm.PureTaskHandlerBase }
 
-func (*ManualHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.ManualTask) (bool, error) {
-	return s.ManualArmed && s.ManualToken == task.Token && s.ManualAt == attrs.ScheduledTime.UnixNano(), nil
+// Validate rejects legacy manual tasks that bypass coordinator arbitration.
+func (*ManualHandler) Validate(chasm.Context, *Scheduler, chasm.TaskInvocation, *scheduler2pb.ManualTask) (bool, error) {
+	return false, nil
 }
-func (*ManualHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.TaskAttributes, task *scheduler2pb.ManualTask) error {
-	if !s.ManualArmed || s.ManualToken != task.Token || s.ManualAt != attrs.ScheduledTime.UnixNano() {
-		return nil
-	}
-	if ctx.Now(s).Before(time.Unix(0, s.ManualAt)) {
-		return serviceerror.NewUnavailable("manual trigger transfer is not due")
-	}
-	return s.Apply(ctx, decision.Event{Kind: decision.DispatchManual, Incarnation: s.Incarnation})
-}
-
-func (s *Scheduler) checkManualToken(state decision.State, consuming bool) error {
-	if decision.CanDispatchManual(state) && (!s.ManualArmed || consuming) && s.ManualToken == math.MaxUint64 {
-		return serviceerror.NewFailedPrecondition("manual trigger token exhausted")
-	}
+func (*ManualHandler) Execute(chasm.MutableContext, *Scheduler, chasm.TaskAttributes, *scheduler2pb.ManualTask) error {
 	return nil
 }

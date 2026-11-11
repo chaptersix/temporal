@@ -1,0 +1,56 @@
+Model checking /private/tmp/scheduler2-wi009-final/model-final/capacity/rotate_pinned_backfill/capacity.json
+configFileName: /private/tmp/scheduler2-wi009-final/model-final/capacity/rotate_pinned_backfill/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 662, queued: 2268, elapsed: 191.843791ms
+Time taken for model checking: 191.875292ms
+Skipping dotfile generation. Too many Nodes: 662
+FAILED: Model checker failed. Invariant:  PinnedCandidate
+------
+Init
+--
+state: {}
+------
+Any:manual_policy="skip"
+--
+state: {}
+------
+Any:backfill_policy="buffer"
+--
+state: {}
+------
+Any:automatic_mode="queued"
+--
+state: {"allows":3,"auto_identity":0,"automatic_mode":"queued","backfill":0,"backfill_policy":"buffer","completed":[],"lease":-1,"lease_candidate":-1,"manual_identity":0,"manual_policy":"skip","operation_turn":0,"queue":4,"queue_turn":0,"resumed_after_op_full":false,"retained_during_op_full":false,"tracked":true}
+------
+MatchingCompletion
+--
+state: {"allows":3,"auto_identity":0,"automatic_mode":"queued","backfill":0,"backfill_policy":"buffer","completed":[],"lease":-1,"lease_candidate":-1,"manual_identity":0,"manual_policy":"skip","operation_turn":0,"queue":4,"queue_turn":0,"resumed_after_op_full":false,"retained_during_op_full":false,"tracked":false}
+------
+Drain
+--
+state: {"allows":3,"auto_identity":0,"automatic_mode":"queued","backfill":0,"backfill_policy":"buffer","completed":[],"lease":-1,"lease_candidate":-1,"manual_identity":0,"manual_policy":"skip","operation_turn":1,"queue":3,"queue_turn":0,"resumed_after_op_full":false,"retained_during_op_full":false,"tracked":true}
+------
+AcquireVacancy
+--
+state: {"allows":3,"auto_identity":0,"automatic_mode":"queued","backfill":0,"backfill_policy":"buffer","completed":[],"lease":0,"lease_candidate":0,"manual_identity":0,"manual_policy":"skip","operation_turn":1,"queue":3,"queue_turn":0,"resumed_after_op_full":false,"retained_during_op_full":false,"tracked":true}
+------
+TransferManual
+--
+state: {"allows":3,"auto_identity":0,"automatic_mode":"queued","backfill":0,"backfill_policy":"buffer","completed":[],"lease":-1,"lease_candidate":-1,"manual_identity":1,"manual_policy":"skip","operation_turn":1,"queue":3,"queue_turn":1,"resumed_after_op_full":false,"retained_during_op_full":false,"tracked":true}
+------
+AcquireVacancy
+--
+state: {"allows":3,"auto_identity":0,"automatic_mode":"queued","backfill":0,"backfill_policy":"buffer","completed":[],"lease":1,"lease_candidate":0,"manual_identity":1,"manual_policy":"skip","operation_turn":1,"queue":3,"queue_turn":1,"resumed_after_op_full":false,"retained_during_op_full":false,"tracked":true}
+------
+AutomaticScanOrDrop
+--
+state: {"allows":3,"auto_identity":0,"automatic_mode":"queued","backfill":1,"backfill_policy":"buffer","completed":[],"lease":1,"lease_candidate":0,"manual_identity":1,"manual_policy":"skip","operation_turn":1,"queue":3,"queue_turn":1,"resumed_after_op_full":false,"retained_during_op_full":false,"tracked":true}
+------
+Writen graph json: /private/tmp/scheduler2-wi009-final/model-final/capacity/rotate_pinned_backfill/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-wi009-final/model-final/capacity/rotate_pinned_backfill/graph/error-graph.dot
+To generate an image file, run: 
+dot -Tsvg /private/tmp/scheduler2-wi009-final/model-final/capacity/rotate_pinned_backfill/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-wi009-final/model-final/capacity/rotate_pinned_backfill/graph/error-states.html
+To open: 
+open /private/tmp/scheduler2-wi009-final/model-final/capacity/rotate_pinned_backfill/graph/error-states.html

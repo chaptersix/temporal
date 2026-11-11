@@ -27,10 +27,23 @@ func (e *Enumerator) BeginRange(start, end time.Time) (State, error) {
 // structurally valid. The caller removes the completed range, rather than polling
 // or extending its end. Occurrences is always empty: no candidate was handed off.
 func (e *Enumerator) PeekRange(state State, end time.Time, probes int) (Result, error) {
+	if end.Before(state.Origin) {
+		return Result{}, serviceerror.NewInvalidArgument("backfill end precedes origin")
+	}
+	result, err := e.Peek(state, end, probes)
+	if result.Status == Waiting {
+		result.Status = Exhausted
+	}
+	return result, err
+}
+
+// Peek retains a due eligible candidate until the caller atomically disposes it.
+// A future actual time returns Waiting without advancing nominal disposition.
+func (e *Enumerator) Peek(state State, end time.Time, probes int) (Result, error) {
 	if state.Revision != e.revision || state.DefinitionID != e.identity {
 		return Result{}, serviceerror.NewFailedPrecondition("continuation belongs to another definition revision")
 	}
-	if !supported(end) || probes < 1 || probes > 1024 || end.Before(state.Origin) {
+	if !supported(end) || probes < 1 || probes > 1024 {
 		return Result{}, serviceerror.NewInvalidArgument("unsupported backfill range or probe limit")
 	}
 	if err := validateState(state); err != nil {
@@ -53,7 +66,7 @@ func (e *Enumerator) PeekRange(state State, end time.Time, probes int) (Result, 
 			// Jitter is nonnegative and strictly below the following raw nominal.
 			// Thus later raw matches (including excluded ones) cannot return into range.
 			if pending.Actual.After(end) {
-				result.Status = Exhausted
+				result.Status = Waiting
 				return result, nil
 			}
 			if pending.Excluded {

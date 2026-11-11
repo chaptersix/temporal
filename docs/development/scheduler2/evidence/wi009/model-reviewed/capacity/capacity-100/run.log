@@ -1,0 +1,14 @@
+Model checking /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/capacity-100/capacity.json
+configFileName: /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/capacity-100/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 20000, queued: 15471, elapsed: 6.483543833s
+Nodes: 36687, queued: 0, elapsed: 12.519797375s
+Time taken for model checking: 12.51984325s
+Skipping dotfile generation. Too many Nodes: 36687
+Valid Nodes: 36687 Unique states: 36674
+Checking always eventually FiniteBackfillsProgress
+IsLive: true
+Time taken to check liveness: 366.274542ms
+PASSED: Model checker completed successfully
+Writen 1 node files and 1 link files to dir /private/tmp/scheduler2-wi009-final/model-reviewed/capacity/capacity-100/graph

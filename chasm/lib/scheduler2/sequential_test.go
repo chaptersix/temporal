@@ -133,7 +133,7 @@ func TestSequentialUnfinishedCapacityRejectsAtomically(t *testing.T) {
 	before := cloneNodes(h.durable)
 	_, wire := frozenRequest(t)
 	s, ctx = h.root(true)
-	err := s.Apply(ctx.(chasm.MutableContext), decision.Event{Kind: decision.Due, Incarnation: "incarnation", Nominal: h.now, CatchupDeadline: h.now, Request: wire})
+	err := s.applyTransition(ctx.(chasm.MutableContext), decision.Event{Kind: decision.Due, Incarnation: "incarnation", Nominal: h.now, CatchupDeadline: h.now, Request: wire})
 	require.ErrorContains(t, err, "capacity")
 	h.commit(true)
 	require.Len(t, h.durable, len(before))

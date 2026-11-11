@@ -1,0 +1,50 @@
+Model checking /private/tmp/scheduler2-wi009-final/model-final/model/unreserved_vacancy/arbitration.json
+configFileName: /private/tmp/scheduler2-wi009-final/model-final/model/unreserved_vacancy/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 106, queued: 408, elapsed: 22.3995ms
+Time taken for model checking: 22.438292ms
+Writen graph dotfile: /private/tmp/scheduler2-wi009-final/model-final/model/unreserved_vacancy/graph/graph.dot
+To generate svg, run: 
+dot -Tsvg /private/tmp/scheduler2-wi009-final/model-final/model/unreserved_vacancy/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  ProtectedVacancy
+------
+Init
+--
+state: {}
+------
+Any:manual_policy="buffer"
+--
+state: {}
+------
+Any:backfill_policy="buffer"
+--
+state: {}
+------
+Any:automatic_mode="queued"
+--
+state: {"auto_identity":0,"automatic_mode":"queued","backfill":0,"backfill_policy":"buffer","completed":[],"lease":-1,"lease_candidate":-1,"manual_identity":0,"manual_policy":"buffer","operation":"tracked","operation_turn":0,"queue":4,"queue_turn":0,"resumed_after_op_full":false,"retained_during_op_full":false}
+------
+MatchingCompletion
+--
+state: {"auto_identity":0,"automatic_mode":"queued","backfill":0,"backfill_policy":"buffer","completed":[],"lease":-1,"lease_candidate":-1,"manual_identity":0,"manual_policy":"buffer","operation":"empty","operation_turn":0,"queue":4,"queue_turn":0,"resumed_after_op_full":false,"retained_during_op_full":false}
+------
+Drain
+--
+state: {"auto_identity":0,"automatic_mode":"queued","backfill":0,"backfill_policy":"buffer","completed":[],"lease":-1,"lease_candidate":-1,"manual_identity":0,"manual_policy":"buffer","operation":"tracked","operation_turn":1,"queue":3,"queue_turn":0,"resumed_after_op_full":false,"retained_during_op_full":false}
+------
+AcquireVacancy
+--
+state: {"auto_identity":0,"automatic_mode":"queued","backfill":0,"backfill_policy":"buffer","completed":[],"lease":0,"lease_candidate":0,"manual_identity":0,"manual_policy":"buffer","operation":"tracked","operation_turn":1,"queue":3,"queue_turn":0,"resumed_after_op_full":false,"retained_during_op_full":false}
+------
+UnreservedRefill
+--
+state: {"auto_identity":0,"automatic_mode":"queued","backfill":0,"backfill_policy":"buffer","completed":[],"lease":0,"lease_candidate":0,"manual_identity":0,"manual_policy":"buffer","operation":"tracked","operation_turn":1,"queue":4,"queue_turn":0,"resumed_after_op_full":false,"retained_during_op_full":false}
+------
+Writen graph json: /private/tmp/scheduler2-wi009-final/model-final/model/unreserved_vacancy/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-wi009-final/model-final/model/unreserved_vacancy/graph/error-graph.dot
+To generate an image file, run: 
+dot -Tsvg /private/tmp/scheduler2-wi009-final/model-final/model/unreserved_vacancy/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-wi009-final/model-final/model/unreserved_vacancy/graph/error-states.html
+To open: 
+open /private/tmp/scheduler2-wi009-final/model-final/model/unreserved_vacancy/graph/error-states.html

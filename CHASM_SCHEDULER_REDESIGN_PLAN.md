@@ -809,3 +809,13 @@ starvation counterexamples to naive readiness arbitration. D47–D50 in
 [WI-009](docs/development/scheduler2/work-items/WI-009.md) require one coordinator,
 durable vacancy ownership and operation-slot fairness. Range helper evidence alone
 does not pass WI-009 or M2; all integrated fairness/public API/proof/load gates remain.
+
+
+WI-009 coordinator integration is under verification in the isolated local
+`sch-redesign-coordinator` worktree, based on403e778e1. One WorkTask now owns scan
+and admission; public backfill requests are bounded and deduplicated, and durable
+vacancy ownership coordinates accepted ingress with queue drain. Independent model
+rerun passes its finite conditional-liveness fixture and all six sensitivity checks.
+This is implementation progress, not WI-009/M2 acceptance: integrated capacity
+properties, rejection atomicity, Go mutations, race/lint and composition review
+remain. M3/M4 scope and local-only authorization remain unchanged.

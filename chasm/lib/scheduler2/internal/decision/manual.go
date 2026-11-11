@@ -74,7 +74,7 @@ func dispatchManual(next State, event Event) (State, error) {
 	if len(event.Request) == 0 || next.Root.Incarnation == "" {
 		return State{}, serviceerror.NewInvalidArgument("manual admission requires incarnation and request")
 	}
-	return startOperation(next, event, command.Nominal, event.WorkflowID, policy, command.ID)
+	return startOperation(next, event, Queued{Nominal: command.Nominal, WorkflowID: event.WorkflowID, Policy: policy, ManualID: command.ID})
 }
 
 // ManualNeedsTemplate distinguishes identity/admission work from policy-only disposal.
@@ -87,4 +87,38 @@ func ManualNeedsTemplate(state State) bool {
 		return policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || len(state.Queue) == 0)
 	}
 	return true
+}
+
+func dispatchBackfill(next State, event Event) (State, error) {
+	if event.BackfillID == 0 || !ValidPolicy(event.Policy) {
+		return State{}, serviceerror.NewInvalidArgument("invalid backfill occurrence")
+	}
+	if len(next.Queue) >= 4 {
+		return next, nil
+	}
+	policy := event.Policy
+	if policy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
+		policy = next.Root.Policy
+	}
+	if policy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
+		policy = enumspb.SCHEDULE_OVERLAP_POLICY_SKIP
+	}
+	candidate := Queued{BackfillID: event.BackfillID, Nominal: event.Nominal, Actual: event.Actual, WorkflowID: event.WorkflowID, Policy: policy}
+	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || len(next.Queue) > 0) {
+		if policy == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(next.Queue) > 0) {
+			return next, nil
+		}
+		if event.WorkflowID == "" {
+			return State{}, serviceerror.NewInvalidArgument("backfill queue requires workflow identity")
+		}
+		next.Queue = append(next.Queue, candidate)
+		return next, nil
+	}
+	if next.Root.Unfinished >= 4 {
+		return next, nil
+	}
+	if len(event.Request) == 0 || next.Root.Incarnation == "" {
+		return State{}, serviceerror.NewInvalidArgument("backfill admission requires incarnation and request")
+	}
+	return startOperation(next, event, candidate)
 }

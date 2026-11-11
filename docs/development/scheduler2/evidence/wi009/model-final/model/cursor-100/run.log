@@ -1,0 +1,14 @@
+Model checking /private/tmp/scheduler2-wi009-final/model-final/model/cursor-100/cursor.json
+configFileName: /private/tmp/scheduler2-wi009-final/model-final/model/cursor-100/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 145, queued: 0, elapsed: 51.004458ms
+Time taken for model checking: 51.040458ms
+Writen graph dotfile: /private/tmp/scheduler2-wi009-final/model-final/model/cursor-100/graph/graph.dot
+To generate svg, run: 
+dot -Tsvg /private/tmp/scheduler2-wi009-final/model-final/model/cursor-100/graph/graph.dot -o graph.svg && open graph.svg
+Valid Nodes: 145 Unique states: 144
+IsLive: true
+Time taken to check liveness: 7.917542ms
+PASSED: Model checker completed successfully
+Writen 1 node files and 1 link files to dir /private/tmp/scheduler2-wi009-final/model-final/model/cursor-100/graph

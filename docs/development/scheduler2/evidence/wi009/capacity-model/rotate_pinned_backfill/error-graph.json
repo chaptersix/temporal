@@ -1,0 +1,628 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Init",
+      "returns": "{}",
+      "roles": null,
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[3].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"allows\":3,\"queue\":4,\"tracked\":true}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Any:manual_policy=\"skip\"",
+      "returns": "{}",
+      "roles": [],
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[4].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"allows\":3,\"manual_policy\":\"skip\",\"queue\":4,\"tracked\":true}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:manual_policy=\"skip\"",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Any:backfill_policy=\"buffer\"",
+      "returns": "{}",
+      "roles": [],
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[5].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"allows\":3,\"backfill_policy\":\"buffer\",\"manual_policy\":\"skip\",\"queue\":4,\"tracked\":true}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:backfill_policy=\"buffer\"",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "allows": 3,
+        "auto_identity": 0,
+        "automatic_mode": "queued",
+        "backfill": 0,
+        "backfill_policy": "buffer",
+        "completed": [],
+        "lease": -1,
+        "lease_candidate": -1,
+        "manual_identity": 0,
+        "manual_policy": "skip",
+        "operation_turn": 0,
+        "queue": 4,
+        "queue_turn": 0,
+        "resumed_after_op_full": false,
+        "retained_during_op_full": false,
+        "tracked": true
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:automatic_mode=\"queued\"",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "allows": 3,
+        "auto_identity": 0,
+        "automatic_mode": "queued",
+        "backfill": 0,
+        "backfill_policy": "buffer",
+        "completed": [],
+        "lease": -1,
+        "lease_candidate": -1,
+        "manual_identity": 0,
+        "manual_policy": "skip",
+        "operation_turn": 0,
+        "queue": 4,
+        "queue_turn": 0,
+        "resumed_after_op_full": false,
+        "retained_during_op_full": false,
+        "tracked": false
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "MatchingCompletion": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "MatchingCompletion",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "allows": 3,
+        "auto_identity": 0,
+        "automatic_mode": "queued",
+        "backfill": 0,
+        "backfill_policy": "buffer",
+        "completed": [],
+        "lease": -1,
+        "lease_candidate": -1,
+        "manual_identity": 0,
+        "manual_policy": "skip",
+        "operation_turn": 1,
+        "queue": 3,
+        "queue_turn": 0,
+        "resumed_after_op_full": false,
+        "retained_during_op_full": false,
+        "tracked": true
+      },
+      "stats": {
+        "totalActions": 2,
+        "counts": {
+          "Drain": 1,
+          "MatchingCompletion": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Drain",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "allows": 3,
+        "auto_identity": 0,
+        "automatic_mode": "queued",
+        "backfill": 0,
+        "backfill_policy": "buffer",
+        "completed": [],
+        "lease": 0,
+        "lease_candidate": 0,
+        "manual_identity": 0,
+        "manual_policy": "skip",
+        "operation_turn": 1,
+        "queue": 3,
+        "queue_turn": 0,
+        "resumed_after_op_full": false,
+        "retained_during_op_full": false,
+        "tracked": true
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "AcquireVacancy": 1,
+          "Drain": 1,
+          "MatchingCompletion": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "AcquireVacancy",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "allows": 3,
+        "auto_identity": 0,
+        "automatic_mode": "queued",
+        "backfill": 0,
+        "backfill_policy": "buffer",
+        "completed": [],
+        "lease": -1,
+        "lease_candidate": -1,
+        "manual_identity": 1,
+        "manual_policy": "skip",
+        "operation_turn": 1,
+        "queue": 3,
+        "queue_turn": 1,
+        "resumed_after_op_full": false,
+        "retained_during_op_full": false,
+        "tracked": true
+      },
+      "stats": {
+        "totalActions": 4,
+        "counts": {
+          "AcquireVacancy": 1,
+          "Drain": 1,
+          "MatchingCompletion": 1,
+          "TransferManual": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "TransferManual",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "allows": 3,
+        "auto_identity": 0,
+        "automatic_mode": "queued",
+        "backfill": 0,
+        "backfill_policy": "buffer",
+        "completed": [],
+        "lease": 1,
+        "lease_candidate": 0,
+        "manual_identity": 1,
+        "manual_policy": "skip",
+        "operation_turn": 1,
+        "queue": 3,
+        "queue_turn": 1,
+        "resumed_after_op_full": false,
+        "retained_during_op_full": false,
+        "tracked": true
+      },
+      "stats": {
+        "totalActions": 5,
+        "counts": {
+          "AcquireVacancy": 2,
+          "Drain": 1,
+          "MatchingCompletion": 1,
+          "TransferManual": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "AcquireVacancy",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          1,
+          2
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "allows": 3,
+        "auto_identity": 0,
+        "automatic_mode": "queued",
+        "backfill": 1,
+        "backfill_policy": "buffer",
+        "completed": [],
+        "lease": 1,
+        "lease_candidate": 0,
+        "manual_identity": 1,
+        "manual_policy": "skip",
+        "operation_turn": 1,
+        "queue": 3,
+        "queue_turn": 1,
+        "resumed_after_op_full": false,
+        "retained_during_op_full": false,
+        "tracked": true
+      },
+      "stats": {
+        "totalActions": 6,
+        "counts": {
+          "AcquireVacancy": 2,
+          "AutomaticScanOrDrop": 1,
+          "Drain": 1,
+          "MatchingCompletion": 1,
+          "TransferManual": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "AutomaticScanOrDrop",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]

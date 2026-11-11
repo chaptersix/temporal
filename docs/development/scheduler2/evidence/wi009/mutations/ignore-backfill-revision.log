@@ -1,0 +1,11 @@
+=== RUN   TestCoordinatorBackfillRevisionInvalidatesLeaseAndRebasesNominal
+=== PAUSE TestCoordinatorBackfillRevisionInvalidatesLeaseAndRebasesNominal
+=== CONT  TestCoordinatorBackfillRevisionInvalidatesLeaseAndRebasesNominal
+    coordinator_test.go:258: 
+        	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/coordinator_test.go:258
+        	Error:      	Should not be: "backfill/1/1704067201000000000"
+        	Test:       	TestCoordinatorBackfillRevisionInvalidatesLeaseAndRebasesNominal
+--- FAIL: TestCoordinatorBackfillRevisionInvalidatesLeaseAndRebasesNominal (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.686s
+FAIL

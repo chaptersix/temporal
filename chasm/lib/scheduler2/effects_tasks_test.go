@@ -234,7 +234,7 @@ func TestEffectsTaskDeadlineBoundary(t *testing.T) {
 			require.Equal(t, started, s.Started)
 			protorequire.ProtoEqual(t, &scheduler2pb.RootState{Queue: queue}, &scheduler2pb.RootState{Queue: s.Queue})
 			require.Equal(t, int64(1), s.Unfinished)
-			require.False(t, s.DrainArmed)
+			require.False(t, s.Coordination.Armed)
 		})
 	}
 }

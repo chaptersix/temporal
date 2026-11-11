@@ -1,0 +1,50 @@
+Model checking /private/tmp/scheduler2-wi009-final/model-final/model/end_uses_nominal/cursor.json
+configFileName: /private/tmp/scheduler2-wi009-final/model-final/model/end_uses_nominal/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 84, queued: 128, elapsed: 21.946542ms
+Time taken for model checking: 21.98375ms
+Writen graph dotfile: /private/tmp/scheduler2-wi009-final/model-final/model/end_uses_nominal/graph/graph.dot
+To generate svg, run: 
+dot -Tsvg /private/tmp/scheduler2-wi009-final/model-final/model/end_uses_nominal/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  RangeUsesActualUpperBound
+------
+Init
+--
+state: {}
+------
+Any:end=32
+--
+state: {"blocked":true,"disposed_through":9,"dispositions":[],"done":false,"end":32,"endpoint":[],"expected_disposed":9,"failed_candidate":[],"pending":[],"published":[],"published_after_failure":false,"rebased_after_pending":false,"revision":0,"search_after":9,"source":[10,20,30],"start":10,"updated":false}
+------
+Peek
+--
+state: {"blocked":true,"disposed_through":9,"dispositions":[],"done":false,"end":32,"endpoint":[],"expected_disposed":9,"failed_candidate":[],"pending":[10,15,0],"published":[],"published_after_failure":false,"rebased_after_pending":false,"revision":0,"search_after":10,"source":[10,20,30],"start":10,"updated":false}
+------
+ReleaseCapacity
+--
+state: {"blocked":false,"disposed_through":9,"dispositions":[],"done":false,"end":32,"endpoint":[],"expected_disposed":9,"failed_candidate":[],"pending":[10,15,0],"published":[],"published_after_failure":false,"rebased_after_pending":false,"revision":0,"search_after":10,"source":[10,20,30],"start":10,"updated":false}
+------
+Publish
+--
+state: {"blocked":false,"disposed_through":10,"dispositions":[[10,0,"published"]],"done":false,"end":32,"endpoint":[],"expected_disposed":10,"failed_candidate":[],"pending":[],"published":[[10,15,0]],"published_after_failure":false,"rebased_after_pending":false,"revision":0,"search_after":10,"source":[10,20,30],"start":10,"updated":false}
+------
+Peek
+--
+state: {"blocked":false,"disposed_through":20,"dispositions":[[10,0,"published"],[20,0,"excluded"]],"done":false,"end":32,"endpoint":[],"expected_disposed":20,"failed_candidate":[],"pending":[],"published":[[10,15,0]],"published_after_failure":false,"rebased_after_pending":false,"revision":0,"search_after":20,"source":[10,20,30],"start":10,"updated":false}
+------
+Peek
+--
+state: {"blocked":false,"disposed_through":20,"dispositions":[[10,0,"published"],[20,0,"excluded"]],"done":false,"end":32,"endpoint":[],"expected_disposed":20,"failed_candidate":[],"pending":[30,35,0],"published":[[10,15,0]],"published_after_failure":false,"rebased_after_pending":false,"revision":0,"search_after":30,"source":[10,20,30],"start":10,"updated":false}
+------
+Publish
+--
+state: {"blocked":false,"disposed_through":30,"dispositions":[[10,0,"published"],[20,0,"excluded"],[30,0,"published"]],"done":false,"end":32,"endpoint":[],"expected_disposed":30,"failed_candidate":[],"pending":[],"published":[[10,15,0],[30,35,0]],"published_after_failure":false,"rebased_after_pending":false,"revision":0,"search_after":30,"source":[10,20,30],"start":10,"updated":false}
+------
+Writen graph json: /private/tmp/scheduler2-wi009-final/model-final/model/end_uses_nominal/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-wi009-final/model-final/model/end_uses_nominal/graph/error-graph.dot
+To generate an image file, run: 
+dot -Tsvg /private/tmp/scheduler2-wi009-final/model-final/model/end_uses_nominal/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-wi009-final/model-final/model/end_uses_nominal/graph/error-states.html
+To open: 
+open /private/tmp/scheduler2-wi009-final/model-final/model/end_uses_nominal/graph/error-states.html

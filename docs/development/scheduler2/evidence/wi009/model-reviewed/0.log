@@ -1,0 +1,11 @@
+arbitration-100 passed=True detected=False
+arbitration-200 passed=True detected=False
+cursor-100 passed=True detected=False
+cursor-200 passed=True detected=False
+dispose_on_peek passed=False detected=False
+update_uses_now passed=False detected=False
+end_uses_nominal passed=False detected=False
+naive_rr passed=False detected=False
+unreserved_vacancy passed=False detected=False
+rotate_pinned_backfill passed=False detected=False
+Required baseline or named mutation detection missing; inspect run.log

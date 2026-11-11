@@ -1,0 +1,14 @@
+Model checking /private/tmp/scheduler2-backfill-capacity-first/capacity-100/capacity.json
+configFileName: /private/tmp/scheduler2-backfill-capacity-first/capacity-100/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 20000, queued: 15471, elapsed: 8.425718709s
+Nodes: 36687, queued: 0, elapsed: 15.792809792s
+Time taken for model checking: 15.792871208s
+Skipping dotfile generation. Too many Nodes: 36687
+Valid Nodes: 36687 Unique states: 36674
+Checking always eventually FiniteBackfillsProgress
+IsLive: true
+Time taken to check liveness: 467.825167ms
+PASSED: Model checker completed successfully
+Writen 1 node files and 1 link files to dir /private/tmp/scheduler2-backfill-capacity-first/capacity-100/graph

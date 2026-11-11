@@ -1,0 +1,137 @@
+=== RUN   TestBackfillPublicDedupAndPublication
+=== PAUSE TestBackfillPublicDedupAndPublication
+=== RUN   TestBackfillRejectedRequestDoesNotPublish
+=== PAUSE TestBackfillRejectedRequestDoesNotPublish
+=== RUN   TestCoordinatorRejectsAdmissionBypass
+=== PAUSE TestCoordinatorRejectsAdmissionBypass
+=== RUN   TestCoordinatorLegacyTasksCannotAdmit
+=== PAUSE TestCoordinatorLegacyTasksCannotAdmit
+=== RUN   TestBackfillAcceptanceAvoidsPayloadAndRejectsExhaustedToken
+=== PAUSE TestBackfillAcceptanceAvoidsPayloadAndRejectsExhaustedToken
+=== RUN   TestCoordinatorMixedPublicationProperties
+=== PAUSE TestCoordinatorMixedPublicationProperties
+=== RUN   TestCoordinatorDelayedCapacityProperties
+=== PAUSE TestCoordinatorDelayedCapacityProperties
+=== RUN   TestCoordinatorTokenRejectionBeforeManualMutation
+=== PAUSE TestCoordinatorTokenRejectionBeforeManualMutation
+=== RUN   TestCoordinatorTokenRejectionBeforeCompletionMutation
+=== PAUSE TestCoordinatorTokenRejectionBeforeCompletionMutation
+=== RUN   TestCoordinatorTokenRejectionBeforeGenerationMutation
+=== PAUSE TestCoordinatorTokenRejectionBeforeGenerationMutation
+=== RUN   TestCoordinatorHistoricalBackfillAtomicHandoff
+=== PAUSE TestCoordinatorHistoricalBackfillAtomicHandoff
+=== RUN   TestCoordinatorBackfillCapAndRequestRotation
+=== PAUSE TestCoordinatorBackfillCapAndRequestRotation
+=== RUN   TestCoordinatorSustainedManualAutomaticBackfillCompetition
+=== PAUSE TestCoordinatorSustainedManualAutomaticBackfillCompetition
+=== RUN   TestCoordinatorCapacityLeaseSurvivesNewIngress
+=== PAUSE TestCoordinatorCapacityLeaseSurvivesNewIngress
+=== RUN   TestCoordinatorBackfillRevisionInvalidatesLeaseAndRebasesNominal
+=== PAUSE TestCoordinatorBackfillRevisionInvalidatesLeaseAndRebasesNominal
+=== RUN   TestCoordinatorBackfillOverridePreservesAcceptedWaiter
+=== PAUSE TestCoordinatorBackfillOverridePreservesAcceptedWaiter
+=== CONT  TestBackfillPublicDedupAndPublication
+=== CONT  TestCoordinatorTokenRejectionBeforeCompletionMutation
+=== CONT  TestBackfillAcceptanceAvoidsPayloadAndRejectsExhaustedToken
+=== CONT  TestCoordinatorSustainedManualAutomaticBackfillCompetition
+--- PASS: TestBackfillPublicDedupAndPublication (0.01s)
+=== CONT  TestCoordinatorTokenRejectionBeforeManualMutation
+--- PASS: TestCoordinatorSustainedManualAutomaticBackfillCompetition (0.08s)
+=== CONT  TestCoordinatorDelayedCapacityProperties
+--- PASS: TestBackfillAcceptanceAvoidsPayloadAndRejectsExhaustedToken (1.66s)
+=== CONT  TestCoordinatorMixedPublicationProperties
+--- PASS: TestCoordinatorTokenRejectionBeforeManualMutation (1.66s)
+=== CONT  TestCoordinatorRejectsAdmissionBypass
+=== RUN   TestCoordinatorRejectsAdmissionBypass/1
+=== PAUSE TestCoordinatorRejectsAdmissionBypass/1
+=== RUN   TestCoordinatorRejectsAdmissionBypass/8
+=== PAUSE TestCoordinatorRejectsAdmissionBypass/8
+=== RUN   TestCoordinatorRejectsAdmissionBypass/14
+=== PAUSE TestCoordinatorRejectsAdmissionBypass/14
+=== RUN   TestCoordinatorRejectsAdmissionBypass/15
+=== PAUSE TestCoordinatorRejectsAdmissionBypass/15
+=== CONT  TestCoordinatorLegacyTasksCannotAdmit
+--- PASS: TestCoordinatorLegacyTasksCannotAdmit (0.00s)
+=== CONT  TestCoordinatorBackfillRevisionInvalidatesLeaseAndRebasesNominal
+--- PASS: TestCoordinatorBackfillRevisionInvalidatesLeaseAndRebasesNominal (0.01s)
+=== CONT  TestCoordinatorBackfillOverridePreservesAcceptedWaiter
+--- PASS: TestCoordinatorBackfillOverridePreservesAcceptedWaiter (0.01s)
+=== CONT  TestCoordinatorHistoricalBackfillAtomicHandoff
+--- PASS: TestCoordinatorHistoricalBackfillAtomicHandoff (0.01s)
+=== CONT  TestCoordinatorBackfillCapAndRequestRotation
+--- PASS: TestCoordinatorBackfillCapAndRequestRotation (0.01s)
+=== CONT  TestBackfillRejectedRequestDoesNotPublish
+=== RUN   TestBackfillRejectedRequestDoesNotPublish/missing_start
+=== PAUSE TestBackfillRejectedRequestDoesNotPublish/missing_start
+=== RUN   TestBackfillRejectedRequestDoesNotPublish/missing_end
+=== PAUSE TestBackfillRejectedRequestDoesNotPublish/missing_end
+=== RUN   TestBackfillRejectedRequestDoesNotPublish/bad_nanos
+=== PAUSE TestBackfillRejectedRequestDoesNotPublish/bad_nanos
+=== RUN   TestBackfillRejectedRequestDoesNotPublish/reversed
+=== PAUSE TestBackfillRejectedRequestDoesNotPublish/reversed
+=== RUN   TestBackfillRejectedRequestDoesNotPublish/before_minimum
+=== PAUSE TestBackfillRejectedRequestDoesNotPublish/before_minimum
+=== RUN   TestBackfillRejectedRequestDoesNotPublish/end_at_maximum
+=== PAUSE TestBackfillRejectedRequestDoesNotPublish/end_at_maximum
+=== RUN   TestBackfillRejectedRequestDoesNotPublish/unknown_policy
+=== PAUSE TestBackfillRejectedRequestDoesNotPublish/unknown_policy
+=== RUN   TestBackfillRejectedRequestDoesNotPublish/unconfigured
+=== PAUSE TestBackfillRejectedRequestDoesNotPublish/unconfigured
+=== RUN   TestBackfillRejectedRequestDoesNotPublish/sequence_exhausted
+=== PAUSE TestBackfillRejectedRequestDoesNotPublish/sequence_exhausted
+=== RUN   TestBackfillRejectedRequestDoesNotPublish/nil_request
+=== PAUSE TestBackfillRejectedRequestDoesNotPublish/nil_request
+=== CONT  TestCoordinatorTokenRejectionBeforeGenerationMutation
+=== RUN   TestCoordinatorTokenRejectionBeforeGenerationMutation/initial
+=== PAUSE TestCoordinatorTokenRejectionBeforeGenerationMutation/initial
+=== RUN   TestCoordinatorTokenRejectionBeforeGenerationMutation/replacement
+=== PAUSE TestCoordinatorTokenRejectionBeforeGenerationMutation/replacement
+=== CONT  TestCoordinatorCapacityLeaseSurvivesNewIngress
+--- PASS: TestCoordinatorCapacityLeaseSurvivesNewIngress (0.01s)
+=== CONT  TestCoordinatorRejectsAdmissionBypass/1
+=== CONT  TestCoordinatorRejectsAdmissionBypass/14
+=== CONT  TestCoordinatorRejectsAdmissionBypass/15
+=== CONT  TestCoordinatorRejectsAdmissionBypass/8
+--- PASS: TestCoordinatorRejectsAdmissionBypass (0.00s)
+    --- PASS: TestCoordinatorRejectsAdmissionBypass/1 (0.00s)
+    --- PASS: TestCoordinatorRejectsAdmissionBypass/14 (0.00s)
+    --- PASS: TestCoordinatorRejectsAdmissionBypass/15 (0.00s)
+    --- PASS: TestCoordinatorRejectsAdmissionBypass/8 (0.00s)
+=== CONT  TestBackfillRejectedRequestDoesNotPublish/missing_start
+=== CONT  TestCoordinatorTokenRejectionBeforeGenerationMutation/initial
+--- PASS: TestCoordinatorTokenRejectionBeforeCompletionMutation (1.91s)
+=== CONT  TestBackfillRejectedRequestDoesNotPublish/nil_request
+=== CONT  TestBackfillRejectedRequestDoesNotPublish/sequence_exhausted
+=== CONT  TestBackfillRejectedRequestDoesNotPublish/unconfigured
+=== CONT  TestBackfillRejectedRequestDoesNotPublish/unknown_policy
+=== CONT  TestBackfillRejectedRequestDoesNotPublish/end_at_maximum
+=== CONT  TestBackfillRejectedRequestDoesNotPublish/before_minimum
+=== CONT  TestBackfillRejectedRequestDoesNotPublish/reversed
+=== CONT  TestBackfillRejectedRequestDoesNotPublish/bad_nanos
+=== CONT  TestBackfillRejectedRequestDoesNotPublish/missing_end
+--- PASS: TestBackfillRejectedRequestDoesNotPublish (0.00s)
+    --- PASS: TestBackfillRejectedRequestDoesNotPublish/missing_start (0.00s)
+    --- PASS: TestBackfillRejectedRequestDoesNotPublish/nil_request (0.00s)
+    --- PASS: TestBackfillRejectedRequestDoesNotPublish/sequence_exhausted (0.00s)
+    --- PASS: TestBackfillRejectedRequestDoesNotPublish/unconfigured (0.00s)
+    --- PASS: TestBackfillRejectedRequestDoesNotPublish/unknown_policy (0.00s)
+    --- PASS: TestBackfillRejectedRequestDoesNotPublish/end_at_maximum (0.01s)
+    --- PASS: TestBackfillRejectedRequestDoesNotPublish/before_minimum (0.01s)
+    --- PASS: TestBackfillRejectedRequestDoesNotPublish/reversed (0.00s)
+    --- PASS: TestBackfillRejectedRequestDoesNotPublish/bad_nanos (0.00s)
+    --- PASS: TestBackfillRejectedRequestDoesNotPublish/missing_end (0.00s)
+=== CONT  TestCoordinatorTokenRejectionBeforeGenerationMutation/replacement
+--- PASS: TestCoordinatorTokenRejectionBeforeGenerationMutation (0.00s)
+    --- PASS: TestCoordinatorTokenRejectionBeforeGenerationMutation/initial (2.01s)
+    --- PASS: TestCoordinatorTokenRejectionBeforeGenerationMutation/replacement (2.64s)
+=== NAME  TestCoordinatorMixedPublicationProperties
+    coordinator_property_test.go:29: [rapid] OK, passed 10000 tests (4m34.442196917s)
+--- PASS: TestCoordinatorMixedPublicationProperties (274.93s)
+=== NAME  TestCoordinatorDelayedCapacityProperties
+    coordinator_property_test.go:154: [rapid] OK, passed 10000 tests (4m57.404677125s)
+--- PASS: TestCoordinatorDelayedCapacityProperties (297.79s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	299.081s
+testing: warning: no tests to run
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.289s [no tests to run]

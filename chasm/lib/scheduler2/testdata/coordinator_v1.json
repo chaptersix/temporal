@@ -1,0 +1,409 @@
+{
+  "version": 1,
+  "clock_domain": "execution_nanoseconds",
+  "incarnation": "incarnation",
+  "now": "2024-01-01T01:00:00Z",
+  "after": "2024-01-01T01:00:00Z",
+  "catchup": "3600s",
+  "remaining": 100,
+  "spec": {
+    "interval": [
+      {
+        "interval": "1s"
+      }
+    ],
+    "startTime": "2024-01-01T00:00:00Z",
+    "endTime": "2024-01-01T00:00:02Z"
+  },
+  "request": {
+    "namespace": "namespace",
+    "workflowId": "workflow",
+    "workflowType": {
+      "name": "type"
+    },
+    "taskQueue": {
+      "name": "queue"
+    }
+  },
+  "steps": [
+    {
+      "kind": "work",
+      "publish": true,
+      "revision": 1,
+      "token": 1,
+      "armed": false,
+      "next_work": 1,
+      "next_queue": 0,
+      "next_operation": 0,
+      "owner_class": 0,
+      "owner_key": "",
+      "focus": 0,
+      "last": 0,
+      "backfill_sequence": 0,
+      "backfills": 0,
+      "continuation_revision": 0,
+      "disposed": null,
+      "pending": null,
+      "requests": []
+    },
+    {
+      "kind": "accept_backfill",
+      "publish": true,
+      "revision": 1,
+      "token": 2,
+      "armed": true,
+      "next_work": 1,
+      "next_queue": 0,
+      "next_operation": 0,
+      "owner_class": 0,
+      "owner_key": "",
+      "focus": 0,
+      "last": 0,
+      "backfill_sequence": 1,
+      "backfills": 1,
+      "continuation_revision": 0,
+      "disposed": null,
+      "pending": null,
+      "requests": [],
+      "command": {
+        "startTime": "2024-01-01T00:00:00Z",
+        "endTime": "2024-01-01T00:00:02Z",
+        "overlapPolicy": "SCHEDULE_OVERLAP_POLICY_ALLOW_ALL"
+      }
+    },
+    {
+      "kind": "work",
+      "publish": true,
+      "revision": 1,
+      "token": 3,
+      "armed": true,
+      "next_work": 4,
+      "next_queue": 0,
+      "next_operation": 0,
+      "owner_class": 3,
+      "owner_key": "backfill/1/1704067200000000000",
+      "focus": 1,
+      "last": 0,
+      "backfill_sequence": 1,
+      "backfills": 1,
+      "continuation_revision": 1,
+      "disposed": "2023-12-31T23:59:59.999999999Z",
+      "pending": "2024-01-01T00:00:00Z",
+      "requests": []
+    },
+    {
+      "kind": "work",
+      "publish": false,
+      "revision": 1,
+      "token": 3,
+      "armed": true,
+      "next_work": 4,
+      "next_queue": 0,
+      "next_operation": 0,
+      "owner_class": 3,
+      "owner_key": "backfill/1/1704067200000000000",
+      "focus": 1,
+      "last": 0,
+      "backfill_sequence": 1,
+      "backfills": 1,
+      "continuation_revision": 1,
+      "disposed": "2023-12-31T23:59:59.999999999Z",
+      "pending": "2024-01-01T00:00:00Z",
+      "requests": []
+    },
+    {
+      "kind": "restart",
+      "publish": true,
+      "revision": 1,
+      "token": 3,
+      "armed": true,
+      "next_work": 4,
+      "next_queue": 0,
+      "next_operation": 0,
+      "owner_class": 3,
+      "owner_key": "backfill/1/1704067200000000000",
+      "focus": 1,
+      "last": 0,
+      "backfill_sequence": 1,
+      "backfills": 1,
+      "continuation_revision": 1,
+      "disposed": "2023-12-31T23:59:59.999999999Z",
+      "pending": "2024-01-01T00:00:00Z",
+      "requests": []
+    },
+    {
+      "kind": "work",
+      "publish": true,
+      "revision": 1,
+      "token": 4,
+      "armed": true,
+      "next_work": 4,
+      "next_queue": 4,
+      "next_operation": 4,
+      "owner_class": 3,
+      "owner_key": "",
+      "focus": 0,
+      "last": 1,
+      "backfill_sequence": 1,
+      "backfills": 1,
+      "continuation_revision": 1,
+      "disposed": "2024-01-01T00:00:00Z",
+      "pending": null,
+      "requests": [
+        {
+          "namespace": "namespace",
+          "workflowId": "workflow-2024-01-01T00:00:00Z",
+          "workflowType": {
+            "name": "type"
+          },
+          "taskQueue": {
+            "name": "queue"
+          },
+          "requestId": "incarnation/backfill/1/1704067200000000000/action/start",
+          "workflowIdReusePolicy": "WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE"
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "publish": true,
+      "revision": 1,
+      "token": 5,
+      "armed": true,
+      "next_work": 4,
+      "next_queue": 4,
+      "next_operation": 4,
+      "owner_class": 3,
+      "owner_key": "backfill/1/1704067201000000000",
+      "focus": 1,
+      "last": 1,
+      "backfill_sequence": 1,
+      "backfills": 1,
+      "continuation_revision": 1,
+      "disposed": "2024-01-01T00:00:00Z",
+      "pending": "2024-01-01T00:00:01Z",
+      "requests": [
+        {
+          "namespace": "namespace",
+          "workflowId": "workflow-2024-01-01T00:00:00Z",
+          "workflowType": {
+            "name": "type"
+          },
+          "taskQueue": {
+            "name": "queue"
+          },
+          "requestId": "incarnation/backfill/1/1704067200000000000/action/start",
+          "workflowIdReusePolicy": "WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE"
+        }
+      ]
+    },
+    {
+      "kind": "configure",
+      "publish": true,
+      "revision": 2,
+      "token": 5,
+      "armed": true,
+      "next_work": 4,
+      "next_queue": 4,
+      "next_operation": 4,
+      "owner_class": 3,
+      "owner_key": "",
+      "focus": 1,
+      "last": 1,
+      "backfill_sequence": 1,
+      "backfills": 1,
+      "continuation_revision": 1,
+      "disposed": "2024-01-01T00:00:00Z",
+      "pending": "2024-01-01T00:00:01Z",
+      "requests": [
+        {
+          "namespace": "namespace",
+          "workflowId": "workflow-2024-01-01T00:00:00Z",
+          "workflowType": {
+            "name": "type"
+          },
+          "taskQueue": {
+            "name": "queue"
+          },
+          "requestId": "incarnation/backfill/1/1704067200000000000/action/start",
+          "workflowIdReusePolicy": "WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE"
+        }
+      ],
+      "spec": {
+        "interval": [
+          {
+            "interval": "2s"
+          }
+        ],
+        "startTime": "2024-01-01T00:00:00Z",
+        "endTime": "2024-01-01T00:00:02Z"
+      },
+      "request": {
+        "namespace": "namespace",
+        "workflowId": "updated",
+        "workflowType": {
+          "name": "updated-type"
+        },
+        "taskQueue": {
+          "name": "queue"
+        }
+      }
+    },
+    {
+      "kind": "work",
+      "publish": true,
+      "revision": 2,
+      "token": 6,
+      "armed": true,
+      "next_work": 1,
+      "next_queue": 4,
+      "next_operation": 4,
+      "owner_class": 3,
+      "owner_key": "",
+      "focus": 1,
+      "last": 1,
+      "backfill_sequence": 1,
+      "backfills": 1,
+      "continuation_revision": 1,
+      "disposed": "2024-01-01T00:00:00Z",
+      "pending": "2024-01-01T00:00:01Z",
+      "requests": [
+        {
+          "namespace": "namespace",
+          "workflowId": "workflow-2024-01-01T00:00:00Z",
+          "workflowType": {
+            "name": "type"
+          },
+          "taskQueue": {
+            "name": "queue"
+          },
+          "requestId": "incarnation/backfill/1/1704067200000000000/action/start",
+          "workflowIdReusePolicy": "WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE"
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "publish": true,
+      "revision": 2,
+      "token": 7,
+      "armed": true,
+      "next_work": 4,
+      "next_queue": 4,
+      "next_operation": 4,
+      "owner_class": 3,
+      "owner_key": "backfill/1/1704067202000000000",
+      "focus": 1,
+      "last": 1,
+      "backfill_sequence": 1,
+      "backfills": 1,
+      "continuation_revision": 2,
+      "disposed": "2024-01-01T00:00:00Z",
+      "pending": "2024-01-01T00:00:02Z",
+      "requests": [
+        {
+          "namespace": "namespace",
+          "workflowId": "workflow-2024-01-01T00:00:00Z",
+          "workflowType": {
+            "name": "type"
+          },
+          "taskQueue": {
+            "name": "queue"
+          },
+          "requestId": "incarnation/backfill/1/1704067200000000000/action/start",
+          "workflowIdReusePolicy": "WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE"
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "publish": true,
+      "revision": 2,
+      "token": 8,
+      "armed": true,
+      "next_work": 4,
+      "next_queue": 4,
+      "next_operation": 4,
+      "owner_class": 3,
+      "owner_key": "",
+      "focus": 0,
+      "last": 1,
+      "backfill_sequence": 1,
+      "backfills": 1,
+      "continuation_revision": 2,
+      "disposed": "2024-01-01T00:00:02Z",
+      "pending": null,
+      "requests": [
+        {
+          "namespace": "namespace",
+          "workflowId": "workflow-2024-01-01T00:00:00Z",
+          "workflowType": {
+            "name": "type"
+          },
+          "taskQueue": {
+            "name": "queue"
+          },
+          "requestId": "incarnation/backfill/1/1704067200000000000/action/start",
+          "workflowIdReusePolicy": "WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE"
+        },
+        {
+          "namespace": "namespace",
+          "workflowId": "updated-2024-01-01T00:00:02Z",
+          "workflowType": {
+            "name": "updated-type"
+          },
+          "taskQueue": {
+            "name": "queue"
+          },
+          "requestId": "incarnation/backfill/1/1704067202000000000/action/start",
+          "workflowIdReusePolicy": "WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE"
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "publish": true,
+      "revision": 2,
+      "token": 8,
+      "armed": false,
+      "next_work": 4,
+      "next_queue": 4,
+      "next_operation": 4,
+      "owner_class": 3,
+      "owner_key": "",
+      "focus": 0,
+      "last": 1,
+      "backfill_sequence": 1,
+      "backfills": 0,
+      "continuation_revision": 0,
+      "disposed": null,
+      "pending": null,
+      "requests": [
+        {
+          "namespace": "namespace",
+          "workflowId": "workflow-2024-01-01T00:00:00Z",
+          "workflowType": {
+            "name": "type"
+          },
+          "taskQueue": {
+            "name": "queue"
+          },
+          "requestId": "incarnation/backfill/1/1704067200000000000/action/start",
+          "workflowIdReusePolicy": "WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE"
+        },
+        {
+          "namespace": "namespace",
+          "workflowId": "updated-2024-01-01T00:00:02Z",
+          "workflowType": {
+            "name": "updated-type"
+          },
+          "taskQueue": {
+            "name": "queue"
+          },
+          "requestId": "incarnation/backfill/1/1704067202000000000/action/start",
+          "workflowIdReusePolicy": "WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE"
+        }
+      ]
+    }
+  ]
+}

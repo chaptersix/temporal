@@ -34,6 +34,7 @@ type bufferTrace struct {
 	Steps       []bufferTraceStep `json:"steps"`
 }
 type bufferTraceStep struct {
+	Quanta     int               `json:"quanta"`
 	Kind       string            `json:"kind"`
 	Publish    bool              `json:"publish"`
 	Result     *commonpb.Payload `json:"result"`
@@ -51,13 +52,13 @@ type bufferTraceStep struct {
 // at each durable boundary, including a rejected drain publication and restart.
 func TestBufferSavedReplay(t *testing.T) {
 	t.Parallel()
-	data, err := os.ReadFile("testdata/buffer_v1.json")
+	data, err := os.ReadFile("testdata/buffer_v2.json")
 	require.NoError(t, err)
 	var trace bufferTrace
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	require.NoError(t, decoder.Decode(&trace))
-	require.Equal(t, 1, trace.Version)
+	require.Equal(t, 2, trace.Version)
 	require.Equal(t, "execution_nanoseconds", trace.ClockDomain)
 	require.Equal(t, "incarnation", trace.Incarnation)
 	for replay := 0; replay < 2; replay++ {
@@ -76,7 +77,10 @@ func TestBufferSavedReplay(t *testing.T) {
 		for index, step := range trace.Steps {
 			switch step.Kind {
 			case "generate", "drain":
-				fireGeneration(h, step.Publish)
+				require.True(t, step.Quanta <= 1 || step.Publish, "multi-quantum replay steps require individual publication")
+				for range max(step.Quanta, 1) {
+					fireGeneration(h, step.Publish)
+				}
 			case "restart":
 				h.reload()
 			case "complete":

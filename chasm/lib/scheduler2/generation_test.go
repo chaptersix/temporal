@@ -86,7 +86,15 @@ func fireGeneration(h *treeHarness, publish bool) []tasks.ChasmTaskPure {
 	require.Equal(h.t, 1, executed)
 	return commitGeneration(h, publish)
 }
-func TestGenerationAtomicBatchAndSecondCarryover(t *testing.T) {
+
+// coordinationState reads the persisted task owner independently of source progress.
+func coordinationState(h *treeHarness) *scheduler2pb.CoordinationState {
+	h.t.Helper()
+	s, _ := h.root(false)
+	return proto.Clone(s.Coordination).(*scheduler2pb.CoordinationState)
+}
+
+func TestGenerationAtomicScanAndHandoffAndSecondCarryover(t *testing.T) {
 	t.Parallel()
 	h := newTreeHarness(t)
 	sequentialBudget(h, 8)
@@ -94,74 +102,89 @@ func TestGenerationAtomicBatchAndSecondCarryover(t *testing.T) {
 	h.now = base.Add(5 * time.Second).UnixNano()
 	timers := configureGeneration(h, generationSpec(base, base.Add(20*time.Second), time.Second), "", 1, base.Add(-time.Nanosecond), time.Minute)
 	require.Len(t, timers, 1)
-	require.Equal(t, 1, pureObligations(h))
 	before := cloneNodes(h.durable)
-	token := generationState(h).Token
-	timers = fireGeneration(h, false)
-	require.Empty(t, timers)
+	require.Empty(t, fireGeneration(h, false)) // Failed scan publishes neither pending nor successor.
 	require.Equal(t, before, h.durable)
 	require.Empty(t, h.physical)
-	timers = fireGeneration(h, true)
-	require.Len(t, timers, 1)
-	require.Len(t, h.physical, 1)
+	fireGeneration(h, true) // Scan is its own committed transaction, with no admission.
 	s, _ := h.root(false)
-	require.Equal(t, base.Add(3*time.Second).UnixNano(), s.Cursor)
-	require.Equal(t, int64(7), s.Remaining)
-	require.Len(t, s.Operations, 1)
+	require.Equal(t, base.Add(-time.Nanosecond).UnixNano(), s.Cursor)
+	require.Equal(t, int64(8), s.Remaining)
+	require.Empty(t, s.Operations)
+	require.Equal(t, base.UnixNano(), generationState(h).Continuation.Pending.Nominal)
+	require.Empty(t, h.physical)
+	before = cloneNodes(h.durable)
+	require.Empty(t, fireGeneration(h, false)) // Failed handoff keeps the complete candidate.
+	require.Equal(t, before, h.durable)
+	require.Empty(t, h.physical)
+	fireGeneration(h, true)
 	first := h.request()
 	require.Equal(t, "workflow-2024-01-01T00:00:00Z", first.WorkflowId)
-	g := generationState(h)
-	require.Greater(t, g.Token, token)
-	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_LIMITED, g.LastStatus)
-	require.Equal(t, h.now+int64(time.Millisecond), g.WakeAt)
-	require.Equal(t, 1, pureObligations(h))
+	require.Len(t, h.physical, 1)
+	s, _ = h.root(false)
+	require.Equal(t, base.UnixNano(), s.Cursor)
+	require.Equal(t, int64(7), s.Remaining)
+	require.Nil(t, generationState(h).Continuation.Pending)
+	// Each subsequent scan and SKIP disposition has a separate publication boundary.
+	for second := 1; second <= 3; second++ {
+		fireGeneration(h, true)
+		require.Equal(t, base.Add(time.Duration(second)*time.Second).UnixNano(), generationState(h).Continuation.Pending.Nominal)
+		fireGeneration(h, true)
+		s, _ = h.root(false)
+		require.Equal(t, base.Add(time.Duration(second)*time.Second).UnixNano(), s.Cursor)
+		require.Len(t, s.Operations, 1)
+		require.Equal(t, int64(7), s.Remaining)
+	}
 	result := &commonpb.Payload{Metadata: map[string][]byte{"encoding": []byte("binary/plain")}, Data: []byte("first result")}
 	sequentialComplete(h, first.RequestId, result)
-	h.now = g.WakeAt
-	fireGeneration(h, true)
+	fireGeneration(h, true) // Scan nominal4.
+	fireGeneration(h, true) // Admit nominal4 with current carryover.
 	second := h.request()
-	require.NotEqual(t, first.RequestId, second.RequestId)
 	require.Equal(t, "workflow-2024-01-01T00:00:04Z", second.WorkflowId)
+	require.NotEqual(t, first.RequestId, second.RequestId)
 	protorequire.ProtoEqual(t, &commonpb.Payloads{Payloads: []*commonpb.Payload{result}}, second.LastCompletionResult)
+	fireGeneration(h, true) // Scan nominal5.
+	fireGeneration(h, true) // SKIP nominal5.
+	fireGeneration(h, true) // Scan discovers future nominal6.
 	s, _ = h.root(false)
 	require.Equal(t, int64(6), s.Remaining)
 	require.Equal(t, int64(1), s.Started)
 	require.Equal(t, base.Add(5*time.Second).UnixNano(), s.Cursor)
-	g = generationState(h)
-	require.Equal(t, base.Add(6*time.Second).UnixNano(), g.WakeAt)
+	require.Equal(t, base.Add(6*time.Second).UnixNano(), coordinationState(h).At)
+	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_WAITING, generationState(h).LastStatus)
 	require.Equal(t, 1, pureObligations(h))
 }
+
 func TestGenerationDuplicateTokenAndClockRollback(t *testing.T) {
 	t.Parallel()
 	h := newTreeHarness(t)
 	base := generationStart()
 	h.now = base.UnixNano()
 	configureGeneration(h, generationSpec(base.Add(time.Second), base.Add(3*time.Second), time.Second), "", 1, base, time.Minute)
-	stale := generationState(h)
+	stale := coordinationState(h)
 	fireGeneration(h, true)
-	current := generationState(h)
-	require.Equal(t, base.Add(time.Second).UnixNano(), current.WakeAt)
+	current := coordinationState(h)
+	require.Equal(t, base.Add(time.Second).UnixNano(), current.At)
 	s, ctx := h.root(true)
-	g := s.Generator.Get(ctx)
-	handler := &GenerateHandler{}
-	attrs := chasm.TaskAttributes{ScheduledTime: time.Unix(0, stale.WakeAt)}
-	task := &scheduler2pb.GenerateTask{Token: stale.Token}
-	valid, err := handler.Validate(ctx, g, chasm.TaskInvocation{TaskAttributes: attrs}, task)
+	handler := &WorkHandler{}
+	attrs := chasm.TaskAttributes{ScheduledTime: time.Unix(0, stale.At)}
+	task := &scheduler2pb.WorkTask{Token: stale.Token}
+	valid, err := handler.Validate(ctx, s, chasm.TaskInvocation{TaskAttributes: attrs}, task)
 	require.NoError(t, err)
 	require.False(t, valid)
-	require.NoError(t, handler.Execute(ctx.(chasm.MutableContext), g, attrs, task))
+	require.NoError(t, handler.Execute(ctx.(chasm.MutableContext), s, attrs, task))
 	commitGeneration(h, true)
-	protorequire.ProtoEqual(t, current, generationState(h))
+	protorequire.ProtoEqual(t, current, coordinationState(h))
 	require.Equal(t, 1, pureObligations(h))
 	before := cloneNodes(h.durable)
-	h.now = current.WakeAt - int64(time.Second)
-	_, err = deliverGeneration(h, time.Unix(0, current.WakeAt))
+	h.now = current.At - int64(time.Second)
+	_, err = deliverGeneration(h, time.Unix(0, current.At))
 	require.ErrorContains(t, err, "not due")
 	h.reload()
 	require.Equal(t, before, h.durable)
 	require.Equal(t, 1, pureObligations(h))
-	h.now = current.WakeAt
-	fireGeneration(h, true)
+	h.now = current.At
+	fireGeneration(h, true) // Existing pending candidate is handed off, not rescanned.
 	require.NotNil(t, h.request())
 	require.Equal(t, 1, pureObligations(h))
 }
@@ -202,7 +225,8 @@ func TestGenerationCatchupUsesActualTime(t *testing.T) {
 	spec := generationSpec(nominal, nominal, 90*time.Minute)
 	spec.Jitter = durationpb.New(24 * time.Hour)
 	configureGeneration(h, spec, "", 1, nominal.Add(-time.Nanosecond), time.Second)
-	fireGeneration(h, true)
+	fireGeneration(h, true) // Scan.
+	fireGeneration(h, true) // Handoff.
 	require.NotNil(t, h.request(), "nominal is late but actual lies inside catchup window")
 	s, _ := h.root(false)
 	require.Zero(t, s.Remaining)
@@ -215,52 +239,76 @@ func TestGenerationRangeEndResumesWithoutUnsupportedClock(t *testing.T) {
 	last := upper.Add(-time.Nanosecond)
 	h.now = last.UnixNano()
 	configureGeneration(h, generationSpec(upper.Add(-4*time.Second), upper.Add(-time.Second), time.Second), "", 1, upper.Add(-4*time.Second-time.Nanosecond), time.Minute)
-	fireGeneration(h, true)
+	for second := 4; second >= 1; second-- {
+		token := coordinationState(h).Token
+		fireGeneration(h, true)
+		require.Equal(t, upper.Add(-time.Duration(second)*time.Second).UnixNano(), generationState(h).Continuation.Pending.Nominal)
+		require.Equal(t, last.UnixNano(), coordinationState(h).At)
+		require.Greater(t, coordinationState(h).Token, token)
+		fireGeneration(h, true)
+	}
+	fireGeneration(h, true) // Exhaustion requires its own scan quantum.
 	g := generationState(h)
-	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_LIMITED, g.LastStatus)
-	require.Equal(t, last.UnixNano(), g.WakeAt)
-	require.True(t, g.Armed)
-	token := g.Token
-	fireGeneration(h, true)
-	g = generationState(h)
-	require.Greater(t, g.Token, token)
 	require.False(t, g.Armed)
 	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_EXHAUSTED, g.LastStatus)
+	require.False(t, coordinationState(h).Armed)
 	require.Zero(t, pureObligations(h))
 }
 
 func TestGenerationExcludedBudgetKeepsSuccessor(t *testing.T) {
 	t.Parallel()
-	h := newTreeHarness(t)
-	base := generationStart()
-	h.now = base.Add(21 * time.Second).UnixNano()
-	spec := generationSpec(base, base.Add(20*time.Second), time.Second)
-	ranges := func(start, end int32) []*schedulepb.Range {
-		return []*schedulepb.Range{{Start: start, End: end, Step: 1}}
+	for _, atRangeEnd := range []bool{false, true} {
+		name := "ordinary"
+		if atRangeEnd {
+			name = "last_supported_instant"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			h := newTreeHarness(t)
+			base := generationStart()
+			now := base.Add(21 * time.Second)
+			last := time.Date(2101, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond)
+			if atRangeEnd {
+				base = last.Add(time.Nanosecond - 21*time.Second)
+				now = last
+			}
+			h.now = now.UnixNano()
+			spec := generationSpec(base, base.Add(20*time.Second), time.Second)
+			ranges := func(start, end int32) []*schedulepb.Range {
+				return []*schedulepb.Range{{Start: start, End: end, Step: 1}}
+			}
+			spec.ExcludeStructuredCalendar = []*schedulepb.StructuredCalendarSpec{{Second: ranges(0, 59), Minute: ranges(0, 59), Hour: ranges(0, 23), DayOfMonth: ranges(1, 31), Month: ranges(1, 12), DayOfWeek: ranges(0, 6)}}
+			configureGeneration(h, spec, "", 1, base.Add(-time.Nanosecond), time.Minute)
+			fireGeneration(h, true)
+			g := generationState(h)
+			require.Equal(t, scheduler2pb.ENUMERATION_STATUS_YIELD, g.LastStatus)
+			require.Equal(t, base.Add(7*time.Second).UnixNano(), g.Continuation.DisposedThrough)
+			wake := now.Add(time.Millisecond)
+			if wake.After(last) {
+				wake = last
+			}
+			require.Equal(t, wake.UnixNano(), g.WakeAt)
+			require.Equal(t, wake.UnixNano(), coordinationState(h).At)
+			require.Equal(t, 1, pureObligations(h))
+			h.now = g.WakeAt
+			fireGeneration(h, true)
+			g = generationState(h)
+			require.Equal(t, base.Add(15*time.Second).UnixNano(), g.Continuation.DisposedThrough)
+			h.now = g.WakeAt
+			fireGeneration(h, true)
+			g = generationState(h)
+			require.Equal(t, scheduler2pb.ENUMERATION_STATUS_IMPOSSIBLE, g.LastStatus)
+			require.False(t, g.Armed)
+			require.Zero(t, pureObligations(h))
+			s, _ := h.root(false)
+			require.Empty(t, s.OperationId)
+			require.Equal(t, int64(1), s.Remaining)
+			require.Equal(t, base.Add(20*time.Second).UnixNano(), s.Cursor)
+
+		})
 	}
-	spec.ExcludeStructuredCalendar = []*schedulepb.StructuredCalendarSpec{{Second: ranges(0, 59), Minute: ranges(0, 59), Hour: ranges(0, 23), DayOfMonth: ranges(1, 31), Month: ranges(1, 12), DayOfWeek: ranges(0, 6)}}
-	configureGeneration(h, spec, "", 1, base.Add(-time.Nanosecond), time.Minute)
-	fireGeneration(h, true)
-	g := generationState(h)
-	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_YIELD, g.LastStatus)
-	require.Equal(t, base.Add(7*time.Second).UnixNano(), g.Continuation.DisposedThrough)
-	require.Equal(t, h.now+int64(time.Millisecond), g.WakeAt)
-	require.Equal(t, 1, pureObligations(h))
-	h.now = g.WakeAt
-	fireGeneration(h, true)
-	g = generationState(h)
-	require.Equal(t, base.Add(15*time.Second).UnixNano(), g.Continuation.DisposedThrough)
-	h.now = g.WakeAt
-	fireGeneration(h, true)
-	g = generationState(h)
-	require.Equal(t, scheduler2pb.ENUMERATION_STATUS_IMPOSSIBLE, g.LastStatus)
-	require.False(t, g.Armed)
-	require.Zero(t, pureObligations(h))
-	s, _ := h.root(false)
-	require.Empty(t, s.OperationId)
-	require.Equal(t, int64(1), s.Remaining)
-	require.Equal(t, base.Add(20*time.Second).UnixNano(), s.Cursor)
 }
+
 func TestGenerationSkippedAdmissionAvoidsCarryover(t *testing.T) {
 	t.Parallel()
 	for _, reason := range []string{"paused", "budget", "catchup"} {
@@ -290,7 +338,9 @@ func TestGenerationSkippedAdmissionAvoidsCarryover(t *testing.T) {
 				h.now = base.Add(2 * time.Second).UnixNano()
 			}
 			configureGeneration(h, generationSpec(base, base, time.Second), "", 1, base.Add(-time.Nanosecond), time.Second)
-			fireGeneration(h, true)
+			fireGeneration(h, true) // Scan.
+			fireGeneration(h, true) // Metadata-only disposition.
+			fireGeneration(h, true) // Exhaustion.
 			s, ctx := h.root(false)
 			require.Equal(t, first.RequestId, s.OperationId)
 			require.Equal(t, base.UnixNano(), s.Cursor)

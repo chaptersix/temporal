@@ -1,0 +1,107 @@
+{
+  "version": 2,
+  "clock_domain": "execution_nanoseconds",
+  "incarnation": "incarnation",
+  "now": "2024-01-01T00:00:02Z",
+  "after": "2023-12-31T23:59:59.999999999Z",
+  "revision": 1,
+  "seed": "",
+  "catchup": "60s",
+  "policy": 3,
+  "remaining": 3,
+  "spec": {
+    "interval": [
+      {
+        "interval": "1s"
+      }
+    ],
+    "startTime": "2024-01-01T00:00:00Z",
+    "endTime": "2024-01-01T00:00:02Z"
+  },
+  "request": {
+    "namespace": "namespace",
+    "workflowId": "workflow",
+    "workflowType": {
+      "name": "type"
+    },
+    "taskQueue": {
+      "name": "queue"
+    }
+  },
+  "steps": [
+    {
+      "kind": "generate",
+      "publish": true,
+      "queue": [
+        "2024-01-01T00:00:01Z",
+        "2024-01-01T00:00:02Z"
+      ],
+      "cursor": "2024-01-01T00:00:02Z",
+      "remaining": 2,
+      "started": 0,
+      "timers": 0,
+      "starts": 1,
+      "workflow_id": "workflow-2024-01-01T00:00:00Z",
+      "quanta": 7
+    },
+    {
+      "kind": "complete",
+      "result": {
+        "data": "Zmlyc3Q="
+      },
+      "queue": [
+        "2024-01-01T00:00:01Z",
+        "2024-01-01T00:00:02Z"
+      ],
+      "cursor": "2024-01-01T00:00:02Z",
+      "remaining": 2,
+      "started": 1,
+      "timers": 1,
+      "starts": 0,
+      "workflow_id": "workflow-2024-01-01T00:00:00Z"
+    },
+    {
+      "kind": "drain",
+      "publish": false,
+      "queue": [
+        "2024-01-01T00:00:01Z",
+        "2024-01-01T00:00:02Z"
+      ],
+      "cursor": "2024-01-01T00:00:02Z",
+      "remaining": 2,
+      "started": 1,
+      "timers": 1,
+      "starts": 0,
+      "workflow_id": "workflow-2024-01-01T00:00:00Z"
+    },
+    {
+      "kind": "restart",
+      "queue": [
+        "2024-01-01T00:00:01Z",
+        "2024-01-01T00:00:02Z"
+      ],
+      "cursor": "2024-01-01T00:00:02Z",
+      "remaining": 2,
+      "started": 1,
+      "timers": 1,
+      "starts": 0,
+      "workflow_id": "workflow-2024-01-01T00:00:00Z"
+    },
+    {
+      "kind": "drain",
+      "publish": true,
+      "queue": [
+        "2024-01-01T00:00:02Z"
+      ],
+      "cursor": "2024-01-01T00:00:02Z",
+      "remaining": 1,
+      "started": 1,
+      "timers": 0,
+      "starts": 1,
+      "workflow_id": "workflow-2024-01-01T00:00:01Z",
+      "carryover": {
+        "data": "Zmlyc3Q="
+      }
+    }
+  ]
+}

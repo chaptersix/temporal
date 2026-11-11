@@ -1,0 +1,26 @@
+=== RUN   TestCoordinatorBackfillCapAndRequestRotation
+=== PAUSE TestCoordinatorBackfillCapAndRequestRotation
+=== CONT  TestCoordinatorBackfillCapAndRequestRotation
+    coordinator_test.go:141: 
+        	Error Trace:	/private/tmp/sch-redesign-coordinator/chasm/lib/scheduler2/coordinator_test.go:141
+        	Error:      	Not equal: 
+        	            	expected: []uint64{0x1, 0x2, 0x3, 0x4}
+        	            	actual  : []uint64{0x1}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,6 +1,3 @@
+        	            	-([]uint64) (len=4) {
+        	            	- (uint64) 1,
+        	            	- (uint64) 2,
+        	            	- (uint64) 3,
+        	            	- (uint64) 4
+        	            	+([]uint64) (len=1) {
+        	            	+ (uint64) 1
+        	            	 }
+        	Test:       	TestCoordinatorBackfillCapAndRequestRotation
+--- FAIL: TestCoordinatorBackfillCapAndRequestRotation (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.681s
+FAIL

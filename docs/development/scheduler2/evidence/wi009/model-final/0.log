@@ -1,0 +1,10 @@
+arbitration-100 passed=True detected=False
+arbitration-200 passed=True detected=False
+cursor-100 passed=True detected=False
+cursor-200 passed=True detected=False
+dispose_on_peek passed=False detected=True
+update_uses_now passed=False detected=True
+end_uses_nominal passed=False detected=True
+naive_rr passed=False detected=True
+unreserved_vacancy passed=False detected=True
+rotate_pinned_backfill passed=False detected=True

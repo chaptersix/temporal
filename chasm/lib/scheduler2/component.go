@@ -4,7 +4,6 @@ package scheduler2
 import (
 	"bytes"
 	"maps"
-	"math"
 	"time"
 
 	enumspb "go.temporal.io/api/enums/v1"
@@ -61,14 +60,14 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.Sta
 		state.Effects = append(state.Effects, decodeEffect(e))
 	}
 	for _, q := range s.Queue {
-		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, WorkflowID: q.WorkflowId, Policy: q.Policy, ManualID: q.ManualId})
+		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, WorkflowID: q.WorkflowId, Policy: q.Policy, ManualID: q.ManualId, BackfillID: q.BackfillId})
 	}
 	if field, ok := s.Operations[operationID]; ok {
 		op := field.Get(ctx)
 		state.Operation = &decision.Operation{
 			OccurrenceID: op.OccurrenceId, ActionID: op.ActionId, ID: op.Id,
 			ChainID: op.ChainId, Nominal: op.Nominal, Deadline: op.Deadline,
-			ManualID: op.ManualId, RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId, Policy: op.Policy,
+			BackfillID: op.BackfillId, ManualID: op.ManualId, RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId, Policy: op.Policy,
 		}
 	}
 	return state
@@ -79,9 +78,34 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	if event.Incarnation != s.Incarnation {
 		return nil
 	}
+	if admissionEvent(event.Kind) {
+		return serviceerror.NewFailedPrecondition("admission requires coordinator ownership")
+	}
+	if err := s.applyTransition(ctx, event); err != nil {
+		return err
+	}
+	return s.reconcileWork(ctx)
+}
+
+func admissionEvent(kind decision.Kind) bool {
+	return kind == decision.Due || kind == decision.Drain || kind == decision.DispatchManual || kind == decision.DispatchBackfill
+}
+
+func (s *Scheduler) prepareFailureCarryover(ctx chasm.Context, before *decision.State, event decision.Event) {
+	if event.Kind == decision.Callback && event.Outcome == decision.Failure && event.Incarnation == s.Incarnation && before.Operation != nil && before.Operation.ID == event.OperationID && !decision.Terminal(before.Operation.Phase) && before.Operation.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && s.CarryoverSet {
+		c := s.Carryover.Get(ctx)
+		before.Carryover = &decision.Carryover{Result: c.Result, Failure: c.Failure, FailurePresent: c.FailurePresent}
+	}
+}
+
+// applyTransition is called only by a coordinator grant or a non-admission event.
+func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Event) error {
+	if event.Incarnation != s.Incarnation {
+		return nil
+	}
 	event.Now = ctx.Now(s).UnixNano()
 	operationID := event.OperationID
-	if event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.Update || event.Kind == decision.DispatchManual {
+	if admissionEvent(event.Kind) || event.Kind == decision.Update {
 		operationID = s.OperationId
 	}
 	before := s.stateFor(ctx, operationID)
@@ -94,10 +118,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	if err := s.prepareCompletion(before, &event); err != nil {
 		return err
 	}
-	if event.Kind == decision.Callback && event.Outcome == decision.Failure && event.Incarnation == s.Incarnation && before.Operation != nil && before.Operation.ID == event.OperationID && !decision.Terminal(before.Operation.Phase) && before.Operation.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && s.CarryoverSet {
-		c := s.Carryover.Get(ctx)
-		before.Carryover = &decision.Carryover{Result: c.Result, Failure: c.Failure, FailurePresent: c.FailurePresent}
-	}
+	s.prepareFailureCarryover(ctx, &before, event)
 
 	next, err := decision.Step(before, event)
 	if err != nil {
@@ -107,7 +128,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	if err != nil {
 		return err
 	}
-	newAdmission := (event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.DispatchManual) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID)
+	newAdmission := admissionEvent(event.Kind) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID)
 	if newAdmission {
 		if err := s.freezeAdmission(ctx, next.Operation); err != nil {
 			return err
@@ -116,16 +137,20 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	if len(next.Queue) > 0 && !s.HasGenerator {
 		return serviceerror.NewFailedPrecondition("buffering requires a configured template")
 	}
-	if s.canDrain(ctx, next) && !s.DrainArmed && s.DrainToken == math.MaxUint64 {
-		return serviceerror.NewFailedPrecondition("drain token exhausted")
-	}
-	if err := s.checkManualToken(next, event.Kind == decision.DispatchManual); err != nil {
+	if err := s.checkNextWorkToken(ctx, next); err != nil {
 		return err
 	}
 	eviction, err := s.retentionEviction(ctx, before, next)
 	if err != nil {
 		return err
 	}
+	s.publishTransition(ctx, before, next, event.Kind, newAdmission, eviction, effectRequests)
+	return nil
+}
+
+// publishTransition cannot reject: validation and successor-token checks precede
+// every DATA, control-state and task write in this publication phase.
+func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next decision.State, kind decision.Kind, newAdmission bool, eviction string, effectRequests map[string][]byte) {
 	if eviction != "" {
 		delete(s.Operations, eviction)
 		delete(s.Requests, eviction)
@@ -145,10 +170,12 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	hasGenerator, latestOperationID := s.HasGenerator, s.OperationId
 	drainToken, drainArmed, drainAt := s.DrainToken, s.DrainArmed, s.DrainAt
 	manualToken, manualArmed, manualAt := s.ManualToken, s.ManualArmed, s.ManualAt
-	if event.Kind == decision.DispatchManual {
+	if kind == decision.DispatchManual {
 		manualArmed = false
 	}
+	previousRoot := s.RootState
 	s.RootState = &scheduler2pb.RootState{
+		Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
 		ManualSequence: next.Root.ManualSequence, ManualToken: manualToken, ManualArmed: manualArmed, ManualAt: manualAt,
 		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
 		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
@@ -160,7 +187,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		s.Manuals = append(s.Manuals, &scheduler2pb.ManualCommand{Id: m.ID, Nominal: m.Nominal, Policy: m.Policy})
 	}
 	for _, q := range next.Queue {
-		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy, ManualId: q.ManualID})
+		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy, ManualId: q.ManualID, BackfillId: q.BackfillID})
 	}
 	if next.Carryover != nil {
 		s.Carryover = chasm.NewDataField(ctx, &scheduler2pb.CarryoverState{Result: bytes.Clone(next.Carryover.Result), Failure: bytes.Clone(next.Carryover.Failure), FailurePresent: next.Carryover.FailurePresent})
@@ -171,7 +198,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		}
 		metadata := &scheduler2pb.OperationState{
 			OccurrenceId: op.OccurrenceID, ActionId: op.ActionID, Id: op.ID, ChainId: op.ChainID,
-			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy, ManualId: op.ManualID,
+			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy, ManualId: op.ManualID, BackfillId: op.BackfillID,
 		}
 		s.Operations[op.ID] = chasm.NewDataField(ctx, metadata)
 		if newAdmission {
@@ -185,9 +212,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 			&scheduler2pb.StartTask{OperationId: next.Operation.ID})
 	}
 	s.publishEffects(ctx, before, next, effectRequests)
-	s.reconcileDrain(ctx, next)
-	s.reconcileManual(ctx, next)
-	return nil
+
 }
 
 // request returns a detached request after checking the selected operation's deadline.
@@ -244,7 +269,7 @@ func (s *Scheduler) freezeAdmission(ctx chasm.Context, op *decision.Operation) e
 	if op.WorkflowID != "" {
 		request.WorkflowId = op.WorkflowID
 	}
-	if op.ManualID != 0 {
+	if op.ManualID != 0 || op.BackfillID != 0 {
 		request.WorkflowIdReusePolicy = enumspb.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
 	}
 	request.RequestId = op.ID
