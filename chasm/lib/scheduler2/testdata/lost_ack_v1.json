@@ -1,21 +1,74 @@
 {
- "version": 1,
- "incarnation": "incarnation",
- "initial_time_ns": 1000000000,
- "remaining": 1,
- "request": {"namespace":"namespace","workflow_id":"workflow","workflow_type":{"name":"type"},"task_queue":{"name":"queue"},"input":{"payloads":[{"data":"ZnJvemVu"}]}},
- "events": [
-  {"kind":"occurrence_due"},
-  {"kind":"deliver_start","attempt":1},
-  {"kind":"external_accept","chain":"chain"},
-  {"kind":"crash"},
-  {"kind":"restart"},
-  {"kind":"update_definition"},
-  {"kind":"rpc_result","outcome":"lost_ack"},
-  {"kind":"advance_time","time_ns":2000000000},
-  {"kind":"deliver_start","attempt":2},
-  {"kind":"complete","chain":"chain"},
-  {"kind":"rpc_result","outcome":"success","chain":"chain"},
-  {"kind":"complete","chain":"chain"}
- ]
+  "version": 1,
+  "incarnation": "incarnation",
+  "initial_time_ns": 1000000000,
+  "remaining": 1,
+  "request": {
+    "namespace": "namespace",
+    "workflow_id": "workflow",
+    "workflow_type": {
+      "name": "type"
+    },
+    "task_queue": {
+      "name": "queue"
+    },
+    "input": {
+      "payloads": [
+        {
+          "data": "ZnJvemVu"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "kind": "occurrence_due"
+    },
+    {
+      "kind": "deliver_start",
+      "attempt": 1
+    },
+    {
+      "kind": "external_accept",
+      "chain": "chain"
+    },
+    {
+      "kind": "crash"
+    },
+    {
+      "kind": "restart"
+    },
+    {
+      "kind": "update_definition"
+    },
+    {
+      "kind": "rpc_result",
+      "outcome": "lost_ack"
+    },
+    {
+      "kind": "advance_time",
+      "time_ns": 2000000000
+    },
+    {
+      "kind": "deliver_start",
+      "attempt": 2
+    },
+    {
+      "kind": "complete",
+      "chain": "chain",
+      "result_present": false
+    },
+    {
+      "kind": "rpc_result",
+      "outcome": "success",
+      "chain": "chain"
+    },
+    {
+      "kind": "complete",
+      "chain": "chain",
+      "result_present": false
+    }
+  ],
+  "clock_domain": "execution_nanoseconds",
+  "definition_revision": 1
 }

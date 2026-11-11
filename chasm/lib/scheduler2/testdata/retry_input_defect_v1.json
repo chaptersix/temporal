@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "incarnation": "incarnation",
+  "initial_time_ns": 1000000000,
+  "remaining": 1,
+  "request": {
+    "namespace": "namespace",
+    "workflow_id": "workflow",
+    "workflow_type": {
+      "name": "type"
+    },
+    "task_queue": {
+      "name": "queue"
+    },
+    "input": {
+      "payloads": [
+        {
+          "data": "ZnJvemVu"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "kind": "occurrence_due"
+    },
+    {
+      "kind": "deliver_start",
+      "attempt": 1
+    },
+    {
+      "kind": "external_accept",
+      "chain": "chain"
+    },
+    {
+      "kind": "crash"
+    },
+    {
+      "kind": "restart"
+    },
+    {
+      "kind": "deliver_start",
+      "attempt": 2
+    }
+  ],
+  "clock_domain": "execution_nanoseconds",
+  "definition_revision": 1
+}

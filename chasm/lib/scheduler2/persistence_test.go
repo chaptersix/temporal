@@ -83,7 +83,7 @@ func (h *treeHarness) reload() {
 }
 func (h *treeHarness) root(mutable bool) (*Scheduler, chasm.Context) {
 	h.t.Helper()
-	var ctx chasm.Context = chasm.NewContext(h.t.Context(), h.node)
+	ctx := chasm.NewContext(h.t.Context(), h.node)
 	if mutable {
 		ctx = chasm.NewMutableContext(h.t.Context(), h.node)
 	}
@@ -106,9 +106,9 @@ func (h *treeHarness) commit(publish bool) chasm.NodesMutation {
 		for _, batch := range h.backend.TasksByCategory {
 			for _, task := range batch {
 				if physical, ok := task.(*tasks.ChasmTask); ok {
-					copy := *physical
-					copy.Info = proto.Clone(physical.Info).(*persistencespb.ChasmTaskInfo)
-					h.physical = append(h.physical, &copy)
+					cloned := *physical
+					cloned.Info = proto.Clone(physical.Info).(*persistencespb.ChasmTaskInfo)
+					h.physical = append(h.physical, &cloned)
 				}
 			}
 		}
@@ -211,6 +211,12 @@ func TestFailedPublicationRetainsPriorStateAndTasks(t *testing.T) {
 func TestMetadataTransitionsAvoidPayloadDeserialization(t *testing.T) {
 	t.Parallel()
 	h := newTreeHarness(t)
+	s, ctx := h.root(true)
+	s.Operations["inert"] = chasm.NewComponentField(ctx.(chasm.MutableContext), &Operation{
+		OperationState: &scheduler2pb.OperationState{Id: "inert", Phase: scheduler2pb.Phase(decision.Started)},
+		Request:        chasm.NewDataField(ctx.(chasm.MutableContext), &scheduler2pb.Payload{Data: bytes.Repeat([]byte("i"), 1<<20)}),
+	})
+	h.commit(true)
 	expected := h.admit()
 	poisoned := 0
 	for path, node := range h.durable {
@@ -219,18 +225,23 @@ func TestMetadataTransitionsAvoidPayloadDeserialization(t *testing.T) {
 			poisoned++
 		}
 	}
-	require.Equal(t, 2, poisoned, "fixture must poison both separately persisted payload nodes")
+	require.Equal(t, 3, poisoned, "fixture must poison selected request, unrelated request and diagnostics")
 	h.reload()
 	mutation := h.apply(decision.Event{Kind: decision.Complete, Incarnation: "incarnation", OperationID: expected.RequestId, ChainID: "chain"}, true)
-	for path := range mutation.UpdatedNodes {
+	serializedBytes := 0
+	for path, node := range mutation.UpdatedNodes {
+		serializedBytes += proto.Size(node)
+		require.NotContains(t, path, "inert")
 		require.NotContains(t, path, "Request")
 		require.NotContains(t, path, "Diagnostics")
 	}
-	t.Logf("metadata completion: %d payload nodes unread; %d nodes written; no database-read reduction claimed", poisoned, len(mutation.UpdatedNodes))
-	s, ctx := h.root(false)
+	t.Logf("metadata completion: %d payload values not prepared/deserialized; %d nodes written; %d serialized bytes; no database-read reduction claimed", poisoned, len(mutation.UpdatedNodes), serializedBytes)
+	s, ctx = h.root(false)
 	require.Equal(t, int64(1), s.Started)
 	// The poison is discriminating: explicitly loading it fails deserialization.
 	require.Panics(t, func() { s.Diagnostics.Get(ctx) })
+	require.Panics(t, func() { s.Operations["inert"].Get(ctx).Request.Get(ctx) })
+	require.Panics(t, func() { s.Operations[s.OperationId].Get(ctx).Request.Get(ctx) })
 }
 func TestDroppedLogicalTaskIsDetected(t *testing.T) {
 	t.Parallel()
