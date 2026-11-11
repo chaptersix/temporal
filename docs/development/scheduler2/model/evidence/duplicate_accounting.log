@@ -5,7 +5,7 @@ StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_
 Nodes: 85, queued: 552, elapsed: 25.205625ms
 Time taken for model checking: 25.216291ms
 Writen graph dotfile: /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/graph.dot
-To generate svg, run: 
+To generate svg, run:
 dot -Tsvg /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/graph.dot -o graph.svg && open graph.svg
 FAILED: Model checker failed. Invariant:  AccountingOnce
 ------
@@ -39,8 +39,8 @@ state: {"accepted":true,"ack_available":false,"admitted":true,"attempt":1,"budge
 ------
 Writen graph json: /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/error-graph.json
 Writen graph dotfile: /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/error-graph.dot
-To generate an image file, run: 
+To generate an image file, run:
 dot -Tsvg /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
 Writen error states as html: /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/error-states.html
-To open: 
+To open:
 open /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/error-states.html

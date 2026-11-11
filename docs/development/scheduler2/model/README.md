@@ -17,7 +17,7 @@ The runner enforces a 300-second timeout per case, preserves full graphs in the
 output directory, and requires the named invariant failure for each mutation.
 Parser errors, tool errors, timeouts, and unexpected invariant failures do not
 pass a mutation check. `evidence/results.json` records exact commands, exit codes,
-source hashes and node counts. Text logs and JSON error graphs are checked in;
+source hashes and node counts. Text logs (trailing whitespace removed) and JSON error graphs are checked in;
 full successful-state graphs remain at the local paths in the logs. Replay a
 mutation by rerunning the command above, which deterministically constructs each
 mutated specification and reproduces its counterexample. The FizzBee error-graph
