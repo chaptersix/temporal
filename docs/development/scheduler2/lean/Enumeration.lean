@@ -159,6 +159,23 @@ def NextIsFirst : Prop :=
     scan source through fuel 1 (initial source after) = .ok result →
     result.output ≠ [] → result.output = (expected source after through).take 1
 
+-- SP1: sufficient resources must successfully return every eligible value.
+-- Existence prevents an always-empty or always-error scanner satisfying this claim.
+def CompleteEnumeration : Prop :=
+  ∀ source after through,
+    WellFormedSource source →
+    ∃ result,
+      scan source through (source.raw.length + 1) (source.raw.length + 1)
+        (initial source after) = .ok result ∧
+      result.output = expected source after through
+
+-- SP1/SP2: successful output has strictly increasing nominal identities.
+def OutputUnique : Prop :=
+  ∀ source through fuel slots state result,
+    WellFormedSource source → WellFormedState source state →
+    scan source through fuel slots state = .ok result →
+    result.output.Pairwise (fun a b => a.nominal < b.nominal)
+
 -- SP2: splitting probe work cannot change output or committed progress when
 -- the first call yields before its output cap. Final stop is compared as well.
 def ResumeEquivalence : Prop :=

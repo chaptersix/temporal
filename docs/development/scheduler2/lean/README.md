@@ -78,6 +78,7 @@ WI-001 operations are outside this state and remain immutable.
 
 | Proposition | Scope |
 | --- | --- |
+| `CompleteEnumeration` / `OutputUnique` (SP1/SP2) | Sufficient resources successfully return all eligible values; successful outputs have strictly increasing nominal identities. |
 | `NextIsFirst` (SP1) | An emitted singleton equals the first declaratively eligible value; no earlier eligible candidate is skipped. |
 | `ResumeEquivalence` (SP2) | Splitting probe fuel at a yield preserves concatenated output/dispositions, total probes, final state and stop. |
 | `BatchEquivalence` (SP3) | Splitting inclusive output windows with sufficient work/slots preserves concatenated output and final state. |
