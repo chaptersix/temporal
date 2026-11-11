@@ -486,6 +486,9 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D29 | Sequential SKIP occupancy | decided for WI-004 | Pending/Started/Ambiguous occupy until Completed; actual time controls catchup, nominal controls identity. DIV6 conservatively avoids lost-ack overlap. | C2/C3; sequential integration |
 | D30 | Bounded completed-record retention | decided for WI-004 | Cap4 records, oldest Completed eviction at admission; never evict unfinished; counts/cursor/carryover survive. Older IDs no-op. Supersedes retain-all M1 experiment for this local slice. | C8/D4/D14 subset; general retention deferred |
 | D31 | Generation task state | decided for WI-004 | Independent token/deadline, probes8/outputs4, Yield/Limited now+1ms clamped inside supported range, Waiting at actual; committed atomically with disposition/admission. | S1/S5/S6; WI-002 integration |
+| D32 | Bounded automatic buffers | decided for WI-005 | BUFFER_ONE first waiter; BUFFER_ALL FIFO cap4; strict unfinished occupancy; overflow counted without debit; current eligibility at drain. | Implementation/tests in progress |
+| D33 | Queued configuration adoption | decided for WI-005 | Queue-time fully suffixed workflow ID and resolved policy survive update; current template/catchup/carryover frozen at admission. Follow V2 source. | WI-005 contract |
+| D34 | Independent drain obligation | decided for WI-005 | Completion arms root token/deadline even when generator exhausted; scan at most4, admit at most1. Already due queued entries recheck catchup upper bound after clock rollback; physical DrainAt remains lower bound. | WI-005 contract |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 

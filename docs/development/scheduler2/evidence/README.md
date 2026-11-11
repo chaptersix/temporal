@@ -128,3 +128,14 @@ Atomic DB publication and fair physical delivery remain assumptions; CHASM node
 serialization, task validation/reconstruction and rollback publication are tested.
 Other overlaps, queue admission/drain, manual/backfill fairness and general retention
 remain future work. The generation task is not selected by production routing.
+
+## WI-005 evidence in progress (not accepted)
+
+E32 contract: [WI-005](../work-items/WI-005.md), D32–D34, contract e706a6340.
+Source010b39757 adds bounded buffers and independent drain tasks. Baseline
+[package tests](wi005/baseline.log) and [generation](wi005/generation.log) pass.
+E33 independent bounded model: [results](../model/buffer/evidence/results.json),
+[scope](../model/buffer/README.md); both bounds exhaust69,207 nodes/69,196 unique
+states, seven safety assertions/seven witnesses and four named mutants detected.
+No liveness or automated Go refinement claim. New Go tests, exploration, race,
+lint, mutations and final independent review remain acceptance requirements.
