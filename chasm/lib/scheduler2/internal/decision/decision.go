@@ -109,15 +109,12 @@ func admit(next State, event Event) (State, error) {
 	if event.Nominal <= next.Root.Cursor || event.Nominal > event.Now {
 		return next, nil
 	}
-	if next.Operation != nil {
-		return next, serviceerror.NewFailedPrecondition("single occurrence capacity exhausted")
-	}
 	if event.Now > math.MaxInt64-RetryHorizon {
 		return next, serviceerror.NewInvalidArgument("admission time exceeds supported range")
 	}
 	previousCursor := next.Root.Cursor
 	next.Root.Cursor = event.Nominal
-	if next.Root.Paused || (next.Root.Limited && next.Root.Remaining <= 0) || event.Now > event.CatchupDeadline {
+	if next.Root.Paused || (next.Root.Limited && next.Root.Remaining <= 0) || event.Now > event.CatchupDeadline || (next.Operation != nil && next.Operation.Phase != Completed) {
 		return next, nil
 	}
 	if len(event.Request) == 0 || next.Root.Incarnation == "" {

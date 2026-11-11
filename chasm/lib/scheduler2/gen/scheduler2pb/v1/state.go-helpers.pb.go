@@ -192,6 +192,191 @@ func (this *CarryoverState) Equal(that interface{}) bool {
 	return proto.Equal(this, that1)
 }
 
+// Marshal an object of type OccurrenceCandidate to the protobuf v3 wire format
+func (val *OccurrenceCandidate) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type OccurrenceCandidate from the protobuf v3 wire format
+func (val *OccurrenceCandidate) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *OccurrenceCandidate) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two OccurrenceCandidate values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *OccurrenceCandidate) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *OccurrenceCandidate
+	switch t := that.(type) {
+	case *OccurrenceCandidate:
+		that1 = t
+	case OccurrenceCandidate:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type OccurrenceContinuation to the protobuf v3 wire format
+func (val *OccurrenceContinuation) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type OccurrenceContinuation from the protobuf v3 wire format
+func (val *OccurrenceContinuation) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *OccurrenceContinuation) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two OccurrenceContinuation values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *OccurrenceContinuation) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *OccurrenceContinuation
+	switch t := that.(type) {
+	case *OccurrenceContinuation:
+		that1 = t
+	case OccurrenceContinuation:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type GeneratorState to the protobuf v3 wire format
+func (val *GeneratorState) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type GeneratorState from the protobuf v3 wire format
+func (val *GeneratorState) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *GeneratorState) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two GeneratorState values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *GeneratorState) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *GeneratorState
+	switch t := that.(type) {
+	case *GeneratorState:
+		that1 = t
+	case GeneratorState:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type GenerationDefinition to the protobuf v3 wire format
+func (val *GenerationDefinition) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type GenerationDefinition from the protobuf v3 wire format
+func (val *GenerationDefinition) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *GenerationDefinition) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two GenerationDefinition values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *GenerationDefinition) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *GenerationDefinition
+	switch t := that.(type) {
+	case *GenerationDefinition:
+		that1 = t
+	case GenerationDefinition:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type GenerateTask to the protobuf v3 wire format
+func (val *GenerateTask) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type GenerateTask from the protobuf v3 wire format
+func (val *GenerateTask) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *GenerateTask) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two GenerateTask values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *GenerateTask) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *GenerateTask
+	switch t := that.(type) {
+	case *GenerateTask:
+		that1 = t
+	case GenerateTask:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
 var (
 	Phase_shorthandValue = map[string]int32{
 		"Unspecified": 0,
@@ -211,4 +396,28 @@ func PhaseFromString(s string) (Phase, error) {
 		return Phase(v), nil
 	}
 	return Phase(0), fmt.Errorf("%s is not a valid Phase", s)
+}
+
+var (
+	EnumerationStatus_shorthandValue = map[string]int32{
+		"Unspecified": 0,
+		"Active":      1,
+		"Yield":       2,
+		"Limited":     3,
+		"Waiting":     4,
+		"Empty":       5,
+		"Impossible":  6,
+		"Exhausted":   7,
+	}
+)
+
+// EnumerationStatusFromString parses a EnumerationStatus value from  either the protojson
+// canonical SCREAMING_CASE enum or the traditional temporal PascalCase enum to EnumerationStatus
+func EnumerationStatusFromString(s string) (EnumerationStatus, error) {
+	if v, ok := EnumerationStatus_value[s]; ok {
+		return EnumerationStatus(v), nil
+	} else if v, ok := EnumerationStatus_shorthandValue[s]; ok {
+		return EnumerationStatus(v), nil
+	}
+	return EnumerationStatus(0), fmt.Errorf("%s is not a valid EnumerationStatus", s)
 }

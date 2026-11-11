@@ -93,6 +93,91 @@ func (Phase) EnumDescriptor() ([]byte, []int) {
 	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{0}
 }
 
+// EnumerationStatus distinguishes work stops from complete source exhaustion.
+type EnumerationStatus int32
+
+const (
+	ENUMERATION_STATUS_UNSPECIFIED EnumerationStatus = 0
+	ENUMERATION_STATUS_ACTIVE      EnumerationStatus = 1
+	ENUMERATION_STATUS_YIELD       EnumerationStatus = 2
+	ENUMERATION_STATUS_LIMITED     EnumerationStatus = 3
+	ENUMERATION_STATUS_WAITING     EnumerationStatus = 4
+	ENUMERATION_STATUS_EMPTY       EnumerationStatus = 5
+	ENUMERATION_STATUS_IMPOSSIBLE  EnumerationStatus = 6
+	ENUMERATION_STATUS_EXHAUSTED   EnumerationStatus = 7
+)
+
+// Enum value maps for EnumerationStatus.
+var (
+	EnumerationStatus_name = map[int32]string{
+		0: "ENUMERATION_STATUS_UNSPECIFIED",
+		1: "ENUMERATION_STATUS_ACTIVE",
+		2: "ENUMERATION_STATUS_YIELD",
+		3: "ENUMERATION_STATUS_LIMITED",
+		4: "ENUMERATION_STATUS_WAITING",
+		5: "ENUMERATION_STATUS_EMPTY",
+		6: "ENUMERATION_STATUS_IMPOSSIBLE",
+		7: "ENUMERATION_STATUS_EXHAUSTED",
+	}
+	EnumerationStatus_value = map[string]int32{
+		"ENUMERATION_STATUS_UNSPECIFIED": 0,
+		"ENUMERATION_STATUS_ACTIVE":      1,
+		"ENUMERATION_STATUS_YIELD":       2,
+		"ENUMERATION_STATUS_LIMITED":     3,
+		"ENUMERATION_STATUS_WAITING":     4,
+		"ENUMERATION_STATUS_EMPTY":       5,
+		"ENUMERATION_STATUS_IMPOSSIBLE":  6,
+		"ENUMERATION_STATUS_EXHAUSTED":   7,
+	}
+)
+
+func (x EnumerationStatus) Enum() *EnumerationStatus {
+	p := new(EnumerationStatus)
+	*p = x
+	return p
+}
+
+func (x EnumerationStatus) String() string {
+	switch x {
+	case ENUMERATION_STATUS_UNSPECIFIED:
+		return "Unspecified"
+	case ENUMERATION_STATUS_ACTIVE:
+		return "Active"
+	case ENUMERATION_STATUS_YIELD:
+		return "Yield"
+	case ENUMERATION_STATUS_LIMITED:
+		return "Limited"
+	case ENUMERATION_STATUS_WAITING:
+		return "Waiting"
+	case ENUMERATION_STATUS_EMPTY:
+		return "Empty"
+	case ENUMERATION_STATUS_IMPOSSIBLE:
+		return "Impossible"
+	case ENUMERATION_STATUS_EXHAUSTED:
+		return "Exhausted"
+	default:
+		return strconv.Itoa(int(x))
+	}
+
+}
+
+func (EnumerationStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes[1].Descriptor()
+}
+
+func (EnumerationStatus) Type() protoreflect.EnumType {
+	return &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes[1]
+}
+
+func (x EnumerationStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EnumerationStatus.Descriptor instead.
+func (EnumerationStatus) EnumDescriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{1}
+}
+
 // RootState holds the bounded scheduler control summary.
 type RootState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -110,14 +195,16 @@ type RootState struct {
 	Remaining int64 `protobuf:"varint,6,opt,name=remaining,proto3" json:"remaining,omitempty"`
 	// Started counts operations with evidence of acceptance.
 	Started int64 `protobuf:"varint,7,opt,name=started,proto3" json:"started,omitempty"`
-	// OperationId identifies the single operation in this prototype.
+	// OperationId identifies the latest admitted operation.
 	OperationId string `protobuf:"bytes,8,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
 	// CarryoverSet indicates that a separate carryover node has been initialized.
 	CarryoverSet bool `protobuf:"varint,9,opt,name=carryover_set,json=carryoverSet,proto3" json:"carryover_set,omitempty"`
 	// PauseOnFailure applies the current policy to failed or timed-out completions.
 	PauseOnFailure bool `protobuf:"varint,10,opt,name=pause_on_failure,json=pauseOnFailure,proto3" json:"pause_on_failure,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// HasGenerator indicates that the separate generation component is initialized.
+	HasGenerator  bool `protobuf:"varint,11,opt,name=has_generator,json=hasGenerator,proto3" json:"has_generator,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RootState) Reset() {
@@ -216,6 +303,13 @@ func (x *RootState) GetCarryoverSet() bool {
 func (x *RootState) GetPauseOnFailure() bool {
 	if x != nil {
 		return x.PauseOnFailure
+	}
+	return false
+}
+
+func (x *RootState) GetHasGenerator() bool {
+	if x != nil {
+		return x.HasGenerator
 	}
 	return false
 }
@@ -485,11 +579,412 @@ func (x *CarryoverState) GetFailurePresent() bool {
 	return false
 }
 
+// OccurrenceCandidate retains a discovered value across time and work boundaries.
+type OccurrenceCandidate struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Nominal is the identity's execution Unix nanoseconds.
+	Nominal int64 `protobuf:"varint,1,opt,name=nominal,proto3" json:"nominal,omitempty"`
+	// Actual is the jittered execution Unix nanoseconds.
+	Actual int64 `protobuf:"varint,2,opt,name=actual,proto3" json:"actual,omitempty"`
+	// Revision identifies its immutable definition.
+	Revision int64 `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	// Excluded records an exclusion awaiting disposition.
+	Excluded      bool `protobuf:"varint,4,opt,name=excluded,proto3" json:"excluded,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OccurrenceCandidate) Reset() {
+	*x = OccurrenceCandidate{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OccurrenceCandidate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OccurrenceCandidate) ProtoMessage() {}
+
+func (x *OccurrenceCandidate) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OccurrenceCandidate.ProtoReflect.Descriptor instead.
+func (*OccurrenceCandidate) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *OccurrenceCandidate) GetNominal() int64 {
+	if x != nil {
+		return x.Nominal
+	}
+	return 0
+}
+
+func (x *OccurrenceCandidate) GetActual() int64 {
+	if x != nil {
+		return x.Actual
+	}
+	return 0
+}
+
+func (x *OccurrenceCandidate) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *OccurrenceCandidate) GetExcluded() bool {
+	if x != nil {
+		return x.Excluded
+	}
+	return false
+}
+
+// OccurrenceContinuation stores resumable search separately from generator tokens.
+type OccurrenceContinuation struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Origin is the initial exclusive boundary in execution Unix nanoseconds.
+	Origin int64 `protobuf:"varint,1,opt,name=origin,proto3" json:"origin,omitempty"`
+	// DefinitionId binds the canonical definition and jitter seed.
+	DefinitionId string `protobuf:"bytes,2,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
+	// Revision identifies the immutable definition.
+	Revision int64 `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	// SearchAfter is the last examined nominal boundary.
+	SearchAfter int64 `protobuf:"varint,4,opt,name=search_after,json=searchAfter,proto3" json:"search_after,omitempty"`
+	// DisposedThrough is the last committed nominal disposition boundary.
+	DisposedThrough int64 `protobuf:"varint,5,opt,name=disposed_through,json=disposedThrough,proto3" json:"disposed_through,omitempty"`
+	// Pending retains a candidate not yet disposed.
+	Pending *OccurrenceCandidate `protobuf:"bytes,6,opt,name=pending,proto3" json:"pending,omitempty"`
+	// FullRange identifies scans beginning before the effective lower bound.
+	FullRange bool `protobuf:"varint,7,opt,name=full_range,json=fullRange,proto3" json:"full_range,omitempty"`
+	// EligibleSeen records whether any eligible value was found.
+	EligibleSeen bool `protobuf:"varint,8,opt,name=eligible_seen,json=eligibleSeen,proto3" json:"eligible_seen,omitempty"`
+	// Terminal caches source completion independently of work stops.
+	Terminal      EnumerationStatus `protobuf:"varint,9,opt,name=terminal,proto3,enum=temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus" json:"terminal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OccurrenceContinuation) Reset() {
+	*x = OccurrenceContinuation{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OccurrenceContinuation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OccurrenceContinuation) ProtoMessage() {}
+
+func (x *OccurrenceContinuation) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OccurrenceContinuation.ProtoReflect.Descriptor instead.
+func (*OccurrenceContinuation) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *OccurrenceContinuation) GetOrigin() int64 {
+	if x != nil {
+		return x.Origin
+	}
+	return 0
+}
+
+func (x *OccurrenceContinuation) GetDefinitionId() string {
+	if x != nil {
+		return x.DefinitionId
+	}
+	return ""
+}
+
+func (x *OccurrenceContinuation) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *OccurrenceContinuation) GetSearchAfter() int64 {
+	if x != nil {
+		return x.SearchAfter
+	}
+	return 0
+}
+
+func (x *OccurrenceContinuation) GetDisposedThrough() int64 {
+	if x != nil {
+		return x.DisposedThrough
+	}
+	return 0
+}
+
+func (x *OccurrenceContinuation) GetPending() *OccurrenceCandidate {
+	if x != nil {
+		return x.Pending
+	}
+	return nil
+}
+
+func (x *OccurrenceContinuation) GetFullRange() bool {
+	if x != nil {
+		return x.FullRange
+	}
+	return false
+}
+
+func (x *OccurrenceContinuation) GetEligibleSeen() bool {
+	if x != nil {
+		return x.EligibleSeen
+	}
+	return false
+}
+
+func (x *OccurrenceContinuation) GetTerminal() EnumerationStatus {
+	if x != nil {
+		return x.Terminal
+	}
+	return ENUMERATION_STATUS_UNSPECIFIED
+}
+
+// GeneratorState holds bounded control state for generation.
+type GeneratorState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Continuation is the committed occurrence progress.
+	Continuation *OccurrenceContinuation `protobuf:"bytes,1,opt,name=continuation,proto3" json:"continuation,omitempty"`
+	// Token distinguishes successive generation obligations.
+	Token uint64 `protobuf:"varint,2,opt,name=token,proto3" json:"token,omitempty"`
+	// Armed indicates a current generation obligation.
+	Armed bool `protobuf:"varint,3,opt,name=armed,proto3" json:"armed,omitempty"`
+	// WakeAt is its execution Unix nanosecond deadline.
+	WakeAt int64 `protobuf:"varint,4,opt,name=wake_at,json=wakeAt,proto3" json:"wake_at,omitempty"`
+	// CatchupWindow is the permitted actual-time lateness in nanoseconds.
+	CatchupWindow int64 `protobuf:"varint,5,opt,name=catchup_window,json=catchupWindow,proto3" json:"catchup_window,omitempty"`
+	// LastStatus is the most recent enumeration stop.
+	LastStatus EnumerationStatus `protobuf:"varint,6,opt,name=last_status,json=lastStatus,proto3,enum=temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus" json:"last_status,omitempty"`
+	// Superseded records the last pending candidate discarded by a definition update.
+	Superseded    *OccurrenceCandidate `protobuf:"bytes,7,opt,name=superseded,proto3" json:"superseded,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GeneratorState) Reset() {
+	*x = GeneratorState{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GeneratorState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GeneratorState) ProtoMessage() {}
+
+func (x *GeneratorState) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GeneratorState.ProtoReflect.Descriptor instead.
+func (*GeneratorState) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GeneratorState) GetContinuation() *OccurrenceContinuation {
+	if x != nil {
+		return x.Continuation
+	}
+	return nil
+}
+
+func (x *GeneratorState) GetToken() uint64 {
+	if x != nil {
+		return x.Token
+	}
+	return 0
+}
+
+func (x *GeneratorState) GetArmed() bool {
+	if x != nil {
+		return x.Armed
+	}
+	return false
+}
+
+func (x *GeneratorState) GetWakeAt() int64 {
+	if x != nil {
+		return x.WakeAt
+	}
+	return 0
+}
+
+func (x *GeneratorState) GetCatchupWindow() int64 {
+	if x != nil {
+		return x.CatchupWindow
+	}
+	return 0
+}
+
+func (x *GeneratorState) GetLastStatus() EnumerationStatus {
+	if x != nil {
+		return x.LastStatus
+	}
+	return ENUMERATION_STATUS_UNSPECIFIED
+}
+
+func (x *GeneratorState) GetSuperseded() *OccurrenceCandidate {
+	if x != nil {
+		return x.Superseded
+	}
+	return nil
+}
+
+// GenerationDefinition holds immutable large values separate from generator metadata.
+type GenerationDefinition struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Spec is a serialized ScheduleSpec.
+	Spec []byte `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
+	// Seed fixes jitter choices for this revision.
+	Seed string `protobuf:"bytes,2,opt,name=seed,proto3" json:"seed,omitempty"`
+	// Request is the serialized workflow start template.
+	Request       []byte `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GenerationDefinition) Reset() {
+	*x = GenerationDefinition{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerationDefinition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerationDefinition) ProtoMessage() {}
+
+func (x *GenerationDefinition) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerationDefinition.ProtoReflect.Descriptor instead.
+func (*GenerationDefinition) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GenerationDefinition) GetSpec() []byte {
+	if x != nil {
+		return x.Spec
+	}
+	return nil
+}
+
+func (x *GenerationDefinition) GetSeed() string {
+	if x != nil {
+		return x.Seed
+	}
+	return ""
+}
+
+func (x *GenerationDefinition) GetRequest() []byte {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+// GenerateTask identifies the current generation obligation.
+type GenerateTask struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Token rejects replaced physical deliveries without advancing the cursor.
+	Token         uint64 `protobuf:"varint,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GenerateTask) Reset() {
+	*x = GenerateTask{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateTask) ProtoMessage() {}
+
+func (x *GenerateTask) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateTask.ProtoReflect.Descriptor instead.
+func (*GenerateTask) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GenerateTask) GetToken() uint64 {
+	if x != nil {
+		return x.Token
+	}
+	return 0
+}
+
 var File_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto protoreflect.FileDescriptor
 
 const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "" +
 	"\n" +
-	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\"\xbd\x02\n" +
+	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\"\xe2\x02\n" +
 	"\tRootState\x12 \n" +
 	"\vincarnation\x18\x01 \x01(\tR\vincarnation\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x16\n" +
@@ -501,7 +996,8 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\foperation_id\x18\b \x01(\tR\voperationId\x12#\n" +
 	"\rcarryover_set\x18\t \x01(\bR\fcarryoverSet\x12(\n" +
 	"\x10pause_on_failure\x18\n" +
-	" \x01(\bR\x0epauseOnFailure\"\x9a\x02\n" +
+	" \x01(\bR\x0epauseOnFailure\x12#\n" +
+	"\rhas_generator\x18\v \x01(\bR\fhasGenerator\"\x9a\x02\n" +
 	"\x0eOperationState\x12#\n" +
 	"\roccurrence_id\x18\x01 \x01(\tR\foccurrenceId\x12\x1b\n" +
 	"\taction_id\x18\x02 \x01(\tR\bactionId\x12\x0e\n" +
@@ -518,13 +1014,55 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\x0eCarryoverState\x12\x16\n" +
 	"\x06result\x18\x01 \x01(\fR\x06result\x12\x18\n" +
 	"\afailure\x18\x02 \x01(\fR\afailure\x12'\n" +
-	"\x0ffailure_present\x18\x03 \x01(\bR\x0efailurePresent*n\n" +
+	"\x0ffailure_present\x18\x03 \x01(\bR\x0efailurePresent\"\x7f\n" +
+	"\x13OccurrenceCandidate\x12\x18\n" +
+	"\anominal\x18\x01 \x01(\x03R\anominal\x12\x16\n" +
+	"\x06actual\x18\x02 \x01(\x03R\x06actual\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\x03R\brevision\x12\x1a\n" +
+	"\bexcluded\x18\x04 \x01(\bR\bexcluded\"\xbf\x03\n" +
+	"\x16OccurrenceContinuation\x12\x16\n" +
+	"\x06origin\x18\x01 \x01(\x03R\x06origin\x12#\n" +
+	"\rdefinition_id\x18\x02 \x01(\tR\fdefinitionId\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\x03R\brevision\x12!\n" +
+	"\fsearch_after\x18\x04 \x01(\x03R\vsearchAfter\x12)\n" +
+	"\x10disposed_through\x18\x05 \x01(\x03R\x0fdisposedThrough\x12\\\n" +
+	"\apending\x18\x06 \x01(\v2B.temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidateR\apending\x12\x1d\n" +
+	"\n" +
+	"full_range\x18\a \x01(\bR\tfullRange\x12#\n" +
+	"\religible_seen\x18\b \x01(\bR\feligibleSeen\x12\\\n" +
+	"\bterminal\x18\t \x01(\x0e2@.temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatusR\bterminal\"\xae\x03\n" +
+	"\x0eGeneratorState\x12i\n" +
+	"\fcontinuation\x18\x01 \x01(\v2E.temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuationR\fcontinuation\x12\x14\n" +
+	"\x05token\x18\x02 \x01(\x04R\x05token\x12\x14\n" +
+	"\x05armed\x18\x03 \x01(\bR\x05armed\x12\x17\n" +
+	"\awake_at\x18\x04 \x01(\x03R\x06wakeAt\x12%\n" +
+	"\x0ecatchup_window\x18\x05 \x01(\x03R\rcatchupWindow\x12a\n" +
+	"\vlast_status\x18\x06 \x01(\x0e2@.temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatusR\n" +
+	"lastStatus\x12b\n" +
+	"\n" +
+	"superseded\x18\a \x01(\v2B.temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidateR\n" +
+	"superseded\"X\n" +
+	"\x14GenerationDefinition\x12\x12\n" +
+	"\x04spec\x18\x01 \x01(\fR\x04spec\x12\x12\n" +
+	"\x04seed\x18\x02 \x01(\tR\x04seed\x12\x18\n" +
+	"\arequest\x18\x03 \x01(\fR\arequest\"$\n" +
+	"\fGenerateTask\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\x04R\x05token*n\n" +
 	"\x05Phase\x12\x15\n" +
 	"\x11PHASE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rPHASE_PENDING\x10\x01\x12\x11\n" +
 	"\rPHASE_STARTED\x10\x02\x12\x13\n" +
 	"\x0fPHASE_COMPLETED\x10\x03\x12\x13\n" +
-	"\x0fPHASE_AMBIGUOUS\x10\x04BMZKgo.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1;scheduler2pbb\x06proto3"
+	"\x0fPHASE_AMBIGUOUS\x10\x04*\x97\x02\n" +
+	"\x11EnumerationStatus\x12\"\n" +
+	"\x1eENUMERATION_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19ENUMERATION_STATUS_ACTIVE\x10\x01\x12\x1c\n" +
+	"\x18ENUMERATION_STATUS_YIELD\x10\x02\x12\x1e\n" +
+	"\x1aENUMERATION_STATUS_LIMITED\x10\x03\x12\x1e\n" +
+	"\x1aENUMERATION_STATUS_WAITING\x10\x04\x12\x1c\n" +
+	"\x18ENUMERATION_STATUS_EMPTY\x10\x05\x12!\n" +
+	"\x1dENUMERATION_STATUS_IMPOSSIBLE\x10\x06\x12 \n" +
+	"\x1cENUMERATION_STATUS_EXHAUSTED\x10\aBMZKgo.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1;scheduler2pbb\x06proto3"
 
 var (
 	file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescOnce sync.Once
@@ -538,23 +1076,34 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(
 	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescData
 }
 
-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []any{
-	(Phase)(0),             // 0: temporal.server.chasm.lib.scheduler2.proto.v1.Phase
-	(*RootState)(nil),      // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState
-	(*OperationState)(nil), // 2: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState
-	(*Payload)(nil),        // 3: temporal.server.chasm.lib.scheduler2.proto.v1.Payload
-	(*StartTask)(nil),      // 4: temporal.server.chasm.lib.scheduler2.proto.v1.StartTask
-	(*CarryoverState)(nil), // 5: temporal.server.chasm.lib.scheduler2.proto.v1.CarryoverState
+	(Phase)(0),                     // 0: temporal.server.chasm.lib.scheduler2.proto.v1.Phase
+	(EnumerationStatus)(0),         // 1: temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	(*RootState)(nil),              // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState
+	(*OperationState)(nil),         // 3: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState
+	(*Payload)(nil),                // 4: temporal.server.chasm.lib.scheduler2.proto.v1.Payload
+	(*StartTask)(nil),              // 5: temporal.server.chasm.lib.scheduler2.proto.v1.StartTask
+	(*CarryoverState)(nil),         // 6: temporal.server.chasm.lib.scheduler2.proto.v1.CarryoverState
+	(*OccurrenceCandidate)(nil),    // 7: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	(*OccurrenceContinuation)(nil), // 8: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+	(*GeneratorState)(nil),         // 9: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState
+	(*GenerationDefinition)(nil),   // 10: temporal.server.chasm.lib.scheduler2.proto.v1.GenerationDefinition
+	(*GenerateTask)(nil),           // 11: temporal.server.chasm.lib.scheduler2.proto.v1.GenerateTask
 }
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_depIdxs = []int32{
 	0, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	7, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	1, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	8, // 3: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+	1, // 4: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	7, // 5: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() }
@@ -567,8 +1116,8 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc), len(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   5,
+			NumEnums:      2,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

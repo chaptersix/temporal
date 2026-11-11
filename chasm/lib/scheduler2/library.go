@@ -17,8 +17,9 @@ func (*Library) Components() []*chasm.RegistrableComponent {
 	return []*chasm.RegistrableComponent{
 		chasm.NewRegistrableComponent[*Scheduler]("scheduler"),
 		chasm.NewRegistrableComponent[*Operation]("operation"),
+		chasm.NewRegistrableComponent[*Generator]("generator"),
 	}
 }
 func (l *Library) Tasks() []*chasm.RegistrableTask {
-	return []*chasm.RegistrableTask{chasm.NewRegistrableSideEffectTask("start", l.start)}
+	return []*chasm.RegistrableTask{chasm.NewRegistrableSideEffectTask("start", l.start), chasm.NewRegistrablePureTask("generate", &GenerateHandler{})}
 }

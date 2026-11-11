@@ -20,12 +20,14 @@ message RootState {
   int64 remaining = 6;
   // Started counts operations with evidence of acceptance.
   int64 started = 7;
-  // OperationId identifies the single operation in this prototype.
+  // OperationId identifies the latest admitted operation.
   string operation_id = 8;
   // CarryoverSet indicates that a separate carryover node has been initialized.
   bool carryover_set = 9;
   // PauseOnFailure applies the current policy to failed or timed-out completions.
   bool pause_on_failure = 10;
+  // HasGenerator indicates that the separate generation component is initialized.
+  bool has_generator = 11;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -77,4 +79,84 @@ message CarryoverState {
   bytes failure = 2;
   // FailurePresent distinguishes an empty failure message from absence.
   bool failure_present = 3;
+}
+
+// EnumerationStatus distinguishes work stops from complete source exhaustion.
+enum EnumerationStatus {
+  ENUMERATION_STATUS_UNSPECIFIED = 0;
+  ENUMERATION_STATUS_ACTIVE = 1;
+  ENUMERATION_STATUS_YIELD = 2;
+  ENUMERATION_STATUS_LIMITED = 3;
+  ENUMERATION_STATUS_WAITING = 4;
+  ENUMERATION_STATUS_EMPTY = 5;
+  ENUMERATION_STATUS_IMPOSSIBLE = 6;
+  ENUMERATION_STATUS_EXHAUSTED = 7;
+}
+
+// OccurrenceCandidate retains a discovered value across time and work boundaries.
+message OccurrenceCandidate {
+  // Nominal is the identity's execution Unix nanoseconds.
+  int64 nominal = 1;
+  // Actual is the jittered execution Unix nanoseconds.
+  int64 actual = 2;
+  // Revision identifies its immutable definition.
+  int64 revision = 3;
+  // Excluded records an exclusion awaiting disposition.
+  bool excluded = 4;
+}
+
+// OccurrenceContinuation stores resumable search separately from generator tokens.
+message OccurrenceContinuation {
+  // Origin is the initial exclusive boundary in execution Unix nanoseconds.
+  int64 origin = 1;
+  // DefinitionId binds the canonical definition and jitter seed.
+  string definition_id = 2;
+  // Revision identifies the immutable definition.
+  int64 revision = 3;
+  // SearchAfter is the last examined nominal boundary.
+  int64 search_after = 4;
+  // DisposedThrough is the last committed nominal disposition boundary.
+  int64 disposed_through = 5;
+  // Pending retains a candidate not yet disposed.
+  OccurrenceCandidate pending = 6;
+  // FullRange identifies scans beginning before the effective lower bound.
+  bool full_range = 7;
+  // EligibleSeen records whether any eligible value was found.
+  bool eligible_seen = 8;
+  // Terminal caches source completion independently of work stops.
+  EnumerationStatus terminal = 9;
+}
+
+// GeneratorState holds bounded control state for generation.
+message GeneratorState {
+  // Continuation is the committed occurrence progress.
+  OccurrenceContinuation continuation = 1;
+  // Token distinguishes successive generation obligations.
+  uint64 token = 2;
+  // Armed indicates a current generation obligation.
+  bool armed = 3;
+  // WakeAt is its execution Unix nanosecond deadline.
+  int64 wake_at = 4;
+  // CatchupWindow is the permitted actual-time lateness in nanoseconds.
+  int64 catchup_window = 5;
+  // LastStatus is the most recent enumeration stop.
+  EnumerationStatus last_status = 6;
+  // Superseded records the last pending candidate discarded by a definition update.
+  OccurrenceCandidate superseded = 7;
+}
+
+// GenerationDefinition holds immutable large values separate from generator metadata.
+message GenerationDefinition {
+  // Spec is a serialized ScheduleSpec.
+  bytes spec = 1;
+  // Seed fixes jitter choices for this revision.
+  string seed = 2;
+  // Request is the serialized workflow start template.
+  bytes request = 3;
+}
+
+// GenerateTask identifies the current generation obligation.
+message GenerateTask {
+  // Token rejects replaced physical deliveries without advancing the cursor.
+  uint64 token = 1;
 }

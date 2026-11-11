@@ -1,4 +1,4 @@
-// Package scheduler2 implements a locally wired, single-occurrence scheduler prototype.
+// Package scheduler2 implements a locally wired, bounded sequential scheduler prototype.
 package scheduler2
 
 import (
@@ -19,6 +19,7 @@ type Scheduler struct {
 	chasm.UnimplementedComponent
 	*scheduler2pb.RootState
 	Operations  chasm.Map[string, *Operation]
+	Generator   chasm.Field[*Generator]
 	Carryover   chasm.Field[*scheduler2pb.CarryoverState]
 	Diagnostics chasm.Field[*scheduler2pb.Payload]
 }
@@ -81,7 +82,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		if err := proto.Unmarshal(event.Request, request); err != nil {
 			return serviceerror.NewInvalidArgument("invalid workflow start request")
 		}
-		if s.CarryoverSet && before.Operation == nil {
+		if s.CarryoverSet && (before.Operation == nil || before.Operation.Phase == decision.Completed) {
 			if err := s.materializeCarryover(ctx, request); err != nil {
 				return err
 			}
@@ -97,10 +98,18 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	if err != nil {
 		return err
 	}
+	eviction, err := s.retentionEviction(ctx, before, next)
+	if err != nil {
+		return err
+	}
+	if eviction != "" {
+		delete(s.Operations, eviction)
+	}
+	hasGenerator := s.HasGenerator
 	s.RootState = &scheduler2pb.RootState{
 		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
 		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
-		Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
+		HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
 	}
 	if next.Carryover != nil {
 		s.Carryover = chasm.NewDataField(ctx, &scheduler2pb.CarryoverState{Result: bytes.Clone(next.Carryover.Result), Failure: bytes.Clone(next.Carryover.Failure), FailurePresent: next.Carryover.FailurePresent})
@@ -148,4 +157,22 @@ func (s *Scheduler) request(ctx chasm.Context, operationID string) (*workflowser
 		return nil, err
 	}
 	return request, nil
+}
+
+// retentionEviction chooses at most one completed record; active work is never reclaimed.
+func (s *Scheduler) retentionEviction(ctx chasm.Context, before, next decision.State) (string, error) {
+	if next.Operation == nil || (before.Operation != nil && before.Operation.ID == next.Operation.ID) || len(s.Operations) < 4 {
+		return "", nil
+	}
+	var oldest *Operation
+	for _, field := range s.Operations {
+		op := field.Get(ctx)
+		if op.Phase == scheduler2pb.PHASE_COMPLETED && (oldest == nil || op.Nominal < oldest.Nominal) {
+			oldest = op
+		}
+	}
+	if oldest == nil {
+		return "", serviceerror.NewFailedPrecondition("operation capacity has no completed record to reclaim")
+	}
+	return oldest.Id, nil
 }
