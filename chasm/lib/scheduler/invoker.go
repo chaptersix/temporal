@@ -28,6 +28,20 @@ type Invoker struct {
 	EventLog chasm.Field[*EventLog]
 }
 
+// canMigrateToWorkflow reports whether V1 can take over this invoker's work.
+// V1 state has no place for pending cancel/terminate requests or for starts that
+// are ready or retrying, so those would be lost on migration. A start with
+// Attempt > 0 becomes transferable once it records a RunId or a Completed
+// result, or once processing resets its Attempt to 0 or -1.
+func (i *Invoker) canMigrateToWorkflow() bool {
+	if len(i.CancelWorkflows) > 0 || len(i.TerminateWorkflows) > 0 {
+		return false
+	}
+	return !slices.ContainsFunc(i.BufferedStarts, func(start *schedulespb.BufferedStart) bool {
+		return start.GetAttempt() > 0 && start.GetRunId() == "" && start.GetCompleted() == nil
+	})
+}
+
 func (i *Invoker) LifecycleState(ctx chasm.Context) chasm.LifecycleState {
 	return chasm.LifecycleStateRunning
 }

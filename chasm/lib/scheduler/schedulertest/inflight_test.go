@@ -68,13 +68,35 @@ func TestSelectedStartReservationCounterexample(t *testing.T) {
 	require.Equal(t, 2, selected, "known counterexample: two BUFFER_ALL starts selected before the first acknowledgement; replace with <=1 when fixed")
 }
 
-func TestMigrationCannotExemptExecutingObligations(t *testing.T) {
+// Migration is refused while a start is ready to execute, since V1 cannot resume
+// it, and succeeds once the invoker has started it. The migration-untransferable
+// invariant stays as a defence in case the refusal regresses.
+func TestMigrationRefusedWhileExecutingObligations(t *testing.T) {
 	t.Parallel()
 	schedule := DefaultSchedule()
 	schedule.State.Paused = true
 	d := NewDriver(t, WithSchedule(schedule))
 	require.NoError(t, d.TriggerImmediately())
+	require.ErrorIs(t, d.MigrateToWorkflow(), scheduler.ErrMigrationActionsPending)
+	snap := d.Snapshot()
+	require.False(t, snap.Migrating)
+	require.Equal(t, 1, snap.UntransferableActions)
+	require.Empty(t, CheckInvariants(nil, snap))
+
+	for range 20 {
+		if d.Snapshot().UntransferableActions == 0 {
+			break
+		}
+		require.True(t, d.Step())
+	}
+	require.Equal(t, 0, d.Snapshot().UntransferableActions)
 	require.NoError(t, d.MigrateToWorkflow())
-	violations := CheckInvariants(nil, d.Snapshot())
+	require.True(t, d.Snapshot().Migrating)
+	require.Empty(t, CheckInvariants(nil, d.Snapshot()))
+}
+
+func TestMigrationUntransferableInvariant(t *testing.T) {
+	t.Parallel()
+	violations := CheckInvariants(nil, Snapshot{Migrating: true, UntransferableActions: 1})
 	require.Contains(t, violations, Violation{Name: "migration-untransferable", Message: "1 execution/retry/cancel/terminate obligations lost native task ownership"})
 }

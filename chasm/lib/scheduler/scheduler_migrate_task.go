@@ -119,6 +119,10 @@ func (h *SchedulerMigrateToWorkflowTaskHandler) Execute(
 		ctx,
 		schedulerRef,
 		func(s *Scheduler, ctx chasm.Context, _ any) (struct{}, error) {
+			// The task retries until the invoker has drained.
+			if !s.Invoker.Get(ctx).canMigrateToWorkflow() {
+				return struct{}{}, ErrMigrationActionsPending
+			}
 			now := ctx.Now(s)
 			schedulerState := common.CloneProto(s.SchedulerState)
 			generatorState := common.CloneProto(s.Generator.Get(ctx).GeneratorState)

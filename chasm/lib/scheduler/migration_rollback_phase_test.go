@@ -13,6 +13,7 @@ import (
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	"go.temporal.io/server/chasm/lib/scheduler/migration"
 	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/testing/protorequire"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -34,13 +35,7 @@ func TestRollbackPhaseNativeControl(t *testing.T) {
 	}
 }
 
-func TestRollbackPhaseCounterexample(t *testing.T) {
-	requireMigrationCounterexamples(t)
-	testRollbackPhaseGate(t)
-}
-
-func testRollbackPhaseGate(t *testing.T) {
-	t.Helper()
+func TestRollbackPhaseGate(t *testing.T) {
 	for _, phase := range []string{"ready", "retry", "cancel", "terminate", "mixed"} {
 		t.Run(phase, func(t *testing.T) {
 			s, ctx, _ := setupSchedulerForTest(t)
@@ -48,7 +43,7 @@ func testRollbackPhaseGate(t *testing.T) {
 			i.InvokerState = rollbackPhaseState(phase)
 			before := common.CloneProto(i.InvokerState)
 			_, err := s.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{})
-			require.Error(t, err, "case=%s: V1 cannot execute persisted invoker phase; retain native task ownership", phase)
+			require.ErrorIs(t, err, scheduler.ErrMigrationActionsPending, "case=%s: V1 cannot execute persisted invoker phase; retain native task ownership", phase)
 			require.Nil(t, s.WorkflowMigration)
 			require.False(t, s.Schedule.State.Paused)
 			protorequire.ProtoEqual(t, before, i.InvokerState)
@@ -83,4 +78,51 @@ func TestRollbackPhaseConversionPreservesFieldsButLosesQueues(t *testing.T) {
 	require.Len(t, args.State.BufferedStarts, 1)
 	protorequire.ProtoEqual(t, i.BufferedStarts[0], args.State.BufferedStarts[0])
 	require.Empty(t, args.Info.RunningWorkflows)
+}
+
+func TestRollbackPhaseTransferable(t *testing.T) {
+	for _, phase := range []string{"unprocessed", "deferred", "running", "completed", "drained"} {
+		t.Run(phase, func(t *testing.T) {
+			s, ctx, _ := setupSchedulerForTest(t)
+			i := s.Invoker.Get(ctx)
+			i.InvokerState = rollbackPhaseState("ready")
+			start := i.BufferedStarts[0]
+			switch phase {
+			case "unprocessed":
+				start.Attempt = 0
+			case "deferred":
+				start.Attempt = -1
+			case "running":
+				start.RunId = "run"
+			case "completed":
+				start.RunId = "run"
+				start.Completed = &schedulespb.CompletedResult{}
+			case "drained":
+				i.BufferedStarts = nil
+			default:
+				t.Fatalf("unknown phase %q", phase)
+			}
+			_, err := s.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{})
+			require.NoError(t, err)
+			require.NotNil(t, s.WorkflowMigration)
+		})
+	}
+}
+
+func TestRollbackPhaseMigrateTaskRefusesPendingActions(t *testing.T) {
+	e := newSchedulerTestEngine(t, defaultSchedule())
+	require.NoError(t, e.updateScheduler(func(s *scheduler.Scheduler, ctx chasm.MutableContext) error {
+		s.Invoker.Get(ctx).InvokerState = rollbackPhaseState("mixed")
+		s.WorkflowMigration = &schedulerpb.WorkflowMigrationState{}
+		s.Schedule.State.Paused = true
+		return nil
+	}))
+	h := scheduler.NewSchedulerMigrateToWorkflowTaskHandler(scheduler.SchedulerMigrateToWorkflowTaskHandlerOptions{Config: defaultConfig(), MetricsHandler: metrics.NoopMetricsHandler, BaseLogger: e.logger})
+	err := h.Execute(e.engineCtx, e.rootRef, chasm.TaskAttributes{}, &schedulerpb.SchedulerMigrateToWorkflowTask{})
+	require.ErrorIs(t, err, scheduler.ErrMigrationActionsPending)
+	require.NoError(t, e.readScheduler(func(s *scheduler.Scheduler, _ chasm.Context) error {
+		require.False(t, s.Closed)
+		require.NotNil(t, s.WorkflowMigration)
+		return nil
+	}))
 }
