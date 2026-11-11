@@ -185,6 +185,146 @@ func (EnumerationStatus) EnumDescriptor() ([]byte, []int) {
 	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{1}
 }
 
+// EffectKind identifies the separately fenced overlap RPC.
+type EffectKind int32
+
+const (
+	EFFECT_KIND_UNSPECIFIED EffectKind = 0
+	EFFECT_KIND_CANCEL      EffectKind = 1
+	EFFECT_KIND_TERMINATE   EffectKind = 2
+)
+
+// Enum value maps for EffectKind.
+var (
+	EffectKind_name = map[int32]string{
+		0: "EFFECT_KIND_UNSPECIFIED",
+		1: "EFFECT_KIND_CANCEL",
+		2: "EFFECT_KIND_TERMINATE",
+	}
+	EffectKind_value = map[string]int32{
+		"EFFECT_KIND_UNSPECIFIED": 0,
+		"EFFECT_KIND_CANCEL":      1,
+		"EFFECT_KIND_TERMINATE":   2,
+	}
+)
+
+func (x EffectKind) Enum() *EffectKind {
+	p := new(EffectKind)
+	*p = x
+	return p
+}
+
+func (x EffectKind) String() string {
+	switch x {
+	case EFFECT_KIND_UNSPECIFIED:
+		return "Unspecified"
+	case EFFECT_KIND_CANCEL:
+		return "Cancel"
+	case EFFECT_KIND_TERMINATE:
+		return "Terminate"
+	default:
+		return strconv.Itoa(int(x))
+	}
+
+}
+
+func (EffectKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes[2].Descriptor()
+}
+
+func (EffectKind) Type() protoreflect.EnumType {
+	return &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes[2]
+}
+
+func (x EffectKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EffectKind.Descriptor instead.
+func (EffectKind) EnumDescriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{2}
+}
+
+// EffectPhase separates unknown acceptance from settled retry obligations.
+type EffectPhase int32
+
+const (
+	EFFECT_PHASE_UNSPECIFIED     EffectPhase = 0
+	EFFECT_PHASE_AWAITING_TARGET EffectPhase = 1
+	EFFECT_PHASE_PENDING         EffectPhase = 2
+	EFFECT_PHASE_ACCEPTED        EffectPhase = 3
+	EFFECT_PHASE_ABSENT          EffectPhase = 4
+	EFFECT_PHASE_AMBIGUOUS       EffectPhase = 5
+	EFFECT_PHASE_SUPERSEDED      EffectPhase = 6
+)
+
+// Enum value maps for EffectPhase.
+var (
+	EffectPhase_name = map[int32]string{
+		0: "EFFECT_PHASE_UNSPECIFIED",
+		1: "EFFECT_PHASE_AWAITING_TARGET",
+		2: "EFFECT_PHASE_PENDING",
+		3: "EFFECT_PHASE_ACCEPTED",
+		4: "EFFECT_PHASE_ABSENT",
+		5: "EFFECT_PHASE_AMBIGUOUS",
+		6: "EFFECT_PHASE_SUPERSEDED",
+	}
+	EffectPhase_value = map[string]int32{
+		"EFFECT_PHASE_UNSPECIFIED":     0,
+		"EFFECT_PHASE_AWAITING_TARGET": 1,
+		"EFFECT_PHASE_PENDING":         2,
+		"EFFECT_PHASE_ACCEPTED":        3,
+		"EFFECT_PHASE_ABSENT":          4,
+		"EFFECT_PHASE_AMBIGUOUS":       5,
+		"EFFECT_PHASE_SUPERSEDED":      6,
+	}
+)
+
+func (x EffectPhase) Enum() *EffectPhase {
+	p := new(EffectPhase)
+	*p = x
+	return p
+}
+
+func (x EffectPhase) String() string {
+	switch x {
+	case EFFECT_PHASE_UNSPECIFIED:
+		return "Unspecified"
+	case EFFECT_PHASE_AWAITING_TARGET:
+		return "AwaitingTarget"
+	case EFFECT_PHASE_PENDING:
+		return "Pending"
+	case EFFECT_PHASE_ACCEPTED:
+		return "Accepted"
+	case EFFECT_PHASE_ABSENT:
+		return "Absent"
+	case EFFECT_PHASE_AMBIGUOUS:
+		return "Ambiguous"
+	case EFFECT_PHASE_SUPERSEDED:
+		return "Superseded"
+	default:
+		return strconv.Itoa(int(x))
+	}
+
+}
+
+func (EffectPhase) Descriptor() protoreflect.EnumDescriptor {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes[3].Descriptor()
+}
+
+func (EffectPhase) Type() protoreflect.EnumType {
+	return &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes[3]
+}
+
+func (x EffectPhase) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EffectPhase.Descriptor instead.
+func (EffectPhase) EnumDescriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{3}
+}
+
 // RootState holds the bounded scheduler control summary.
 type RootState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -230,6 +370,10 @@ type RootState struct {
 	CapacityDropped int64 `protobuf:"varint,20,opt,name=capacity_dropped,json=capacityDropped,proto3" json:"capacity_dropped,omitempty"`
 	// PendingStarts validates bounded start tasks without loading operation records.
 	PendingStarts map[string]int64 `protobuf:"bytes,21,rep,name=pending_starts,json=pendingStarts,proto3" json:"pending_starts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	// OverlapSuperseded counts unadmitted selected candidates replaced by overlap policy.
+	OverlapSuperseded int64 `protobuf:"varint,22,opt,name=overlap_superseded,json=overlapSuperseded,proto3" json:"overlap_superseded,omitempty"`
+	// Effects holds at most cancel and terminate metadata for the current blocker.
+	Effects       []*EffectState `protobuf:"bytes,23,rep,name=effects,proto3" json:"effects,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -407,6 +551,20 @@ func (x *RootState) GetCapacityDropped() int64 {
 func (x *RootState) GetPendingStarts() map[string]int64 {
 	if x != nil {
 		return x.PendingStarts
+	}
+	return nil
+}
+
+func (x *RootState) GetOverlapSuperseded() int64 {
+	if x != nil {
+		return x.OverlapSuperseded
+	}
+	return 0
+}
+
+func (x *RootState) GetEffects() []*EffectState {
+	if x != nil {
+		return x.Effects
 	}
 	return nil
 }
@@ -1214,11 +1372,157 @@ func (x *DrainTask) GetToken() uint64 {
 	return 0
 }
 
+// EffectState holds small control values without preparing the frozen request.
+type EffectState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Id is the target operation ID plus the effect kind suffix.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// TargetId identifies the immutable tracked start intent.
+	TargetId string `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	// Kind selects cancel or terminate.
+	Kind EffectKind `protobuf:"varint,3,opt,name=kind,proto3,enum=temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind" json:"kind,omitempty"`
+	// Phase controls issuance without implying workflow completion.
+	Phase EffectPhase `protobuf:"varint,4,opt,name=phase,proto3,enum=temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase" json:"phase,omitempty"`
+	// ChainId is the immutable first-run fence, empty while awaiting evidence.
+	ChainId string `protobuf:"bytes,5,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
+	// Deadline is the exclusive execution-time retry horizon in Unix nanoseconds.
+	Deadline int64 `protobuf:"varint,6,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	// RetryAt is the next issuance deadline in Unix nanoseconds.
+	RetryAt       int64 `protobuf:"varint,7,opt,name=retry_at,json=retryAt,proto3" json:"retry_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffectState) Reset() {
+	*x = EffectState{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffectState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffectState) ProtoMessage() {}
+
+func (x *EffectState) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffectState.ProtoReflect.Descriptor instead.
+func (*EffectState) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *EffectState) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *EffectState) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *EffectState) GetKind() EffectKind {
+	if x != nil {
+		return x.Kind
+	}
+	return EFFECT_KIND_UNSPECIFIED
+}
+
+func (x *EffectState) GetPhase() EffectPhase {
+	if x != nil {
+		return x.Phase
+	}
+	return EFFECT_PHASE_UNSPECIFIED
+}
+
+func (x *EffectState) GetChainId() string {
+	if x != nil {
+		return x.ChainId
+	}
+	return ""
+}
+
+func (x *EffectState) GetDeadline() int64 {
+	if x != nil {
+		return x.Deadline
+	}
+	return 0
+}
+
+func (x *EffectState) GetRetryAt() int64 {
+	if x != nil {
+		return x.RetryAt
+	}
+	return 0
+}
+
+// EffectTask drives a separately identified overlap RPC intent.
+type EffectTask struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// EffectId identifies the immutable cancel or terminate request.
+	EffectId      string `protobuf:"bytes,1,opt,name=effect_id,json=effectId,proto3" json:"effect_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffectTask) Reset() {
+	*x = EffectTask{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffectTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffectTask) ProtoMessage() {}
+
+func (x *EffectTask) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffectTask.ProtoReflect.Descriptor instead.
+func (*EffectTask) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *EffectTask) GetEffectId() string {
+	if x != nil {
+		return x.EffectId
+	}
+	return ""
+}
+
 var File_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto protoreflect.FileDescriptor
 
 const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "" +
 	"\n" +
-	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\xb8\a\n" +
+	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\xbd\b\n" +
 	"\tRootState\x12 \n" +
 	"\vincarnation\x18\x01 \x01(\tR\vincarnation\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x16\n" +
@@ -1245,7 +1549,9 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"unfinished\x122\n" +
 	"\x15blocking_operation_id\x18\x13 \x01(\tR\x13blockingOperationId\x12)\n" +
 	"\x10capacity_dropped\x18\x14 \x01(\x03R\x0fcapacityDropped\x12r\n" +
-	"\x0epending_starts\x18\x15 \x03(\v2K.temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntryR\rpendingStarts\x1a@\n" +
+	"\x0epending_starts\x18\x15 \x03(\v2K.temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntryR\rpendingStarts\x12-\n" +
+	"\x12overlap_superseded\x18\x16 \x01(\x03R\x11overlapSuperseded\x12T\n" +
+	"\aeffects\x18\x17 \x03(\v2:.temporal.server.chasm.lib.scheduler2.proto.v1.EffectStateR\aeffects\x1a@\n" +
 	"\x12PendingStartsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\x81\x03\n" +
@@ -1310,7 +1616,18 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"workflowId\x12D\n" +
 	"\x06policy\x18\x04 \x01(\x0e2,.temporal.api.enums.v1.ScheduleOverlapPolicyR\x06policy\"!\n" +
 	"\tDrainTask\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\x04R\x05token*\x84\x01\n" +
+	"\x05token\x18\x01 \x01(\x04R\x05token\"\xad\x02\n" +
+	"\vEffectState\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12M\n" +
+	"\x04kind\x18\x03 \x01(\x0e29.temporal.server.chasm.lib.scheduler2.proto.v1.EffectKindR\x04kind\x12P\n" +
+	"\x05phase\x18\x04 \x01(\x0e2:.temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhaseR\x05phase\x12\x19\n" +
+	"\bchain_id\x18\x05 \x01(\tR\achainId\x12\x1a\n" +
+	"\bdeadline\x18\x06 \x01(\x03R\bdeadline\x12\x19\n" +
+	"\bretry_at\x18\a \x01(\x03R\aretryAt\")\n" +
+	"\n" +
+	"EffectTask\x12\x1b\n" +
+	"\teffect_id\x18\x01 \x01(\tR\beffectId*\x84\x01\n" +
 	"\x05Phase\x12\x15\n" +
 	"\x11PHASE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rPHASE_PENDING\x10\x01\x12\x11\n" +
@@ -1326,7 +1643,20 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\x1aENUMERATION_STATUS_WAITING\x10\x04\x12\x1c\n" +
 	"\x18ENUMERATION_STATUS_EMPTY\x10\x05\x12!\n" +
 	"\x1dENUMERATION_STATUS_IMPOSSIBLE\x10\x06\x12 \n" +
-	"\x1cENUMERATION_STATUS_EXHAUSTED\x10\aBMZKgo.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1;scheduler2pbb\x06proto3"
+	"\x1cENUMERATION_STATUS_EXHAUSTED\x10\a*\\\n" +
+	"\n" +
+	"EffectKind\x12\x1b\n" +
+	"\x17EFFECT_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12EFFECT_KIND_CANCEL\x10\x01\x12\x19\n" +
+	"\x15EFFECT_KIND_TERMINATE\x10\x02*\xd4\x01\n" +
+	"\vEffectPhase\x12\x1c\n" +
+	"\x18EFFECT_PHASE_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cEFFECT_PHASE_AWAITING_TARGET\x10\x01\x12\x18\n" +
+	"\x14EFFECT_PHASE_PENDING\x10\x02\x12\x19\n" +
+	"\x15EFFECT_PHASE_ACCEPTED\x10\x03\x12\x17\n" +
+	"\x13EFFECT_PHASE_ABSENT\x10\x04\x12\x1a\n" +
+	"\x16EFFECT_PHASE_AMBIGUOUS\x10\x05\x12\x1b\n" +
+	"\x17EFFECT_PHASE_SUPERSEDED\x10\x06BMZKgo.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1;scheduler2pbb\x06proto3"
 
 var (
 	file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescOnce sync.Once
@@ -1340,43 +1670,50 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(
 	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescData
 }
 
-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []any{
 	(Phase)(0),                     // 0: temporal.server.chasm.lib.scheduler2.proto.v1.Phase
 	(EnumerationStatus)(0),         // 1: temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	(*RootState)(nil),              // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState
-	(*OperationState)(nil),         // 3: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState
-	(*Payload)(nil),                // 4: temporal.server.chasm.lib.scheduler2.proto.v1.Payload
-	(*StartTask)(nil),              // 5: temporal.server.chasm.lib.scheduler2.proto.v1.StartTask
-	(*CarryoverState)(nil),         // 6: temporal.server.chasm.lib.scheduler2.proto.v1.CarryoverState
-	(*OccurrenceCandidate)(nil),    // 7: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	(*OccurrenceContinuation)(nil), // 8: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
-	(*GeneratorState)(nil),         // 9: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState
-	(*GenerationDefinition)(nil),   // 10: temporal.server.chasm.lib.scheduler2.proto.v1.GenerationDefinition
-	(*GenerateTask)(nil),           // 11: temporal.server.chasm.lib.scheduler2.proto.v1.GenerateTask
-	(*QueuedOccurrence)(nil),       // 12: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
-	(*DrainTask)(nil),              // 13: temporal.server.chasm.lib.scheduler2.proto.v1.DrainTask
-	nil,                            // 14: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
-	(v1.ScheduleOverlapPolicy)(0),  // 15: temporal.api.enums.v1.ScheduleOverlapPolicy
+	(EffectKind)(0),                // 2: temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
+	(EffectPhase)(0),               // 3: temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
+	(*RootState)(nil),              // 4: temporal.server.chasm.lib.scheduler2.proto.v1.RootState
+	(*OperationState)(nil),         // 5: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState
+	(*Payload)(nil),                // 6: temporal.server.chasm.lib.scheduler2.proto.v1.Payload
+	(*StartTask)(nil),              // 7: temporal.server.chasm.lib.scheduler2.proto.v1.StartTask
+	(*CarryoverState)(nil),         // 8: temporal.server.chasm.lib.scheduler2.proto.v1.CarryoverState
+	(*OccurrenceCandidate)(nil),    // 9: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	(*OccurrenceContinuation)(nil), // 10: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+	(*GeneratorState)(nil),         // 11: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState
+	(*GenerationDefinition)(nil),   // 12: temporal.server.chasm.lib.scheduler2.proto.v1.GenerationDefinition
+	(*GenerateTask)(nil),           // 13: temporal.server.chasm.lib.scheduler2.proto.v1.GenerateTask
+	(*QueuedOccurrence)(nil),       // 14: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
+	(*DrainTask)(nil),              // 15: temporal.server.chasm.lib.scheduler2.proto.v1.DrainTask
+	(*EffectState)(nil),            // 16: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
+	(*EffectTask)(nil),             // 17: temporal.server.chasm.lib.scheduler2.proto.v1.EffectTask
+	nil,                            // 18: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+	(v1.ScheduleOverlapPolicy)(0),  // 19: temporal.api.enums.v1.ScheduleOverlapPolicy
 }
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_depIdxs = []int32{
-	15, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	12, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
-	14, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.pending_starts:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
-	0,  // 3: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
-	15, // 4: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	7,  // 5: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	1,  // 6: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	8,  // 7: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
-	1,  // 8: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	7,  // 9: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	15, // 10: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	19, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	14, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
+	18, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.pending_starts:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+	16, // 3: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.effects:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
+	0,  // 4: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
+	19, // 5: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	9,  // 6: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	1,  // 7: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	10, // 8: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+	1,  // 9: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	9,  // 10: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	19, // 11: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	2,  // 12: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.kind:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
+	3,  // 13: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() }
@@ -1389,8 +1726,8 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc), len(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   13,
+			NumEnums:      4,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

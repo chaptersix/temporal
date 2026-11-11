@@ -50,6 +50,10 @@ message RootState {
   int64 capacity_dropped = 20;
   // PendingStarts validates bounded start tasks without loading operation records.
   map<string, int64> pending_starts = 21;
+  // OverlapSuperseded counts unadmitted selected candidates replaced by overlap policy.
+  int64 overlap_superseded = 22;
+  // Effects holds at most cancel and terminate metadata for the current blocker.
+  repeated EffectState effects = 23;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -205,4 +209,46 @@ message QueuedOccurrence {
 message DrainTask {
   // Token rejects stale physical drain deliveries.
   uint64 token = 1;
+}
+
+// EffectKind identifies the separately fenced overlap RPC.
+enum EffectKind {
+  EFFECT_KIND_UNSPECIFIED = 0;
+  EFFECT_KIND_CANCEL = 1;
+  EFFECT_KIND_TERMINATE = 2;
+}
+
+// EffectPhase separates unknown acceptance from settled retry obligations.
+enum EffectPhase {
+  EFFECT_PHASE_UNSPECIFIED = 0;
+  EFFECT_PHASE_AWAITING_TARGET = 1;
+  EFFECT_PHASE_PENDING = 2;
+  EFFECT_PHASE_ACCEPTED = 3;
+  EFFECT_PHASE_ABSENT = 4;
+  EFFECT_PHASE_AMBIGUOUS = 5;
+  EFFECT_PHASE_SUPERSEDED = 6;
+}
+
+// EffectState holds small control values without preparing the frozen request.
+message EffectState {
+  // Id is the target operation ID plus the effect kind suffix.
+  string id = 1;
+  // TargetId identifies the immutable tracked start intent.
+  string target_id = 2;
+  // Kind selects cancel or terminate.
+  EffectKind kind = 3;
+  // Phase controls issuance without implying workflow completion.
+  EffectPhase phase = 4;
+  // ChainId is the immutable first-run fence, empty while awaiting evidence.
+  string chain_id = 5;
+  // Deadline is the exclusive execution-time retry horizon in Unix nanoseconds.
+  int64 deadline = 6;
+  // RetryAt is the next issuance deadline in Unix nanoseconds.
+  int64 retry_at = 7;
+}
+
+// EffectTask drives a separately identified overlap RPC intent.
+message EffectTask {
+  // EffectId identifies the immutable cancel or terminate request.
+  string effect_id = 1;
 }

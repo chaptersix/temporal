@@ -31,7 +31,7 @@ func newTaskEngine(t *testing.T, start func(context.Context, *workflowservice.St
 	h := newTreeHarness(t)
 	registry := chasm.NewRegistry(log.NewNoopLogger())
 	require.NoError(t, registry.Register(&chasm.CoreLibrary{}))
-	require.NoError(t, registry.Register(NewLibrary(NewStartHandler(start))))
+	require.NoError(t, registry.Register(NewLibrary(NewStartHandler(start), nil)))
 	h.registry = registry
 	h.reload()
 	h.admit()

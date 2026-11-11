@@ -14,7 +14,7 @@ type Queued struct {
 }
 
 func ValidPolicy(p enumspb.ScheduleOverlapPolicy) bool {
-	return p == enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL || p == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED || p == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || p == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || p == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL
+	return effectPolicy(p) != NoEffect || p == enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL || p == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED || p == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || p == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || p == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL
 }
 
 func occupied(s State) bool { return s.Root.BlockingOperationID != "" }
@@ -24,7 +24,7 @@ func enqueue(next State, event Event) (State, error) {
 	if !ValidPolicy(policy) {
 		return State{}, serviceerror.NewInvalidArgument("unsupported overlap policy")
 	}
-	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL {
+	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL && effectPolicy(policy) == NoEffect {
 		return next, nil
 	}
 	if len(next.Queue) >= 4 || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(next.Queue) > 0) {
@@ -43,12 +43,13 @@ func DrainIndex(state State, now, catchup int64) int {
 	if occupied(state) || state.Root.Paused || (state.Root.Limited && state.Root.Remaining <= 0) || catchup < 0 {
 		return -1
 	}
+	selected := -1
 	for i, q := range state.Queue {
-		if now <= q.Actual || now-q.Actual <= catchup {
-			return i
+		if (now <= q.Actual || now-q.Actual <= catchup) && (selected < 0 || effectPolicy(q.Policy) != NoEffect) {
+			selected = i
 		}
 	}
-	return -1
+	return selected
 }
 
 // CanDrain excludes external capacity waits while permitting ineligible disposition.
@@ -78,9 +79,20 @@ func drain(next State, event Event) (State, error) {
 		return State{}, serviceerror.NewInvalidArgument("drain admission requires current request")
 	}
 	candidate := next.Queue[index]
-	next.Queue = next.Queue[index+1:]
-	if len(next.Queue) == 0 {
-		next.Queue = nil
+	var retained []Queued
+	firstEligible := true
+	for i, q := range next.Queue {
+		if event.Now > q.Actual && event.Now-q.Actual > event.CatchupWindow {
+			continue
+		}
+		replaced := i < index && (firstEligible || effectPolicy(q.Policy) != NoEffect)
+		firstEligible = false
+		if replaced {
+			next.Root.OverlapSuperseded++
+		} else if i != index {
+			retained = append(retained, q)
+		}
 	}
+	next.Queue = retained
 	return startOperation(next, event, candidate.Nominal, candidate.WorkflowID, candidate.Policy)
 }

@@ -1,4 +1,4 @@
-// Package scheduler2 implements a locally wired, bounded sequential scheduler prototype.
+// Package scheduler2 implements a locally wired, bounded scheduler prototype.
 package scheduler2
 
 import (
@@ -20,17 +20,18 @@ import (
 type Scheduler struct {
 	chasm.UnimplementedComponent
 	*scheduler2pb.RootState
-	Operations  chasm.Map[string, *scheduler2pb.OperationState]
-	Requests    chasm.Map[string, *scheduler2pb.Payload]
-	Generator   chasm.Field[*Generator]
-	Carryover   chasm.Field[*scheduler2pb.CarryoverState]
-	Diagnostics chasm.Field[*scheduler2pb.Payload]
+	Operations     chasm.Map[string, *scheduler2pb.OperationState]
+	Requests       chasm.Map[string, *scheduler2pb.Payload]
+	EffectRequests chasm.Map[string, *scheduler2pb.Payload]
+	Generator      chasm.Field[*Generator]
+	Carryover      chasm.Field[*scheduler2pb.CarryoverState]
+	Diagnostics    chasm.Field[*scheduler2pb.Payload]
 }
 
 func New(incarnation string, remaining int64) *Scheduler {
 	return &Scheduler{RootState: &scheduler2pb.RootState{
 		Incarnation: incarnation, Revision: 1, Limited: true, Remaining: remaining,
-	}, Operations: make(chasm.Map[string, *scheduler2pb.OperationState]), Requests: make(chasm.Map[string, *scheduler2pb.Payload])}
+	}, Operations: make(chasm.Map[string, *scheduler2pb.OperationState]), Requests: make(chasm.Map[string, *scheduler2pb.Payload]), EffectRequests: make(chasm.Map[string, *scheduler2pb.Payload])}
 }
 
 func (*Scheduler) LifecycleState(chasm.Context) chasm.LifecycleState {
@@ -51,8 +52,11 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.Sta
 		Incarnation: s.Incarnation, Revision: s.Revision, Cursor: s.Cursor,
 		Paused: s.Paused, Limited: s.Limited, Remaining: s.Remaining, Started: s.Started,
 		CarryoverSet: s.CarryoverSet, PauseOnFailure: s.PauseOnFailure, Policy: s.Policy, BufferDropped: s.BufferDropped,
-		Unfinished: s.Unfinished, BlockingOperationID: s.BlockingOperationId, CapacityDropped: s.CapacityDropped,
+		Unfinished: s.Unfinished, BlockingOperationID: s.BlockingOperationId, CapacityDropped: s.CapacityDropped, OverlapSuperseded: s.OverlapSuperseded,
 	}}
+	for _, e := range s.Effects {
+		state.Effects = append(state.Effects, decodeEffect(e))
+	}
 	for _, q := range s.Queue {
 		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, WorkflowID: q.WorkflowId, Policy: q.Policy})
 	}
@@ -69,6 +73,9 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.Sta
 
 // Apply records the transition and successor task in the same CHASM transaction.
 func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error {
+	if event.Incarnation != s.Incarnation {
+		return nil
+	}
 	event.Now = ctx.Now(s).UnixNano()
 	operationID := event.OperationID
 	if event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.Update {
@@ -87,6 +94,10 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	}
 
 	next, err := decision.Step(before, event)
+	if err != nil {
+		return err
+	}
+	next, effectRequests, err := s.prepareEffects(ctx, next)
 	if err != nil {
 		return err
 	}
@@ -128,7 +139,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
 		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
 		DrainToken: drainToken, DrainArmed: drainArmed, DrainAt: drainAt, Policy: next.Root.Policy, BufferDropped: next.Root.BufferDropped,
-		Unfinished: next.Root.Unfinished, BlockingOperationId: next.Root.BlockingOperationID, CapacityDropped: next.Root.CapacityDropped,
+		Unfinished: next.Root.Unfinished, BlockingOperationId: next.Root.BlockingOperationID, CapacityDropped: next.Root.CapacityDropped, OverlapSuperseded: next.Root.OverlapSuperseded,
 		PendingStarts: pendingStarts, OperationId: latestOperationID, HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
 	}
 	for _, q := range next.Queue {
@@ -156,6 +167,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, wake)},
 			&scheduler2pb.StartTask{OperationId: next.Operation.ID})
 	}
+	s.publishEffects(ctx, before, next, effectRequests)
 	s.reconcileDrain(ctx, next)
 	return nil
 }

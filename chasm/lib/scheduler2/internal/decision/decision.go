@@ -38,6 +38,7 @@ type Root struct {
 	CarryoverSet        bool
 	Policy              enumspb.ScheduleOverlapPolicy
 	BufferDropped       int64
+	OverlapSuperseded   int64
 	CapacityDropped     int64
 	Unfinished          int64
 	BlockingOperationID string
@@ -63,6 +64,7 @@ type State struct {
 	Operation *Operation
 	Carryover *Carryover
 	Queue     []Queued
+	Effects   []Effect
 }
 
 type Kind int
@@ -76,11 +78,16 @@ const (
 	Expire
 	Callback
 	Drain
+	EffectSucceeded
+	EffectNotFound
+	EffectFailed
+	EffectExpired
 )
 
 type Event struct {
 	Kind            Kind
 	Incarnation     string
+	EffectID        string
 	OperationID     string
 	ChainID         string
 	Now             int64
@@ -108,18 +115,26 @@ func Step(state State, event Event) (State, error) {
 	if event.Incarnation != state.Root.Incarnation {
 		return next, nil
 	}
+	var err error
 	switch event.Kind {
 	case Due:
-		return admit(next, event)
+		next, err = admit(next, event)
 	case Drain:
-		return drain(next, event)
+		next, err = drain(next, event)
 	case Update:
-		return update(next, event)
+		next, err = update(next, event)
 	case Acknowledged, Complete, Callback, RetryableFailure, Expire:
-		return applyResult(next, event)
+		next, err = applyResult(next, event)
+	case EffectSucceeded, EffectNotFound, EffectFailed, EffectExpired:
+		next = effectResult(next, event)
 	default:
 		return next, serviceerror.NewInvalidArgument("unknown scheduler event")
 	}
+	if err != nil {
+		return next, err
+	}
+	next = reconcileEffects(next)
+	return BindEffects(next, next.Operation, event.Now)
 }
 
 func admit(next State, event Event) (State, error) {
@@ -275,6 +290,7 @@ func Wake(state State) (int64, bool) {
 
 func clone(state State) State {
 	state.Queue = append([]Queued(nil), state.Queue...)
+	state.Effects = append([]Effect(nil), state.Effects...)
 	if state.Carryover != nil {
 		c := *state.Carryover
 		c.Result = bytes.Clone(c.Result)

@@ -451,6 +451,80 @@ func (this *DrainTask) Equal(that interface{}) bool {
 	return proto.Equal(this, that1)
 }
 
+// Marshal an object of type EffectState to the protobuf v3 wire format
+func (val *EffectState) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type EffectState from the protobuf v3 wire format
+func (val *EffectState) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *EffectState) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two EffectState values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *EffectState) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *EffectState
+	switch t := that.(type) {
+	case *EffectState:
+		that1 = t
+	case EffectState:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type EffectTask to the protobuf v3 wire format
+func (val *EffectTask) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type EffectTask from the protobuf v3 wire format
+func (val *EffectTask) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *EffectTask) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two EffectTask values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *EffectTask) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *EffectTask
+	switch t := that.(type) {
+	case *EffectTask:
+		that1 = t
+	case EffectTask:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
 var (
 	Phase_shorthandValue = map[string]int32{
 		"Unspecified": 0,
@@ -495,4 +569,46 @@ func EnumerationStatusFromString(s string) (EnumerationStatus, error) {
 		return EnumerationStatus(v), nil
 	}
 	return EnumerationStatus(0), fmt.Errorf("%s is not a valid EnumerationStatus", s)
+}
+
+var (
+	EffectKind_shorthandValue = map[string]int32{
+		"Unspecified": 0,
+		"Cancel":      1,
+		"Terminate":   2,
+	}
+)
+
+// EffectKindFromString parses a EffectKind value from  either the protojson
+// canonical SCREAMING_CASE enum or the traditional temporal PascalCase enum to EffectKind
+func EffectKindFromString(s string) (EffectKind, error) {
+	if v, ok := EffectKind_value[s]; ok {
+		return EffectKind(v), nil
+	} else if v, ok := EffectKind_shorthandValue[s]; ok {
+		return EffectKind(v), nil
+	}
+	return EffectKind(0), fmt.Errorf("%s is not a valid EffectKind", s)
+}
+
+var (
+	EffectPhase_shorthandValue = map[string]int32{
+		"Unspecified":    0,
+		"AwaitingTarget": 1,
+		"Pending":        2,
+		"Accepted":       3,
+		"Absent":         4,
+		"Ambiguous":      5,
+		"Superseded":     6,
+	}
+)
+
+// EffectPhaseFromString parses a EffectPhase value from  either the protojson
+// canonical SCREAMING_CASE enum or the traditional temporal PascalCase enum to EffectPhase
+func EffectPhaseFromString(s string) (EffectPhase, error) {
+	if v, ok := EffectPhase_value[s]; ok {
+		return EffectPhase(v), nil
+	} else if v, ok := EffectPhase_shorthandValue[s]; ok {
+		return EffectPhase(v), nil
+	}
+	return EffectPhase(0), fmt.Errorf("%s is not a valid EffectPhase", s)
 }

@@ -1,0 +1,9 @@
+# go.temporal.io/server/chasm/lib/scheduler2
+chasm/lib/scheduler2/effects.go:6:2: "go.temporal.io/api/common/v1" imported as common and not used
+chasm/lib/scheduler2/effects.go:61:13: undefined: commonpb
+FAIL	go.temporal.io/server/chasm/lib/scheduler2 [build failed]
+?   	go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1	[no test files]
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.798s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	(cached)
+FAIL	go.temporal.io/server/chasm/lib/all [build failed]
+FAIL
