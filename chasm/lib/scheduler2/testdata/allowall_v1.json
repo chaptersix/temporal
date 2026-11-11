@@ -1,0 +1,225 @@
+{
+  "version": 1,
+  "clock_domain": "execution_nanoseconds",
+  "incarnation": "incarnation",
+  "now": "2024-01-01T00:00:00Z",
+  "revision": 1,
+  "seed": "",
+  "catchup": "60s",
+  "remaining": 10,
+  "spec": {},
+  "request": {
+    "namespace": "namespace",
+    "workflowId": "workflow",
+    "workflowType": {
+      "name": "type"
+    },
+    "taskQueue": {
+      "name": "queue"
+    },
+    "lastCompletionResult": {
+      "payloads": [
+        {
+          "data": "b2xk"
+        }
+      ]
+    },
+    "continuedFailure": {
+      "message": "old failure"
+    }
+  },
+  "steps": [
+    {
+      "kind": "due",
+      "second": 1,
+      "target": 0,
+      "publish": true,
+      "cursor": 1,
+      "latest": 1,
+      "remaining": 9,
+      "started": 0,
+      "unfinished": 1,
+      "dropped": 0,
+      "records": {
+        "1": "pending"
+      }
+    },
+    {
+      "kind": "due",
+      "second": 2,
+      "target": 0,
+      "publish": true,
+      "cursor": 2,
+      "latest": 2,
+      "remaining": 8,
+      "started": 0,
+      "unfinished": 2,
+      "dropped": 0,
+      "records": {
+        "1": "pending",
+        "2": "pending"
+      }
+    },
+    {
+      "kind": "due",
+      "second": 3,
+      "target": 0,
+      "publish": true,
+      "cursor": 3,
+      "latest": 3,
+      "remaining": 7,
+      "started": 0,
+      "unfinished": 3,
+      "dropped": 0,
+      "records": {
+        "1": "pending",
+        "2": "pending",
+        "3": "pending"
+      }
+    },
+    {
+      "kind": "due",
+      "second": 4,
+      "target": 0,
+      "publish": true,
+      "cursor": 4,
+      "latest": 4,
+      "remaining": 6,
+      "started": 0,
+      "unfinished": 4,
+      "dropped": 0,
+      "records": {
+        "1": "pending",
+        "2": "pending",
+        "3": "pending",
+        "4": "pending"
+      }
+    },
+    {
+      "kind": "due",
+      "second": 5,
+      "target": 0,
+      "publish": true,
+      "cursor": 5,
+      "latest": 4,
+      "remaining": 6,
+      "started": 0,
+      "unfinished": 4,
+      "dropped": 1,
+      "records": {
+        "1": "pending",
+        "2": "pending",
+        "3": "pending",
+        "4": "pending"
+      }
+    },
+    {
+      "kind": "ack",
+      "second": 5,
+      "target": 1,
+      "publish": true,
+      "cursor": 5,
+      "latest": 4,
+      "remaining": 6,
+      "started": 1,
+      "unfinished": 3,
+      "dropped": 1,
+      "records": {
+        "1": "start_only",
+        "2": "pending",
+        "3": "pending",
+        "4": "pending"
+      }
+    },
+    {
+      "kind": "due",
+      "second": 6,
+      "target": 0,
+      "publish": false,
+      "cursor": 5,
+      "latest": 4,
+      "remaining": 6,
+      "started": 1,
+      "unfinished": 3,
+      "dropped": 1,
+      "records": {
+        "1": "start_only",
+        "2": "pending",
+        "3": "pending",
+        "4": "pending"
+      }
+    },
+    {
+      "kind": "restart",
+      "second": 6,
+      "target": 0,
+      "publish": true,
+      "cursor": 5,
+      "latest": 4,
+      "remaining": 6,
+      "started": 1,
+      "unfinished": 3,
+      "dropped": 1,
+      "records": {
+        "1": "start_only",
+        "2": "pending",
+        "3": "pending",
+        "4": "pending"
+      }
+    },
+    {
+      "kind": "due",
+      "second": 6,
+      "target": 0,
+      "publish": true,
+      "cursor": 6,
+      "latest": 6,
+      "remaining": 5,
+      "started": 1,
+      "unfinished": 4,
+      "dropped": 1,
+      "records": {
+        "2": "pending",
+        "3": "pending",
+        "4": "pending",
+        "6": "pending"
+      }
+    },
+    {
+      "kind": "ack",
+      "second": 6,
+      "target": 3,
+      "publish": true,
+      "cursor": 6,
+      "latest": 6,
+      "remaining": 5,
+      "started": 2,
+      "unfinished": 3,
+      "dropped": 1,
+      "records": {
+        "2": "pending",
+        "3": "start_only",
+        "4": "pending",
+        "6": "pending"
+      }
+    },
+    {
+      "kind": "ack",
+      "second": 6,
+      "target": 1,
+      "publish": true,
+      "cursor": 6,
+      "latest": 6,
+      "remaining": 5,
+      "started": 2,
+      "unfinished": 3,
+      "dropped": 1,
+      "records": {
+        "2": "pending",
+        "3": "start_only",
+        "4": "pending",
+        "6": "pending"
+      }
+    }
+  ]
+}
