@@ -11,7 +11,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
-PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration")
+PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model")
 
 
 def git(*args):
@@ -36,6 +36,8 @@ def main():
     events = 128 if args.exploration else 32
     commands = {
         "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Independent|Task)", "-v"]],
+        "completion": [common + [package, package + "/internal/decision", "-run", "Test(Completion|Callback|Carryover|MetadataCompletion|CurrentPause|MalformedCallback)", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+        "completion-model": [[sys.executable, str(HERE / "model/completion/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],
         "enumeration": [common + [package + "/internal/occurrence", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
         "properties": [common + [package + "/internal/decision", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-scheduler2.events=" + str(events)]],
         "simulation": [common + [package, "-run", "TestReplay", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
@@ -51,7 +53,7 @@ def main():
     (output / "source.diff").write_bytes(diff)
     files = list((ROOT / "chasm/lib/scheduler2").rglob("*.go")) + list((ROOT / "chasm/lib/scheduler2").rglob("*.proto"))
     files += [ROOT / "service/worker/scheduler" / name for name in ("candidate.go", "spec.go")]
-    files += list((ROOT / "chasm/lib/scheduler2/internal/occurrence/testdata").rglob("*"))
+    files += [p for p in (ROOT / "chasm/lib/scheduler2").rglob("*") if "testdata" in p.parts]
     files = [p for p in files if p.is_file()]
     manifest = {
         "profile": args.profile, "source_sha": git("rev-parse", "HEAD"),

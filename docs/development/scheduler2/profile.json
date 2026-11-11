@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "scope": "M1 dispatch slice plus standalone WI-002 enumeration; local only",
+  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion; local only",
   "clock": "execution Unix nanoseconds",
   "per_schedule": {
     "enumeration_batch": 1,
@@ -52,5 +52,12 @@
     "timezone_fixture_sha256": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
     "independence": "bounded second-scan oracle; shares timezone conversion and Farm32 primitives",
     "integration": "not wired to CHASM admission"
+  },
+  "completion": {
+    "max_value_bytes": 65536,
+    "max_carryover_bytes": 131072,
+    "policy": "single-operation SKIP; current pause-on-failure; first completion wins",
+    "presence": "empty result absent; opaque metadata/null retained; failure presence explicit",
+    "integration": "local callback event only, no public routing or sequential admission"
   }
 }

@@ -94,3 +94,27 @@ fixture checks selected US gap/fold cases; full timezone coverage is not claimed
 The independent Lean v4.24.0 draft and commands are in lean/README.md. Proposition
 definitions and executable examples are not completed proofs or Go correspondence.
 M2 policy/callback/backfill work and M3 proofs remain pending.
+
+## WI-003 completion and carryover
+
+```sh
+python3 docs/development/scheduler2/run.py completion --exploration --seed 1 --output /private/tmp/scheduler2-verification/completion
+python3 docs/development/scheduler2/run.py completion-model --output /private/tmp/scheduler2-verification/completion-model
+```
+
+Callback is an explicit local completion event, distinct from metadata-only
+Complete. First completion freezes its carryover/pause effects. No-result success
+clears previous values; encoded null and unknown protobuf fields are preserved;
+failure retains previous success. Failure status must match its protobuf variant.
+The current pause policy applies to FAILED/TIMED_OUT, including metadata completion.
+The separate carryover node is materialized only for admission; retry requests
+remain frozen. Initial uninitialized carryover keeps M1 caller-provided request
+fields; fixtures seed initialized carryover explicitly. Empty Failure presence is
+stored separately from its zero-byte encoding. Each wire value is bounded to 64KiB.
+
+The saved completion_v1.json replays independently expected observations through
+fresh CHASM serialization. The symbolic model checks safety and reachability at
+100/200 action bounds, without liveness or automated refinement claims. Model
+TogglePolicy maps to an Update preserving Paused, rather than an unpause command.
+Authentication is trusted at this local boundary; production callback routing,
+sequential admission, other overlap modes and retention remain future work.

@@ -6,9 +6,9 @@
 | --- | --- |
 | Status | Authorized local execution through M1 |
 | Updated | 2026-11-10 |
-| Current milestone | M2 active: WI-002 accepted; remaining policy/integration work pending |
-| Implementation status | WI-000/WI-001/WI-002 accepted |
-| Authorization | User authorized local execution, branches/worktrees and task commits, continuing with WI-002; no human-review stops. No pushes, production routing, rollout or migration. |
+| Current milestone | M2 active: WI-003 completion carryover and pause policy |
+| Implementation status | WI-000/WI-001/WI-002 accepted; WI-003 implementing |
+| Authorization | User authorized local execution, branches/worktrees and task commits, continuing through local M2 work items; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
 | Execution environment | Local development, model checking, simulation, and functional testing only |
 
@@ -203,7 +203,7 @@ Define permitted external waits separately from stuck states. Check liveness ove
 - [x] P1.2: Check the first-slice small-state model.
 - [x] P1.3: Detect injected lost-wakeup, cursor-advance, duplicate-accounting, retry-identity, and retry-input defects.
 - [ ] P1.4: Expand the model alongside policy implementation.
-- [ ] P1.5: Draft Lean enumeration definitions and theorem statements against the spec-processing contract; review assumptions before implementation correspondence work.
+- [x] P1.5: Draft Lean enumeration definitions and theorem statements against the spec-processing contract; review assumptions before implementation correspondence work.
 
 Exit: bounded exploration passes, targeted mutations fail, and assumptions and unmodeled boundaries are recorded.
 
@@ -481,6 +481,8 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D24 | Definition supersession | decided for WI-002 | New revision resets at max(update time, disposed cursor), returns superseded pending; admitted requests immutable; legacy generator evidence | SC6; protocol integration pending |
 | D25 | Timezone evidence | decided | Pinned TZif selected US gap/fold, independent bounded second-scan oracle; shared time/hash primitives trusted | SC7; historical transitions pending |
 | D26 | Executable specification scope | decided | Independent finite-source Lean draft and proposition definitions compile; no theorem or Go correspondence claim | M3 proofs remain |
+| D27 | Completion presence and payloads | decided for WI-003 | Explicit Callback versus metadata Complete; first completion wins; success empty clears, null remains present, failure preserves prior success. Follow current CHASM, DIV5 versus V1 no-result preservation. Separate payload node; max64KiB each. | C6; WI-003 evidence pending |
+| D28 | Completion status and pause | decided for WI-003 | Adapter validates failure variant versus status; current policy pauses FAILED/TIMED_OUT only; metadata status can pause without changing carryover. Definition revision is not a public conflict token. | C4/C7; public routing pending |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 
@@ -721,3 +723,7 @@ oracle/replay/property tests and executable Lean draft are committed locally.
 M2 remains partial: core is not yet integrated with policy/backfill/callback
 transitions; SP5 protocol modeling and M3 proof/correspondence work remain.
 Original checkout has new concurrent edits since M1; no writes there by this task.
+
+WI-003 continues C6/C7/C4 under D27–D28: completion/carryover and current pause
+policy. Scope and acceptance are in work-items/WI-003.md. Sequential occurrence
+integration follows this prerequisite; full M2 gate remains open.
