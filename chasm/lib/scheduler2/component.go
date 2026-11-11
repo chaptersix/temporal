@@ -3,7 +3,6 @@ package scheduler2
 
 import (
 	"bytes"
-	"fmt"
 	"time"
 
 	"go.temporal.io/api/serviceerror"
@@ -77,26 +76,15 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		c := s.Carryover.Get(ctx)
 		before.Carryover = &decision.Carryover{Result: c.Result, Failure: c.Failure, FailurePresent: c.FailurePresent}
 	}
-	if event.Kind == decision.Due && event.Incarnation == s.Incarnation {
-		request := &workflowservice.StartWorkflowExecutionRequest{}
-		if err := proto.Unmarshal(event.Request, request); err != nil {
-			return serviceerror.NewInvalidArgument("invalid workflow start request")
-		}
-		if s.CarryoverSet && (before.Operation == nil || before.Operation.Phase == decision.Completed) {
-			if err := s.materializeCarryover(ctx, request); err != nil {
-				return err
-			}
-		}
-		request.RequestId = fmt.Sprintf("%s/automatic/%d/action/start", s.Incarnation, event.Nominal)
-		frozen, err := proto.MarshalOptions{Deterministic: true}.Marshal(request)
-		if err != nil {
-			return err
-		}
-		event.Request = frozen
-	}
+
 	next, err := decision.Step(before, event)
 	if err != nil {
 		return err
+	}
+	if event.Kind == decision.Due && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID) {
+		if err := s.freezeAdmission(ctx, next.Operation); err != nil {
+			return err
+		}
 	}
 	eviction, err := s.retentionEviction(ctx, before, next)
 	if err != nil {
@@ -175,4 +163,23 @@ func (s *Scheduler) retentionEviction(ctx chasm.Context, before, next decision.S
 		return "", serviceerror.NewFailedPrecondition("operation capacity has no completed record to reclaim")
 	}
 	return oldest.Id, nil
+}
+
+func (s *Scheduler) freezeAdmission(ctx chasm.Context, op *decision.Operation) error {
+	request := &workflowservice.StartWorkflowExecutionRequest{}
+	if err := proto.Unmarshal(op.Request, request); err != nil {
+		return serviceerror.NewInvalidArgument("invalid workflow start request")
+	}
+	if s.CarryoverSet {
+		if err := s.materializeCarryover(ctx, request); err != nil {
+			return err
+		}
+	}
+	request.RequestId = op.ID
+	frozen, err := proto.MarshalOptions{Deterministic: true}.Marshal(request)
+	if err != nil {
+		return err
+	}
+	op.Request = frozen
+	return nil
 }
