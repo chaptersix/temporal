@@ -2,10 +2,7 @@ package scheduler2
 
 import (
 	"fmt"
-	schedulepb "go.temporal.io/api/schedule/v1"
-	"go.temporal.io/server/chasm"
-	"go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -13,7 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 	enumspb "go.temporal.io/api/enums/v1"
 	failurepb "go.temporal.io/api/failure/v1"
+	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/workflowservice/v1"
+	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1"
 	"go.temporal.io/server/chasm/lib/scheduler2/internal/decision"
 	"go.temporal.io/server/common/testing/protorequire"
 )
@@ -26,7 +26,7 @@ func allowIDs(h *treeHarness) []string {
 	for id := range s.Operations {
 		ids = append(ids, id)
 	}
-	sort.Strings(ids)
+	slices.Sort(ids)
 	return ids
 }
 func allowRequest(h *treeHarness, id string) *workflowservice.StartWorkflowExecutionRequest {

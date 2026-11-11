@@ -109,7 +109,7 @@ func TestAllowAllKeyedProperties(t *testing.T) {
 				event.Policy = policy
 				actual.Operation = records[latest]
 			default:
-				t.Fatalf("unreachable command")
+				t.Fatal("unreachable command")
 			}
 			before := actual
 			next, err := Step(actual, event)
