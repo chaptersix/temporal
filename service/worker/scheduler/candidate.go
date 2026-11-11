@@ -2,8 +2,9 @@ package scheduler
 
 import (
 	"errors"
-	schedulepb "go.temporal.io/api/schedule/v1"
 	"time"
+
+	schedulepb "go.temporal.io/api/schedule/v1"
 
 	"go.temporal.io/server/common/primitives/timestamp"
 )
@@ -36,6 +37,7 @@ func (b *SpecBuilder) NewBoundedCompiledSpec(spec *schedulepb.ScheduleSpec, maxT
 	if err := checkSpecSize(spec, maxTerms, maxRanges); err != nil {
 		return nil, err
 	}
+	//nolint:staticcheck // Legacy exclusion syntax remains supported.
 	for _, calendars := range [][]*schedulepb.CalendarSpec{spec.Calendar, spec.ExcludeCalendar} {
 		for _, cal := range calendars {
 			if cal == nil {
@@ -67,6 +69,7 @@ func (b *SpecBuilder) NewBoundedCompiledSpec(spec *schedulepb.ScheduleSpec, maxT
 }
 
 func checkSpecSize(spec *schedulepb.ScheduleSpec, maxTerms, maxRanges int) error {
+	//nolint:staticcheck // Count legacy exclusion terms before canonicalization.
 	if len(spec.Interval)+len(spec.Calendar)+len(spec.ExcludeCalendar)+len(spec.CronString)+len(spec.StructuredCalendar)+len(spec.ExcludeStructuredCalendar) > maxTerms {
 		return errors.New("specification exceeds term limit")
 	}

@@ -15,13 +15,13 @@ Fractional StartTime excludes the preceding integer second. Existing legacy
 GetNextTime behavior is preserved; its fractional-start discrepancy is DIV2.
 
 One probe evaluates one raw candidate and its exclusion, with at most two raw
-calendar lookups (second for jitter lookahead). Maximum64 inclusion/exclusion
-terms combined and maximum1024 ranges, bounded at compilation for this adapter.
+calendar lookups (second for jitter lookahead). Maximum 64 inclusion/exclusion
+terms combined and maximum 1024 ranges, bounded at compilation for this adapter.
 This bounds candidate calls and calendar input size, not wall-clock CPU; legacy
-calendar search itself scans fields/years through2100. Sparse/excluded work yields
+calendar search itself scans fields/years through 2100. Sparse/excluded work yields
 with an exact continuation, not global exhaustion (DIV3 versus current CHASM's
-compute-limit suppression). Limits: routine8 probes/4 outputs; allowed1..1024
-probes and1..128 outputs per call. No new production dependency.
+compute-limit suppression). Limits: routine 8 probes/4 outputs; allowed 1..1024
+probes and 1..128 outputs per call. No new production dependency.
 
 SearchAfter records examined nominal progress, DisposedThrough records completed
 include/exclude dispositions, Pending holds a fully determined eligible candidate
@@ -38,7 +38,7 @@ ended; Waiting means a retained candidate's actual time is beyond the window.
 None of the latter three imply impossibility. Completion state is persisted in
 the continuation, so repeated terminal queries do no work.
 
-Jitter reuses existing Farm32(seed+nominal binary representation), millisecond
+Jitter reuses existing Farm32(nominal binary representation followed by seed), millisecond
 quantization and bound below next RAW nominal (including excluded matches).
 Duplicate inclusion expressions coalesce at one nominal instant. Exclusion wins.
 Nominal order determines enumeration; unchanged-definition actual times cannot
@@ -66,8 +66,11 @@ presented as proved. Compilation and examples check the executable draft; formal
 proofs and full Go correspondence gate M3. Source candidate ordering, timezone
 and hash primitives remain explicit trusted assumptions.
 
-Sources at00b65430a: service/worker/scheduler/spec.go:291-406;
+Sources at 00b65430a: service/worker/scheduler/spec.go:291-406;
 calendar.go:31-35,93-214; chasm/lib/scheduler/spec_processor.go:132-245;
 generator_tasks.go:76-82; service/frontend/workflow_handler.go:7188-7201.
 API schedule message comments define inclusive spec boundaries and (start,end]
 backfills. Legacy full API compatibility is not claimed by the new local core.
+
+An excluded raw candidate beyond the window is retained pending with actual=nominal;
+its disposition cannot advance into the speculative future before an update.

@@ -123,7 +123,7 @@ func validateBounds(spec *schedulepb.ScheduleSpec) error {
 
 // Begin binds a fresh continuation to this definition revision.
 func (e *Enumerator) Begin(after time.Time) (State, error) {
-	if !supported(after) && !after.Equal(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond)) {
+	if !validCursor(after) {
 		return State{}, serviceerror.NewInvalidArgument("cursor is outside the prototype range")
 	}
 	return State{Origin: after, DefinitionID: e.identity, Revision: e.revision, SearchAfter: after, DisposedThrough: after, FullRange: after.Before(e.start)}, nil
@@ -203,34 +203,42 @@ func (e *Enumerator) Run(state State, through time.Time, limits Limits) (Result,
 			result.Status = Yield
 			return result, nil
 		}
-		after := result.State.SearchAfter
-		// Integer-second candidates must be >= a possibly fractional StartTime.
-		if lower := e.start.Add(-time.Nanosecond); after.Before(lower) {
-			after = lower
+		if err := e.probe(&result); err != nil {
+			return Result{}, err
 		}
-		candidate, excluded := e.compiled.NextTimeCandidate(e.seed, after)
-		result.Probes++
-		if candidate.Nominal.IsZero() || candidate.Nominal.After(e.end) {
-			result.State.Terminal = Exhausted
-			if result.State.FullRange && !result.State.EligibleSeen {
-				result.State.Terminal = Impossible
-			}
-			continue
-		}
-		if !candidate.Nominal.After(after) {
-			return Result{}, serviceerror.NewInternal("calendar candidate did not advance")
-		}
-		result.State.SearchAfter = candidate.Nominal
-		if excluded {
-			result.State.Pending = &Candidate{Nominal: candidate.Nominal, Actual: candidate.Nominal, Revision: e.revision, Excluded: true}
-			continue
-		}
-		if !supported(candidate.Next) {
-			return Result{}, serviceerror.NewInvalidArgument("jittered time is outside the prototype range")
-		}
-		result.State.EligibleSeen = true
-		result.State.Pending = &Candidate{Nominal: candidate.Nominal, Actual: candidate.Next, Revision: e.revision}
+
 	}
+}
+
+func (e *Enumerator) probe(result *Result) error {
+	after := result.State.SearchAfter
+	// Integer-second candidates must be >= a possibly fractional StartTime.
+	if lower := e.start.Add(-time.Nanosecond); after.Before(lower) {
+		after = lower
+	}
+	candidate, excluded := e.compiled.NextTimeCandidate(e.seed, after)
+	result.Probes++
+	if candidate.Nominal.IsZero() || candidate.Nominal.After(e.end) {
+		result.State.Terminal = Exhausted
+		if result.State.FullRange && !result.State.EligibleSeen {
+			result.State.Terminal = Impossible
+		}
+		return nil
+	}
+	if !candidate.Nominal.After(after) {
+		return serviceerror.NewInternal("calendar candidate did not advance")
+	}
+	result.State.SearchAfter = candidate.Nominal
+	if excluded {
+		result.State.Pending = &Candidate{Nominal: candidate.Nominal, Actual: candidate.Nominal, Revision: e.revision, Excluded: true}
+		return nil
+	}
+	if !supported(candidate.Next) {
+		return serviceerror.NewInvalidArgument("jittered time is outside the prototype range")
+	}
+	result.State.EligibleSeen = true
+	result.State.Pending = &Candidate{Nominal: candidate.Nominal, Actual: candidate.Next, Revision: e.revision}
+	return nil
 }
 
 func validCursor(t time.Time) bool {
@@ -251,11 +259,15 @@ func validateState(state State) error {
 		return invalid()
 	}
 	if pending := state.Pending; pending != nil {
-		if state.Terminal != Active || pending.Revision != state.Revision || !supported(pending.Nominal) || !supported(pending.Actual) || pending.Nominal.Nanosecond() != 0 || pending.Actual.Before(pending.Nominal) || !pending.Nominal.Equal(state.SearchAfter) || !state.DisposedThrough.Before(pending.Nominal) || (pending.Excluded && !pending.Actual.Equal(pending.Nominal)) || (!pending.Excluded && !state.EligibleSeen) {
+		if !validPending(state, pending) {
 			return invalid()
 		}
 	} else if !state.SearchAfter.Equal(state.DisposedThrough) {
 		return invalid()
 	}
 	return nil
+}
+
+func validPending(state State, pending *Candidate) bool {
+	return state.Terminal == Active && pending.Revision == state.Revision && supported(pending.Nominal) && supported(pending.Actual) && pending.Nominal.Nanosecond() == 0 && !pending.Actual.Before(pending.Nominal) && pending.Nominal.Equal(state.SearchAfter) && state.DisposedThrough.Before(pending.Nominal) && (!pending.Excluded || pending.Actual.Equal(pending.Nominal)) && (pending.Excluded || state.EligibleSeen)
 }
