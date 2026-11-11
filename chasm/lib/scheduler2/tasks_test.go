@@ -204,3 +204,21 @@ func TestTaskRetrySchedulesSuccessor(t *testing.T) {
 	}
 	require.Positive(t, generated, "retry must publish a physical successor")
 }
+
+func TestTaskRollbackDuringRPCPublishesSuccessor(t *testing.T) {
+	t.Parallel()
+	var e *taskEngine
+	e = newTaskEngine(t, func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error) {
+		e.h.now -= int64(time.Second)
+		return "", errors.New("response lost after clock rollback")
+	})
+	originalWake := e.h.now
+	require.NoError(t, e.execute(e.ctx, e.h.node, e.h.physical[0]))
+	s, ctx := e.h.root(false)
+	require.Equal(t, originalWake+int64(time.Second), s.Operations[s.OperationId].Get(ctx).RetryAt)
+	generated := 0
+	for _, batch := range e.h.backend.TasksByCategory {
+		generated += len(batch)
+	}
+	require.Positive(t, generated, "successful delivery must leave a physical successor after rollback")
+}

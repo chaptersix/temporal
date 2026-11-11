@@ -35,7 +35,7 @@ def main():
     checks = 10000 if args.exploration else 100
     events = 128 if args.exploration else 32
     commands = {
-        "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Nil|Task)", "-v"]],
+        "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Independent|Task)", "-v"]],
         "properties": [common + [package + "/internal/decision", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-scheduler2.events=" + str(events)]],
         "simulation": [common + [package, "-run", "TestReplay", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
         "race": [["go", "test", "-race", "-p", "2", "-parallel", "4", "-tags", "test_dep", "-count=1", "-timeout=15m", package + "/...", "./chasm/lib/all", "-rapid.seed=" + str(args.seed)]],

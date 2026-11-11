@@ -169,7 +169,7 @@ func applyResult(next State, event Event) (State, error) {
 				op.Phase = Ambiguous
 			} else {
 				// Clamp before addition to avoid overflowing a timestamp near its limit.
-				op.RetryAt = min(event.Now, op.Deadline-RetryBackoff) + RetryBackoff
+				op.RetryAt = min(max(event.Now, op.RetryAt), op.Deadline-RetryBackoff) + RetryBackoff
 			}
 		}
 	case Expire:
