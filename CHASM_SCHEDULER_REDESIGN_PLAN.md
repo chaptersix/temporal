@@ -6,9 +6,9 @@
 | --- | --- |
 | Status | Authorized local execution through M1 |
 | Updated | 2026-11-10 |
-| Current milestone | M2 partial: WI-004 accepted; WI-005 buffering proposed |
+| Current milestone | M2 partial: WI-004 accepted; WI-005 buffering implementing |
 | Implementation status | WI-000 through WI-004 accepted |
-| Authorization | User authorized local execution, branches/worktrees and task commits, continuing through local M2 work items; no human-review stops. No pushes, production routing, rollout or migration. |
+| Authorization | User authorized local execution, branches/worktrees and task commits, continuing through all milestones M2–M4; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
 | Execution environment | Local development, model checking, simulation, and functional testing only |
 
