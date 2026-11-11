@@ -1,0 +1,45 @@
+# 2026/11/11 14:57:06.863260 [TestSchedulerProperties] [rapid] draw idleTime: 600000000000
+# 2026/11/11 14:57:06.863265 [TestSchedulerProperties] [rapid] draw intervalSec: 10
+# 2026/11/11 14:57:06.863266 [TestSchedulerProperties] [rapid] draw jitterSec: 0
+# 2026/11/11 14:57:06.863266 [TestSchedulerProperties] [rapid] draw catchupSec: 60
+# 2026/11/11 14:57:06.863266 [TestSchedulerProperties] [rapid] draw overlapPolicy: 3
+# 2026/11/11 14:57:06.863267 [TestSchedulerProperties] [rapid] draw shape: "endTime"
+# 2026/11/11 14:57:06.863268 [TestSchedulerProperties] [rapid] draw firesBeforeEnd: 3
+# 2026/11/11 14:57:06.863268 [TestSchedulerProperties] [rapid] draw paused: false
+# 2026/11/11 14:57:06.863268 [TestSchedulerProperties] [rapid] draw limited: false
+# 2026/11/11 14:57:06.863356 [TestSchedulerProperties] [rapid] draw numOps: 4
+# 2026/11/11 14:57:06.863357 [TestSchedulerProperties] [rapid] draw op: "step"
+# 2026/11/11 14:57:06.863449 [TestSchedulerProperties] [rapid] draw op: "step"
+# 2026/11/11 14:57:06.863489 [TestSchedulerProperties] [rapid] draw op: "step"
+# 2026/11/11 14:57:06.863529 [TestSchedulerProperties] [rapid] draw op: "pure"
+# 2026/11/11 14:57:06.863615 [TestSchedulerProperties] scheduler invariant violation at step (now=2020-01-01T00:10:30): [ledger-lost-start] scheduler closed with 1 buffered start(s) never sent to StartWorkflowExecution: [sched-auto-5ff7b19b-8077-5eee-9c97-bd1c5f9f67b6]
+#
+v0.4.8#7487548259739501542
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x38e38e38e38e4
+0x2
+0x0
+0x1
+0x0
+0x38e38e38e38e4
+0x2
+0x0
+0x0
+0x0
+0x38e38e38e38e4
+0x3
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x38e38e38e38e4
+0x2

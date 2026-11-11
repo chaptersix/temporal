@@ -72,6 +72,10 @@ func CheckInvariants(prev *Snapshot, cur Snapshot) []Violation {
 	}
 
 	violations = append(violations, checkLedger(prev, cur)...)
+	violations = append(violations, checkStartAccounting(cur)...)
+	if cur.IdleRouteChecked && !cur.Closed && !cur.IdleCloseTime.IsZero() && !cur.HasValidIdleTask {
+		add("idle-route", "advertised idle deadline %s has no valid logical idle task", cur.IdleCloseTime)
+	}
 
 	if prev != nil {
 		// (3) Closed is terminal: a closed schedule must never reopen.
@@ -132,14 +136,16 @@ func checkLedger(prev *Snapshot, cur Snapshot) []Violation {
 		violations = append(violations, Violation{Name: name, Message: fmt.Sprintf(format, args...)})
 	}
 
-	if cur.Migrating {
-		// A migration hands the buffer to the V1 workflow.
-		return nil
+	if cur.Migrating && cur.UntransferableActions > 0 {
+		add("migration-untransferable", "%d execution/retry/cancel/terminate obligations lost native task ownership", cur.UntransferableActions)
+	}
+	if cur.Migrating && cur.Closed && len(cur.PendingStarts) > 0 {
+		add("migration-transfer-unverified", "closed source retains %d obligations without a verified destination", len(cur.PendingStarts))
 	}
 
 	// Terminal half: a schedule never closes while a start it buffered is
 	// still waiting for InvokerExecuteTask (temporal#13016).
-	if cur.Closed && len(cur.PendingStarts) > 0 {
+	if cur.Closed && !cur.Migrating && len(cur.PendingStarts) > 0 {
 		add("ledger-lost-start",
 			"scheduler closed with %d buffered start(s) never sent to StartWorkflowExecution: %v",
 			len(cur.PendingStarts), slices.Sorted(maps.Keys(cur.PendingStarts)))
@@ -167,6 +173,28 @@ func checkLedger(prev *Snapshot, cur Snapshot) []Violation {
 		add("ledger-silent-drop",
 			"%d buffered start(s) left the buffer without a start RPC, but only %d discard(s) were recorded: %v",
 			len(silent), discarded, silent)
+	}
+	return violations
+}
+
+func checkStartAccounting(cur Snapshot) []Violation {
+	var violations []Violation
+	add := func(name, format string, args ...any) {
+		violations = append(violations, Violation{Name: name, Message: fmt.Sprintf(format, args...)})
+	}
+	if cur.AcceptedStarts != nil {
+		for id, accepted := range cur.AcceptedStarts {
+			recorded, ok := cur.RecordedStarts[id]
+			if ok && recorded != accepted {
+				add("start-identity", "request %s recorded %+v, accepted %+v", id, recorded, accepted)
+			}
+			if _, pending := cur.PendingStarts[id]; !ok && !pending {
+				add("accepted-start-lost", "accepted request %s has neither a pending obligation nor a recorded result", id)
+			}
+		}
+		if want := cur.InitialActionCount + int64(len(cur.RecordedStarts)); cur.ActionCount != want {
+			add("start-accounting", "ActionCount=%d, observed recorded starts plus initial count=%d", cur.ActionCount, want)
+		}
 	}
 	return violations
 }

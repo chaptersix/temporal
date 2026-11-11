@@ -144,7 +144,8 @@ func TestCheckInvariants_Ledger(t *testing.T) {
 			want: []string{"ledger-lost-start"},
 		},
 		{
-			name: "migration takes the buffer",
+			name: "migration needs destination evidence",
+			want: []string{"migration-transfer-unverified"},
 			prev: schedulertest.Snapshot{HasPendingTask: true, PendingStarts: pending("a")},
 			cur:  schedulertest.Snapshot{Closed: true, Migrating: true, PendingStarts: pending("a")},
 		},
@@ -176,7 +177,6 @@ func uniq(names []string) []string {
 // re-process the buffer either; the starts (including a manual trigger, which
 // pause allows) sit until the idle task closes the schedule.
 func TestLedger_DeferredStartsStrandedByPausedCompletion(t *testing.T) {
-	t.Skip("known bug: deferred starts stranded after a completion while paused")
 
 	const idle = time.Hour
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)

@@ -1,6 +1,7 @@
 package schedulertest_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -42,7 +43,7 @@ func TestSchedulerProperties(t *testing.T) {
 			schedulertest.WithMaxSideEffectLag(idle/2),
 			schedulertest.WithMaxRunDuration(idle/2),
 		)
-		hook := checkInvariantsIgnoringKnownBugs(rt)
+		hook := schedulertest.CheckInvariantsHook(rt)
 		d.AfterStep = hook
 
 		// Check the initial settled state too.
@@ -69,11 +70,11 @@ func TestSchedulerProperties(t *testing.T) {
 			case "complete":
 				d.CompleteWorkflow()
 			case "pause":
-				_ = d.Pause()
+				checkPatchError(rt, d.Pause())
 			case "unpause":
-				_ = d.Unpause()
+				checkPatchError(rt, d.Unpause())
 			case "trigger":
-				_ = d.TriggerImmediately()
+				checkPatchError(rt, d.TriggerImmediately())
 			default:
 				rt.Fatalf("unhandled op %q", op)
 			}
@@ -133,23 +134,9 @@ func drawSchedule(rt *rapid.T, start time.Time, idle time.Duration) *schedulepb.
 	return s
 }
 
-// checkInvariantsIgnoringKnownBugs is CheckInvariantsHook minus one known bug
-// (TestLedger_DeferredStartsStrandedByPausedCompletion): a lost start where
-// every pending start is deferred and nothing is running to re-enable them.
-// Delete this once that bug is fixed.
-func checkInvariantsIgnoringKnownBugs(rt *rapid.T) func(*schedulertest.Driver) {
-	var prev *schedulertest.Snapshot
-	return func(d *schedulertest.Driver) {
-		rt.Helper()
-		cur := d.Snapshot()
-		for _, v := range schedulertest.CheckInvariants(prev, cur) {
-			if v.Name == "ledger-lost-start" && cur.RunningWorkflows == 0 &&
-				cur.DeferredStarts == len(cur.PendingStarts) {
-				continue
-			}
-			rt.Fatalf("scheduler invariant violation at step (now=%s): %s",
-				cur.Now.Format("2006-01-02T15:04:05"), v)
-		}
-		prev = &cur
+func checkPatchError(t *rapid.T, err error) {
+	t.Helper()
+	if err != nil && !errors.Is(err, scheduler.ErrClosed) {
+		t.Fatalf("unexpected patch failure: %v", err)
 	}
 }

@@ -1,10 +1,12 @@
 package schedulertest
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -23,6 +25,7 @@ import (
 	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
+	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
@@ -52,6 +55,14 @@ var maxKeyFireTime = tasks.MaximumKey.FireTime
 // re-arms a generator task), so callers bound the run with maxSteps; quiescence is
 // reached only for paused/exhausted/closed schedules.
 type Driver struct {
+	recordCalls        chan *RecordCall
+	external           *externalLedger
+	startCalls         chan *StartCall
+	sideEffectDone     chan error
+	actionsBefore      int
+	recorded           map[string]ExternalStart
+	initialActionCount int64
+
 	T          *testing.T
 	Engine     *chasmtest.Engine
 	Registry   *chasm.Registry
@@ -105,12 +116,13 @@ type Driver struct {
 }
 
 type driverConfig struct {
-	schedule  *schedulepb.Schedule
-	startTime time.Time
-	afterStep func(d *Driver)
-	config    *scheduler.Config
-	maxLag    time.Duration
-	maxRun    time.Duration
+	schedule         *schedulepb.Schedule
+	startTime        time.Time
+	afterStep        func(d *Driver)
+	config           *scheduler.Config
+	maxLag           time.Duration
+	maxRun           time.Duration
+	controlledStarts bool
 }
 
 // DriverOption configures a Driver at construction.
@@ -212,6 +224,11 @@ func newDriverScaffold(t *testing.T, opts ...DriverOption) (*Driver, *driverConf
 	// ExecuteTask takes (the action-budget invariant).
 	actionRPCs := new(int)
 	startRequests := make(map[string]struct{})
+	external := &externalLedger{starts: make(map[string]ExternalStart)}
+	var startCalls chan *StartCall
+	if cfg.controlledStarts {
+		startCalls = make(chan *StartCall)
+	}
 	rpcMu := &sync.Mutex{}
 	countAction := func() {
 		rpcMu.Lock()
@@ -221,12 +238,30 @@ func newDriverScaffold(t *testing.T, opts ...DriverOption) (*Driver, *driverConf
 
 	// Default happy-path stubs; tests can layer more specific expectations.
 	frontend.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, req *workflowservice.StartWorkflowExecutionRequest, _ ...grpc.CallOption) (*workflowservice.StartWorkflowExecutionResponse, error) {
+		DoAndReturn(func(ctx context.Context, req *workflowservice.StartWorkflowExecutionRequest, _ ...grpc.CallOption) (*workflowservice.StartWorkflowExecutionResponse, error) {
 			countAction()
 			rpcMu.Lock()
 			startRequests[req.GetRequestId()] = struct{}{}
 			rpcMu.Unlock()
-			return &workflowservice.StartWorkflowExecutionResponse{RunId: "run-id"}, nil
+			if startCalls != nil {
+				call := &StartCall{Request: common.CloneProto(req), result: make(chan startResponse, 1), ledger: external}
+				select {
+				case startCalls <- call:
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+				select {
+				case result := <-call.result:
+					return result.response, result.err
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}
+			accepted, err := external.accept(req)
+			if err != nil {
+				return nil, err
+			}
+			return &workflowservice.StartWorkflowExecutionResponse{RunId: accepted.RunID}, nil
 		}).AnyTimes()
 	history.EXPECT().TerminateWorkflowExecution(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(context.Context, *historyservice.TerminateWorkflowExecutionRequest, ...grpc.CallOption) (*historyservice.TerminateWorkflowExecutionResponse, error) {
@@ -265,6 +300,8 @@ func newDriverScaffold(t *testing.T, opts ...DriverOption) (*Driver, *driverConf
 	engine := chasmtest.NewEngine(t, registry, chasmtest.WithTimeSource(ts))
 
 	d := &Driver{
+		recordCalls: make(chan *RecordCall),
+		external:    external, startCalls: startCalls, recorded: make(map[string]ExternalStart),
 		T:                     t,
 		Engine:                engine,
 		Registry:              registry,
@@ -300,6 +337,7 @@ func (d *Driver) startExecution(startFn func(chasm.MutableContext) (*scheduler.S
 	}
 
 	d.ref = chasm.NewComponentRef[*scheduler.Scheduler](d.execKey)
+	d.ReadScheduler(func(s *scheduler.Scheduler, _ chasm.Context) { d.initialActionCount = s.Info.GetActionCount() })
 }
 
 // Now returns the engine's current clock time.
@@ -408,6 +446,21 @@ func (d *Driver) pendingSideEffectTasks() []*tasks.ChasmTask {
 			out = append(out, ct)
 		}
 	}
+	slices.SortStableFunc(out, func(a, b *tasks.ChasmTask) int {
+		if cmp := a.GetVisibilityTime().Compare(b.GetVisibilityTime()); cmp != 0 {
+			return cmp
+		}
+		if c := cmp.Compare(a.Info.GetTaskVersionedTransition().GetTransitionCount(), b.Info.GetTaskVersionedTransition().GetTransitionCount()); c != 0 {
+			return c
+		}
+		if c := cmp.Compare(a.Info.GetTaskVersionedTransitionOffset(), b.Info.GetTaskVersionedTransitionOffset()); c != 0 {
+			return c
+		}
+		if c := cmp.Compare(a.Info.GetTypeId(), b.Info.GetTypeId()); c != 0 {
+			return c
+		}
+		return slices.Compare(a.Info.GetPath(), b.Info.GetPath())
+	})
 	return out
 }
 
@@ -453,49 +506,55 @@ func (d *Driver) StepPure() bool {
 // current time, without moving the clock. It returns false if none is due.
 func (d *Driver) StepSideEffect() bool {
 	d.T.Helper()
-
-	now := d.Now()
-	var next *tasks.ChasmTask
-	for _, ct := range d.pendingSideEffectTasks() {
-		if ct.GetVisibilityTime().After(now) {
-			continue
-		}
-		if next == nil || ct.GetVisibilityTime().Before(next.GetVisibilityTime()) {
-			next = ct
-		}
-	}
+	next := d.nextSideEffect()
 	if next == nil {
 		return false
 	}
+	before := d.actionCount()
+	err := d.executeSideEffect(next)
+	d.finishSideEffect(before, err)
+	return true
+}
 
-	d.dispatchedSideEffects[next] = struct{}{}
-	actionsBefore := d.actionCount()
-	execErr := d.node().ExecuteSideEffectTask(
-		chasm.NewEngineContext(context.Background(), d.Engine),
-		d.execKey,
-		next,
-		func(chasm.NodeBackend, chasm.Context, chasm.Component) error { return nil },
-	)
-	if execErr != nil {
-		// A NotFound means the logical task was superseded/removed before
-		// dispatch (the backend accumulates physical tasks append-only, so a
-		// stale one can linger). Production drops these; so do we.
-		if _, ok := errors.AsType[*serviceerror.NotFound](execErr); !ok {
-			d.T.Fatalf("ExecuteSideEffectTask failed: %v", execErr)
+func (d *Driver) nextSideEffect() *tasks.ChasmTask {
+	for _, task := range d.pendingSideEffectTasks() {
+		if task.GetVisibilityTime().After(d.Now()) {
+			continue
+		}
+		d.dispatchedSideEffects[task] = struct{}{}
+		inTree, valid, err := d.node().ValidateSideEffectTask(context.Background(), task)
+		if err != nil {
+			d.T.Fatalf("ValidateSideEffectTask: %v", err)
+		}
+		if inTree && valid {
+			return task
 		}
 	}
-	// Track the most actions any single side-effect task (i.e. one
-	// InvokerExecuteTask) took, for the action-budget invariant.
-	if taken := d.actionCount() - actionsBefore; taken > d.maxActionsObserved {
-		d.maxActionsObserved = taken
+	return nil
+}
+
+func (d *Driver) executeSideEffect(task *tasks.ChasmTask) error {
+	return d.node().ExecuteSideEffectTask(
+		chasm.NewEngineContext(context.Background(), d.Engine), d.execKey, task,
+		func(chasm.NodeBackend, chasm.Context, chasm.Component) error { return nil },
+	)
+}
+
+func (d *Driver) finishSideEffect(before int, err error) {
+	d.T.Helper()
+	if err != nil {
+		if _, ok := errors.AsType[*serviceerror.NotFound](err); !ok {
+			d.T.Fatalf("ExecuteSideEffectTask failed: %v", err)
+		}
 	}
+	d.maxActionsObserved = max(d.maxActionsObserved, d.actionCount()-before)
 	if err := d.Engine.CloseTransaction(context.Background(), d.ref); err != nil {
-		d.T.Fatalf("CloseTransaction after side-effect task failed: %v", err)
+		d.T.Fatalf("CloseTransaction: %v", err)
 	}
+	d.observeRecordedStarts()
 	if d.AfterStep != nil {
 		d.AfterStep(d)
 	}
-	return true
 }
 
 // advanceTo moves the clock to t, never backward, first completing any
@@ -623,8 +682,19 @@ func (d *Driver) RunToQuiescence(maxSteps int) (steps int, quiescent bool) {
 // HasPendingTask reports whether any task (pure or side-effect) is currently
 // scheduled to fire.
 func (d *Driver) HasPendingTask() bool {
-	_, have := d.nextFireTime()
-	return have
+	if _, have := d.nextPureFireTime(); have {
+		return true
+	}
+	for _, task := range d.pendingSideEffectTasks() {
+		inTree, valid, err := d.node().ValidateSideEffectTask(context.Background(), task)
+		if err != nil {
+			d.T.Fatalf("ValidateSideEffectTask: %v", err)
+		}
+		if inTree && valid {
+			return true
+		}
+	}
+	return false
 }
 
 // Patch applies a SchedulePatch through the production Scheduler.Patch path in a
@@ -697,6 +767,14 @@ func (d *Driver) MigrateToWorkflow() error {
 // Snapshot captures the observable scheduler state at a settled point (after a
 // step's CloseTransaction). It is the input to invariant checks.
 type Snapshot struct {
+	UntransferableActions int
+	IdleRouteChecked      bool
+	HasValidIdleTask      bool
+	AcceptedStarts        map[string]ExternalStart
+	RecordedStarts        map[string]ExternalStart
+	ActionCount           int64
+	InitialActionCount    int64
+
 	// Now is the engine clock at capture time.
 	Now time.Time
 	// HasPendingTask is true if any task is scheduled to fire.
@@ -751,8 +829,12 @@ type Snapshot struct {
 // Snapshot reads current scheduler state into a Snapshot.
 func (d *Driver) Snapshot() Snapshot {
 	d.T.Helper()
+	d.observeRecordedStarts()
 	tweakables := d.Config.Tweakables(Namespace)
 	snap := Snapshot{
+		IdleRouteChecked: true,
+		AcceptedStarts:   d.external.snapshot(), RecordedStarts: maps.Clone(d.recorded),
+		InitialActionCount:     d.initialActionCount,
 		Now:                    d.Now(),
 		HasPendingTask:         d.HasPendingTask(),
 		MaxBufferSize:          tweakables.MaxBufferSize,
@@ -763,6 +845,8 @@ func (d *Driver) Snapshot() Snapshot {
 		DroppedStarts:          d.droppedStarts(),
 	}
 	d.ReadScheduler(func(s *scheduler.Scheduler, ctx chasm.Context) {
+		snap.HasValidIdleTask = d.validIdleTask(s, ctx)
+		snap.ActionCount = s.Info.GetActionCount()
 		snap.Closed = s.Closed
 		snap.IsSentinel = s.IsSentinel()
 		snap.Paused = s.Schedule.GetState().GetPaused()
@@ -780,6 +864,7 @@ func (d *Driver) Snapshot() Snapshot {
 				snap.GeneratorLPT = g.LastProcessedTime.AsTime()
 			}
 			if inv := s.Invoker.Get(ctx); inv != nil {
+				snap.UntransferableActions = len(inv.GetCancelWorkflows()) + len(inv.GetTerminateWorkflows())
 				snap.BufferedStartsCount = len(inv.GetBufferedStarts())
 				snap.addBufferedStarts(inv.GetBufferedStarts())
 				if inv.LastProcessedTime != nil {
@@ -797,6 +882,9 @@ func (snap *Snapshot) addBufferedStarts(starts []*schedulespb.BufferedStart) {
 	for _, start := range starts {
 		switch {
 		case start.GetRunId() == "":
+			if start.GetAttempt() > 0 {
+				snap.UntransferableActions++
+			}
 			snap.PendingStarts[start.GetRequestId()] = struct{}{}
 			if start.GetAttempt() == -1 {
 				snap.DeferredStarts++
