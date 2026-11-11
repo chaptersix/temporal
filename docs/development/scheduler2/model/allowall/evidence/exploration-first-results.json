@@ -1,0 +1,101 @@
+[
+  {
+    "case": "baseline-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-allowall-model-first/baseline-100/graph",
+      "/private/tmp/scheduler2-allowall-model-first/baseline-100/allowall.fizz"
+    ],
+    "exit_code": 2,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "a06cf26a2af833d3f4249f69882e2397e8f22dd9e994de0e4ede379e4b1978eb",
+    "passed": false,
+    "detected": false,
+    "counts": []
+  },
+  {
+    "case": "baseline-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-allowall-model-first/baseline-200/graph",
+      "/private/tmp/scheduler2-allowall-model-first/baseline-200/allowall.fizz"
+    ],
+    "exit_code": 2,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "51d6207bf3e1248a508dd8f3ef6c335536545ed7fa1e338a978f26cbeaa1c771",
+    "passed": false,
+    "detected": false,
+    "counts": []
+  },
+  {
+    "case": "ignore_older_result",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-allowall-model-first/ignore_older_result/graph",
+      "/private/tmp/scheduler2-allowall-model-first/ignore_older_result/allowall.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "IGNORE_OLDER_RESULT",
+    "expected_invariant": [
+      "KeyedEvidenceCountedOnce",
+      "TerminalEvidenceSettlesItsIntent"
+    ],
+    "sha256": "56aef8906a699be416a5c5ab5a0f4a21b15fe797855328f6b0ed47a6a732ca25",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 20, queued: 117, elapsed: 9.899792ms"
+    ]
+  },
+  {
+    "case": "allow_result_leaks",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-allowall-model-first/allow_result_leaks/graph",
+      "/private/tmp/scheduler2-allowall-model-first/allow_result_leaks/allowall.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "ALLOW_RESULT_LEAKS",
+    "expected_invariant": [
+      "NoAllowCarryoverOrPause"
+    ],
+    "sha256": "d49169a5d67dbbe16c48cb10787a09e82956956b86ca3fa011209e83769922e5",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 23, queued: 150, elapsed: 12.860834ms"
+    ]
+  },
+  {
+    "case": "lose_capacity_wake",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-allowall-model-first/lose_capacity_wake/graph",
+      "/private/tmp/scheduler2-allowall-model-first/lose_capacity_wake/allowall.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "LOSE_CAPACITY_WAKE",
+    "expected_invariant": [
+      "DrainObligationWithoutSpin"
+    ],
+    "sha256": "aa672b7fa35154008e5ffc34d3ce59250a1ac6f0c3aab2a7bc7eaaba2191521b",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 2165, queued: 6398, elapsed: 1.089181375s",
+      "Nodes: 2165"
+    ]
+  }
+]

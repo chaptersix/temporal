@@ -1,0 +1,9 @@
+{
+  "final_runner_sha256": "502379ec918deb790579d6edb0a6536447d4fefea6474fd6bea1eaf7bc32173d",
+  "execution_runner_note": "Accepted bounded run started before timeout-only process-group cleanup change. Specification and success/named-invariant criteria unchanged. No case timed out in accepted run; see results. Final runner uses start_new_session/killpg to avoid orphaned descendants on future timeouts.",
+  "abandoned_runs": [
+    "/private/tmp/scheduler2-allowall-model-second",
+    "/private/tmp/scheduler2-allowall-model-saturated"
+  ],
+  "abandoned_note": "Parent terminated these incomplete superseded explorations. No acceptance claim. Second runner buffered logs; saturated partial stdout retained."
+}
