@@ -1,0 +1,22 @@
+=== RUN   TestExcludedWorkYieldsWithoutExhaustion
+=== PAUSE TestExcludedWorkYieldsWithoutExhaustion
+=== CONT  TestExcludedWorkYieldsWithoutExhaustion
+    boundaries_test.go:226: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/occurrence/boundaries_test.go:226
+        	Error:      	Not equal: 
+        	            	expected: occurrence.Result{State:occurrence.State{Origin:time.Date(2023, time.December, 31, 23, 59, 59, 999999999, time.UTC), DefinitionID:"550767384451d0410677a8b376efcfcf294208f3308fa695fd2c43acddd173c3", Revision:1, SearchAfter:time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), DisposedThrough:time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), Pending:(*occurrence.Candidate)(nil), FullRange:true, EligibleSeen:false, Terminal:0}, Occurrences:[]occurrence.Candidate(nil), Status:1, Probes:1}
+        	            	actual  : occurrence.Result{State:occurrence.State{Origin:time.Date(2023, time.December, 31, 23, 59, 59, 999999999, time.UTC), DefinitionID:"550767384451d0410677a8b376efcfcf294208f3308fa695fd2c43acddd173c3", Revision:1, SearchAfter:time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), DisposedThrough:time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), Pending:(*occurrence.Candidate)(nil), FullRange:true, EligibleSeen:false, Terminal:0}, Occurrences:[]occurrence.Candidate(nil), Status:6, Probes:1}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -25,3 +25,3 @@
+        	            	  Occurrences: ([]occurrence.Candidate) <nil>,
+        	            	- Status: (occurrence.Status) 1,
+        	            	+ Status: (occurrence.Status) 6,
+        	            	  Probes: (int) 1
+        	Test:       	TestExcludedWorkYieldsWithoutExhaustion
+--- FAIL: TestExcludedWorkYieldsWithoutExhaustion (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.607s
+FAIL

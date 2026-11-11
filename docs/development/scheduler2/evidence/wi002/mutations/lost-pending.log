@@ -1,0 +1,35 @@
+=== RUN   TestSavedPendingJitterReplay
+=== PAUSE TestSavedPendingJitterReplay
+=== CONT  TestSavedPendingJitterReplay
+    replay_test.go:67: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/occurrence/replay_test.go:67
+        	Error:      	Not equal: 
+        	            	expected: &occurrence.Candidate{Nominal:time.Date(2022, time.April, 7, 13, 55, 0, 0, time.UTC), Actual:time.Date(2022, time.April, 7, 13, 57, 26, 927000000, time.UTC), Revision:1, Excluded:false}
+        	            	actual  : (*occurrence.Candidate)(nil)
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,15 +1,2 @@
+        	            	-(*occurrence.Candidate)({
+        	            	- Nominal: (time.Time) {
+        	            	-  wall: (uint64) 0,
+        	            	-  ext: (int64) 63784936500,
+        	            	-  loc: (*time.Location)(<nil>)
+        	            	- },
+        	            	- Actual: (time.Time) {
+        	            	-  wall: (uint64) 927000000,
+        	            	-  ext: (int64) 63784936646,
+        	            	-  loc: (*time.Location)(<nil>)
+        	            	- },
+        	            	- Revision: (int64) 1,
+        	            	- Excluded: (bool) false
+        	            	-})
+        	            	+(*occurrence.Candidate)(<nil>)
+        	            	 
+        	Test:       	TestSavedPendingJitterReplay
+        	Messages:   	step 0
+--- FAIL: TestSavedPendingJitterReplay (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.619s
+FAIL

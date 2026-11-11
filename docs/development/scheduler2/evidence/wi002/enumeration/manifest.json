@@ -1,0 +1,120 @@
+{
+  "profile": "enumeration",
+  "source_sha": "637fe096df2a9b7de6db3e4865e5d9a53f10cc02",
+  "status_before": "",
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source_files": {
+    "chasm/lib/scheduler2/component.go": "dc3c3be25bbe67c76ba70fbcd4a20c8e41468b422240aefd28f852a23caeaef6",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go": "8b110b3b1265eb87f8ca690ca5c4e29ccfaeb6976869cb357be1dddb74aa1be9",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "f3ab7893a6ac8c976c3ecbbba05029f60ec92f688946537771631d09054a3f70",
+    "chasm/lib/scheduler2/internal/decision/decision.go": "4544ce2703ef0da2b819995b692305e4689a13664416b71b86663125a0718bd7",
+    "chasm/lib/scheduler2/internal/decision/decision_test.go": "5ec51d5b81b8b4451a7108dbbfae9afc804c4af178760135aaf629c5d0792943",
+    "chasm/lib/scheduler2/internal/occurrence/boundaries_test.go": "23647440f47c4c5a9fdae417074369902953486f86fe8cac5ba9752cb683b80a",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence.go": "a2bd64980ffa6e105f380c03ecc36fee9c57e09dd800787b29a7813fb94f942b",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence_test.go": "ed11486cbb44f6a29222bd1dbf769cf72eaa07aa942aa0b273807895f2dcee81",
+    "chasm/lib/scheduler2/internal/occurrence/replay_test.go": "4f8d7a2f0814c77a628d0d9c2c6a7db0d3971455358f939c27b1c7c5d0322db7",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/America_New_York.tzif": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/README.md": "6619efd90c249cdcb7cdf56cc1f739c360ba34a3142841ef5cb0d876fc1b53d2",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/generator-regressions/TestEnumerationProperties-20261110193611-6103.fail": "6d9f2a0ea0ccd738813fe91e1067fd9852e05af6ff7a434607e5ac5717532966",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/pending_jitter_v1.json": "4b092a385daa1d708da4895da8c4faeed1e5981d12191da8751dae675cda84be",
+    "chasm/lib/scheduler2/library.go": "396085a659c05ca72c25a0d433e7abee4a0874a71db7a3dcab2faa13d6169081",
+    "chasm/lib/scheduler2/persistence_test.go": "6cfe3abf9883a07522a677db334d9b9b9e1570510061c9de9618fc9ae4c2ca4c",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "d32a37ef2fa3ad8b3b673a2c29a2c9f98e1b22d4c0b5871be7d3ae8d4878169e",
+    "chasm/lib/scheduler2/replay_test.go": "b5b7d15ddbf3a739264cbe388e7d74855134f6054aaa6f63e64bce429634d5b3",
+    "chasm/lib/scheduler2/tasks.go": "4aaa661477fdc4111a3f2b0580300b954e814cb72504164011b30e7f201eb1d2",
+    "chasm/lib/scheduler2/tasks_test.go": "7c6ce7443b6aee9b7e09dc4fb29f34835e7aad22244a024069f91474b233c4d6",
+    "service/worker/scheduler/candidate.go": "794011c72c2705bc4a4d4bb76d603c794ae9d180bb2ec379edc3708722ccef09",
+    "service/worker/scheduler/spec.go": "c34ce2e2aee0bb05fe7bf2fdc8017638b36127c69e671fbe3c6bf69d48c9da84"
+  },
+  "configuration": {
+    "version": 1,
+    "scope": "M1 dispatch slice plus standalone WI-002 enumeration; local only",
+    "clock": "execution Unix nanoseconds",
+    "per_schedule": {
+      "enumeration_batch": 1,
+      "admission_batch": 1,
+      "scan_batch": 1,
+      "pending_actions": 1,
+      "live_operations": 1,
+      "backfill_requests": 0,
+      "terminal_records": 1,
+      "retry_horizon_seconds": 60,
+      "retry_backoff_seconds": 1
+    },
+    "executor_concurrency_per_library": 1,
+    "routine": {
+      "scenarios": 100,
+      "events": 32,
+      "seed": 1
+    },
+    "exploration": {
+      "scenarios": 10000,
+      "events": 128,
+      "seed_policy": "explicit --seed recorded in manifest"
+    },
+    "recovery": "one authenticated completion; an explicit finite suffix, not a liveness proof",
+    "model": {
+      "action_bounds": [
+        100,
+        200
+      ],
+      "concurrent_actions": 1,
+      "timeout_seconds_per_case": 300
+    },
+    "tools": {
+      "go": "go1.27.3",
+      "rapid": "v1.2.0",
+      "fizzbee": "v0.5.4",
+      "lean": "v4.24.0; executable draft only; M3 proofs pending"
+    },
+    "limits": "unsupported ingress rejected; expiry retains ambiguity; no retention eviction in bounded slice",
+    "enumeration": {
+      "range": "[2000-01-01,2101-01-01) UTC",
+      "max_spec_bytes": 65536,
+      "max_terms": 64,
+      "max_ranges": 1024,
+      "max_probes": 1024,
+      "max_outputs": 128,
+      "routine_probes": 8,
+      "routine_outputs": 4,
+      "timezone_fixture_sha256": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+      "independence": "bounded second-scan oracle; shares timezone conversion and Farm32 primitives",
+      "integration": "not wired to CHASM admission"
+    }
+  },
+  "seed": 1,
+  "scenarios": 10000,
+  "event_limit": 128,
+  "go_version": "go version go1.27.3 darwin/arm64",
+  "python_version": "3.14.6 (main, Jun 10 2026, 10:03:53) [Clang 21.0.0 (clang-2100.0.123.102)]",
+  "environment": {
+    "GOMAXPROCS": "4",
+    "CGO_ENABLED": "0"
+  },
+  "trace_schema": 1,
+  "results": [
+    {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=10m",
+        "./chasm/lib/scheduler2/internal/occurrence",
+        "-rapid.seed=1",
+        "-rapid.checks=10000",
+        "-v"
+      ],
+      "exit_code": 0,
+      "result": "passed",
+      "seconds": 5.354975375114009,
+      "log": "/private/tmp/scheduler2-wi002-final/enumeration/0.log"
+    }
+  ],
+  "result": "passed"
+}

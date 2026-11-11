@@ -34,3 +34,19 @@ commands, artifacts, unresolved assumptions and limits before integration.
 One integrator and at most three delegated agents. Expensive checks serialized.
 No worktree, branch, failure evidence or unrelated change was deleted. Missing
 configured signing key necessitated commit.gpgsign=false for local task commits.
+
+## WI-002 continued execution
+
+| Item / owner | Path / branch | Full base SHA / dependencies | Status / disposition |
+|---|---|---|---|
+| WI-002 integrator | /Users/alex/repos/wt/sch-redesign/temporal / sch-redesign | 00b65430a52d6d43e7e0c9150ced94a81c5e169f | Core/contracts, integration and acceptance; retained. |
+| WI-002 oracle/replay, tooling_harness | /private/tmp/sch-redesign-enumeration-tests / sch-redesign-enumeration-tests | 46ff5128c78ddebda9e03b323644498bd8fe408e; transferred 4939d3cb5731f29a0182a7d2418256eb90fe0325 and e76c2ff9803fd7533f3eb0a6cb1679209e2bba63 prerequisite core fixes | Tests/testdata only; dc48caed5 and 136bc30dc30ba9797897327a5c977008f5fdd3dd integrated as eae24bae8 and d75e768d3; clean, retained. |
+| WI-002 Lean, chasm_guarantees | /private/tmp/sch-redesign-enumeration-spec / sch-redesign-enumeration-spec | 00b65430a52d6d43e7e0c9150ced94a81c5e169f; D23–D26 contract provided explicitly | lean/ only; 005266ca83675717493b6a42e92367ae41058303 integrated as af9a0cfe6, integrator refined proposed completeness/uniqueness statements; clean, retained. |
+| WI-002 contract/review, history_contract | Integration checkout, read-only | 46ff5128c initial, eae24bae8/final637fe096d reviews | Source semantics and fixed contribution review; findings resolved in evidence/wi002/review.md. |
+
+Worktree inventory and final original status are in evidence/wi002. Original
+checkout received new concurrent tracked/untracked edits; this task made no writes
+there and all initially untracked entries remain. The original M1 tracked files'
+patch segments remain; added changes mean the complete patch is no longer identical.
+No unrelated worktree was changed. Parent executed local checks/commits where
+older delegate sessions retained restrictive permissions; no escalation requested.

@@ -1,0 +1,184 @@
+=== RUN   TestFractionalStartAndInclusiveEnd
+=== PAUSE TestFractionalStartAndInclusiveEnd
+=== RUN   TestPendingJitterBeyondNominalEnd
+=== PAUSE TestPendingJitterBeyondNominalEnd
+=== RUN   TestUpdateSupersedesFutureCandidates
+=== PAUSE TestUpdateSupersedesFutureCandidates
+=== RUN   TestContinuationDefinitionBinding
+=== PAUSE TestContinuationDefinitionBinding
+=== RUN   TestPrototypeBounds
+=== PAUSE TestPrototypeBounds
+=== RUN   TestPinnedTimezoneGapAndFold
+=== PAUSE TestPinnedTimezoneGapAndFold
+=== RUN   TestExcludedWorkYieldsWithoutExhaustion
+=== PAUSE TestExcludedWorkYieldsWithoutExhaustion
+=== RUN   TestJitterOutsidePrototypeRange
+=== PAUSE TestJitterOutsidePrototypeRange
+=== RUN   TestScanOracleDetectsDroppedPendingCandidate
+=== PAUSE TestScanOracleDetectsDroppedPendingCandidate
+=== RUN   TestMalformedDefinitionsRejected
+=== PAUSE TestMalformedDefinitionsRejected
+=== RUN   TestForgedContinuationsRejected
+=== PAUSE TestForgedContinuationsRejected
+=== RUN   TestBoundedEnumerationAgainstScan
+=== PAUSE TestBoundedEnumerationAgainstScan
+=== RUN   TestEnumerationProperties
+=== PAUSE TestEnumerationProperties
+=== RUN   TestTerminalAndWindowStatuses
+=== PAUSE TestTerminalAndWindowStatuses
+=== RUN   TestSavedPendingJitterReplay
+=== PAUSE TestSavedPendingJitterReplay
+=== CONT  TestFractionalStartAndInclusiveEnd
+=== CONT  TestPrototypeBounds
+=== CONT  TestScanOracleDetectsDroppedPendingCandidate
+=== RUN   TestPrototypeBounds/1999-12-31_23:59:59.999999999_+0000_UTC
+=== PAUSE TestPrototypeBounds/1999-12-31_23:59:59.999999999_+0000_UTC
+=== RUN   TestPrototypeBounds/2101-01-01_00:00:00_+0000_UTC
+=== PAUSE TestPrototypeBounds/2101-01-01_00:00:00_+0000_UTC
+=== CONT  TestJitterOutsidePrototypeRange
+--- PASS: TestFractionalStartAndInclusiveEnd (0.00s)
+=== CONT  TestExcludedWorkYieldsWithoutExhaustion
+--- PASS: TestScanOracleDetectsDroppedPendingCandidate (0.00s)
+=== CONT  TestUpdateSupersedesFutureCandidates
+=== RUN   TestUpdateSupersedesFutureCandidates/excluded_false
+--- PASS: TestJitterOutsidePrototypeRange (0.00s)
+=== PAUSE TestUpdateSupersedesFutureCandidates/excluded_false
+=== RUN   TestUpdateSupersedesFutureCandidates/excluded_true
+=== PAUSE TestUpdateSupersedesFutureCandidates/excluded_true
+=== CONT  TestContinuationDefinitionBinding
+=== CONT  TestPinnedTimezoneGapAndFold
+=== CONT  TestBoundedEnumerationAgainstScan
+=== RUN   TestBoundedEnumerationAgainstScan/probes_1
+=== RUN   TestPinnedTimezoneGapAndFold/gap
+=== RUN   TestContinuationDefinitionBinding/revision
+=== PAUSE TestPinnedTimezoneGapAndFold/gap
+=== RUN   TestPinnedTimezoneGapAndFold/fold
+=== PAUSE TestPinnedTimezoneGapAndFold/fold
+=== PAUSE TestBoundedEnumerationAgainstScan/probes_1
+=== RUN   TestBoundedEnumerationAgainstScan/probes_2
+=== PAUSE TestBoundedEnumerationAgainstScan/probes_2
+=== CONT  TestSavedPendingJitterReplay
+=== RUN   TestBoundedEnumerationAgainstScan/probes_8
+=== PAUSE TestBoundedEnumerationAgainstScan/probes_8
+=== PAUSE TestContinuationDefinitionBinding/revision
+--- PASS: TestExcludedWorkYieldsWithoutExhaustion (0.00s)
+=== CONT  TestEnumerationProperties
+=== CONT  TestTerminalAndWindowStatuses
+=== RUN   TestTerminalAndWindowStatuses/empty
+=== PAUSE TestTerminalAndWindowStatuses/empty
+=== RUN   TestTerminalAndWindowStatuses/impossible
+=== RUN   TestContinuationDefinitionBinding/seed
+=== PAUSE TestTerminalAndWindowStatuses/impossible
+=== PAUSE TestContinuationDefinitionBinding/seed
+=== RUN   TestTerminalAndWindowStatuses/partial_impossible
+=== RUN   TestContinuationDefinitionBinding/definition
+=== PAUSE TestTerminalAndWindowStatuses/partial_impossible
+=== RUN   TestTerminalAndWindowStatuses/all_excluded
+=== PAUSE TestContinuationDefinitionBinding/definition
+=== PAUSE TestTerminalAndWindowStatuses/all_excluded
+=== CONT  TestMalformedDefinitionsRejected
+=== RUN   TestTerminalAndWindowStatuses/partial_excluded
+=== RUN   TestMalformedDefinitionsRejected/negative_exclusion_step
+=== PAUSE TestTerminalAndWindowStatuses/partial_excluded
+=== PAUSE TestMalformedDefinitionsRejected/negative_exclusion_step
+=== RUN   TestMalformedDefinitionsRejected/huge_exclusion_year
+=== PAUSE TestMalformedDefinitionsRejected/huge_exclusion_year
+=== RUN   TestMalformedDefinitionsRejected/nil_structured_calendar
+=== PAUSE TestMalformedDefinitionsRejected/nil_structured_calendar
+=== RUN   TestMalformedDefinitionsRejected/nil_exclusion
+=== PAUSE TestMalformedDefinitionsRejected/nil_exclusion
+=== RUN   TestMalformedDefinitionsRejected/nil_calendar
+=== PAUSE TestMalformedDefinitionsRejected/nil_calendar
+=== RUN   TestMalformedDefinitionsRejected/nil_interval
+=== PAUSE TestMalformedDefinitionsRejected/nil_interval
+=== RUN   TestMalformedDefinitionsRejected/invalid_duration_nanos
+=== PAUSE TestMalformedDefinitionsRejected/invalid_duration_nanos
+=== RUN   TestMalformedDefinitionsRejected/invalid_phase_nanos
+=== CONT  TestForgedContinuationsRejected
+=== PAUSE TestMalformedDefinitionsRejected/invalid_phase_nanos
+=== RUN   TestMalformedDefinitionsRejected/phase_equals_period
+=== RUN   TestForgedContinuationsRejected/cursor_outside_range
+=== PAUSE TestMalformedDefinitionsRejected/phase_equals_period
+=== CONT  TestPendingJitterBeyondNominalEnd
+=== PAUSE TestForgedContinuationsRejected/cursor_outside_range
+=== RUN   TestForgedContinuationsRejected/pending_revision
+=== PAUSE TestForgedContinuationsRejected/pending_revision
+=== RUN   TestForgedContinuationsRejected/waiting_not_terminal
+=== PAUSE TestForgedContinuationsRejected/waiting_not_terminal
+=== RUN   TestForgedContinuationsRejected/disposed_ahead_of_search
+=== PAUSE TestForgedContinuationsRejected/disposed_ahead_of_search
+=== CONT  TestPrototypeBounds/1999-12-31_23:59:59.999999999_+0000_UTC
+=== CONT  TestPrototypeBounds/2101-01-01_00:00:00_+0000_UTC
+--- PASS: TestPrototypeBounds (0.00s)
+    --- PASS: TestPrototypeBounds/1999-12-31_23:59:59.999999999_+0000_UTC (0.00s)
+    --- PASS: TestPrototypeBounds/2101-01-01_00:00:00_+0000_UTC (0.00s)
+=== CONT  TestUpdateSupersedesFutureCandidates/excluded_false
+--- PASS: TestPendingJitterBeyondNominalEnd (0.00s)
+=== CONT  TestUpdateSupersedesFutureCandidates/excluded_true
+=== CONT  TestPinnedTimezoneGapAndFold/gap
+--- PASS: TestUpdateSupersedesFutureCandidates (0.00s)
+    --- PASS: TestUpdateSupersedesFutureCandidates/excluded_false (0.00s)
+    --- PASS: TestUpdateSupersedesFutureCandidates/excluded_true (0.00s)
+=== CONT  TestPinnedTimezoneGapAndFold/fold
+--- PASS: TestSavedPendingJitterReplay (0.00s)
+=== CONT  TestBoundedEnumerationAgainstScan/probes_1
+=== CONT  TestBoundedEnumerationAgainstScan/probes_8
+=== CONT  TestBoundedEnumerationAgainstScan/probes_2
+--- PASS: TestBoundedEnumerationAgainstScan (0.00s)
+    --- PASS: TestBoundedEnumerationAgainstScan/probes_1 (0.00s)
+    --- PASS: TestBoundedEnumerationAgainstScan/probes_8 (0.00s)
+    --- PASS: TestBoundedEnumerationAgainstScan/probes_2 (0.00s)
+=== CONT  TestContinuationDefinitionBinding/revision
+=== CONT  TestContinuationDefinitionBinding/definition
+=== CONT  TestContinuationDefinitionBinding/seed
+--- PASS: TestContinuationDefinitionBinding (0.00s)
+    --- PASS: TestContinuationDefinitionBinding/revision (0.00s)
+    --- PASS: TestContinuationDefinitionBinding/definition (0.00s)
+    --- PASS: TestContinuationDefinitionBinding/seed (0.00s)
+=== CONT  TestTerminalAndWindowStatuses/empty
+=== CONT  TestTerminalAndWindowStatuses/partial_excluded
+=== CONT  TestTerminalAndWindowStatuses/all_excluded
+=== CONT  TestTerminalAndWindowStatuses/partial_impossible
+=== CONT  TestTerminalAndWindowStatuses/impossible
+--- PASS: TestTerminalAndWindowStatuses (0.00s)
+    --- PASS: TestTerminalAndWindowStatuses/empty (0.00s)
+    --- PASS: TestTerminalAndWindowStatuses/partial_excluded (0.00s)
+    --- PASS: TestTerminalAndWindowStatuses/all_excluded (0.00s)
+    --- PASS: TestTerminalAndWindowStatuses/partial_impossible (0.00s)
+    --- PASS: TestTerminalAndWindowStatuses/impossible (0.00s)
+=== CONT  TestMalformedDefinitionsRejected/negative_exclusion_step
+=== CONT  TestMalformedDefinitionsRejected/nil_interval
+=== CONT  TestMalformedDefinitionsRejected/phase_equals_period
+=== CONT  TestMalformedDefinitionsRejected/invalid_phase_nanos
+=== CONT  TestMalformedDefinitionsRejected/invalid_duration_nanos
+=== CONT  TestMalformedDefinitionsRejected/nil_exclusion
+=== CONT  TestMalformedDefinitionsRejected/nil_calendar
+=== CONT  TestMalformedDefinitionsRejected/nil_structured_calendar
+=== CONT  TestMalformedDefinitionsRejected/huge_exclusion_year
+--- PASS: TestMalformedDefinitionsRejected (0.00s)
+    --- PASS: TestMalformedDefinitionsRejected/negative_exclusion_step (0.00s)
+    --- PASS: TestMalformedDefinitionsRejected/nil_interval (0.00s)
+    --- PASS: TestMalformedDefinitionsRejected/phase_equals_period (0.00s)
+    --- PASS: TestMalformedDefinitionsRejected/invalid_phase_nanos (0.00s)
+    --- PASS: TestMalformedDefinitionsRejected/invalid_duration_nanos (0.00s)
+    --- PASS: TestMalformedDefinitionsRejected/nil_exclusion (0.00s)
+    --- PASS: TestMalformedDefinitionsRejected/nil_calendar (0.00s)
+    --- PASS: TestMalformedDefinitionsRejected/nil_structured_calendar (0.00s)
+    --- PASS: TestMalformedDefinitionsRejected/huge_exclusion_year (0.00s)
+=== CONT  TestForgedContinuationsRejected/cursor_outside_range
+=== CONT  TestForgedContinuationsRejected/disposed_ahead_of_search
+=== CONT  TestForgedContinuationsRejected/waiting_not_terminal
+=== CONT  TestForgedContinuationsRejected/pending_revision
+--- PASS: TestForgedContinuationsRejected (0.00s)
+    --- PASS: TestForgedContinuationsRejected/cursor_outside_range (0.00s)
+    --- PASS: TestForgedContinuationsRejected/disposed_ahead_of_search (0.00s)
+    --- PASS: TestForgedContinuationsRejected/waiting_not_terminal (0.00s)
+    --- PASS: TestForgedContinuationsRejected/pending_revision (0.00s)
+--- PASS: TestPinnedTimezoneGapAndFold (0.00s)
+    --- PASS: TestPinnedTimezoneGapAndFold/gap (0.00s)
+    --- PASS: TestPinnedTimezoneGapAndFold/fold (0.00s)
+=== NAME  TestEnumerationProperties
+    occurrence_test.go:168: [rapid] OK, passed 10000 tests (535.056084ms)
+--- PASS: TestEnumerationProperties (0.54s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	1.707s

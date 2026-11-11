@@ -1,0 +1,8 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+Error: parallel golangci-lint is running
+The command is terminated due to an error: parallel golangci-lint is running
+make[1]: *** [lint-code] Error 3
+make: *** [lint-code-fast] Error 2

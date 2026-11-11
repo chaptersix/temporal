@@ -1,0 +1,95 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 14.031917ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (compiled_files|deps|types_sizes|exports_file|files|imports|name) took 1.383334208s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 8.268542ms"
+level=info msg="[linters_context/goanalysis] analyzers took 6.013265669s with top 10 stages: revive: 1.345808626s, goimports: 720.578875ms, ST1022: 235.746042ms, SA4003: 221.253124ms, buildir: 191.600004ms, testifylint: 148.425127ms, printf: 146.403414ms, nilness: 145.476623ms, S1020: 126.482958ms, QF1011: 126.400917ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 2 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner] Issues before processing: 82, after processing: 2"
+level=info msg="[runner] Processors filtering stat (in/out): path_relativity: 82/82, exclusion_paths: 82/82, generated_file_filter: 82/82, nolint_filter: 77/65, diff: 65/2, exclusion_rules: 82/77, uniq_by_line: 2/2, max_from_linter: 2/2, path_shortener: 2/2, path_prettifier: 2/2, sort_results: 2/2, fixer: 2/2, filename_unadjuster: 82/82, cgo: 82/82, max_per_file_from_linter: 2/2, source_code: 2/2, severity-rules: 2/2, max_same_issues: 2/2, path_absoluter: 82/82, invalid_issue: 82/82"
+level=info msg="[runner] processing took 81.292216ms with stages: diff: 74.054917ms, nolint_filter: 6.1885ms, generated_file_filter: 403.584µs, exclusion_rules: 367.376µs, source_code: 113.417µs, path_relativity: 67.126µs, exclusion_paths: 59.042µs, cgo: 26.834µs, uniq_by_line: 3.375µs, invalid_issue: 1.667µs, path_absoluter: 1.167µs, path_shortener: 959ns, sort_results: 958ns, max_same_issues: 917ns, max_per_file_from_linter: 875ns, fixer: 542ns, filename_unadjuster: 501ns, path_prettifier: 292ns, max_from_linter: 84ns, severity-rules: 83ns"
+level=info msg="[runner] linters took 2.348360667s with stages: goanalysis_metalinter: 2.266994458s"
+../chasm/lib/scheduler2/internal/occurrence/occurrence.go:163:1: cognitive-complexity: function (*Enumerator).Run has cognitive complexity 27 (> max enabled 25) (revive)
+func (e *Enumerator) Run(state State, through time.Time, limits Limits) (Result, error) {
+	if state.Revision != e.revision || state.DefinitionID != e.identity {
+		return Result{}, serviceerror.NewFailedPrecondition("continuation belongs to another definition revision")
+	}
+	if !supported(through) || limits.Probes < 1 || limits.Probes > 1024 || limits.Outputs < 1 || limits.Outputs > 128 {
+		return Result{}, serviceerror.NewInvalidArgument("unsupported window or enumeration limits")
+	}
+	if err := validateState(state); err != nil {
+		return Result{}, err
+	}
+	if state.FullRange != state.Origin.Before(e.start) || (state.Terminal == Empty && !e.empty) {
+		return Result{}, serviceerror.NewFailedPrecondition("invalid enumeration continuation")
+	}
+	result := Result{State: clone(state)}
+	for {
+		if result.State.Terminal != Active {
+			result.Status = result.State.Terminal
+			return result, nil
+		}
+		if e.empty {
+			result.State.Terminal = Empty
+			continue
+		}
+		if len(result.Occurrences) == limits.Outputs {
+			result.Status = Limited
+			return result, nil
+		}
+		if pending := result.State.Pending; pending != nil {
+			if pending.Actual.After(through) {
+				result.Status = Waiting
+				return result, nil
+			}
+			if !pending.Excluded {
+				result.Occurrences = append(result.Occurrences, *pending)
+			}
+			result.State.DisposedThrough = pending.Nominal
+			result.State.Pending = nil
+			continue
+		}
+		if result.Probes == limits.Probes {
+			result.Status = Yield
+			return result, nil
+		}
+		if err := e.probe(&result); err != nil {
+			return Result{}, err
+		}
+
+	}
+}
+../service/worker/scheduler/candidate.go:8:1: File is not properly formatted (gci)
+
+^
+2 issues:
+* gci: 1
+* revive: 1
+level=info msg="File cache stats: 2 entries of total size 12.3KiB"
+level=info msg="Memory: 39 samples, avg is 348.8MB, max is 921.1MB"
+level=info msg="Execution took 3.789656667s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

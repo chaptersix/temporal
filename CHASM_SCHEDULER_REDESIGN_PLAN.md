@@ -6,8 +6,8 @@
 | --- | --- |
 | Status | Authorized local execution through M1 |
 | Updated | 2026-11-10 |
-| Current milestone | M2 active: WI-002 occurrence enumeration |
-| Implementation status | WI-000/WI-001 accepted; WI-002 ready |
+| Current milestone | M2 active: WI-002 accepted; remaining policy/integration work pending |
+| Implementation status | WI-000/WI-001/WI-002 accepted |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing with WI-002; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
 | Execution environment | Local development, model checking, simulation, and functional testing only |
@@ -149,7 +149,7 @@ Phases describe coverage areas, not a requirement to finish all modeling before 
 | --- | --- | --- | --- |
 | M0 | Workspace provenance, first-slice contract, early CHASM guarantees | passed | E4–E8 |
 | M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | passed | E9–E16; bounded scope and trusted boundaries below |
-| M2 | Complete policy, update, backfill, and callback behavior with model mappings | pending | — |
+| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002 enumeration E17–E21; policy/integration gate pending |
 | M3 | Differential API and shared functional coverage with no unexplained differences | pending | — |
 | M4 | Load/state-growth report and explicit migration support boundary | pending | — |
 
@@ -465,7 +465,7 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D8 | Migration support | decided | Unsupported in initial local prototype | Future migration only |
 | D9 | Property-testing tool | decided | Use test-only Rapid for structured specs, reducer sequences, and harness scenarios; preserve standalone replay artifacts | P2.5, P4.5 |
 | D10 | Algorithm proof tool and scope | decided | Lean 4 for resumable enumeration with pending jitter and batching; Go correspondence initially tested, not proved | P5.4 |
-| D11 | Tool versions and exploration budgets | decided for M1 | profile.json and E9–E14; FizzBee 0.5.4, Go 1.27.3, Rapid 1.2.0; Lean unavailable/deferred | Expanded profiles remain later work |
+| D11 | Tool versions and exploration budgets | decided for M1 | profile.json and E9–E14; FizzBee 0.5.4, Go 1.27.3, Rapid 1.2.0; Lean 4.24.0 executable draft added in WI-002; proofs deferred | Expanded profiles remain later work |
 | D12 | Shared event/trace schema and observation points | decided for M1 | trace.schema.json + dependency validator; independent projection after commits; manual FizzBee abstraction mapping | Future Lean/differential adapters deferred |
 | D13 | Precise spec-processing semantics | decided for M1 subset | Predetermined UTC occurrence, zero jitter, cursor<nominal<=now; no general calendar implementation | SC2–SC7 general cases M2+ |
 | D14 | Prototype resource limits | decided for M1 | profile.json; single action/operation, 60s horizon, 1s backoff, bounded local executor; E10–E13 | Expanded capacity boundaries M2 |
@@ -476,6 +476,11 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D19 | Completion payload subset | decided | M1 checks matching identities and models absent-result completion; result_present=true is rejected by replay. Frozen start carryover is preserved. Null/result/failure carryover updates stay M2, rather than inventing a partial public API. E11–E13. | M2 C6 expansion |
 | D20 | Local executor limit | decided | Conservative one-RPC gate per local library instance for the one-schedule experiment. Per-schedule concurrent partitioning remains later work; no production activation. E13. | Expanded multi-schedule concurrency |
 | D21 | Recovery suffix and simulation bounds | decided | One authenticated completion resolves the single operation; replace proposed 16/32 padded recovery steps with this explicit finite suffix. Reducer runs 128 exploration events; CHASM generation uses 12–28 dependency-valid events. This matches the implemented scope and does not change a failed assertion or claim infinite liveness. E10/E12. | Expanded protocol requires new bounds |
+| D22 | Review authorization | decided | User removed human-review stops; independent agent/evidence gates remain | Supersedes M1 human pause |
+| D23 | Enumeration bounds/cursors/jitter | decided for WI-002 | UTC2000–2100, inclusive nominal bounds and actual window, raw candidate probes, retained pending, statuses and limits; enumeration-contract.md/E17–E21 | SC1–SC5; full public compatibility pending |
+| D24 | Definition supersession | decided for WI-002 | New revision resets at max(update time, disposed cursor), returns superseded pending; admitted requests immutable; legacy generator evidence | SC6; protocol integration pending |
+| D25 | Timezone evidence | decided | Pinned TZif selected US gap/fold, independent bounded second-scan oracle; shared time/hash primitives trusted | SC7; historical transitions pending |
+| D26 | Executable specification scope | decided | Independent finite-source Lean draft and proposition definitions compile; no theorem or Go correspondence claim | M3 proofs remain |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 
@@ -492,6 +497,7 @@ Evidence kinds: `source-inspection`, `abstract-theorem`, `bounded-model-check`, 
 | E9 | bounded-model-check | First-slice safety/conditional liveness + mutation sensitivity | [model results](docs/development/scheduler2/evidence/m1/model/results.json) | 1028 states at 100/200 bounds; five mutants detected |
 | E10–E13 | property/CHASM/simulation/race | Immutable start, restart, accounting, fault and aliasing checks | [ledger](docs/development/scheduler2/evidence/README.md) | All required M1 profiles passed at f9d62cf99 |
 | E14–E16 | generation/lint/loading/review | Code checks, payload separation and acceptance | [review](docs/development/scheduler2/evidence/m1/review.md) | 0 lint issues; three payload values avoided; M1 accepted |
+| E17–E21 | contract/property/replay/race/lint/specification/mutation | Standalone bounded occurrence enumeration | [WI-002 ledger](docs/development/scheduler2/evidence/README.md) | Accepted at 637fe096d; 10000 Rapid cases, three mutants, compiled Lean draft; M2 partial |
 
 For each future evidence record include:
 
@@ -707,3 +713,11 @@ requirements remain. No routine approval request is needed between ADLC stages.
 occurrence enumeration under [D23–D26](docs/development/scheduler2/enumeration-contract.md).
 M2 is not complete merely because this work item passes. Existing local-only and
 no-production-action boundaries remain.
+
+WI-002 accepted at 7f80bd82db509e67c44bc5552a1aca709cba146e (E17–E21).
+Go checks cover unchanged source 637fe096d; final Lean statement checks cover 7f80bd82d.
+Bounded resumable enumeration, pending jitter, definition supersession, independent
+oracle/replay/property tests and executable Lean draft are committed locally.
+M2 remains partial: core is not yet integrated with policy/backfill/callback
+transitions; SP5 protocol modeling and M3 proof/correspondence work remain.
+Original checkout has new concurrent edits since M1; no writes there by this task.

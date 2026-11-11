@@ -1,0 +1,285 @@
+=== RUN   TestBoundedEnumerationAgainstScan
+=== PAUSE TestBoundedEnumerationAgainstScan
+=== CONT  TestBoundedEnumerationAgainstScan
+=== RUN   TestBoundedEnumerationAgainstScan/probes_1
+=== PAUSE TestBoundedEnumerationAgainstScan/probes_1
+=== RUN   TestBoundedEnumerationAgainstScan/probes_2
+=== PAUSE TestBoundedEnumerationAgainstScan/probes_2
+=== RUN   TestBoundedEnumerationAgainstScan/probes_8
+=== PAUSE TestBoundedEnumerationAgainstScan/probes_8
+=== CONT  TestBoundedEnumerationAgainstScan/probes_1
+=== CONT  TestBoundedEnumerationAgainstScan/probes_8
+=== CONT  TestBoundedEnumerationAgainstScan/probes_2
+    occurrence_test.go:162: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/occurrence/occurrence_test.go:162
+        	Error:      	Not equal: 
+        	            	expected: []occurrence.Candidate{occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 1, 965000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 2, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 2, 857000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 12, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 13, 101000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 14, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 14, 633000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 16, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 16, 129000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 18, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 18, 379000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 20, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 20, 595000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 22, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 22, 952000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 24, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 25, 265000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 26, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 27, 224000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 28, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 28, 529000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 30, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 30, 299000000, time.UTC), Revision:1, Excluded:false}}
+        	            	actual  : []occurrence.Candidate{occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 4, 914000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 2, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 4, 143000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 12, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 14, 754000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 14, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 15, 583000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 16, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 16, 322000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 18, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 18, 947000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 20, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 21, 487000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 22, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 24, 381000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 24, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 27, 163000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 26, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 29, 61000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 28, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 29, 324000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 30, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 30, 747000000, time.UTC), Revision:1, Excluded:false}}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -8,4 +8,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 965000000,
+        	            	-   ext: (int64) 63839664001,
+        	            	+   wall: (uint64) 914000000,
+        	            	+   ext: (int64) 63839664004,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -22,4 +22,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 857000000,
+        	            	-   ext: (int64) 63839664002,
+        	            	+   wall: (uint64) 143000000,
+        	            	+   ext: (int64) 63839664004,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -36,4 +36,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 101000000,
+        	            	-   ext: (int64) 63839664013,
+        	            	+   wall: (uint64) 754000000,
+        	            	+   ext: (int64) 63839664014,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -50,4 +50,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 633000000,
+        	            	-   ext: (int64) 63839664014,
+        	            	+   wall: (uint64) 583000000,
+        	            	+   ext: (int64) 63839664015,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -64,3 +64,3 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 129000000,
+        	            	+   wall: (uint64) 322000000,
+        	            	    ext: (int64) 63839664016,
+        	            	@@ -78,3 +78,3 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 379000000,
+        	            	+   wall: (uint64) 947000000,
+        	            	    ext: (int64) 63839664018,
+        	            	@@ -92,4 +92,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 595000000,
+        	            	-   ext: (int64) 63839664020,
+        	            	+   wall: (uint64) 487000000,
+        	            	+   ext: (int64) 63839664021,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -106,4 +106,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 952000000,
+        	            	-   ext: (int64) 63839664022,
+        	            	+   wall: (uint64) 381000000,
+        	            	+   ext: (int64) 63839664024,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -120,4 +120,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 265000000,
+        	            	-   ext: (int64) 63839664025,
+        	            	+   wall: (uint64) 163000000,
+        	            	+   ext: (int64) 63839664027,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -134,4 +134,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 224000000,
+        	            	-   ext: (int64) 63839664027,
+        	            	+   wall: (uint64) 61000000,
+        	            	+   ext: (int64) 63839664029,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -148,4 +148,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 529000000,
+        	            	-   ext: (int64) 63839664028,
+        	            	+   wall: (uint64) 324000000,
+        	            	+   ext: (int64) 63839664029,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -162,3 +162,3 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 299000000,
+        	            	+   wall: (uint64) 747000000,
+        	            	    ext: (int64) 63839664030,
+        	Test:       	TestBoundedEnumerationAgainstScan/probes_2
+=== NAME  TestBoundedEnumerationAgainstScan/probes_8
+    occurrence_test.go:162: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/occurrence/occurrence_test.go:162
+        	Error:      	Not equal: 
+        	            	expected: []occurrence.Candidate{occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 1, 965000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 2, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 2, 857000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 12, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 13, 101000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 14, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 14, 633000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 16, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 16, 129000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 18, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 18, 379000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 20, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 20, 595000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 22, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 22, 952000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 24, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 25, 265000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 26, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 27, 224000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 28, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 28, 529000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 30, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 30, 299000000, time.UTC), Revision:1, Excluded:false}}
+        	            	actual  : []occurrence.Candidate{occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 4, 914000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 2, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 4, 143000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 12, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 14, 754000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 14, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 15, 583000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 16, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 16, 322000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 18, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 18, 947000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 20, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 21, 487000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 22, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 24, 381000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 24, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 27, 163000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 26, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 29, 61000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 28, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 29, 324000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 30, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 30, 747000000, time.UTC), Revision:1, Excluded:false}}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -8,4 +8,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 965000000,
+        	            	-   ext: (int64) 63839664001,
+        	            	+   wall: (uint64) 914000000,
+        	            	+   ext: (int64) 63839664004,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -22,4 +22,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 857000000,
+        	            	-   ext: (int64) 63839664002,
+        	            	+   wall: (uint64) 143000000,
+        	            	+   ext: (int64) 63839664004,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -36,4 +36,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 101000000,
+        	            	-   ext: (int64) 63839664013,
+        	            	+   wall: (uint64) 754000000,
+        	            	+   ext: (int64) 63839664014,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -50,4 +50,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 633000000,
+        	            	-   ext: (int64) 63839664014,
+        	            	+   wall: (uint64) 583000000,
+        	            	+   ext: (int64) 63839664015,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -64,3 +64,3 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 129000000,
+        	            	+   wall: (uint64) 322000000,
+        	            	    ext: (int64) 63839664016,
+        	            	@@ -78,3 +78,3 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 379000000,
+        	            	+   wall: (uint64) 947000000,
+        	            	    ext: (int64) 63839664018,
+        	            	@@ -92,4 +92,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 595000000,
+        	            	-   ext: (int64) 63839664020,
+        	            	+   wall: (uint64) 487000000,
+        	            	+   ext: (int64) 63839664021,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -106,4 +106,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 952000000,
+        	            	-   ext: (int64) 63839664022,
+        	            	+   wall: (uint64) 381000000,
+        	            	+   ext: (int64) 63839664024,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -120,4 +120,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 265000000,
+        	            	-   ext: (int64) 63839664025,
+        	            	+   wall: (uint64) 163000000,
+        	            	+   ext: (int64) 63839664027,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -134,4 +134,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 224000000,
+        	            	-   ext: (int64) 63839664027,
+        	            	+   wall: (uint64) 61000000,
+        	            	+   ext: (int64) 63839664029,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -148,4 +148,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 529000000,
+        	            	-   ext: (int64) 63839664028,
+        	            	+   wall: (uint64) 324000000,
+        	            	+   ext: (int64) 63839664029,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -162,3 +162,3 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 299000000,
+        	            	+   wall: (uint64) 747000000,
+        	            	    ext: (int64) 63839664030,
+        	Test:       	TestBoundedEnumerationAgainstScan/probes_8
+=== NAME  TestBoundedEnumerationAgainstScan/probes_1
+    occurrence_test.go:162: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/occurrence/occurrence_test.go:162
+        	Error:      	Not equal: 
+        	            	expected: []occurrence.Candidate{occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 1, 965000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 2, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 2, 857000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 12, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 13, 101000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 14, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 14, 633000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 16, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 16, 129000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 18, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 18, 379000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 20, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 20, 595000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 22, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 22, 952000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 24, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 25, 265000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 26, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 27, 224000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 28, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 28, 529000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 30, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 30, 299000000, time.UTC), Revision:1, Excluded:false}}
+        	            	actual  : []occurrence.Candidate{occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 4, 914000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 2, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 4, 143000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 12, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 14, 754000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 14, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 15, 583000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 16, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 16, 322000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 18, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 18, 947000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 20, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 21, 487000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 22, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 24, 381000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 24, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 27, 163000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 26, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 29, 61000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 28, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 29, 324000000, time.UTC), Revision:1, Excluded:false}, occurrence.Candidate{Nominal:time.Date(2024, time.January, 1, 0, 0, 30, 0, time.UTC), Actual:time.Date(2024, time.January, 1, 0, 0, 30, 747000000, time.UTC), Revision:1, Excluded:false}}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -8,4 +8,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 965000000,
+        	            	-   ext: (int64) 63839664001,
+        	            	+   wall: (uint64) 914000000,
+        	            	+   ext: (int64) 63839664004,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -22,4 +22,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 857000000,
+        	            	-   ext: (int64) 63839664002,
+        	            	+   wall: (uint64) 143000000,
+        	            	+   ext: (int64) 63839664004,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -36,4 +36,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 101000000,
+        	            	-   ext: (int64) 63839664013,
+        	            	+   wall: (uint64) 754000000,
+        	            	+   ext: (int64) 63839664014,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -50,4 +50,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 633000000,
+        	            	-   ext: (int64) 63839664014,
+        	            	+   wall: (uint64) 583000000,
+        	            	+   ext: (int64) 63839664015,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -64,3 +64,3 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 129000000,
+        	            	+   wall: (uint64) 322000000,
+        	            	    ext: (int64) 63839664016,
+        	            	@@ -78,3 +78,3 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 379000000,
+        	            	+   wall: (uint64) 947000000,
+        	            	    ext: (int64) 63839664018,
+        	            	@@ -92,4 +92,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 595000000,
+        	            	-   ext: (int64) 63839664020,
+        	            	+   wall: (uint64) 487000000,
+        	            	+   ext: (int64) 63839664021,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -106,4 +106,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 952000000,
+        	            	-   ext: (int64) 63839664022,
+        	            	+   wall: (uint64) 381000000,
+        	            	+   ext: (int64) 63839664024,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -120,4 +120,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 265000000,
+        	            	-   ext: (int64) 63839664025,
+        	            	+   wall: (uint64) 163000000,
+        	            	+   ext: (int64) 63839664027,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -134,4 +134,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 224000000,
+        	            	-   ext: (int64) 63839664027,
+        	            	+   wall: (uint64) 61000000,
+        	            	+   ext: (int64) 63839664029,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -148,4 +148,4 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 529000000,
+        	            	-   ext: (int64) 63839664028,
+        	            	+   wall: (uint64) 324000000,
+        	            	+   ext: (int64) 63839664029,
+        	            	    loc: (*time.Location)(<nil>)
+        	            	@@ -162,3 +162,3 @@
+        	            	   Actual: (time.Time) {
+        	            	-   wall: (uint64) 299000000,
+        	            	+   wall: (uint64) 747000000,
+        	            	    ext: (int64) 63839664030,
+        	Test:       	TestBoundedEnumerationAgainstScan/probes_1
+--- FAIL: TestBoundedEnumerationAgainstScan (0.00s)
+    --- FAIL: TestBoundedEnumerationAgainstScan/probes_2 (0.00s)
+    --- FAIL: TestBoundedEnumerationAgainstScan/probes_8 (0.00s)
+    --- FAIL: TestBoundedEnumerationAgainstScan/probes_1 (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	2.408s
+FAIL

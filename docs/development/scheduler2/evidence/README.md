@@ -63,3 +63,30 @@ callback authentication. Unsupported profiles emit nonzero status, not passes.
 Original tracked diff was byte-compared after execution and is identical to E4.
 All original untracked entries remain; unrelated spec_processor_reference_test.go
 and unrelated worktrees appeared during the session and were not modified.
+
+## Accepted WI-002 evidence (partial M2)
+
+Code: **637fe096df2a9b7de6db3e4865e5d9a53f10cc02**; prerequisite M1 acceptance
+00b65430a52d6d43e7e0c9150ced94a81c5e169f. Required evidence below passes for
+standalone enumeration; this does not accept M2's policy/callback/backfill gate.
+Final Lean completeness/uniqueness statement correction at 7f80bd82d compiles;
+Go source unchanged. WI-002 acceptance includes that independently reviewed fix.
+
+| ID | Kind / claim | Artifact and result |
+|---|---|---|
+| E17 | source-inspection / contract | [D22–D26](../enumeration-contract.md), [review](wi002/review.md); SC1–SC7 bounded semantics, DIV2–DIV4 explicit; autonomous acceptance, no human pause. |
+| E18 | property-test / unit-test / replay | [manifest](wi002/enumeration/manifest.json), [log](wi002/enumeration/0.log); independent second-scan oracle, 10000 Rapid cases seed1; periods1–6s, phases0..period-1, jitter0–6000ms, probes1–8, outputs1–4, split windows across30s. SP1–SP4/SP6 examples/properties; SP5 update examples and selected SP7 pinned US gap/fold cases. Versioned complete JSON replay, malformed-input/state and ownership checks pass. |
+| E19 | unit-test / race / lint | [checks](wi002/checks.json), [combined](wi002/combined.log), [race](wi002/race.log), [lint](wi002/lint.log); all scheduler2 + existing scheduler tests, race and normal/minimal lint pass. No schema regeneration required. |
+| E20 | executable specification (not theorem) | [Lean source](../lean/Enumeration.lean), [examples](../lean/Examples.lean), tool/hash/commands in checks.json; Lean4.24.0 compilation and discriminating examples pass; SP1–SP6 proposition definitions, no completed proofs or correspondence claim. |
+| E21 | mutation-test / independent review | [mutations](wi002/mutations/manifest.json), [review](wi002/review.md), [restored baseline](wi002/restored.log); all three source mutants detected; source restored and focused suite passes. |
+
+The initial invalid-generator minimized Rapid artifact is preserved in occurrence/
+testdata/generator-regressions; it is not a production defect reproduction. The
+standalone pending-jitter replay carries full spec, seed, revision, windows and
+expected results. No new production dependency or CHASM routing is introduced.
+
+Original checkout received additional concurrent edits during WI-002. This task
+made no writes there; original untracked entries remain. Its tracked patch now
+differs from the M1 snapshot due to new files/hunks; checks.json records its hash
+and original-status.txt records inventory. Task worktrees remain retained; see
+[registry](../worktrees.md). All execution and commits are local.

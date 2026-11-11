@@ -1,0 +1,83 @@
+{
+  "source_sha": "637fe096df2a9b7de6db3e4865e5d9a53f10cc02",
+  "results": [
+    {
+      "mutation": "lost-pending",
+      "path": "chasm/lib/scheduler2/internal/occurrence/occurrence.go",
+      "original_sha256": "a2bd64980ffa6e105f380c03ecc36fee9c57e09dd800787b29a7813fb94f942b",
+      "mutant_sha256": "2428af23c1c5c677d0ce33f6b5faaa1c554c5bf052e396d70ad3e1bbfa2fc18e",
+      "old": "result.Status = Waiting",
+      "new": "result.State.DisposedThrough = pending.Nominal\n\t\t\t\tresult.State.Pending = nil\n\t\t\t\tresult.Status = Waiting",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2/internal/occurrence",
+        "-run",
+        "^TestSavedPendingJitterReplay$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    },
+    {
+      "mutation": "yield-as-exhaustion",
+      "path": "chasm/lib/scheduler2/internal/occurrence/occurrence.go",
+      "original_sha256": "a2bd64980ffa6e105f380c03ecc36fee9c57e09dd800787b29a7813fb94f942b",
+      "mutant_sha256": "f23dab1cbdc9e3b4a972f9c5ac96a54184c1bb2847ff1d5b02798594b3e56379",
+      "old": "result.Status = Yield",
+      "new": "result.Status = Exhausted",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2/internal/occurrence",
+        "-run",
+        "^TestExcludedWorkYieldsWithoutExhaustion$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    },
+    {
+      "mutation": "unbounded-jitter",
+      "path": "service/worker/scheduler/candidate.go",
+      "original_sha256": "794011c72c2705bc4a4d4bb76d603c794ae9d180bb2ec379edc3708722ccef09",
+      "mutant_sha256": "40fcc86605f28f6e1adbbe5d73b0c4c68b56a32100b75a980056c317ddd5513e",
+      "old": "maxJitter = min(maxJitter, following.Sub(nominal))",
+      "new": "maxJitter = timestamp.DurationValue(cs.spec.Jitter)",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2/internal/occurrence",
+        "-run",
+        "^TestBoundedEnumerationAgainstScan$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    }
+  ]
+}
