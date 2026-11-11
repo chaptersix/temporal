@@ -80,6 +80,10 @@ func (b *SpecBuilder) NewCompiledSpec(spec *schedulepb.ScheduleSpec) (*CompiledS
 		return nil, err
 	}
 
+	return b.compileCanonicalSpec(spec)
+}
+
+func (b *SpecBuilder) compileCanonicalSpec(spec *schedulepb.ScheduleSpec) (*CompiledSpec, error) {
 	// load timezone
 	tz, err := b.loadTimezone(spec)
 	if err != nil {
