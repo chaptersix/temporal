@@ -12,6 +12,10 @@ type TestFailure struct {
 	JobID      string    // GitHub Actions job ID (or "unknown")
 	MatrixName string    // DB config name from artifact name (e.g. "sqlite", "cassandra")
 	Timestamp  time.Time // When the workflow run was created
+	Message    string    // Failure message from JUnit
+	Body       string    // Failure body from JUnit
+	SystemOut  string    // Test-scoped stdout from JUnit
+	SystemErr  string    // Test-scoped stderr from JUnit
 }
 
 // TestRun represents a test execution (success or failure)

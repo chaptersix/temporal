@@ -21,6 +21,26 @@ on:
         required: false
         default: true
         type: boolean
+      enable_ai_summary:
+        description: "Investigate failures with OpenCode"
+        required: false
+        default: false
+        type: boolean
+      source_run_id:
+        description: "Replay artifacts from one workflow run"
+        required: false
+        default: ""
+        type: string
+      ai_model:
+        description: "OpenCode model (provider/model or model name)"
+        required: false
+        default: "openai/gpt-5.6-terra"
+        type: string
+      max_clusters:
+        description: "Maximum failure clusters for AI investigation"
+        required: false
+        default: "8"
+        type: string
 
 permissions:
   contents: read
@@ -30,19 +50,23 @@ jobs:
   flaky-tests-report:
     runs-on: ubuntu-latest
     steps:
-      - name: Generate token
-        id: generate_token
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
-        with:
-          app-id: ${{ secrets.TEMPORAL_CICD_APP_ID }}
-          private-key: ${{ secrets.TEMPORAL_CICD_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+      - name: Resolve source revision
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.inputs.source_run_id }}
+        run: |
+          if [[ -n "$SOURCE_RUN_ID" ]]; then
+            source_sha=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" --jq .head_sha)
+            echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
-          token: ${{ steps.generate_token.outputs.token }}
           fetch-depth: 0
 
       - name: Set up Go
@@ -50,20 +74,31 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      - name: Build flaky report tool
+        run: |
+          go build -o "$RUNNER_TEMP/flakereport" ./cmd/tools/flakereport
+          cp tools/flakereport/run-focused-test.sh "$RUNNER_TEMP/run-focused-test.sh"
+
       - name: Generate flaky test report
         id: process-flaky-tests
         env:
-          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           SLACK_WEBHOOK: ${{ (github.event_name == 'schedule' || github.event.inputs.notify_slack == 'true') && secrets.SLACK_WEBHOOK || '' }}
           DAYS_PARAM: ${{ github.event.inputs.days || '7' }}
           MAX_LINKS_PARAM: ${{ github.event.inputs.max_links || '3' }}
+          SOURCE_RUN_ID: ${{ github.event.inputs.source_run_id }}
           RUN_ID: ${{ github.run_id }}
           REF_NAME: ${{ github.ref_name }}
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          source_args=()
+          if [[ -n "$SOURCE_RUN_ID" ]]; then
+            source_args+=(--source-run-id "$SOURCE_RUN_ID")
+          fi
 
-          go run ./cmd/tools/flakereport generate \
+          "$RUNNER_TEMP/flakereport" generate \
+            --repository "$GITHUB_REPOSITORY" \
             --days "$DAYS_PARAM" \
             --max-links "$MAX_LINKS_PARAM" \
             --output-dir tools/flakes/out \
@@ -72,7 +107,36 @@ jobs:
             --ref-name "$REF_NAME" \
             --sha "$SHA" \
             --bisect \
-            --bisect-days 28
+            --bisect-days 28 \
+            "${source_args[@]}"
+
+      - name: Check out replayed source revision
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.enable_ai_summary && inputs.source_run_id != '' }}
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          git checkout --detach "$SOURCE_SHA"
+          cp "$RUNNER_TEMP/run-focused-test.sh" tools/flakereport/run-focused-test.sh
+
+      - name: Install OpenCode
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_ai_summary) || (github.event_name == 'schedule' && vars.ENABLE_AI_FLAKE_SUMMARY == 'true') }}
+        continue-on-error: true
+        run: npm install --global opencode-ai@1.18.4
+
+      - name: Generate AI flake summary
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_ai_summary) || (github.event_name == 'schedule' && vars.ENABLE_AI_FLAKE_SUMMARY == 'true') }}
+        continue-on-error: true
+        env:
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          AI_MODEL: ${{ github.event.inputs.ai_model || 'openai/gpt-5.6-terra' }}
+          MAX_CLUSTERS: ${{ github.event.inputs.max_clusters || '8' }}
+        run: |
+          "$RUNNER_TEMP/flakereport" summarize \
+            --input tools/flakes/out/analysis-input.json \
+            --output-dir tools/flakes/out \
+            --model "$AI_MODEL" \
+            --max-clusters "$MAX_CLUSTERS" \
+            --concurrency 4
 
       - name: Upload generated reports
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

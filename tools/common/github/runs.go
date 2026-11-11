@@ -99,6 +99,16 @@ func ViewRun(ctx context.Context, runID string) (Run, error) {
 	return run, nil
 }
 
+// GetRun retrieves one workflow run from a specific repository.
+func GetRun(ctx context.Context, repo string, runID int64) (Run, error) {
+	var response workflowRunResponse
+	path := fmt.Sprintf("/repos/%s/actions/runs/%d", repo, runID)
+	if err := getJSON(ctx, path, &response); err != nil {
+		return Run{}, fmt.Errorf("failed to fetch workflow run %d: %w", runID, err)
+	}
+	return response.toRun(), nil
+}
+
 func runJSON(ctx context.Context, args []string, fields []string, out any) error {
 	cmdArgs := append([]string{"run"}, args...)
 	if len(fields) > 0 {
