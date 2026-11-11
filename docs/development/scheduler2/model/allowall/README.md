@@ -56,8 +56,10 @@ snapshots, not protobuf serialization checks.
 `Drain` handles one accepted BUFFER_ALL waiter using current revision/carryover.
 With a non-ALLOW blocker, it waits. With no blocker but four unresolved intents,
 it retains the eligible queue without a drain task or debit. `ChangeEligibility`
-abstracts current pause/budget/catchup ineligibility and allows disposal without a
-free slot. Terminal evidence directly re-arms drain after capacity frees, including
+abstracts queued catchup ineligibility (including a current catchup-window change)
+and allows disposal without a free slot. It does not represent global pause or
+budget exhaustion: new ingress remains eligible in this finite model. Concrete
+paused/budget disposal remains covered by WI-005 tests. Terminal evidence directly re-arms drain after capacity frees, including
 after both remaining source occurrences are consumed. Tokens are never reused
 following retirement. The queue-length-one abstraction does not recheck multi-entry
 FIFO traversal or prefix-disposal batching, which remain WI-005 obligations.
