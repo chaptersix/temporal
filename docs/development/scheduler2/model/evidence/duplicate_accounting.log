@@ -1,0 +1,46 @@
+Model checking /private/tmp/scheduler2-model-final-v2/duplicate_accounting/start.json
+configFileName: /private/tmp/scheduler2-model-final-v2/duplicate_accounting/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  liveness:"strict"  deadlock_detection:false
+Nodes: 85, queued: 552, elapsed: 25.205625ms
+Time taken for model checking: 25.216291ms
+Writen graph dotfile: /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/graph.dot
+To generate svg, run: 
+dot -Tsvg /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  AccountingOnce
+------
+Init
+--
+state: {"accepted":false,"ack_available":false,"admitted":false,"attempt":0,"budget":1,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":0,"expired":false,"frozen":-1,"inflight":false,"issued_id":"","issued_input":-1,"lost_ack_used":false,"now":1,"operation":"","remote_id":"","remote_input":-1,"revision":0,"started":false,"started_count":0,"task":false,"tentative":false}
+------
+PrepareAdmission
+--
+state: {"accepted":false,"ack_available":false,"admitted":false,"attempt":0,"budget":1,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":0,"expired":false,"frozen":-1,"inflight":false,"issued_id":"","issued_input":-1,"lost_ack_used":false,"now":1,"operation":"","remote_id":"","remote_input":-1,"revision":0,"started":false,"started_count":0,"task":false,"tentative":true}
+------
+CommitAdmission
+--
+state: {"accepted":false,"ack_available":false,"admitted":true,"attempt":0,"budget":0,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":1,"expired":false,"frozen":0,"inflight":false,"issued_id":"","issued_input":-1,"lost_ack_used":false,"now":1,"operation":"incarnation/automatic/1/action/start","remote_id":"","remote_input":-1,"revision":0,"started":false,"started_count":0,"task":true,"tentative":false}
+------
+DeliverStart
+--
+state: {"accepted":false,"ack_available":false,"admitted":true,"attempt":1,"budget":0,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":1,"expired":false,"frozen":0,"inflight":true,"issued_id":"incarnation/automatic/1/action/start","issued_input":0,"lost_ack_used":false,"now":1,"operation":"incarnation/automatic/1/action/start","remote_id":"","remote_input":-1,"revision":0,"started":false,"started_count":0,"task":true,"tentative":false}
+------
+ExternalAccept
+--
+state: {"accepted":true,"ack_available":true,"admitted":true,"attempt":1,"budget":0,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":1,"expired":false,"frozen":0,"inflight":true,"issued_id":"incarnation/automatic/1/action/start","issued_input":0,"lost_ack_used":false,"now":1,"operation":"incarnation/automatic/1/action/start","remote_id":"incarnation/automatic/1/action/start","remote_input":0,"revision":0,"started":false,"started_count":0,"task":true,"tentative":false}
+------
+Complete
+--
+state: {"accepted":true,"ack_available":true,"admitted":true,"attempt":1,"budget":0,"chain":"first-run","commit_failure_used":false,"completed":true,"crash_used":false,"crashed":false,"cursor":1,"expired":false,"frozen":0,"inflight":true,"issued_id":"incarnation/automatic/1/action/start","issued_input":0,"lost_ack_used":false,"now":1,"operation":"incarnation/automatic/1/action/start","remote_id":"incarnation/automatic/1/action/start","remote_input":0,"revision":0,"started":true,"started_count":1,"task":false,"tentative":false}
+------
+Acknowledge
+--
+state: {"accepted":true,"ack_available":false,"admitted":true,"attempt":1,"budget":0,"chain":"first-run","commit_failure_used":false,"completed":true,"crash_used":false,"crashed":false,"cursor":1,"expired":false,"frozen":0,"inflight":false,"issued_id":"incarnation/automatic/1/action/start","issued_input":0,"lost_ack_used":false,"now":1,"operation":"incarnation/automatic/1/action/start","remote_id":"incarnation/automatic/1/action/start","remote_input":0,"revision":0,"started":true,"started_count":2,"task":false,"tentative":false}
+------
+Writen graph json: /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/error-graph.dot
+To generate an image file, run: 
+dot -Tsvg /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/error-states.html
+To open: 
+open /private/tmp/scheduler2-model-final-v2/duplicate_accounting/graph/error-states.html

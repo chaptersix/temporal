@@ -1,0 +1,218 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": null,
+      "state": {
+        "accepted": false,
+        "ack_available": false,
+        "admitted": false,
+        "attempt": 0,
+        "budget": 1,
+        "chain": "",
+        "commit_failure_used": false,
+        "completed": false,
+        "crash_used": false,
+        "crashed": false,
+        "cursor": 0,
+        "expired": false,
+        "frozen": -1,
+        "inflight": false,
+        "issued_id": "",
+        "issued_input": -1,
+        "lost_ack_used": false,
+        "now": 1,
+        "operation": "",
+        "remote_id": "",
+        "remote_input": -1,
+        "revision": 0,
+        "started": false,
+        "started_count": 0,
+        "task": false,
+        "tentative": false
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": false,
+        "ack_available": false,
+        "admitted": false,
+        "attempt": 0,
+        "budget": 1,
+        "chain": "",
+        "commit_failure_used": false,
+        "completed": false,
+        "crash_used": false,
+        "crashed": false,
+        "cursor": 0,
+        "expired": false,
+        "frozen": -1,
+        "inflight": false,
+        "issued_id": "",
+        "issued_input": -1,
+        "lost_ack_used": false,
+        "now": 1,
+        "operation": "",
+        "remote_id": "",
+        "remote_input": -1,
+        "revision": 0,
+        "started": false,
+        "started_count": 0,
+        "task": false,
+        "tentative": true
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "PrepareAdmission": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "PrepareAdmission",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          0
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": false,
+        "ack_available": false,
+        "admitted": false,
+        "attempt": 0,
+        "budget": 1,
+        "chain": "",
+        "commit_failure_used": true,
+        "completed": false,
+        "crash_used": false,
+        "crashed": false,
+        "cursor": 1,
+        "expired": false,
+        "frozen": -1,
+        "inflight": false,
+        "issued_id": "",
+        "issued_input": -1,
+        "lost_ack_used": false,
+        "now": 1,
+        "operation": "",
+        "remote_id": "",
+        "remote_input": -1,
+        "revision": 0,
+        "started": false,
+        "started_count": 0,
+        "task": false,
+        "tentative": false
+      },
+      "stats": {
+        "totalActions": 2,
+        "counts": {
+          "FailCommit": 1,
+          "PrepareAdmission": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "FailCommit",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]
