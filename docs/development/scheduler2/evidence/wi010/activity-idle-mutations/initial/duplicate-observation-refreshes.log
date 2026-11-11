@@ -1,0 +1,58 @@
+=== RUN   TestActivityTerminalObservation
+=== PAUSE TestActivityTerminalObservation
+=== CONT  TestActivityTerminalObservation
+=== RUN   TestActivityTerminalObservation/completed
+=== PAUSE TestActivityTerminalObservation/completed
+=== RUN   TestActivityTerminalObservation/start-only
+=== PAUSE TestActivityTerminalObservation/start-only
+=== CONT  TestActivityTerminalObservation/completed
+=== CONT  TestActivityTerminalObservation/start-only
+=== NAME  TestActivityTerminalObservation/completed
+    activity_test.go:27: 
+        	Error Trace:	/private/tmp/sch-redesign-lifecycle/chasm/lib/scheduler2/internal/decision/activity_test.go:27
+        	Error:      	Not equal: 
+        	            	expected: decision.State{Root:decision.Root{ActivitySet:true, ActivityAt:40, UnconfirmedStarts:2, ManualSequence:0x0, Incarnation:"inc", Revision:0, Cursor:0, Paused:false, Limited:false, Remaining:3, Started:7, PauseOnFailure:false, CarryoverSet:false, Policy:0, BufferDropped:0, OverlapSuperseded:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x73d027cd1290), Carryover:(*decision.Carryover)(0x73d027c0de40), Queue:[]decision.Queued(nil), Effects:[]decision.Effect(nil), Manuals:[]decision.ManualCommand(nil)}
+        	            	actual  : decision.State{Root:decision.Root{ActivitySet:true, ActivityAt:200, UnconfirmedStarts:2, ManualSequence:0x0, Incarnation:"inc", Revision:0, Cursor:0, Paused:false, Limited:false, Remaining:3, Started:7, PauseOnFailure:false, CarryoverSet:false, Policy:0, BufferDropped:0, OverlapSuperseded:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x73d027cd13f0), Carryover:(*decision.Carryover)(0x73d027c0dec0), Queue:[]decision.Queued(nil), Effects:[]decision.Effect(nil), Manuals:[]decision.ManualCommand(nil)}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -3,3 +3,3 @@
+        	            	   ActivitySet: (bool) true,
+=== NAME  TestActivityTerminalObservation/start-only
+    activity_test.go:27: 
+        	Error Trace:	/private/tmp/sch-redesign-lifecycle/chasm/lib/scheduler2/internal/decision/activity_test.go:27
+        	Error:      	Not equal: 
+        	            	expected: decision.State{Root:decision.Root{ActivitySet:true, ActivityAt:40, UnconfirmedStarts:2, ManualSequence:0x0, Incarnation:"inc", Revision:0, Cursor:0, Paused:false, Limited:false, Remaining:3, Started:7, PauseOnFailure:false, CarryoverSet:false, Policy:0, BufferDropped:0, OverlapSuperseded:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x73d027b1c160), Carryover:(*decision.Carryover)(0x73d027b20040), Queue:[]decision.Queued(nil), Effects:[]decision.Effect(nil), Manuals:[]decision.ManualCommand(nil)}
+        	            	actual  : decision.State{Root:decision.Root{ActivitySet:true, ActivityAt:200, UnconfirmedStarts:2, ManualSequence:0x0, Incarnation:"inc", Revision:0, Cursor:0, Paused:false, Limited:false, Remaining:3, Started:7, PauseOnFailure:false, CarryoverSet:false, Policy:0, BufferDropped:0, OverlapSuperseded:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x73d027b1c2c0), Carryover:(*decision.Carryover)(0x73d027b200c0), Queue:[]decision.Queued(nil), Effects:[]decision.Effect(nil), Manuals:[]decision.ManualCommand(nil)}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -3,3 +3,3 @@
+        	            	   ActivitySet: (bool) true,
+        	            	-  ActivityAt: (int64) 40,
+        	            	+  ActivityAt: (int64) 200,
+        	            	   UnconfirmedStarts: (int64) 2,
+        	            	@@ -24,3 +24,3 @@
+        	            	   StartObserved: (bool) true,
+        	            	-  StartObservedAt: (int64) 40,
+        	            	+  StartObservedAt: (int64) 200,
+        	            	   BackfillID: (uint64) 0,
+        	Test:       	TestActivityTerminalObservation/start-only
+=== NAME  TestActivityTerminalObservation/completed
+        	            	-  ActivityAt: (int64) 40,
+        	            	+  ActivityAt: (int64) 200,
+        	            	   UnconfirmedStarts: (int64) 2,
+        	            	@@ -24,3 +24,3 @@
+        	            	   StartObserved: (bool) true,
+        	            	-  StartObservedAt: (int64) 40,
+        	            	+  StartObservedAt: (int64) 200,
+        	            	   BackfillID: (uint64) 0,
+        	Test:       	TestActivityTerminalObservation/completed
+--- FAIL: TestActivityTerminalObservation (0.00s)
+    --- FAIL: TestActivityTerminalObservation/start-only (0.00s)
+    --- FAIL: TestActivityTerminalObservation/completed (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.319s
+FAIL

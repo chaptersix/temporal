@@ -1,0 +1,10 @@
+=== RUN   TestIdleAnchorSurvivesRetentionAndClockRollback
+=== PAUSE TestIdleAnchorSurvivesRetentionAndClockRollback
+=== RUN   TestIdlePauseResumeReplacesExpiredObligation
+=== PAUSE TestIdlePauseResumeReplacesExpiredObligation
+=== CONT  TestIdlePauseResumeReplacesExpiredObligation
+=== CONT  TestIdleAnchorSurvivesRetentionAndClockRollback
+--- PASS: TestIdlePauseResumeReplacesExpiredObligation (0.02s)
+--- PASS: TestIdleAnchorSurvivesRetentionAndClockRollback (0.04s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	1.841s

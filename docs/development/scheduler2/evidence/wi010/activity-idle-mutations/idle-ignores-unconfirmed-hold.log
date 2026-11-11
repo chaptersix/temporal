@@ -1,0 +1,11 @@
+=== RUN   TestIdleAmbiguousWaitAndObservedStartedEligibility
+=== PAUSE TestIdleAmbiguousWaitAndObservedStartedEligibility
+=== CONT  TestIdleAmbiguousWaitAndObservedStartedEligibility
+    idle_test.go:162: 
+        	Error Trace:	/private/tmp/sch-redesign-lifecycle/chasm/lib/scheduler2/idle_test.go:162
+        	Error:      	Should be false
+        	Test:       	TestIdleAmbiguousWaitAndObservedStartedEligibility
+--- FAIL: TestIdleAmbiguousWaitAndObservedStartedEligibility (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.687s
+FAIL

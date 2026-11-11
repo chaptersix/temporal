@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "clock_domain": "execution_nanoseconds",
+  "incarnation": "incarnation",
+  "now": "2024-01-01T00:00:00Z",
+  "remaining": 3,
+  "idle_duration": "60s",
+  "spec": {},
+  "request": {
+    "namespace": "namespace",
+    "workflowId": "workflow",
+    "workflowType": {
+      "name": "type"
+    },
+    "taskQueue": {
+      "name": "queue"
+    }
+  },
+  "steps": [
+    {
+      "kind": "snapshot",
+      "now": "2024-01-01T00:00:00Z",
+      "publish": true,
+      "revision": 1,
+      "activity": "2024-01-01T00:00:00Z",
+      "deadline": "2024-01-01T00:01:00Z",
+      "token": 1,
+      "armed": true,
+      "closed": false,
+      "pure_tasks": 1
+    },
+    {
+      "kind": "update",
+      "now": "2024-01-01T00:00:10Z",
+      "publish": false,
+      "revision": 1,
+      "activity": "2024-01-01T00:00:00Z",
+      "deadline": "2024-01-01T00:01:00Z",
+      "token": 1,
+      "armed": true,
+      "closed": false,
+      "pure_tasks": 1,
+      "input_revision": 2
+    },
+    {
+      "kind": "restart",
+      "now": "2024-01-01T00:00:10Z",
+      "publish": true,
+      "revision": 1,
+      "activity": "2024-01-01T00:00:00Z",
+      "deadline": "2024-01-01T00:01:00Z",
+      "token": 1,
+      "armed": true,
+      "closed": false,
+      "pure_tasks": 1
+    },
+    {
+      "kind": "update",
+      "now": "2024-01-01T00:00:10Z",
+      "publish": true,
+      "revision": 2,
+      "activity": "2024-01-01T00:00:10Z",
+      "deadline": "2024-01-01T00:01:10Z",
+      "token": 2,
+      "armed": true,
+      "closed": false,
+      "pure_tasks": 1,
+      "input_revision": 2,
+      "capture": "rearmed"
+    },
+    {
+      "kind": "deliver_saved",
+      "now": "2024-01-01T00:01:00Z",
+      "publish": true,
+      "revision": 2,
+      "activity": "2024-01-01T00:00:10Z",
+      "deadline": "2024-01-01T00:01:10Z",
+      "token": 2,
+      "armed": true,
+      "closed": false,
+      "pure_tasks": 1,
+      "saved_task": "initial",
+      "valid": false
+    },
+    {
+      "kind": "deliver_saved",
+      "now": "2024-01-01T00:01:09.999999999Z",
+      "publish": true,
+      "revision": 2,
+      "activity": "2024-01-01T00:00:10Z",
+      "deadline": "2024-01-01T00:01:10Z",
+      "token": 2,
+      "armed": true,
+      "closed": false,
+      "pure_tasks": 1,
+      "saved_task": "rearmed",
+      "valid": true,
+      "error": "not due"
+    },
+    {
+      "kind": "deliver_current",
+      "now": "2024-01-01T00:01:10Z",
+      "publish": false,
+      "revision": 2,
+      "activity": "2024-01-01T00:00:10Z",
+      "deadline": "2024-01-01T00:01:10Z",
+      "token": 2,
+      "armed": true,
+      "closed": false,
+      "pure_tasks": 1
+    },
+    {
+      "kind": "restart",
+      "now": "2024-01-01T00:01:10Z",
+      "publish": true,
+      "revision": 2,
+      "activity": "2024-01-01T00:00:10Z",
+      "deadline": "2024-01-01T00:01:10Z",
+      "token": 2,
+      "armed": true,
+      "closed": false,
+      "pure_tasks": 1
+    },
+    {
+      "kind": "deliver_current",
+      "now": "2024-01-01T00:01:10Z",
+      "publish": true,
+      "revision": 2,
+      "activity": "2024-01-01T00:00:10Z",
+      "deadline": "2024-01-01T00:01:10Z",
+      "token": 2,
+      "armed": false,
+      "closed": true,
+      "pure_tasks": 0
+    },
+    {
+      "kind": "deliver_saved",
+      "now": "2024-01-01T00:01:10Z",
+      "publish": true,
+      "revision": 2,
+      "activity": "2024-01-01T00:00:10Z",
+      "deadline": "2024-01-01T00:01:10Z",
+      "token": 2,
+      "armed": false,
+      "closed": true,
+      "pure_tasks": 0,
+      "saved_task": "rearmed",
+      "valid": false
+    }
+  ]
+}

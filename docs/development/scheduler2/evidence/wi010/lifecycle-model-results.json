@@ -1,0 +1,196 @@
+[
+  {
+    "case": "anchor-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/anchor-100/graph",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/anchor-100/anchor.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "ba6c95b99a922ae2b61c98181e108e5e6231ebdb279015d50e2db1f4df41972b",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 584, queued: 0, elapsed: 44.965208ms",
+      "Nodes: 584",
+      "Valid Nodes: 422 Unique states: 146"
+    ]
+  },
+  {
+    "case": "anchor-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/anchor-200/graph",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/anchor-200/anchor.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "e57e5d1befa7acdb39a48c056b606ce62eb82e44dbbbfa342245211e559bffbb",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 584, queued: 0, elapsed: 45.04225ms",
+      "Nodes: 584",
+      "Valid Nodes: 422 Unique states: 146"
+    ]
+  },
+  {
+    "case": "idle-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/idle-100/graph",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/idle-100/idle.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "fb213bbaf5b71de58634158df598b167cd7f1a6e650167b54d078df12b0579ef",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 1958, queued: 0, elapsed: 276.772667ms",
+      "Nodes: 1958",
+      "Valid Nodes: 1813 Unique states: 1104"
+    ]
+  },
+  {
+    "case": "idle-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/idle-200/graph",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/idle-200/idle.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "1001778d223437c30b1e4a194eecfb85a5f35ce433edce2b3e4bea4974a7d089",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 1958, queued: 0, elapsed: 272.198125ms",
+      "Nodes: 1958",
+      "Valid Nodes: 1813 Unique states: 1104"
+    ]
+  },
+  {
+    "case": "anchor_regresses",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/anchor_regresses/graph",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/anchor_regresses/anchor.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "ANCHOR_REGRESSES",
+    "expected_invariant": [
+      "AnchorMatchesAcceptedEvidence"
+    ],
+    "sha256": "4231e097e71f156102e579a267d49a36505cdd680986ca58da42082a0aaead36",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 72, queued: 116, elapsed: 6.692166ms"
+    ]
+  },
+  {
+    "case": "duplicate_ack_refresh",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/duplicate_ack_refresh/graph",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/duplicate_ack_refresh/anchor.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "DUPLICATE_ACK_REFRESH",
+    "expected_invariant": [
+      "FirstObservationImmutable",
+      "AnchorMatchesAcceptedEvidence"
+    ],
+    "sha256": "f7733051073d61068abbb217aed5bbc76a9bd046caf138e2c089600f082cb3a1",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 33, queued: 67, elapsed: 3.084667ms"
+    ]
+  },
+  {
+    "case": "close_while_pending",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/close_while_pending/graph",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/close_while_pending/idle.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "CLOSE_WHILE_PENDING",
+    "expected_invariant": [
+      "NoUnauthorizedClose"
+    ],
+    "sha256": "0e89a0060cdb849e63bfb25853ce7fdd1c3cea8639ed1a23de91190b2e50dc2b",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 297, queued: 533, elapsed: 48.2635ms",
+      "Nodes: 297"
+    ]
+  },
+  {
+    "case": "lost_rearm",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/lost_rearm/graph",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/lost_rearm/idle.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "LOST_REARM",
+    "expected_invariant": [
+      "StableIdleEventuallyCloses"
+    ],
+    "sha256": "a65476d744fb42c908a9bdc1a98d034c23bc4d0ebfc721197cb044718b3a4744",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 1166, queued: 0, elapsed: 132.857417ms",
+      "Nodes: 1166",
+      "Valid Nodes: 1065 Unique states: 576"
+    ]
+  },
+  {
+    "case": "stale_timer_close",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/stale_timer_close/graph",
+      "/private/tmp/scheduler2-lifecycle-model-reviewed/stale_timer_close/idle.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "STALE_TIMER_CLOSE",
+    "expected_invariant": [
+      "NoUnauthorizedClose"
+    ],
+    "sha256": "6061d125170ecca95e20c9f480fb2d5a3f7a9fc4fa9a33dba4d593216f9ddae0",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 252, queued: 498, elapsed: 43.360209ms",
+      "Nodes: 252"
+    ]
+  }
+]

@@ -27,6 +27,9 @@ const (
 )
 
 type Root struct {
+	ActivitySet         bool
+	ActivityAt          int64
+	UnconfirmedStarts   int64
 	ManualSequence      uint64
 	Incarnation         string
 	Revision            int64
@@ -46,19 +49,21 @@ type Root struct {
 }
 
 type Operation struct {
-	BackfillID   uint64
-	ManualID     uint64
-	OccurrenceID string
-	ActionID     string
-	ID           string
-	ChainID      string
-	Nominal      int64
-	Deadline     int64
-	RetryAt      int64
-	Phase        Phase
-	Request      []byte
-	WorkflowID   string
-	Policy       enumspb.ScheduleOverlapPolicy
+	StartObserved   bool
+	StartObservedAt int64
+	BackfillID      uint64
+	ManualID        uint64
+	OccurrenceID    string
+	ActionID        string
+	ID              string
+	ChainID         string
+	Nominal         int64
+	Deadline        int64
+	RetryAt         int64
+	Phase           Phase
+	Request         []byte
+	WorkflowID      string
+	Policy          enumspb.ScheduleOverlapPolicy
 }
 
 type State struct {
@@ -92,6 +97,8 @@ const (
 )
 
 type Event struct {
+	StartObserved   bool
+	StartObservedAt int64
 	BackfillID      uint64
 	Kind            Kind
 	Incarnation     string
@@ -147,6 +154,7 @@ func Step(state State, event Event) (State, error) {
 	if err != nil {
 		return next, err
 	}
+	next = reconcileActivity(state, next, event)
 	next = reconcileEffects(next)
 	return BindEffects(next, next.Operation, event.Now)
 }
@@ -228,7 +236,10 @@ func update(next State, event Event) (State, error) {
 
 func applyResult(next State, event Event) (State, error) {
 	op := next.Operation
-	if op == nil || event.OperationID != op.ID || Terminal(op.Phase) {
+	if op == nil || event.OperationID != op.ID {
+		return next, nil
+	}
+	if Terminal(op.Phase) {
 		return next, nil
 	}
 	if event.ChainID != "" && op.ChainID != "" && event.ChainID != op.ChainID {

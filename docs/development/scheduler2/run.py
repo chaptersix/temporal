@@ -11,7 +11,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
-PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model", "manual", "manual-model", "backfill-range", "backfill", "backfill-model")
+PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model", "manual", "manual-model", "backfill-range", "backfill", "backfill-model", "lifecycle", "lifecycle-model")
 
 
 def git(*args):
@@ -34,8 +34,12 @@ def main():
     common = ["go", "test", "-p", "2", "-parallel", "4", "-tags", "test_dep", "-count=1", "-timeout=10m"]
     checks = 10000 if args.exploration else 100
     events = 17 if args.profile == "completion" else (128 if args.profile in ("sequential", "buffer", "allowall", "effects", "manual") or args.exploration else 32)
+    if args.profile == "lifecycle":
+        events = config["lifecycle"]["scenario_events"]
     commands = {
         "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Independent|Task)", "-v"]],
+        "lifecycle": [common + [package, package + "/internal/decision", "-run", "Test(Activity|Idle|Lifecycle)", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+        "lifecycle-model": [[sys.executable, str(HERE / "model/lifecycle/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],
         "backfill": [common + [package, package + "/internal/decision", "-run", "Test(Coordinator|Backfill)", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
         "backfill-model": [[sys.executable, str(HERE / "model/backfill/run.py"), "--fizz", args.fizz, "--output", str(output / "model")], [sys.executable, str(HERE / "model/backfill/run_capacity.py"), "--fizz", args.fizz, "--output", str(output / "capacity")]],
         "backfill-range": [common + [package + "/internal/occurrence", "-run", "TestBackfillRange", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],

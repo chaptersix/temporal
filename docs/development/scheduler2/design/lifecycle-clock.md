@@ -101,3 +101,17 @@ that is a separate idle-eligibility/retention decision, including missing/evicte
 - Retention removes the latest observed record; root anchor and idle deadline persist.
 
 No tests were run for this investigation. No lifecycle contract is accepted here.
+
+## D52 implementation mapping
+
+The activity/idle increment implements the closest reference mapping above: a
+locked snapshot supplies the skipped duration, and StartHandler samples its
+injectable wall clock immediately after a successful RPC. The constructor has a
+local, documented forbidigo exception for this post-RPC observation; transaction
+clock reads continue to use ctx.Now. A timestamp outside int64 Unix nanoseconds
+leaves the durable pending intent and immutable retry request intact.
+
+ConfigureIdle changes retention duration without refreshing an existing activity
+anchor. It initializes an absent anchor only for low-level roots; NewExecution
+initializes the anchor from the execution clock when History allocates the root.
+Completion alone retains the known anchor, as specified by D52–D54.

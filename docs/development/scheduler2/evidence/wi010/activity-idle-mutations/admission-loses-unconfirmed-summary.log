@@ -1,0 +1,13 @@
+=== RUN   TestActivitySummaryAcrossKeyedResults
+=== PAUSE TestActivitySummaryAcrossKeyedResults
+=== CONT  TestActivitySummaryAcrossKeyedResults
+    activity_test.go:45: 
+        	Error Trace:	/private/tmp/sch-redesign-lifecycle/chasm/lib/scheduler2/internal/decision/activity_test.go:45
+        	Error:      	Not equal: 
+        	            	expected: 1
+        	            	actual  : 0
+        	Test:       	TestActivitySummaryAcrossKeyedResults
+--- FAIL: TestActivitySummaryAcrossKeyedResults (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.316s
+FAIL

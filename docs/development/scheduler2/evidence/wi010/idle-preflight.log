@@ -1,0 +1,18 @@
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion
+--- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions (0.00s)
+    --- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion (0.98s)
+    --- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion (0.98s)
+    --- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment (0.98s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	4.577s

@@ -144,5 +144,17 @@
     "capacity": "one durable concrete vacancy lease; operation contention persists at cap4",
     "turns": "queue advances on owner transfer/disposition; operation advances on admission; scan rotates separately",
     "fairness": "conditional on successful fair publication/delivery, adequate recurring capacity and stable definitions; finite model not a cap4 refinement proof"
+  },
+  "lifecycle": {
+    "status": "WI-010 activity and idle increment; acceptance pending",
+    "scenario_events": 35,
+    "event_bound_scope": "ActivityNodeProperties scenario events, excluding initial fixture setup; directed tests have separate fixed traces",
+    "retained_operations": 4,
+    "activity": "monotonic root maximum; first matching retained start observation only",
+    "observation_clock": "post-RPC wall time plus skipped duration captured in issuance snapshot",
+    "idle_duration_days_max": 365,
+    "idle_zero": "disabled",
+    "progress": "eventually stable eligibility and deadline; advancing time, fair delivery and successful publication assumed",
+    "evidence_limit": "real Node publication/reload; finite model is not a Go refinement proof"
   }
 }

@@ -47,6 +47,7 @@ func TestAdmission(t *testing.T) {
 			want := State{Root: tc.want}
 			if tc.admitted {
 				want.Root.Unfinished = 1
+				want.Root.UnconfirmedStarts = 1
 				want.Root.BlockingOperationID = "inc/automatic/10/action/start"
 				want.Operation = &Operation{OccurrenceID: "automatic/10", ActionID: "inc/automatic/10/action", ID: "inc/automatic/10/action/start", Nominal: 10, Deadline: tc.now + RetryHorizon, RetryAt: tc.now, Phase: Pending, Request: []byte("request"), Policy: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP}
 			}

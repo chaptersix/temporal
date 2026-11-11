@@ -76,6 +76,20 @@ message RootState {
   uint64 last_backfill = 33;
   // Closed revokes scheduling authority while retaining historical state.
   bool closed = 34;
+  // ActivitySet distinguishes an observed zero timestamp from no anchor.
+  bool activity_set = 35;
+  // ActivityAt is the monotonic execution-clock activity anchor.
+  int64 activity_at = 36;
+  // UnconfirmedStarts counts Pending and Ambiguous operation intents.
+  int64 unconfirmed_starts = 37;
+  // IdleDuration is the configured inactivity retention in nanoseconds; zero disables it.
+  int64 idle_duration = 38;
+  // IdleToken fences the current idle-close obligation.
+  uint64 idle_token = 39;
+  // IdleArmed indicates a published idle-close obligation.
+  bool idle_armed = 40;
+  // IdleAt is the exact execution-clock idle deadline.
+  int64 idle_at = 41;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -115,6 +129,10 @@ message OperationState {
   uint64 manual_id = 11;
   // BackfillId distinguishes a range occurrence from a manual trigger.
   uint64 backfill_id = 12;
+  // StartObserved records the first matching successful RPC observation.
+  bool start_observed = 13;
+  // StartObservedAt is wall observation plus the issuance snapshot skipped duration.
+  int64 start_observed_at = 14;
 }
 
 // Payload keeps large values on a separately loaded node.
@@ -342,4 +360,10 @@ message BackfillState {
  temporal.api.enums.v1.ScheduleOverlapPolicy policy = 4;
  // Continuation retains search, disposition and pending candidate separately.
  OccurrenceContinuation continuation = 5;
+}
+
+// IdleTask checks the current idle-close token and deadline.
+message IdleTask {
+  // Token identifies the published idle obligation.
+  uint64 token = 1;
 }

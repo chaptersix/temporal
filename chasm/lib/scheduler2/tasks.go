@@ -2,6 +2,7 @@ package scheduler2
 
 import (
 	"context"
+	"time"
 
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
@@ -13,13 +14,16 @@ import (
 // StartHandler issues the cloned request outside the execution lock.
 type StartHandler struct {
 	chasm.SideEffectTaskHandlerBase[*scheduler2pb.StartTask]
-	start  func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)
-	permit chan struct{}
+	start   func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)
+	permit  chan struct{}
+	wallNow func() time.Time
 }
 
 // NewStartHandler bounds concurrent local issuance to one RPC.
 func NewStartHandler(start func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)) *StartHandler {
-	return &StartHandler{start: start, permit: make(chan struct{}, 1)}
+	// The RPC runs outside a CHASM transaction. Its observation clock is converted
+	// to execution time using the issuance snapshot, as in the reference scheduler.
+	return &StartHandler{start: start, permit: make(chan struct{}, 1), wallNow: time.Now} //nolint:forbidigo // Post-RPC wall observation plus captured skipped duration reconstructs execution time.
 }
 
 func (*StartHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.StartTask) (bool, error) {
@@ -40,21 +44,26 @@ func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ ch
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	request, err := chasm.ReadComponent(ctx, ref, (*Scheduler).request, task.OperationId)
+	snapshot, err := chasm.ReadComponent(ctx, ref, (*Scheduler).startSnapshot, task.OperationId)
 	if err != nil {
 		return err
 	}
 	event := decision.Event{Kind: decision.Expire, Incarnation: ref.RunID, OperationID: task.OperationId}
-	if request != nil {
+	if snapshot.request != nil {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		chain, startErr := h.start(ctx, request)
+		chain, startErr := h.start(ctx, snapshot.request)
 		if startErr != nil {
 			event.Kind = decision.RetryableFailure
 		} else {
 			event.Kind = decision.Acknowledged
 			event.ChainID = chain
+			event.StartObservedAt, err = activityNano(h.wallNow().Add(snapshot.skipped))
+			if err != nil {
+				return err
+			}
+			event.StartObserved = true
 		}
 	}
 	// Task validity can change while the RPC is in flight. Merge against the same

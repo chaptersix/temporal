@@ -1,0 +1,13 @@
+=== RUN   TestActivityControlAndRollbackClock
+=== PAUSE TestActivityControlAndRollbackClock
+=== CONT  TestActivityControlAndRollbackClock
+    activity_test.go:67: 
+        	Error Trace:	/private/tmp/sch-redesign-lifecycle/chasm/lib/scheduler2/internal/decision/activity_test.go:67
+        	Error:      	Not equal: 
+        	            	expected: 50
+        	            	actual  : 40
+        	Test:       	TestActivityControlAndRollbackClock
+--- FAIL: TestActivityControlAndRollbackClock (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.300s
+FAIL

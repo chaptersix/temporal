@@ -1,0 +1,178 @@
+=== RUN   TestActivityNodeProperties
+=== PAUSE TestActivityNodeProperties
+=== RUN   TestActivityExecutionFactory
+=== PAUSE TestActivityExecutionFactory
+=== RUN   TestActivityStartObservationUsesSnapshotOffset
+=== PAUSE TestActivityStartObservationUsesSnapshotOffset
+=== RUN   TestActivityTimestampRange
+=== PAUSE TestActivityTimestampRange
+=== RUN   TestActivityObservationOverflowRetainsUnconfirmedIntent
+=== PAUSE TestActivityObservationOverflowRetainsUnconfirmedIntent
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions
+=== RUN   TestIdleExactDeadlineRollbackAndFailedClosePublication
+=== PAUSE TestIdleExactDeadlineRollbackAndFailedClosePublication
+=== RUN   TestIdleRearmIsAtomicAndDoesNotDuplicate
+=== PAUSE TestIdleRearmIsAtomicAndDoesNotDuplicate
+=== RUN   TestIdleUpdateAdvancesAnchorAndInvalidatesOldDeadline
+=== PAUSE TestIdleUpdateAdvancesAnchorAndInvalidatesOldDeadline
+=== RUN   TestIdleAmbiguousWaitAndObservedStartedEligibility
+=== PAUSE TestIdleAmbiguousWaitAndObservedStartedEligibility
+=== RUN   TestIdleEligibilityMetadataProjection
+=== PAUSE TestIdleEligibilityMetadataProjection
+=== RUN   TestIdleConfigurationBoundariesRejectBeforeWrites
+=== PAUSE TestIdleConfigurationBoundariesRejectBeforeWrites
+=== RUN   TestLifecycleClosePublicationAndTaskFences
+=== PAUSE TestLifecycleClosePublicationAndTaskFences
+=== RUN   TestLifecycleClosedResultsAndPoisonedPayloadsAreNoOps
+=== PAUSE TestLifecycleClosedResultsAndPoisonedPayloadsAreNoOps
+=== RUN   TestLifecycleClosedControlsRejectAndTerminateIsIdempotent
+=== PAUSE TestLifecycleClosedControlsRejectAndTerminateIsIdempotent
+=== RUN   TestLifecycleClosedDedupKeepsPriorSuccess
+=== PAUSE TestLifecycleClosedDedupKeepsPriorSuccess
+=== CONT  TestActivityNodeProperties
+=== CONT  TestActivityObservationOverflowRetainsUnconfirmedIntent
+=== CONT  TestIdleUpdateAdvancesAnchorAndInvalidatesOldDeadline
+=== CONT  TestActivityTimestampRange
+--- PASS: TestActivityTimestampRange (0.00s)
+=== CONT  TestActivityStartObservationUsesSnapshotOffset
+--- PASS: TestActivityStartObservationUsesSnapshotOffset (0.00s)
+=== CONT  TestActivityExecutionFactory
+--- PASS: TestActivityExecutionFactory (0.00s)
+=== CONT  TestIdleRearmIsAtomicAndDoesNotDuplicate
+--- PASS: TestActivityObservationOverflowRetainsUnconfirmedIntent (0.01s)
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment
+=== CONT  TestLifecycleClosePublicationAndTaskFences
+--- PASS: TestIdleUpdateAdvancesAnchorAndInvalidatesOldDeadline (0.01s)
+=== CONT  TestLifecycleClosedDedupKeepsPriorSuccess
+--- PASS: TestIdleRearmIsAtomicAndDoesNotDuplicate (0.00s)
+=== CONT  TestLifecycleClosedControlsRejectAndTerminateIsIdempotent
+--- PASS: TestLifecycleClosedDedupKeepsPriorSuccess (0.00s)
+=== CONT  TestLifecycleClosedResultsAndPoisonedPayloadsAreNoOps
+=== RUN   TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/manual
+=== RUN   TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/backfill
+=== RUN   TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/definition
+=== RUN   TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/update
+--- PASS: TestLifecycleClosePublicationAndTaskFences (0.01s)
+=== CONT  TestIdleEligibilityMetadataProjection
+=== RUN   TestIdleEligibilityMetadataProjection/paused
+=== PAUSE TestIdleEligibilityMetadataProjection/paused
+=== RUN   TestIdleEligibilityMetadataProjection/pending_manual
+=== PAUSE TestIdleEligibilityMetadataProjection/pending_manual
+=== RUN   TestIdleEligibilityMetadataProjection/pending_backfill
+=== PAUSE TestIdleEligibilityMetadataProjection/pending_backfill
+=== RUN   TestIdleEligibilityMetadataProjection/queued
+=== PAUSE TestIdleEligibilityMetadataProjection/queued
+=== RUN   TestIdleEligibilityMetadataProjection/unconfirmed
+=== PAUSE TestIdleEligibilityMetadataProjection/unconfirmed
+=== RUN   TestIdleEligibilityMetadataProjection/awaiting_effect
+=== PAUSE TestIdleEligibilityMetadataProjection/awaiting_effect
+=== RUN   TestIdleEligibilityMetadataProjection/pending_effect
+=== PAUSE TestIdleEligibilityMetadataProjection/pending_effect
+=== RUN   TestIdleEligibilityMetadataProjection/ambiguous_effect
+=== PAUSE TestIdleEligibilityMetadataProjection/ambiguous_effect
+=== RUN   TestIdleEligibilityMetadataProjection/accepted_effect
+=== PAUSE TestIdleEligibilityMetadataProjection/accepted_effect
+=== RUN   TestIdleEligibilityMetadataProjection/active_scan_unarmed
+=== PAUSE TestIdleEligibilityMetadataProjection/active_scan_unarmed
+=== RUN   TestIdleEligibilityMetadataProjection/yield_unarmed
+=== PAUSE TestIdleEligibilityMetadataProjection/yield_unarmed
+=== RUN   TestIdleEligibilityMetadataProjection/budget_exhausted_active
+=== PAUSE TestIdleEligibilityMetadataProjection/budget_exhausted_active
+=== CONT  TestIdleConfigurationBoundariesRejectBeforeWrites
+=== RUN   TestIdleConfigurationBoundariesRejectBeforeWrites/negative
+=== PAUSE TestIdleConfigurationBoundariesRejectBeforeWrites/negative
+=== RUN   TestIdleConfigurationBoundariesRejectBeforeWrites/over_maximum
+=== PAUSE TestIdleConfigurationBoundariesRejectBeforeWrites/over_maximum
+=== RUN   TestIdleConfigurationBoundariesRejectBeforeWrites/token_exhausted
+=== PAUSE TestIdleConfigurationBoundariesRejectBeforeWrites/token_exhausted
+=== RUN   TestIdleConfigurationBoundariesRejectBeforeWrites/deadline_overflow
+=== PAUSE TestIdleConfigurationBoundariesRejectBeforeWrites/deadline_overflow
+--- PASS: TestLifecycleClosedControlsRejectAndTerminateIsIdempotent (0.00s)
+    --- PASS: TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/manual (0.00s)
+    --- PASS: TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/backfill (0.00s)
+    --- PASS: TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/definition (0.00s)
+    --- PASS: TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/update (0.00s)
+=== CONT  TestIdleAmbiguousWaitAndObservedStartedEligibility
+=== CONT  TestIdleExactDeadlineRollbackAndFailedClosePublication
+--- PASS: TestIdleExactDeadlineRollbackAndFailedClosePublication (0.00s)
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion
+--- PASS: TestIdleAmbiguousWaitAndObservedStartedEligibility (0.00s)
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment
+--- PASS: TestLifecycleClosedResultsAndPoisonedPayloadsAreNoOps (0.01s)
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion
+=== CONT  TestIdleEligibilityMetadataProjection/paused
+=== CONT  TestIdleEligibilityMetadataProjection/pending_effect
+=== CONT  TestIdleEligibilityMetadataProjection/budget_exhausted_active
+=== CONT  TestIdleEligibilityMetadataProjection/yield_unarmed
+=== CONT  TestIdleEligibilityMetadataProjection/active_scan_unarmed
+=== CONT  TestIdleEligibilityMetadataProjection/accepted_effect
+=== CONT  TestIdleEligibilityMetadataProjection/ambiguous_effect
+=== CONT  TestIdleEligibilityMetadataProjection/queued
+=== CONT  TestIdleEligibilityMetadataProjection/awaiting_effect
+=== CONT  TestIdleEligibilityMetadataProjection/unconfirmed
+=== CONT  TestIdleEligibilityMetadataProjection/pending_backfill
+=== CONT  TestIdleEligibilityMetadataProjection/pending_manual
+--- PASS: TestIdleEligibilityMetadataProjection (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/paused (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/pending_effect (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/budget_exhausted_active (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/yield_unarmed (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/active_scan_unarmed (0.01s)
+    --- PASS: TestIdleEligibilityMetadataProjection/accepted_effect (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/ambiguous_effect (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/queued (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/awaiting_effect (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/unconfirmed (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/pending_backfill (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/pending_manual (0.00s)
+=== CONT  TestIdleConfigurationBoundariesRejectBeforeWrites/negative
+=== CONT  TestIdleConfigurationBoundariesRejectBeforeWrites/deadline_overflow
+=== CONT  TestIdleConfigurationBoundariesRejectBeforeWrites/token_exhausted
+=== CONT  TestIdleConfigurationBoundariesRejectBeforeWrites/over_maximum
+--- PASS: TestIdleConfigurationBoundariesRejectBeforeWrites (0.00s)
+    --- PASS: TestIdleConfigurationBoundariesRejectBeforeWrites/negative (0.01s)
+    --- PASS: TestIdleConfigurationBoundariesRejectBeforeWrites/deadline_overflow (0.00s)
+    --- PASS: TestIdleConfigurationBoundariesRejectBeforeWrites/token_exhausted (0.00s)
+    --- PASS: TestIdleConfigurationBoundariesRejectBeforeWrites/over_maximum (0.00s)
+--- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions (0.00s)
+    --- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion (1.20s)
+    --- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion (1.24s)
+    --- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment (1.30s)
+=== NAME  TestActivityNodeProperties
+    activity_property_test.go:25: [rapid] OK, passed 10000 tests (18.448519708s)
+--- PASS: TestActivityNodeProperties (18.58s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	19.343s
+=== RUN   TestActivityTerminalObservation
+=== PAUSE TestActivityTerminalObservation
+=== RUN   TestActivitySummaryAcrossKeyedResults
+=== PAUSE TestActivitySummaryAcrossKeyedResults
+=== RUN   TestActivityControlAndRollbackClock
+=== PAUSE TestActivityControlAndRollbackClock
+=== RUN   TestActivityFirstObservationAfterLegacyAcknowledgment
+=== PAUSE TestActivityFirstObservationAfterLegacyAcknowledgment
+=== CONT  TestActivityTerminalObservation
+=== CONT  TestActivityControlAndRollbackClock
+=== RUN   TestActivityTerminalObservation/completed
+=== CONT  TestActivitySummaryAcrossKeyedResults
+=== CONT  TestActivityFirstObservationAfterLegacyAcknowledgment
+=== PAUSE TestActivityTerminalObservation/completed
+--- PASS: TestActivitySummaryAcrossKeyedResults (0.00s)
+--- PASS: TestActivityControlAndRollbackClock (0.00s)
+--- PASS: TestActivityFirstObservationAfterLegacyAcknowledgment (0.00s)
+=== RUN   TestActivityTerminalObservation/start-only
+=== PAUSE TestActivityTerminalObservation/start-only
+=== CONT  TestActivityTerminalObservation/completed
+=== CONT  TestActivityTerminalObservation/start-only
+--- PASS: TestActivityTerminalObservation (0.00s)
+    --- PASS: TestActivityTerminalObservation/completed (0.00s)
+    --- PASS: TestActivityTerminalObservation/start-only (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.219s

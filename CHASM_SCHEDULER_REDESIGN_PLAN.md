@@ -149,7 +149,7 @@ Phases describe coverage areas, not a requirement to finish all modeling before 
 | --- | --- | --- | --- |
 | M0 | Workspace provenance, first-slice contract, early CHASM guarantees | passed | E4–E8 |
 | M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | passed | E9–E16; bounded scope and trusted boundaries below |
-| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-009 E17–E58; remaining lifecycle/update/spec mapping work pending |
+| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-010 E17–E66; WI-011 current update/spec/policy mappings remain |
 | M3 | Differential API and shared functional coverage with no unexplained differences | pending | — |
 | M4 | Load/state-growth report and explicit migration support boundary | pending | — |
 
@@ -841,3 +841,25 @@ request-ID retries remain success; new commands reject. Preauthorized snapshots 
 still issue outside the lock, but exact-run results cannot mutate replacement state.
 Activity anchor/idle eligibility/L3 and remaining update compositions are still open;
 this increment does not mark WI-010 or M2 complete.
+
+
+WI-010 activity/idle implementation is under verification in the isolated lifecycle
+worktree. E62–E64 record10000 activity scenarios, idle prewrite rejection regressions,
+independent bounded conditional-liveness models, baseline/lint and History race.
+Composed idle/rearm/recreation coverage and sensitivity remain open; WI-010 and M2
+are not yet complete. M3–M4 and local-only execution boundaries remain unchanged.
+
+
+Independent M2 audit identifies [WI-011](docs/development/scheduler2/work-items/WI-011.md)
+after WI-010: current transition/projection mappings, composed local update
+semantics, compatibility/historical-coverage accounting and instrumentation gaps.
+Historical per-slice passes do not alone close this gate. Reviewed executable Lean
+statements remain the M2 requirement; proof completion/correspondence remains M3.
+
+
+WI-010 accepted locally: E59–E66, independent coverage review, final History race
+and scoped lint. D51–D54 now implement terminal authority, monotonic activity and
+conditional idle closure with discriminating retention/rearm/recreation evidence.
+The final History fixture covers definite delete rejection and exact-run late
+results; it does not claim database or physical queue processor coverage.
+WI-011 now owns remaining M2 current mappings/composed updates; M3/M4 remain open.

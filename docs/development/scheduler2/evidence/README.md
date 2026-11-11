@@ -268,3 +268,19 @@ remaining milestone obligations. WI-010 is the next proposed item; M2 is partial
 | E59 | source contract / review | [D51 and proposed lifecycle design](../design/lifecycle.md), [clock investigation](../design/lifecycle-clock.md); terminal-fence source review clear; first-success clock and idle design remain separate open implementation. |
 | E60 | real Node / History engine | [terminal checks](wi010/terminal-checks.json), [History log](wi010/history-s8.log); close publication/reload, all late result kinds, poisoned partitions, new-control rejection/prior dedup success; actual engine allocates different runs for one business ID and fences old in-flight start result. Captured persistence, not database proof. |
 | E61 | generation / race / lint / sensitivity | [review](wi010/terminal-review.md), [five mutants](wi010/terminal-mutations/manifest.json); schema, full scheduler2/registry baseline, focused component/History race and scoped lint pass. Anchor/idle/L3 and remaining lifecycle/update compositions are not complete. |
+
+
+## WI-010 activity and idle increment (accepted)
+
+| ID | Kind / claim | Artifact and current result |
+|---|---|---|
+| E62 | real Node / activity properties | [progress and limits](wi010/activity-progress.md), [10000-case seed1 manifest](wi010/activity-exploration/manifest.json), [token preflight regressions](wi010/idle-preflight.log); pass. Original manifest overstates scenario event bound; actual bound35 plus setup is documented and runner corrected. |
+| E63 | independent finite lifecycle model | [model scope/mapping](../model/lifecycle/README.md), [results](wi010/lifecycle-model-results.json); activity146 and idle1104 unique states at100/200; five mutants including temporal lost rearm detected. Conditional fairness, no Go refinement claim. |
+| E64 | baseline / lint / History race | [baseline](wi010/activity-idle-baseline.log), [staged-source lint](wi010/staged-lint.log), [History race](wi010/activity-idle-history-race.log), [component race](wi010/activity-idle-race.log); pass. Later composed tests and sensitivity are recorded in E65. |
+| E65 | composed Node replay / sensitivity | [two saved traces](../../../../chasm/lib/scheduler2/lifecycle_replay_test.go), [composed race](wi010/composed-race.log), [five Go mutants](wi010/activity-idle-mutations/manifest.json); pass. Real hold-removal and poisoned-payload checks included; expanded History recreation evidence follows in E66. |
+| E66 | retention/pause and exact-run recreation | [checks/fingerprints](wi010/activity-checks.json), [retention/pause race](wi010/retention-pause-race.log), [History delete/recreate race](wi010/history-delete-race.log); pass. Engine-routed old handler inputs with colliding numeric tokens and in-flight start/cancel effect; captured persistence, not physical queue processor or database. |
+
+WI-010 accepted after [independent review](wi010/acceptance-review.md) and
+[final staged-source lint](wi010/acceptance-lint.log). Intermediate failures remain
+recorded with their resolutions. WI-011 is the next dependency-ordered M2 item;
+this acceptance does not close M2–M4.

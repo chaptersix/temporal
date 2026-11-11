@@ -1,0 +1,11 @@
+=== RUN   TestIdleRearmIsAtomicAndDoesNotDuplicate
+=== PAUSE TestIdleRearmIsAtomicAndDoesNotDuplicate
+=== CONT  TestIdleRearmIsAtomicAndDoesNotDuplicate
+    idle_test.go:101: 
+        	Error Trace:	/private/tmp/sch-redesign-lifecycle/chasm/lib/scheduler2/idle_test.go:101
+        	Error:      	Should be false
+        	Test:       	TestIdleRearmIsAtomicAndDoesNotDuplicate
+--- FAIL: TestIdleRearmIsAtomicAndDoesNotDuplicate (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.663s
+FAIL

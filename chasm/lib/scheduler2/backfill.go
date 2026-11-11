@@ -54,8 +54,16 @@ func (s *Scheduler) AcceptBackfill(ctx chasm.MutableContext, request *schedulepb
 	}
 	// Reconciliation may reject an exhausted coordinator token. Restore the
 	// previous root on that error; reconcileWork checks before publishing a task.
+	atNano, err := activityNano(ctx.Now(s))
+	if err != nil {
+		return err
+	}
 	previous := s.RootState
 	next := common.CloneProto(previous)
+	if !next.ActivitySet || atNano > next.ActivityAt {
+		next.ActivityAt = atNano
+	}
+	next.ActivitySet = true
 	next.BackfillSequence++
 	next.Backfills = append(next.Backfills, &scheduler2pb.BackfillState{Id: next.BackfillSequence, Start: start.UnixNano(), End: end.UnixNano(), Policy: request.OverlapPolicy})
 	s.RootState = next
@@ -142,6 +150,9 @@ func (s *Scheduler) scanBackfill(ctx chasm.MutableContext) error {
 			if other.Id != b.Id {
 				kept = append(kept, other)
 			}
+		}
+		if _, _, err := s.checkIdlePlan(s.stateFor(ctx, ""), g.Continuation, true, len(kept) > 0); err != nil {
+			return err
 		}
 		s.Backfills = kept
 		s.LastBackfill = b.Id

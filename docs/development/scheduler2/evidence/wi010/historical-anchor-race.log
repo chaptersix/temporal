@@ -1,0 +1,6 @@
+=== RUN   TestIdleHistoricalBackfillUsesStartObservation
+=== PAUSE TestIdleHistoricalBackfillUsesStartObservation
+=== CONT  TestIdleHistoricalBackfillUsesStartObservation
+--- PASS: TestIdleHistoricalBackfillUsesStartObservation (0.02s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	2.230s

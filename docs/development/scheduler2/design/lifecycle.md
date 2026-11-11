@@ -1,8 +1,9 @@
 # WI-010 lifecycle contract and implementation sequence
 
-Status: terminal fence implemented and independently reviewed; anchor/idle design
-below has independent source review; implementation and verification remain pending. Local-only; no
-migration, production routing or rollout.
+Status: terminal fence, activity anchor and idle scheduling implemented and
+independently source-reviewed. Verification and independent acceptance are recorded in E59–E66, including
+expanded History recreation and definite delete-rejection coverage.
+Local-only; no migration, production routing or rollout.
 
 ## D51 terminal fence
 
@@ -15,7 +16,7 @@ without loading operation/payload children. Exact execution RunID is preserved.
 A snapshot authorized before close may still issue outside the lock; its result
 cannot mutate a replacement. Deletion does not terminate child workflows.
 
-## Proposed D52 activity evidence
+## D52 activity evidence
 
 Creation and successful definition/control updates advance a persisted monotonic
 activity timestamp. The creation factory must use the engine-allocated RunID and
@@ -45,7 +46,7 @@ availability of start-time evidence, while making the terminal metadata exceptio
 explicit. An untracked reference entry can disappear earlier than scheduler2's
 bounded retained record; exact retention differences remain documented.
 
-## Proposed D53 idle eligibility
+## D53 idle eligibility
 
 Idle duration zero disables automatic close. A positive duration uses the persistent
 activity anchor; duplicate reconciliation at the same token/deadline emits no extra
@@ -76,7 +77,7 @@ so ordinary keyed results need not hydrate unrelated operation records to reconc
 idle. Derive changes from before/after phase and admission; validate summary against
 full state in tests. Root effect metadata suffices for effect readiness.
 
-## Proposed D54 idle publication and limits
+## D54 idle publication and limits
 
 Persist an idle generation token and deadline. A task validates token, exact deadline,
 current eligibility and current anchor. Before deadline, return retryable not-due;
@@ -101,7 +102,7 @@ Task existence or finite recovery alone is not the liveness proof.
 4. Extend callback/effect/recreate coverage where exported adapter boundaries exist.
    Keep public frontend wiring and full differential coverage in M3.
 
-WI-010 acceptance and full M2 completion remain open.
+WI-010 is accepted locally; full M2 completion remains open under WI-011.
 
 
 ## Review clarifications before anchor/idle implementation
@@ -129,3 +130,37 @@ These are routine bounded-prototype decisions, not a production default or a wai
 of M3 public compatibility classification. The terminal metadata exception and
 accepted-work holds need independent behavior tests/model mapping before WI-010
 can be accepted.
+
+## Current implementation correspondence
+
+This table is a manually reviewed correspondence, not a mechanically checked
+refinement relation. The two finite model factors retain the limits described in
+model/lifecycle/README.md; composition is checked by real Node tests and saved
+traces, with History routing checked separately.
+
+| Implementation transition | Independent specification / observation | Discriminating evidence |
+| --- | --- | --- |
+| NewExecution initializes allocated incarnation and activity | Creation evidence; anchor factor starts at creation | ActivityExecutionFactory; actual History create/recreate factory |
+| ConfigureGeneration, accepted Trigger/Backfill, revision-advancing Update | ControlUpdate advances the ghost maximum; rejected/stale/deduplicated inputs stutter | ActivityNodeProperties; idle update/pause/backfill tests; request dedup tests |
+| StartHandler snapshot and post-RPC sample | Trusted clock adapter supplies explicit first observation | ActivityStartObservationUsesSnapshotOffset; timestamp overflow preserves retry |
+| reconcileActivity first matching acknowledgment, including terminal retained operation | Acknowledge records first evidence without reopening terminal state | ActivityTerminalObservation; lifecycle_late_observation_v1 replay |
+| Duplicate, foreign-chain/incarnation, evicted result | Named evidence stutter | ActivityNodeProperties; idle cap4 eviction test; closed old-run History results |
+| Completion before acknowledgment | Completion changes phase/accounting but supplies no start clock | Saved late-observation replay and core metadata tests |
+| Terminal eviction at admission | Evict retains independent root maximum | ActivityNodeProperties; IdleAnchorSurvivesRetentionAndClockRollback |
+| UnconfirmedStarts phase delta | Concrete adapter implements pending/ambiguous eligibility hold | Keyed summary tests and independent full-state count in activity property |
+| Idle reconciliation / hold resolution | Idle factor replaces or removes current authority; hold labels abstract concrete predicate | Real command/queue/backfill/effect/pause transitions; metadata predicate fixtures |
+| Idle Validate / Execute / Close | DeliverCurrent requires current token, deadline, eligibility and due time; closure absorbing | Saved stale task replay; deadline minus1/exact/plus1; failed publication tests |
+| Close or History Terminate | Terminal authority; distinct from task consumption or external child termination | Closed DATA/result/task fences; History failed delete/retry and recreation checks |
+
+ConfigureIdle does not refresh an existing activity anchor. Its duration change
+replaces idle authority when needed; the model represents eligibility/stability
+rather than enumerating every duration. Timestamp arithmetic, finite token overflow,
+external snapshot issuance and exact RunID routing are adapter obligations covered
+by directed tests, not derived from the finite lifecycle factors.
+
+The implementation has no public callback authentication adapter yet. The History
+result fixture is test_dep-only and applies the existing internal event interface
+through the real engine's exact-run update path. Public authentication, API errors,
+visibility and workflow-chain correspondence remain M3 obligations. Likewise,
+History handler dispatch with recorded tokens is not physical queue processor
+delivery, and its captured persistence manager is not a database durability test.

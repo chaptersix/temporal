@@ -170,6 +170,16 @@ func (s *Scheduler) checkNextWorkToken(ctx chasm.Context, next decision.State) e
 }
 
 func (s *Scheduler) reconcileWork(ctx chasm.MutableContext) error {
+	if err := s.checkNextIdle(ctx, s.stateFor(ctx, "")); err != nil {
+		return err
+	}
+	if err := s.reconcileCoordinator(ctx); err != nil {
+		return err
+	}
+	return s.reconcileIdle(ctx)
+}
+
+func (s *Scheduler) reconcileCoordinator(ctx chasm.MutableContext) error {
 	if s.Closed {
 		return nil
 	}
@@ -224,8 +234,11 @@ func (*WorkHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.
 		return serviceerror.NewFailedPrecondition("coordinator token exhausted")
 	}
 	planned.Armed = false
-	s.Coordination = planned
 	if d == nil {
+		if err := s.checkNextIdle(ctx, s.stateFor(ctx, "")); err != nil {
+			return err
+		}
+		s.Coordination = planned
 		return s.reconcileWork(ctx)
 	}
 	beforeUnfinished := s.Unfinished
@@ -253,7 +266,8 @@ func (*WorkHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.
 	if err != nil {
 		return err
 	}
-	c = s.Coordination
+	s.Coordination = planned
+	c = planned
 	c.NextWork = nextClass(d.class)
 	if d.vacancy {
 		c.OwnerKey = ""
@@ -286,7 +300,11 @@ func (s *Scheduler) scanAutomatic(ctx chasm.MutableContext) error {
 	if err != nil {
 		return err
 	}
-	g.Continuation = encodeContinuation(result.State)
+	continuation := encodeContinuation(result.State)
+	if _, _, err := s.checkIdlePlan(s.stateFor(ctx, ""), continuation, true, len(s.Backfills) > 0); err != nil {
+		return err
+	}
+	g.Continuation = continuation
 	s.Cursor = max(s.Cursor, result.State.DisposedThrough.UnixNano())
 	g.Token++
 	g.LastStatus = scheduler2pb.EnumerationStatus(result.Status + 1)

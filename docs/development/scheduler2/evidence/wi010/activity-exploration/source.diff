@@ -1,0 +1,839 @@
+diff --git a/chasm/lib/scheduler2/backfill.go b/chasm/lib/scheduler2/backfill.go
+index 5903a9759..b9c4473cb 100644
+--- a/chasm/lib/scheduler2/backfill.go
++++ b/chasm/lib/scheduler2/backfill.go
+@@ -54,8 +54,16 @@ func (s *Scheduler) AcceptBackfill(ctx chasm.MutableContext, request *schedulepb
+ 	}
+ 	// Reconciliation may reject an exhausted coordinator token. Restore the
+ 	// previous root on that error; reconcileWork checks before publishing a task.
++	atNano, err := activityNano(ctx.Now(s))
++	if err != nil {
++		return err
++	}
+ 	previous := s.RootState
+ 	next := common.CloneProto(previous)
++	if !next.ActivitySet || atNano > next.ActivityAt {
++		next.ActivityAt = atNano
++	}
++	next.ActivitySet = true
+ 	next.BackfillSequence++
+ 	next.Backfills = append(next.Backfills, &scheduler2pb.BackfillState{Id: next.BackfillSequence, Start: start.UnixNano(), End: end.UnixNano(), Policy: request.OverlapPolicy})
+ 	s.RootState = next
+@@ -143,6 +151,9 @@ func (s *Scheduler) scanBackfill(ctx chasm.MutableContext) error {
+ 				kept = append(kept, other)
+ 			}
+ 		}
++		if _, _, err := s.checkIdlePlan(s.stateFor(ctx, ""), g.Continuation, true, len(kept) > 0); err != nil {
++			return err
++		}
+ 		s.Backfills = kept
+ 		s.LastBackfill = b.Id
+ 		s.BackfillFocus = 0
+diff --git a/chasm/lib/scheduler2/component.go b/chasm/lib/scheduler2/component.go
+index 044176f00..057fc81d5 100644
+--- a/chasm/lib/scheduler2/component.go
++++ b/chasm/lib/scheduler2/component.go
+@@ -40,6 +40,7 @@ func (s *Scheduler) state(ctx chasm.Context) decision.State {
+ 
+ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.State {
+ 	state := decision.State{Root: decision.Root{
++		ActivitySet: s.ActivitySet, ActivityAt: s.ActivityAt, UnconfirmedStarts: s.UnconfirmedStarts,
+ 		ManualSequence: s.ManualSequence, Incarnation: s.Incarnation, Revision: s.Revision, Cursor: s.Cursor,
+ 		Paused: s.Paused, Limited: s.Limited, Remaining: s.Remaining, Started: s.Started,
+ 		CarryoverSet: s.CarryoverSet, PauseOnFailure: s.PauseOnFailure, Policy: s.Policy, BufferDropped: s.BufferDropped,
+@@ -57,6 +58,7 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.Sta
+ 	if field, ok := s.Operations[operationID]; ok {
+ 		op := field.Get(ctx)
+ 		state.Operation = &decision.Operation{
++			StartObserved: op.StartObserved, StartObservedAt: op.StartObservedAt,
+ 			OccurrenceID: op.OccurrenceId, ActionID: op.ActionId, ID: op.Id,
+ 			ChainID: op.ChainId, Nominal: op.Nominal, Deadline: op.Deadline,
+ 			BackfillID: op.BackfillId, ManualID: op.ManualId, RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId, Policy: op.Policy,
+@@ -104,7 +106,11 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
+ 	if event.Incarnation != s.Incarnation {
+ 		return nil
+ 	}
+-	event.Now = ctx.Now(s).UnixNano()
++	now := ctx.Now(s)
++	if !time.Unix(0, now.UnixNano()).Equal(now) {
++		return serviceerror.NewInvalidArgument("execution time exceeds nanosecond range")
++	}
++	event.Now = now.UnixNano()
+ 	operationID := event.OperationID
+ 	if admissionEvent(event.Kind) || event.Kind == decision.Update {
+ 		operationID = s.OperationId
+@@ -141,6 +147,9 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
+ 	if err := s.checkNextWorkToken(ctx, next); err != nil {
+ 		return err
+ 	}
++	if err := s.checkNextIdle(ctx, next); err != nil {
++		return err
++	}
+ 	eviction, err := s.retentionEviction(ctx, before, next)
+ 	if err != nil {
+ 		return err
+@@ -176,6 +185,8 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
+ 	}
+ 	previousRoot := s.RootState
+ 	s.RootState = &scheduler2pb.RootState{
++		ActivitySet: next.Root.ActivitySet, ActivityAt: next.Root.ActivityAt, UnconfirmedStarts: next.Root.UnconfirmedStarts,
++		IdleDuration: previousRoot.IdleDuration, IdleToken: previousRoot.IdleToken, IdleArmed: previousRoot.IdleArmed, IdleAt: previousRoot.IdleAt,
+ 		Closed: previousRoot.Closed, Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
+ 		ManualSequence: next.Root.ManualSequence, ManualToken: manualToken, ManualArmed: manualArmed, ManualAt: manualAt,
+ 		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
+@@ -198,6 +209,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
+ 			s.OperationId = op.ID
+ 		}
+ 		metadata := &scheduler2pb.OperationState{
++			StartObserved: op.StartObserved, StartObservedAt: op.StartObservedAt,
+ 			OccurrenceId: op.OccurrenceID, ActionId: op.ActionID, Id: op.ID, ChainId: op.ChainID,
+ 			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy, ManualId: op.ManualID, BackfillId: op.BackfillID,
+ 		}
+diff --git a/chasm/lib/scheduler2/coordinator.go b/chasm/lib/scheduler2/coordinator.go
+index 50bfd8ee5..1d3c2def1 100644
+--- a/chasm/lib/scheduler2/coordinator.go
++++ b/chasm/lib/scheduler2/coordinator.go
+@@ -170,6 +170,16 @@ func (s *Scheduler) checkNextWorkToken(ctx chasm.Context, next decision.State) e
+ }
+ 
+ func (s *Scheduler) reconcileWork(ctx chasm.MutableContext) error {
++	if err := s.checkNextIdle(ctx, s.stateFor(ctx, "")); err != nil {
++		return err
++	}
++	if err := s.reconcileCoordinator(ctx); err != nil {
++		return err
++	}
++	return s.reconcileIdle(ctx)
++}
++
++func (s *Scheduler) reconcileCoordinator(ctx chasm.MutableContext) error {
+ 	if s.Closed {
+ 		return nil
+ 	}
+@@ -224,8 +234,11 @@ func (*WorkHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.
+ 		return serviceerror.NewFailedPrecondition("coordinator token exhausted")
+ 	}
+ 	planned.Armed = false
+-	s.Coordination = planned
+ 	if d == nil {
++		if err := s.checkNextIdle(ctx, s.stateFor(ctx, "")); err != nil {
++			return err
++		}
++		s.Coordination = planned
+ 		return s.reconcileWork(ctx)
+ 	}
+ 	beforeUnfinished := s.Unfinished
+@@ -253,7 +266,8 @@ func (*WorkHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.
+ 	if err != nil {
+ 		return err
+ 	}
+-	c = s.Coordination
++	s.Coordination = planned
++	c = planned
+ 	c.NextWork = nextClass(d.class)
+ 	if d.vacancy {
+ 		c.OwnerKey = ""
+@@ -286,7 +300,11 @@ func (s *Scheduler) scanAutomatic(ctx chasm.MutableContext) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	g.Continuation = encodeContinuation(result.State)
++	continuation := encodeContinuation(result.State)
++	if _, _, err := s.checkIdlePlan(s.stateFor(ctx, ""), continuation, true, len(s.Backfills) > 0); err != nil {
++		return err
++	}
++	g.Continuation = continuation
+ 	s.Cursor = max(s.Cursor, result.State.DisposedThrough.UnixNano())
+ 	g.Token++
+ 	g.LastStatus = scheduler2pb.EnumerationStatus(result.Status + 1)
+diff --git a/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go b/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go
+index bfc911186..c8eb6fc02 100644
+--- a/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go
++++ b/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go
+@@ -710,6 +710,43 @@ func (this *BackfillState) Equal(that interface{}) bool {
+ 	return proto.Equal(this, that1)
+ }
+ 
++// Marshal an object of type IdleTask to the protobuf v3 wire format
++func (val *IdleTask) Marshal() ([]byte, error) {
++	return proto.Marshal(val)
++}
++
++// Unmarshal an object of type IdleTask from the protobuf v3 wire format
++func (val *IdleTask) Unmarshal(buf []byte) error {
++	return proto.Unmarshal(buf, val)
++}
++
++// Size returns the size of the object, in bytes, once serialized
++func (val *IdleTask) Size() int {
++	return proto.Size(val)
++}
++
++// Equal returns whether two IdleTask values are equivalent by recursively
++// comparing the message's fields.
++// For more information see the documentation for
++// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
++func (this *IdleTask) Equal(that interface{}) bool {
++	if that == nil {
++		return this == nil
++	}
++
++	var that1 *IdleTask
++	switch t := that.(type) {
++	case *IdleTask:
++		that1 = t
++	case IdleTask:
++		that1 = &t
++	default:
++		return false
++	}
++
++	return proto.Equal(this, that1)
++}
++
+ var (
+ 	Phase_shorthandValue = map[string]int32{
+ 		"Unspecified": 0,
+diff --git a/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go b/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go
+index d1d308a19..667eda034 100644
+--- a/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go
++++ b/chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go
+@@ -465,7 +465,21 @@ type RootState struct {
+ 	// LastBackfill remembers the last serviced request for cyclic selection.
+ 	LastBackfill uint64 `protobuf:"varint,33,opt,name=last_backfill,json=lastBackfill,proto3" json:"last_backfill,omitempty"`
+ 	// Closed revokes scheduling authority while retaining historical state.
+-	Closed        bool `protobuf:"varint,34,opt,name=closed,proto3" json:"closed,omitempty"`
++	Closed bool `protobuf:"varint,34,opt,name=closed,proto3" json:"closed,omitempty"`
++	// ActivitySet distinguishes an observed zero timestamp from no anchor.
++	ActivitySet bool `protobuf:"varint,35,opt,name=activity_set,json=activitySet,proto3" json:"activity_set,omitempty"`
++	// ActivityAt is the monotonic execution-clock activity anchor.
++	ActivityAt int64 `protobuf:"varint,36,opt,name=activity_at,json=activityAt,proto3" json:"activity_at,omitempty"`
++	// UnconfirmedStarts counts Pending and Ambiguous operation intents.
++	UnconfirmedStarts int64 `protobuf:"varint,37,opt,name=unconfirmed_starts,json=unconfirmedStarts,proto3" json:"unconfirmed_starts,omitempty"`
++	// IdleDuration is the configured inactivity retention in nanoseconds; zero disables it.
++	IdleDuration int64 `protobuf:"varint,38,opt,name=idle_duration,json=idleDuration,proto3" json:"idle_duration,omitempty"`
++	// IdleToken fences the current idle-close obligation.
++	IdleToken uint64 `protobuf:"varint,39,opt,name=idle_token,json=idleToken,proto3" json:"idle_token,omitempty"`
++	// IdleArmed indicates a published idle-close obligation.
++	IdleArmed bool `protobuf:"varint,40,opt,name=idle_armed,json=idleArmed,proto3" json:"idle_armed,omitempty"`
++	// IdleAt is the exact execution-clock idle deadline.
++	IdleAt        int64 `protobuf:"varint,41,opt,name=idle_at,json=idleAt,proto3" json:"idle_at,omitempty"`
+ 	unknownFields protoimpl.UnknownFields
+ 	sizeCache     protoimpl.SizeCache
+ }
+@@ -738,6 +752,55 @@ func (x *RootState) GetClosed() bool {
+ 	return false
+ }
+ 
++func (x *RootState) GetActivitySet() bool {
++	if x != nil {
++		return x.ActivitySet
++	}
++	return false
++}
++
++func (x *RootState) GetActivityAt() int64 {
++	if x != nil {
++		return x.ActivityAt
++	}
++	return 0
++}
++
++func (x *RootState) GetUnconfirmedStarts() int64 {
++	if x != nil {
++		return x.UnconfirmedStarts
++	}
++	return 0
++}
++
++func (x *RootState) GetIdleDuration() int64 {
++	if x != nil {
++		return x.IdleDuration
++	}
++	return 0
++}
++
++func (x *RootState) GetIdleToken() uint64 {
++	if x != nil {
++		return x.IdleToken
++	}
++	return 0
++}
++
++func (x *RootState) GetIdleArmed() bool {
++	if x != nil {
++		return x.IdleArmed
++	}
++	return false
++}
++
++func (x *RootState) GetIdleAt() int64 {
++	if x != nil {
++		return x.IdleAt
++	}
++	return 0
++}
++
+ // OperationState holds metadata without decoding request payloads.
+ type OperationState struct {
+ 	state protoimpl.MessageState `protogen:"open.v1"`
+@@ -764,9 +827,13 @@ type OperationState struct {
+ 	// ManualId is zero for automatic occurrences and the command sequence otherwise.
+ 	ManualId uint64 `protobuf:"varint,11,opt,name=manual_id,json=manualId,proto3" json:"manual_id,omitempty"`
+ 	// BackfillId distinguishes a range occurrence from a manual trigger.
+-	BackfillId    uint64 `protobuf:"varint,12,opt,name=backfill_id,json=backfillId,proto3" json:"backfill_id,omitempty"`
+-	unknownFields protoimpl.UnknownFields
+-	sizeCache     protoimpl.SizeCache
++	BackfillId uint64 `protobuf:"varint,12,opt,name=backfill_id,json=backfillId,proto3" json:"backfill_id,omitempty"`
++	// StartObserved records the first matching successful RPC observation.
++	StartObserved bool `protobuf:"varint,13,opt,name=start_observed,json=startObserved,proto3" json:"start_observed,omitempty"`
++	// StartObservedAt is wall observation plus the issuance snapshot skipped duration.
++	StartObservedAt int64 `protobuf:"varint,14,opt,name=start_observed_at,json=startObservedAt,proto3" json:"start_observed_at,omitempty"`
++	unknownFields   protoimpl.UnknownFields
++	sizeCache       protoimpl.SizeCache
+ }
+ 
+ func (x *OperationState) Reset() {
+@@ -883,6 +950,20 @@ func (x *OperationState) GetBackfillId() uint64 {
+ 	return 0
+ }
+ 
++func (x *OperationState) GetStartObserved() bool {
++	if x != nil {
++		return x.StartObserved
++	}
++	return false
++}
++
++func (x *OperationState) GetStartObservedAt() int64 {
++	if x != nil {
++		return x.StartObservedAt
++	}
++	return 0
++}
++
+ // Payload keeps large values on a separately loaded node.
+ type Payload struct {
+ 	state protoimpl.MessageState `protogen:"open.v1"`
+@@ -2070,11 +2151,57 @@ func (x *BackfillState) GetContinuation() *OccurrenceContinuation {
+ 	return nil
+ }
+ 
++// IdleTask checks the current idle-close token and deadline.
++type IdleTask struct {
++	state protoimpl.MessageState `protogen:"open.v1"`
++	// Token identifies the published idle obligation.
++	Token         uint64 `protobuf:"varint,1,opt,name=token,proto3" json:"token,omitempty"`
++	unknownFields protoimpl.UnknownFields
++	sizeCache     protoimpl.SizeCache
++}
++
++func (x *IdleTask) Reset() {
++	*x = IdleTask{}
++	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[19]
++	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
++	ms.StoreMessageInfo(mi)
++}
++
++func (x *IdleTask) String() string {
++	return protoimpl.X.MessageStringOf(x)
++}
++
++func (*IdleTask) ProtoMessage() {}
++
++func (x *IdleTask) ProtoReflect() protoreflect.Message {
++	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[19]
++	if x != nil {
++		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
++		if ms.LoadMessageInfo() == nil {
++			ms.StoreMessageInfo(mi)
++		}
++		return ms
++	}
++	return mi.MessageOf(x)
++}
++
++// Deprecated: Use IdleTask.ProtoReflect.Descriptor instead.
++func (*IdleTask) Descriptor() ([]byte, []int) {
++	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{19}
++}
++
++func (x *IdleTask) GetToken() uint64 {
++	if x != nil {
++		return x.Token
++	}
++	return 0
++}
++
+ var File_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto protoreflect.FileDescriptor
+ 
+ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "" +
+ 	"\n" +
+-	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\xf4\f\n" +
++	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\xe3\x0e\n" +
+ 	"\tRootState\x12 \n" +
+ 	"\vincarnation\x18\x01 \x01(\tR\vincarnation\x12\x1a\n" +
+ 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x16\n" +
+@@ -2114,10 +2241,20 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
+ 	"\tbackfills\x18\x1f \x03(\v2<.temporal.server.chasm.lib.scheduler2.proto.v1.BackfillStateR\tbackfills\x12%\n" +
+ 	"\x0ebackfill_focus\x18  \x01(\x04R\rbackfillFocus\x12#\n" +
+ 	"\rlast_backfill\x18! \x01(\x04R\flastBackfill\x12\x16\n" +
+-	"\x06closed\x18\" \x01(\bR\x06closed\x1a@\n" +
++	"\x06closed\x18\" \x01(\bR\x06closed\x12!\n" +
++	"\factivity_set\x18# \x01(\bR\vactivitySet\x12\x1f\n" +
++	"\vactivity_at\x18$ \x01(\x03R\n" +
++	"activityAt\x12-\n" +
++	"\x12unconfirmed_starts\x18% \x01(\x03R\x11unconfirmedStarts\x12#\n" +
++	"\ridle_duration\x18& \x01(\x03R\fidleDuration\x12\x1d\n" +
++	"\n" +
++	"idle_token\x18' \x01(\x04R\tidleToken\x12\x1d\n" +
++	"\n" +
++	"idle_armed\x18( \x01(\bR\tidleArmed\x12\x17\n" +
++	"\aidle_at\x18) \x01(\x03R\x06idleAt\x1a@\n" +
+ 	"\x12PendingStartsEntry\x12\x10\n" +
+ 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+-	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\xbf\x03\n" +
++	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\x92\x04\n" +
+ 	"\x0eOperationState\x12#\n" +
+ 	"\roccurrence_id\x18\x01 \x01(\tR\foccurrenceId\x12\x1b\n" +
+ 	"\taction_id\x18\x02 \x01(\tR\bactionId\x12\x0e\n" +
+@@ -2133,7 +2270,9 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
+ 	" \x01(\x0e2,.temporal.api.enums.v1.ScheduleOverlapPolicyR\x06policy\x12\x1b\n" +
+ 	"\tmanual_id\x18\v \x01(\x04R\bmanualId\x12\x1f\n" +
+ 	"\vbackfill_id\x18\f \x01(\x04R\n" +
+-	"backfillId\"\x1d\n" +
++	"backfillId\x12%\n" +
++	"\x0estart_observed\x18\r \x01(\bR\rstartObserved\x12*\n" +
++	"\x11start_observed_at\x18\x0e \x01(\x03R\x0fstartObservedAt\"\x1d\n" +
+ 	"\aPayload\x12\x12\n" +
+ 	"\x04data\x18\x01 \x01(\fR\x04data\".\n" +
+ 	"\tStartTask\x12!\n" +
+@@ -2222,7 +2361,9 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
+ 	"\x05start\x18\x02 \x01(\x03R\x05start\x12\x10\n" +
+ 	"\x03end\x18\x03 \x01(\x03R\x03end\x12D\n" +
+ 	"\x06policy\x18\x04 \x01(\x0e2,.temporal.api.enums.v1.ScheduleOverlapPolicyR\x06policy\x12i\n" +
+-	"\fcontinuation\x18\x05 \x01(\v2E.temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuationR\fcontinuation*\x84\x01\n" +
++	"\fcontinuation\x18\x05 \x01(\v2E.temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuationR\fcontinuation\" \n" +
++	"\bIdleTask\x12\x14\n" +
++	"\x05token\x18\x01 \x01(\x04R\x05token*\x84\x01\n" +
+ 	"\x05Phase\x12\x15\n" +
+ 	"\x11PHASE_UNSPECIFIED\x10\x00\x12\x11\n" +
+ 	"\rPHASE_PENDING\x10\x01\x12\x11\n" +
+@@ -2272,7 +2413,7 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(
+ }
+ 
+ var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
++var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+ var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []any{
+ 	(Phase)(0),                     // 0: temporal.server.chasm.lib.scheduler2.proto.v1.Phase
+ 	(EnumerationStatus)(0),         // 1: temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+@@ -2298,33 +2439,34 @@ var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []a
+ 	(*CoordinationState)(nil),      // 21: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState
+ 	(*WorkTask)(nil),               // 22: temporal.server.chasm.lib.scheduler2.proto.v1.WorkTask
+ 	(*BackfillState)(nil),          // 23: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState
+-	nil,                            // 24: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+-	(v1.ScheduleOverlapPolicy)(0),  // 25: temporal.api.enums.v1.ScheduleOverlapPolicy
++	(*IdleTask)(nil),               // 24: temporal.server.chasm.lib.scheduler2.proto.v1.IdleTask
++	nil,                            // 25: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
++	(v1.ScheduleOverlapPolicy)(0),  // 26: temporal.api.enums.v1.ScheduleOverlapPolicy
+ }
+ var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_depIdxs = []int32{
+-	25, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
++	26, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+ 	15, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
+-	24, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.pending_starts:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
++	25, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.pending_starts:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+ 	17, // 3: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.effects:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
+ 	19, // 4: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.manuals:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand
+ 	21, // 5: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.coordination:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState
+ 	23, // 6: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.backfills:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState
+ 	0,  // 7: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
+-	25, // 8: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
++	26, // 8: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+ 	10, // 9: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+ 	1,  // 10: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+ 	11, // 11: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+ 	1,  // 12: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+ 	10, // 13: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+-	25, // 14: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
++	26, // 14: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+ 	2,  // 15: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.kind:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
+ 	3,  // 16: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
+-	25, // 17: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
++	26, // 17: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+ 	4,  // 18: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_work:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+ 	4,  // 19: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+ 	4,  // 20: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_operation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+ 	4,  // 21: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.owner_class:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+-	25, // 22: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
++	26, // 22: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+ 	11, // 23: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+ 	24, // [24:24] is the sub-list for method output_type
+ 	24, // [24:24] is the sub-list for method input_type
+@@ -2344,7 +2486,7 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() {
+ 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
+ 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc), len(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc)),
+ 			NumEnums:      5,
+-			NumMessages:   20,
++			NumMessages:   21,
+ 			NumExtensions: 0,
+ 			NumServices:   0,
+ 		},
+diff --git a/chasm/lib/scheduler2/generator.go b/chasm/lib/scheduler2/generator.go
+index 078ac80ba..2e2751e74 100644
+--- a/chasm/lib/scheduler2/generator.go
++++ b/chasm/lib/scheduler2/generator.go
+@@ -87,6 +87,18 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
+ 	if err := checkWorkWakeToken(s.Coordination, now); err != nil {
+ 		return err
+ 	}
++	atNano, err := activityNano(now)
++	if err != nil {
++		return err
++	}
++	preview := s.stateFor(ctx, "")
++	if !preview.Root.ActivitySet || atNano > preview.Root.ActivityAt {
++		preview.Root.ActivityAt = atNano
++	}
++	preview.Root.ActivitySet = true
++	if _, _, err := s.checkIdlePlan(preview, encodeContinuation(state), true, len(s.Backfills) > 0); err != nil {
++		return err
++	}
+ 	if g == nil {
+ 		g = &Generator{GeneratorState: &scheduler2pb.GeneratorState{}}
+ 		s.Generator = chasm.NewComponentField(ctx, g)
+@@ -96,6 +108,7 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
+ 	g.CatchupWindow = int64(config.CatchupWindow)
+ 	g.Superseded = encodeCandidate(superseded)
+ 	g.LastStatus = scheduler2pb.ENUMERATION_STATUS_ACTIVE
++	s.ActivitySet, s.ActivityAt = preview.Root.ActivitySet, preview.Root.ActivityAt
+ 	s.HasGenerator = true
+ 	s.Revision = config.Revision
+ 	s.Policy = config.Policy
+diff --git a/chasm/lib/scheduler2/internal/decision/buffer_test.go b/chasm/lib/scheduler2/internal/decision/buffer_test.go
+index c87962b74..551063ad0 100644
+--- a/chasm/lib/scheduler2/internal/decision/buffer_test.go
++++ b/chasm/lib/scheduler2/internal/decision/buffer_test.go
+@@ -109,7 +109,7 @@ func TestBufferProperties(t *testing.T) {
+ 	rapid.Check(t, func(rt *rapid.T) {
+ 		policy := enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL
+ 		budget := int64(4)
+-		var revision, cursor, started, dropped, now, deadline int64
++		var revision, cursor, started, dropped, now, deadline, activity int64
+ 		paused, counted := false, false
+ 		var queue []Queued
+ 		var operation, workflowID, chain string
+@@ -179,6 +179,7 @@ func TestBufferProperties(t *testing.T) {
+ 					phase = Ambiguous
+ 				}
+ 			case "update":
++				activity = now
+ 				revision++
+ 				policy = rapid.SampledFrom(policies).Draw(rt, "policy")
+ 				paused = rapid.Bool().Draw(rt, "paused")
+@@ -235,6 +236,13 @@ func TestBufferProperties(t *testing.T) {
+ 				expectedRoot.Unfinished = 1
+ 				expectedRoot.BlockingOperationID = operation
+ 			}
++			if revision > 0 {
++				expectedRoot.ActivitySet = true
++				expectedRoot.ActivityAt = activity
++			}
++			if phase == Pending || phase == Ambiguous {
++				expectedRoot.UnconfirmedStarts = 1
++			}
+ 			if state.Root != expectedRoot || !slices.Equal(queue, state.Queue) {
+ 				rt.Fatalf("buffer state after %s: root=%+v expected=%+v queue=%+v expected=%+v", command, state.Root, expectedRoot, state.Queue, queue)
+ 			}
+diff --git a/chasm/lib/scheduler2/internal/decision/completion_test.go b/chasm/lib/scheduler2/internal/decision/completion_test.go
+index d48f324c9..094c9ede4 100644
+--- a/chasm/lib/scheduler2/internal/decision/completion_test.go
++++ b/chasm/lib/scheduler2/internal/decision/completion_test.go
+@@ -57,6 +57,7 @@ func TestCompletionOutcomeMatrix(t *testing.T) {
+ 			expected.Operation.ChainID = "chain"
+ 			expected.Operation.Phase = Completed
+ 			expected.Root.Unfinished = 0
++			expected.Root.UnconfirmedStarts = 0
+ 			expected.Root.BlockingOperationID = ""
+ 			expected.Carryover = &tc.carryover
+ 			expected = detachedCompletionState(t, expected)
+@@ -117,6 +118,7 @@ func TestCurrentPausePolicyAtCompletion(t *testing.T) {
+ 			expected.Root.Started = 1
+ 			expected.Operation.Phase = Completed
+ 			expected.Root.Unfinished = 0
++			expected.Root.UnconfirmedStarts = 0
+ 			expected.Root.BlockingOperationID = ""
+ 			expected.Operation.ChainID = "chain"
+ 			require.Equal(t, expected, completed)
+diff --git a/chasm/lib/scheduler2/internal/decision/decision.go b/chasm/lib/scheduler2/internal/decision/decision.go
+index 405c1b750..82ae6178c 100644
+--- a/chasm/lib/scheduler2/internal/decision/decision.go
++++ b/chasm/lib/scheduler2/internal/decision/decision.go
+@@ -27,6 +27,9 @@ const (
+ )
+ 
+ type Root struct {
++	ActivitySet         bool
++	ActivityAt          int64
++	UnconfirmedStarts   int64
+ 	ManualSequence      uint64
+ 	Incarnation         string
+ 	Revision            int64
+@@ -46,19 +49,21 @@ type Root struct {
+ }
+ 
+ type Operation struct {
+-	BackfillID   uint64
+-	ManualID     uint64
+-	OccurrenceID string
+-	ActionID     string
+-	ID           string
+-	ChainID      string
+-	Nominal      int64
+-	Deadline     int64
+-	RetryAt      int64
+-	Phase        Phase
+-	Request      []byte
+-	WorkflowID   string
+-	Policy       enumspb.ScheduleOverlapPolicy
++	StartObserved   bool
++	StartObservedAt int64
++	BackfillID      uint64
++	ManualID        uint64
++	OccurrenceID    string
++	ActionID        string
++	ID              string
++	ChainID         string
++	Nominal         int64
++	Deadline        int64
++	RetryAt         int64
++	Phase           Phase
++	Request         []byte
++	WorkflowID      string
++	Policy          enumspb.ScheduleOverlapPolicy
+ }
+ 
+ type State struct {
+@@ -92,6 +97,8 @@ const (
+ )
+ 
+ type Event struct {
++	StartObserved   bool
++	StartObservedAt int64
+ 	BackfillID      uint64
+ 	Kind            Kind
+ 	Incarnation     string
+@@ -147,6 +154,7 @@ func Step(state State, event Event) (State, error) {
+ 	if err != nil {
+ 		return next, err
+ 	}
++	next = reconcileActivity(state, next, event)
+ 	next = reconcileEffects(next)
+ 	return BindEffects(next, next.Operation, event.Now)
+ }
+@@ -228,7 +236,10 @@ func update(next State, event Event) (State, error) {
+ 
+ func applyResult(next State, event Event) (State, error) {
+ 	op := next.Operation
+-	if op == nil || event.OperationID != op.ID || Terminal(op.Phase) {
++	if op == nil || event.OperationID != op.ID {
++		return next, nil
++	}
++	if Terminal(op.Phase) {
+ 		return next, nil
+ 	}
+ 	if event.ChainID != "" && op.ChainID != "" && event.ChainID != op.ChainID {
+diff --git a/chasm/lib/scheduler2/internal/decision/decision_test.go b/chasm/lib/scheduler2/internal/decision/decision_test.go
+index 7154b9266..9cce34f63 100644
+--- a/chasm/lib/scheduler2/internal/decision/decision_test.go
++++ b/chasm/lib/scheduler2/internal/decision/decision_test.go
+@@ -47,6 +47,7 @@ func TestAdmission(t *testing.T) {
+ 			want := State{Root: tc.want}
+ 			if tc.admitted {
+ 				want.Root.Unfinished = 1
++				want.Root.UnconfirmedStarts = 1
+ 				want.Root.BlockingOperationID = "inc/automatic/10/action/start"
+ 				want.Operation = &Operation{OccurrenceID: "automatic/10", ActionID: "inc/automatic/10/action", ID: "inc/automatic/10/action/start", Nominal: 10, Deadline: tc.now + RetryHorizon, RetryAt: tc.now, Phase: Pending, Request: []byte("request"), Policy: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP}
+ 			}
+diff --git a/chasm/lib/scheduler2/internal/decision/sequential_test.go b/chasm/lib/scheduler2/internal/decision/sequential_test.go
+index ac1bd6fc6..497328df8 100644
+--- a/chasm/lib/scheduler2/internal/decision/sequential_test.go
++++ b/chasm/lib/scheduler2/internal/decision/sequential_test.go
+@@ -88,6 +88,9 @@ func TestSequentialProperties(t *testing.T) {
+ 				expectedRoot.Unfinished = 1
+ 				expectedRoot.BlockingOperationID = operation
+ 			}
++			if phase == Pending || phase == Ambiguous {
++				expectedRoot.UnconfirmedStarts = 1
++			}
+ 			if state.Root != expectedRoot {
+ 				rt.Fatalf("root mismatch after %s: got %+v expected %+v", command, state.Root, expectedRoot)
+ 			}
+diff --git a/chasm/lib/scheduler2/library.go b/chasm/lib/scheduler2/library.go
+index 2a9b1e337..b00ed3623 100644
+--- a/chasm/lib/scheduler2/library.go
++++ b/chasm/lib/scheduler2/library.go
+@@ -23,5 +23,5 @@ func (*Library) Components() []*chasm.RegistrableComponent {
+ 	}
+ }
+ func (l *Library) Tasks() []*chasm.RegistrableTask {
+-	return []*chasm.RegistrableTask{chasm.NewRegistrablePureTask("work", &WorkHandler{}), chasm.NewRegistrableSideEffectTask("start", l.start), chasm.NewRegistrableSideEffectTask("effect", l.effects), chasm.NewRegistrablePureTask("generate", &GenerateHandler{}), chasm.NewRegistrablePureTask("drain", &DrainHandler{}), chasm.NewRegistrablePureTask("manual", &ManualHandler{})}
++	return []*chasm.RegistrableTask{chasm.NewRegistrablePureTask("idle", &IdleHandler{}), chasm.NewRegistrablePureTask("work", &WorkHandler{}), chasm.NewRegistrableSideEffectTask("start", l.start), chasm.NewRegistrableSideEffectTask("effect", l.effects), chasm.NewRegistrablePureTask("generate", &GenerateHandler{}), chasm.NewRegistrablePureTask("drain", &DrainHandler{}), chasm.NewRegistrablePureTask("manual", &ManualHandler{})}
+ }
+diff --git a/chasm/lib/scheduler2/lifecycle.go b/chasm/lib/scheduler2/lifecycle.go
+index c0d370db7..2af943eb5 100644
+--- a/chasm/lib/scheduler2/lifecycle.go
++++ b/chasm/lib/scheduler2/lifecycle.go
+@@ -22,6 +22,7 @@ func (s *Scheduler) Close(_ chasm.MutableContext) error {
+ 		return nil
+ 	}
+ 	s.Closed = true
++	s.IdleArmed = false
+ 	if s.Coordination != nil {
+ 		s.Coordination = common.CloneProto(s.Coordination)
+ 		s.Coordination.Armed = false
+diff --git a/chasm/lib/scheduler2/proto/v1/state.proto b/chasm/lib/scheduler2/proto/v1/state.proto
+index 74209861b..085f60de7 100644
+--- a/chasm/lib/scheduler2/proto/v1/state.proto
++++ b/chasm/lib/scheduler2/proto/v1/state.proto
+@@ -76,6 +76,20 @@ message RootState {
+   uint64 last_backfill = 33;
+   // Closed revokes scheduling authority while retaining historical state.
+   bool closed = 34;
++  // ActivitySet distinguishes an observed zero timestamp from no anchor.
++  bool activity_set = 35;
++  // ActivityAt is the monotonic execution-clock activity anchor.
++  int64 activity_at = 36;
++  // UnconfirmedStarts counts Pending and Ambiguous operation intents.
++  int64 unconfirmed_starts = 37;
++  // IdleDuration is the configured inactivity retention in nanoseconds; zero disables it.
++  int64 idle_duration = 38;
++  // IdleToken fences the current idle-close obligation.
++  uint64 idle_token = 39;
++  // IdleArmed indicates a published idle-close obligation.
++  bool idle_armed = 40;
++  // IdleAt is the exact execution-clock idle deadline.
++  int64 idle_at = 41;
+ }
+ 
+ // Phase distinguishes an operation's durable progress from delivery attempts.
+@@ -115,6 +129,10 @@ message OperationState {
+   uint64 manual_id = 11;
+   // BackfillId distinguishes a range occurrence from a manual trigger.
+   uint64 backfill_id = 12;
++  // StartObserved records the first matching successful RPC observation.
++  bool start_observed = 13;
++  // StartObservedAt is wall observation plus the issuance snapshot skipped duration.
++  int64 start_observed_at = 14;
+ }
+ 
+ // Payload keeps large values on a separately loaded node.
+@@ -343,3 +361,9 @@ message BackfillState {
+  // Continuation retains search, disposition and pending candidate separately.
+  OccurrenceContinuation continuation = 5;
+ }
++
++// IdleTask checks the current idle-close token and deadline.
++message IdleTask {
++  // Token identifies the published idle obligation.
++  uint64 token = 1;
++}
+diff --git a/chasm/lib/scheduler2/tasks.go b/chasm/lib/scheduler2/tasks.go
+index 375077197..ab52308cf 100644
+--- a/chasm/lib/scheduler2/tasks.go
++++ b/chasm/lib/scheduler2/tasks.go
+@@ -2,6 +2,7 @@ package scheduler2
+ 
+ import (
+ 	"context"
++	"time"
+ 
+ 	"go.temporal.io/api/serviceerror"
+ 	"go.temporal.io/api/workflowservice/v1"
+@@ -13,13 +14,16 @@ import (
+ // StartHandler issues the cloned request outside the execution lock.
+ type StartHandler struct {
+ 	chasm.SideEffectTaskHandlerBase[*scheduler2pb.StartTask]
+-	start  func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)
+-	permit chan struct{}
++	start   func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)
++	permit  chan struct{}
++	wallNow func() time.Time
+ }
+ 
+ // NewStartHandler bounds concurrent local issuance to one RPC.
+ func NewStartHandler(start func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)) *StartHandler {
+-	return &StartHandler{start: start, permit: make(chan struct{}, 1)}
++	// The RPC runs outside a CHASM transaction. Its observation clock is converted
++	// to execution time using the issuance snapshot, as in the reference scheduler.
++	return &StartHandler{start: start, permit: make(chan struct{}, 1), wallNow: time.Now} //nolint:forbidigo // Post-RPC wall observation plus captured skipped duration reconstructs execution time.
+ }
+ 
+ func (*StartHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.StartTask) (bool, error) {
+@@ -40,21 +44,26 @@ func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ ch
+ 	if err := ctx.Err(); err != nil {
+ 		return err
+ 	}
+-	request, err := chasm.ReadComponent(ctx, ref, (*Scheduler).request, task.OperationId)
++	snapshot, err := chasm.ReadComponent(ctx, ref, (*Scheduler).startSnapshot, task.OperationId)
+ 	if err != nil {
+ 		return err
+ 	}
+ 	event := decision.Event{Kind: decision.Expire, Incarnation: ref.RunID, OperationID: task.OperationId}
+-	if request != nil {
++	if snapshot.request != nil {
+ 		if err := ctx.Err(); err != nil {
+ 			return err
+ 		}
+-		chain, startErr := h.start(ctx, request)
++		chain, startErr := h.start(ctx, snapshot.request)
+ 		if startErr != nil {
+ 			event.Kind = decision.RetryableFailure
+ 		} else {
+ 			event.Kind = decision.Acknowledged
+ 			event.ChainID = chain
++			event.StartObservedAt, err = activityNano(h.wallNow().Add(snapshot.skipped))
++			if err != nil {
++				return err
++			}
++			event.StartObserved = true
+ 		}
+ 	}
+ 	// Task validity can change while the RPC is in flight. Merge against the same
+diff --git a/docs/development/scheduler2/run.py b/docs/development/scheduler2/run.py
+index 88fb6f87a..8a857c01f 100644
+--- a/docs/development/scheduler2/run.py
++++ b/docs/development/scheduler2/run.py
+@@ -11,7 +11,7 @@ import time
+ 
+ ROOT = Path(__file__).resolve().parents[3]
+ HERE = Path(__file__).resolve().parent
+-PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model", "manual", "manual-model", "backfill-range", "backfill", "backfill-model")
++PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model", "manual", "manual-model", "backfill-range", "backfill", "backfill-model", "lifecycle", "lifecycle-model")
+ 
+ 
+ def git(*args):
+@@ -36,6 +36,8 @@ def main():
+     events = 17 if args.profile == "completion" else (128 if args.profile in ("sequential", "buffer", "allowall", "effects", "manual") or args.exploration else 32)
+     commands = {
+         "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Independent|Task)", "-v"]],
++        "lifecycle": [common + [package, package + "/internal/decision", "-run", "Test(Activity|Idle|Lifecycle)", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
++        "lifecycle-model": [[sys.executable, str(HERE / "model/lifecycle/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],
+         "backfill": [common + [package, package + "/internal/decision", "-run", "Test(Coordinator|Backfill)", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+         "backfill-model": [[sys.executable, str(HERE / "model/backfill/run.py"), "--fizz", args.fizz, "--output", str(output / "model")], [sys.executable, str(HERE / "model/backfill/run_capacity.py"), "--fizz", args.fizz, "--output", str(output / "capacity")]],
+         "backfill-range": [common + [package + "/internal/occurrence", "-run", "TestBackfillRange", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+diff --git a/service/history/chasm_engine_scheduler2_test.go b/service/history/chasm_engine_scheduler2_test.go
+index c93fc195d..f72b914b0 100644
+--- a/service/history/chasm_engine_scheduler2_test.go
++++ b/service/history/chasm_engine_scheduler2_test.go
+@@ -99,8 +99,7 @@ func (s *chasmEngineSuite) TestScheduler2DeleteRecreateFencesInFlightStart() {
+ 	key := chasm.ExecutionKey{NamespaceID: string(tests.NamespaceID), BusinessID: tv.WorkflowID()}
+ 	create := func() chasm.StartExecutionResult {
+ 		result, err := s.engine.StartExecution(ctx, chasm.NewComponentRef[*scheduler2.Scheduler](key), func(cc chasm.MutableContext) (chasm.RootComponent, error) {
+-			root := scheduler2.New(cc.ExecutionKey().RunID, 10)
+-			return root, nil
++			return scheduler2.NewExecution(cc, 10)
+ 		}, chasm.WithBusinessIDPolicy(chasm.BusinessIDReusePolicyAllowDuplicate, chasm.BusinessIDConflictPolicyFail))
+ 		s.Require().NoError(err)
+ 		s.Require().True(result.Created)

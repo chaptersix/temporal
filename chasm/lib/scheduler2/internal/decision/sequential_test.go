@@ -88,6 +88,9 @@ func TestSequentialProperties(t *testing.T) {
 				expectedRoot.Unfinished = 1
 				expectedRoot.BlockingOperationID = operation
 			}
+			if phase == Pending || phase == Ambiguous {
+				expectedRoot.UnconfirmedStarts = 1
+			}
 			if state.Root != expectedRoot {
 				rt.Fatalf("root mismatch after %s: got %+v expected %+v", command, state.Root, expectedRoot)
 			}

@@ -1,0 +1,12 @@
+=== RUN   TestChasmEngineSuite
+=== RUN   TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect
+2026-11-11T15:50:34.890-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/shard/task_key_generator.go:155"}
+2026-11-11T15:50:34.905-0600	info	Deleting CHASM execution	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect_workflow_id", "wf-run-id": "01a1cc97-5f8b-761e-b150-a13e565fad0e", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:730"}
+=== RUN   TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart
+2026-11-11T15:50:34.946-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/shard/task_key_generator.go:155"}
+2026-11-11T15:50:34.950-0600	info	Deleting CHASM execution	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart_workflow_id", "wf-run-id": "01a1cc97-5fc3-71ec-b274-fb732ea2a664", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:730"}
+--- PASS: TestChasmEngineSuite (0.10s)
+    --- PASS: TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect (0.06s)
+    --- PASS: TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart (0.04s)
+PASS
+ok  	go.temporal.io/server/service/history	2.066s

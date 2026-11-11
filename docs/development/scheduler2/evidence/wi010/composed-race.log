@@ -1,0 +1,30 @@
+=== RUN   TestIdleObligationsManualQueueAndUpdate
+=== PAUSE TestIdleObligationsManualQueueAndUpdate
+=== RUN   TestIdleObligationsBackfillDefinitionReplacement
+=== PAUSE TestIdleObligationsBackfillDefinitionReplacement
+=== RUN   TestIdleObligationsEffectCompletionAndDrain
+=== PAUSE TestIdleObligationsEffectCompletionAndDrain
+=== RUN   TestIdleObligationsOpenSelectivePayloadLoading
+=== PAUSE TestIdleObligationsOpenSelectivePayloadLoading
+=== RUN   TestLifecycleSavedReplay
+=== PAUSE TestLifecycleSavedReplay
+=== CONT  TestIdleObligationsBackfillDefinitionReplacement
+=== CONT  TestIdleObligationsOpenSelectivePayloadLoading
+=== CONT  TestIdleObligationsEffectCompletionAndDrain
+=== CONT  TestIdleObligationsManualQueueAndUpdate
+--- PASS: TestIdleObligationsOpenSelectivePayloadLoading (0.02s)
+=== CONT  TestLifecycleSavedReplay
+=== RUN   TestLifecycleSavedReplay/testdata/lifecycle_v1.json
+=== PAUSE TestLifecycleSavedReplay/testdata/lifecycle_v1.json
+=== RUN   TestLifecycleSavedReplay/testdata/lifecycle_late_observation_v1.json
+=== PAUSE TestLifecycleSavedReplay/testdata/lifecycle_late_observation_v1.json
+=== CONT  TestLifecycleSavedReplay/testdata/lifecycle_late_observation_v1.json
+--- PASS: TestIdleObligationsBackfillDefinitionReplacement (0.03s)
+=== CONT  TestLifecycleSavedReplay/testdata/lifecycle_v1.json
+--- PASS: TestIdleObligationsManualQueueAndUpdate (0.04s)
+--- PASS: TestIdleObligationsEffectCompletionAndDrain (0.04s)
+--- PASS: TestLifecycleSavedReplay (0.00s)
+    --- PASS: TestLifecycleSavedReplay/testdata/lifecycle_v1.json (0.05s)
+    --- PASS: TestLifecycleSavedReplay/testdata/lifecycle_late_observation_v1.json (0.07s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	1.914s

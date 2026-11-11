@@ -1,0 +1,44 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 11.440458ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (exports_file|files|imports|compiled_files|deps|name|types_sizes) took 2.5955385s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 25.605792ms"
+level=info msg="[linters_context/goanalysis] analyzers took 12.398658331s with top 10 stages: goimports: 2.868650708s, revive: 1.785266542s, gci: 789.952792ms, testifylint: 743.600374ms, forbidigo: 649.618417ms, S1038: 438.156542ms, buildir: 358.254281ms, QF1010: 336.485457ms, nilness: 270.753708ms, SA1007: 202.881458ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 5 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 153 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 4 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 86 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 29 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 48 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 2 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner] Issues before processing: 631, after processing: 1"
+level=info msg="[runner] Processors filtering stat (in/out): max_from_linter: 1/1, source_code: 1/1, path_shortener: 1/1, path_absoluter: 631/631, invalid_issue: 631/631, exclusion_rules: 630/300, fixer: 1/1, severity-rules: 1/1, sort_results: 1/1, cgo: 631/631, generated_file_filter: 631/630, nolint_filter: 300/289, max_same_issues: 1/1, path_prettifier: 1/1, diff: 289/1, filename_unadjuster: 631/631, path_relativity: 631/631, exclusion_paths: 631/631, uniq_by_line: 1/1, max_per_file_from_linter: 1/1"
+level=info msg="[runner] processing took 105.672002ms with stages: diff: 75.466751ms, nolint_filter: 26.679626ms, generated_file_filter: 1.64675ms, exclusion_rules: 1.321625ms, path_relativity: 277.292µs, exclusion_paths: 115.708µs, cgo: 56.625µs, path_absoluter: 44.667µs, source_code: 32.875µs, invalid_issue: 19.542µs, filename_unadjuster: 4.709µs, uniq_by_line: 2.792µs, max_same_issues: 916ns, sort_results: 708ns, path_shortener: 584ns, fixer: 291ns, path_prettifier: 209ns, max_per_file_from_linter: 208ns, max_from_linter: 82ns, severity-rules: 42ns"
+level=info msg="[runner] linters took 3.636414083s with stages: goanalysis_metalinter: 3.530643458s"
+../chasm/lib/scheduler2/idle_retention_test.go:132:2: epoch-naming: var observed should have one of these suffixes: Nano, Ns (revive)
+	observed := now.Add(5 * time.Second).UnixNano()
+	^
+1 issues:
+* revive: 1
+level=info msg="File cache stats: 1 entries of total size 5.3KiB"
+level=info msg="Memory: 63 samples, avg is 749.4MB, max is 1932.6MB"
+level=info msg="Execution took 6.297958583s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

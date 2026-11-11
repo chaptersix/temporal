@@ -1,0 +1,76 @@
+=== RUN   TestChasmEngineSuite
+=== RUN   TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect
+2026-11-11T15:54:11.411-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/shard/task_key_generator.go:155"}
+2026-11-11T15:54:11.427-0600	info	Deleting CHASM execution	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect_workflow_id", "wf-run-id": "01a1cc9a-ad54-7bd3-804c-ea49bd2574c5", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:730"}
+2026-11-11T15:54:11.427-0600	error	Update workflow execution operation failed.	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect_workflow_id", "wf-run-id": "01a1cc9a-ad54-7bd3-804c-ea49bd2574c5", "store-operation": "update-wf-execution", "error": "injected delete persistence rejection", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:528"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-lifecycle/common/log/zap_logger.go:191
+go.temporal.io/server/service/history/workflow.updateWorkflowExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:528
+go.temporal.io/server/service/history/workflow.(*TransactionImpl).UpdateWorkflowExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:185
+go.temporal.io/server/service/history/workflow.(*ContextImpl).executeWorkflowTransaction
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:1099
+go.temporal.io/server/service/history/workflow.(*ContextImpl).updateWorkflowExecutionWithNew
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:984
+go.temporal.io/server/service/history/workflow.(*ContextImpl).UpdateWorkflowExecutionWithNew
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:931
+go.temporal.io/server/service/history/workflow.(*ContextImpl).UpdateWorkflowExecutionAsActive
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:779
+go.temporal.io/server/service/history.(*ChasmEngine).deleteExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:762
+go.temporal.io/server/service/history.(*ChasmEngine).DeleteExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:705
+go.temporal.io/server/service/history.(*chasmEngineSuite).scheduler2DeleteRecreateFences
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:254
+go.temporal.io/server/service/history.(*chasmEngineSuite).TestScheduler2DeleteRecreateFencesInFlightEffect
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:35
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T15:54:11.450-0600	info	Deleting CHASM execution	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect_workflow_id", "wf-run-id": "01a1cc9a-ad54-7bd3-804c-ea49bd2574c5", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:730"}
+=== RUN   TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart
+2026-11-11T15:54:11.504-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/shard/task_key_generator.go:155"}
+2026-11-11T15:54:11.508-0600	info	Deleting CHASM execution	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart_workflow_id", "wf-run-id": "01a1cc9a-adb0-7f1f-ba87-b9984e27a639", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:730"}
+2026-11-11T15:54:11.508-0600	error	Update workflow execution operation failed.	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart_workflow_id", "wf-run-id": "01a1cc9a-adb0-7f1f-ba87-b9984e27a639", "store-operation": "update-wf-execution", "error": "injected delete persistence rejection", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:528"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-lifecycle/common/log/zap_logger.go:191
+go.temporal.io/server/service/history/workflow.updateWorkflowExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:528
+go.temporal.io/server/service/history/workflow.(*TransactionImpl).UpdateWorkflowExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:185
+go.temporal.io/server/service/history/workflow.(*ContextImpl).executeWorkflowTransaction
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:1099
+go.temporal.io/server/service/history/workflow.(*ContextImpl).updateWorkflowExecutionWithNew
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:984
+go.temporal.io/server/service/history/workflow.(*ContextImpl).UpdateWorkflowExecutionWithNew
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:931
+go.temporal.io/server/service/history/workflow.(*ContextImpl).UpdateWorkflowExecutionAsActive
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:779
+go.temporal.io/server/service/history.(*ChasmEngine).deleteExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:762
+go.temporal.io/server/service/history.(*ChasmEngine).DeleteExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:705
+go.temporal.io/server/service/history.(*chasmEngineSuite).scheduler2DeleteRecreateFences
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:254
+go.temporal.io/server/service/history.(*chasmEngineSuite).TestScheduler2DeleteRecreateFencesInFlightStart
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:31
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T15:54:11.524-0600	info	Deleting CHASM execution	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart_workflow_id", "wf-run-id": "01a1cc9a-adb0-7f1f-ba87-b9984e27a639", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:730"}
+--- PASS: TestChasmEngineSuite (0.17s)
+    --- PASS: TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect (0.09s)
+    --- PASS: TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart (0.07s)
+PASS
+ok  	go.temporal.io/server/service/history	2.467s

@@ -1,0 +1,65 @@
+{
+  "source_sha": "bea4b6547f369632edd7448dbecb8ef5d15d528f",
+  "results": [
+    {
+      "mutation": "anchor-overwrites-high-water",
+      "path": "chasm/lib/scheduler2/internal/decision/activity.go",
+      "test": "TestActivityControlAndRollbackClock",
+      "original_sha256": "bbdd2f6d979cc930377e01ce5f11f6dae32071a2b113fc05ec08328979a8da57",
+      "mutant_sha256": "e67fa98ad9d9e54880c6038580fc30f243d4b9478f846acb69909fe2809fce2a",
+      "old": "if !root.ActivitySet || at > root.ActivityAt {",
+      "new": "if true {",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2/internal/decision",
+        "-run",
+        "^TestActivityControlAndRollbackClock$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "detected": true,
+      "restored_sha256": "bbdd2f6d979cc930377e01ce5f11f6dae32071a2b113fc05ec08328979a8da57",
+      "restored": true
+    },
+    {
+      "mutation": "duplicate-observation-refreshes",
+      "path": "chasm/lib/scheduler2/internal/decision/activity.go",
+      "test": "TestActivityTerminalObservation",
+      "original_sha256": "bbdd2f6d979cc930377e01ce5f11f6dae32071a2b113fc05ec08328979a8da57",
+      "mutant_sha256": "e610d751531838c37d00301b7ab20855a23887a229111c78a93f79f4832491bd",
+      "old": "event.ChainID == op.ChainID && !op.StartObserved {",
+      "new": "event.ChainID == op.ChainID {",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2/internal/decision",
+        "-run",
+        "^TestActivityTerminalObservation$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "detected": true,
+      "restored_sha256": "bbdd2f6d979cc930377e01ce5f11f6dae32071a2b113fc05ec08328979a8da57",
+      "restored": true
+    }
+  ]
+}

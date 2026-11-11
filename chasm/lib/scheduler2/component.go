@@ -40,6 +40,7 @@ func (s *Scheduler) state(ctx chasm.Context) decision.State {
 
 func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.State {
 	state := decision.State{Root: decision.Root{
+		ActivitySet: s.ActivitySet, ActivityAt: s.ActivityAt, UnconfirmedStarts: s.UnconfirmedStarts,
 		ManualSequence: s.ManualSequence, Incarnation: s.Incarnation, Revision: s.Revision, Cursor: s.Cursor,
 		Paused: s.Paused, Limited: s.Limited, Remaining: s.Remaining, Started: s.Started,
 		CarryoverSet: s.CarryoverSet, PauseOnFailure: s.PauseOnFailure, Policy: s.Policy, BufferDropped: s.BufferDropped,
@@ -57,6 +58,7 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.Sta
 	if field, ok := s.Operations[operationID]; ok {
 		op := field.Get(ctx)
 		state.Operation = &decision.Operation{
+			StartObserved: op.StartObserved, StartObservedAt: op.StartObservedAt,
 			OccurrenceID: op.OccurrenceId, ActionID: op.ActionId, ID: op.Id,
 			ChainID: op.ChainId, Nominal: op.Nominal, Deadline: op.Deadline,
 			BackfillID: op.BackfillId, ManualID: op.ManualId, RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId, Policy: op.Policy,
@@ -104,7 +106,11 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 	if event.Incarnation != s.Incarnation {
 		return nil
 	}
-	event.Now = ctx.Now(s).UnixNano()
+	now := ctx.Now(s)
+	if !time.Unix(0, now.UnixNano()).Equal(now) {
+		return serviceerror.NewInvalidArgument("execution time exceeds nanosecond range")
+	}
+	event.Now = now.UnixNano()
 	operationID := event.OperationID
 	if admissionEvent(event.Kind) || event.Kind == decision.Update {
 		operationID = s.OperationId
@@ -139,6 +145,9 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 		return serviceerror.NewFailedPrecondition("buffering requires a configured template")
 	}
 	if err := s.checkNextWorkToken(ctx, next); err != nil {
+		return err
+	}
+	if err := s.checkNextIdle(ctx, next); err != nil {
 		return err
 	}
 	eviction, err := s.retentionEviction(ctx, before, next)
@@ -176,6 +185,8 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 	}
 	previousRoot := s.RootState
 	s.RootState = &scheduler2pb.RootState{
+		ActivitySet: next.Root.ActivitySet, ActivityAt: next.Root.ActivityAt, UnconfirmedStarts: next.Root.UnconfirmedStarts,
+		IdleDuration: previousRoot.IdleDuration, IdleToken: previousRoot.IdleToken, IdleArmed: previousRoot.IdleArmed, IdleAt: previousRoot.IdleAt,
 		Closed: previousRoot.Closed, Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
 		ManualSequence: next.Root.ManualSequence, ManualToken: manualToken, ManualArmed: manualArmed, ManualAt: manualAt,
 		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
@@ -198,6 +209,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 			s.OperationId = op.ID
 		}
 		metadata := &scheduler2pb.OperationState{
+			StartObserved: op.StartObserved, StartObservedAt: op.StartObservedAt,
 			OccurrenceId: op.OccurrenceID, ActionId: op.ActionID, Id: op.ID, ChainId: op.ChainID,
 			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy, ManualId: op.ManualID, BackfillId: op.BackfillID,
 		}

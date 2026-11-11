@@ -87,6 +87,18 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 	if err := checkWorkWakeToken(s.Coordination, now); err != nil {
 		return err
 	}
+	atNano, err := activityNano(now)
+	if err != nil {
+		return err
+	}
+	preview := s.stateFor(ctx, "")
+	if !preview.Root.ActivitySet || atNano > preview.Root.ActivityAt {
+		preview.Root.ActivityAt = atNano
+	}
+	preview.Root.ActivitySet = true
+	if _, _, err := s.checkIdlePlan(preview, encodeContinuation(state), true, len(s.Backfills) > 0); err != nil {
+		return err
+	}
 	if g == nil {
 		g = &Generator{GeneratorState: &scheduler2pb.GeneratorState{}}
 		s.Generator = chasm.NewComponentField(ctx, g)
@@ -96,6 +108,7 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 	g.CatchupWindow = int64(config.CatchupWindow)
 	g.Superseded = encodeCandidate(superseded)
 	g.LastStatus = scheduler2pb.ENUMERATION_STATUS_ACTIVE
+	s.ActivitySet, s.ActivityAt = preview.Root.ActivitySet, preview.Root.ActivityAt
 	s.HasGenerator = true
 	s.Revision = config.Revision
 	s.Policy = config.Policy

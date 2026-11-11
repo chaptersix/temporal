@@ -109,7 +109,7 @@ func TestBufferProperties(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		policy := enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL
 		budget := int64(4)
-		var revision, cursor, started, dropped, now, deadline int64
+		var revision, cursor, started, dropped, now, deadline, activity int64
 		paused, counted := false, false
 		var queue []Queued
 		var operation, workflowID, chain string
@@ -179,6 +179,7 @@ func TestBufferProperties(t *testing.T) {
 					phase = Ambiguous
 				}
 			case "update":
+				activity = now
 				revision++
 				policy = rapid.SampledFrom(policies).Draw(rt, "policy")
 				paused = rapid.Bool().Draw(rt, "paused")
@@ -234,6 +235,13 @@ func TestBufferProperties(t *testing.T) {
 			if operation != "" && phase != Completed {
 				expectedRoot.Unfinished = 1
 				expectedRoot.BlockingOperationID = operation
+			}
+			if revision > 0 {
+				expectedRoot.ActivitySet = true
+				expectedRoot.ActivityAt = activity
+			}
+			if phase == Pending || phase == Ambiguous {
+				expectedRoot.UnconfirmedStarts = 1
 			}
 			if state.Root != expectedRoot || !slices.Equal(queue, state.Queue) {
 				rt.Fatalf("buffer state after %s: root=%+v expected=%+v queue=%+v expected=%+v", command, state.Root, expectedRoot, state.Queue, queue)

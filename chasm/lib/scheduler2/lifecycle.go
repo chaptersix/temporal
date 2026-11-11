@@ -22,6 +22,7 @@ func (s *Scheduler) Close(_ chasm.MutableContext) error {
 		return nil
 	}
 	s.Closed = true
+	s.IdleArmed = false
 	if s.Coordination != nil {
 		s.Coordination = common.CloneProto(s.Coordination)
 		s.Coordination.Armed = false

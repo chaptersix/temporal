@@ -1,0 +1,153 @@
+=== RUN   TestChasmEngineSuite
+=== RUN   TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect
+2026-11-11T15:52:58.471-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/shard/task_key_generator.go:155"}
+2026-11-11T15:52:58.486-0600	info	Deleting CHASM execution	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect_workflow_id", "wf-run-id": "01a1cc99-9068-717a-84d1-1c47dc92ed94", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:730"}
+2026-11-11T15:52:58.486-0600	info	none	{"lifecycle": "Started", "component": "shard-context", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/shard/context_impl.go:1830"}
+2026-11-11T15:52:58.486-0600	error	Update workflow execution operation failed.	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect_workflow_id", "wf-run-id": "01a1cc99-9068-717a-84d1-1c47dc92ed94", "store-operation": "update-wf-execution", "error": "injected delete persistence failure", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:528"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-lifecycle/common/log/zap_logger.go:191
+go.temporal.io/server/service/history/workflow.updateWorkflowExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:528
+go.temporal.io/server/service/history/workflow.(*TransactionImpl).UpdateWorkflowExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:185
+go.temporal.io/server/service/history/workflow.(*ContextImpl).executeWorkflowTransaction
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:1099
+go.temporal.io/server/service/history/workflow.(*ContextImpl).updateWorkflowExecutionWithNew
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:984
+go.temporal.io/server/service/history/workflow.(*ContextImpl).UpdateWorkflowExecutionWithNew
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:931
+go.temporal.io/server/service/history/workflow.(*ContextImpl).UpdateWorkflowExecutionAsActive
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:779
+go.temporal.io/server/service/history.(*ChasmEngine).deleteExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:762
+go.temporal.io/server/service/history.(*ChasmEngine).DeleteExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:705
+go.temporal.io/server/service/history.(*chasmEngineSuite).scheduler2DeleteRecreateFences
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:251
+go.temporal.io/server/service/history.(*chasmEngineSuite).TestScheduler2DeleteRecreateFencesInFlightEffect
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:35
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+    context_impl.go:1291: Unexpected call to *persistence.MockShardManager.UpdateShard([context.Background.WithCancel.WithDeadline(2026-11-11 15:53:03.486753 -0600 CST m=+5.084449168 [4.999944292s]).WithValue(metadata.mdIncomingKey, metadata.MD) &{shard_id:1  range_id:2  stolen_since_renew:1 1}]) at /private/tmp/sch-redesign-lifecycle/service/history/shard/context_impl.go:1291 because: there are no expected calls of the method "UpdateShard" for that receiver
+2026-11-11T15:52:58.507-0600	error	Persistent fetch operation Failure	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect_workflow_id", "wf-run-id": "01a1cc99-9068-717a-84d1-1c47dc92ed94", "store-operation": "get-wf-execution", "error": "shard status unknown", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:492"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-lifecycle/common/log/zap_logger.go:191
+go.temporal.io/server/service/history/workflow.getWorkflowExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:492
+go.temporal.io/server/service/history/workflow.(*ContextImpl).LoadMutableState
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:461
+go.temporal.io/server/service/history/api.(*WorkflowConsistencyCheckerImpl).getWorkflowLease
+	/private/tmp/sch-redesign-lifecycle/service/history/api/consistency_checker.go:298
+go.temporal.io/server/service/history/api.(*WorkflowConsistencyCheckerImpl).getWorkflowLeaseImpl
+	/private/tmp/sch-redesign-lifecycle/service/history/api/consistency_checker.go:188
+go.temporal.io/server/service/history/api.(*WorkflowConsistencyCheckerImpl).GetChasmLeaseWithConsistencyCheck
+	/private/tmp/sch-redesign-lifecycle/service/history/api/consistency_checker.go:172
+go.temporal.io/server/service/history.(*ChasmEngine).getExecutionLease
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:1454
+go.temporal.io/server/service/history.(*ChasmEngine).readComponent
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:797
+go.temporal.io/server/service/history.(*ChasmEngine).ReadComponent
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:789
+go.temporal.io/server/service/history.(*chasmEngineSuite).scheduler2DeleteRecreateFences
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:258
+go.temporal.io/server/service/history.(*chasmEngineSuite).TestScheduler2DeleteRecreateFencesInFlightEffect
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:35
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+    chasm_engine_scheduler2_test.go:258: 
+        	Error Trace:	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:258
+        	            				/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:35
+        	Error:      	Received unexpected error:
+        	            	shard status unknown
+        	Test:       	TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect
+=== RUN   TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart
+2026-11-11T15:52:58.507-0600	info	Task key range updated	{"number": 1048576, "next-number": 2097152, "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/shard/task_key_generator.go:155"}
+2026-11-11T15:52:58.511-0600	info	Deleting CHASM execution	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart_workflow_id", "wf-run-id": "01a1cc99-908c-7426-b955-edc0ceccfab5", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:730"}
+2026-11-11T15:52:58.511-0600	info	none	{"lifecycle": "Started", "component": "shard-context", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/shard/context_impl.go:1830"}
+2026-11-11T15:52:58.511-0600	error	Update workflow execution operation failed.	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart_workflow_id", "wf-run-id": "01a1cc99-908c-7426-b955-edc0ceccfab5", "store-operation": "update-wf-execution", "error": "injected delete persistence failure", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:528"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-lifecycle/common/log/zap_logger.go:191
+go.temporal.io/server/service/history/workflow.updateWorkflowExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:528
+go.temporal.io/server/service/history/workflow.(*TransactionImpl).UpdateWorkflowExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:185
+go.temporal.io/server/service/history/workflow.(*ContextImpl).executeWorkflowTransaction
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:1099
+go.temporal.io/server/service/history/workflow.(*ContextImpl).updateWorkflowExecutionWithNew
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:984
+go.temporal.io/server/service/history/workflow.(*ContextImpl).UpdateWorkflowExecutionWithNew
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:931
+go.temporal.io/server/service/history/workflow.(*ContextImpl).UpdateWorkflowExecutionAsActive
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:779
+go.temporal.io/server/service/history.(*ChasmEngine).deleteExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:762
+go.temporal.io/server/service/history.(*ChasmEngine).DeleteExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:705
+go.temporal.io/server/service/history.(*chasmEngineSuite).scheduler2DeleteRecreateFences
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:251
+go.temporal.io/server/service/history.(*chasmEngineSuite).TestScheduler2DeleteRecreateFencesInFlightStart
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:31
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+    context_impl.go:1291: Unexpected call to *persistence.MockShardManager.UpdateShard([context.Background.WithCancel.WithDeadline(2026-11-11 15:53:03.511498 -0600 CST m=+5.109197876 [4.999974333s]).WithValue(metadata.mdIncomingKey, metadata.MD) &{shard_id:1  range_id:2  stolen_since_renew:1 1}]) at /private/tmp/sch-redesign-lifecycle/service/history/shard/context_impl.go:1291 because: there are no expected calls of the method "UpdateShard" for that receiver
+2026-11-11T15:52:58.526-0600	error	Persistent fetch operation Failure	{"wf-namespace-id": "deadbeef-0123-4567-890a-bcdef0123456", "wf-id": "TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart_workflow_id", "wf-run-id": "01a1cc99-908c-7426-b955-edc0ceccfab5", "store-operation": "get-wf-execution", "error": "shard status unknown", "logging-call-at": "/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:492"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-lifecycle/common/log/zap_logger.go:191
+go.temporal.io/server/service/history/workflow.getWorkflowExecution
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/transaction_impl.go:492
+go.temporal.io/server/service/history/workflow.(*ContextImpl).LoadMutableState
+	/private/tmp/sch-redesign-lifecycle/service/history/workflow/context.go:461
+go.temporal.io/server/service/history/api.(*WorkflowConsistencyCheckerImpl).getWorkflowLease
+	/private/tmp/sch-redesign-lifecycle/service/history/api/consistency_checker.go:298
+go.temporal.io/server/service/history/api.(*WorkflowConsistencyCheckerImpl).getWorkflowLeaseImpl
+	/private/tmp/sch-redesign-lifecycle/service/history/api/consistency_checker.go:188
+go.temporal.io/server/service/history/api.(*WorkflowConsistencyCheckerImpl).GetChasmLeaseWithConsistencyCheck
+	/private/tmp/sch-redesign-lifecycle/service/history/api/consistency_checker.go:172
+go.temporal.io/server/service/history.(*ChasmEngine).getExecutionLease
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:1454
+go.temporal.io/server/service/history.(*ChasmEngine).readComponent
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:797
+go.temporal.io/server/service/history.(*ChasmEngine).ReadComponent
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine.go:789
+go.temporal.io/server/service/history.(*chasmEngineSuite).scheduler2DeleteRecreateFences
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:258
+go.temporal.io/server/service/history.(*chasmEngineSuite).TestScheduler2DeleteRecreateFencesInFlightStart
+	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:31
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+    chasm_engine_scheduler2_test.go:258: 
+        	Error Trace:	/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:258
+        	            				/private/tmp/sch-redesign-lifecycle/service/history/chasm_engine_scheduler2_test.go:31
+        	Error:      	Received unexpected error:
+        	            	shard status unknown
+        	Test:       	TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart
+--- FAIL: TestChasmEngineSuite (0.06s)
+    --- FAIL: TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightEffect (0.04s)
+    --- FAIL: TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart (0.02s)
+FAIL
+FAIL	go.temporal.io/server/service/history	1.014s
+FAIL
