@@ -170,6 +170,9 @@ func (s *Scheduler) checkNextWorkToken(ctx chasm.Context, next decision.State) e
 }
 
 func (s *Scheduler) reconcileWork(ctx chasm.MutableContext) error {
+	if s.Closed {
+		return nil
+	}
 	if !s.HasGenerator {
 		return nil
 	}
@@ -206,11 +209,11 @@ type WorkHandler struct{ chasm.PureTaskHandlerBase }
 
 func (*WorkHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.WorkTask) (bool, error) {
 	c := s.Coordination
-	return c != nil && c.Armed && c.Token == task.Token && c.At == attrs.ScheduledTime.UnixNano(), nil
+	return !s.Closed && c != nil && c.Armed && c.Token == task.Token && c.At == attrs.ScheduledTime.UnixNano(), nil
 }
 func (*WorkHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.TaskAttributes, task *scheduler2pb.WorkTask) error {
 	c := s.Coordination
-	if c == nil || !c.Armed || c.Token != task.Token || c.At != attrs.ScheduledTime.UnixNano() {
+	if s.Closed || c == nil || !c.Armed || c.Token != task.Token || c.At != attrs.ScheduledTime.UnixNano() {
 		return nil
 	}
 	if ctx.Now(s).Before(time.Unix(0, c.At)) {

@@ -1,0 +1,11 @@
+=== RUN   TestLifecycleClosedControlsRejectAndTerminateIsIdempotent
+=== PAUSE TestLifecycleClosedControlsRejectAndTerminateIsIdempotent
+=== CONT  TestLifecycleClosedControlsRejectAndTerminateIsIdempotent
+    lifecycle_test.go:151: 
+        	Error Trace:	/private/tmp/sch-redesign-lifecycle/chasm/lib/scheduler2/lifecycle_test.go:151
+        	Error:      	Should be true
+        	Test:       	TestLifecycleClosedControlsRejectAndTerminateIsIdempotent
+--- FAIL: TestLifecycleClosedControlsRejectAndTerminateIsIdempotent (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.683s
+FAIL

@@ -1,0 +1,6 @@
+=== RUN   TestLifecycleClosedDedupKeepsPriorSuccess
+=== PAUSE TestLifecycleClosedDedupKeepsPriorSuccess
+=== CONT  TestLifecycleClosedDedupKeepsPriorSuccess
+--- PASS: TestLifecycleClosedDedupKeepsPriorSuccess (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.798s

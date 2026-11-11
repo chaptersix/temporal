@@ -32,6 +32,9 @@ func Backfill(ctx context.Context, ref chasm.ComponentRef, requestID string, req
 // AcceptBackfill stores bounded command metadata without preparing the definition
 // or start payload. Enumeration and admission run through the shared coordinator.
 func (s *Scheduler) AcceptBackfill(ctx chasm.MutableContext, request *schedulepb.BackfillRequest) error {
+	if s.Closed {
+		return serviceerror.NewNotFound("schedule is closed")
+	}
 	if request == nil || !s.HasGenerator || request.StartTime == nil || request.EndTime == nil || !decision.ValidPolicy(request.OverlapPolicy) {
 		return serviceerror.NewInvalidArgument("backfill requires a range, supported policy and configured template")
 	}

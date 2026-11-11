@@ -1,0 +1,27 @@
+=== RUN   TestLifecycleClosedResultsAndPoisonedPayloadsAreNoOps
+=== PAUSE TestLifecycleClosedResultsAndPoisonedPayloadsAreNoOps
+=== CONT  TestLifecycleClosedResultsAndPoisonedPayloadsAreNoOps
+--- FAIL: TestLifecycleClosedResultsAndPoisonedPayloadsAreNoOps (0.01s)
+panic: failed to deserialize data: error deserializing using Proto3 encoding: proto: cannot parse invalid wire-format data [recovered, repanicked]
+
+goroutine 21 [running]:
+testing.tRunner.func1.2({0x10351ea70, 0x2782750ac540})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2125 +0x1a0
+testing.tRunner.func1()
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2128 +0x2c8
+panic({0x10351ea70?, 0x2782750ac540?})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859 +0x120
+go.temporal.io/server/chasm.Field[...].TryGet(0x1034529e0, {0x103d384e8, 0x2782749f2e40})
+	/private/tmp/sch-redesign-lifecycle/chasm/field.go:110 +0x504
+go.temporal.io/server/chasm.Field[...].Get(0x1034529e0, {0x103d384e8?, 0x2782749f2e40?})
+	/private/tmp/sch-redesign-lifecycle/chasm/field.go:159 +0x3c
+go.temporal.io/server/chasm/lib/scheduler2.(*Scheduler).effectRequest(0x278275827360, {0x103d384e8, 0x2782749f2e40}, {0x2782753948c0, 0x3d})
+	/private/tmp/sch-redesign-lifecycle/chasm/lib/scheduler2/effects.go:146 +0x360
+go.temporal.io/server/chasm/lib/scheduler2.TestLifecycleClosedResultsAndPoisonedPayloadsAreNoOps(0x2782750f5208)
+	/private/tmp/sch-redesign-lifecycle/chasm/lib/scheduler2/lifecycle_test.go:119 +0x2e0
+testing.tRunner(0x2782750f5208, 0x103d3bec8)
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2260 +0x3b8
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.692s
+FAIL

@@ -74,6 +74,8 @@ message RootState {
   uint64 backfill_focus = 32;
   // LastBackfill remembers the last serviced request for cyclic selection.
   uint64 last_backfill = 33;
+  // Closed revokes scheduling authority while retaining historical state.
+  bool closed = 34;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.

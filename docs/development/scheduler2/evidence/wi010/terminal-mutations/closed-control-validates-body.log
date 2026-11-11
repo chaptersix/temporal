@@ -1,0 +1,21 @@
+=== RUN   TestLifecycleClosedControlsRejectAndTerminateIsIdempotent
+=== PAUSE TestLifecycleClosedControlsRejectAndTerminateIsIdempotent
+=== CONT  TestLifecycleClosedControlsRejectAndTerminateIsIdempotent
+=== RUN   TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/manual
+=== RUN   TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/backfill
+=== RUN   TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/definition
+    lifecycle_test.go:171: 
+        	Error Trace:	/private/tmp/sch-redesign-lifecycle/chasm/lib/scheduler2/lifecycle_test.go:171
+        	Error:      	Should be in error chain:
+        	            	expected: *serviceerror.NotFound
+        	            	in chain: "invalid local generation configuration" (*serviceerror.InvalidArgument)
+        	Test:       	TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/definition
+=== RUN   TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/update
+--- FAIL: TestLifecycleClosedControlsRejectAndTerminateIsIdempotent (0.01s)
+    --- PASS: TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/manual (0.00s)
+    --- PASS: TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/backfill (0.00s)
+    --- FAIL: TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/definition (0.00s)
+    --- PASS: TestLifecycleClosedControlsRejectAndTerminateIsIdempotent/update (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.694s
+FAIL

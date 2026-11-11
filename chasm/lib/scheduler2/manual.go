@@ -27,6 +27,9 @@ func Trigger(ctx context.Context, ref chasm.ComponentRef, requestID string, requ
 
 // AcceptManual records payload-free ingress; execution uses a separately fenced task.
 func (s *Scheduler) AcceptManual(ctx chasm.MutableContext, request *schedulepb.TriggerImmediatelyRequest) error {
+	if s.Closed {
+		return serviceerror.NewNotFound("schedule is closed")
+	}
 	if request == nil || !s.HasGenerator {
 		return serviceerror.NewInvalidArgument("manual trigger requires request and configured template")
 	}

@@ -830,3 +830,14 @@ concrete cap4 occupancy), ten model/seven Go mutants, race/lint and independent
 review pass. Model fairness and refinement limits remain explicit; this is not
 full M2 completion. [WI-010](docs/development/scheduler2/work-items/WI-010.md) is
 next for lifecycle, activity anchor and update/delete-recreate boundaries.
+
+
+WI-010 terminal-fence increment implemented in isolated sch-redesign-lifecycle
+from50b6b20d0. E59–E61 record a persistent Closed authority fence, real Node failed
+publication/reload and payload isolation, and real History engine delete/recreate
+with an in-flight start (captured mock persistence). Generation, baseline, focused
+race, five mutations, scoped lint and independent source review pass. Prior accepted
+request-ID retries remain success; new commands reject. Preauthorized snapshots may
+still issue outside the lock, but exact-run results cannot mutate replacement state.
+Activity anchor/idle eligibility/L3 and remaining update compositions are still open;
+this increment does not mark WI-010 or M2 complete.

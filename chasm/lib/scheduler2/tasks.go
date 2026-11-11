@@ -24,7 +24,7 @@ func NewStartHandler(start func(context.Context, *workflowservice.StartWorkflowE
 
 func (*StartHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.StartTask) (bool, error) {
 	wake, pending := s.PendingStarts[task.OperationId]
-	return pending && attrs.ScheduledTime.UnixNano() == wake, nil
+	return !s.Closed && pending && attrs.ScheduledTime.UnixNano() == wake, nil
 }
 
 func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ chasm.TaskAttributes, task *scheduler2pb.StartTask) error {

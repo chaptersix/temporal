@@ -259,3 +259,12 @@ WI-009 accepted at source **bd7b316fd** after independent final review found no
 blocking item gap. E53–E58 retain their finite bounds and trusted framework/CPU
 fairness boundaries. [Review record](wi009/review.md) maps resolved findings and
 remaining milestone obligations. WI-010 is the next proposed item; M2 is partial.
+
+
+## WI-010 terminal-fence increment (work item remains open)
+
+| ID | Kind / claim | Artifact and current result |
+|---|---|---|
+| E59 | source contract / review | [D51 and proposed lifecycle design](../design/lifecycle.md), [clock investigation](../design/lifecycle-clock.md); terminal-fence source review clear; first-success clock and idle design remain separate open implementation. |
+| E60 | real Node / History engine | [terminal checks](wi010/terminal-checks.json), [History log](wi010/history-s8.log); close publication/reload, all late result kinds, poisoned partitions, new-control rejection/prior dedup success; actual engine allocates different runs for one business ID and fences old in-flight start result. Captured persistence, not database proof. |
+| E61 | generation / race / lint / sensitivity | [review](wi010/terminal-review.md), [five mutants](wi010/terminal-mutations/manifest.json); schema, full scheduler2/registry baseline, focused component/History race and scoped lint pass. Anchor/idle/L3 and remaining lifecycle/update compositions are not complete. |

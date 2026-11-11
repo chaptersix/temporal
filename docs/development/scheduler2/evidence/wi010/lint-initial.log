@@ -1,0 +1,50 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 14.45075ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (files|types_sizes|compiled_files|deps|exports_file|imports|name) took 11.330053041s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 29.002875ms"
+level=info msg="[linters_context/goanalysis] analyzers took 16.529291209s with top 10 stages: goimports: 3.208894125s, revive: 2.345709876s, gci: 1.02703275s, testifylint: 885.429832ms, nilness: 823.359643ms, buildir: 707.01566ms, forbidigo: 696.903875ms, S1038: 602.729667ms, fact_deprecated: 263.246459ms, typeindex: 262.388098ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 153 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 40 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 4 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 14 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 5 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 2 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 73 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner] Issues before processing: 596, after processing: 3"
+level=info msg="[runner] Processors filtering stat (in/out): source_code: 3/3, severity-rules: 3/3, sort_results: 3/3, path_absoluter: 596/596, invalid_issue: 596/596, exclusion_rules: 595/301, uniq_by_line: 3/3, max_same_issues: 3/3, max_from_linter: 3/3, path_prettifier: 3/3, cgo: 596/596, exclusion_paths: 596/596, generated_file_filter: 596/595, nolint_filter: 301/291, diff: 291/3, path_shortener: 3/3, filename_unadjuster: 596/596, fixer: 3/3, path_relativity: 596/596, max_per_file_from_linter: 3/3"
+level=info msg="[runner] processing took 110.77358ms with stages: diff: 77.328959ms, nolint_filter: 29.757333ms, exclusion_rules: 1.573499ms, generated_file_filter: 1.515791ms, path_relativity: 330.5µs, exclusion_paths: 119.625µs, source_code: 98.416µs, invalid_issue: 17.083µs, cgo: 15.5µs, uniq_by_line: 5.708µs, path_absoluter: 3.542µs, filename_unadjuster: 2.083µs, path_shortener: 1.374µs, sort_results: 1.167µs, max_same_issues: 1.125µs, fixer: 709ns, max_per_file_from_linter: 708ns, path_prettifier: 209ns, max_from_linter: 208ns, severity-rules: 41ns"
+level=info msg="[runner] linters took 4.878432833s with stages: goanalysis_metalinter: 4.767552708s"
+../chasm/lib/scheduler2/lifecycle_test.go:21:60: confusing-results: unnamed results of the same type may be confusing, consider using named results (revive)
+func lifecycleFixture(t *testing.T) (*treeHarness, string, string, string) {
+                                                           ^
+../service/history/chasm_engine_scheduler2_test.go:60:16: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+			return nil, fmt.Errorf("recreate did not condition on previous run")
+			            ^
+../service/history/chasm_engine_scheduler2_test.go:195:94: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+	reload(a.ExecutionKey)
+	                      ^
+3 issues:
+* revive: 3
+level=info msg="File cache stats: 2 entries of total size 16.4KiB"
+level=info msg="Memory: 164 samples, avg is 416.0MB, max is 1965.7MB"
+level=info msg="Execution took 16.290693333s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

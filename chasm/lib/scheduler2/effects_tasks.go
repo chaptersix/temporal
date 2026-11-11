@@ -24,6 +24,9 @@ func NewEffectHandler(cancel func(context.Context, *workflowservice.RequestCance
 }
 
 func (*EffectHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.EffectTask) (bool, error) {
+	if s.Closed {
+		return false, nil
+	}
 	for _, metadata := range s.Effects {
 		effect := decodeEffect(metadata)
 		if effect.ID != task.EffectId || effect.TargetID != s.BlockingOperationId {

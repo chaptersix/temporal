@@ -33,14 +33,6 @@ func New(incarnation string, remaining int64) *Scheduler {
 	}, Operations: make(chasm.Map[string, *scheduler2pb.OperationState]), Requests: make(chasm.Map[string, *scheduler2pb.Payload]), EffectRequests: make(chasm.Map[string, *scheduler2pb.Payload])}
 }
 
-func (*Scheduler) LifecycleState(chasm.Context) chasm.LifecycleState {
-	return chasm.LifecycleStateRunning
-}
-func (*Scheduler) ContextMetadata(chasm.Context) map[string]string { return nil }
-func (*Scheduler) Terminate(chasm.MutableContext, chasm.TerminateComponentRequest) (chasm.TerminateComponentResponse, error) {
-	return chasm.TerminateComponentResponse{}, serviceerror.NewUnimplemented("prototype termination is unsupported")
-}
-
 // state reads only control and selected operation metadata.
 func (s *Scheduler) state(ctx chasm.Context) decision.State {
 	return s.stateFor(ctx, s.OperationId)
@@ -75,6 +67,12 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.Sta
 
 // Apply records the transition and successor task in the same CHASM transaction.
 func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error {
+	if s.Closed {
+		if event.Kind == decision.Update || event.Kind == decision.AcceptManual {
+			return serviceerror.NewNotFound("schedule is closed")
+		}
+		return nil
+	}
 	if event.Incarnation != s.Incarnation {
 		return nil
 	}
@@ -100,6 +98,9 @@ func (s *Scheduler) prepareFailureCarryover(ctx chasm.Context, before *decision.
 
 // applyTransition is called only by a coordinator grant or a non-admission event.
 func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Event) error {
+	if s.Closed {
+		return nil
+	}
 	if event.Incarnation != s.Incarnation {
 		return nil
 	}
@@ -175,7 +176,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 	}
 	previousRoot := s.RootState
 	s.RootState = &scheduler2pb.RootState{
-		Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
+		Closed: previousRoot.Closed, Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
 		ManualSequence: next.Root.ManualSequence, ManualToken: manualToken, ManualArmed: manualArmed, ManualAt: manualAt,
 		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
 		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
@@ -217,6 +218,9 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 
 // request returns a detached request after checking the selected operation's deadline.
 func (s *Scheduler) request(ctx chasm.Context, operationID string) (*workflowservice.StartWorkflowExecutionRequest, error) {
+	if s.Closed {
+		return nil, nil
+	}
 	state := s.stateFor(ctx, operationID)
 	if state.Operation == nil {
 		return nil, nil

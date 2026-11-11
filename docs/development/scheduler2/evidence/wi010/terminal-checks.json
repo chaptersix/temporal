@@ -1,0 +1,109 @@
+{
+  "base_source_sha": "50b6b20d08e71109234c7e5e043157ac59cb21c7",
+  "source_files": {
+    "chasm/lib/scheduler2/coordinator_rejection_test.go": "558264d780466de3f96a8593ddb1cd028ddb4ba069b973e73657306e409a6766",
+    "chasm/lib/scheduler2/generation_replay_test.go": "63a449e5476270bd528fedd52b0f7f428b8151adc062eb04d31ab95a8080e7aa",
+    "chasm/lib/scheduler2/completion.go": "ecec64c350e7bd575e23f7808ea903870157b53873e87d27cc7fb1219975b67a",
+    "chasm/lib/scheduler2/library.go": "86e890e47b004565892edafe6632d8e7e30883eb804d75f5cd8b25e14aa41c45",
+    "chasm/lib/scheduler2/tasks.go": "25ee7db9332d904bb881e4c60193e0504edcb693d547ade888ed9680378e274d",
+    "chasm/lib/scheduler2/completion_replay_test.go": "3f312657c9c8fad876ca71fc35c35c8b6f40b81e9350a48534d17508470b113d",
+    "chasm/lib/scheduler2/coordinator.go": "9df615dfa35332dbbf334cf595e7a1e0782acb9d8c8de01fedbb1eaa4c479e15",
+    "chasm/lib/scheduler2/coordinator_property_test.go": "032c303bbda49d4e8729235db9fc58316aad7e3e4102668571f8235f14aa3f59",
+    "chasm/lib/scheduler2/effects_tasks.go": "4e6ba63c1e84744e8366566e740cb5ffce293d5d3c1c5e2a79c0371fe0709d52",
+    "chasm/lib/scheduler2/effects.go": "6b954bf0b2dbb298f53661fbff081382d82f403273eb4864f8786073d025f4b4",
+    "chasm/lib/scheduler2/persistence_test.go": "8e698c47214a40293e60023898eff3a898c277b2de479381bad8e0836c772a40",
+    "chasm/lib/scheduler2/manual.go": "9f0b92641adb48ade929cca3e283a08b577956f346f63245aac3306a697ad1cf",
+    "chasm/lib/scheduler2/completion_test.go": "040f27cc622cca187dddf3b5292171e5e1f6cd18989d7fe7dd8240a36eb71f88",
+    "chasm/lib/scheduler2/sequential_test.go": "de8a9d5a7da370eda165cc1213fd98fa671cdeb87608faf7253aa9033b95f006",
+    "chasm/lib/scheduler2/coordinator_test.go": "7a4e1059afad58a366a9dbc5e7b787d30f73c43ab6a9fd5ad4cf76e6bc4dc12f",
+    "chasm/lib/scheduler2/generation_test.go": "6463f36f3fd5c4dd8a98b8108bf2463a9d1759c69c827f7c128e875711eefbe8",
+    "chasm/lib/scheduler2/allowall_replay_test.go": "e834b0b83e35a40806dabdafa487306b7553e198c8eb87993a303ec34b23c888",
+    "chasm/lib/scheduler2/manual_test.go": "67fbcfb48afad099c22857028680f31549a35ff16c5b29e12fe7c95460f2d6da",
+    "chasm/lib/scheduler2/manual_replay_test.go": "863921712eeb42d5c1eb1400a23fdc1ced26c27792d46550a53b7884073b76f3",
+    "chasm/lib/scheduler2/buffer_test.go": "982b6faadd837ae5085e9e904023f9bf446eb5b61d69001e5aa77a5d3a994cee",
+    "chasm/lib/scheduler2/buffer.go": "852eb07624eeeca3f216bf864d548cec8ec91ee4da3210fd25270ac9205aa922",
+    "chasm/lib/scheduler2/lifecycle.go": "70e46a6fc152d22ee90881bc845d93cadd1291a03f722d6becc742c852c4ceb0",
+    "chasm/lib/scheduler2/tasks_test.go": "50c2da13fe1c5cc18dc5d6950d34bba2f6b8f6098422dde407f77025ef29113a",
+    "chasm/lib/scheduler2/backfill.go": "c7421fdefe42d84efff31d6b508a2532de706fee25cedcdb6e5873643940ff76",
+    "chasm/lib/scheduler2/effects_replay_test.go": "3deaac4b9114e0f6fb890a5b1dbd8d033001fd363b6ca84d33887c7bc4ed0bc6",
+    "chasm/lib/scheduler2/generator.go": "b719aaa28061fc6f7194748026ae1330f7a3f3bd9e8fa9330d38cc30272e0991",
+    "chasm/lib/scheduler2/allowall_test.go": "f9bacf323fb4a8a8564af3fc5f8e7bead3429c828e222ab68d598a514aab2e28",
+    "chasm/lib/scheduler2/replay_test.go": "b5b7d15ddbf3a739264cbe388e7d74855134f6054aaa6f63e64bce429634d5b3",
+    "chasm/lib/scheduler2/coordinator_contention_test.go": "e0940749197e32c095e171e6dd038b9dcb57aeee39818d992ef64e127ae04821",
+    "chasm/lib/scheduler2/coordinator_replay_test.go": "5300b9c85d0838350ed56d6f09afa63e6ebc3031728221db9185aa0d1635565a",
+    "chasm/lib/scheduler2/backfill_request_test.go": "2109a26a2def3920dc9634a76bb7923f731b529a5015dc1c7617cc945d0973fa",
+    "chasm/lib/scheduler2/effects_tasks_test.go": "6c6c76d8d1e9aadd8e3be19e55875f07c91ed21902351357e5574f6518499ae7",
+    "chasm/lib/scheduler2/effects_test.go": "3f1353220e78817ad7cddc1d470146b8a38d8316468b15836ac1db9b9112903f",
+    "chasm/lib/scheduler2/component.go": "d5c37acd507b30a985cfb47e60486250f5ef180f7455c12fa893a7fa913636ff",
+    "chasm/lib/scheduler2/lifecycle_test.go": "32db5ae6057e993c1c22a3636483e99f013a8f23898d5715a6e7b51d002baa77",
+    "chasm/lib/scheduler2/coordinator_boundary_test.go": "db749b18e67b41fb4523c55d29ac6c126981ea81ab0b643130b66abd666cc401",
+    "chasm/lib/scheduler2/buffer_replay_test.go": "0413cd6a4e49cf278985ddb7a31aeeea5f90503b13f6ee0e9a16440c0c16a8cf",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go": "2e5431b8148a883c7b1de18077200b0215e6976c2b40389ce13190ff3a285a29",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "20770b5b9a62b2a791a7b12c921ac1240ccc5325a8110c41c428592ec8c1cf2d",
+    "chasm/lib/scheduler2/internal/occurrence/backfill_test.go": "3b89cee3c9564fdd73ec0eecb438ea3374779fdeb218d077f213439efe2b9b4d",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence.go": "a2bd64980ffa6e105f380c03ecc36fee9c57e09dd800787b29a7813fb94f942b",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence_test.go": "ed11486cbb44f6a29222bd1dbf769cf72eaa07aa942aa0b273807895f2dcee81",
+    "chasm/lib/scheduler2/internal/occurrence/backfill.go": "a8672885adf8aef36cdbc81ca34474fda10943c3f7a63a119861ca373ccfa33c",
+    "chasm/lib/scheduler2/internal/occurrence/replay_test.go": "4f8d7a2f0814c77a628d0d9c2c6a7db0d3971455358f939c27b1c7c5d0322db7",
+    "chasm/lib/scheduler2/internal/occurrence/boundaries_test.go": "23647440f47c4c5a9fdae417074369902953486f86fe8cac5ba9752cb683b80a",
+    "chasm/lib/scheduler2/internal/decision/completion.go": "d5d9198759486acdecd31a031c9c55166816c73a4897cc493ac8697214df84b0",
+    "chasm/lib/scheduler2/internal/decision/effects.go": "4e32a154961b808366b5d72d80b2ce997d1bee6262462117dcc059c20043bb8c",
+    "chasm/lib/scheduler2/internal/decision/decision.go": "e54a9cdf45fbb2e80c6676be2de1c651a4900f58295ba7d165e961c1a142aeec",
+    "chasm/lib/scheduler2/internal/decision/manual.go": "52d0a35c6f81265af720b8d7fb3f2c5c93bae31280aefda32c9dbc386264712a",
+    "chasm/lib/scheduler2/internal/decision/completion_test.go": "246af973db516fabdd715e0a5049f478c18c49ce1dbb8df536853c5ef275844b",
+    "chasm/lib/scheduler2/internal/decision/sequential_test.go": "983ac0c322ab1e2d8d1fce54974e78eb2a88ad6b29bcddbcaf425d3c8dbc9e38",
+    "chasm/lib/scheduler2/internal/decision/manual_test.go": "2116dc63378e48d690f282a5316517185273b512d7ef675c65e87a2dc56fb3bc",
+    "chasm/lib/scheduler2/internal/decision/buffer_test.go": "c85d5bfc20e900833aa1c56af03f4ef8105bb993d91e76667e7a5823011dc9dc",
+    "chasm/lib/scheduler2/internal/decision/buffer.go": "712d5bab5a39d6b37d92dfb387882abbff582632cc12e2699b6c3cfbfea8e053",
+    "chasm/lib/scheduler2/internal/decision/allowall_test.go": "c1e1991777633e6012fd3ddf8ab6d5297bb82d86191cc55b78f72f3e45126f0e",
+    "chasm/lib/scheduler2/internal/decision/effects_test.go": "8fecd6e9112b3326002d51a4086df733d3451ba40cc74d3a2e7c965e50dcdeda",
+    "chasm/lib/scheduler2/internal/decision/decision_test.go": "5120011b1946b2dcafb9e2fc374adfede34b36d05438f03646eb8675150f7c3c",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "4991dec82a26e4c549d29682ad76576057937ed2d299a03b2a7c45819ef273db",
+    "service/history/chasm_engine_scheduler2_test.go": "935562eefcbdb7022c24c0d8cdbddd26c26c26c816f08427b6c61e89f60b7f44"
+  },
+  "scope": "WI010 terminal-fence increment; anchor/idle not implemented",
+  "results": [
+    {
+      "command": "make proto",
+      "result": "passed",
+      "log": "generation.log"
+    },
+    {
+      "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 -parallel 4 ./chasm/lib/scheduler2/... ./chasm/lib/all -count=1",
+      "result": "passed",
+      "log": "terminal-baseline.log"
+    },
+    {
+      "command": "CGO_ENABLED=1 SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk GOMAXPROCS=4 go test -tags test_dep -p 2 -parallel 4 -race ./chasm/lib/scheduler2 -run TestLifecycle -count=1",
+      "result": "passed",
+      "log": "terminal-race.log",
+      "scope": "before addition of closed dedup test"
+    },
+    {
+      "command": "CGO_ENABLED=1 SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk GOMAXPROCS=4 go test -tags test_dep -p 2 -parallel 4 -race ./service/history -run 'TestChasmEngineSuite/TestScheduler2DeleteRecreateFencesInFlightStart$' -count=1 -timeout=2m",
+      "result": "passed",
+      "log": "history-race.log"
+    },
+    {
+      "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 -parallel 4 ./chasm/lib/scheduler2 -run TestLifecycleClosedDedupKeepsPriorSuccess -count=1 -v",
+      "result": "passed",
+      "log": "closed-dedup.log"
+    },
+    {
+      "command": "CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast GOLANGCI_LINT_BASE_REV=50b6b20d0 GOLANGCI_LINT_FIX=false",
+      "result": "passed",
+      "log": "lint.log"
+    },
+    {
+      "command": "python3 docs/development/scheduler2/evidence/wi010/terminal-mutations/check.py",
+      "result": "passed",
+      "scope": "five named Go defects detected and source restored"
+    }
+  ],
+  "limits": [
+    "History engine uses captured mock persistence; not physical database/queue proof.",
+    "History trace covers in-flight start entered before close, not pre-RPC snapshot wait or in-flight effects.",
+    "Component tests cover all result kinds and poisoned partitions.",
+    "Anchor, idle eligibility/L3, and further update/lifecycle compositions remain open."
+  ]
+}

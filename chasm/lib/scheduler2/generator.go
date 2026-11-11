@@ -40,6 +40,9 @@ type GenerationConfig struct {
 
 // ConfigureGeneration replaces future enumeration while preserving admitted requests.
 func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config GenerationConfig) error {
+	if s.Closed {
+		return serviceerror.NewNotFound("schedule is closed")
+	}
 	if !decision.ValidPolicy(config.Policy) || config.Request == nil || config.Request.WorkflowId == "" || proto.Size(config.Request) > 64*1024 || len(config.Seed) > 64*1024 || config.CatchupWindow < 0 || config.CatchupWindow > 365*24*time.Hour || config.Revision < s.Revision {
 		return serviceerror.NewInvalidArgument("invalid local generation configuration")
 	}

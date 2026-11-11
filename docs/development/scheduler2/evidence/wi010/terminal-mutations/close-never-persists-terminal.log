@@ -1,0 +1,11 @@
+=== RUN   TestLifecycleClosePublicationAndTaskFences
+=== PAUSE TestLifecycleClosePublicationAndTaskFences
+=== CONT  TestLifecycleClosePublicationAndTaskFences
+    lifecycle_test.go:66: 
+        	Error Trace:	/private/tmp/sch-redesign-lifecycle/chasm/lib/scheduler2/lifecycle_test.go:66
+        	Error:      	Should be zero, but was 1
+        	Test:       	TestLifecycleClosePublicationAndTaskFences
+--- FAIL: TestLifecycleClosePublicationAndTaskFences (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.690s
+FAIL

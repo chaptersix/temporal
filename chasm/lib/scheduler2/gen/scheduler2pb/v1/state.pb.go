@@ -463,7 +463,9 @@ type RootState struct {
 	// BackfillFocus pins a request while its ready candidate waits for handoff.
 	BackfillFocus uint64 `protobuf:"varint,32,opt,name=backfill_focus,json=backfillFocus,proto3" json:"backfill_focus,omitempty"`
 	// LastBackfill remembers the last serviced request for cyclic selection.
-	LastBackfill  uint64 `protobuf:"varint,33,opt,name=last_backfill,json=lastBackfill,proto3" json:"last_backfill,omitempty"`
+	LastBackfill uint64 `protobuf:"varint,33,opt,name=last_backfill,json=lastBackfill,proto3" json:"last_backfill,omitempty"`
+	// Closed revokes scheduling authority while retaining historical state.
+	Closed        bool `protobuf:"varint,34,opt,name=closed,proto3" json:"closed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -727,6 +729,13 @@ func (x *RootState) GetLastBackfill() uint64 {
 		return x.LastBackfill
 	}
 	return 0
+}
+
+func (x *RootState) GetClosed() bool {
+	if x != nil {
+		return x.Closed
+	}
+	return false
 }
 
 // OperationState holds metadata without decoding request payloads.
@@ -2065,7 +2074,7 @@ var File_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto protoreflect.
 
 const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "" +
 	"\n" +
-	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\xdc\f\n" +
+	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\xf4\f\n" +
 	"\tRootState\x12 \n" +
 	"\vincarnation\x18\x01 \x01(\tR\vincarnation\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x16\n" +
@@ -2104,7 +2113,8 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\x11backfill_sequence\x18\x1e \x01(\x04R\x10backfillSequence\x12Z\n" +
 	"\tbackfills\x18\x1f \x03(\v2<.temporal.server.chasm.lib.scheduler2.proto.v1.BackfillStateR\tbackfills\x12%\n" +
 	"\x0ebackfill_focus\x18  \x01(\x04R\rbackfillFocus\x12#\n" +
-	"\rlast_backfill\x18! \x01(\x04R\flastBackfill\x1a@\n" +
+	"\rlast_backfill\x18! \x01(\x04R\flastBackfill\x12\x16\n" +
+	"\x06closed\x18\" \x01(\bR\x06closed\x1a@\n" +
 	"\x12PendingStartsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\xbf\x03\n" +

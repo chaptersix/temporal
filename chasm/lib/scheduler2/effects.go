@@ -116,6 +116,9 @@ type EffectRequest struct {
 }
 
 func (s *Scheduler) effectRequest(ctx chasm.Context, id string) (*EffectRequest, error) {
+	if s.Closed {
+		return nil, nil
+	}
 	for _, metadata := range s.Effects {
 		effect := decodeEffect(metadata)
 		if effect.ID != id || effect.TargetID != s.BlockingOperationId || effect.Phase != decision.EffectPending {
