@@ -26,7 +26,7 @@ func (s *Scheduler) prepareCompletion(state decision.State, event *decision.Even
 			return serviceerror.NewInvalidArgument("invalid completion result")
 		}
 		// Empty payload means no result; encoding metadata makes explicit null present.
-		if len(payload.Metadata) == 0 && len(payload.Data) == 0 {
+		if proto.Size(payload) == 0 {
 			event.Result = nil
 		} else {
 			encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(payload)

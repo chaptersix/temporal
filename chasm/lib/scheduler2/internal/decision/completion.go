@@ -2,6 +2,7 @@ package decision
 
 import (
 	"bytes"
+
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 )
