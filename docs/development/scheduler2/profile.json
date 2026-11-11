@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion; local only",
+  "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only",
   "clock": "execution Unix nanoseconds",
   "per_schedule": {
     "enumeration_batch": 1,
@@ -59,5 +59,23 @@
     "policy": "single-operation SKIP; current pause-on-failure; first completion wins",
     "presence": "empty result absent; opaque metadata/null retained; failure presence explicit",
     "integration": "local callback event only, no public routing or sequential admission"
+  },
+  "generation": {
+    "max_retained_operations": 4,
+    "active_slots": 1,
+    "occupancy": [
+      "Pending",
+      "Started",
+      "Ambiguous"
+    ],
+    "eviction": "oldest Completed only",
+    "probes": 8,
+    "outputs": 4,
+    "continuation_delay_ns": 1000000,
+    "continuation_clock_end": "clamped to 2101-01-01 minus1ns",
+    "max_catchup_days": 365,
+    "max_seed_bytes": 65536,
+    "max_request_template_bytes": 65536,
+    "integration": "local pure-task generator; production routing absent"
   }
 }

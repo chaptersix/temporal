@@ -6,8 +6,8 @@
 | --- | --- |
 | Status | Authorized local execution through M1 |
 | Updated | 2026-11-10 |
-| Current milestone | M2 partial: WI-003 accepted; WI-004 sequential integration proposed |
-| Implementation status | WI-000 through WI-003 accepted |
+| Current milestone | M2 active: WI-004 sequential generation integration |
+| Implementation status | WI-000 through WI-003 accepted; WI-004 implementing |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing through local M2 work items; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
 | Execution environment | Local development, model checking, simulation, and functional testing only |
@@ -483,6 +483,9 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D26 | Executable specification scope | decided | Independent finite-source Lean draft and proposition definitions compile; no theorem or Go correspondence claim | M3 proofs remain |
 | D27 | Completion presence and payloads | decided for WI-003 | Explicit Callback versus metadata Complete; first completion wins; success empty clears, null remains present, failure preserves prior success. Follow current CHASM, DIV5 versus V1 no-result preservation. Separate payload node; max64KiB each. | C6; E22–E26 |
 | D28 | Completion status and pause | decided for WI-003 | Adapter validates failure variant versus status; current policy pauses FAILED/TIMED_OUT only; metadata status can pause without changing carryover. Definition revision is not a public conflict token. | C4/C7; E22–E26; public routing pending |
+| D29 | Sequential SKIP occupancy | decided for WI-004 | Pending/Started/Ambiguous occupy until Completed; actual time controls catchup, nominal controls identity. DIV6 conservatively avoids lost-ack overlap. | C2/C3; sequential integration |
+| D30 | Bounded completed-record retention | decided for WI-004 | Cap4 records, oldest Completed eviction at admission; never evict unfinished; counts/cursor/carryover survive. Older IDs no-op. Supersedes retain-all M1 experiment for this local slice. | C8/D4/D14 subset; general retention deferred |
+| D31 | Generation task state | decided for WI-004 | Independent token/deadline, probes8/outputs4, Yield/Limited now+1ms clamped inside supported range, Waiting at actual; committed atomically with disposition/admission. | S1/S5/S6; WI-002 integration |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 

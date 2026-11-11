@@ -118,3 +118,36 @@ fresh CHASM serialization. The symbolic model checks safety and reachability at
 TogglePolicy maps to an Update preserving Paused, rather than an unpause command.
 Authentication is trusted at this local boundary; production callback routing,
 sequential admission, other overlap modes and retention remain future work.
+
+## WI-004 sequential generation
+
+```sh
+python3 docs/development/scheduler2/run.py sequential --exploration --seed 1 --output /private/tmp/scheduler2-verification/sequential
+python3 docs/development/scheduler2/run.py sequential-model --output /private/tmp/scheduler2-verification/sequential-model
+```
+
+ConfigureGeneration is explicit local wiring: an immutable ScheduleSpec/seed and
+workflow start template, initial exclusive cursor, revision and catchup window.
+A separate Generator component persists continuation and a token/deadline; its
+registered pure task handles eight probes/four outputs per invocation. Next work
+uses a 1ms delay (clamped to the supported clock end), or the pending actual time.
+Empty/exhausted definitions remove their generation obligation. Update preserves
+admitted snapshots while superseding unadmitted pending values under D24.
+
+Strict SKIP treats pending, started and ambiguous operations as occupying one
+slot; only verified completion permits a subsequent admission. Up to four records
+are retained, evicting only the oldest completed record. Late retained/evicted IDs
+cannot replace current carryover, counters or active identity. Skips advance the
+nominal cursor without preparing carryover or debiting budget. Generation emits
+only actual-due candidates and uses actual-time catchup; the reducer's direct Due
+entry assumes its caller has checked actual-time eligibility. Automatic generated
+workflow IDs append the UTC nominal RFC3339 timestamp.
+
+The generation_v1.json replay executes registered pure tasks on real CHASM nodes,
+with failed publication, reload and second-request carryover observations. The
+independent sequential model uses six ordered occurrences and output limit one;
+Go's four-output batch is a sequence of these dispositions under one transaction.
+The model omits calendar arithmetic/catchup/rollback, which have separate Go tests.
+No composition theorem or liveness guarantee after permanent ambiguous acceptance
+is claimed. Other overlap modes, manual/backfill fairness and production routing
+remain outside this slice.

@@ -11,7 +11,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
-PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model")
+PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model")
 
 
 def git(*args):
@@ -33,9 +33,11 @@ def main():
     package = "./chasm/lib/scheduler2"
     common = ["go", "test", "-p", "2", "-parallel", "4", "-tags", "test_dep", "-count=1", "-timeout=10m"]
     checks = 10000 if args.exploration else 100
-    events = 17 if args.profile == "completion" else (128 if args.exploration else 32)
+    events = 17 if args.profile == "completion" else (128 if args.profile == "sequential" or args.exploration else 32)
     commands = {
         "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Independent|Task)", "-v"]],
+        "sequential": [common + [package, package + "/internal/decision", "-run", "Test(Sequential|Generation)", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+        "sequential-model": [[sys.executable, str(HERE / "model/sequential/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],
         "completion": [common + [package, package + "/internal/decision", "-run", "Test(Completion|Callback|Carryover|MetadataCompletion|CurrentPause|MalformedCallback)", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
         "completion-model": [[sys.executable, str(HERE / "model/completion/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],
         "enumeration": [common + [package + "/internal/occurrence", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
