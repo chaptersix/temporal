@@ -50,3 +50,14 @@ there and all initially untracked entries remain. The original M1 tracked files'
 patch segments remain; added changes mean the complete patch is no longer identical.
 No unrelated worktree was changed. Parent executed local checks/commits where
 older delegate sessions retained restrictive permissions; no escalation requested.
+
+## WI-003 assignments
+
+Base c945ae3bafb537a55d83d6627da158c46ff1b14c. Integrator owns reducer, adapter,
+proto/generation, central records. history_contract read-only source/review.
+Planned isolated delegates: tooling_harness owns new completion tests/testdata at
+/private/tmp/sch-redesign-completion-tests (branch sch-redesign-completion-tests);
+chasm_guarantees owns model/completion/ at /private/tmp/sch-redesign-completion-model
+(branch sch-redesign-completion-model). Both consume WI-003 contract explicitly;
+parent will transfer committed API prerequisite to tests before implementation.
+Acceptance: independent discriminating cases/model, exact handoff/diff, no overlap.
