@@ -1,0 +1,21 @@
+{
+ "version":1,
+ "clock_domain":"execution_nanoseconds",
+ "incarnation":"incarnation",
+ "remaining":3,
+ "now":"2024-01-01T00:00:05Z",
+ "after":"2023-12-31T23:59:59.999999999Z",
+ "revision":1,
+ "seed":"",
+ "catchup":"60s",
+ "spec":{"interval":[{"interval":"1s"}],"startTime":"2024-01-01T00:00:00Z","endTime":"2024-01-01T00:00:20Z"},
+ "request":{"namespace":"namespace","workflowId":"workflow","workflowType":{"name":"type"},"taskQueue":{"name":"queue"}},
+ "steps":[
+  {"kind":"generate","publish":false,"cursor":"2023-12-31T23:59:59.999999999Z","remaining":3,"started":0,"operations":0,"start_tasks":0,"timers":1,"token":1,"status":"active","wake":"2024-01-01T00:00:05Z"},
+  {"kind":"restart","cursor":"2023-12-31T23:59:59.999999999Z","remaining":3,"started":0,"operations":0,"start_tasks":0,"timers":1,"token":1,"status":"active","wake":"2024-01-01T00:00:05Z"},
+  {"kind":"generate","publish":true,"cursor":"2024-01-01T00:00:03Z","remaining":2,"started":0,"operations":1,"start_tasks":1,"timers":1,"token":2,"status":"limited","wake":"2024-01-01T00:00:05.001Z","workflow_id":"workflow-2024-01-01T00:00:00Z","operation_id":"incarnation/automatic/1704067200000000000/action/start"},
+  {"kind":"complete","result":{"data":"Zmlyc3Q="},"cursor":"2024-01-01T00:00:03Z","remaining":2,"started":1,"operations":1,"start_tasks":0,"timers":1,"token":2,"status":"limited","wake":"2024-01-01T00:00:05.001Z"},
+  {"kind":"advance_time","now":"2024-01-01T00:00:05.001Z","cursor":"2024-01-01T00:00:03Z","remaining":2,"started":1,"operations":1,"start_tasks":0,"timers":1,"token":2,"status":"limited","wake":"2024-01-01T00:00:05.001Z"},
+  {"kind":"generate","publish":true,"cursor":"2024-01-01T00:00:05Z","remaining":1,"started":1,"operations":2,"start_tasks":1,"timers":1,"token":3,"status":"waiting","wake":"2024-01-01T00:00:06Z","workflow_id":"workflow-2024-01-01T00:00:04Z","operation_id":"incarnation/automatic/1704067204000000000/action/start","request_carryover":{"data":"Zmlyc3Q="}}
+ ]
+}
