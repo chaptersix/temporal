@@ -1,0 +1,16 @@
+{
+  "source_sha": "ff9ddd7068479e622aebbde104881edfb7fd2610",
+  "profile": "range/manifest.json",
+  "race": {
+    "command": "CGO_ENABLED=1 SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk GOMAXPROCS=4 go test -race -tags test_dep -p 2 -parallel 4 ./chasm/lib/scheduler2/internal/occurrence -count=1",
+    "exit_code": 0,
+    "log": "range-race.log"
+  },
+  "lint": {
+    "command": "CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast GOLANGCI_LINT_BASE_REV=c96e3526f GOLANGCI_LINT_FIX=false",
+    "exit_code": 0,
+    "log": "range-lint.log"
+  },
+  "review": "Independent source/test review clear; fixed range end and atomic Dispose/handoff remain caller obligations",
+  "scope": "range helper checkpoint only; WI-009 coordinator/model/integration pending"
+}

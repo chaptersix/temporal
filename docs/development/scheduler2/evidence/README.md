@@ -218,3 +218,8 @@ Final source12740ef1d resolves the review findings; M2–M4 remain incomplete.
 
 WI-009 remains active. No coordinator, backfill API, integrated fairness, model
 refinement or milestone completion is implied by this helper checkpoint.
+
+
+E54 helper checkpoint sourceff9ddd706: [clean-source profile](wi009/range/manifest.json)
+and [checks](wi009/range-checks.json) record10000 cases, occurrence package race and
+scoped lint passing. These checks do not satisfy the pending WI-009 integration gate.

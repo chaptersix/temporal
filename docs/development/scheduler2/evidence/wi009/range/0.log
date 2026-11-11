@@ -1,0 +1,40 @@
+=== RUN   TestBackfillRangeInclusiveFractionalAndMinimumBounds
+=== PAUSE TestBackfillRangeInclusiveFractionalAndMinimumBounds
+=== RUN   TestBackfillRangeCapacityWaitOwnershipAndRebase
+=== PAUSE TestBackfillRangeCapacityWaitOwnershipAndRebase
+=== RUN   TestBackfillRangeJitterWitness
+=== PAUSE TestBackfillRangeJitterWitness
+=== RUN   TestBackfillRangeExclusionsAndTerminalDistinctions
+=== PAUSE TestBackfillRangeExclusionsAndTerminalDistinctions
+=== RUN   TestBackfillRangeIndependentIntervalProperties
+=== PAUSE TestBackfillRangeIndependentIntervalProperties
+=== RUN   TestBackfillRangeStructuredCalendarFractionalExclusion
+=== PAUSE TestBackfillRangeStructuredCalendarFractionalExclusion
+=== CONT  TestBackfillRangeInclusiveFractionalAndMinimumBounds
+=== RUN   TestBackfillRangeInclusiveFractionalAndMinimumBounds/equal
+=== CONT  TestBackfillRangeExclusionsAndTerminalDistinctions
+=== CONT  TestBackfillRangeStructuredCalendarFractionalExclusion
+=== CONT  TestBackfillRangeJitterWitness
+=== PAUSE TestBackfillRangeInclusiveFractionalAndMinimumBounds/equal
+=== RUN   TestBackfillRangeInclusiveFractionalAndMinimumBounds/fractional
+=== PAUSE TestBackfillRangeInclusiveFractionalAndMinimumBounds/fractional
+=== RUN   TestBackfillRangeInclusiveFractionalAndMinimumBounds/minimum
+=== PAUSE TestBackfillRangeInclusiveFractionalAndMinimumBounds/minimum
+=== CONT  TestBackfillRangeCapacityWaitOwnershipAndRebase
+--- PASS: TestBackfillRangeStructuredCalendarFractionalExclusion (0.00s)
+=== CONT  TestBackfillRangeIndependentIntervalProperties
+--- PASS: TestBackfillRangeJitterWitness (0.00s)
+=== CONT  TestBackfillRangeInclusiveFractionalAndMinimumBounds/equal
+--- PASS: TestBackfillRangeExclusionsAndTerminalDistinctions (0.00s)
+=== CONT  TestBackfillRangeInclusiveFractionalAndMinimumBounds/minimum
+=== CONT  TestBackfillRangeInclusiveFractionalAndMinimumBounds/fractional
+--- PASS: TestBackfillRangeInclusiveFractionalAndMinimumBounds (0.00s)
+    --- PASS: TestBackfillRangeInclusiveFractionalAndMinimumBounds/minimum (0.00s)
+    --- PASS: TestBackfillRangeInclusiveFractionalAndMinimumBounds/equal (0.00s)
+    --- PASS: TestBackfillRangeInclusiveFractionalAndMinimumBounds/fractional (0.00s)
+--- PASS: TestBackfillRangeCapacityWaitOwnershipAndRebase (0.00s)
+=== NAME  TestBackfillRangeIndependentIntervalProperties
+    backfill_test.go:204: [rapid] OK, passed 10000 tests (434.584375ms)
+--- PASS: TestBackfillRangeIndependentIntervalProperties (0.43s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	1.394s

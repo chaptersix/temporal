@@ -169,3 +169,14 @@ WI-006 final disposition (retained):
 - WI-008 final source12740ef1d clean at manual/race profile start; all item gates
   passed E47–E52. Parent integrated independent files and final boolean lint fix.
   Review clear; retained worktrees need no cleanup or branch merge into original.
+
+
+## WI-009 worktrees and ownership
+
+- Range implementation: /private/tmp/sch-redesign-backfill-range, branch
+  sch-redesign-backfill-range, basec96e3526f; only new occurrence/backfill.go and
+  backfill_test.go owned. Parent copied contribution intoff9ddd706; helper checks pass.
+- Independent model: /private/tmp/sch-redesign-backfill-model, branch
+  sch-redesign-backfill-model, basec96e3526f; model/backfill only, still in progress.
+- Integrator owns coordinator/layout/admission changes and central records; reviewer
+  read-only. Original checkout untouched; all work remains local with no migration.
