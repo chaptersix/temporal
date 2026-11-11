@@ -80,7 +80,7 @@ func TestInvariants_HoldAcrossScenarios(t *testing.T) {
 // flagged as stuck.
 func TestCheckInvariants_DetectsStuck(t *testing.T) {
 	stuck := schedulertest.Snapshot{
-		Now:            time.Now(),
+		Now:            time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		HasPendingTask: false,
 		Closed:         false,
 		IsHeldOpen:     false,
@@ -94,7 +94,7 @@ func TestCheckInvariants_DetectsStuck(t *testing.T) {
 // no pending task is NOT flagged (legitimate hold-open).
 func TestCheckInvariants_AllowsHeldOpenWithoutTask(t *testing.T) {
 	heldOpen := schedulertest.Snapshot{
-		Now:            time.Now(),
+		Now:            time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		HasPendingTask: false,
 		Closed:         false,
 		Paused:         true,

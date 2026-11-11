@@ -1,7 +1,6 @@
 package scheduler_test
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -36,9 +35,7 @@ func TestRollbackPhaseNativeControl(t *testing.T) {
 }
 
 func TestRollbackPhaseCounterexample(t *testing.T) {
-	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") != "1" {
-		t.Skip("set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1")
-	}
+	requireMigrationCounterexamples(t)
 	testRollbackPhaseGate(t)
 }
 
@@ -51,7 +48,7 @@ func testRollbackPhaseGate(t *testing.T) {
 			i.InvokerState = rollbackPhaseState(phase)
 			before := common.CloneProto(i.InvokerState)
 			_, err := s.MigrateToWorkflow(ctx, &schedulerpb.MigrateToWorkflowRequest{})
-			require.Error(t, err, "seed=rollback-%s: V1 cannot execute persisted invoker phase; retain native task ownership", phase)
+			require.Error(t, err, "case=%s: V1 cannot execute persisted invoker phase; retain native task ownership", phase)
 			require.Nil(t, s.WorkflowMigration)
 			require.False(t, s.Schedule.State.Paused)
 			protorequire.ProtoEqual(t, before, i.InvokerState)
@@ -82,8 +79,8 @@ func TestRollbackPhaseConversionPreservesFieldsButLosesQueues(t *testing.T) {
 	s, ctx, _ := setupSchedulerForTest(t)
 	i := rollbackPhaseState("mixed")
 	args := migration.CHASMToLegacyStartScheduleArgs(s.SchedulerState, s.Generator.Get(ctx).GeneratorState, i, nil, nil, nil, nil, ctx.Now(s))
+	// InternalState has no cancel/terminate queues, so only buffered starts carry over.
+	require.Len(t, args.State.BufferedStarts, 1)
 	protorequire.ProtoEqual(t, i.BufferedStarts[0], args.State.BufferedStarts[0])
 	require.Empty(t, args.Info.RunningWorkflows)
-	require.Len(t, i.CancelWorkflows, 1)
-	require.Len(t, i.TerminateWorkflows, 1)
 }

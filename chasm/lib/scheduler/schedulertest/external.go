@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"sync"
+	"testing"
 
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/api/workflowservice/v1"
@@ -49,6 +50,7 @@ func (l *externalLedger) snapshot() map[string]ExternalStart {
 // test can deliver a callback or lose the response after external acceptance.
 type StartCall struct {
 	Request *workflowservice.StartWorkflowExecutionRequest
+	t       testing.TB
 	result  chan startResponse
 	ledger  *externalLedger
 }
@@ -61,7 +63,11 @@ type startResponse struct {
 func (c *StartCall) Accept() (ExternalStart, error) { return c.ledger.accept(c.Request) }
 
 func (c *StartCall) Respond(start ExternalStart, err error) {
-	c.result <- startResponse{response: &workflowservice.StartWorkflowExecutionResponse{RunId: start.RunID}, err: err}
+	select {
+	case c.result <- startResponse{response: &workflowservice.StartWorkflowExecutionResponse{RunId: start.RunID}, err: err}:
+	default:
+		c.t.Fatal("StartCall.Respond called more than once")
+	}
 }
 
 // WithControlledStarts makes start RPCs wait for explicit Accept/Respond events.
@@ -124,6 +130,8 @@ func (d *Driver) FinishSideEffect() {
 			if err := call.Record(); err != nil {
 				d.T.Fatalf("record start result: %v", err)
 			}
+		case call := <-d.startCalls:
+			d.T.Fatalf("unconsumed start RPC for request %s; call NextStart before FinishSideEffect", call.Request.GetRequestId())
 		case err := <-d.sideEffectDone:
 			d.sideEffectDone = nil
 			d.finishSideEffect(d.actionsBefore, err)

@@ -51,8 +51,8 @@ func newMigrationScenario(t *testing.T) (*testsuite.TestWorkflowEnvironment, *sc
 
 func requireMigrationCounterexamples(t *testing.T) {
 	t.Helper()
-	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") == "" {
-		t.Skip("set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 to run known failing migration repros")
+	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") != "1" {
+		t.Skip("known migration counterexample; set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 to run")
 	}
 }
 
@@ -105,7 +105,7 @@ func checkMigrationSignalAccounting(t *testing.T, duringMigration bool) {
 	require.True(t, delivered)
 	require.NotNil(t, destination)
 	pending := 0
-	for _, start := range destination.InvokerState.BufferedStarts {
+	for _, start := range destination.GetInvokerState().GetBufferedStarts() {
 		if start.Manual && start.RunId == "" && start.Completed == nil {
 			pending++
 		}
@@ -260,11 +260,9 @@ func checkMigrationCommitAccounting(t *testing.T, commit, disable bool, version 
 	require.NotEmpty(t, sourceRequests)
 	require.NotNil(t, client.destination)
 	manualAtDestination := 0
-	for _, start := range client.destination.InvokerState.BufferedStarts {
+	for _, start := range client.destination.GetInvokerState().GetBufferedStarts() {
 		if start.Manual && start.RunId == "" && start.Completed == nil {
 			manualAtDestination++
-			t.Logf("destination workflow/request=%s/%s; source workflow/request=%s/%s", start.WorkflowId, start.RequestId,
-				sourceRequests[0].Request.WorkflowId, sourceRequests[0].Request.RequestId)
 		}
 	}
 	require.Zero(t, manualAtDestination, "source executed the manual action after migration returned an error; the committed destination must not still own it")

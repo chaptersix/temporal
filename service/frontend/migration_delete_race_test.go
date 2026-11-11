@@ -2,7 +2,9 @@ package frontend
 
 import (
 	"context"
+	"errors"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -42,7 +44,7 @@ func (c *migrationDeleteRaceClient) DeleteSchedule(_ context.Context, req *sched
 func TestMigrationDeleteNativeControl(t *testing.T) { testMigrationDeleteRace(t, false) }
 func TestMigrationDeleteCounterexample(t *testing.T) {
 	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") != "1" {
-		t.Skip("set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1")
+		t.Skip("known migration counterexample; set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 to run")
 	}
 	testMigrationDeleteRace(t, true)
 }
@@ -71,7 +73,11 @@ func testMigrationDeleteRace(t *testing.T, inFlight bool) {
 		return err
 	}
 	started, release, created := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	var releaseOnce sync.Once
+	releaseCreate := func() { releaseOnce.Do(func() { close(release) }) }
 	if inFlight {
+		// Unblock the create goroutine even if the test fails early.
+		t.Cleanup(releaseCreate)
 		go func() { close(started); <-release; created <- create() }()
 		<-started
 	} else {
@@ -88,16 +94,16 @@ func testMigrationDeleteRace(t *testing.T, inFlight bool) {
 	handler := &WorkflowHandler{logger: logger, namespaceRegistry: namespaces, historyClient: history, schedulerClient: &migrationDeleteRaceClient{engineCtx: engineCtx, ref: ref}, config: &Config{EnableSchedules: func(string) bool { return true }, EnableCHASMSchedulerCreation: func(string) bool { return true }}}
 	_, deleteErr := handler.DeleteSchedule(context.Background(), &workflowservice.DeleteScheduleRequest{Namespace: "ns", ScheduleId: key.BusinessID})
 	if inFlight {
-		close(release)
+		releaseCreate()
 		require.NoError(t, <-created)
 	}
 	require.NoError(t, deleteErr)
 	_, err := chasm.ReadComponent(engineCtx, ref, func(s *chasmscheduler.Scheduler, _ chasm.Context, _ struct{}) (struct{}, error) {
-		require.True(t, s.Closed, "seed=delete-create: successful DeleteSchedule must not be followed by an active migrated scheduler")
+		require.True(t, s.Closed, "successful DeleteSchedule must not be followed by an active migrated scheduler")
 		return struct{}{}, nil
 	}, struct{}{})
 	if err != nil {
-		var notFound *serviceerror.NotFound
-		require.ErrorAs(t, err, &notFound)
+		_, ok := errors.AsType[*serviceerror.NotFound](err)
+		require.True(t, ok, "unexpected error: %v", err)
 	}
 }

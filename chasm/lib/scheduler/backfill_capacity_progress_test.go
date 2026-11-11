@@ -59,7 +59,7 @@ func testBackfillCapacityProgress(t *testing.T, count int) {
 		if remaining == 0 {
 			break
 		}
-		require.Positive(t, buffered, "seed=capacity-%d: empty buffer and %d ranges must make progress", count, remaining)
+		require.Positive(t, buffered, "count=%d: empty buffer and %d ranges must make progress", count, remaining)
 		ts.Update(ts.Now().Add(time.Hour))
 		_, err := e.engine.FirePureTasks(e.rootRef, ts.Now())
 		require.NoError(t, err)

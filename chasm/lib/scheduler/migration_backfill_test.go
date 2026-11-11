@@ -1,7 +1,6 @@
 package scheduler_test
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -30,9 +29,7 @@ func TestMigrationBackfill_NativeResumesAfterWatermark(t *testing.T) {
 }
 
 func TestMigrationBackfill_MigratedResumesAfterWatermark(t *testing.T) {
-	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") == "" {
-		t.Skip("set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 to run known failing migration repros")
-	}
+	requireMigrationCounterexamples(t)
 	for _, end := range []time.Time{time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC), time.Unix(60, 0).UTC()} {
 		t.Run(end.String(), func(t *testing.T) { checkMigrationBackfillWatermark(t, true, end) })
 	}

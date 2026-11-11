@@ -244,7 +244,7 @@ func newDriverScaffold(t *testing.T, opts ...DriverOption) (*Driver, *driverConf
 			startRequests[req.GetRequestId()] = struct{}{}
 			rpcMu.Unlock()
 			if startCalls != nil {
-				call := &StartCall{Request: common.CloneProto(req), result: make(chan startResponse, 1), ledger: external}
+				call := &StartCall{Request: common.CloneProto(req), t: t, result: make(chan startResponse, 1), ledger: external}
 				select {
 				case startCalls <- call:
 				case <-ctx.Done():

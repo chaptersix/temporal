@@ -36,8 +36,8 @@ type migrationCloseFaultEngine struct {
 
 func requireMigrationCounterexamples(t *testing.T) {
 	t.Helper()
-	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") == "" {
-		t.Skip("set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 to run known failing migration repros")
+	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") != "1" {
+		t.Skip("known migration counterexample; set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 to run")
 	}
 }
 
@@ -108,15 +108,19 @@ func TestMigrationScenario_RollbackRetryBoundaries(t *testing.T) {
 			faultEngine := &migrationCloseFaultEngine{Engine: e.engine,
 				armed: boundary == "before_source_close" || boundary == "after_source_close", afterCommit: boundary == "after_source_close"}
 			var destination *schedulespb.StartScheduleArgs
+			var firstRequestID string
 			attempts, creations := 0, 0
 			historyClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
 				func(_ context.Context, req *historyservice.StartWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.StartWorkflowExecutionResponse, error) {
 					attempts++
+					if attempts == 1 {
+						firstRequestID = req.StartRequest.RequestId
+					}
 					if attempts == 1 && boundary == "before_destination" {
 						return nil, serviceerror.NewUnavailable("injected before destination commit")
 					}
 					if destination != nil {
-						return nil, serviceerror.NewWorkflowExecutionAlreadyStarted("retry", "first-request", "destination-run")
+						return nil, serviceerror.NewWorkflowExecutionAlreadyStarted("retry", firstRequestID, "destination-run")
 					}
 					destination = &schedulespb.StartScheduleArgs{}
 					require.NoError(t, sdk.PreferProtoDataConverter.FromPayloads(req.StartRequest.Input, destination))
