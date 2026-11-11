@@ -208,3 +208,9 @@ WI-012: /private/tmp/sch-redesign-functional, branch sch-redesign-functional,
 base352dafa83; source owner history_contract, inventory owner tooling_harness,
 integrator owns records/verification. Source updates worktree remains retained at
 5b86032de. No changes to original checkout or production selection.
+
+WI-012 source94a74db12 integrated as8259dd1f2. Only central plan append conflict;
+both WI-012 acceptance and WI-013 scope retained. Code and recorded final hashes
+match. WI-013 separately uses /private/tmp/sch-redesign-proofs branch
+sch-redesign-proofs, spec sourceea609329f integrateddd194ac20; Lean and Go oracle
+owners have disjoint files. No production or original-checkout changes.

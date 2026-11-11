@@ -16,32 +16,44 @@
       "log": "existing-backend-baseline.log",
       "source": "352dafa83",
       "result": "pass",
-      "scope": "V1/CHASM Count and DeletedScheduleOperations on SQLite"
+      "scope": "V1/CHASM Count and DeletedScheduleOperations on SQLite",
+      "command": "CGO_ENABLED=0 GOMAXPROCS=4 TEMPORAL_TEST_LOG_LEVEL=error go test -tags test_dep -p 2 -parallel 2 ./tests -run '^TestSchedule(V1|CHASM)SharedSuite$/(TestDeletedScheduleOperations|TestCountSchedules)$' -count=1 -timeout=5m -v -args -persistenceType=sql -persistenceDriver=sqlite",
+      "exit_code": 0
     },
     {
       "log": "shared-suites.log",
       "result": "pass",
-      "scope": "Both full existing shared suites, helper tests and no-name worker test; prior to final descriptor-only expectation/options refinement"
+      "scope": "Both full existing shared suites, helper tests and no-name worker test; prior to final descriptor-only expectation/options refinement",
+      "command": "CGO_ENABLED=0 GOMAXPROCS=4 TEMPORAL_TEST_LOG_LEVEL=error go test -tags test_dep -p 2 -parallel 2 ./tests -run '^(TestScheduleBackend.*|TestScheduleDescriptorStartsLegacyWorker|TestSchedule(V1|CHASM)SharedSuite)$' -count=1 -timeout=8m -v -args -persistenceType=sql -persistenceDriver=sqlite",
+      "exit_code": 0
     },
     {
       "log": "descriptor-expectations.log",
       "result": "pass",
-      "scope": "Final carryover and SDK duplicate-error cases for both backends"
+      "scope": "Final carryover and SDK duplicate-error cases for both backends",
+      "command": "CGO_ENABLED=0 GOMAXPROCS=4 TEMPORAL_TEST_LOG_LEVEL=error go test -tags test_dep -p 2 -parallel 2 ./tests -run '^TestSchedule(V1|CHASM)SharedSuite$/(TestLastCompletionResultAfterNoResultWorkflow|TestCreateScheduleDuplicateSdkError)$' -count=1 -timeout=3m -v -args -persistenceType=sql -persistenceDriver=sqlite",
+      "exit_code": 0
     },
     {
       "log": "mixed-backend.log",
       "result": "pass",
-      "scope": "Mixed public V1/CHASM carryover differential, explicit both-backend cleanup"
+      "scope": "Mixed public V1/CHASM carryover differential, explicit both-backend cleanup",
+      "command": "CGO_ENABLED=0 GOMAXPROCS=4 TEMPORAL_TEST_LOG_LEVEL=error go test -tags test_dep -p 2 -parallel 2 ./tests -run '^TestScheduleLastCompletionResultMatchesV1$' -count=1 -timeout=3m -v -args -persistenceType=sql -persistenceDriver=sqlite",
+      "exit_code": 0
     },
     {
       "log": "helper-race.log",
       "result": "pass",
-      "scope": "Final TestScheduleBackend helper tests under race"
+      "scope": "Final TestScheduleBackend helper tests under race",
+      "command": "CGO_ENABLED=1 SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk GOMAXPROCS=4 go test -tags test_dep -p 2 -parallel 2 -race ./tests -run '^TestScheduleBackend' -count=1 -timeout=3m",
+      "exit_code": 0
     },
     {
       "log": "lint-final.log",
       "result": "pass",
-      "scope": "make lint-code-fast, GOLANGCI_LINT_BASE_REV=352dafa83, GOLANGCI_LINT_FIX=false"
+      "scope": "make lint-code-fast, GOLANGCI_LINT_BASE_REV=352dafa83, GOLANGCI_LINT_FIX=false",
+      "command": "CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast GOLANGCI_LINT_BASE_REV=352dafa83 GOLANGCI_LINT_FIX=false",
+      "exit_code": 0
     }
   ],
   "limitations": [
@@ -49,5 +61,9 @@
     "No production routing or migration executed",
     "Inventory source rows remain at baseline with separate current-source addendum",
     "P5.1/P5.5/P5.6/P5.7 compound requirements remain open"
-  ]
+  ],
+  "source_commit": "94a74db12",
+  "integration_commit": "8259dd1f2",
+  "integration": "Only plan append conflict; retained both WI-012 acceptance and WI-013 scope. All final source/evidence inventory file hashes match.",
+  "go_version": "go version go1.27.3 darwin/arm64"
 }
