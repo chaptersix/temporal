@@ -151,7 +151,6 @@ func TestMigrationScenario_NativeBackfillIncludesStart(t *testing.T) {
 }
 
 func TestMigrationCounterexample_RollbackFreshBackfill(t *testing.T) {
-	requireMigrationCounterexamples(t)
 	checkRollbackBackfillStart(t, true)
 }
 

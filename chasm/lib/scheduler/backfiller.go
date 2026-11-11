@@ -37,7 +37,7 @@ func addBackfiller(
 ) *Backfiller {
 	id := schedulerinternal.GenerateBackfillerID()
 	// LastProcessedTime is intentionally left unset here. For range backfills it
-	// is the "progress recorded" signal and must stay zero until a batch is
+	// is the "progress recorded" signal and must stay nil until a batch is
 	// actually processed (see processBackfill). Trigger backfills, which use it as
 	// their fire time, set it explicitly in NewImmediateBackfiller.
 	backfiller := newBackfillerWithState(ctx, &schedulerpb.BackfillerState{
@@ -55,12 +55,27 @@ func addBackfiller(
 }
 
 func newBackfillerWithState(ctx chasm.MutableContext, state *schedulerpb.BackfillerState) *Backfiller {
-	backfiller := &Backfiller{
+	backfiller := newBackfillerWithStateWithoutTask(ctx, state)
+	backfiller.scheduleInitialTask(ctx)
+	return backfiller
+}
+
+// newBackfillerWithStateWithoutTask returns a Backfiller that has no task
+// scheduled. Call scheduleInitialTask to start it.
+func newBackfillerWithStateWithoutTask(ctx chasm.MutableContext, state *schedulerpb.BackfillerState) *Backfiller {
+	return &Backfiller{
 		BackfillerState: state,
 		EventLog:        chasm.NewComponentField(ctx, NewEventLog(ctx)),
 	}
-	backfiller.scheduleTask(ctx, chasm.TaskScheduledTimeImmediate)
-	return backfiller
+}
+
+// scheduleInitialTask schedules the first immediate task, unless a task was
+// already scheduled.
+func (b *Backfiller) scheduleInitialTask(ctx chasm.MutableContext) {
+	if b.GetTaskStamp() != 0 {
+		return
+	}
+	b.scheduleTask(ctx, chasm.TaskScheduledTimeImmediate)
 }
 
 // scheduleTask advances the stamp for the initial task or a successor.

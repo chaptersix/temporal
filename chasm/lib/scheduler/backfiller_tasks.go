@@ -176,11 +176,13 @@ func (b *BackfillerTaskHandler) processBackfill(
 
 	endTime := request.GetEndTime().AsTime()
 	// Resume from the high watermark only once genuine progress has been recorded.
-	// The watermark is left unset until a batch is actually processed (see Execute),
-	// so a fresh or capacity-stalled backfiller starts from the range start.
+	// The watermark stays nil until a batch is actually processed (see Execute) or
+	// a V1 cursor is imported, so a fresh or capacity-stalled backfiller starts
+	// from the range start. Presence, not value, matters: an explicit Unix epoch
+	// cursor is real progress.
 	var startTime time.Time
 	lastProcessed := backfiller.GetLastProcessedTime()
-	if hasRecordedProgress(lastProcessed) {
+	if lastProcessed != nil {
 		startTime = lastProcessed.AsTime()
 	} else {
 		// On the first attempt, start slightly behind to make the range inclusive.
@@ -211,13 +213,6 @@ func (b *BackfillerTaskHandler) processBackfill(
 	result.BufferedStarts = specResult.BufferedStarts
 
 	return
-}
-
-// hasRecordedProgress reports whether a backfiller's high watermark reflects a
-// batch that was actually processed. An unset (nil or zero) watermark means no
-// progress yet - a fresh backfiller.
-func hasRecordedProgress(lastProcessed *timestamppb.Timestamp) bool {
-	return lastProcessed != nil && (lastProcessed.GetSeconds() != 0 || lastProcessed.GetNanos() != 0)
 }
 
 // backoffDelay returns the amount of delay that should be added when retrying.

@@ -436,12 +436,16 @@ func convertBackfillsLegacyToCHASM(
 	for _, v1Backfill := range legacyBackfills {
 		backfillID := schedulerinternal.GenerateBackfillerID()
 
+		// V1's StartTime is an exclusive cursor that has already been consumed, so
+		// carry it over as the CHASM high watermark. The watermark's presence marks
+		// the backfiller as having recorded progress, which stops processBackfill
+		// from re-including the cursor point.
 		backfillers[backfillID] = &schedulerpb.BackfillerState{
 			Request: &schedulerpb.BackfillerState_BackfillRequest{
 				BackfillRequest: common.CloneProto(v1Backfill),
 			},
 			BackfillId:        backfillID,
-			LastProcessedTime: nil,
+			LastProcessedTime: common.CloneProto(v1Backfill.GetStartTime()),
 			Attempt:           0,
 		}
 	}
@@ -551,8 +555,13 @@ func convertBackfillersCHASMToLegacy(
 	for _, backfiller := range backfillers {
 		if request := backfiller.GetBackfillRequest(); request != nil {
 			backfill := common.CloneProto(request)
-			if backfiller.GetAttempt() > 0 && backfiller.GetLastProcessedTime() != nil {
-				backfill.StartTime = common.CloneProto(backfiller.GetLastProcessedTime())
+			// V1's StartTime is an exclusive cursor. Recorded progress is already
+			// such a cursor. A fresh backfiller's range start is inclusive, so shift
+			// it back to keep that point.
+			if lastProcessed := backfiller.GetLastProcessedTime(); lastProcessed != nil {
+				backfill.StartTime = common.CloneProto(lastProcessed)
+			} else {
+				backfill.StartTime = timestamppb.New(request.GetStartTime().AsTime().Add(-time.Millisecond))
 			}
 			ongoing = append(ongoing, backfill)
 			continue

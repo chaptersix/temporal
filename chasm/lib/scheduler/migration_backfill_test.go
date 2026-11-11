@@ -29,7 +29,6 @@ func TestMigrationBackfill_NativeResumesAfterWatermark(t *testing.T) {
 }
 
 func TestMigrationBackfill_MigratedResumesAfterWatermark(t *testing.T) {
-	requireMigrationCounterexamples(t)
 	for _, end := range []time.Time{time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC), time.Unix(60, 0).UTC()} {
 		t.Run(end.String(), func(t *testing.T) { checkMigrationBackfillWatermark(t, true, end) })
 	}
@@ -83,7 +82,6 @@ func checkMigrationBackfillWatermark(t *testing.T, migrate bool, when time.Time)
 }
 
 func TestMigrationBackfill_WaitsForCallbackReconciliation(t *testing.T) {
-	requireMigrationCounterexamples(t)
 	boundary := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
 	logger := testlogger.NewTestLogger(t, testlogger.FailOnExpectedErrorOnly)
 	timeSource := clock.NewEventTimeSource().Update(boundary.Add(time.Hour))
@@ -152,8 +150,9 @@ func TestMigrationBackfill_WaitsForCallbackReconciliation(t *testing.T) {
 		nil,
 	)
 	callbackHandler := scheduler.NewSchedulerCallbacksTaskHandler(scheduler.SchedulerCallbacksTaskHandlerOptions{
-		Config:        defaultConfig(),
-		HistoryClient: historyClient,
+		Config:         defaultConfig(),
+		HistoryClient:  historyClient,
+		MetricsHandler: metrics.NoopMetricsHandler,
 	})
 	require.NoError(t, callbackHandler.Execute(
 		engineCtx,
