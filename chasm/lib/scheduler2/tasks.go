@@ -12,7 +12,7 @@ import (
 
 // StartHandler issues the cloned request outside the execution lock.
 type StartHandler struct {
-	chasm.SideEffectTaskHandlerBase
+	chasm.SideEffectTaskHandlerBase[*scheduler2pb.StartTask]
 	Start func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)
 }
 
@@ -48,7 +48,7 @@ func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ ch
 	}
 	_, _, err = chasm.UpdateComponent(ctx, ref,
 		func(s *Scheduler, ctx chasm.MutableContext, event decision.Event) (chasm.NoValue, error) {
-			return chasm.NoValue{}, s.Apply(ctx, event)
+			return nil, s.Apply(ctx, event)
 		}, event)
 	return err
 }
