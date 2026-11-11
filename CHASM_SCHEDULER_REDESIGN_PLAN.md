@@ -6,8 +6,8 @@
 | --- | --- |
 | Status | Authorized local execution through M1 |
 | Updated | 2026-11-10 |
-| Current milestone | M1: lost-acknowledgment vertical slice |
-| Implementation status | WI-000 accepted; WI-001 ready |
+| Current milestone | M1 passed; stopped for review |
+| Implementation status | WI-000 and WI-001 accepted; verified code f9d62cf99 |
 | Authorization | User authorized local execution, branches/worktrees and task commits through M1. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
 | Execution environment | Local development, model checking, simulation, and functional testing only |
@@ -44,10 +44,10 @@ Confirm registration and generation conventions before adding independent compon
 | Initial comparison baseline | `9ab3a9f770da20df7d94bcc0030f28eec7b0b947` | `git rev-parse '9ab3a9f77^{commit}'` |
 | Original checkout | `/Users/alex/repos/temporal`, branch `main` | `git worktree list`, 2026-11-10 |
 | Current worktree status before this file | Clean | `git status --short` |
-| Worktree creation base and provenance | Pending investigation | Current HEAD does not establish creation base |
-| Original checkout modifications | Previously reported scheduler verification files and `spec_processor.go` modification; current contents unverified | Must inspect separately |
+| Worktree creation base and provenance | Created from upstream/main at 85b80a183 on 2026-11-10 18:33:52 -0600 | E4 branch reflog |
+| Original checkout modifications | Original tracked patch preserved byte-for-byte; original untracked files retained; unrelated new test appeared during session | E4, E16; no source imported |
 
-Earlier worktree creation attempts were reported blocked. The current worktree is now verified to exist, with a different name. This documentation task did not create or rename it. Do not recreate it merely to satisfy the old blocked step; resolve the naming and provenance discrepancy before implementation.
+Earlier worktree creation attempts were reported blocked. The current worktree is now verified to exist, with a different name. This documentation task did not create or rename it. Do not recreate it merely to satisfy the old blocked step; D1 resolved the naming and provenance discrepancy in WI-000; existing worktree retained.
 
 - [x] W1: Inspect original checkout status, diffs, and provenance without modifying it.
 - [x] W2: Record worktree creation provenance and explain its relation to the comparison baseline.
@@ -133,13 +133,13 @@ Perform this read-only investigation before freezing the model or schema. Record
 
 | Assumption ID | Investigate | Status |
 | --- | --- | --- |
-| H1 | Atomic state/task recording, transaction retries, cached mutation rollback | pending |
-| H2 | Logical task lifecycle, physical redelivery, validation, reconstruction after reload | pending |
-| H3 | Callback routing/token validation and schedule incarnation boundaries | pending |
-| H4 | Failover, replication, stale executor behavior and ownership | pending |
-| H5 | Field/Map loading, mutable-state persistence reads, visibility evaluation | pending |
-| H6 | CHASM virtual time and task timestamp conversions | pending |
-| H7 | Registration identities, protobuf generation, annotated source generation, local component selection | pending |
+| H1 | Atomic state/task recording, transaction retries, cached mutation rollback | verified for M1; E5, E11–E15 |
+| H2 | Logical task lifecycle, physical redelivery, validation, reconstruction after reload | verified for M1; E5, E11–E15 |
+| H3 | Callback routing/token validation and schedule incarnation boundaries | verified for M1; E5, E11–E15 |
+| H4 | Failover, replication, stale executor behavior and ownership | verified for M1; E5, E11–E15 |
+| H5 | Field/Map loading, mutable-state persistence reads, visibility evaluation | verified for M1; E5, E11–E15 |
+| H6 | CHASM virtual time and task timestamp conversions | verified for M1; E5, E11–E15 |
+| H7 | Registration identities, protobuf generation, annotated source generation, local component selection | verified for M1; E5, E11–E15 |
 
 ## 6. Milestones and execution sequence
 
@@ -148,7 +148,7 @@ Phases describe coverage areas, not a requirement to finish all modeling before 
 | Milestone | Deliverable | Status | Gate evidence |
 | --- | --- | --- | --- |
 | M0 | Workspace provenance, first-slice contract, early CHASM guarantees | passed | E4–E8 |
-| M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | active | WI-001; no passing evidence yet |
+| M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | passed | E9–E16; bounded scope and trusted boundaries below |
 | M2 | Complete policy, update, backfill, and callback behavior with model mappings | pending | — |
 | M3 | Differential API and shared functional coverage with no unexplained differences | pending | — |
 | M4 | Load/state-growth report and explicit migration support boundary | pending | — |
@@ -169,11 +169,11 @@ Start Lean definitions and theorem statements during occurrence-core design. The
 
 ### Phase 0: Compatibility contract and defect inventory
 
-- [ ] P0.1: Complete W1–W4 and H1–H7 as needed for M1.
-- [ ] P0.2: Create the historical-fix inventory and compatibility table with source links.
-- [ ] P0.3: Resolve first-slice admission, immutable request, deduplication, callback, and restart semantics.
-- [ ] P0.4: Identify remaining decisions and their dependent phases/tests.
-- [ ] P0.5: Resolve first-slice spec-processing semantics, version the shared trace contract, and record concrete resource and exploration settings from section 7.
+- [x] P0.1: Complete W1–W4 and H1–H7 as needed for M1.
+- [x] P0.2: Create the historical-fix inventory and compatibility table with source links.
+- [x] P0.3: Resolve first-slice admission, immutable request, deduplication, callback, and restart semantics.
+- [x] P0.4: Identify remaining decisions and their dependent phases/tests.
+- [x] P0.5: Resolve first-slice spec-processing semantics, version the shared trace contract, and record concrete resource and exploration settings from section 7.
 
 Exit: all M1 dependencies are resolved or explicitly block M1. Expand the full contract before implementing dependent behavior.
 
@@ -199,9 +199,9 @@ Model durable versus tentative state; logical tasks versus physical deliveries; 
 
 Define permitted external waits separately from stuck states. Check liveness over infinite modeled executions with explicit fairness; task existence and finite recovery traces alone are not liveness proofs. Report bounds and explored state counts.
 
-- [ ] P1.1: Independently specify transitions, identities, capacity, and invariants.
-- [ ] P1.2: Check the first-slice small-state model.
-- [ ] P1.3: Detect injected lost-wakeup, cursor-advance, duplicate-accounting, retry-identity, and retry-input defects.
+- [x] P1.1: Independently specify transitions, identities, capacity, and invariants.
+- [x] P1.2: Check the first-slice small-state model.
+- [x] P1.3: Detect injected lost-wakeup, cursor-advance, duplicate-accounting, retry-identity, and retry-input defects.
 - [ ] P1.4: Expand the model alongside policy implementation.
 - [ ] P1.5: Draft Lean enumeration definitions and theorem statements against the spec-processing contract; review assumptions before implementation correspondence work.
 
@@ -223,10 +223,10 @@ Provisional responsibilities; finalize names against project conventions:
 
 Reuse calendar evaluation through a narrow interface initially. Keep occurrence progress independent of timer validity. Consume/replace timer tokens atomically with successor obligations. Completion must not depend on waking a separate generator. Preserve one-time budget accounting and specify ALLOW_ALL separately.
 
-- [ ] P2.1: Implement first-slice occurrence/admission, start, result, and completion transitions.
-- [ ] P2.2: Test accepted start → lost acknowledgment → update → retry with identical operation identity and request input.
+- [x] P2.1: Implement first-slice occurrence/admission, start, result, and completion transitions.
+- [x] P2.2: Test accepted start → lost acknowledgment → update → retry with identical operation identity and request input.
 - [ ] P2.3: Add all historical reproductions, overlap policies, update races, action exhaustion, early completion, stale failure after success, duplicate acknowledgment, full-buffer backfill, manual identity, clock rollback, retention truncation, delete/recreate, and legitimate quiescence.
-- [ ] P2.4: Map every event kind to model transitions, including specifically named internal stuttering steps.
+- [x] P2.4: Map every event kind to model transitions, including specifically named internal stuttering steps.
 - [ ] P2.5: Use Rapid to generate structured specs and reducer event sequences, checking section 7 properties and S1–S8 after applicable transitions. Save minimized failures as deterministic regression traces.
 
 Exit: deterministic tests pass and mappings cover implemented event kinds. Unbounded internal stuttering cannot satisfy progress obligations.
@@ -239,10 +239,10 @@ Implement partitioned state, event-specific loading, atomic deltas/tasks, stable
 
 Malformed public input returns established service errors without partial mutation. Transient failures preserve intent with bounded backoff. Permanent failures have explicit policy dispositions. Handle all errors; follow project logging and invariant-reporting conventions. Preserve callback token validation and keep sensitive payloads out of traces/logs.
 
-- [ ] P3.1: Implement and regenerate first-slice schema/registration/adapter sources.
-- [ ] P3.2: Test round-trip, task validation, transaction atomicity, cache behavior, and fresh-object reload through actual CHASM paths.
+- [x] P3.1: Implement and regenerate first-slice schema/registration/adapter sources.
+- [x] P3.2: Test round-trip, task validation, transaction atomicity, cache behavior, and fresh-object reload through actual CHASM paths.
 - [ ] P3.3: Instrument preparation/deserialization, modified nodes, serialized bytes, and persistence reads from the first slice.
-- [ ] P3.4: Demonstrate metadata reads avoid large carryover/diagnostic payloads and keyed callbacks avoid unrelated operations.
+- [x] P3.4: Demonstrate metadata reads avoid large carryover/diagnostic payloads and keyed callbacks avoid unrelated operations.
 - [ ] P3.5: Expand the adapter only after relevant contract/model decisions are ready.
 - [ ] P3.6: Run applicable concurrent adapter/executor tests with the Go race detector; verify cancellation, timeout, and immutable snapshot ownership behavior.
 
@@ -254,13 +254,13 @@ Run production reducer and adapter code locally. Control time, API commands, phy
 
 The abstract transition relation must be independently specified rather than derived from reducer output. Projection exposes identities, accounting, and outstanding obligations as well as public observations. After each commit, compare projected state and effects against that relation. Permit only named stuttering transitions. Use fair recovery suffixes for bounded progress evidence without claiming an infinite-execution liveness proof.
 
-- [ ] P4.1: Exercise one automatic occurrence and one explicitly selected overlap policy through admission, durable intent, acceptance, lost acknowledgment, retry, early completion, and restart.
-- [ ] P4.2: Shrink failures into replayable event traces.
-- [ ] P4.3: Save seed, initial state, tool/binary versions, configuration, source SHA, event ordering, and invariant expectations.
+- [x] P4.1: Exercise one automatic occurrence and one explicitly selected overlap policy through admission, durable intent, acceptance, lost acknowledgment, retry, early completion, and restart.
+- [x] P4.2: Shrink failures into replayable event traces.
+- [x] P4.3: Save seed, initial state, tool/binary versions, configuration, source SHA, event ordering, and invariant expectations.
 - [ ] P4.4: Replay historical traces, detect deliberate defects, and cover every production event path as it is added.
 - [ ] P4.5: Drive the deterministic harness with Rapid-generated commands, delivery orders, and fault choices. Check invariants after each commit and append controlled recovery suffixes for bounded progress checks.
-- [ ] P4.6: Pass harness self-tests for replay, fresh-object restart, failure boundaries, and dependency-aware shrinking before counting simulation runs as evidence.
-- [ ] P4.7: Implement the local verification runner and named evidence-producing profiles defined in section 7.
+- [x] P4.6: Pass harness self-tests for replay, fresh-object restart, failure boundaries, and dependency-aware shrinking before counting simulation runs as evidence.
+- [x] P4.7: Implement the local verification runner and named evidence-producing profiles defined in section 7.
 
 M1 exit: P0–P4 first-slice gates pass; independently registered local component preserves immutable requests across ambiguous acceptance and restart and demonstrates selective node loading.
 
@@ -455,24 +455,27 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 
 | Decision ID | Question | Status | Resolution or next action | Blocks |
 | --- | --- | --- | --- | --- |
-| D1 | Worktree name and provenance | open | Existing `sch-redesign` is verified; reconcile requested name and creation base | M0 |
-| D2 | First-slice overlap policy | open | Select one after inspecting semantics; keep scope to one automatic occurrence | P1.2, P2.1 |
-| D3 | Admission/accounting point and immutable request boundary | open | Resolve C3–C6 for first slice | P1.2, P2.1 |
-| D4 | External deduplication expiry and terminal retention | open | Establish external guarantees and disposition of ambiguous late retries | M1 |
+| D1 | Worktree name and provenance | decided | Retain sch-redesign; created from upstream/main at 85b80a183; E4 | Resolved M0 |
+| D2 | First-slice overlap policy | decided | SKIP, one predetermined automatic occurrence; contract.md, E5 | Resolved M1 slice |
+| D3 | Admission/accounting point and immutable request boundary | decided | Debit once at committed admission, count once on acceptance evidence; freeze complete request; DIV1; E10–E13 | Resolved M1 slice |
+| D4 | External deduplication expiry and terminal retention | decided for M1 | Assume retained remote identity within admission+60s; stop issuance at expiry, retain ambiguity, accept valid late evidence; no terminal eviction | Production retention remains M2+ |
 | D5 | Capacity limits and sustained-ingress fairness | open | Define ingress dispositions and L2 assumptions | M2 |
 | D6 | Retry deadline representation | open | Measure bounded scan versus maintained index | Expanded P3 |
 | D7 | Local model checker | decided | Use FizzBee; verify/pin local installation and record commands before execution | P1.2 |
 | D8 | Migration support | decided | Unsupported in initial local prototype | Future migration only |
 | D9 | Property-testing tool | decided | Use test-only Rapid for structured specs, reducer sequences, and harness scenarios; preserve standalone replay artifacts | P2.5, P4.5 |
 | D10 | Algorithm proof tool and scope | decided | Lean 4 for resumable enumeration with pending jitter and batching; Go correspondence initially tested, not proved | P5.4 |
-| D11 | Tool versions and exploration budgets | open | Inspect local installations and repository conventions; pin versions, routine seeds, counts, and event bounds | Verification execution |
-| D12 | Shared event/trace schema and observation points | open | Define versioned JSON vocabulary and independent adapters per section 7 | M0, P4.7 |
-| D13 | Precise spec-processing semantics | open | Resolve SC1–SC7 incrementally against C1/C2; block dependent oracles/proofs | Relevant occurrence-core work |
-| D14 | Prototype resource limits | open | Record numeric limits, units, owners, overload behavior, and boundary tests | M1 configuration; M2 full coverage |
-| D15 | Verification runner path and commands | open | Follow repository tooling; implement the named profiles with evidence manifests | P4.7 |
+| D11 | Tool versions and exploration budgets | decided for M1 | profile.json and E9–E14; FizzBee 0.5.4, Go 1.27.3, Rapid 1.2.0; Lean unavailable/deferred | Expanded profiles remain later work |
+| D12 | Shared event/trace schema and observation points | decided for M1 | trace.schema.json + dependency validator; independent projection after commits; manual FizzBee abstraction mapping | Future Lean/differential adapters deferred |
+| D13 | Precise spec-processing semantics | decided for M1 subset | Predetermined UTC occurrence, zero jitter, cursor<nominal<=now; no general calendar implementation | SC2–SC7 general cases M2+ |
+| D14 | Prototype resource limits | decided for M1 | profile.json; single action/operation, 60s horizon, 1s backoff, bounded local executor; E10–E13 | Expanded capacity boundaries M2 |
+| D15 | Verification runner path and commands | decided for M1 | docs/development/scheduler2/run.py; all named profiles emit manifests; proofs/fuzz/benchmarks explicitly unsupported | Later profile implementations deferred |
 | D16 | Proof completion gate | decided | Draft during core design; reviewed executable specification by M2; proofs and correspondence required by M3, not M1 | M2, M3 |
 | D17 | Functional test backend selection | decided | Explicit V1/existing CHASM/scheduler2 descriptor; shared API assertions, backend-aware setup/cleanup, local-only wiring, and verified independent component identity | P5.5, P5.6 |
 | D18 | Local frontend test seam | open | Inspect test-cluster injection hooks; cover scheduler client plus typed List/Count paths without production routing changes | P5.6 |
+| D19 | Completion payload subset | decided | M1 checks matching identities and models absent-result completion; result_present=true is rejected by replay. Frozen start carryover is preserved. Null/result/failure carryover updates stay M2, rather than inventing a partial public API. E11–E13. | M2 C6 expansion |
+| D20 | Local executor limit | decided | Conservative one-RPC gate per local library instance for the one-schedule experiment. Per-schedule concurrent partitioning remains later work; no production activation. E13. | Expanded multi-schedule concurrency |
+| D21 | Recovery suffix and simulation bounds | decided | One authenticated completion resolves the single operation; replace proposed 16/32 padded recovery steps with this explicit finite suffix. Reducer runs 128 exploration events; CHASM generation uses 12–28 dependency-valid events. This matches the implemented scope and does not change a failed assertion or claim infinite liveness. E10/E12. | Expanded protocol requires new bounds |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 
@@ -485,6 +488,10 @@ Evidence kinds: `source-inspection`, `abstract-theorem`, `bounded-model-check`, 
 | E1 | source-inspection | Current and original worktrees exist | `git worktree list`, 2026-11-10 | Paths/branches recorded in section 3; creation provenance not established |
 | E2 | source-inspection | Full comparison and current revision identities | `git rev-parse '9ab3a9f77^{commit}'`; `git rev-parse HEAD` | SHAs recorded in section 3 |
 | E3 | source-inspection | Current worktree clean before plan creation | `git status --short`, 2026-11-10 | Empty output; original checkout not inspected |
+| E4–E8 | source-inspection/review | M0 prerequisites and contract | [ledger](docs/development/scheduler2/evidence/README.md) | WI-000 accepted |
+| E9 | bounded-model-check | First-slice safety/conditional liveness + mutation sensitivity | [model results](docs/development/scheduler2/evidence/m1/model/results.json) | 1028 states at 100/200 bounds; five mutants detected |
+| E10–E13 | property/CHASM/simulation/race | Immutable start, restart, accounting, fault and aliasing checks | [ledger](docs/development/scheduler2/evidence/README.md) | All required M1 profiles passed at f9d62cf99 |
+| E14–E16 | generation/lint/loading/review | Code checks, payload separation and acceptance | [review](docs/development/scheduler2/evidence/m1/review.md) | 0 lint issues; three payload values avoided; M1 accepted |
 
 For each future evidence record include:
 
@@ -618,10 +625,10 @@ next_action: Resolve external acceptance and retry semantics
 
 | Work item | Scope | Acceptance criteria | Status |
 | --- | --- | --- | --- |
-| WI-000 | Resolve workspace provenance and the first-slice contract/CHASM assumptions | W1–W4 and relevant H1–H7 have evidence; D2–D4 resolved for the slice; trace vocabulary, resource limits, and exploration settings recorded; unrelated open questions explicitly deferred | proposed |
-| WI-001 | Lost-acknowledgment vertical slice after WI-000 | One automatic occurrence under the selected overlap policy survives committed intent, external acceptance, lost acknowledgment, retry, early completion, and fresh-object restart; identity/input and accounting remain correct; model/property/CHASM evidence and selective-loading checks pass | proposed |
+| WI-000 | Resolve workspace provenance and the first-slice contract/CHASM assumptions | W1–W4 and relevant H1–H7 have evidence; D2–D4 resolved for the slice; trace vocabulary, resource limits, and exploration settings recorded; unrelated open questions explicitly deferred | accepted; E4–E16 |
+| WI-001 | Lost-acknowledgment vertical slice after WI-000 | One automatic occurrence under the selected overlap policy survives committed intent, external acceptance, lost acknowledgment, retry, early completion, and fresh-object restart; identity/input and accounting remain correct; model/property/CHASM evidence and selective-loading checks pass | accepted; E4–E16 |
 
-WI-001 is the first implementation loop and may be split into linked smaller items after investigation. Splitting must preserve the end-to-end acceptance obligation; partially completed subitems do not satisfy M1. Both items remain proposed until their authorization and readiness conditions are met.
+WI-001 is the first implementation loop and may be split into linked smaller items after investigation. Splitting must preserve the end-to-end acceptance obligation; partially completed subitems do not satisfy M1. Both initial items are now accepted for the recorded M0/M1 scope; see execution records and evidence.
 
 ### Parallel work and worktree policy
 
@@ -661,4 +668,32 @@ WI-000 accepted after independent review resolved identity, deadline and fairnes
 clarity. D1–D4 and relevant D11–D14 portions decided for the bounded slice.
 General calendar, capacity/fairness, retention and migration decisions remain open
 for later milestones. No original-checkout implementation was imported.
-WI-001 is ready; required model, property, CHASM and harness evidence remains pending.
+WI-001 accepted at verified code f9d62cf99ba5a6e72d987b9bdb9f315c98efd40e.
+M1 passed E9–E16 after independent review. Execution stopped for review; M2–M4
+remain pending. Later documentation-only acceptance commit does not change code.
+
+Checked P0–P4 entries denote the bounded first-slice obligation, not full-policy
+completion. P2.5/P3.3/P3.6/P4.5 have passing M1 subsets (E10–E15) while their full
+calendar/concurrency/measurement expansions remain unchecked. No Lean proof,
+public API differential, failover, load or production readiness is claimed.
+DB atomicity/cache eviction and remote retention through the selected horizon
+remain trusted. Actual CHASM tree serialization, tasks and fresh reload are tested.
+
+[E9–E16 detailed evidence](docs/development/scheduler2/evidence/README.md),
+[WI-001 acceptance](docs/development/scheduler2/work-items/WI-001.md),
+[independent review](docs/development/scheduler2/evidence/m1/review.md),
+[runner and scope](docs/development/scheduler2/README.md).
+
+Original checkout tracked diff remains byte-identical; all original untracked
+entries retained. An unrelated new test and unrelated worktrees appeared during
+the session; none were edited or removed. All task worktrees are retained.
+No push, production routing, rollout or migration was performed.
+
+### Final execution change log
+
+2026-11-10: executed WI-000 and WI-001 with three isolated delegated contributions;
+registered scheduler2 for local tests/offline readers, added generated persisted
+partitions, immutable reducer and bounded executor, independent FizzBee model and
+mutations, real CHASM snapshot/fault/replay tests, versioned traces and runner.
+Independent reviews found and resolved four dispatch/rollback/concurrency defects.
+Combined verification passed; committed evidence and stopped after M1 for review.

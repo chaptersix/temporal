@@ -108,3 +108,30 @@ its terminal state is not guaranteed unless completion delivery is assumed fair.
 Expiry to retained ambiguity is a permitted disposition, not successful completion.
 A bounded recovery suffix checks finite progress only. Any infinite-execution
 liveness assertion must name its fairness settings in the model evidence.
+
+
+## Accepted implementation refinements
+
+D19/D20/D21 are recorded in the central decision ledger and README. Completion
+payload updates are outside the M1 subset; replay explicitly rejects present
+results. The local issuance limit is one RPC per library instance. Recovery uses
+one valid completion for the single operation, replacing the proposed padded
+16/32-event suffixes. CHASM generated scenarios contain 12–28 events; reducer
+exploration uses 128. No failing assertion was weakened for these clarifications.
+A failed RPC schedules from max(current time, previous retry time) to preserve
+physical successor dispatch even when time rolls back in flight.
+
+
+## First-slice compatibility matrix
+
+| Input/observation | M1 expectation | Coverage / deferred boundary |
+|---|---|---|
+| Automatic due | Strict cursor advancement with committed disposition; SKIP; debit once | Reducer properties and CHASM admission/publication tests. General calendar deferred. |
+| Definition update | Higher revision changes future admission settings; frozen request unchanged | Lost-ack/update/retry tests; public conflict-token API deferred. |
+| Start acknowledgment | Bind matching chain and count once, including after expiry | Real task-bound-reference regression and reducer duplicate tests. |
+| Ambiguous RPC error | Keep immutable operation; bounded retry and physical successor | Retry/cancellation/rollback tests; public error translation deferred. |
+| Early/duplicate completion | Absent result, matching identity; monotonic completion and count once | Replay/refinement, reducer and CHASM tests; payload carryover changes deferred. |
+| Unknown/old-incarnation result | No state/count change; conflicting bound chain rejected | Reducer identity tests; production token auth and delete/recreate API deferred. |
+| Retry horizon | No new starts at/after admission+60s; retain ambiguity; valid late evidence accepted | Boundary and real executor tests; remote retention remains explicit assumption. |
+| Metadata observation | Root/selected operation metadata only; no request/diagnostic payload decoding | Poisoned three-payload CHASM test; no visibility/DB-fetch reduction claim. |
+| Public Schedule commands, List/Count and visibility ordering | Not routed to scheduler2 | Existing scheduler preserved; public API suite belongs M3. |

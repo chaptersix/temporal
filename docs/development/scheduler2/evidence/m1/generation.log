@@ -1,0 +1,141 @@
+[1;36mGenerating proto dependencies image...[0m
+go: downloading google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d
+go: downloading google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d
+go: downloading golang.org/x/net v0.60.0
+go: downloading golang.org/x/sys v0.48.0
+go: downloading golang.org/x/text v0.42.0
+mise by @jdx – installing 2 tools
+mise ✓ protoc@23.4  1.4s  protoc-23.4-osx-aarch_64.zip
+mise ██████████████░░ 1/2 · 3.0s
+  go@1.27.3    extracting  3.0s
+mise go@1.27.3 go version go1.27.3 darwin/arm64
+mise ✓ go@1.27.3    4.2s  go1.27.3.darwin-arm64.tar.gz
+mise ████████████████ 2/2 · installed 2 tools in 4.2s
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+[1;36mGenerate proto image...[0m
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+[1;36mGenerate CHASM proto image...[0m
+mise by @jdx – installing 1 tool
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/bufbuild/buf v1.6.0
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/bufbuild/connect-go v0.1.1
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/spf13/pflag v1.0.5
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/spf13/cobra v1.4.0
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading google.golang.org/protobuf v1.28.0
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading go.opencensus.io v0.23.0
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading go.uber.org/multierr v1.8.0
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading go.uber.org/zap v1.21.0
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading golang.org/x/term v0.0.0-20220526004731-065cf7ba2467
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/pkg/profile v1.6.0
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/jhump/protoreflect v1.12.1-0.20220417024638-438db461d753
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading golang.org/x/net v0.0.0-20220617184016-355a448f1bc9
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/rs/cors v1.8.2
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/jhump/protocompile v0.0.0-20220216033700-d705409f108f
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/go-chi/chi/v5 v5.0.7
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/jdxcode/netrc v0.0.0-20210204082910-926c7f70242a
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/gofrs/flock v0.8.1
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading go.uber.org/atomic v1.9.0
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/gofrs/uuid v4.2.0+incompatible
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/klauspost/compress v1.15.6
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/klauspost/pgzip v1.2.5
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/cpuguy83/go-md2man/v2 v2.0.2
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading github.com/golang/protobuf v1.5.2
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad
+mise go:github.com/bufbuild/buf/cmd/buf@1.6.0 go: downloading golang.org/x/text v0.3.7
+mise ░░░░░░░░░░░░░░░░ 0/1 · 3.0s
+  go:github.com/bufbuild/buf/cmd/buf@1.6.0  installing  3.0s
+mise ░░░░░░░░░░░░░░░░ 0/1 · 6.0s
+  go:github.com/bufbuild/buf/cmd/buf@1.6.0  installing  6.0s
+mise ✓ go:github.com/bufbuild/buf/cmd/buf@1.6.0  8.6s
+mise ████████████████ 1/1 · installed 1 tool in 8.6s
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+[1;36mLinting proto definitions...[0m
+mise by @jdx – installing 1 tool
+mise go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3 go: downloading github.com/googleapis/api-linter v1.32.3
+mise go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3 go: downloading github.com/jhump/protoreflect v1.10.1
+mise go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3 go: downloading github.com/bmatcuk/doublestar/v2 v2.0.4
+mise go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3 go: downloading bitbucket.org/creachadair/stringset v0.0.10
+mise go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3 go: downloading google.golang.org/genproto v0.0.0-20220429170224-98d788798c3e
+mise go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3 go: downloading github.com/stoewer/go-strcase v1.2.0
+mise go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3 go: downloading github.com/gertd/go-pluralize v0.1.7
+mise go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3 go: downloading github.com/mattn/go-runewidth v0.0.9
+mise go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3 go: downloading google.golang.org/grpc v1.45.0
+mise go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3 go: downloading golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
+mise go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3 go: downloading golang.org/x/text v0.3.5
+mise ░░░░░░░░░░░░░░░░ 0/1 · 3.0s
+  go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3  installing  3.0s
+mise ✓ go:github.com/googleapis/api-linter/cmd/api-linter@1.32.3  5.2s
+mise ████████████████ 1/1 · installed 1 tool in 5.2s
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+[1;36mLinting proto API...[0m
+mise by @jdx – installing 1 tool
+mise ✓ go:golang.org/x/tools/cmd/goimports@0.49.0  1.5s
+mise ████████████████ 1/1 · installed 1 tool in 1.5s
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise by @jdx – installing 1 tool
+mise go:go.uber.org/mock/mockgen@0.6.0 go: downloading golang.org/x/mod v0.27.0
+mise go:go.uber.org/mock/mockgen@0.6.0 go: downloading golang.org/x/tools v0.36.0
+mise go:go.uber.org/mock/mockgen@0.6.0 go: downloading golang.org/x/sync v0.16.0
+mise ✓ go:go.uber.org/mock/mockgen@0.6.0  1.7s
+mise ████████████████ 1/1 · installed 1 tool in 1.7s
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise WARN  missing: go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6 go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise by @jdx – installing 1 tool
+mise ✓ go:google.golang.org/protobuf/cmd/protoc-gen-go@1.36.6  1.5s
+mise ████████████████ 1/1 · installed 1 tool in 1.5s
+mise WARN  missing: go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise WARN  missing: go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0
+mise by @jdx – installing 1 tool
+mise go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0 go: downloading google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
+mise go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0 go: downloading google.golang.org/grpc v1.3.0
+mise go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0 go: downloading google.golang.org/protobuf v1.28.1
+mise ✓ go:google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.3.0  1.8s
+mise ████████████████ 1/1 · installed 1 tool in 1.8s
+2026/11/10 19:00:00 Removing existing CHASM gen directories...
+2026/11/10 19:00:00 Backing up existing proto output directory...
+2026/11/10 19:00:00 Preparing temp directories...
+2026/11/10 19:00:00 Copying CHASM lib protos...
+2026/11/10 19:00:00 Running protoc for proto files...
+2026/11/10 19:00:02 Running goimports for proto files...
+2026/11/10 19:00:13 Generating proto mocks...
+2026/11/10 19:00:14 Modifying history service server interface...
+2026/11/10 19:00:14 Modifying matching service server interface...
+2026/11/10 19:00:14 Moving proto files into place...
+2026/11/10 19:00:14 Moving generated CHASM files into place...
+[1;36mGenerate service clients...[0m
+go: downloading go.opentelemetry.io/otel/trace v1.45.0
+go: downloading go.temporal.io/sdk v1.49.0
+go: downloading go.opentelemetry.io/otel v1.45.0
+go: downloading go.opentelemetry.io/otel/sdk/metric v1.45.0
+go: downloading go.opentelemetry.io/otel/metric v1.45.0
+go: downloading github.com/klauspost/compress v1.18.7
+go: downloading go.opentelemetry.io/otel/sdk v1.45.0
+go: downloading go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.45.0
+go: downloading go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.45.0
+go: downloading golang.org/x/sync v0.23.0
+go: downloading go.temporal.io/auto-scaled-workers v0.0.0-20261030203857-75274b664c29
+go: downloading github.com/bits-and-blooms/bloom/v3 v3.7.1
+go: downloading go.opentelemetry.io/proto/otlp v1.11.0
+go: downloading github.com/go-jose/go-jose/v4 v4.1.6
+go: downloading golang.org/x/crypto v0.57.0
+go: downloading github.com/go-logr/logr v1.4.4
+go: downloading github.com/aws/aws-sdk-go-v2 v1.43.4
+go: downloading github.com/aws/smithy-go v1.27.6
+go: downloading github.com/bits-and-blooms/bitset v1.24.2
+go: downloading github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.16
+go: downloading github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.35
+go: downloading github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.35
+[1;36mGenerate server interceptors...[0m
+[1;36mGenerate routing key extractor...[0m
+[1;36mGenerate search attributes helpers...[0m

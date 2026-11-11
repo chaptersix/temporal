@@ -1,0 +1,10 @@
+--- FAIL: TestTaskRollbackDuringRPCPublishesSuccessor (0.00s)
+    tasks_test.go:218: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/tasks_test.go:218
+        	Error:      	Not equal: 
+        	            	expected: 2000000000
+        	            	actual  : 1000000000
+        	Test:       	TestTaskRollbackDuringRPCPublishesSuccessor
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.578s
+FAIL

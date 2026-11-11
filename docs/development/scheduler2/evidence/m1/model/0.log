@@ -1,0 +1,7 @@
+baseline-100 passed=True detected=False
+baseline-200 passed=True detected=False
+lost_wakeup passed=False detected=True
+cursor_loss passed=False detected=True
+duplicate_accounting passed=False detected=True
+retry_identity passed=False detected=True
+retry_input passed=False detected=True

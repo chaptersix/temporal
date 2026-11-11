@@ -1,0 +1,132 @@
+[
+  {
+    "case": "baseline-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-final/model/model/baseline-100/graph",
+      "/private/tmp/scheduler2-final/model/model/baseline-100/start.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "sha256": "38763c1559317fcb524223e7a015d321e12ea1654164af0be33fe868153a3a9e",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 1028, queued: 0, elapsed: 378.215916ms",
+      "Nodes: 1028",
+      "Valid Nodes: 1028 Unique states: 1028"
+    ]
+  },
+  {
+    "case": "baseline-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-final/model/model/baseline-200/graph",
+      "/private/tmp/scheduler2-final/model/model/baseline-200/start.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "sha256": "bdff9718e85b08da4ff843d5615972c4e07e26ce018ef73334070f5d315da0a4",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 1028, queued: 0, elapsed: 376.028834ms",
+      "Nodes: 1028",
+      "Valid Nodes: 1028 Unique states: 1028"
+    ]
+  },
+  {
+    "case": "lost_wakeup",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-final/model/model/lost_wakeup/graph",
+      "/private/tmp/scheduler2-final/model/model/lost_wakeup/start.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "LOST_WAKEUP",
+    "sha256": "ce2006056803fc3ce682d4ff48114915a459b2694a22bceea9d5d49573cd3f8a",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 43, queued: 273, elapsed: 11.467709ms"
+    ]
+  },
+  {
+    "case": "cursor_loss",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-final/model/model/cursor_loss/graph",
+      "/private/tmp/scheduler2-final/model/model/cursor_loss/start.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "CURSOR_LOSS",
+    "sha256": "7fe2900cf98196c20528263029b9be95ae8572fb712db2ebcfb3906135f7c61f",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 6, queued: 53, elapsed: 1.432875ms"
+    ]
+  },
+  {
+    "case": "duplicate_accounting",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-final/model/model/duplicate_accounting/graph",
+      "/private/tmp/scheduler2-final/model/model/duplicate_accounting/start.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "DUPLICATE_ACCOUNTING",
+    "sha256": "074075ca28dda9526d3d5918f3f33862d31d2cb3762554cfe7f52b58cdb0aa10",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 85, queued: 552, elapsed: 23.168375ms"
+    ]
+  },
+  {
+    "case": "retry_identity",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-final/model/model/retry_identity/graph",
+      "/private/tmp/scheduler2-final/model/model/retry_identity/start.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "RETRY_IDENTITY",
+    "sha256": "3598868106cea93c93bff583757e2725deae9622f0190d7f1ddf1c7e4cad8ab7",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 78, queued: 485, elapsed: 21.30075ms"
+    ]
+  },
+  {
+    "case": "retry_input",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-final/model/model/retry_input/graph",
+      "/private/tmp/scheduler2-final/model/model/retry_input/start.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "RETRY_INPUT",
+    "sha256": "d9418a385aec7f13f848d3426ea735c868900706a39c111464e497fa63fa4f37",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 119, queued: 723, elapsed: 33.565083ms"
+    ]
+  }
+]

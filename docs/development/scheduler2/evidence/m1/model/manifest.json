@@ -1,0 +1,89 @@
+{
+  "profile": "model",
+  "source_sha": "549fd46dedf2f552e18b807110c737734f237e15",
+  "status_before": "",
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source_files": {
+    "chasm/lib/scheduler2/component.go": "dc3c3be25bbe67c76ba70fbcd4a20c8e41468b422240aefd28f852a23caeaef6",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go": "8b110b3b1265eb87f8ca690ca5c4e29ccfaeb6976869cb357be1dddb74aa1be9",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "f3ab7893a6ac8c976c3ecbbba05029f60ec92f688946537771631d09054a3f70",
+    "chasm/lib/scheduler2/internal/decision/decision.go": "94e9bb7b145848250a84c1b8ff4b09b6d4e59323d2fe2821b9c9771d275d0eef",
+    "chasm/lib/scheduler2/internal/decision/decision_test.go": "5ec51d5b81b8b4451a7108dbbfae9afc804c4af178760135aaf629c5d0792943",
+    "chasm/lib/scheduler2/library.go": "396085a659c05ca72c25a0d433e7abee4a0874a71db7a3dcab2faa13d6169081",
+    "chasm/lib/scheduler2/persistence_test.go": "6cfe3abf9883a07522a677db334d9b9b9e1570510061c9de9618fc9ae4c2ca4c",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "d32a37ef2fa3ad8b3b673a2c29a2c9f98e1b22d4c0b5871be7d3ae8d4878169e",
+    "chasm/lib/scheduler2/replay_test.go": "b5b7d15ddbf3a739264cbe388e7d74855134f6054aaa6f63e64bce429634d5b3",
+    "chasm/lib/scheduler2/tasks.go": "4aaa661477fdc4111a3f2b0580300b954e814cb72504164011b30e7f201eb1d2",
+    "chasm/lib/scheduler2/tasks_test.go": "e9d1831501e691800318fe9466c628816b712febaa59d049341539036c11b72b"
+  },
+  "configuration": {
+    "version": 1,
+    "scope": "single automatic occurrence, SKIP, local only",
+    "clock": "execution Unix nanoseconds",
+    "per_schedule": {
+      "enumeration_batch": 1,
+      "admission_batch": 1,
+      "scan_batch": 1,
+      "pending_actions": 1,
+      "live_operations": 1,
+      "backfill_requests": 0,
+      "terminal_records": 1,
+      "retry_horizon_seconds": 60,
+      "retry_backoff_seconds": 1
+    },
+    "executor_concurrency_per_library": 1,
+    "routine": {
+      "scenarios": 100,
+      "events": 32,
+      "seed": 1
+    },
+    "exploration": {
+      "scenarios": 10000,
+      "events": 128,
+      "seed_policy": "explicit --seed recorded in manifest"
+    },
+    "recovery": "one authenticated completion; an explicit finite suffix, not a liveness proof",
+    "model": {
+      "action_bounds": [
+        100,
+        200
+      ],
+      "concurrent_actions": 1,
+      "timeout_seconds_per_case": 300
+    },
+    "tools": {
+      "go": "go1.27.3",
+      "rapid": "v1.2.0",
+      "fizzbee": "v0.5.4",
+      "lean": "unavailable; M3 gate"
+    },
+    "limits": "unsupported ingress rejected; expiry retains ambiguity; no retention eviction in bounded slice"
+  },
+  "seed": 1,
+  "scenarios": 100,
+  "event_limit": 32,
+  "go_version": "go version go1.27.3 darwin/arm64",
+  "python_version": "3.14.6 (main, Jun 10 2026, 10:03:53) [Clang 21.0.0 (clang-2100.0.123.102)]",
+  "environment": {
+    "GOMAXPROCS": "4",
+    "CGO_ENABLED": "0"
+  },
+  "trace_schema": 1,
+  "results": [
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/Users/alex/repos/wt/sch-redesign/temporal/docs/development/scheduler2/model/run.py",
+        "--fizz",
+        "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+        "--output",
+        "/private/tmp/scheduler2-final/model/model"
+      ],
+      "exit_code": 0,
+      "result": "passed",
+      "seconds": 2.769206708064303,
+      "log": "/private/tmp/scheduler2-final/model/0.log"
+    }
+  ],
+  "result": "passed"
+}

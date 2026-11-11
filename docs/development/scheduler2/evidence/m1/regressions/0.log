@@ -1,0 +1,115 @@
+=== RUN   TestLostAcknowledgmentFreshTree
+=== PAUSE TestLostAcknowledgmentFreshTree
+=== RUN   TestFailedPublicationRetainsPriorStateAndTasks
+=== PAUSE TestFailedPublicationRetainsPriorStateAndTasks
+=== RUN   TestMetadataTransitionsAvoidPayloadDeserialization
+=== PAUSE TestMetadataTransitionsAvoidPayloadDeserialization
+=== RUN   TestDroppedLogicalTaskIsDetected
+=== PAUSE TestDroppedLogicalTaskIsDetected
+=== RUN   TestIndependentNilLibraryRestoresPersistedComponent
+=== PAUSE TestIndependentNilLibraryRestoresPersistedComponent
+=== RUN   TestReplayFreshObjects
+=== PAUSE TestReplayFreshObjects
+=== RUN   TestReplayShrinksRetryInputDefect
+=== PAUSE TestReplayShrinksRetryInputDefect
+=== RUN   TestReplayProperties
+=== PAUSE TestReplayProperties
+=== RUN   TestSnapshotOwnsSerializedBuffers
+=== PAUSE TestSnapshotOwnsSerializedBuffers
+=== RUN   TestTaskLateAcknowledgmentAfterExpiry
+=== PAUSE TestTaskLateAcknowledgmentAfterExpiry
+=== RUN   TestTaskRollbackKeepsPhysicalDeliveryRetryable
+=== PAUSE TestTaskRollbackKeepsPhysicalDeliveryRetryable
+=== RUN   TestTaskCancellationAndConcurrencyBound
+=== PAUSE TestTaskCancellationAndConcurrencyBound
+=== RUN   TestTaskAcceptedCancellationRetainsIntent
+=== PAUSE TestTaskAcceptedCancellationRetainsIntent
+=== RUN   TestTaskRetrySchedulesSuccessor
+=== PAUSE TestTaskRetrySchedulesSuccessor
+=== RUN   TestTaskRollbackDuringRPCPublishesSuccessor
+=== PAUSE TestTaskRollbackDuringRPCPublishesSuccessor
+=== CONT  TestLostAcknowledgmentFreshTree
+=== CONT  TestSnapshotOwnsSerializedBuffers
+=== CONT  TestTaskAcceptedCancellationRetainsIntent
+=== CONT  TestIndependentNilLibraryRestoresPersistedComponent
+--- PASS: TestTaskAcceptedCancellationRetainsIntent (0.00s)
+=== CONT  TestReplayProperties
+--- PASS: TestIndependentNilLibraryRestoresPersistedComponent (0.00s)
+=== CONT  TestReplayShrinksRetryInputDefect
+--- PASS: TestSnapshotOwnsSerializedBuffers (0.00s)
+=== CONT  TestReplayFreshObjects
+--- PASS: TestLostAcknowledgmentFreshTree (0.01s)
+=== CONT  TestTaskRollbackDuringRPCPublishesSuccessor
+--- PASS: TestTaskRollbackDuringRPCPublishesSuccessor (0.00s)
+=== CONT  TestTaskRollbackKeepsPhysicalDeliveryRetryable
+--- PASS: TestTaskRollbackKeepsPhysicalDeliveryRetryable (0.00s)
+=== CONT  TestTaskCancellationAndConcurrencyBound
+--- PASS: TestReplayFreshObjects (0.01s)
+=== CONT  TestTaskLateAcknowledgmentAfterExpiry
+--- PASS: TestTaskCancellationAndConcurrencyBound (0.00s)
+=== CONT  TestTaskRetrySchedulesSuccessor
+--- PASS: TestTaskLateAcknowledgmentAfterExpiry (0.00s)
+=== CONT  TestMetadataTransitionsAvoidPayloadDeserialization
+--- PASS: TestTaskRetrySchedulesSuccessor (0.00s)
+=== CONT  TestDroppedLogicalTaskIsDetected
+--- PASS: TestDroppedLogicalTaskIsDetected (0.00s)
+=== CONT  TestFailedPublicationRetainsPriorStateAndTasks
+=== NAME  TestMetadataTransitionsAvoidPayloadDeserialization
+    persistence_test.go:238: metadata completion: 3 payload values not prepared/deserialized; 2 nodes written; 268 serialized bytes; no database-read reduction claimed
+--- PASS: TestMetadataTransitionsAvoidPayloadDeserialization (0.00s)
+--- PASS: TestFailedPublicationRetainsPriorStateAndTasks (0.00s)
+=== NAME  TestReplayShrinksRetryInputDefect
+    replay_test.go:308: minimized explicit counterexample (6 events): {
+          "clock_domain": "execution_nanoseconds",
+          "definition_revision": 1,
+          "version": 1,
+          "incarnation": "incarnation",
+          "initial_time_ns": 1000000000,
+          "remaining": 1,
+          "request": {
+            "namespace": "namespace",
+            "workflow_id": "workflow",
+            "workflow_type": {
+              "name": "type"
+            },
+            "task_queue": {
+              "name": "queue"
+            },
+            "input": {
+              "payloads": [
+                {
+                  "data": "ZnJvemVu"
+                }
+              ]
+            }
+          },
+          "events": [
+            {
+              "kind": "occurrence_due"
+            },
+            {
+              "kind": "deliver_start",
+              "attempt": 1
+            },
+            {
+              "kind": "external_accept",
+              "chain": "chain"
+            },
+            {
+              "kind": "crash"
+            },
+            {
+              "kind": "restart"
+            },
+            {
+              "kind": "deliver_start",
+              "attempt": 2
+            }
+          ]
+        }
+--- PASS: TestReplayShrinksRetryInputDefect (0.01s)
+=== NAME  TestReplayProperties
+    replay_test.go:312: [rapid] OK, passed 100 tests (132.027916ms)
+--- PASS: TestReplayProperties (0.13s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.710s

@@ -1,0 +1,65 @@
+=== RUN   TestReplayFreshObjects
+=== PAUSE TestReplayFreshObjects
+=== RUN   TestReplayShrinksRetryInputDefect
+=== PAUSE TestReplayShrinksRetryInputDefect
+=== RUN   TestReplayProperties
+=== PAUSE TestReplayProperties
+=== CONT  TestReplayFreshObjects
+=== CONT  TestReplayProperties
+=== CONT  TestReplayShrinksRetryInputDefect
+--- PASS: TestReplayFreshObjects (0.01s)
+=== NAME  TestReplayShrinksRetryInputDefect
+    replay_test.go:308: minimized explicit counterexample (6 events): {
+          "clock_domain": "execution_nanoseconds",
+          "definition_revision": 1,
+          "version": 1,
+          "incarnation": "incarnation",
+          "initial_time_ns": 1000000000,
+          "remaining": 1,
+          "request": {
+            "namespace": "namespace",
+            "workflow_id": "workflow",
+            "workflow_type": {
+              "name": "type"
+            },
+            "task_queue": {
+              "name": "queue"
+            },
+            "input": {
+              "payloads": [
+                {
+                  "data": "ZnJvemVu"
+                }
+              ]
+            }
+          },
+          "events": [
+            {
+              "kind": "occurrence_due"
+            },
+            {
+              "kind": "deliver_start",
+              "attempt": 1
+            },
+            {
+              "kind": "external_accept",
+              "chain": "chain"
+            },
+            {
+              "kind": "crash"
+            },
+            {
+              "kind": "restart"
+            },
+            {
+              "kind": "deliver_start",
+              "attempt": 2
+            }
+          ]
+        }
+--- PASS: TestReplayShrinksRetryInputDefect (0.02s)
+=== NAME  TestReplayProperties
+    replay_test.go:312: [rapid] OK, passed 100 tests (188.611167ms)
+--- PASS: TestReplayProperties (0.19s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.769s
