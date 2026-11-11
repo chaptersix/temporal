@@ -514,6 +514,7 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D54 | Idle publication | accepted WI-010 | Exact token/deadline, prewrite overflow validation; conditional stable-idle liveness. | E62–E66 |
 | D55 | Atomic local configuration | accepted E67–E71 | Full source/control replacement prepared before writes; preserves admitted bytes and frozen waiter policies. | E67–E71; strengthened10000-case relation |
 | D56 | Local update replay | accepted E67–E71 | Bounded CHASM request-ID success replay; stale new-ID revision rejects. Separate from public conflict tokens. | E67–E69 |
+| D57 | Exact enumeration proof/correspondence domain | specified for WI-013 | Independent executable uses explicit identity/origin/cache and exact shifted nanoseconds; nominal end differs from supported actual end. Strengthened reachable-state resumability and batching claims, no assumed output equivalence. | WI-013 and Lean correspondence investigation |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 
@@ -899,3 +900,5 @@ Lean proofs and correspondence can proceed independently under their own item.
 WI-011 source5b86032de integrated as e20467cd1 with identical Git tree and
 verified source fingerprints. [WI-012](docs/development/scheduler2/work-items/WI-012.md)
 is ready for explicit functional backend setup and complete scenario inventory.
+
+WI-013 independently advances M3 SP2/SP3 proofs and executable correspondence under D57; its ready record preserves full M3/M4 requirements.
