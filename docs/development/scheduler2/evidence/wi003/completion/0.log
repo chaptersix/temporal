@@ -1,0 +1,226 @@
+=== RUN   TestCompletionSavedReplay
+=== PAUSE TestCompletionSavedReplay
+=== RUN   TestCallbackCarryoverMatrix
+=== PAUSE TestCallbackCarryoverMatrix
+=== RUN   TestCallbackFailedPublicationAndPayloadLoading
+=== PAUSE TestCallbackFailedPublicationAndPayloadLoading
+=== RUN   TestCarryoverFrozenAtAdmission
+=== PAUSE TestCarryoverFrozenAtAdmission
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged
+=== RUN   TestCallbackStaleDoesNotPrepareCarryover
+=== PAUSE TestCallbackStaleDoesNotPrepareCarryover
+=== RUN   TestCompletionResourceBoundariesAndRecovery
+=== PAUSE TestCompletionResourceBoundariesAndRecovery
+=== CONT  TestCompletionSavedReplay
+=== CONT  TestCompletionResourceBoundariesAndRecovery
+=== CONT  TestCarryoverFrozenAtAdmission
+=== RUN   TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65535
+=== PAUSE TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65535
+=== RUN   TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65536
+=== PAUSE TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65536
+=== RUN   TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65537
+=== PAUSE TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65537
+=== RUN   TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65535
+=== PAUSE TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65535
+=== RUN   TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65536
+=== PAUSE TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65536
+=== RUN   TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65537
+=== CONT  TestCallbackFailedPublicationAndPayloadLoading
+=== RUN   TestCarryoverFrozenAtAdmission/result_and_empty_failure
+=== PAUSE TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65537
+=== CONT  TestCallbackStaleDoesNotPrepareCarryover
+=== RUN   TestCallbackStaleDoesNotPrepareCarryover/old_incarnation
+=== PAUSE TestCarryoverFrozenAtAdmission/result_and_empty_failure
+=== RUN   TestCarryoverFrozenAtAdmission/cleared
+=== PAUSE TestCallbackStaleDoesNotPrepareCarryover/old_incarnation
+=== RUN   TestCallbackStaleDoesNotPrepareCarryover/unknown_operation
+=== PAUSE TestCarryoverFrozenAtAdmission/cleared
+=== PAUSE TestCallbackStaleDoesNotPrepareCarryover/unknown_operation
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged
+=== CONT  TestCallbackCarryoverMatrix
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged/result_wire
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged/result_wire
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged/failure_wire
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged/failure_wire
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged/failure_status_mismatch
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged/failure_status_mismatch
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged/result_limit
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged/result_limit
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged/failure_limit
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged/failure_limit
+=== RUN   TestCallbackCarryoverMatrix/absent
+=== PAUSE TestCallbackCarryoverMatrix/absent
+=== RUN   TestCallbackCarryoverMatrix/empty_wire
+=== PAUSE TestCallbackCarryoverMatrix/empty_wire
+=== RUN   TestCallbackCarryoverMatrix/explicit_null
+=== PAUSE TestCallbackCarryoverMatrix/explicit_null
+=== RUN   TestCallbackCarryoverMatrix/value
+=== PAUSE TestCallbackCarryoverMatrix/value
+=== RUN   TestCallbackCarryoverMatrix/unknown_fields
+=== PAUSE TestCallbackCarryoverMatrix/unknown_fields
+=== RUN   TestCallbackCarryoverMatrix/empty_failure
+=== PAUSE TestCallbackCarryoverMatrix/empty_failure
+=== RUN   TestCallbackCarryoverMatrix/failed
+=== PAUSE TestCallbackCarryoverMatrix/failed
+=== RUN   TestCallbackCarryoverMatrix/canceled
+=== PAUSE TestCallbackCarryoverMatrix/canceled
+=== RUN   TestCallbackCarryoverMatrix/timed_out
+=== PAUSE TestCallbackCarryoverMatrix/timed_out
+=== RUN   TestCallbackCarryoverMatrix/terminated
+=== PAUSE TestCallbackCarryoverMatrix/terminated
+=== CONT  TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65535
+=== CONT  TestCarryoverFrozenAtAdmission/result_and_empty_failure
+--- PASS: TestCallbackFailedPublicationAndPayloadLoading (0.00s)
+=== CONT  TestCallbackStaleDoesNotPrepareCarryover/old_incarnation
+=== CONT  TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65537
+=== CONT  TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65536
+--- PASS: TestCompletionSavedReplay (0.01s)
+=== CONT  TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65535
+=== CONT  TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65537
+=== CONT  TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65536
+=== CONT  TestCallbackStaleDoesNotPrepareCarryover/unknown_operation
+--- PASS: TestCallbackStaleDoesNotPrepareCarryover (0.00s)
+    --- PASS: TestCallbackStaleDoesNotPrepareCarryover/old_incarnation (0.00s)
+    --- PASS: TestCallbackStaleDoesNotPrepareCarryover/unknown_operation (0.00s)
+=== CONT  TestCarryoverFrozenAtAdmission/cleared
+--- PASS: TestCarryoverFrozenAtAdmission (0.00s)
+    --- PASS: TestCarryoverFrozenAtAdmission/result_and_empty_failure (0.00s)
+    --- PASS: TestCarryoverFrozenAtAdmission/cleared (0.00s)
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged/result_wire
+=== CONT  TestCallbackCarryoverMatrix/absent
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged/failure_limit
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged/result_limit
+--- PASS: TestCompletionResourceBoundariesAndRecovery (0.00s)
+    --- PASS: TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65535 (0.08s)
+    --- PASS: TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65535 (0.09s)
+    --- PASS: TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65536 (0.09s)
+    --- PASS: TestCompletionResourceBoundariesAndRecovery/outcome_2_bytes_65537 (0.09s)
+    --- PASS: TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65537 (0.09s)
+    --- PASS: TestCompletionResourceBoundariesAndRecovery/outcome_1_bytes_65536 (0.10s)
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged/failure_status_mismatch
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged/failure_wire
+=== CONT  TestCallbackCarryoverMatrix/terminated
+=== CONT  TestCallbackCarryoverMatrix/timed_out
+=== CONT  TestCallbackCarryoverMatrix/canceled
+=== CONT  TestCallbackCarryoverMatrix/failed
+=== CONT  TestCallbackCarryoverMatrix/empty_failure
+=== CONT  TestCallbackCarryoverMatrix/unknown_fields
+=== CONT  TestCallbackCarryoverMatrix/value
+=== CONT  TestCallbackCarryoverMatrix/explicit_null
+=== CONT  TestCallbackCarryoverMatrix/empty_wire
+--- PASS: TestCallbackCarryoverMatrix (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/absent (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/terminated (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/timed_out (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/canceled (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/failed (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/empty_failure (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/unknown_fields (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/value (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/explicit_null (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/empty_wire (0.00s)
+--- PASS: TestMalformedCallbackLeavesTreeUnchanged (0.00s)
+    --- PASS: TestMalformedCallbackLeavesTreeUnchanged/result_wire (1.69s)
+    --- PASS: TestMalformedCallbackLeavesTreeUnchanged/failure_limit (1.72s)
+    --- PASS: TestMalformedCallbackLeavesTreeUnchanged/failure_status_mismatch (1.67s)
+    --- PASS: TestMalformedCallbackLeavesTreeUnchanged/result_limit (1.69s)
+    --- PASS: TestMalformedCallbackLeavesTreeUnchanged/failure_wire (1.48s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	3.946s
+=== RUN   TestCompletionOutcomeMatrix
+=== PAUSE TestCompletionOutcomeMatrix
+=== RUN   TestMetadataCompletionFreezesOutcome
+=== PAUSE TestMetadataCompletionFreezesOutcome
+=== RUN   TestCurrentPausePolicyAtCompletion
+=== PAUSE TestCurrentPausePolicyAtCompletion
+=== RUN   TestCallbackIdentityAndValidation
+=== PAUSE TestCallbackIdentityAndValidation
+=== RUN   TestCompletionProperties
+=== PAUSE TestCompletionProperties
+=== RUN   TestCallbackConcurrentBufferOwnership
+=== PAUSE TestCallbackConcurrentBufferOwnership
+=== CONT  TestCompletionOutcomeMatrix
+=== RUN   TestCompletionOutcomeMatrix/success_absent
+=== PAUSE TestCompletionOutcomeMatrix/success_absent
+=== RUN   TestCompletionOutcomeMatrix/success_value
+=== PAUSE TestCompletionOutcomeMatrix/success_value
+=== RUN   TestCompletionOutcomeMatrix/failed
+=== PAUSE TestCompletionOutcomeMatrix/failed
+=== RUN   TestCompletionOutcomeMatrix/timed_out_empty_failure
+=== PAUSE TestCompletionOutcomeMatrix/timed_out_empty_failure
+=== CONT  TestCallbackIdentityAndValidation
+=== RUN   TestCompletionOutcomeMatrix/canceled
+=== CONT  TestCurrentPausePolicyAtCompletion
+=== CONT  TestMetadataCompletionFreezesOutcome
+=== PAUSE TestCompletionOutcomeMatrix/canceled
+=== RUN   TestCurrentPausePolicyAtCompletion/disabled
+=== RUN   TestMetadataCompletionFreezesOutcome/metadata_first
+=== PAUSE TestCurrentPausePolicyAtCompletion/disabled
+=== RUN   TestCurrentPausePolicyAtCompletion/enabled
+=== PAUSE TestMetadataCompletionFreezesOutcome/metadata_first
+=== RUN   TestCompletionOutcomeMatrix/terminated
+=== RUN   TestMetadataCompletionFreezesOutcome/callback_first
+=== PAUSE TestCurrentPausePolicyAtCompletion/enabled
+=== PAUSE TestCompletionOutcomeMatrix/terminated
+=== PAUSE TestMetadataCompletionFreezesOutcome/callback_first
+=== RUN   TestCallbackIdentityAndValidation/old_incarnation
+=== CONT  TestCompletionOutcomeMatrix/success_absent
+=== CONT  TestCallbackConcurrentBufferOwnership
+=== PAUSE TestCallbackIdentityAndValidation/old_incarnation
+=== RUN   TestCallbackIdentityAndValidation/unknown_operation
+=== CONT  TestCompletionProperties
+=== PAUSE TestCallbackIdentityAndValidation/unknown_operation
+=== RUN   TestCallbackIdentityAndValidation/success_failed_status
+=== PAUSE TestCallbackIdentityAndValidation/success_failed_status
+=== RUN   TestCallbackIdentityAndValidation/failure_completed_status
+=== PAUSE TestCallbackIdentityAndValidation/failure_completed_status
+=== RUN   TestCallbackIdentityAndValidation/missing_outcome
+=== PAUSE TestCallbackIdentityAndValidation/missing_outcome
+=== RUN   TestCallbackIdentityAndValidation/running_status
+=== PAUSE TestCallbackIdentityAndValidation/running_status
+=== RUN   TestCallbackIdentityAndValidation/oversized
+=== PAUSE TestCallbackIdentityAndValidation/oversized
+=== CONT  TestCurrentPausePolicyAtCompletion/disabled
+=== CONT  TestMetadataCompletionFreezesOutcome/metadata_first
+=== CONT  TestCompletionOutcomeMatrix/terminated
+=== CONT  TestCompletionOutcomeMatrix/canceled
+=== CONT  TestCompletionOutcomeMatrix/timed_out_empty_failure
+--- PASS: TestCallbackConcurrentBufferOwnership (0.00s)
+=== CONT  TestCompletionOutcomeMatrix/success_value
+=== CONT  TestMetadataCompletionFreezesOutcome/callback_first
+=== CONT  TestCompletionOutcomeMatrix/failed
+=== CONT  TestCurrentPausePolicyAtCompletion/enabled
+--- PASS: TestMetadataCompletionFreezesOutcome (0.00s)
+    --- PASS: TestMetadataCompletionFreezesOutcome/metadata_first (0.00s)
+    --- PASS: TestMetadataCompletionFreezesOutcome/callback_first (0.00s)
+=== CONT  TestCallbackIdentityAndValidation/oversized
+--- PASS: TestCompletionOutcomeMatrix (0.00s)
+    --- PASS: TestCompletionOutcomeMatrix/success_absent (0.00s)
+    --- PASS: TestCompletionOutcomeMatrix/terminated (0.00s)
+    --- PASS: TestCompletionOutcomeMatrix/timed_out_empty_failure (0.00s)
+    --- PASS: TestCompletionOutcomeMatrix/canceled (0.00s)
+    --- PASS: TestCompletionOutcomeMatrix/success_value (0.00s)
+    --- PASS: TestCompletionOutcomeMatrix/failed (0.00s)
+=== CONT  TestCallbackIdentityAndValidation/running_status
+=== CONT  TestCallbackIdentityAndValidation/old_incarnation
+--- PASS: TestCurrentPausePolicyAtCompletion (0.00s)
+    --- PASS: TestCurrentPausePolicyAtCompletion/disabled (0.00s)
+    --- PASS: TestCurrentPausePolicyAtCompletion/enabled (0.00s)
+=== CONT  TestCallbackIdentityAndValidation/missing_outcome
+=== CONT  TestCallbackIdentityAndValidation/failure_completed_status
+=== CONT  TestCallbackIdentityAndValidation/success_failed_status
+=== CONT  TestCallbackIdentityAndValidation/unknown_operation
+--- PASS: TestCallbackIdentityAndValidation (0.00s)
+    --- PASS: TestCallbackIdentityAndValidation/oversized (0.00s)
+    --- PASS: TestCallbackIdentityAndValidation/old_incarnation (0.00s)
+    --- PASS: TestCallbackIdentityAndValidation/running_status (0.00s)
+    --- PASS: TestCallbackIdentityAndValidation/missing_outcome (0.00s)
+    --- PASS: TestCallbackIdentityAndValidation/failure_completed_status (0.00s)
+    --- PASS: TestCallbackIdentityAndValidation/unknown_operation (0.00s)
+    --- PASS: TestCallbackIdentityAndValidation/success_failed_status (0.00s)
+=== NAME  TestCompletionProperties
+    completion_test.go:162: [rapid] OK, passed 10000 tests (53.869584ms)
+--- PASS: TestCompletionProperties (0.05s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.949s

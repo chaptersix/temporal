@@ -1,0 +1,41 @@
+{
+  "source_sha": "aee04d35b22d8085e133a09f58df426249f5a89c",
+  "source_hashes": "completion/manifest.json",
+  "generation": {
+    "command": "CGO_ENABLED=0 GOMAXPROCS=4 make proto",
+    "exit_code": 0,
+    "log": "generation.log",
+    "schema_unchanged_since": "d8a4e4182"
+  },
+  "combined": {
+    "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -p 2 -parallel 4 -tags test_dep -count=1 -timeout=5m ./chasm/lib/scheduler2/... ./chasm/lib/all",
+    "exit_code": 0,
+    "log": "combined.log",
+    "source_sha": "b0caad885",
+    "later_delta": "ownership test uses await.Rcv; final race executes all packages at accepted source"
+  },
+  "lint": {
+    "command": "CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast GOLANGCI_LINT_BASE_REV=c945ae3ba GOLANGCI_LINT_FIX=false",
+    "exit_code": 0,
+    "log": "lint.log"
+  },
+  "model": {
+    "contribution": "7d08e4c59",
+    "integrated": "cac1b4807",
+    "source_sha256": "02aac112bfe3f5b5727fd579911a0223db8469dc6220fd413d00d5aa3a7d972b",
+    "results": "../../model/completion/evidence/results.json",
+    "integrated_source_hashes_verified": true,
+    "bounded_nodes": 173584,
+    "unique_states": 162732,
+    "bounds": [
+      100,
+      200
+    ],
+    "liveness_claim": false
+  },
+  "original_checkout": {
+    "writes_by_task": false,
+    "tracked_patch_sha256": "513e991d080e129f805da38a764bb8cfc23a5598335d4c00f582af14c1345f1e",
+    "initial_untracked_entries_retained": true
+  }
+}

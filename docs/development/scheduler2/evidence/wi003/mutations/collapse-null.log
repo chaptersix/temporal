@@ -1,0 +1,70 @@
+=== RUN   TestCallbackCarryoverMatrix
+=== PAUSE TestCallbackCarryoverMatrix
+=== CONT  TestCallbackCarryoverMatrix
+=== RUN   TestCallbackCarryoverMatrix/absent
+=== PAUSE TestCallbackCarryoverMatrix/absent
+=== RUN   TestCallbackCarryoverMatrix/empty_wire
+=== PAUSE TestCallbackCarryoverMatrix/empty_wire
+=== RUN   TestCallbackCarryoverMatrix/explicit_null
+=== PAUSE TestCallbackCarryoverMatrix/explicit_null
+=== RUN   TestCallbackCarryoverMatrix/value
+=== PAUSE TestCallbackCarryoverMatrix/value
+=== RUN   TestCallbackCarryoverMatrix/unknown_fields
+=== PAUSE TestCallbackCarryoverMatrix/unknown_fields
+=== RUN   TestCallbackCarryoverMatrix/empty_failure
+=== PAUSE TestCallbackCarryoverMatrix/empty_failure
+=== RUN   TestCallbackCarryoverMatrix/failed
+=== PAUSE TestCallbackCarryoverMatrix/failed
+=== RUN   TestCallbackCarryoverMatrix/canceled
+=== PAUSE TestCallbackCarryoverMatrix/canceled
+=== RUN   TestCallbackCarryoverMatrix/timed_out
+=== PAUSE TestCallbackCarryoverMatrix/timed_out
+=== RUN   TestCallbackCarryoverMatrix/terminated
+=== PAUSE TestCallbackCarryoverMatrix/terminated
+=== CONT  TestCallbackCarryoverMatrix/absent
+=== CONT  TestCallbackCarryoverMatrix/empty_failure
+=== CONT  TestCallbackCarryoverMatrix/timed_out
+=== CONT  TestCallbackCarryoverMatrix/value
+=== CONT  TestCallbackCarryoverMatrix/unknown_fields
+=== CONT  TestCallbackCarryoverMatrix/explicit_null
+=== CONT  TestCallbackCarryoverMatrix/empty_wire
+=== CONT  TestCallbackCarryoverMatrix/canceled
+=== NAME  TestCallbackCarryoverMatrix/unknown_fields
+    completion_test.go:76: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/common/testing/protorequire/require.go:56
+        	            				/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/completion_test.go:76
+        	Error:      	Proto mismatch (-want +got):
+        	            	  (*scheduler2pb.CarryoverState)(Inverse(protocmp.Transform, protocmp.Message{
+        	            	  	"@type":  s"temporal.server.chasm.lib.scheduler2.proto.v1.CarryoverState",
+        	            	- 	"result": []uint8{0x18, 0x01},
+        	            	  }))
+        	Test:       	TestCallbackCarryoverMatrix/unknown_fields
+=== CONT  TestCallbackCarryoverMatrix/terminated
+=== NAME  TestCallbackCarryoverMatrix/explicit_null
+    completion_test.go:76: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/common/testing/protorequire/require.go:56
+        	            				/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/completion_test.go:76
+        	Error:      	Proto mismatch (-want +got):
+        	            	  (*scheduler2pb.CarryoverState)(Inverse(protocmp.Transform, protocmp.Message{
+        	            	  	"@type": s"temporal.server.chasm.lib.scheduler2.proto.v1.CarryoverState",
+        	            	- 	"result": []uint8{
+        	            	- 		0x0a, 0x17, 0x0a, 0x08, 0x65, 0x6e, 0x63, 0x6f, 0x64, 0x69, 0x6e, 0x67, 0x12,
+        	            	- 		0x0b, 0x62, 0x69, ...,
+        	            	- 	},
+        	            	  }))
+        	Test:       	TestCallbackCarryoverMatrix/explicit_null
+=== CONT  TestCallbackCarryoverMatrix/failed
+--- FAIL: TestCallbackCarryoverMatrix (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/timed_out (0.01s)
+    --- PASS: TestCallbackCarryoverMatrix/empty_failure (0.01s)
+    --- PASS: TestCallbackCarryoverMatrix/value (0.01s)
+    --- PASS: TestCallbackCarryoverMatrix/absent (0.01s)
+    --- FAIL: TestCallbackCarryoverMatrix/unknown_fields (0.00s)
+    --- FAIL: TestCallbackCarryoverMatrix/explicit_null (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/empty_wire (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/canceled (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/failed (0.00s)
+    --- PASS: TestCallbackCarryoverMatrix/terminated (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.731s
+FAIL

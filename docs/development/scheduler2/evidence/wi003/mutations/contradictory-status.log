@@ -1,0 +1,32 @@
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged/result_wire
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged/result_wire
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged/failure_wire
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged/failure_wire
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged/failure_status_mismatch
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged/failure_status_mismatch
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged/result_limit
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged/result_limit
+=== RUN   TestMalformedCallbackLeavesTreeUnchanged/failure_limit
+=== PAUSE TestMalformedCallbackLeavesTreeUnchanged/failure_limit
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged/result_wire
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged/result_limit
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged/failure_status_mismatch
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged/failure_wire
+=== NAME  TestMalformedCallbackLeavesTreeUnchanged/failure_status_mismatch
+    completion_test.go:175: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/completion_test.go:175
+        	Error:      	An error is expected but got nil.
+        	Test:       	TestMalformedCallbackLeavesTreeUnchanged/failure_status_mismatch
+=== CONT  TestMalformedCallbackLeavesTreeUnchanged/failure_limit
+--- FAIL: TestMalformedCallbackLeavesTreeUnchanged (0.00s)
+    --- FAIL: TestMalformedCallbackLeavesTreeUnchanged/failure_status_mismatch (0.00s)
+    --- PASS: TestMalformedCallbackLeavesTreeUnchanged/result_wire (1.46s)
+    --- PASS: TestMalformedCallbackLeavesTreeUnchanged/failure_wire (1.46s)
+    --- PASS: TestMalformedCallbackLeavesTreeUnchanged/result_limit (1.46s)
+    --- PASS: TestMalformedCallbackLeavesTreeUnchanged/failure_limit (1.47s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	2.142s
+FAIL

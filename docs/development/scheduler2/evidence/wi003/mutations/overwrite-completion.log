@@ -1,0 +1,62 @@
+=== RUN   TestMetadataCompletionFreezesOutcome
+=== PAUSE TestMetadataCompletionFreezesOutcome
+=== CONT  TestMetadataCompletionFreezesOutcome
+=== RUN   TestMetadataCompletionFreezesOutcome/metadata_first
+=== PAUSE TestMetadataCompletionFreezesOutcome/metadata_first
+=== RUN   TestMetadataCompletionFreezesOutcome/callback_first
+=== PAUSE TestMetadataCompletionFreezesOutcome/callback_first
+=== CONT  TestMetadataCompletionFreezesOutcome/metadata_first
+=== CONT  TestMetadataCompletionFreezesOutcome/callback_first
+    completion_test.go:92: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/completion_test.go:92
+        	Error:      	Not equal: 
+        	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true}, Operation:(*decision.Operation)(0x783fd238e080), Carryover:(*decision.Carryover)(0x783fd2390040)}
+        	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:true, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true}, Operation:(*decision.Operation)(0x783fd238e100), Carryover:(*decision.Carryover)(0x783fd2390080)}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -5,3 +5,3 @@
+        	            	   Cursor: (int64) 10,
+        	            	-  Paused: (bool) false,
+        	            	+  Paused: (bool) true,
+        	            	   Limited: (bool) true,
+        	            	@@ -29,4 +29,6 @@
+        	            	   },
+        	            	-  Failure: ([]uint8) <nil>,
+        	            	-  FailurePresent: (bool) false
+        	            	+  Failure: ([]uint8) (len=4) {
+        	            	+   00000000  6c 61 74 65                                       |late|
+        	            	+  },
+        	            	+  FailurePresent: (bool) true
+        	            	  })
+        	Test:       	TestMetadataCompletionFreezesOutcome/callback_first
+=== NAME  TestMetadataCompletionFreezesOutcome/metadata_first
+    completion_test.go:92: 
+        	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/completion_test.go:92
+        	Error:      	Not equal: 
+        	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true}, Operation:(*decision.Operation)(0x783fd24df080), Carryover:(*decision.Carryover)(0x783fd248de40)}
+        	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:true, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true}, Operation:(*decision.Operation)(0x783fd24df100), Carryover:(*decision.Carryover)(0x783fd248de80)}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -5,3 +5,3 @@
+        	            	   Cursor: (int64) 10,
+        	            	-  Paused: (bool) false,
+        	            	+  Paused: (bool) true,
+        	            	   Limited: (bool) true,
+        	            	@@ -29,4 +29,4 @@
+        	            	   },
+        	            	-  Failure: ([]uint8) (len=16) {
+        	            	-   00000000  70 72 65 76 69 6f 75 73  20 66 61 69 6c 75 72 65  |previous failure|
+        	            	+  Failure: ([]uint8) (len=4) {
+        	            	+   00000000  6c 61 74 65                                       |late|
+        	            	   },
+        	Test:       	TestMetadataCompletionFreezesOutcome/metadata_first
+--- FAIL: TestMetadataCompletionFreezesOutcome (0.00s)
+    --- FAIL: TestMetadataCompletionFreezesOutcome/callback_first (0.00s)
+    --- FAIL: TestMetadataCompletionFreezesOutcome/metadata_first (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.311s
+FAIL

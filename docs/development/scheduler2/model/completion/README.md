@@ -90,3 +90,21 @@ commands/source hashes are in the accompanying evidence. The earlier `-first`
 and `-final` output directories are retained but do not describe the final source: the
 accepted version additionally requires an actual late acknowledgment and a
 payload-specific duplicate for those witnesses. No production bug was injected.
+
+## Manual implementation mapping
+
+| Go/local observation | Abstract transition |
+|---|---|
+| Due admitted with initialized carryover | Admit freezes initial success/failure and debits once |
+| Update changing PauseOnFailure while preserving Paused | TogglePolicy; unpause is outside this model |
+| Acknowledged | Acknowledge |
+| Callback received / published | PrepareCompletion / CommitCompletion with corresponding presence/status atom |
+| Metadata Complete | PrepareCompletion / CommitCompletion with metadata status atom |
+| Failed publication and fresh reload | FailPublication; actual serialization verified separately |
+| Unknown/stale/malformed/conflicting callback | InvalidCompletion stutter; validation guards verified in Go |
+
+The abstract initial carryover corresponds to an initialized Carryover node.
+Uninitialized M1 carryover preserving caller request fields is a separate Go
+compatibility case. Frozen request symbols represent the carryover portion; the
+prior M1 model covers operation identity, retry horizon and complete request
+immutability. Model interleavings do not prove these two abstractions compose.

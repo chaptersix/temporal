@@ -1,0 +1,83 @@
+{
+  "source_sha": "aee04d35b22d8085e133a09f58df426249f5a89c",
+  "results": [
+    {
+      "mutation": "overwrite-completion",
+      "path": "chasm/lib/scheduler2/internal/decision/decision.go",
+      "original_sha256": "281e980b1bdfb5970f8b270bbf0394af5bb0145ab66b5cd0366bbe38bed12dd8",
+      "mutant_sha256": "385d56a7587fbfc1d3be84e2f5ee1eea1fbe85349905fce18f903809362aac03",
+      "old": "event.Kind != Acknowledged && op.Phase != Completed",
+      "new": "event.Kind != Acknowledged",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2/internal/decision",
+        "-run",
+        "^TestMetadataCompletionFreezesOutcome$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    },
+    {
+      "mutation": "collapse-null",
+      "path": "chasm/lib/scheduler2/completion.go",
+      "original_sha256": "1969d6256d6e4c4c2dbc806e6b7ee223683d454f1c7cbfe3979d2e0f0b8398b3",
+      "mutant_sha256": "a7d0fea7fb22e2e93f6a6a3f03916ae81ce5d39287aaf5c311f63bbfa15f7706",
+      "old": "proto.Size(payload) == 0",
+      "new": "len(payload.Data) == 0",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2",
+        "-run",
+        "^TestCallbackCarryoverMatrix$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    },
+    {
+      "mutation": "contradictory-status",
+      "path": "chasm/lib/scheduler2/completion.go",
+      "original_sha256": "1969d6256d6e4c4c2dbc806e6b7ee223683d454f1c7cbfe3979d2e0f0b8398b3",
+      "mutant_sha256": "3f535b0f87eacbb9b3b35e242ed406f4711bf49adb120f90253413c7d53915af",
+      "old": "event.Status != completionFailureStatus(failure)",
+      "new": "false",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=2m",
+        "./chasm/lib/scheduler2",
+        "-run",
+        "^TestMalformedCallbackLeavesTreeUnchanged$",
+        "-v"
+      ],
+      "exit_code": 1,
+      "detected": true
+    }
+  ]
+}

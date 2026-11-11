@@ -61,3 +61,21 @@ chasm_guarantees owns model/completion/ at /private/tmp/sch-redesign-completion-
 (branch sch-redesign-completion-model). Both consume WI-003 contract explicitly;
 parent will transfer committed API prerequisite to tests before implementation.
 Acceptance: independent discriminating cases/model, exact handoff/diff, no overlap.
+
+WI-003 final disposition (all retained):
+
+- Actual isolated creation base for both delegates was contract prerequisite
+  d6026f84040ca5f2e202ca76e738b7a218ad353c (parent c945ae3ba), verified at creation
+  and in evidence/wi003/worktrees.txt. Integration branch owns final acceptance.
+- Tests: prerequisite d8a4e4182 transferred as fca1e1546; opaque-payload and status
+  fixes8bba156ea/126915ba1 transferred as643254615/3ab52c7a5. Contribution
+  b7b156b34 integrated as b0caad885. Parent changed one receive to await.Rcv.
+  Worktree clean at b7b156b34, retained.
+- Model: contribution7d08e4c59 integrated as cac1b4807; only model/completion/ owned.
+  Both bounds and mutants passed; integrated model bytes match recorded hashes.
+  Worktree clean at7d08e4c59, retained.
+- Independent read-only reviewer: source fixes and final evidence reviewed;
+  no acceptance blocker at aee04d35b. All routine choices resolved from evidence.
+- Original checkout: no task writes, current inventory/hash recorded separately;
+  all initially untracked entries retained. Concurrent unrelated changes remain.
+  No push, production routing, rollout, migration, branch or worktree deletion.

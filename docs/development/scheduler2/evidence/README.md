@@ -90,3 +90,22 @@ made no writes there; original untracked entries remain. Its tracked patch now
 differs from the M1 snapshot due to new files/hunks; checks.json records its hash
 and original-status.txt records inventory. Task worktrees remain retained; see
 [registry](../worktrees.md). All execution and commits are local.
+
+## Accepted WI-003 evidence (partial M2)
+
+Source **aee04d35b22d8085e133a09f58df426249f5a89c**, with clean source at final
+completion/race profile start. Dependency c945ae3ba (accepted WI-002). D27/D28
+resolve bounded C6/C7/C4 completion behavior; this does not accept full M2.
+
+| ID | Kind / claim | Artifact and result |
+|---|---|---|
+| E22 | source-inspection / contract | [WI-003](../work-items/WI-003.md), [review](wi003/review.md); first completion wins, explicit absence/null/failure, current pause policy, failure/status validation; DIV5 follows current CHASM no-result clearing. |
+| E23 | bounded-model-check / reachability | [model](../model/completion/completion.fizz), [results](../model/completion/evidence/results.json), [mapping](../model/completion/README.md); 173584 nodes /162732 unique states, empty frontier at100/200; five safety assertions/seven witnesses and three mutants pass expected checks. No liveness claim. |
+| E24 | property-test / CHASM-test / replay | [manifest](wi003/completion/manifest.json), [log](wi003/completion/0.log); 10000 Rapid cases seed1, first callback plus1–16 duplicates, bytes0–32; presence/status/identity/policy matrix, actual serialize/reload/failed commit, exact resource boundaries/recovery, aliases and poisoned selective-loading checks pass. Complete JSON replay is scheduler2/testdata/completion_v1.json. |
+| E25 | generation / race / lint | [checks](wi003/checks.json), [generation](wi003/generation.log), [race manifest](wi003/race/manifest.json), [lint](wi003/lint.log); make proto, all scheduler2 packages plus nil registry, full race and normal/minimal lint pass. |
+| E26 | mutation / review / provenance | [Go mutants](wi003/mutations/manifest.json), [review](wi003/review.md), [registry](../worktrees.md); all three source mutants caught and restored, independent findings resolved. Original checkout untouched by task, worktrees retained, local commits only. |
+
+The model's initialized carryover is an explicit abstraction; the prior M1 model
+covers retry identity/horizon, and composition is not proved. Continued-as-new,
+reset, retention, sequential action admission and full overlap/backfill are future
+work. No second action or production callback route is claimed by WI-003.
