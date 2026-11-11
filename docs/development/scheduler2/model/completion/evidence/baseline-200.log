@@ -1,0 +1,20 @@
+Model checking /private/tmp/scheduler2-completion-model-accepted/baseline-200/completion.json
+configFileName: /private/tmp/scheduler2-completion-model-accepted/baseline-200/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:200  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 20000, queued: 86932, elapsed: 4.723122583s
+Nodes: 40000, queued: 145757, elapsed: 10.296514083s
+Nodes: 60000, queued: 190249, elapsed: 15.999605375s
+Nodes: 80000, queued: 218735, elapsed: 22.030804541s
+Nodes: 100000, queued: 231524, elapsed: 28.590900333s
+Nodes: 120000, queued: 229155, elapsed: 35.482332416s
+Nodes: 140000, queued: 195607, elapsed: 43.311451833s
+Nodes: 160000, queued: 130567, elapsed: 52.01939775s
+Nodes: 173584, queued: 0, elapsed: 59.97255425s
+Time taken for model checking: 59.972567542s
+Skipping dotfile generation. Too many Nodes: 173584
+Valid Nodes: 173584 Unique states: 162732
+IsLive: true
+Time taken to check liveness: 453.627ms
+PASSED: Model checker completed successfully
+Writen 1 node files and 1 link files to dir /private/tmp/scheduler2-completion-model-accepted/baseline-200/graph

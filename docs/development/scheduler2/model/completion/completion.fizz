@@ -1,0 +1,151 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+
+OVERWRITE_DUPLICATE = False
+COLLAPSE_NULL = False
+ALIAS_ADMITTED_REQUEST = False
+
+METADATA_OUTCOMES = ["metadata", "metadata_success", "metadata_failed", "metadata_timedout", "metadata_cancelled", "metadata_terminated"]
+PAUSING_OUTCOMES = ["failed", "timedout", "metadata_failed", "metadata_timedout"]
+
+action Init:
+    initial_success = oneof ["absent", "null", "old-value"]
+    initial_failure = oneof ["absent", "old-failure"]
+    success = initial_success
+    failure = initial_failure
+    policy = False
+    paused = False
+    admitted = False
+    remaining = 1
+    started_count = 0
+    chain = ""
+    frozen_success = "not-admitted"
+    frozen_failure = "not-admitted"
+    completed = False
+    first_outcome = "none"
+    policy_at_first = False
+    tentative = "none"
+    failed_publication = False
+    duplicate_payload_seen = False
+    invalid_seen = False
+    early = False
+    late_ack = False
+
+atomic action Admit:
+    require not admitted
+    admitted = True
+    remaining = 0
+    frozen_success = success
+    frozen_failure = failure
+
+atomic action TogglePolicy:
+    policy = not policy
+
+atomic action Acknowledge:
+    require admitted
+    if completed:
+        late_ack = True
+    if chain == "":
+        chain = "first-run"
+        started_count += 1
+
+atomic action PrepareCompletion:
+    require admitted and tentative == "none"
+    tentative = oneof METADATA_OUTCOMES + ["absent", "empty", "null", "value", "failed", "timedout", "cancelled", "terminated"]
+
+atomic action FailPublication:
+    require tentative != "none" and not failed_publication
+    # All proposed writes are discarded. Nothing durable refers to tentative data.
+    tentative = "none"
+    failed_publication = True
+
+atomic action CommitCompletion:
+    require tentative != "none"
+    outcome = tentative
+    tentative = "none"
+    if not completed or OVERWRITE_DUPLICATE:
+        if not completed:
+            first_outcome = outcome
+            policy_at_first = policy
+            early = chain == ""
+        if chain == "":
+            chain = "first-run"
+            started_count += 1
+        completed = True
+        if outcome in ["absent", "empty"]:
+            success = "absent"
+            failure = "absent"
+        elif outcome == "null":
+            success = "absent" if COLLAPSE_NULL else "null"
+            failure = "absent"
+        elif outcome == "value":
+            success = "new-value"
+            failure = "absent"
+        elif outcome in ["failed", "timedout", "cancelled", "terminated"]:
+            failure = outcome
+        if policy and outcome in PAUSING_OUTCOMES:
+            paused = True
+        # Metadata-only completion does not load or rewrite either carryover value.
+        if ALIAS_ADMITTED_REQUEST:
+            frozen_success = success
+            frozen_failure = failure
+    else:
+        if outcome not in METADATA_OUTCOMES:
+            duplicate_payload_seen = True
+
+atomic action InvalidCompletion:
+    require admitted
+    # Old incarnation, unknown operation, malformed status and conflicting chain
+    # all reject before publication. Validation is a trusted abstract boundary.
+    invalid_seen = True
+
+always assertion AdmissionAndAccounting:
+    return remaining == (0 if admitted else 1) and started_count == (1 if chain != "" else 0) and (not completed or started_count == 1)
+
+always assertion UnpublishedStateIsInvisible:
+    return completed or (success == initial_success and failure == initial_failure and not paused)
+
+always assertion FirstCompletionCarryover:
+    if not completed:
+        return True
+    if first_outcome in METADATA_OUTCOMES:
+        return success == initial_success and failure == initial_failure
+    if first_outcome in ["absent", "empty"]:
+        return success == "absent" and failure == "absent"
+    if first_outcome == "null":
+        return success == "null" and failure == "absent"
+    if first_outcome == "value":
+        return success == "new-value" and failure == "absent"
+    return success == initial_success and failure == first_outcome
+
+always assertion CurrentPolicyOnlyAtFirstCompletion:
+    return paused == (completed and policy_at_first and first_outcome in PAUSING_OUTCOMES)
+
+always assertion AdmittedRequestIsImmutable:
+    return not admitted or (frozen_success == initial_success and frozen_failure == initial_failure)
+
+exists assertion NullIsPresent:
+    return completed and first_outcome == "null" and success == "null"
+
+exists assertion EarlyCompletionThenLateAck:
+    return completed and early and late_ack and started_count == 1
+
+exists assertion DuplicateAfterPolicyChange:
+    return duplicate_payload_seen and policy != policy_at_first
+
+exists assertion FailedPublicationThenCompletion:
+    return failed_publication and completed
+
+exists assertion MetadataWinsBeforePayload:
+    return first_outcome == "metadata" and duplicate_payload_seen
+
+exists assertion MetadataFailurePausesWithoutPayloadMutation:
+    return first_outcome == "metadata_failed" and policy_at_first and paused and success == initial_success and failure == initial_failure
+
+exists assertion MetadataCancellationDoesNotPause:
+    return first_outcome == "metadata_cancelled" and policy_at_first and not paused

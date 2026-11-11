@@ -1,0 +1,125 @@
+[
+  {
+    "case": "baseline-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-completion-model-accepted/baseline-100/graph",
+      "/private/tmp/scheduler2-completion-model-accepted/baseline-100/completion.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "02aac112bfe3f5b5727fd579911a0223db8469dc6220fd413d00d5aa3a7d972b",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 86932, elapsed: 4.29193375s",
+      "Nodes: 40000, queued: 145757, elapsed: 9.435943209s",
+      "Nodes: 60000, queued: 190249, elapsed: 15.00737725s",
+      "Nodes: 80000, queued: 218735, elapsed: 21.005189084s",
+      "Nodes: 100000, queued: 231524, elapsed: 27.408423917s",
+      "Nodes: 120000, queued: 229155, elapsed: 34.235928125s",
+      "Nodes: 140000, queued: 195607, elapsed: 41.812447209s",
+      "Nodes: 160000, queued: 130567, elapsed: 50.022429375s",
+      "Nodes: 173584, queued: 0, elapsed: 58.358235s",
+      "Nodes: 173584",
+      "Valid Nodes: 173584 Unique states: 162732"
+    ]
+  },
+  {
+    "case": "baseline-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-completion-model-accepted/baseline-200/graph",
+      "/private/tmp/scheduler2-completion-model-accepted/baseline-200/completion.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "fa0c92441f9a5da8c4fb877f7246d288a6579383db45eaa8ae938e2d5cce1071",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 86932, elapsed: 4.723122583s",
+      "Nodes: 40000, queued: 145757, elapsed: 10.296514083s",
+      "Nodes: 60000, queued: 190249, elapsed: 15.999605375s",
+      "Nodes: 80000, queued: 218735, elapsed: 22.030804541s",
+      "Nodes: 100000, queued: 231524, elapsed: 28.590900333s",
+      "Nodes: 120000, queued: 229155, elapsed: 35.482332416s",
+      "Nodes: 140000, queued: 195607, elapsed: 43.311451833s",
+      "Nodes: 160000, queued: 130567, elapsed: 52.01939775s",
+      "Nodes: 173584, queued: 0, elapsed: 59.97255425s",
+      "Nodes: 173584",
+      "Valid Nodes: 173584 Unique states: 162732"
+    ]
+  },
+  {
+    "case": "overwrite_duplicate",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-completion-model-accepted/overwrite_duplicate/graph",
+      "/private/tmp/scheduler2-completion-model-accepted/overwrite_duplicate/completion.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "OVERWRITE_DUPLICATE",
+    "expected_invariant": [
+      "FirstCompletionCarryover",
+      "CurrentPolicyOnlyAtFirstCompletion"
+    ],
+    "sha256": "bdb184b2cbbb5c71a07770913dec3a6b32b21bae8f12cf8ecec9186a622eb137",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 3209, queued: 17214, elapsed: 618.758542ms",
+      "Nodes: 3209"
+    ]
+  },
+  {
+    "case": "collapse_null",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-completion-model-accepted/collapse_null/graph",
+      "/private/tmp/scheduler2-completion-model-accepted/collapse_null/completion.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "COLLAPSE_NULL",
+    "expected_invariant": [
+      "FirstCompletionCarryover"
+    ],
+    "sha256": "5b7611797e5f830b439fd49df8f8d9b69d8d16d34b5c4cd5497a116da1d48171",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 181, queued: 974, elapsed: 32.694333ms"
+    ]
+  },
+  {
+    "case": "alias_admitted_request",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-completion-model-accepted/alias_admitted_request/graph",
+      "/private/tmp/scheduler2-completion-model-accepted/alias_admitted_request/completion.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "ALIAS_ADMITTED_REQUEST",
+    "expected_invariant": [
+      "AdmittedRequestIsImmutable"
+    ],
+    "sha256": "f8bd3e01bad6a61f6116d7aa60afa967fa957cf3a9005543a8f39ac210549341",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 181, queued: 974, elapsed: 32.246167ms"
+    ]
+  }
+]
