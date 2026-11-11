@@ -2,6 +2,7 @@ package scheduler2
 
 import (
 	commonpb "go.temporal.io/api/common/v1"
+	enumspb "go.temporal.io/api/enums/v1"
 	failurepb "go.temporal.io/api/failure/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
@@ -41,6 +42,9 @@ func (s *Scheduler) prepareCompletion(state decision.State, event *decision.Even
 		if err := proto.Unmarshal(event.Failure, failure); err != nil {
 			return serviceerror.NewInvalidArgument("invalid completion failure")
 		}
+		if event.Status != completionFailureStatus(failure) {
+			return serviceerror.NewInvalidArgument("completion failure does not match terminal status")
+		}
 		encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(failure)
 		if err != nil {
 			return err
@@ -69,4 +73,17 @@ func (s *Scheduler) materializeCarryover(ctx chasm.Context, request *workflowser
 		request.ContinuedFailure = failure
 	}
 	return nil
+}
+
+func completionFailureStatus(failure *failurepb.Failure) enumspb.WorkflowExecutionStatus {
+	switch failure.FailureInfo.(type) {
+	case *failurepb.Failure_CanceledFailureInfo:
+		return enumspb.WORKFLOW_EXECUTION_STATUS_CANCELED
+	case *failurepb.Failure_TimeoutFailureInfo:
+		return enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT
+	case *failurepb.Failure_TerminatedFailureInfo:
+		return enumspb.WORKFLOW_EXECUTION_STATUS_TERMINATED
+	default:
+		return enumspb.WORKFLOW_EXECUTION_STATUS_FAILED
+	}
 }
