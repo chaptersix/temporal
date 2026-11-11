@@ -12,6 +12,7 @@ import (
 	sync "sync"
 	unsafe "unsafe"
 
+	v1 "go.temporal.io/api/enums/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
@@ -202,7 +203,19 @@ type RootState struct {
 	// PauseOnFailure applies the current policy to failed or timed-out completions.
 	PauseOnFailure bool `protobuf:"varint,10,opt,name=pause_on_failure,json=pauseOnFailure,proto3" json:"pause_on_failure,omitempty"`
 	// HasGenerator indicates that the separate generation component is initialized.
-	HasGenerator  bool `protobuf:"varint,11,opt,name=has_generator,json=hasGenerator,proto3" json:"has_generator,omitempty"`
+	HasGenerator bool `protobuf:"varint,11,opt,name=has_generator,json=hasGenerator,proto3" json:"has_generator,omitempty"`
+	// Policy applies to newly arriving automatic occurrences.
+	Policy v1.ScheduleOverlapPolicy `protobuf:"varint,12,opt,name=policy,proto3,enum=temporal.api.enums.v1.ScheduleOverlapPolicy" json:"policy,omitempty"`
+	// Queue holds at most four waiting occurrence identities without payloads.
+	Queue []*QueuedOccurrence `protobuf:"bytes,13,rep,name=queue,proto3" json:"queue,omitempty"`
+	// BufferDropped counts automatic arrivals rejected by the bounded buffer policy.
+	BufferDropped int64 `protobuf:"varint,14,opt,name=buffer_dropped,json=bufferDropped,proto3" json:"buffer_dropped,omitempty"`
+	// DrainToken identifies the current independent drain obligation.
+	DrainToken uint64 `protobuf:"varint,15,opt,name=drain_token,json=drainToken,proto3" json:"drain_token,omitempty"`
+	// DrainArmed indicates queued work can progress without external completion.
+	DrainArmed bool `protobuf:"varint,16,opt,name=drain_armed,json=drainArmed,proto3" json:"drain_armed,omitempty"`
+	// DrainAt is the execution Unix nanosecond deadline for draining.
+	DrainAt       int64 `protobuf:"varint,17,opt,name=drain_at,json=drainAt,proto3" json:"drain_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -314,6 +327,48 @@ func (x *RootState) GetHasGenerator() bool {
 	return false
 }
 
+func (x *RootState) GetPolicy() v1.ScheduleOverlapPolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return v1.ScheduleOverlapPolicy(0)
+}
+
+func (x *RootState) GetQueue() []*QueuedOccurrence {
+	if x != nil {
+		return x.Queue
+	}
+	return nil
+}
+
+func (x *RootState) GetBufferDropped() int64 {
+	if x != nil {
+		return x.BufferDropped
+	}
+	return 0
+}
+
+func (x *RootState) GetDrainToken() uint64 {
+	if x != nil {
+		return x.DrainToken
+	}
+	return 0
+}
+
+func (x *RootState) GetDrainArmed() bool {
+	if x != nil {
+		return x.DrainArmed
+	}
+	return false
+}
+
+func (x *RootState) GetDrainAt() int64 {
+	if x != nil {
+		return x.DrainAt
+	}
+	return 0
+}
+
 // OperationState holds metadata without decoding request payloads.
 type OperationState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -332,7 +387,9 @@ type OperationState struct {
 	// RetryAt is the next issuance time in execution Unix nanoseconds.
 	RetryAt int64 `protobuf:"varint,7,opt,name=retry_at,json=retryAt,proto3" json:"retry_at,omitempty"`
 	// Phase is the durable progress of the operation.
-	Phase         Phase `protobuf:"varint,8,opt,name=phase,proto3,enum=temporal.server.chasm.lib.scheduler2.proto.v1.Phase" json:"phase,omitempty"`
+	Phase Phase `protobuf:"varint,8,opt,name=phase,proto3,enum=temporal.server.chasm.lib.scheduler2.proto.v1.Phase" json:"phase,omitempty"`
+	// WorkflowId preserves queue-time workflow identity independently of the request.
+	WorkflowId    string `protobuf:"bytes,9,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -421,6 +478,13 @@ func (x *OperationState) GetPhase() Phase {
 		return x.Phase
 	}
 	return PHASE_UNSPECIFIED
+}
+
+func (x *OperationState) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
 }
 
 // Payload keeps large values on a separately loaded node.
@@ -980,11 +1044,130 @@ func (x *GenerateTask) GetToken() uint64 {
 	return 0
 }
 
+// QueuedOccurrence retains identity while admission inputs remain unfrozen.
+type QueuedOccurrence struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Nominal is the automatic occurrence identity in Unix nanoseconds.
+	Nominal int64 `protobuf:"varint,1,opt,name=nominal,proto3" json:"nominal,omitempty"`
+	// Actual is its jittered due time in Unix nanoseconds.
+	Actual int64 `protobuf:"varint,2,opt,name=actual,proto3" json:"actual,omitempty"`
+	// WorkflowId is the fully suffixed queue-time workflow identity.
+	WorkflowId string `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	// Policy is resolved when the occurrence enters the queue.
+	Policy        v1.ScheduleOverlapPolicy `protobuf:"varint,4,opt,name=policy,proto3,enum=temporal.api.enums.v1.ScheduleOverlapPolicy" json:"policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueuedOccurrence) Reset() {
+	*x = QueuedOccurrence{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueuedOccurrence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueuedOccurrence) ProtoMessage() {}
+
+func (x *QueuedOccurrence) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueuedOccurrence.ProtoReflect.Descriptor instead.
+func (*QueuedOccurrence) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *QueuedOccurrence) GetNominal() int64 {
+	if x != nil {
+		return x.Nominal
+	}
+	return 0
+}
+
+func (x *QueuedOccurrence) GetActual() int64 {
+	if x != nil {
+		return x.Actual
+	}
+	return 0
+}
+
+func (x *QueuedOccurrence) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *QueuedOccurrence) GetPolicy() v1.ScheduleOverlapPolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return v1.ScheduleOverlapPolicy(0)
+}
+
+// DrainTask drives an independent bounded queue admission step.
+type DrainTask struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Token rejects stale physical drain deliveries.
+	Token         uint64 `protobuf:"varint,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DrainTask) Reset() {
+	*x = DrainTask{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DrainTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DrainTask) ProtoMessage() {}
+
+func (x *DrainTask) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DrainTask.ProtoReflect.Descriptor instead.
+func (*DrainTask) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *DrainTask) GetToken() uint64 {
+	if x != nil {
+		return x.Token
+	}
+	return 0
+}
+
 var File_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto protoreflect.FileDescriptor
 
 const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "" +
 	"\n" +
-	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\"\xe2\x02\n" +
+	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\x83\x05\n" +
 	"\tRootState\x12 \n" +
 	"\vincarnation\x18\x01 \x01(\tR\vincarnation\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x16\n" +
@@ -997,7 +1180,15 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\rcarryover_set\x18\t \x01(\bR\fcarryoverSet\x12(\n" +
 	"\x10pause_on_failure\x18\n" +
 	" \x01(\bR\x0epauseOnFailure\x12#\n" +
-	"\rhas_generator\x18\v \x01(\bR\fhasGenerator\"\x9a\x02\n" +
+	"\rhas_generator\x18\v \x01(\bR\fhasGenerator\x12D\n" +
+	"\x06policy\x18\f \x01(\x0e2,.temporal.api.enums.v1.ScheduleOverlapPolicyR\x06policy\x12U\n" +
+	"\x05queue\x18\r \x03(\v2?.temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrenceR\x05queue\x12%\n" +
+	"\x0ebuffer_dropped\x18\x0e \x01(\x03R\rbufferDropped\x12\x1f\n" +
+	"\vdrain_token\x18\x0f \x01(\x04R\n" +
+	"drainToken\x12\x1f\n" +
+	"\vdrain_armed\x18\x10 \x01(\bR\n" +
+	"drainArmed\x12\x19\n" +
+	"\bdrain_at\x18\x11 \x01(\x03R\adrainAt\"\xbb\x02\n" +
 	"\x0eOperationState\x12#\n" +
 	"\roccurrence_id\x18\x01 \x01(\tR\foccurrenceId\x12\x1b\n" +
 	"\taction_id\x18\x02 \x01(\tR\bactionId\x12\x0e\n" +
@@ -1006,7 +1197,9 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\anominal\x18\x05 \x01(\x03R\anominal\x12\x1a\n" +
 	"\bdeadline\x18\x06 \x01(\x03R\bdeadline\x12\x19\n" +
 	"\bretry_at\x18\a \x01(\x03R\aretryAt\x12J\n" +
-	"\x05phase\x18\b \x01(\x0e24.temporal.server.chasm.lib.scheduler2.proto.v1.PhaseR\x05phase\"\x1d\n" +
+	"\x05phase\x18\b \x01(\x0e24.temporal.server.chasm.lib.scheduler2.proto.v1.PhaseR\x05phase\x12\x1f\n" +
+	"\vworkflow_id\x18\t \x01(\tR\n" +
+	"workflowId\"\x1d\n" +
 	"\aPayload\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\".\n" +
 	"\tStartTask\x12!\n" +
@@ -1047,6 +1240,14 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\x04seed\x18\x02 \x01(\tR\x04seed\x12\x18\n" +
 	"\arequest\x18\x03 \x01(\fR\arequest\"$\n" +
 	"\fGenerateTask\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\x04R\x05token\"\xab\x01\n" +
+	"\x10QueuedOccurrence\x12\x18\n" +
+	"\anominal\x18\x01 \x01(\x03R\anominal\x12\x16\n" +
+	"\x06actual\x18\x02 \x01(\x03R\x06actual\x12\x1f\n" +
+	"\vworkflow_id\x18\x03 \x01(\tR\n" +
+	"workflowId\x12D\n" +
+	"\x06policy\x18\x04 \x01(\x0e2,.temporal.api.enums.v1.ScheduleOverlapPolicyR\x06policy\"!\n" +
+	"\tDrainTask\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\x04R\x05token*n\n" +
 	"\x05Phase\x12\x15\n" +
 	"\x11PHASE_UNSPECIFIED\x10\x00\x12\x11\n" +
@@ -1077,7 +1278,7 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(
 }
 
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []any{
 	(Phase)(0),                     // 0: temporal.server.chasm.lib.scheduler2.proto.v1.Phase
 	(EnumerationStatus)(0),         // 1: temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
@@ -1091,19 +1292,25 @@ var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []a
 	(*GeneratorState)(nil),         // 9: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState
 	(*GenerationDefinition)(nil),   // 10: temporal.server.chasm.lib.scheduler2.proto.v1.GenerationDefinition
 	(*GenerateTask)(nil),           // 11: temporal.server.chasm.lib.scheduler2.proto.v1.GenerateTask
+	(*QueuedOccurrence)(nil),       // 12: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
+	(*DrainTask)(nil),              // 13: temporal.server.chasm.lib.scheduler2.proto.v1.DrainTask
+	(v1.ScheduleOverlapPolicy)(0),  // 14: temporal.api.enums.v1.ScheduleOverlapPolicy
 }
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_depIdxs = []int32{
-	0, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
-	7, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	1, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	8, // 3: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
-	1, // 4: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	7, // 5: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	14, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	12, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
+	0,  // 2: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
+	7,  // 3: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	1,  // 4: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	8,  // 5: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+	1,  // 6: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	7,  // 7: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	14, // 8: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() }
@@ -1117,7 +1324,7 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc), len(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

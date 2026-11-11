@@ -4,6 +4,7 @@ import (
 	"math"
 	"time"
 
+	enumspb "go.temporal.io/api/enums/v1"
 	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
@@ -28,6 +29,7 @@ func (*Generator) LifecycleState(chasm.Context) chasm.LifecycleState {
 
 // GenerationConfig supplies an immutable local definition and workflow template.
 type GenerationConfig struct {
+	Policy        enumspb.ScheduleOverlapPolicy
 	Spec          *schedulepb.ScheduleSpec
 	Seed          string
 	Revision      int64
@@ -38,7 +40,7 @@ type GenerationConfig struct {
 
 // ConfigureGeneration replaces future enumeration while preserving admitted requests.
 func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config GenerationConfig) error {
-	if config.Request == nil || config.Request.WorkflowId == "" || proto.Size(config.Request) > 64*1024 || len(config.Seed) > 64*1024 || config.CatchupWindow < 0 || config.CatchupWindow > 365*24*time.Hour || config.Revision < s.Revision {
+	if !decision.ValidPolicy(config.Policy) || config.Request == nil || config.Request.WorkflowId == "" || proto.Size(config.Request) > 64*1024 || len(config.Seed) > 64*1024 || config.CatchupWindow < 0 || config.CatchupWindow > 365*24*time.Hour || config.Revision < s.Revision {
 		return serviceerror.NewInvalidArgument("invalid local generation configuration")
 	}
 	e, err := occurrence.New(config.Spec, config.Seed, config.Revision)
@@ -88,6 +90,7 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 	g.LastStatus = scheduler2pb.ENUMERATION_STATUS_ACTIVE
 	s.HasGenerator = true
 	s.Revision = config.Revision
+	s.Policy = config.Policy
 	s.Cursor = max(s.Cursor, state.DisposedThrough.UnixNano())
 	g.arm(ctx, now)
 	return nil
@@ -169,7 +172,7 @@ func (s *Scheduler) admitGenerated(ctx chasm.MutableContext, template []byte, ca
 	if err != nil {
 		return err
 	}
-	return s.Apply(ctx, decision.Event{Kind: decision.Due, Incarnation: s.Incarnation, Nominal: candidate.Nominal.UnixNano(), CatchupDeadline: candidate.Actual.Add(catchup).UnixNano(), Request: encoded})
+	return s.Apply(ctx, decision.Event{Kind: decision.Due, Incarnation: s.Incarnation, Nominal: candidate.Nominal.UnixNano(), Actual: candidate.Actual.UnixNano(), WorkflowID: request.WorkflowId, CatchupDeadline: candidate.Actual.Add(catchup).UnixNano(), Request: encoded})
 }
 
 func encodeCandidate(c *occurrence.Candidate) *scheduler2pb.OccurrenceCandidate {

@@ -35,6 +35,8 @@ type Root struct {
 	Started        int64
 	PauseOnFailure bool
 	CarryoverSet   bool
+	Policy         enumspb.ScheduleOverlapPolicy
+	BufferDropped  int64
 }
 
 type Operation struct {
@@ -47,12 +49,14 @@ type Operation struct {
 	RetryAt      int64
 	Phase        Phase
 	Request      []byte
+	WorkflowID   string
 }
 
 type State struct {
 	Root      Root
 	Operation *Operation
 	Carryover *Carryover
+	Queue     []Queued
 }
 
 type Kind int
@@ -65,6 +69,7 @@ const (
 	Complete
 	Expire
 	Callback
+	Drain
 )
 
 type Event struct {
@@ -85,6 +90,10 @@ type Event struct {
 	Result          []byte
 	Failure         []byte
 	Status          enumspb.WorkflowExecutionStatus
+	Policy          enumspb.ScheduleOverlapPolicy
+	WorkflowID      string
+	Actual          int64
+	CatchupWindow   int64
 }
 
 // Step returns an independent state value; callers publish it only after commit.
@@ -96,6 +105,8 @@ func Step(state State, event Event) (State, error) {
 	switch event.Kind {
 	case Due:
 		return admit(next, event)
+	case Drain:
+		return drain(next, event)
 	case Update:
 		return update(next, event)
 	case Acknowledged, Complete, Callback, RetryableFailure, Expire:
@@ -112,20 +123,29 @@ func admit(next State, event Event) (State, error) {
 	if event.Now > math.MaxInt64-RetryHorizon {
 		return next, serviceerror.NewInvalidArgument("admission time exceeds supported range")
 	}
-	previousCursor := next.Root.Cursor
 	next.Root.Cursor = event.Nominal
-	if next.Root.Paused || (next.Root.Limited && next.Root.Remaining <= 0) || event.Now > event.CatchupDeadline || (next.Operation != nil && next.Operation.Phase != Completed) {
+	if next.Root.Paused || (next.Root.Limited && next.Root.Remaining <= 0) || event.Now > event.CatchupDeadline {
 		return next, nil
 	}
-	if len(event.Request) == 0 || next.Root.Incarnation == "" {
-		next.Root.Cursor = previousCursor
-		return next, serviceerror.NewInvalidArgument("admission requires incarnation and request")
+	if occupied(next) || len(next.Queue) > 0 {
+		return enqueue(next, event)
 	}
-	occurrenceID := fmt.Sprintf("automatic/%d", event.Nominal)
+	if len(event.Request) == 0 || next.Root.Incarnation == "" {
+		return State{}, serviceerror.NewInvalidArgument("admission requires incarnation and request")
+	}
+	return startOperation(next, event, event.Nominal, event.WorkflowID)
+}
+
+func startOperation(next State, event Event, nominal int64, workflowID string) (State, error) {
+	if event.Now > math.MaxInt64-RetryHorizon {
+		return State{}, serviceerror.NewInvalidArgument("admission time exceeds supported range")
+	}
+
+	occurrenceID := fmt.Sprintf("automatic/%d", nominal)
 	actionID := next.Root.Incarnation + "/" + occurrenceID + "/action"
 	next.Operation = &Operation{
 		OccurrenceID: occurrenceID, ActionID: actionID, ID: actionID + "/start",
-		Nominal: event.Nominal, Deadline: event.Now + RetryHorizon,
+		Nominal: nominal, WorkflowID: workflowID, Deadline: event.Now + RetryHorizon,
 		RetryAt: event.Now, Phase: Pending, Request: bytes.Clone(event.Request),
 	}
 	if next.Root.Limited {
@@ -138,6 +158,9 @@ func update(next State, event Event) (State, error) {
 	if event.Revision <= next.Root.Revision {
 		return next, nil
 	}
+	if !ValidPolicy(event.Policy) {
+		return State{}, serviceerror.NewInvalidArgument("unsupported overlap policy")
+	}
 	if event.Remaining < 0 {
 		return next, serviceerror.NewInvalidArgument("remaining actions must be nonnegative")
 	}
@@ -146,6 +169,7 @@ func update(next State, event Event) (State, error) {
 	next.Root.Limited = event.Limited
 	next.Root.Remaining = event.Remaining
 	next.Root.PauseOnFailure = event.PauseOnFailure
+	next.Root.Policy = event.Policy
 	return next, nil
 }
 
@@ -214,6 +238,7 @@ func Wake(state State) (int64, bool) {
 }
 
 func clone(state State) State {
+	state.Queue = append([]Queued(nil), state.Queue...)
 	if state.Carryover != nil {
 		c := *state.Carryover
 		c.Result = bytes.Clone(c.Result)

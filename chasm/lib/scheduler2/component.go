@@ -3,6 +3,7 @@ package scheduler2
 
 import (
 	"bytes"
+	"math"
 	"time"
 
 	"go.temporal.io/api/serviceerror"
@@ -52,14 +53,17 @@ func (s *Scheduler) state(ctx chasm.Context) decision.State {
 	state := decision.State{Root: decision.Root{
 		Incarnation: s.Incarnation, Revision: s.Revision, Cursor: s.Cursor,
 		Paused: s.Paused, Limited: s.Limited, Remaining: s.Remaining, Started: s.Started,
-		CarryoverSet: s.CarryoverSet, PauseOnFailure: s.PauseOnFailure,
+		CarryoverSet: s.CarryoverSet, PauseOnFailure: s.PauseOnFailure, Policy: s.Policy, BufferDropped: s.BufferDropped,
 	}}
+	for _, q := range s.Queue {
+		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, WorkflowID: q.WorkflowId, Policy: q.Policy})
+	}
 	if field, ok := s.Operations[s.OperationId]; ok {
 		op := field.Get(ctx)
 		state.Operation = &decision.Operation{
 			OccurrenceID: op.OccurrenceId, ActionID: op.ActionId, ID: op.Id,
 			ChainID: op.ChainId, Nominal: op.Nominal, Deadline: op.Deadline,
-			RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase),
+			RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId,
 		}
 	}
 	return state
@@ -69,6 +73,16 @@ func (s *Scheduler) state(ctx chasm.Context) decision.State {
 func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error {
 	event.Now = ctx.Now(s).UnixNano()
 	before := s.state(ctx)
+	if event.Kind == decision.Drain && event.Incarnation == s.Incarnation && decision.NeedsDrain(before) {
+		if !s.HasGenerator {
+			return serviceerror.NewFailedPrecondition("buffered admission requires a configured template")
+		}
+		g := s.Generator.Get(ctx)
+		event.CatchupWindow = g.CatchupWindow
+		if decision.DrainIndex(before, event.Now, event.CatchupWindow) >= 0 {
+			event.Request = g.Definition.Get(ctx).Request
+		}
+	}
 	if err := s.prepareCompletion(before, &event); err != nil {
 		return err
 	}
@@ -81,10 +95,16 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	if err != nil {
 		return err
 	}
-	if event.Kind == decision.Due && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID) {
+	if (event.Kind == decision.Due || event.Kind == decision.Drain) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID) {
 		if err := s.freezeAdmission(ctx, next.Operation); err != nil {
 			return err
 		}
+	}
+	if len(next.Queue) > 0 && !s.HasGenerator {
+		return serviceerror.NewFailedPrecondition("buffering requires a configured template")
+	}
+	if decision.NeedsDrain(next) && !s.DrainArmed && s.DrainToken == math.MaxUint64 {
+		return serviceerror.NewFailedPrecondition("drain token exhausted")
 	}
 	eviction, err := s.retentionEviction(ctx, before, next)
 	if err != nil {
@@ -94,10 +114,15 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		delete(s.Operations, eviction)
 	}
 	hasGenerator := s.HasGenerator
+	drainToken, drainArmed, drainAt := s.DrainToken, s.DrainArmed, s.DrainAt
 	s.RootState = &scheduler2pb.RootState{
 		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
 		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
+		DrainToken: drainToken, DrainArmed: drainArmed, DrainAt: drainAt, Policy: next.Root.Policy, BufferDropped: next.Root.BufferDropped,
 		HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
+	}
+	for _, q := range next.Queue {
+		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy})
 	}
 	if next.Carryover != nil {
 		s.Carryover = chasm.NewDataField(ctx, &scheduler2pb.CarryoverState{Result: bytes.Clone(next.Carryover.Result), Failure: bytes.Clone(next.Carryover.Failure), FailurePresent: next.Carryover.FailurePresent})
@@ -106,7 +131,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		s.OperationId = op.ID
 		metadata := &scheduler2pb.OperationState{
 			OccurrenceId: op.OccurrenceID, ActionId: op.ActionID, Id: op.ID, ChainId: op.ChainID,
-			Nominal: op.Nominal, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase),
+			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase),
 		}
 		if field, ok := s.Operations[op.ID]; ok {
 			field.Get(ctx).OperationState = metadata
@@ -123,6 +148,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, wake)},
 			&scheduler2pb.StartTask{OperationId: next.Operation.ID})
 	}
+	s.reconcileDrain(ctx, next)
 	return nil
 }
 
@@ -174,6 +200,9 @@ func (s *Scheduler) freezeAdmission(ctx chasm.Context, op *decision.Operation) e
 		if err := s.materializeCarryover(ctx, request); err != nil {
 			return err
 		}
+	}
+	if op.WorkflowID != "" {
+		request.WorkflowId = op.WorkflowID
 	}
 	request.RequestId = op.ID
 	frozen, err := proto.MarshalOptions{Deterministic: true}.Marshal(request)

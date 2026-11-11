@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package temporal.server.chasm.lib.scheduler2.proto.v1;
 
+import "temporal/api/enums/v1/schedule.proto";
+
 option go_package = "go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1;scheduler2pb";
 
 // RootState holds the bounded scheduler control summary.
@@ -28,6 +30,18 @@ message RootState {
   bool pause_on_failure = 10;
   // HasGenerator indicates that the separate generation component is initialized.
   bool has_generator = 11;
+  // Policy applies to newly arriving automatic occurrences.
+  temporal.api.enums.v1.ScheduleOverlapPolicy policy = 12;
+  // Queue holds at most four waiting occurrence identities without payloads.
+  repeated QueuedOccurrence queue = 13;
+  // BufferDropped counts automatic arrivals rejected by the bounded buffer policy.
+  int64 buffer_dropped = 14;
+  // DrainToken identifies the current independent drain obligation.
+  uint64 drain_token = 15;
+  // DrainArmed indicates queued work can progress without external completion.
+  bool drain_armed = 16;
+  // DrainAt is the execution Unix nanosecond deadline for draining.
+  int64 drain_at = 17;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -57,6 +71,8 @@ message OperationState {
   int64 retry_at = 7;
   // Phase is the durable progress of the operation.
   Phase phase = 8;
+  // WorkflowId preserves queue-time workflow identity independently of the request.
+  string workflow_id = 9;
 }
 
 // Payload keeps large values on a separately loaded node.
@@ -158,5 +174,23 @@ message GenerationDefinition {
 // GenerateTask identifies the current generation obligation.
 message GenerateTask {
   // Token rejects replaced physical deliveries without advancing the cursor.
+  uint64 token = 1;
+}
+
+// QueuedOccurrence retains identity while admission inputs remain unfrozen.
+message QueuedOccurrence {
+  // Nominal is the automatic occurrence identity in Unix nanoseconds.
+  int64 nominal = 1;
+  // Actual is its jittered due time in Unix nanoseconds.
+  int64 actual = 2;
+  // WorkflowId is the fully suffixed queue-time workflow identity.
+  string workflow_id = 3;
+  // Policy is resolved when the occurrence enters the queue.
+  temporal.api.enums.v1.ScheduleOverlapPolicy policy = 4;
+}
+
+// DrainTask drives an independent bounded queue admission step.
+message DrainTask {
+  // Token rejects stale physical drain deliveries.
   uint64 token = 1;
 }
