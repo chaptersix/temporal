@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	enumspb "go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler"
 )
@@ -41,9 +42,50 @@ func TestStartResultSurvivesBufferReordering(t *testing.T) {
 	require.Equal(t, acceptedSecond, snap.RecordedStarts[second.Request.GetRequestId()])
 }
 
-// This detector documents the reservation gap from #59/#62 without importing
-// their experimental action schema into the lifecycle driver.
-func TestSelectedStartReservationCounterexample(t *testing.T) {
+// selectedStarts counts starts chosen for execution whose workflow has not completed.
+func selectedStarts(d *Driver) (selected int) {
+	d.ReadScheduler(func(s *scheduler.Scheduler, ctx chasm.Context) {
+		for _, start := range s.Invoker.Get(ctx).BufferedStarts {
+			if start.GetAttempt() > 0 && start.GetCompleted() == nil {
+				selected++
+			}
+		}
+	})
+	return selected
+}
+
+func TestSelectedStartReservesOverlapSlot(t *testing.T) {
+	t.Parallel()
+	for _, policy := range []enumspb.ScheduleOverlapPolicy{
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL,
+		enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
+	} {
+		t.Run(policy.String(), func(t *testing.T) {
+			t.Parallel()
+			schedule := DefaultSchedule()
+			schedule.State.Paused = true
+			schedule.Policies.OverlapPolicy = policy
+			d := NewDriver(t, WithSchedule(schedule), WithControlledStarts())
+			require.NoError(t, d.TriggerImmediately())
+			require.True(t, d.BeginSideEffect())
+			call := d.NextStart()
+			accepted, err := call.Accept()
+			require.NoError(t, err)
+			require.NoError(t, d.TriggerImmediately())
+			require.Equal(t, 1, selectedStarts(d), "second start selected before the first acknowledgement")
+			call.Respond(accepted, nil)
+			d.FinishSideEffect()
+			require.Equal(t, 1, selectedStarts(d))
+
+			require.NoError(t, d.DeliverCompletion(call.Request.GetRequestId()))
+			require.True(t, d.StepPure())
+			require.Equal(t, 1, selectedStarts(d), "second start not selected after the first completed")
+			require.Empty(t, CheckInvariants(nil, d.Snapshot()))
+		})
+	}
+}
+
+func TestFailedSelectedStartReleasesOverlapSlot(t *testing.T) {
 	t.Parallel()
 	schedule := DefaultSchedule()
 	schedule.State.Paused = true
@@ -52,20 +94,36 @@ func TestSelectedStartReservationCounterexample(t *testing.T) {
 	require.NoError(t, d.TriggerImmediately())
 	require.True(t, d.BeginSideEffect())
 	call := d.NextStart()
+	require.NoError(t, d.TriggerImmediately())
+	require.Equal(t, 1, selectedStarts(d))
+	call.Respond(ExternalStart{}, serviceerror.NewInvalidArgument("rejected"))
+	d.FinishSideEffect()
+
+	require.True(t, d.StepPure())
+	require.Equal(t, 1, selectedStarts(d), "second start not selected after the first was dropped")
+	require.Empty(t, CheckInvariants(nil, d.Snapshot()))
+}
+
+func TestSelectedStartReservationStillTerminatesOther(t *testing.T) {
+	t.Parallel()
+	schedule := DefaultSchedule()
+	schedule.State.Paused = true
+	schedule.Policies.OverlapPolicy = enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER
+	d := NewDriver(t, WithSchedule(schedule), WithControlledStarts())
+	require.NoError(t, d.TriggerImmediately())
+	require.True(t, d.BeginSideEffect())
+	call := d.NextStart()
 	accepted, err := call.Accept()
 	require.NoError(t, err)
 	require.NoError(t, d.TriggerImmediately())
-	selected := 0
-	d.ReadScheduler(func(s *scheduler.Scheduler, ctx chasm.Context) {
-		for _, start := range s.Invoker.Get(ctx).BufferedStarts {
-			if start.GetAttempt() > 0 && start.GetCompleted() == nil {
-				selected++
-			}
-		}
-	})
 	call.Respond(accepted, nil)
 	d.FinishSideEffect()
-	require.Equal(t, 2, selected, "known counterexample: two BUFFER_ALL starts selected before the first acknowledgement; replace with <=1 when fixed")
+	require.True(t, d.StepPure())
+	terminates := 0
+	d.ReadScheduler(func(s *scheduler.Scheduler, ctx chasm.Context) {
+		terminates = len(s.Invoker.Get(ctx).TerminateWorkflows)
+	})
+	require.Equal(t, 1, terminates, "deferred start never terminated the running workflow")
 }
 
 // Migration is refused while a start is ready to execute, since V1 cannot resume

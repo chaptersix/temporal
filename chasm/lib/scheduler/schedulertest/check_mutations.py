@@ -17,6 +17,10 @@ mutations = [
      '\t// A discarded selection cannot produce', '\t// Re-arm tasks if this call changed state'),
     ("backfiller_tasks.go", "capacity-progress", "./chasm/lib/scheduler",
      "TestBackfillCapacityProgress", None, None),
+    ("invoker_tasks.go", "selected-start-reservation", "./chasm/lib/scheduler/schedulertest",
+     "TestSelectedStartReservesOverlapSlot",
+     "start.GetAttempt() > 0 && start.GetCompleted() == nil &&\n\t\t\t\t",
+     "internal.TracksCompletionResult(start.GetOverlapPolicy())\n\t\t})"),
 ]
 for filename, name, package, test, begin, end in mutations:
     source = root / "chasm/lib/scheduler" / filename
@@ -24,7 +28,7 @@ for filename, name, package, test, begin, end in mutations:
     if begin is not None:
         first = text.index(begin)
         last = text.index(end, first)
-        text = text[:first] + text[last:]
+        text = text[:first] + ("false && " if name == "selected-start-reservation" else "") + text[last:]
     else:
         original = "return min(available, max(1, available/backfillerCount))"
         assert text.count(original) == 1

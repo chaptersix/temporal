@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -537,7 +538,14 @@ func (h *InvokerProcessBufferTaskHandler) processBuffer(
 	scheduler *Scheduler,
 ) (result processBufferResult) {
 	runningWorkflows := invoker.runningWorkflowExecutions()
-	isRunning := len(runningWorkflows) > 0
+	// A start that was selected for execution but has no recorded RunId yet still
+	// holds the overlap slot, otherwise a second pass could select another start
+	// before the first StartWorkflowExecution response is recorded.
+	isRunning := len(runningWorkflows) > 0 ||
+		slices.ContainsFunc(invoker.GetBufferedStarts(), func(start *schedulespb.BufferedStart) bool {
+			return start.GetAttempt() > 0 && start.GetCompleted() == nil &&
+				internal.TracksCompletionResult(start.GetOverlapPolicy())
+		})
 	result.missedCatchupByActionRunning = make(map[bool]int64)
 
 	// Processing ignores starts that are already executing or backing off. An existing

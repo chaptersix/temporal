@@ -223,6 +223,7 @@ func (i *Invoker) recordExecuteResult(
 		}
 		return failed
 	})
+	dropped := removedStarts > 0
 	i.CancelWorkflows = slices.DeleteFunc(i.GetCancelWorkflows(), func(we *commonpb.WorkflowExecution) bool {
 		canceled := canceled[we.RunId]
 		if canceled {
@@ -269,6 +270,12 @@ func (i *Invoker) recordExecuteResult(
 		_, remove := startedUntracked[start.GetRequestId()]
 		return remove
 	})
+	// A selected start holds the overlap slot until its RunId is recorded. Dropping it
+	// produces no completion, and recording its RunId makes it cancelable, so either
+	// way deferred starts must be re-evaluated against the new state.
+	if dropped || newlyStarted > 0 {
+		i.reenableDeferredStarts()
+	}
 	i.getOrCreateEventLog(ctx).LogEvent(ctx,
 		fmt.Sprintf("recordExecuteResult kicked off %d starts, removed %d starts, retried %d starts",
 			newlyStarted,
@@ -330,11 +337,7 @@ func (i *Invoker) recordCompletedAction(
 	// Re-enable deferred starts (Attempt == -1) so they can be re-processed by
 	// ProcessBuffer now that a workflow has completed. This allows the overlap
 	// policy to be re-evaluated.
-	for _, start := range i.BufferedStarts {
-		if start.Attempt == -1 {
-			start.Attempt = 0
-		}
-	}
+	i.reenableDeferredStarts()
 
 	// Update DesiredTime on the first pending start for metrics. DesiredTime is used
 	// to drive action latency between buffered starts (the time it takes between
@@ -357,6 +360,16 @@ func (i *Invoker) recordCompletedAction(
 	i.addTasks(ctx)
 
 	return
+}
+
+// reenableDeferredStarts returns deferred starts (Attempt == -1) to the pending
+// state so the next ProcessBuffer pass re-evaluates their overlap policy.
+func (i *Invoker) reenableDeferredStarts() {
+	for _, start := range i.BufferedStarts {
+		if start.Attempt == -1 {
+			start.Attempt = 0
+		}
+	}
 }
 
 // addTasks adds both ProcessBuffer and Execute tasks as needed. It should be
