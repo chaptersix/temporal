@@ -1,0 +1,229 @@
+{
+  "profile": "race",
+  "source_sha": "12740ef1d62adc7d8dcfbca6293a973f2eb20914",
+  "status_before": "",
+  "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source_files": {
+    "chasm/lib/scheduler2/allowall_replay_test.go": "e834b0b83e35a40806dabdafa487306b7553e198c8eb87993a303ec34b23c888",
+    "chasm/lib/scheduler2/allowall_test.go": "50d3462ded652c16b372c00e50a2cd09b2490a890dfe7b73d0ced08221c991de",
+    "chasm/lib/scheduler2/buffer.go": "b6189d0c7171e46142b3fb9555a32ff412407f2e19a43fe428bd1f9ba8ebed55",
+    "chasm/lib/scheduler2/buffer_replay_test.go": "9fb0966a6ee2d73d1307fe5b037a89cc4ae074565805d96fad1076f5656cbeaf",
+    "chasm/lib/scheduler2/buffer_test.go": "c180a5ac5a5520e44afab39a15d28e4712c8343410a5ebb8cb6ca0ec08e8d7f1",
+    "chasm/lib/scheduler2/completion.go": "ecec64c350e7bd575e23f7808ea903870157b53873e87d27cc7fb1219975b67a",
+    "chasm/lib/scheduler2/completion_replay_test.go": "3f312657c9c8fad876ca71fc35c35c8b6f40b81e9350a48534d17508470b113d",
+    "chasm/lib/scheduler2/completion_test.go": "040f27cc622cca187dddf3b5292171e5e1f6cd18989d7fe7dd8240a36eb71f88",
+    "chasm/lib/scheduler2/component.go": "5246075e779dc234606bf66885a23153749363fc8f5a9450da6419548e4e8e1e",
+    "chasm/lib/scheduler2/effects.go": "7b4d71aed590e49679104141e661ba1394aa289bed2ffa338c0498dcb445df17",
+    "chasm/lib/scheduler2/effects_replay_test.go": "dd17b652c84e2f193960bf7eec2c9a5b4af99866c588792fede3e44b739dca7a",
+    "chasm/lib/scheduler2/effects_tasks.go": "ea874c86c548d60722faf71fa0a649e9cf7b24f1a196b3fbb2f2999adb7f8eab",
+    "chasm/lib/scheduler2/effects_tasks_test.go": "289a014196eb394ebf20bd16f66dd4cc96e4b7a71a31d59a64737989a5e624d1",
+    "chasm/lib/scheduler2/effects_test.go": "5d5c24dded94b5448c1669136555a8843a246823fec4641b09addcb905e73375",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go": "893170c9a64828bc37626ff23158a0257fb752d1dbda89927f1469f622cc8246",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "02aae302bcfe0c8f956dbc65c59e30330ec4ac4cd6f530c3fb071bc1225e7a94",
+    "chasm/lib/scheduler2/generation_replay_test.go": "ca7e5059c30132a5cc9376c14a27d5e62992251fecf654e8707ebc68878cf2b7",
+    "chasm/lib/scheduler2/generation_test.go": "63f0658a8d38dffd98467a75053f7812514847915acbba1da41da3fd64bd5486",
+    "chasm/lib/scheduler2/generator.go": "c660809d68d98d7b41e1b6f89d18cffb1dbb398c0ec5363138ec4184d8b1adb3",
+    "chasm/lib/scheduler2/internal/decision/allowall_test.go": "c1e1991777633e6012fd3ddf8ab6d5297bb82d86191cc55b78f72f3e45126f0e",
+    "chasm/lib/scheduler2/internal/decision/buffer.go": "c91c31d347faf8121c1f8dc4cdce5850fee631f4788250634c16c4d27a013f2f",
+    "chasm/lib/scheduler2/internal/decision/buffer_test.go": "c85d5bfc20e900833aa1c56af03f4ef8105bb993d91e76667e7a5823011dc9dc",
+    "chasm/lib/scheduler2/internal/decision/completion.go": "d5d9198759486acdecd31a031c9c55166816c73a4897cc493ac8697214df84b0",
+    "chasm/lib/scheduler2/internal/decision/completion_test.go": "246af973db516fabdd715e0a5049f478c18c49ce1dbb8df536853c5ef275844b",
+    "chasm/lib/scheduler2/internal/decision/decision.go": "b90dec94a613ecd80db1574ff9f8d0c57c0c500e93800f7d7cbfb0f7884a5713",
+    "chasm/lib/scheduler2/internal/decision/decision_test.go": "5120011b1946b2dcafb9e2fc374adfede34b36d05438f03646eb8675150f7c3c",
+    "chasm/lib/scheduler2/internal/decision/effects.go": "4e32a154961b808366b5d72d80b2ce997d1bee6262462117dcc059c20043bb8c",
+    "chasm/lib/scheduler2/internal/decision/effects_test.go": "8fecd6e9112b3326002d51a4086df733d3451ba40cc74d3a2e7c965e50dcdeda",
+    "chasm/lib/scheduler2/internal/decision/manual.go": "f3d5f368187ca706767584a316b723e4542412588a9d11478613c423445ae041",
+    "chasm/lib/scheduler2/internal/decision/manual_test.go": "2116dc63378e48d690f282a5316517185273b512d7ef675c65e87a2dc56fb3bc",
+    "chasm/lib/scheduler2/internal/decision/sequential_test.go": "983ac0c322ab1e2d8d1fce54974e78eb2a88ad6b29bcddbcaf425d3c8dbc9e38",
+    "chasm/lib/scheduler2/internal/occurrence/boundaries_test.go": "23647440f47c4c5a9fdae417074369902953486f86fe8cac5ba9752cb683b80a",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence.go": "a2bd64980ffa6e105f380c03ecc36fee9c57e09dd800787b29a7813fb94f942b",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence_test.go": "ed11486cbb44f6a29222bd1dbf769cf72eaa07aa942aa0b273807895f2dcee81",
+    "chasm/lib/scheduler2/internal/occurrence/replay_test.go": "4f8d7a2f0814c77a628d0d9c2c6a7db0d3971455358f939c27b1c7c5d0322db7",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/America_New_York.tzif": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/README.md": "6619efd90c249cdcb7cdf56cc1f739c360ba34a3142841ef5cb0d876fc1b53d2",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/generator-regressions/TestEnumerationProperties-20261110193611-6103.fail": "6d9f2a0ea0ccd738813fe91e1067fd9852e05af6ff7a434607e5ac5717532966",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/pending_jitter_v1.json": "4b092a385daa1d708da4895da8c4faeed1e5981d12191da8751dae675cda84be",
+    "chasm/lib/scheduler2/library.go": "c5a57c2f5c24d90649e1481e2e453e81a2d8d952ab22f8c3501dcf1b28d3f4ba",
+    "chasm/lib/scheduler2/manual.go": "6fac9a755f61ad6392221d9363e7d280c35fbd0a8f0bd73b943831fc35cf9777",
+    "chasm/lib/scheduler2/manual_replay_test.go": "863921712eeb42d5c1eb1400a23fdc1ced26c27792d46550a53b7884073b76f3",
+    "chasm/lib/scheduler2/manual_test.go": "03f52991ede90c8a0affc23afce5e2b91173accf41076db4707337b40dce8705",
+    "chasm/lib/scheduler2/persistence_test.go": "8fe9ccd4d699b3e74543fa37297c9500808d04e0746abe731607073674800b8b",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "9d1f40eac2790cfcf312fb88f08fbf27545d9b629f99c8c2bbd0326c6d88ec88",
+    "chasm/lib/scheduler2/replay_test.go": "b5b7d15ddbf3a739264cbe388e7d74855134f6054aaa6f63e64bce429634d5b3",
+    "chasm/lib/scheduler2/sequential_test.go": "4573cb728fd30739ab175e3ee342de69e0c569b37daee70e5e3ec2423b32c43e",
+    "chasm/lib/scheduler2/tasks.go": "6eb3b53835d1da859c222e1e8b3e9580d6cea0abfe9b8e01aec8dcf6e0438ace",
+    "chasm/lib/scheduler2/tasks_test.go": "50c2da13fe1c5cc18dc5d6950d34bba2f6b8f6098422dde407f77025ef29113a",
+    "chasm/lib/scheduler2/testdata/allowall_v1.json": "99bccdb0ac1193dd8450a7db4ef6e117cd0c99aa5f381946ed38c4e90475c2ee",
+    "chasm/lib/scheduler2/testdata/buffer_v1.json": "2a7734300e599d026417837ad08dfabad0195faaaafa3853763f46fd7707492d",
+    "chasm/lib/scheduler2/testdata/completion_v1.json": "80ebc978e5f40c33f4d43b31d51240418539c4450472e60f80f710d573cbf755",
+    "chasm/lib/scheduler2/testdata/effects_v1.json": "f71e522e261f0fdea54cebfc4858c8066d4b58d07ac6b5d1dca293b5ee21a33a",
+    "chasm/lib/scheduler2/testdata/generation_v1.json": "a0b55b8e32834606f61a8b8af833ecfab98763b8b5475ac657f964625421f8cf",
+    "chasm/lib/scheduler2/testdata/lost_ack_v1.json": "33d6c6518800ac2eb1e7612f41e1e20eba88028da2c7f3ee6a71175235c5ff6f",
+    "chasm/lib/scheduler2/testdata/manual_v1.json": "916b920298bd873ac4f0015da123f4c2bf67213f57aef38482f714c15c5919e8",
+    "chasm/lib/scheduler2/testdata/retry_input_defect_v1.json": "ae3926f1615c1169f71deac57b93d4f60bbb752b5361fa49c990d0aab68af8ef",
+    "service/worker/scheduler/candidate.go": "794011c72c2705bc4a4d4bb76d603c794ae9d180bb2ec379edc3708722ccef09",
+    "service/worker/scheduler/spec.go": "c34ce2e2aee0bb05fe7bf2fdc8017638b36127c69e671fbe3c6bf69d48c9da84"
+  },
+  "configuration": {
+    "version": 1,
+    "scope": "M1 dispatch, WI-002 enumeration, WI-003 completion, WI-004 sequential generation; local only; WI-005 buffered automatic admission; WI-006 keyed ALLOW_ALL; WI-007 fenced cancel/terminate effects; WI-008 durable manual commands",
+    "clock": "execution Unix nanoseconds",
+    "per_schedule": {
+      "enumeration_batch": 1,
+      "admission_batch": 1,
+      "scan_batch": 1,
+      "pending_actions": 1,
+      "live_operations": 1,
+      "backfill_requests": 0,
+      "terminal_records": 1,
+      "retry_horizon_seconds": 60,
+      "retry_backoff_seconds": 1
+    },
+    "executor_concurrency_per_library": 1,
+    "routine": {
+      "scenarios": 100,
+      "events": 32,
+      "seed": 1
+    },
+    "exploration": {
+      "scenarios": 10000,
+      "events": 128,
+      "seed_policy": "explicit --seed recorded in manifest"
+    },
+    "recovery": "one authenticated completion; an explicit finite suffix, not a liveness proof",
+    "model": {
+      "action_bounds": [
+        100,
+        200
+      ],
+      "concurrent_actions": 1,
+      "timeout_seconds_per_case": 300
+    },
+    "tools": {
+      "go": "go1.27.3",
+      "rapid": "v1.2.0",
+      "fizzbee": "v0.5.4",
+      "lean": "v4.24.0; executable draft only; M3 proofs pending"
+    },
+    "limits": "unsupported ingress rejected; expiry retains ambiguity; no retention eviction in bounded slice",
+    "enumeration": {
+      "range": "[2000-01-01,2101-01-01) UTC",
+      "max_spec_bytes": 65536,
+      "max_terms": 64,
+      "max_ranges": 1024,
+      "max_probes": 1024,
+      "max_outputs": 128,
+      "routine_probes": 8,
+      "routine_outputs": 4,
+      "timezone_fixture_sha256": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+      "independence": "bounded second-scan oracle; shares timezone conversion and Farm32 primitives",
+      "integration": "not wired to CHASM admission"
+    },
+    "completion": {
+      "max_value_bytes": 65536,
+      "max_carryover_bytes": 131072,
+      "policy": "single-operation SKIP; current pause-on-failure; first completion wins",
+      "presence": "empty result absent; opaque metadata/null retained; failure presence explicit",
+      "integration": "local callback event only, no public routing or sequential admission"
+    },
+    "generation": {
+      "max_retained_operations": 4,
+      "active_slots": 1,
+      "occupancy": [
+        "Pending",
+        "Started",
+        "Ambiguous"
+      ],
+      "eviction": "oldest Completed only",
+      "probes": 8,
+      "outputs": 4,
+      "continuation_delay_ns": 1000000,
+      "continuation_clock_end": "clamped to 2101-01-01 minus1ns",
+      "max_catchup_days": 365,
+      "max_seed_bytes": 65536,
+      "max_request_template_bytes": 65536,
+      "integration": "local pure-task generator; production routing absent"
+    },
+    "buffer": {
+      "capacity": 4,
+      "admission_batch": 1,
+      "scan_batch": 4,
+      "policies": [
+        "BUFFER_ONE",
+        "BUFFER_ALL"
+      ],
+      "overflow": "drop automatic arrival and increment BufferDropped; no debit",
+      "drain": "independent token/deadline; completion arms after generation exhausted",
+      "snapshot": "queue-time workflow ID and resolved policy; admission-time template, catchup and carryover"
+    },
+    "allowall": {
+      "max_retained_operations": 4,
+      "max_unfinished_intents": 4,
+      "occupancy": "one non-ALLOW_ALL blocking owner independent of latest admission",
+      "terminal": "Completed tracked or StartOnly settled intent",
+      "capacity_ingress": "new automatic admission drops/counts without debit when all records unfinished",
+      "capacity_queue": "retain eligible accepted queue; no drain loop; terminal evidence/configuration rechecks readiness",
+      "carryover": "ALLOW_ALL clears request fields and never changes carryover or pause",
+      "keyed_loading": "only target operation metadata/request on issuance/results; bounded retention scan on admission"
+    },
+    "effects": {
+      "max_records_per_blocker": 2,
+      "max_request_bytes": 131072,
+      "retry_horizon_seconds_from_binding": 60,
+      "retry_backoff_seconds": 1,
+      "executor_concurrency_per_library": 1,
+      "combined_start_and_effect_concurrency_per_library": 2,
+      "unknown_chain": "retained awaiting target; no RPC or timer",
+      "not_found": "settled absent target; not successful cancellation or completion",
+      "queue": "capacity4; eligible last cancel/terminate replaces unadmitted selection",
+      "completion": "matching target completion clears effects; RPC outcomes never release blocker",
+      "payload": "separate DATA entries; metadata-only validation"
+    },
+    "manual": {
+      "pending_capacity": 4,
+      "sequence": "monotonic uint64 per incarnation; exhaustion rejects",
+      "timestamp": "exactly representable int64 Unix nanoseconds; supplied time is identity not timer",
+      "transfer_batch": 1,
+      "capacity": "fullqueue waits; ALLOW_ALL/free admission wait for slot",
+      "eligibility": "bypass pause, budget debit, catchup and automatic cursor",
+      "dedup": "CHASM WithRequestID; bounded framework count/age; independent of start record retention",
+      "workflow_reuse": "ALLOW_DUPLICATE",
+      "fairness": "sustained mixed ingress arbitration pending WI-009"
+    }
+  },
+  "seed": 1,
+  "scenarios": 100,
+  "event_limit": 32,
+  "go_version": "go version go1.27.3 darwin/arm64",
+  "python_version": "3.14.6 (main, Jun 10 2026, 10:03:53) [Clang 21.0.0 (clang-2100.0.123.102)]",
+  "environment": {
+    "GOMAXPROCS": "4",
+    "CGO_ENABLED": "1",
+    "SDKROOT": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+  },
+  "trace_schema": 1,
+  "results": [
+    {
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=15m",
+        "./chasm/lib/scheduler2/...",
+        "./chasm/lib/all"
+      ],
+      "exit_code": 0,
+      "result": "passed",
+      "seconds": 47.391668250085786,
+      "log": "/private/tmp/scheduler2-wi008-final/race/0.log"
+    }
+  ],
+  "result": "passed"
+}

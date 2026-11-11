@@ -165,3 +165,7 @@ WI-006 final disposition (retained):
   model/manual contribution copied by parent; reviewer checked temporal witnesses
   and mapping limits. Both worktrees retained; all execution and commits local.
 - WI-008 acceptance pending final concrete review regressions and checks.
+
+- WI-008 final source12740ef1d clean at manual/race profile start; all item gates
+  passed E47–E52. Parent integrated independent files and final boolean lint fix.
+  Review clear; retained worktrees need no cleanup or branch merge into original.

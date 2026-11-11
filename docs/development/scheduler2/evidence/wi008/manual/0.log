@@ -1,0 +1,118 @@
+=== RUN   TestManualSavedReplay
+=== PAUSE TestManualSavedReplay
+=== RUN   TestManualPublicDedupAtomicityAndChangedBody
+=== PAUSE TestManualPublicDedupAtomicityAndChangedBody
+=== RUN   TestManualSameTimeBypassesPauseBudgetCursor
+=== PAUSE TestManualSameTimeBypassesPauseBudgetCursor
+=== RUN   TestManualQueueWaitPolicyResolutionAndCapacityRecovery
+=== PAUSE TestManualQueueWaitPolicyResolutionAndCapacityRecovery
+=== RUN   TestManualAcceptancePayloadIsolationAndOverflow
+=== PAUSE TestManualAcceptancePayloadIsolationAndOverflow
+=== RUN   TestManualDedupRetentionIndependentOfOperationRetention
+=== PAUSE TestManualDedupRetentionIndependentOfOperationRetention
+=== RUN   TestManualTimestampDefaultsAndInvalidInputs
+=== PAUSE TestManualTimestampDefaultsAndInvalidInputs
+=== RUN   TestManualDiscardAvoidsDefinitionPayload
+=== PAUSE TestManualDiscardAvoidsDefinitionPayload
+=== RUN   TestManualFullUnfinishedWaitAndSameTimeEviction
+=== PAUSE TestManualFullUnfinishedWaitAndSameTimeEviction
+=== RUN   TestManualExplicitOverlapOverrides
+=== PAUSE TestManualExplicitOverlapOverrides
+=== RUN   TestManualQueuedIdentityCurrentPayloadAndImmutableRetry
+=== PAUSE TestManualQueuedIdentityCurrentPayloadAndImmutableRetry
+=== RUN   TestManualStoredTaskRollbackAndStaleToken
+=== PAUSE TestManualStoredTaskRollbackAndStaleToken
+=== CONT  TestManualSavedReplay
+=== CONT  TestManualTimestampDefaultsAndInvalidInputs
+=== CONT  TestManualStoredTaskRollbackAndStaleToken
+=== CONT  TestManualExplicitOverlapOverrides
+=== RUN   TestManualExplicitOverlapOverrides/Skip
+=== RUN   TestManualTimestampDefaultsAndInvalidInputs/default
+=== PAUSE TestManualExplicitOverlapOverrides/Skip
+=== PAUSE TestManualTimestampDefaultsAndInvalidInputs/default
+=== RUN   TestManualExplicitOverlapOverrides/BufferOne
+=== RUN   TestManualTimestampDefaultsAndInvalidInputs/past
+=== PAUSE TestManualExplicitOverlapOverrides/BufferOne
+=== RUN   TestManualExplicitOverlapOverrides/BufferAll
+=== PAUSE TestManualExplicitOverlapOverrides/BufferAll
+=== RUN   TestManualExplicitOverlapOverrides/CancelOther
+=== PAUSE TestManualExplicitOverlapOverrides/CancelOther
+=== RUN   TestManualExplicitOverlapOverrides/TerminateOther
+=== PAUSE TestManualTimestampDefaultsAndInvalidInputs/past
+=== RUN   TestManualTimestampDefaultsAndInvalidInputs/invalid_nanos
+=== PAUSE TestManualTimestampDefaultsAndInvalidInputs/invalid_nanos
+=== PAUSE TestManualExplicitOverlapOverrides/TerminateOther
+=== RUN   TestManualTimestampDefaultsAndInvalidInputs/outside_nanosecond_range
+=== PAUSE TestManualTimestampDefaultsAndInvalidInputs/outside_nanosecond_range
+=== RUN   TestManualExplicitOverlapOverrides/AllowAll
+=== CONT  TestManualQueuedIdentityCurrentPayloadAndImmutableRetry
+=== PAUSE TestManualExplicitOverlapOverrides/AllowAll
+=== CONT  TestManualQueueWaitPolicyResolutionAndCapacityRecovery
+--- PASS: TestManualQueueWaitPolicyResolutionAndCapacityRecovery (0.01s)
+=== CONT  TestManualDedupRetentionIndependentOfOperationRetention
+--- PASS: TestManualStoredTaskRollbackAndStaleToken (0.01s)
+=== CONT  TestManualAcceptancePayloadIsolationAndOverflow
+--- PASS: TestManualQueuedIdentityCurrentPayloadAndImmutableRetry (0.01s)
+=== RUN   TestManualAcceptancePayloadIsolationAndOverflow/sequence
+=== PAUSE TestManualAcceptancePayloadIsolationAndOverflow/sequence
+=== RUN   TestManualAcceptancePayloadIsolationAndOverflow/token
+=== PAUSE TestManualAcceptancePayloadIsolationAndOverflow/token
+=== CONT  TestManualFullUnfinishedWaitAndSameTimeEviction
+=== CONT  TestManualDiscardAvoidsDefinitionPayload
+=== RUN   TestManualDiscardAvoidsDefinitionPayload/Skip
+=== PAUSE TestManualDiscardAvoidsDefinitionPayload/Skip
+=== RUN   TestManualDiscardAvoidsDefinitionPayload/BufferOne
+=== PAUSE TestManualDiscardAvoidsDefinitionPayload/BufferOne
+=== CONT  TestManualSameTimeBypassesPauseBudgetCursor
+--- PASS: TestManualSavedReplay (0.01s)
+=== CONT  TestManualPublicDedupAtomicityAndChangedBody
+--- PASS: TestManualSameTimeBypassesPauseBudgetCursor (0.00s)
+=== CONT  TestManualTimestampDefaultsAndInvalidInputs/default
+=== CONT  TestManualTimestampDefaultsAndInvalidInputs/outside_nanosecond_range
+=== CONT  TestManualExplicitOverlapOverrides/Skip
+--- PASS: TestManualFullUnfinishedWaitAndSameTimeEviction (0.01s)
+=== CONT  TestManualTimestampDefaultsAndInvalidInputs/invalid_nanos
+--- PASS: TestManualDedupRetentionIndependentOfOperationRetention (0.01s)
+=== CONT  TestManualTimestampDefaultsAndInvalidInputs/past
+--- PASS: TestManualPublicDedupAtomicityAndChangedBody (0.00s)
+=== CONT  TestManualExplicitOverlapOverrides/CancelOther
+=== CONT  TestManualExplicitOverlapOverrides/BufferAll
+--- PASS: TestManualTimestampDefaultsAndInvalidInputs (0.00s)
+    --- PASS: TestManualTimestampDefaultsAndInvalidInputs/default (0.00s)
+    --- PASS: TestManualTimestampDefaultsAndInvalidInputs/outside_nanosecond_range (0.00s)
+    --- PASS: TestManualTimestampDefaultsAndInvalidInputs/invalid_nanos (0.00s)
+    --- PASS: TestManualTimestampDefaultsAndInvalidInputs/past (0.00s)
+=== CONT  TestManualExplicitOverlapOverrides/AllowAll
+=== CONT  TestManualExplicitOverlapOverrides/BufferOne
+=== CONT  TestManualExplicitOverlapOverrides/TerminateOther
+=== CONT  TestManualAcceptancePayloadIsolationAndOverflow/sequence
+=== CONT  TestManualAcceptancePayloadIsolationAndOverflow/token
+=== CONT  TestManualDiscardAvoidsDefinitionPayload/Skip
+=== CONT  TestManualDiscardAvoidsDefinitionPayload/BufferOne
+--- PASS: TestManualExplicitOverlapOverrides (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/Skip (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/CancelOther (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/BufferAll (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/AllowAll (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/BufferOne (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/TerminateOther (0.00s)
+--- PASS: TestManualAcceptancePayloadIsolationAndOverflow (0.00s)
+    --- PASS: TestManualAcceptancePayloadIsolationAndOverflow/sequence (0.00s)
+    --- PASS: TestManualAcceptancePayloadIsolationAndOverflow/token (0.00s)
+--- PASS: TestManualDiscardAvoidsDefinitionPayload (0.00s)
+    --- PASS: TestManualDiscardAvoidsDefinitionPayload/Skip (0.00s)
+    --- PASS: TestManualDiscardAvoidsDefinitionPayload/BufferOne (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.679s
+=== RUN   TestManualIndependentProperties
+=== PAUSE TestManualIndependentProperties
+=== RUN   TestManualMixedQueueEligibility
+=== PAUSE TestManualMixedQueueEligibility
+=== CONT  TestManualIndependentProperties
+=== CONT  TestManualMixedQueueEligibility
+--- PASS: TestManualMixedQueueEligibility (0.00s)
+=== NAME  TestManualIndependentProperties
+    manual_test.go:15: [rapid] OK, passed 10000 tests (3.357147042s)
+--- PASS: TestManualIndependentProperties (3.36s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	4.257s

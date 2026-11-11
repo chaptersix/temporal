@@ -188,7 +188,7 @@ cover CHASM publication/value isolation, not physical database atomicity. Origin
 checkout received no task writes; no production routing, migration or rollout.
 
 
-## WI-008 evidence in verification (partial M2)
+## Accepted WI-008 evidence (partial M2)
 
 Implementation97e9a7eca, review fixf525eacab; prerequisite0c07f4a24.
 
@@ -200,5 +200,10 @@ Implementation97e9a7eca, review fixf525eacab; prerequisite0c07f4a24.
 
 Independent review found unnecessary template loading for policy-only disposal;
 fixf525eacab avoids it and adds deterministic equal-nominal retention ordering.
-Independent regression/model/property/replay, mutation and final race/lint evidence
-remain pending; WI-008 is not accepted and M2–M4 remain incomplete.
+Final source12740ef1d resolves the review findings; M2–M4 remain incomplete.
+
+| ID | Kind / claim | Artifact and result |
+|---|---|---|
+| E50 | bounded-model / reachability | [model results](../model/manual/evidence/results.json), [limits](../model/manual/README.md); commands259 unique, admission17434 unique at100/200; nine safety/fifteen witnesses/eight mutants, manually factored with framework boundary. |
+| E51 | property / CHASM / replay | [manual manifest](wi008/manual/manifest.json);10000 scenarios1–128 commands, actual request-ID DATA child, failed publication, stable identities, same-time records, pause/budget/catchup bypass, capacity recovery, poisoned partitions, current queued payload/carryover and stale stored tasks. Saved version1 replay. |
+| E52 | race / lint / mutation / review | [checks](wi008/checks.json), [race](wi008/race/manifest.json), [lint](wi008/lint.log), [mutants](wi008/mutations/manifest.json), [review](wi008/review.md); all pass, eight Go defects detected/restored. Original checkout untouched by task, worktrees retained. |

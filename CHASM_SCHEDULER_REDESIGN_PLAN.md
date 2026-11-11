@@ -6,8 +6,8 @@
 | --- | --- |
 | Status | Authorized local execution through M4 |
 | Updated | 2026-11-11 |
-| Current milestone | M2 partial: WI-007 accepted; WI-008 manual trigger verification |
-| Implementation status | WI-000 through WI-007 accepted; WI-008 implemented, verification pending |
+| Current milestone | M2 partial: WI-008 accepted; WI-009 backfill/fairness investigation |
+| Implementation status | WI-000 through WI-008 accepted; WI-009 investigating |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing through all milestones M2–M4; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
 | Execution environment | Local development, model checking, simulation, and functional testing only |
@@ -149,7 +149,7 @@ Phases describe coverage areas, not a requirement to finish all modeling before 
 | --- | --- | --- | --- |
 | M0 | Workspace provenance, first-slice contract, early CHASM guarantees | passed | E4–E8 |
 | M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | passed | E9–E16; bounded scope and trusted boundaries below |
-| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-007 E17–E46; remaining manual/backfill/spec work pending |
+| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-008 E17–E52; remaining backfill/fairness/spec work pending |
 | M3 | Differential API and shared functional coverage with no unexplained differences | pending | — |
 | M4 | Load/state-growth report and explicit migration support boundary | pending | — |
 
@@ -499,10 +499,10 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D41 | Effect outcomes | decided for WI-007 | Success Accepted; NotFound Absent; expiry Ambiguous. No outcome releases blocker or changes start accounting/carryover. | E42–E46 |
 | D42 | Effect publication/isolation | decided for WI-007 | Root metadata plus DATA requests; atomic binding/task; metadata-only validation; terminate supersedes future cancel, completion clears target. | E42–E46 |
 
-| D43 | Manual command identity/dedup | decided for WI-008 | Cap4 pending; monotonic per-incarnation sequence independent of timestamp/cursor/start retention; CHASM bounded request-ID dedup atomic with acceptance. | Implementation97e9a7eca; verification pending |
+| D43 | Manual command identity/dedup | decided for WI-008 | Cap4 pending; monotonic per-incarnation sequence independent of timestamp/cursor/start retention; CHASM bounded request-ID dedup atomic with acceptance. | Accepted12740ef1d; E47–E52 |
 | D44 | Manual transfer/capacity | decided for WI-008 | At most1 transfer; full queue waits; free/ALLOW_ALL admission needs operation slot; blocked tracked policy can queue/dispose without slot. Resolve unspecified policy at transfer. | WI-008 |
 | D45 | Manual eligibility | decided for WI-008 | Bypass pause, budget debit, catchup and automatic cursor; supplied ScheduledTime is workflow identity, including future; stable sequence start ID; ALLOW_DUPLICATE reuse. | WI-008 |
-| D46 | Manual snapshots/wakes | decided for WI-008 | Metadata-only acceptance/disposal; current template at transfer/admission; token/deadline task, no spin at capacity; immutable60s admission horizon. Mixed-ingress fairness remains WI-009. | Fixf525eacab; verification pending |
+| D46 | Manual snapshots/wakes | decided for WI-008 | Metadata-only acceptance/disposal; current template at transfer/admission; token/deadline task, no spin at capacity; immutable60s admission horizon. Mixed-ingress fairness remains WI-009. | Fixf525eacab; accepted E47–E52 |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 
@@ -795,3 +795,9 @@ scheduler2/registry tests. Existing History request-ID engine tests pass both
 framework storage layouts, count/age retention and empty IDs. Independent manual
 models/oracles/replays and final race/mutations remain acceptance gates. Work stays
 local and no milestone completion has been inferred from this checkpoint.
+
+
+WI-008 accepted at12740ef1d with E47–E52, including final review-requested manual
+queue/template/carryover and stored-task regressions. [WI-009](docs/development/scheduler2/work-items/WI-009.md)
+records resumable backfill and capacity arbitration investigation. Sustained-ingress
+fairness is still a required M2 gate, not inferred from WI-008's bounded recovery.

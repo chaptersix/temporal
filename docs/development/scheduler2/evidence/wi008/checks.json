@@ -1,0 +1,39 @@
+{
+  "source_sha": "12740ef1d62adc7d8dcfbca6293a973f2eb20914",
+  "generation": {
+    "command": "CGO_ENABLED=0 GOMAXPROCS=4 make proto",
+    "exit_code": 0,
+    "log": "comment-generation.log"
+  },
+  "lint": {
+    "command": "CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast GOLANGCI_LINT_BASE_REV=0c07f4a24 GOLANGCI_LINT_FIX=false",
+    "exit_code": 0,
+    "log": "lint.log"
+  },
+  "framework_dedup": {
+    "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 -parallel 4 ./service/history -run 'TestChasmEngineSuite/TestUpdateComponent_(RequestIDIdempotency|NoRequestID|DifferentRequestIDsWithEviction|UpdateRequestID|RequestIDDataNode_DifferentRequestIDsWithEviction|RequestIDDataNode_ExpiredRequestIDAccepted|RequestIDTypesDedupIndependently)$' -count=1 -v",
+    "exit_code": 0,
+    "log": "framework-dedup.log",
+    "scope": "existing History engine tests, both layouts; persistence mocks"
+  },
+  "model": {
+    "integrated_case_hashes_verified": true,
+    "bounds": [
+      100,
+      200
+    ],
+    "commands_unique": 259,
+    "admission_unique": 17434,
+    "limits": "symbolic framework expiry and sequence bound6; manual factorization; no liveness/refinement"
+  },
+  "mutations": {
+    "count": 8,
+    "all_detected": true,
+    "source_restoration_verified": true
+  },
+  "original_checkout": {
+    "writes_by_task": false,
+    "prior_untracked_paths_still_exist": true,
+    "tracked_patch_sha256": "a02f970fa2cee8901cf0c5d992da4a0ac9eef01ae8afb029dc2f102f76481f7e"
+  }
+}
