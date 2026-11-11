@@ -6,9 +6,9 @@
 | --- | --- |
 | Status | Authorized local execution through M1 |
 | Updated | 2026-11-10 |
-| Current milestone | M1 passed; stopped for review |
-| Implementation status | WI-000 and WI-001 accepted; verified code f9d62cf99 |
-| Authorization | User authorized local execution, branches/worktrees and task commits through M1. No pushes, production routing, rollout or migration. |
+| Current milestone | M2 active: WI-002 occurrence enumeration |
+| Implementation status | WI-000/WI-001 accepted; WI-002 ready |
+| Authorization | User authorized local execution, branches/worktrees and task commits, continuing with WI-002; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
 | Execution environment | Local development, model checking, simulation, and functional testing only |
 
@@ -669,8 +669,8 @@ clarity. D1–D4 and relevant D11–D14 portions decided for the bounded slice.
 General calendar, capacity/fairness, retention and migration decisions remain open
 for later milestones. No original-checkout implementation was imported.
 WI-001 accepted at verified code f9d62cf99ba5a6e72d987b9bdb9f315c98efd40e.
-M1 passed E9–E16 after independent review. Execution stopped for review; M2–M4
-remain pending. Later documentation-only acceptance commit does not change code.
+M1 passed E9–E16 after independent review. M1 was completed; the user subsequently authorized WI-002 and removed human-review
+stops. M2 is active; M3–M4 remain pending. Later documentation-only acceptance commit does not change code.
 
 Checked P0–P4 entries denote the bounded first-slice obligation, not full-policy
 completion. P2.5/P3.3/P3.6/P4.5 have passing M1 subsets (E10–E15) while their full
@@ -697,3 +697,13 @@ partitions, immutable reducer and bounded executor, independent FizzBee model an
 mutations, real CHASM snapshot/fault/replay tests, versioned traces and runner.
 Independent reviews found and resolved four dispatch/rollback/concurrency defects.
 Combined verification passed; committed evidence and stopped after M1 for review.
+
+## 14. Continued local execution
+
+User instruction: remove human-review steps and execute the proposed next work.
+D22 supersedes the M1 human-review stop; independent agent ALC7 review and evidence
+requirements remain. No routine approval request is needed between ADLC stages.
+[WI-002](docs/development/scheduler2/work-items/WI-002.md) executes bounded resumable
+occurrence enumeration under [D23–D26](docs/development/scheduler2/enumeration-contract.md).
+M2 is not complete merely because this work item passes. Existing local-only and
+no-production-action boundaries remain.
