@@ -61,7 +61,7 @@ func TestSequentialCarryoverRetentionAndLateResults(t *testing.T) {
 		require.Equal(t, int64(index), s.Started)
 		require.Equal(t, int64(6-index), s.Remaining)
 	}
-	s, ctx := h.root(false)
+	s, _ := h.root(false)
 	require.NotContains(t, s.Operations, ids[0])
 	require.NotContains(t, s.Operations, ids[1])
 	for _, id := range ids[2:] {
@@ -71,7 +71,7 @@ func TestSequentialCarryoverRetentionAndLateResults(t *testing.T) {
 	for _, id := range ids[:5] {
 		h.apply(decision.Event{Kind: decision.Callback, Incarnation: "incarnation", OperationID: id, ChainID: "stale-chain", Outcome: decision.Success, Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED, Result: completionWire(t, &commonpb.Payload{Data: []byte("stale")})}, true)
 		h.apply(decision.Event{Kind: decision.Acknowledged, Incarnation: "incarnation", OperationID: id, ChainID: "stale-chain"}, true)
-		s, ctx = h.root(false)
+		s, ctx := h.root(false)
 		require.Equal(t, ids[5], s.OperationId)
 		require.Equal(t, int64(6), s.Started)
 		require.Zero(t, s.Remaining)
