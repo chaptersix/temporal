@@ -1,0 +1,8 @@
+# 2026/11/11 13:42:00.975132 [TestBufferProperties] [rapid] draw commands: []string{"due"}
+# 2026/11/11 13:42:00.975136 [TestBufferProperties] buffer state after due: root={Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:3 Started:0 PauseOnFailure:false CarryoverSet:false Policy:BufferAll BufferDropped:0 CapacityDropped:0 Unfinished:1 BlockingOperationID:inc/automatic/1000000000/action/start} expected={Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:3 Started:0 PauseOnFailure:false CarryoverSet:false Policy:BufferAll BufferDropped:0 CapacityDropped:0 Unfinished:0 BlockingOperationID:} queue=[] expected=[]
+# 
+v0.4.8#15092522659168454275
+0x0
+0x0
+0x0
+0x0

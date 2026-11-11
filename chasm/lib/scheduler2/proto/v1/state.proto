@@ -42,6 +42,12 @@ message RootState {
   bool drain_armed = 16;
   // DrainAt is the execution Unix nanosecond deadline for draining.
   int64 drain_at = 17;
+  // Unfinished counts operation intents that cannot yet be reclaimed.
+  int64 unfinished = 18;
+  // BlockingOperationId identifies the one non-ALLOW_ALL overlap owner.
+  string blocking_operation_id = 19;
+  // CapacityDropped counts new automatic arrivals dropped at operation capacity.
+  int64 capacity_dropped = 20;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -51,6 +57,8 @@ enum Phase {
   PHASE_STARTED = 2;
   PHASE_COMPLETED = 3;
   PHASE_AMBIGUOUS = 4;
+  // StartOnly settles an untracked start intent without claiming workflow completion.
+  PHASE_START_ONLY = 5;
 }
 
 // OperationState holds metadata without decoding request payloads.
@@ -73,6 +81,8 @@ message OperationState {
   Phase phase = 8;
   // WorkflowId preserves queue-time workflow identity independently of the request.
   string workflow_id = 9;
+  // Policy is the immutable resolved admission policy.
+  temporal.api.enums.v1.ScheduleOverlapPolicy policy = 10;
 }
 
 // Payload keeps large values on a separately loaded node.

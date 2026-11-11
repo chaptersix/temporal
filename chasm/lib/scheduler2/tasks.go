@@ -23,7 +23,7 @@ func NewStartHandler(start func(context.Context, *workflowservice.StartWorkflowE
 }
 
 func (*StartHandler) Validate(ctx chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.StartTask) (bool, error) {
-	state := s.state(ctx)
+	state := s.stateFor(ctx, task.OperationId)
 	wake, pending := decision.Wake(state)
 	return pending && task.OperationId == state.Operation.ID && attrs.ScheduledTime.UnixNano() == wake, nil
 }

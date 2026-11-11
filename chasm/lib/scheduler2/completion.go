@@ -15,7 +15,7 @@ import (
 // Unmatched and already completed callbacks do not prepare payload partitions.
 func (s *Scheduler) prepareCompletion(state decision.State, event *decision.Event) error {
 	op := state.Operation
-	if event.Kind != decision.Callback || event.Incarnation != s.Incarnation || op == nil || op.ID != event.OperationID || op.Phase == decision.Completed {
+	if event.Kind != decision.Callback || event.Incarnation != s.Incarnation || op == nil || op.ID != event.OperationID || decision.Terminal(op.Phase) {
 		return nil
 	}
 	if len(event.Result) > decision.MaxCompletionBytes || len(event.Failure) > decision.MaxCompletionBytes {

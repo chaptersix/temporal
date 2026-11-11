@@ -1,0 +1,212 @@
+ok  	go.temporal.io/server/chasm/lib/scheduler2	4.078s
+?   	go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1	[no test files]
+--- FAIL: TestAdmission (0.00s)
+    --- FAIL: TestAdmission/eligible (0.00s)
+        decision_test.go:50: 
+            	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/decision_test.go:50
+            	Error:      	Not equal: 
+            	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:0, PauseOnFailure:false, CarryoverSet:false, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x1318ead623f0), Carryover:(*decision.Carryover)(nil), Queue:[]decision.Queued(nil)}
+            	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:0, PauseOnFailure:false, CarryoverSet:false, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:1, BlockingOperationID:"inc/automatic/10/action/start"}, Operation:(*decision.Operation)(0x1318ead62360), Carryover:(*decision.Carryover)(nil), Queue:[]decision.Queued(nil)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -14,4 +14,4 @@
+            	            	   CapacityDropped: (int64) 0,
+            	            	-  Unfinished: (int64) 0,
+            	            	-  BlockingOperationID: (string) ""
+            	            	+  Unfinished: (int64) 1,
+            	            	+  BlockingOperationID: (string) (len=29) "inc/automatic/10/action/start"
+            	            	  },
+            	            	@@ -30,3 +30,3 @@
+            	            	   WorkflowID: (string) "",
+            	            	-  Policy: (enums.ScheduleOverlapPolicy) 0
+            	            	+  Policy: (enums.ScheduleOverlapPolicy) 1
+            	            	  }),
+            	Test:       	TestAdmission/eligible
+    --- FAIL: TestAdmission/at_catchup_boundary (0.00s)
+        decision_test.go:50: 
+            	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/decision_test.go:50
+            	Error:      	Not equal: 
+            	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:0, PauseOnFailure:false, CarryoverSet:false, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x1318ead62ab0), Carryover:(*decision.Carryover)(nil), Queue:[]decision.Queued(nil)}
+            	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:0, PauseOnFailure:false, CarryoverSet:false, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:1, BlockingOperationID:"inc/automatic/10/action/start"}, Operation:(*decision.Operation)(0x1318ead62a20), Carryover:(*decision.Carryover)(nil), Queue:[]decision.Queued(nil)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -14,4 +14,4 @@
+            	            	   CapacityDropped: (int64) 0,
+            	            	-  Unfinished: (int64) 0,
+            	            	-  BlockingOperationID: (string) ""
+            	            	+  Unfinished: (int64) 1,
+            	            	+  BlockingOperationID: (string) (len=29) "inc/automatic/10/action/start"
+            	            	  },
+            	            	@@ -30,3 +30,3 @@
+            	            	   WorkflowID: (string) "",
+            	            	-  Policy: (enums.ScheduleOverlapPolicy) 0
+            	            	+  Policy: (enums.ScheduleOverlapPolicy) 1
+            	            	  }),
+            	Test:       	TestAdmission/at_catchup_boundary
+--- FAIL: TestBufferProperties (0.00s)
+    buffer_test.go:109: [rapid] failed after 0 tests: buffer state after due: root={Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:3 Started:0 PauseOnFailure:false CarryoverSet:false Policy:BufferAll BufferDropped:0 CapacityDropped:0 Unfinished:1 BlockingOperationID:inc/automatic/1000000000/action/start} expected={Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:3 Started:0 PauseOnFailure:false CarryoverSet:false Policy:BufferAll BufferDropped:0 CapacityDropped:0 Unfinished:0 BlockingOperationID:} queue=[] expected=[]
+        To reproduce, specify -run="TestBufferProperties" -rapid.failfile="testdata/rapid/TestBufferProperties/TestBufferProperties-20261111134200-40200.fail" (or -rapid.seed=15092522659168454275)
+        Failed test output:
+    buffer_test.go:120: [rapid] draw commands: []string{"due"}
+    buffer_test.go:235: buffer state after due: root={Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:3 Started:0 PauseOnFailure:false CarryoverSet:false Policy:BufferAll BufferDropped:0 CapacityDropped:0 Unfinished:1 BlockingOperationID:inc/automatic/1000000000/action/start} expected={Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:3 Started:0 PauseOnFailure:false CarryoverSet:false Policy:BufferAll BufferDropped:0 CapacityDropped:0 Unfinished:0 BlockingOperationID:} queue=[] expected=[]
+--- FAIL: TestSequentialProperties (0.00s)
+    sequential_test.go:14: [rapid] failed after 1 tests: root mismatch after due: got {Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:0 Started:0 PauseOnFailure:false CarryoverSet:false Policy:Unspecified BufferDropped:0 CapacityDropped:0 Unfinished:1 BlockingOperationID:inc/automatic/1000000000/action/start} expected {Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:0 Started:0 PauseOnFailure:false CarryoverSet:false Policy:Unspecified BufferDropped:0 CapacityDropped:0 Unfinished:0 BlockingOperationID:}
+        To reproduce, specify -run="TestSequentialProperties" -rapid.failfile="testdata/rapid/TestSequentialProperties/TestSequentialProperties-20261111134200-40200.fail" (or -rapid.seed=18422811188131166327)
+        Failed test output:
+    sequential_test.go:15: [rapid] draw budget: 1
+    sequential_test.go:22: [rapid] draw commands: []string{"due"}
+    sequential_test.go:88: root mismatch after due: got {Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:0 Started:0 PauseOnFailure:false CarryoverSet:false Policy:Unspecified BufferDropped:0 CapacityDropped:0 Unfinished:1 BlockingOperationID:inc/automatic/1000000000/action/start} expected {Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:0 Started:0 PauseOnFailure:false CarryoverSet:false Policy:Unspecified BufferDropped:0 CapacityDropped:0 Unfinished:0 BlockingOperationID:}
+--- FAIL: TestCompletionOutcomeMatrix (0.00s)
+    --- FAIL: TestCompletionOutcomeMatrix/success_absent (0.00s)
+        completion_test.go:61: 
+            	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/completion_test.go:61
+            	Error:      	Not equal: 
+            	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:1, BlockingOperationID:"inc/automatic/10/action/start"}, Operation:(*decision.Operation)(0x1318ead633b0), Carryover:(*decision.Carryover)(0x1318ea9e8cc0), Queue:[]decision.Queued(nil)}
+            	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x1318ead62f30), Carryover:(*decision.Carryover)(0x1318ea9e8a40), Queue:[]decision.Queued(nil)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -14,4 +14,4 @@
+            	            	   CapacityDropped: (int64) 0,
+            	            	-  Unfinished: (int64) 1,
+            	            	-  BlockingOperationID: (string) (len=29) "inc/automatic/10/action/start"
+            	            	+  Unfinished: (int64) 0,
+            	            	+  BlockingOperationID: (string) ""
+            	            	  },
+            	Test:       	TestCompletionOutcomeMatrix/success_absent
+    --- FAIL: TestCompletionOutcomeMatrix/timed_out_empty_failure (0.00s)
+        completion_test.go:61: 
+            	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/completion_test.go:61
+            	Error:      	Not equal: 
+            	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:true, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:1, BlockingOperationID:"inc/automatic/10/action/start"}, Operation:(*decision.Operation)(0x1318ead63cb0), Carryover:(*decision.Carryover)(0x1318ea9e8f40), Queue:[]decision.Queued(nil)}
+            	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:true, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x1318ead63830), Carryover:(*decision.Carryover)(0x1318ea9e8d80), Queue:[]decision.Queued(nil)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -14,4 +14,4 @@
+            	            	   CapacityDropped: (int64) 0,
+            	            	-  Unfinished: (int64) 1,
+            	            	-  BlockingOperationID: (string) (len=29) "inc/automatic/10/action/start"
+            	            	+  Unfinished: (int64) 0,
+            	            	+  BlockingOperationID: (string) ""
+            	            	  },
+            	Test:       	TestCompletionOutcomeMatrix/timed_out_empty_failure
+    --- FAIL: TestCompletionOutcomeMatrix/terminated (0.00s)
+        completion_test.go:61: 
+            	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/completion_test.go:61
+            	Error:      	Not equal: 
+            	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:1, BlockingOperationID:"inc/automatic/10/action/start"}, Operation:(*decision.Operation)(0x1318eae8e750), Carryover:(*decision.Carryover)(0x1318ea9e9ec0), Queue:[]decision.Queued(nil)}
+            	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x1318eae8e2d0), Carryover:(*decision.Carryover)(0x1318ea9e9e40), Queue:[]decision.Queued(nil)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -14,4 +14,4 @@
+            	            	   CapacityDropped: (int64) 0,
+            	            	-  Unfinished: (int64) 1,
+            	            	-  BlockingOperationID: (string) (len=29) "inc/automatic/10/action/start"
+            	            	+  Unfinished: (int64) 0,
+            	            	+  BlockingOperationID: (string) ""
+            	            	  },
+            	Test:       	TestCompletionOutcomeMatrix/terminated
+    --- FAIL: TestCompletionOutcomeMatrix/canceled (0.00s)
+        completion_test.go:61: 
+            	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/completion_test.go:61
+            	Error:      	Not equal: 
+            	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:1, BlockingOperationID:"inc/automatic/10/action/start"}, Operation:(*decision.Operation)(0x1318eae8f050), Carryover:(*decision.Carryover)(0x1318eaa30500), Queue:[]decision.Queued(nil)}
+            	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x1318eae8ebd0), Carryover:(*decision.Carryover)(0x1318eaa30480), Queue:[]decision.Queued(nil)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -14,4 +14,4 @@
+            	            	   CapacityDropped: (int64) 0,
+            	            	-  Unfinished: (int64) 1,
+            	            	-  BlockingOperationID: (string) (len=29) "inc/automatic/10/action/start"
+            	            	+  Unfinished: (int64) 0,
+            	            	+  BlockingOperationID: (string) ""
+            	            	  },
+            	Test:       	TestCompletionOutcomeMatrix/canceled
+    --- FAIL: TestCompletionOutcomeMatrix/success_value (0.00s)
+        completion_test.go:61: 
+            	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/completion_test.go:61
+            	Error:      	Not equal: 
+            	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:1, BlockingOperationID:"inc/automatic/10/action/start"}, Operation:(*decision.Operation)(0x1318eae8f950), Carryover:(*decision.Carryover)(0x1318eaa30640), Queue:[]decision.Queued(nil)}
+            	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x1318eae8f4d0), Carryover:(*decision.Carryover)(0x1318eaa305c0), Queue:[]decision.Queued(nil)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -14,4 +14,4 @@
+            	            	   CapacityDropped: (int64) 0,
+            	            	-  Unfinished: (int64) 1,
+            	            	-  BlockingOperationID: (string) (len=29) "inc/automatic/10/action/start"
+            	            	+  Unfinished: (int64) 0,
+            	            	+  BlockingOperationID: (string) ""
+            	            	  },
+            	Test:       	TestCompletionOutcomeMatrix/success_value
+    --- FAIL: TestCompletionOutcomeMatrix/failed (0.00s)
+        completion_test.go:61: 
+            	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/completion_test.go:61
+            	Error:      	Not equal: 
+            	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:true, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:1, BlockingOperationID:"inc/automatic/10/action/start"}, Operation:(*decision.Operation)(0x1318eae75440), Carryover:(*decision.Carryover)(0x1318eadbc340), Queue:[]decision.Queued(nil)}
+            	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:0, Cursor:10, Paused:true, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x1318eae74fc0), Carryover:(*decision.Carryover)(0x1318eadbc2c0), Queue:[]decision.Queued(nil)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -14,4 +14,4 @@
+            	            	   CapacityDropped: (int64) 0,
+            	            	-  Unfinished: (int64) 1,
+            	            	-  BlockingOperationID: (string) (len=29) "inc/automatic/10/action/start"
+            	            	+  Unfinished: (int64) 0,
+            	            	+  BlockingOperationID: (string) ""
+            	            	  },
+            	Test:       	TestCompletionOutcomeMatrix/failed
+--- FAIL: TestCurrentPausePolicyAtCompletion (0.00s)
+    --- FAIL: TestCurrentPausePolicyAtCompletion/disabled (0.00s)
+        completion_test.go:118: 
+            	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/completion_test.go:118
+            	Error:      	Not equal: 
+            	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:1, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:false, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:1, BlockingOperationID:"inc/automatic/10/action/start"}, Operation:(*decision.Operation)(0x1318eae8fe60), Carryover:(*decision.Carryover)(0x1318eaa30740), Queue:[]decision.Queued(nil)}
+            	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:1, Cursor:10, Paused:false, Limited:true, Remaining:0, Started:1, PauseOnFailure:false, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x1318eae8fc20), Carryover:(*decision.Carryover)(0x1318eaa30700), Queue:[]decision.Queued(nil)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -14,4 +14,4 @@
+            	            	   CapacityDropped: (int64) 0,
+            	            	-  Unfinished: (int64) 1,
+            	            	-  BlockingOperationID: (string) (len=29) "inc/automatic/10/action/start"
+            	            	+  Unfinished: (int64) 0,
+            	            	+  BlockingOperationID: (string) ""
+            	            	  },
+            	Test:       	TestCurrentPausePolicyAtCompletion/disabled
+    --- FAIL: TestCurrentPausePolicyAtCompletion/enabled (0.00s)
+        completion_test.go:118: 
+            	Error Trace:	/Users/alex/repos/wt/sch-redesign/temporal/chasm/lib/scheduler2/internal/decision/completion_test.go:118
+            	Error:      	Not equal: 
+            	            	expected: decision.State{Root:decision.Root{Incarnation:"inc", Revision:1, Cursor:10, Paused:true, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:1, BlockingOperationID:"inc/automatic/10/action/start"}, Operation:(*decision.Operation)(0x1318eae7a480), Carryover:(*decision.Carryover)(0x1318eacb6140), Queue:[]decision.Queued(nil)}
+            	            	actual  : decision.State{Root:decision.Root{Incarnation:"inc", Revision:1, Cursor:10, Paused:true, Limited:true, Remaining:0, Started:1, PauseOnFailure:true, CarryoverSet:true, Policy:0, BufferDropped:0, CapacityDropped:0, Unfinished:0, BlockingOperationID:""}, Operation:(*decision.Operation)(0x1318eae7a240), Carryover:(*decision.Carryover)(0x1318eacb6100), Queue:[]decision.Queued(nil)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -14,4 +14,4 @@
+            	            	   CapacityDropped: (int64) 0,
+            	            	-  Unfinished: (int64) 1,
+            	            	-  BlockingOperationID: (string) (len=29) "inc/automatic/10/action/start"
+            	            	+  Unfinished: (int64) 0,
+            	            	+  BlockingOperationID: (string) ""
+            	            	  },
+            	Test:       	TestCurrentPausePolicyAtCompletion/enabled
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	1.182s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	(cached)
+FAIL

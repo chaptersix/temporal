@@ -10,7 +10,7 @@ import (
 )
 
 func (s *Scheduler) reconcileDrain(ctx chasm.MutableContext, state decision.State) {
-	if !decision.NeedsDrain(state) {
+	if !s.canDrain(ctx, state) {
 		s.DrainArmed = false
 		return
 	}
@@ -48,8 +48,15 @@ func (s *Scheduler) prepareDrain(ctx chasm.Context, state decision.State, event 
 	}
 	g := s.Generator.Get(ctx)
 	event.CatchupWindow = g.CatchupWindow
-	if decision.DrainIndex(state, event.Now, event.CatchupWindow) >= 0 {
+	if state.Root.Unfinished < 4 && decision.DrainIndex(state, event.Now, event.CatchupWindow) >= 0 {
 		event.Request = g.Definition.Get(ctx).Request
 	}
 	return nil
+}
+
+func (s *Scheduler) canDrain(ctx chasm.Context, state decision.State) bool {
+	if !decision.NeedsDrain(state) || !s.HasGenerator {
+		return false
+	}
+	return decision.CanDrain(state, ctx.Now(s).UnixNano(), s.Generator.Get(ctx).CatchupWindow)
 }

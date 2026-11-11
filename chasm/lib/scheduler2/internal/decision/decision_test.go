@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	enumspb "go.temporal.io/api/enums/v1"
 	"pgregory.net/rapid"
 )
 
@@ -41,11 +42,13 @@ func TestAdmission(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			tc.root.Incarnation, tc.want.Incarnation = "inc", "inc"
-			got, err := Step(State{Root: tc.root}, Event{Kind: Due, Incarnation: "inc", Now: tc.now, Nominal: 10, CatchupDeadline: 20, Request: []byte("request")})
+			got, err := Step(State{Root: tc.root}, Event{Kind: Due, Incarnation: "inc", Now: tc.now, Nominal: 10, CatchupDeadline: 20, Request: []byte("request"), Policy: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP})
 			require.NoError(t, err)
 			want := State{Root: tc.want}
 			if tc.admitted {
-				want.Operation = &Operation{OccurrenceID: "automatic/10", ActionID: "inc/automatic/10/action", ID: "inc/automatic/10/action/start", Nominal: 10, Deadline: tc.now + RetryHorizon, RetryAt: tc.now, Phase: Pending, Request: []byte("request")}
+				want.Root.Unfinished = 1
+				want.Root.BlockingOperationID = "inc/automatic/10/action/start"
+				want.Operation = &Operation{OccurrenceID: "automatic/10", ActionID: "inc/automatic/10/action", ID: "inc/automatic/10/action/start", Nominal: 10, Deadline: tc.now + RetryHorizon, RetryAt: tc.now, Phase: Pending, Request: []byte("request"), Policy: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP}
 			}
 			require.Equal(t, want, got)
 		})

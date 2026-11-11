@@ -458,6 +458,7 @@ var (
 		"Started":     2,
 		"Completed":   3,
 		"Ambiguous":   4,
+		"StartOnly":   5,
 	}
 )
 

@@ -84,6 +84,10 @@ func TestSequentialProperties(t *testing.T) {
 			}
 			state = next
 			expectedRoot := Root{Incarnation: "inc", Limited: true, Remaining: budget, Cursor: cursor, Started: starts}
+			if operation != "" && phase != Completed {
+				expectedRoot.Unfinished = 1
+				expectedRoot.BlockingOperationID = operation
+			}
 			if state.Root != expectedRoot {
 				rt.Fatalf("root mismatch after %s: got %+v expected %+v", command, state.Root, expectedRoot)
 			}

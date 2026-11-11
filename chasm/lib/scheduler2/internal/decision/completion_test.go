@@ -56,6 +56,8 @@ func TestCompletionOutcomeMatrix(t *testing.T) {
 			expected.Root.Paused = tc.paused
 			expected.Operation.ChainID = "chain"
 			expected.Operation.Phase = Completed
+			expected.Root.Unfinished = 0
+			expected.Root.BlockingOperationID = ""
 			expected.Carryover = &tc.carryover
 			expected = detachedCompletionState(t, expected)
 			require.Equal(t, expected, output)
@@ -114,6 +116,8 @@ func TestCurrentPausePolicyAtCompletion(t *testing.T) {
 			expected.Root.Paused = enabled
 			expected.Root.Started = 1
 			expected.Operation.Phase = Completed
+			expected.Root.Unfinished = 0
+			expected.Root.BlockingOperationID = ""
 			expected.Operation.ChainID = "chain"
 			require.Equal(t, expected, completed)
 		})

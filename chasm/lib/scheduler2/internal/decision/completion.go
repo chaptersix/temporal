@@ -28,6 +28,9 @@ func complete(next *State, event Event) error {
 	if err := validateCompletion(event); err != nil {
 		return err
 	}
+	if next.Operation.Policy == enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL {
+		return nil
+	}
 	if event.Kind == Callback {
 		if next.Carryover == nil {
 			next.Carryover = &Carryover{}

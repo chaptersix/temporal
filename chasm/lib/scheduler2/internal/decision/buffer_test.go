@@ -231,6 +231,10 @@ func TestBufferProperties(t *testing.T) {
 			}
 			state = next
 			expectedRoot := Root{Incarnation: "inc", Revision: revision, Cursor: cursor, Paused: paused, Limited: true, Remaining: budget, Started: started, Policy: policy, BufferDropped: dropped}
+			if operation != "" && phase != Completed {
+				expectedRoot.Unfinished = 1
+				expectedRoot.BlockingOperationID = operation
+			}
 			if state.Root != expectedRoot || !slices.Equal(queue, state.Queue) {
 				rt.Fatalf("buffer state after %s: root=%+v expected=%+v queue=%+v expected=%+v", command, state.Root, expectedRoot, state.Queue, queue)
 			}
@@ -303,6 +307,8 @@ func TestBufferQueueOwnership(t *testing.T) {
 		t.Run(fmt.Sprint(kind), func(t *testing.T) {
 			initial := queuedInput(t, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL, 3)
 			initial.Operation.Phase = Completed
+			initial.Root.Unfinished = 0
+			initial.Root.BlockingOperationID = ""
 			// Spare capacity also exposes implementations that append into caller storage.
 			queue := make([]Queued, len(initial.Queue), 8)
 			copy(queue, initial.Queue)

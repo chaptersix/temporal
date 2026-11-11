@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/chasm"
@@ -50,20 +51,25 @@ func (*Scheduler) Terminate(chasm.MutableContext, chasm.TerminateComponentReques
 
 // state reads only control and selected operation metadata.
 func (s *Scheduler) state(ctx chasm.Context) decision.State {
+	return s.stateFor(ctx, s.OperationId)
+}
+
+func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.State {
 	state := decision.State{Root: decision.Root{
 		Incarnation: s.Incarnation, Revision: s.Revision, Cursor: s.Cursor,
 		Paused: s.Paused, Limited: s.Limited, Remaining: s.Remaining, Started: s.Started,
 		CarryoverSet: s.CarryoverSet, PauseOnFailure: s.PauseOnFailure, Policy: s.Policy, BufferDropped: s.BufferDropped,
+		Unfinished: s.Unfinished, BlockingOperationID: s.BlockingOperationId, CapacityDropped: s.CapacityDropped,
 	}}
 	for _, q := range s.Queue {
 		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, WorkflowID: q.WorkflowId, Policy: q.Policy})
 	}
-	if field, ok := s.Operations[s.OperationId]; ok {
+	if field, ok := s.Operations[operationID]; ok {
 		op := field.Get(ctx)
 		state.Operation = &decision.Operation{
 			OccurrenceID: op.OccurrenceId, ActionID: op.ActionId, ID: op.Id,
 			ChainID: op.ChainId, Nominal: op.Nominal, Deadline: op.Deadline,
-			RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId,
+			RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId, Policy: op.Policy,
 		}
 	}
 	return state
@@ -72,14 +78,18 @@ func (s *Scheduler) state(ctx chasm.Context) decision.State {
 // Apply records the transition and successor task in the same CHASM transaction.
 func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error {
 	event.Now = ctx.Now(s).UnixNano()
-	before := s.state(ctx)
+	operationID := event.OperationID
+	if event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.Update {
+		operationID = s.OperationId
+	}
+	before := s.stateFor(ctx, operationID)
 	if err := s.prepareDrain(ctx, before, &event); err != nil {
 		return err
 	}
 	if err := s.prepareCompletion(before, &event); err != nil {
 		return err
 	}
-	if event.Kind == decision.Callback && event.Outcome == decision.Failure && event.Incarnation == s.Incarnation && before.Operation != nil && before.Operation.ID == event.OperationID && before.Operation.Phase != decision.Completed && s.CarryoverSet {
+	if event.Kind == decision.Callback && event.Outcome == decision.Failure && event.Incarnation == s.Incarnation && before.Operation != nil && before.Operation.ID == event.OperationID && !decision.Terminal(before.Operation.Phase) && before.Operation.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && s.CarryoverSet {
 		c := s.Carryover.Get(ctx)
 		before.Carryover = &decision.Carryover{Result: c.Result, Failure: c.Failure, FailurePresent: c.FailurePresent}
 	}
@@ -88,7 +98,8 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	if err != nil {
 		return err
 	}
-	if (event.Kind == decision.Due || event.Kind == decision.Drain) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID) {
+	newAdmission := (event.Kind == decision.Due || event.Kind == decision.Drain) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID)
+	if newAdmission {
 		if err := s.freezeAdmission(ctx, next.Operation); err != nil {
 			return err
 		}
@@ -96,7 +107,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	if len(next.Queue) > 0 && !s.HasGenerator {
 		return serviceerror.NewFailedPrecondition("buffering requires a configured template")
 	}
-	if decision.NeedsDrain(next) && !s.DrainArmed && s.DrainToken == math.MaxUint64 {
+	if s.canDrain(ctx, next) && !s.DrainArmed && s.DrainToken == math.MaxUint64 {
 		return serviceerror.NewFailedPrecondition("drain token exhausted")
 	}
 	eviction, err := s.retentionEviction(ctx, before, next)
@@ -106,13 +117,14 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	if eviction != "" {
 		delete(s.Operations, eviction)
 	}
-	hasGenerator := s.HasGenerator
+	hasGenerator, latestOperationID := s.HasGenerator, s.OperationId
 	drainToken, drainArmed, drainAt := s.DrainToken, s.DrainArmed, s.DrainAt
 	s.RootState = &scheduler2pb.RootState{
 		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
 		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
 		DrainToken: drainToken, DrainArmed: drainArmed, DrainAt: drainAt, Policy: next.Root.Policy, BufferDropped: next.Root.BufferDropped,
-		HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
+		Unfinished: next.Root.Unfinished, BlockingOperationId: next.Root.BlockingOperationID, CapacityDropped: next.Root.CapacityDropped,
+		OperationId: latestOperationID, HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
 	}
 	for _, q := range next.Queue {
 		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy})
@@ -121,10 +133,12 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		s.Carryover = chasm.NewDataField(ctx, &scheduler2pb.CarryoverState{Result: bytes.Clone(next.Carryover.Result), Failure: bytes.Clone(next.Carryover.Failure), FailurePresent: next.Carryover.FailurePresent})
 	}
 	if op := next.Operation; op != nil {
-		s.OperationId = op.ID
+		if newAdmission {
+			s.OperationId = op.ID
+		}
 		metadata := &scheduler2pb.OperationState{
 			OccurrenceId: op.OccurrenceID, ActionId: op.ActionID, Id: op.ID, ChainId: op.ChainID,
-			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase),
+			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy,
 		}
 		if field, ok := s.Operations[op.ID]; ok {
 			field.Get(ctx).OperationState = metadata
@@ -137,7 +151,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	}
 	oldWake, hadWake := decision.Wake(before)
 	wake, hasWake := decision.Wake(next)
-	if hasWake && (!hadWake || oldWake != wake) {
+	if hasWake && (!hadWake || before.Operation.ID != next.Operation.ID || oldWake != wake) {
 		ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, wake)},
 			&scheduler2pb.StartTask{OperationId: next.Operation.ID})
 	}
@@ -147,8 +161,8 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 
 // request returns a detached request after checking the selected operation's deadline.
 func (s *Scheduler) request(ctx chasm.Context, operationID string) (*workflowservice.StartWorkflowExecutionRequest, error) {
-	state := s.state(ctx)
-	if state.Operation == nil || state.Operation.ID != operationID {
+	state := s.stateFor(ctx, operationID)
+	if state.Operation == nil {
 		return nil, nil
 	}
 	now := ctx.Now(s).UnixNano()
@@ -174,7 +188,7 @@ func (s *Scheduler) retentionEviction(ctx chasm.Context, before, next decision.S
 	var oldest *Operation
 	for _, field := range s.Operations {
 		op := field.Get(ctx)
-		if op.Phase == scheduler2pb.PHASE_COMPLETED && (oldest == nil || op.Nominal < oldest.Nominal) {
+		if decision.Terminal(decision.Phase(op.Phase)) && (oldest == nil || op.Nominal < oldest.Nominal) {
 			oldest = op
 		}
 	}
@@ -189,7 +203,10 @@ func (s *Scheduler) freezeAdmission(ctx chasm.Context, op *decision.Operation) e
 	if err := proto.Unmarshal(op.Request, request); err != nil {
 		return serviceerror.NewInvalidArgument("invalid workflow start request")
 	}
-	if s.CarryoverSet {
+	if op.Policy == enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL {
+		request.LastCompletionResult = nil
+		request.ContinuedFailure = nil
+	} else if s.CarryoverSet {
 		if err := s.materializeCarryover(ctx, request); err != nil {
 			return err
 		}

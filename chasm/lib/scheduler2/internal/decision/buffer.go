@@ -14,10 +14,10 @@ type Queued struct {
 }
 
 func ValidPolicy(p enumspb.ScheduleOverlapPolicy) bool {
-	return p == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED || p == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || p == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || p == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL
+	return p == enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL || p == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED || p == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || p == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || p == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL
 }
 
-func occupied(s State) bool { return s.Operation != nil && s.Operation.Phase != Completed }
+func occupied(s State) bool { return s.Root.BlockingOperationID != "" }
 
 func enqueue(next State, event Event) (State, error) {
 	policy := next.Root.Policy
@@ -51,6 +51,11 @@ func DrainIndex(state State, now, catchup int64) int {
 	return -1
 }
 
+// CanDrain excludes external capacity waits while permitting ineligible disposition.
+func CanDrain(state State, now, catchup int64) bool {
+	return NeedsDrain(state) && (DrainIndex(state, now, catchup) < 0 || state.Root.Unfinished < 4)
+}
+
 // NeedsDrain distinguishes internal pending work from waiting on an active operation.
 func NeedsDrain(state State) bool { return len(state.Queue) > 0 && !occupied(state) }
 
@@ -66,6 +71,9 @@ func drain(next State, event Event) (State, error) {
 		next.Queue = nil
 		return next, nil
 	}
+	if next.Root.Unfinished >= 4 {
+		return next, nil
+	}
 	if len(event.Request) == 0 {
 		return State{}, serviceerror.NewInvalidArgument("drain admission requires current request")
 	}
@@ -74,5 +82,5 @@ func drain(next State, event Event) (State, error) {
 	if len(next.Queue) == 0 {
 		next.Queue = nil
 	}
-	return startOperation(next, event, candidate.Nominal, candidate.WorkflowID)
+	return startOperation(next, event, candidate.Nominal, candidate.WorkflowID, candidate.Policy)
 }

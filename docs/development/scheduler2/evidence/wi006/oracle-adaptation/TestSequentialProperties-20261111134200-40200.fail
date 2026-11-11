@@ -1,0 +1,12 @@
+# 2026/11/11 13:42:00.976188 [TestSequentialProperties] [rapid] draw budget: 1
+# 2026/11/11 13:42:00.976198 [TestSequentialProperties] [rapid] draw commands: []string{"due"}
+# 2026/11/11 13:42:00.976208 [TestSequentialProperties] root mismatch after due: got {Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:0 Started:0 PauseOnFailure:false CarryoverSet:false Policy:Unspecified BufferDropped:0 CapacityDropped:0 Unfinished:1 BlockingOperationID:inc/automatic/1000000000/action/start} expected {Incarnation:inc Revision:0 Cursor:1000000000 Paused:false Limited:true Remaining:0 Started:0 PauseOnFailure:false CarryoverSet:false Policy:Unspecified BufferDropped:0 CapacityDropped:0 Unfinished:0 BlockingOperationID:}
+# 
+v0.4.8#18422811188131166327
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

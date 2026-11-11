@@ -23,20 +23,24 @@ const (
 	Started
 	Completed
 	Ambiguous
+	StartOnly
 )
 
 type Root struct {
-	Incarnation    string
-	Revision       int64
-	Cursor         int64
-	Paused         bool
-	Limited        bool
-	Remaining      int64
-	Started        int64
-	PauseOnFailure bool
-	CarryoverSet   bool
-	Policy         enumspb.ScheduleOverlapPolicy
-	BufferDropped  int64
+	Incarnation         string
+	Revision            int64
+	Cursor              int64
+	Paused              bool
+	Limited             bool
+	Remaining           int64
+	Started             int64
+	PauseOnFailure      bool
+	CarryoverSet        bool
+	Policy              enumspb.ScheduleOverlapPolicy
+	BufferDropped       int64
+	CapacityDropped     int64
+	Unfinished          int64
+	BlockingOperationID string
 }
 
 type Operation struct {
@@ -50,10 +54,12 @@ type Operation struct {
 	Phase        Phase
 	Request      []byte
 	WorkflowID   string
+	Policy       enumspb.ScheduleOverlapPolicy
 }
 
 type State struct {
-	Root      Root
+	Root Root
+	// Operation is the event-addressed record; admission callers supply the latest record.
 	Operation *Operation
 	Carryover *Carryover
 	Queue     []Queued
@@ -127,26 +133,37 @@ func admit(next State, event Event) (State, error) {
 	if next.Root.Paused || (next.Root.Limited && next.Root.Remaining <= 0) || event.Now > event.CatchupDeadline {
 		return next, nil
 	}
-	if occupied(next) || len(next.Queue) > 0 {
+	if next.Root.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || len(next.Queue) > 0) {
 		return enqueue(next, event)
+	}
+	if next.Root.Unfinished >= 4 {
+		next.Root.CapacityDropped++
+		return next, nil
 	}
 	if len(event.Request) == 0 || next.Root.Incarnation == "" {
 		return State{}, serviceerror.NewInvalidArgument("admission requires incarnation and request")
 	}
-	return startOperation(next, event, event.Nominal, event.WorkflowID)
+	return startOperation(next, event, event.Nominal, event.WorkflowID, next.Root.Policy)
 }
 
-func startOperation(next State, event Event, nominal int64, workflowID string) (State, error) {
+func startOperation(next State, event Event, nominal int64, workflowID string, policy enumspb.ScheduleOverlapPolicy) (State, error) {
 	if event.Now > math.MaxInt64-RetryHorizon {
 		return State{}, serviceerror.NewInvalidArgument("admission time exceeds supported range")
 	}
 
+	if policy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
+		policy = enumspb.SCHEDULE_OVERLAP_POLICY_SKIP
+	}
 	occurrenceID := fmt.Sprintf("automatic/%d", nominal)
 	actionID := next.Root.Incarnation + "/" + occurrenceID + "/action"
 	next.Operation = &Operation{
 		OccurrenceID: occurrenceID, ActionID: actionID, ID: actionID + "/start",
-		Nominal: nominal, WorkflowID: workflowID, Deadline: event.Now + RetryHorizon,
+		Nominal: nominal, WorkflowID: workflowID, Policy: policy, Deadline: event.Now + RetryHorizon,
 		RetryAt: event.Now, Phase: Pending, Request: bytes.Clone(event.Request),
+	}
+	next.Root.Unfinished++
+	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL {
+		next.Root.BlockingOperationID = next.Operation.ID
 	}
 	if next.Root.Limited {
 		next.Root.Remaining--
@@ -175,7 +192,7 @@ func update(next State, event Event) (State, error) {
 
 func applyResult(next State, event Event) (State, error) {
 	op := next.Operation
-	if op == nil || event.OperationID != op.ID {
+	if op == nil || event.OperationID != op.ID || Terminal(op.Phase) {
 		return next, nil
 	}
 	if event.ChainID != "" && op.ChainID != "" && event.ChainID != op.ChainID {
@@ -183,22 +200,8 @@ func applyResult(next State, event Event) (State, error) {
 	}
 	switch event.Kind {
 	case Acknowledged, Complete, Callback:
-		if event.ChainID == "" {
-			return next, serviceerror.NewInvalidArgument("workflow chain is required")
-		}
-		if event.Kind != Acknowledged && op.Phase != Completed {
-			if err := complete(&next, event); err != nil {
-				return State{}, err
-			}
-		}
-		if op.ChainID == "" {
-			op.ChainID = event.ChainID
-			next.Root.Started++
-		}
-		if event.Kind == Complete || event.Kind == Callback {
-			op.Phase = Completed
-		} else if op.Phase != Completed {
-			op.Phase = Started
+		if err := acceptResult(&next, event); err != nil {
+			return State{}, err
 		}
 	case RetryableFailure:
 		if op.Phase == Pending {
@@ -217,6 +220,39 @@ func applyResult(next State, event Event) (State, error) {
 		return next, serviceerror.NewInvalidArgument("unknown operation result")
 	}
 	return next, nil
+}
+
+// Terminal reports whether an intent is reclaimable, independently of workflow lifetime.
+func Terminal(phase Phase) bool { return phase == Completed || phase == StartOnly }
+
+func acceptResult(next *State, event Event) error {
+	op := next.Operation
+	if event.ChainID == "" {
+		return serviceerror.NewInvalidArgument("workflow chain is required")
+	}
+	if event.Kind != Acknowledged {
+		if err := complete(next, event); err != nil {
+			return err
+		}
+	}
+	if op.ChainID == "" {
+		op.ChainID = event.ChainID
+		next.Root.Started++
+	}
+	if op.Policy == enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL {
+		op.Phase = StartOnly
+	} else if event.Kind == Complete || event.Kind == Callback {
+		op.Phase = Completed
+	} else {
+		op.Phase = Started
+	}
+	if Terminal(op.Phase) {
+		next.Root.Unfinished--
+		if next.Root.BlockingOperationID == op.ID {
+			next.Root.BlockingOperationID = ""
+		}
+	}
+	return nil
 }
 
 // Issue exposes a detached immutable request only while issuance is permitted.
