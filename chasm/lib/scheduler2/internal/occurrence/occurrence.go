@@ -2,6 +2,8 @@
 package occurrence
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"time"
 
 	schedulepb "go.temporal.io/api/schedule/v1"
@@ -32,6 +34,7 @@ type Candidate struct {
 
 // State is a serializable continuation owned by its caller.
 type State struct {
+	DefinitionID    string
 	Revision        int64
 	SearchAfter     time.Time
 	DisposedThrough time.Time
@@ -55,6 +58,7 @@ type Result struct {
 
 // Enumerator holds a compiled immutable definition and stable jitter seed.
 type Enumerator struct {
+	identity string
 	compiled *legacyscheduler.CompiledSpec
 	seed     string
 	revision int64
@@ -84,10 +88,16 @@ func New(spec *schedulepb.ScheduleSpec, seed string, revision int64) (*Enumerato
 		return nil, serviceerror.NewInvalidArgument(err.Error())
 	}
 	canonical := compiled.CanonicalForm()
+	encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(canonical)
+	if err != nil {
+		return nil, err
+	}
+	digest := sha256.Sum256(encoded)
+	identity := sha256.Sum256(append(digest[:], []byte(seed)...))
 	if err := validateSize(canonical); err != nil {
 		return nil, err
 	}
-	e := &Enumerator{compiled: compiled, seed: seed, revision: revision,
+	e := &Enumerator{identity: hex.EncodeToString(identity[:]), compiled: compiled, seed: seed, revision: revision,
 		start: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), end: time.Date(2101, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond),
 		empty: len(canonical.Interval)+len(canonical.StructuredCalendar) == 0,
 	}
@@ -134,7 +144,7 @@ func (e *Enumerator) Begin(after time.Time) (State, error) {
 	if !supported(after) && !after.Equal(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond)) {
 		return State{}, serviceerror.NewInvalidArgument("cursor is outside the prototype range")
 	}
-	return State{Revision: e.revision, SearchAfter: after, DisposedThrough: after, FullRange: after.Before(e.start)}, nil
+	return State{DefinitionID: e.identity, Revision: e.revision, SearchAfter: after, DisposedThrough: after, FullRange: after.Before(e.start)}, nil
 }
 
 func clone(state State) State {
@@ -166,7 +176,7 @@ func (e *Enumerator) Update(state State, at time.Time) (State, *Candidate, error
 // Run examines at most limits.Probes raw candidates and emits at most limits.Outputs.
 // Publishing the returned continuation and outputs together is the caller's obligation.
 func (e *Enumerator) Run(state State, through time.Time, limits Limits) (Result, error) {
-	if state.Revision != e.revision {
+	if state.Revision != e.revision || state.DefinitionID != e.identity {
 		return Result{}, serviceerror.NewFailedPrecondition("continuation belongs to another definition revision")
 	}
 	if !supported(through) || limits.Probes < 1 || limits.Probes > 1024 || limits.Outputs < 1 || limits.Outputs > 128 {
