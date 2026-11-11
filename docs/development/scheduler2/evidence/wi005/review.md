@@ -34,3 +34,12 @@ and existing applyResult/other-package findings. c3da87ced extracts prepareDrain
 `CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast
 GOLANGCI_LINT_BASE_REV=256ac1df6` passes normal/minimal configurations. Existing
 package tests pass again after the refactor. No finding was suppressed.
+
+Final independent review at443587c3e found no blocking findings. Added queue
+ownership coverage resolves the test gap and detects the removed-clone mutant.
+Saved replay now reads frozen persisted requests after completion instead of calling
+the issuance helper, which correctly returns nil for completed operations. Initial
+harness failure remains in replay-initial.log. Final buffer profile (10000 cases),
+full scheduler2/nil-registry race profile and scoped normal/minimal lint pass.
+All five Go mutants and four independent model mutants detected; source restored.
+Actual storage-backend crash recovery remains outside this CHASM node harness.

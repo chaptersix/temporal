@@ -110,3 +110,14 @@ history_contract read-only contract/review. New isolated
 /private/tmp/sch-redesign-buffer-model owns model/buffer/. Both created from the
 committed D32–D34 contract prerequisite below; API transferred explicitly to tests.
 No concurrent writes to shared files; all worktrees retained.
+
+WI-005 final disposition (retained):
+
+- Both buffer worktrees created at e706a634074b72c22d666e23aee2876c8bfd957d.
+- Tests prerequisite010b39757 transferred as2639256fd; contribution7ff46a761
+  integrated45ae3fa2c. Parent refactorc3da87ced is behavior-preserving.
+- Model contribution795bcd950 integratedaf07c4f3c; all six model case hashes verified.
+- Final code443587c3e; clean final profile start; independent review clear.
+- Original checkout had no task writes; initial untracked entries retained. Current
+  inventory/hash recorded in evidence/wi005; concurrent changes are preserved.
+- All worktrees remain. No push, production routing, rollout or migration.

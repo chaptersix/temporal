@@ -1,0 +1,33 @@
+{
+  "source_sha": "443587c3e7cbeab5fb279248021a07240bce97bb",
+  "source_hashes": "buffer/manifest.json",
+  "generation": {
+    "command": "CGO_ENABLED=0 GOMAXPROCS=4 make proto",
+    "exit_code": 0,
+    "schema_unchanged_since": "010b39757",
+    "log": "generation.log"
+  },
+  "lint": {
+    "command": "CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast GOLANGCI_LINT_BASE_REV=256ac1df6",
+    "exit_code": 0,
+    "log": "lint.log"
+  },
+  "model": {
+    "contribution": "795bcd950",
+    "integrated": "af07c4f3c",
+    "source_sha256": "ff6dd22c30d5ba14acbe319fb4bb1a2536ef9deb716056b9c5fe7a44df033a1e",
+    "integrated_case_hashes_verified": true,
+    "nodes": 69207,
+    "unique_states": 69196,
+    "bounds": [
+      100,
+      200
+    ],
+    "liveness_claim": false
+  },
+  "original_checkout": {
+    "writes_by_task": false,
+    "tracked_patch_sha256": "513e991d080e129f805da38a764bb8cfc23a5598335d4c00f582af14c1345f1e",
+    "initial_untracked_entries_retained": true
+  }
+}

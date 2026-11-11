@@ -1,0 +1,126 @@
+=== RUN   TestBufferSavedReplay
+=== PAUSE TestBufferSavedReplay
+=== RUN   TestBufferAutomaticCapacity
+=== PAUSE TestBufferAutomaticCapacity
+=== RUN   TestBufferCompletionDrainsExhaustedGenerator
+=== PAUSE TestBufferCompletionDrainsExhaustedGenerator
+=== RUN   TestBufferDrainPublicationAndStaleToken
+=== PAUSE TestBufferDrainPublicationAndStaleToken
+=== RUN   TestBufferIneligibleDrainAvoidsPayloads
+=== PAUSE TestBufferIneligibleDrainAvoidsPayloads
+=== CONT  TestBufferSavedReplay
+=== CONT  TestBufferDrainPublicationAndStaleToken
+=== CONT  TestBufferCompletionDrainsExhaustedGenerator
+=== CONT  TestBufferIneligibleDrainAvoidsPayloads
+=== RUN   TestBufferIneligibleDrainAvoidsPayloads/paused
+=== PAUSE TestBufferIneligibleDrainAvoidsPayloads/paused
+=== RUN   TestBufferIneligibleDrainAvoidsPayloads/budget
+=== PAUSE TestBufferIneligibleDrainAvoidsPayloads/budget
+=== RUN   TestBufferIneligibleDrainAvoidsPayloads/catchup
+=== PAUSE TestBufferIneligibleDrainAvoidsPayloads/catchup
+=== CONT  TestBufferAutomaticCapacity
+=== RUN   TestBufferAutomaticCapacity/one
+=== PAUSE TestBufferAutomaticCapacity/one
+=== RUN   TestBufferAutomaticCapacity/all_below
+=== PAUSE TestBufferAutomaticCapacity/all_below
+=== RUN   TestBufferAutomaticCapacity/all_exact
+=== PAUSE TestBufferAutomaticCapacity/all_exact
+=== RUN   TestBufferAutomaticCapacity/all_overflow
+=== PAUSE TestBufferAutomaticCapacity/all_overflow
+=== CONT  TestBufferIneligibleDrainAvoidsPayloads/paused
+=== CONT  TestBufferIneligibleDrainAvoidsPayloads/catchup
+--- PASS: TestBufferDrainPublicationAndStaleToken (0.01s)
+=== CONT  TestBufferIneligibleDrainAvoidsPayloads/budget
+--- PASS: TestBufferSavedReplay (0.01s)
+=== CONT  TestBufferAutomaticCapacity/one
+--- PASS: TestBufferCompletionDrainsExhaustedGenerator (0.01s)
+=== CONT  TestBufferAutomaticCapacity/all_overflow
+=== CONT  TestBufferAutomaticCapacity/all_exact
+--- PASS: TestBufferIneligibleDrainAvoidsPayloads (0.00s)
+    --- PASS: TestBufferIneligibleDrainAvoidsPayloads/paused (0.01s)
+    --- PASS: TestBufferIneligibleDrainAvoidsPayloads/catchup (0.00s)
+    --- PASS: TestBufferIneligibleDrainAvoidsPayloads/budget (0.00s)
+=== CONT  TestBufferAutomaticCapacity/all_below
+--- PASS: TestBufferAutomaticCapacity (0.00s)
+    --- PASS: TestBufferAutomaticCapacity/one (0.00s)
+    --- PASS: TestBufferAutomaticCapacity/all_exact (0.00s)
+    --- PASS: TestBufferAutomaticCapacity/all_below (0.00s)
+    --- PASS: TestBufferAutomaticCapacity/all_overflow (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.570s
+=== RUN   TestBufferCapacityAndNoAdmissionDebit
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit
+=== RUN   TestBufferPolicySnapshotAndFIFOAfterUpdate
+=== PAUSE TestBufferPolicySnapshotAndFIFOAfterUpdate
+=== RUN   TestBufferRollbackDoesNotUndisposeObservedDueTime
+=== PAUSE TestBufferRollbackDoesNotUndisposeObservedDueTime
+=== RUN   TestBufferOccupiedDrainPreservesQueue
+=== PAUSE TestBufferOccupiedDrainPreservesQueue
+=== RUN   TestBufferProperties
+=== PAUSE TestBufferProperties
+=== RUN   TestBufferExpiredPrefixAndRefillOrdering
+=== PAUSE TestBufferExpiredPrefixAndRefillOrdering
+=== RUN   TestBufferQueueOwnership
+=== PAUSE TestBufferQueueOwnership
+=== CONT  TestBufferCapacityAndNoAdmissionDebit
+=== CONT  TestBufferProperties
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/one_first
+=== CONT  TestBufferOccupiedDrainPreservesQueue
+=== CONT  TestBufferRollbackDoesNotUndisposeObservedDueTime
+=== RUN   TestBufferOccupiedDrainPreservesQueue/phase_1
+=== PAUSE TestBufferOccupiedDrainPreservesQueue/phase_1
+=== RUN   TestBufferOccupiedDrainPreservesQueue/phase_2
+=== PAUSE TestBufferOccupiedDrainPreservesQueue/phase_2
+=== RUN   TestBufferOccupiedDrainPreservesQueue/phase_4
+=== PAUSE TestBufferOccupiedDrainPreservesQueue/phase_4
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/one_first
+=== CONT  TestBufferQueueOwnership
+=== RUN   TestBufferQueueOwnership/2
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/one_excess
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/one_excess
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/all_below
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/all_below
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/all_exact
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/all_exact
+--- PASS: TestBufferRollbackDoesNotUndisposeObservedDueTime (0.00s)
+=== RUN   TestBufferCapacityAndNoAdmissionDebit/all_overflow
+=== CONT  TestBufferExpiredPrefixAndRefillOrdering
+=== PAUSE TestBufferCapacityAndNoAdmissionDebit/all_overflow
+=== CONT  TestBufferPolicySnapshotAndFIFOAfterUpdate
+=== RUN   TestBufferQueueOwnership/8
+--- PASS: TestBufferQueueOwnership (0.00s)
+    --- PASS: TestBufferQueueOwnership/2 (0.00s)
+    --- PASS: TestBufferQueueOwnership/8 (0.00s)
+--- PASS: TestBufferPolicySnapshotAndFIFOAfterUpdate (0.00s)
+=== CONT  TestBufferOccupiedDrainPreservesQueue/phase_1
+=== RUN   TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_false
+=== CONT  TestBufferOccupiedDrainPreservesQueue/phase_4
+=== PAUSE TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_false
+=== RUN   TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_true
+=== PAUSE TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_true
+=== CONT  TestBufferOccupiedDrainPreservesQueue/phase_2
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/all_exact
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/one_first
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/all_overflow
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/one_excess
+=== CONT  TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_true
+--- PASS: TestBufferOccupiedDrainPreservesQueue (0.00s)
+    --- PASS: TestBufferOccupiedDrainPreservesQueue/phase_1 (0.00s)
+    --- PASS: TestBufferOccupiedDrainPreservesQueue/phase_4 (0.00s)
+    --- PASS: TestBufferOccupiedDrainPreservesQueue/phase_2 (0.00s)
+=== CONT  TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_false
+=== CONT  TestBufferCapacityAndNoAdmissionDebit/all_below
+--- PASS: TestBufferExpiredPrefixAndRefillOrdering (0.00s)
+    --- PASS: TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_true (0.00s)
+    --- PASS: TestBufferExpiredPrefixAndRefillOrdering/refill_before_drain_false (0.00s)
+--- PASS: TestBufferCapacityAndNoAdmissionDebit (0.00s)
+    --- PASS: TestBufferCapacityAndNoAdmissionDebit/one_first (0.00s)
+    --- PASS: TestBufferCapacityAndNoAdmissionDebit/all_exact (0.00s)
+    --- PASS: TestBufferCapacityAndNoAdmissionDebit/all_overflow (0.00s)
+    --- PASS: TestBufferCapacityAndNoAdmissionDebit/one_excess (0.00s)
+    --- PASS: TestBufferCapacityAndNoAdmissionDebit/all_below (0.00s)
+=== NAME  TestBufferProperties
+    buffer_test.go:109: [rapid] OK, passed 10000 tests (25.54875ms)
+--- PASS: TestBufferProperties (0.03s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.709s

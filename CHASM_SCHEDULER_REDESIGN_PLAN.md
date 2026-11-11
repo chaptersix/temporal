@@ -6,7 +6,7 @@
 | --- | --- |
 | Status | Authorized local execution through M1 |
 | Updated | 2026-11-10 |
-| Current milestone | M2 partial: WI-004 accepted; WI-005 buffering implementing |
+| Current milestone | M2 partial: WI-005 accepted; WI-006 keyed ALLOW_ALL next |
 | Implementation status | WI-000 through WI-004 accepted |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing through all milestones M2–M4; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
@@ -149,7 +149,7 @@ Phases describe coverage areas, not a requirement to finish all modeling before 
 | --- | --- | --- | --- |
 | M0 | Workspace provenance, first-slice contract, early CHASM guarantees | passed | E4–E8 |
 | M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | passed | E9–E16; bounded scope and trusted boundaries below |
-| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-004 E17–E31; remaining buffer/overlap/backfill work pending |
+| M2 | Complete policy, update, backfill, and callback behavior with model mappings | partial | WI-002–WI-005 E17–E36; remaining ALLOW_ALL/cancel/terminate/manual/backfill work pending |
 | M3 | Differential API and shared functional coverage with no unexplained differences | pending | — |
 | M4 | Load/state-growth report and explicit migration support boundary | pending | — |
 
@@ -745,4 +745,9 @@ WI-004 accepted at 9064bed65b0cf67659925986df04ea7ad27c8dcb (E27–E31).
 Resumable enumeration now drives registered local CHASM pure tasks and sequential
 SKIP admissions. Four retained operation records, current carryover, independent
 generation tokens and immutable request snapshots survive reload/failure traces.
-WI-005 queue admission/drain is proposed next; full overlaps/backfill remain open.
+WI-005 queue admission/drain accepted; WI-006 keyed ALLOW_ALL next; full overlaps/backfill remain open.
+
+WI-005 accepted at443587c3e with E32–E36: independent bounded model,10000 Rapid
+cases, CHASM drain/replay, nine total mutants, race/lint and final review. All
+M2–M4 execution remains authorized locally. WI-006 contracts are source-reviewed
+in work-items/WI-006.md; no human review pause.
