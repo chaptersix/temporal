@@ -7,6 +7,7 @@ import (
 
 // Queued contains identity metadata, never an admitted request snapshot.
 type Queued struct {
+	ManualID   uint64
 	Nominal    int64
 	Actual     int64
 	WorkflowID string
@@ -40,12 +41,12 @@ func enqueue(next State, event Event) (State, error) {
 
 // DrainIndex selects an eligible waiter, applying overlap replacement without preparing payloads.
 func DrainIndex(state State, now, catchup int64) int {
-	if occupied(state) || state.Root.Paused || (state.Root.Limited && state.Root.Remaining <= 0) || catchup < 0 {
+	if occupied(state) || catchup < 0 {
 		return -1
 	}
 	selected := -1
 	for i, q := range state.Queue {
-		if (now <= q.Actual || now-q.Actual <= catchup) && (selected < 0 || effectPolicy(q.Policy) != NoEffect) {
+		if queueEligible(state, q, now, catchup) && (selected < 0 || effectPolicy(q.Policy) != NoEffect) {
 			selected = i
 		}
 	}
@@ -82,7 +83,7 @@ func drain(next State, event Event) (State, error) {
 	var retained []Queued
 	firstEligible := true
 	for i, q := range next.Queue {
-		if event.Now > q.Actual && event.Now-q.Actual > event.CatchupWindow {
+		if !queueEligible(next, q, event.Now, event.CatchupWindow) {
 			continue
 		}
 		replaced := i < index && (firstEligible || effectPolicy(q.Policy) != NoEffect)
@@ -94,5 +95,9 @@ func drain(next State, event Event) (State, error) {
 		}
 	}
 	next.Queue = retained
-	return startOperation(next, event, candidate.Nominal, candidate.WorkflowID, candidate.Policy)
+	return startOperation(next, event, candidate.Nominal, candidate.WorkflowID, candidate.Policy, candidate.ManualID)
+}
+
+func queueEligible(state State, q Queued, now, catchup int64) bool {
+	return q.ManualID != 0 || (!state.Root.Paused && (!state.Root.Limited || state.Root.Remaining > 0) && (now <= q.Actual || now-q.Actual <= catchup))
 }

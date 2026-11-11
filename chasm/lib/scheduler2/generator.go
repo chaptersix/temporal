@@ -82,6 +82,11 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 	if !s.DrainArmed && s.DrainToken == math.MaxUint64 && decision.CanDrain(s.state(ctx), now.UnixNano(), int64(config.CatchupWindow)) {
 		return serviceerror.NewFailedPrecondition("drain token exhausted")
 	}
+	manualState := s.state(ctx)
+	manualState.Root.Policy = config.Policy
+	if err := s.checkManualToken(manualState, false); err != nil {
+		return err
+	}
 	if g == nil {
 		g = &Generator{GeneratorState: &scheduler2pb.GeneratorState{}}
 		s.Generator = chasm.NewComponentField(ctx, g)
@@ -97,6 +102,7 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 	s.Cursor = max(s.Cursor, state.DisposedThrough.UnixNano())
 	g.arm(ctx, now)
 	s.reconcileDrain(ctx, s.state(ctx))
+	s.reconcileManual(ctx, s.state(ctx))
 	return nil
 }
 

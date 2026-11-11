@@ -525,6 +525,80 @@ func (this *EffectTask) Equal(that interface{}) bool {
 	return proto.Equal(this, that1)
 }
 
+// Marshal an object of type ManualCommand to the protobuf v3 wire format
+func (val *ManualCommand) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type ManualCommand from the protobuf v3 wire format
+func (val *ManualCommand) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *ManualCommand) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two ManualCommand values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *ManualCommand) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *ManualCommand
+	switch t := that.(type) {
+	case *ManualCommand:
+		that1 = t
+	case ManualCommand:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type ManualTask to the protobuf v3 wire format
+func (val *ManualTask) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type ManualTask from the protobuf v3 wire format
+func (val *ManualTask) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *ManualTask) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two ManualTask values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *ManualTask) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *ManualTask
+	switch t := that.(type) {
+	case *ManualTask:
+		that1 = t
+	case ManualTask:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
 var (
 	Phase_shorthandValue = map[string]int32{
 		"Unspecified": 0,

@@ -54,6 +54,16 @@ message RootState {
   int64 overlap_superseded = 22;
   // Effects holds at most cancel and terminate metadata for the current blocker.
   repeated EffectState effects = 23;
+  // ManualSequence never reuses an accepted command occurrence identity.
+  uint64 manual_sequence = 24;
+  // Manuals holds at most four accepted pending manual commands.
+  repeated ManualCommand manuals = 25;
+  // ManualToken identifies the current transfer obligation.
+  uint64 manual_token = 26;
+  // ManualArmed indicates pending commands can make internal progress.
+  bool manual_armed = 27;
+  // ManualAt is the execution-clock transfer deadline.
+  int64 manual_at = 28;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -89,6 +99,8 @@ message OperationState {
   string workflow_id = 9;
   // Policy is the immutable resolved admission policy.
   temporal.api.enums.v1.ScheduleOverlapPolicy policy = 10;
+  // ManualId is zero for automatic occurrences and the command sequence otherwise.
+  uint64 manual_id = 11;
 }
 
 // Payload keeps large values on a separately loaded node.
@@ -203,6 +215,8 @@ message QueuedOccurrence {
   string workflow_id = 3;
   // Policy is resolved when the occurrence enters the queue.
   temporal.api.enums.v1.ScheduleOverlapPolicy policy = 4;
+  // ManualId preserves command identity through delayed admission.
+  uint64 manual_id = 5;
 }
 
 // DrainTask drives an independent bounded queue admission step.
@@ -251,4 +265,19 @@ message EffectState {
 message EffectTask {
   // EffectId identifies the immutable cancel or terminate request.
   string effect_id = 1;
+}
+
+// ManualCommand is payload-free accepted ingress awaiting execution capacity.
+message ManualCommand {
+ // Id is the per-incarnation acceptance sequence.
+ uint64 id = 1;
+ // Nominal is the supplied workflow identity time, not a dispatch deadline.
+ int64 nominal = 2;
+ // Policy is the override, resolved when transferred to the execution queue.
+ temporal.api.enums.v1.ScheduleOverlapPolicy policy = 3;
+}
+// ManualTask transfers one accepted command without external polling.
+message ManualTask {
+ // Token fences superseded logical transfer obligations.
+ uint64 token = 1;
 }

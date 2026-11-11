@@ -27,6 +27,7 @@ const (
 )
 
 type Root struct {
+	ManualSequence      uint64
 	Incarnation         string
 	Revision            int64
 	Cursor              int64
@@ -45,6 +46,7 @@ type Root struct {
 }
 
 type Operation struct {
+	ManualID     uint64
 	OccurrenceID string
 	ActionID     string
 	ID           string
@@ -65,6 +67,7 @@ type State struct {
 	Carryover *Carryover
 	Queue     []Queued
 	Effects   []Effect
+	Manuals   []ManualCommand
 }
 
 type Kind int
@@ -82,6 +85,8 @@ const (
 	EffectNotFound
 	EffectFailed
 	EffectExpired
+	AcceptManual
+	DispatchManual
 )
 
 type Event struct {
@@ -117,6 +122,10 @@ func Step(state State, event Event) (State, error) {
 	}
 	var err error
 	switch event.Kind {
+	case AcceptManual:
+		next, err = acceptManual(next, event)
+	case DispatchManual:
+		next, err = dispatchManual(next, event)
 	case Due:
 		next, err = admit(next, event)
 	case Drain:
@@ -158,10 +167,10 @@ func admit(next State, event Event) (State, error) {
 	if len(event.Request) == 0 || next.Root.Incarnation == "" {
 		return State{}, serviceerror.NewInvalidArgument("admission requires incarnation and request")
 	}
-	return startOperation(next, event, event.Nominal, event.WorkflowID, next.Root.Policy)
+	return startOperation(next, event, event.Nominal, event.WorkflowID, next.Root.Policy, 0)
 }
 
-func startOperation(next State, event Event, nominal int64, workflowID string, policy enumspb.ScheduleOverlapPolicy) (State, error) {
+func startOperation(next State, event Event, nominal int64, workflowID string, policy enumspb.ScheduleOverlapPolicy, manualID uint64) (State, error) {
 	if event.Now > math.MaxInt64-RetryHorizon {
 		return State{}, serviceerror.NewInvalidArgument("admission time exceeds supported range")
 	}
@@ -170,17 +179,20 @@ func startOperation(next State, event Event, nominal int64, workflowID string, p
 		policy = enumspb.SCHEDULE_OVERLAP_POLICY_SKIP
 	}
 	occurrenceID := fmt.Sprintf("automatic/%d", nominal)
+	if manualID != 0 {
+		occurrenceID = fmt.Sprintf("manual/%d", manualID)
+	}
 	actionID := next.Root.Incarnation + "/" + occurrenceID + "/action"
 	next.Operation = &Operation{
 		OccurrenceID: occurrenceID, ActionID: actionID, ID: actionID + "/start",
-		Nominal: nominal, WorkflowID: workflowID, Policy: policy, Deadline: event.Now + RetryHorizon,
+		ManualID: manualID, Nominal: nominal, WorkflowID: workflowID, Policy: policy, Deadline: event.Now + RetryHorizon,
 		RetryAt: event.Now, Phase: Pending, Request: bytes.Clone(event.Request),
 	}
 	next.Root.Unfinished++
 	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL {
 		next.Root.BlockingOperationID = next.Operation.ID
 	}
-	if next.Root.Limited {
+	if next.Root.Limited && manualID == 0 {
 		next.Root.Remaining--
 	}
 	return next, nil
@@ -290,6 +302,7 @@ func Wake(state State) (int64, bool) {
 
 func clone(state State) State {
 	state.Queue = append([]Queued(nil), state.Queue...)
+	state.Manuals = append([]ManualCommand(nil), state.Manuals...)
 	state.Effects = append([]Effect(nil), state.Effects...)
 	if state.Carryover != nil {
 		c := *state.Carryover

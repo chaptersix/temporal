@@ -23,5 +23,5 @@ func (*Library) Components() []*chasm.RegistrableComponent {
 	}
 }
 func (l *Library) Tasks() []*chasm.RegistrableTask {
-	return []*chasm.RegistrableTask{chasm.NewRegistrableSideEffectTask("start", l.start), chasm.NewRegistrableSideEffectTask("effect", l.effects), chasm.NewRegistrablePureTask("generate", &GenerateHandler{}), chasm.NewRegistrablePureTask("drain", &DrainHandler{})}
+	return []*chasm.RegistrableTask{chasm.NewRegistrableSideEffectTask("start", l.start), chasm.NewRegistrableSideEffectTask("effect", l.effects), chasm.NewRegistrablePureTask("generate", &GenerateHandler{}), chasm.NewRegistrablePureTask("drain", &DrainHandler{}), chasm.NewRegistrablePureTask("manual", &ManualHandler{})}
 }

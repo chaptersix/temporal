@@ -49,23 +49,26 @@ func (s *Scheduler) state(ctx chasm.Context) decision.State {
 
 func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.State {
 	state := decision.State{Root: decision.Root{
-		Incarnation: s.Incarnation, Revision: s.Revision, Cursor: s.Cursor,
+		ManualSequence: s.ManualSequence, Incarnation: s.Incarnation, Revision: s.Revision, Cursor: s.Cursor,
 		Paused: s.Paused, Limited: s.Limited, Remaining: s.Remaining, Started: s.Started,
 		CarryoverSet: s.CarryoverSet, PauseOnFailure: s.PauseOnFailure, Policy: s.Policy, BufferDropped: s.BufferDropped,
 		Unfinished: s.Unfinished, BlockingOperationID: s.BlockingOperationId, CapacityDropped: s.CapacityDropped, OverlapSuperseded: s.OverlapSuperseded,
 	}}
+	for _, m := range s.Manuals {
+		state.Manuals = append(state.Manuals, decision.ManualCommand{ID: m.Id, Nominal: m.Nominal, Policy: m.Policy})
+	}
 	for _, e := range s.Effects {
 		state.Effects = append(state.Effects, decodeEffect(e))
 	}
 	for _, q := range s.Queue {
-		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, WorkflowID: q.WorkflowId, Policy: q.Policy})
+		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, WorkflowID: q.WorkflowId, Policy: q.Policy, ManualID: q.ManualId})
 	}
 	if field, ok := s.Operations[operationID]; ok {
 		op := field.Get(ctx)
 		state.Operation = &decision.Operation{
 			OccurrenceID: op.OccurrenceId, ActionID: op.ActionId, ID: op.Id,
 			ChainID: op.ChainId, Nominal: op.Nominal, Deadline: op.Deadline,
-			RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId, Policy: op.Policy,
+			ManualID: op.ManualId, RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId, Policy: op.Policy,
 		}
 	}
 	return state
@@ -78,10 +81,13 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	}
 	event.Now = ctx.Now(s).UnixNano()
 	operationID := event.OperationID
-	if event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.Update {
+	if event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.Update || event.Kind == decision.DispatchManual {
 		operationID = s.OperationId
 	}
 	before := s.stateFor(ctx, operationID)
+	if err := s.prepareManual(ctx, before, &event); err != nil {
+		return err
+	}
 	if err := s.prepareDrain(ctx, before, &event); err != nil {
 		return err
 	}
@@ -101,7 +107,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	if err != nil {
 		return err
 	}
-	newAdmission := (event.Kind == decision.Due || event.Kind == decision.Drain) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID)
+	newAdmission := (event.Kind == decision.Due || event.Kind == decision.Drain || event.Kind == decision.DispatchManual) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID)
 	if newAdmission {
 		if err := s.freezeAdmission(ctx, next.Operation); err != nil {
 			return err
@@ -112,6 +118,9 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	}
 	if s.canDrain(ctx, next) && !s.DrainArmed && s.DrainToken == math.MaxUint64 {
 		return serviceerror.NewFailedPrecondition("drain token exhausted")
+	}
+	if err := s.checkManualToken(next, event.Kind == decision.DispatchManual); err != nil {
+		return err
 	}
 	eviction, err := s.retentionEviction(ctx, before, next)
 	if err != nil {
@@ -135,15 +144,23 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	}
 	hasGenerator, latestOperationID := s.HasGenerator, s.OperationId
 	drainToken, drainArmed, drainAt := s.DrainToken, s.DrainArmed, s.DrainAt
+	manualToken, manualArmed, manualAt := s.ManualToken, s.ManualArmed, s.ManualAt
+	if event.Kind == decision.DispatchManual {
+		manualArmed = false
+	}
 	s.RootState = &scheduler2pb.RootState{
+		ManualSequence: next.Root.ManualSequence, ManualToken: manualToken, ManualArmed: manualArmed, ManualAt: manualAt,
 		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
 		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
 		DrainToken: drainToken, DrainArmed: drainArmed, DrainAt: drainAt, Policy: next.Root.Policy, BufferDropped: next.Root.BufferDropped,
 		Unfinished: next.Root.Unfinished, BlockingOperationId: next.Root.BlockingOperationID, CapacityDropped: next.Root.CapacityDropped, OverlapSuperseded: next.Root.OverlapSuperseded,
 		PendingStarts: pendingStarts, OperationId: latestOperationID, HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
 	}
+	for _, m := range next.Manuals {
+		s.Manuals = append(s.Manuals, &scheduler2pb.ManualCommand{Id: m.ID, Nominal: m.Nominal, Policy: m.Policy})
+	}
 	for _, q := range next.Queue {
-		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy})
+		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy, ManualId: q.ManualID})
 	}
 	if next.Carryover != nil {
 		s.Carryover = chasm.NewDataField(ctx, &scheduler2pb.CarryoverState{Result: bytes.Clone(next.Carryover.Result), Failure: bytes.Clone(next.Carryover.Failure), FailurePresent: next.Carryover.FailurePresent})
@@ -154,7 +171,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		}
 		metadata := &scheduler2pb.OperationState{
 			OccurrenceId: op.OccurrenceID, ActionId: op.ActionID, Id: op.ID, ChainId: op.ChainID,
-			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy,
+			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy, ManualId: op.ManualID,
 		}
 		s.Operations[op.ID] = chasm.NewDataField(ctx, metadata)
 		if newAdmission {
@@ -169,6 +186,7 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	}
 	s.publishEffects(ctx, before, next, effectRequests)
 	s.reconcileDrain(ctx, next)
+	s.reconcileManual(ctx, next)
 	return nil
 }
 
@@ -225,6 +243,9 @@ func (s *Scheduler) freezeAdmission(ctx chasm.Context, op *decision.Operation) e
 	}
 	if op.WorkflowID != "" {
 		request.WorkflowId = op.WorkflowID
+	}
+	if op.ManualID != 0 {
+		request.WorkflowIdReusePolicy = enumspb.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
 	}
 	request.RequestId = op.ID
 	frozen, err := proto.MarshalOptions{Deterministic: true}.Marshal(request)
