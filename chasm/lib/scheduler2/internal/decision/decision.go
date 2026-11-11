@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 
+	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 )
 
@@ -25,13 +26,15 @@ const (
 )
 
 type Root struct {
-	Incarnation string
-	Revision    int64
-	Cursor      int64
-	Paused      bool
-	Limited     bool
-	Remaining   int64
-	Started     int64
+	Incarnation    string
+	Revision       int64
+	Cursor         int64
+	Paused         bool
+	Limited        bool
+	Remaining      int64
+	Started        int64
+	PauseOnFailure bool
+	CarryoverSet   bool
 }
 
 type Operation struct {
@@ -49,6 +52,7 @@ type Operation struct {
 type State struct {
 	Root      Root
 	Operation *Operation
+	Carryover *Carryover
 }
 
 type Kind int
@@ -60,6 +64,7 @@ const (
 	RetryableFailure
 	Complete
 	Expire
+	Callback
 )
 
 type Event struct {
@@ -75,6 +80,11 @@ type Event struct {
 	Limited         bool
 	Remaining       int64
 	Request         []byte
+	PauseOnFailure  bool
+	Outcome         Outcome
+	Result          []byte
+	Failure         []byte
+	Status          enumspb.WorkflowExecutionStatus
 }
 
 // Step returns an independent state value; callers publish it only after commit.
@@ -88,7 +98,7 @@ func Step(state State, event Event) (State, error) {
 		return admit(next, event)
 	case Update:
 		return update(next, event)
-	case Acknowledged, Complete, RetryableFailure, Expire:
+	case Acknowledged, Complete, Callback, RetryableFailure, Expire:
 		return applyResult(next, event)
 	default:
 		return next, serviceerror.NewInvalidArgument("unknown scheduler event")
@@ -138,6 +148,7 @@ func update(next State, event Event) (State, error) {
 	next.Root.Paused = event.Paused
 	next.Root.Limited = event.Limited
 	next.Root.Remaining = event.Remaining
+	next.Root.PauseOnFailure = event.PauseOnFailure
 	return next, nil
 }
 
@@ -150,15 +161,20 @@ func applyResult(next State, event Event) (State, error) {
 		return next, serviceerror.NewFailedPrecondition("conflicting workflow chain")
 	}
 	switch event.Kind {
-	case Acknowledged, Complete:
+	case Acknowledged, Complete, Callback:
 		if event.ChainID == "" {
 			return next, serviceerror.NewInvalidArgument("workflow chain is required")
+		}
+		if event.Kind != Acknowledged && op.Phase != Completed {
+			if err := complete(&next, event); err != nil {
+				return State{}, err
+			}
 		}
 		if op.ChainID == "" {
 			op.ChainID = event.ChainID
 			next.Root.Started++
 		}
-		if event.Kind == Complete {
+		if event.Kind == Complete || event.Kind == Callback {
 			op.Phase = Completed
 		} else if op.Phase != Completed {
 			op.Phase = Started
@@ -201,6 +217,13 @@ func Wake(state State) (int64, bool) {
 }
 
 func clone(state State) State {
+	if state.Carryover != nil {
+		c := *state.Carryover
+		c.Result = bytes.Clone(c.Result)
+		c.Failure = bytes.Clone(c.Failure)
+		state.Carryover = &c
+	}
+
 	if state.Operation != nil {
 		op := *state.Operation
 		op.Request = bytes.Clone(op.Request)

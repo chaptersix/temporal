@@ -19,6 +19,7 @@ type Scheduler struct {
 	chasm.UnimplementedComponent
 	*scheduler2pb.RootState
 	Operations  chasm.Map[string, *Operation]
+	Carryover   chasm.Field[*scheduler2pb.CarryoverState]
 	Diagnostics chasm.Field[*scheduler2pb.Payload]
 }
 
@@ -51,6 +52,7 @@ func (s *Scheduler) state(ctx chasm.Context) decision.State {
 	state := decision.State{Root: decision.Root{
 		Incarnation: s.Incarnation, Revision: s.Revision, Cursor: s.Cursor,
 		Paused: s.Paused, Limited: s.Limited, Remaining: s.Remaining, Started: s.Started,
+		CarryoverSet: s.CarryoverSet, PauseOnFailure: s.PauseOnFailure,
 	}}
 	if field, ok := s.Operations[s.OperationId]; ok {
 		op := field.Get(ctx)
@@ -66,10 +68,23 @@ func (s *Scheduler) state(ctx chasm.Context) decision.State {
 // Apply records the transition and successor task in the same CHASM transaction.
 func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error {
 	event.Now = ctx.Now(s).UnixNano()
+	before := s.state(ctx)
+	if err := s.prepareCompletion(before, &event); err != nil {
+		return err
+	}
+	if event.Kind == decision.Callback && event.Outcome == decision.Failure && event.Incarnation == s.Incarnation && before.Operation != nil && before.Operation.ID == event.OperationID && before.Operation.Phase != decision.Completed && s.CarryoverSet {
+		c := s.Carryover.Get(ctx)
+		before.Carryover = &decision.Carryover{Result: c.Result, Failure: c.Failure, FailurePresent: c.FailurePresent}
+	}
 	if event.Kind == decision.Due && event.Incarnation == s.Incarnation {
 		request := &workflowservice.StartWorkflowExecutionRequest{}
 		if err := proto.Unmarshal(event.Request, request); err != nil {
 			return serviceerror.NewInvalidArgument("invalid workflow start request")
+		}
+		if s.CarryoverSet && before.Operation == nil {
+			if err := s.materializeCarryover(ctx, request); err != nil {
+				return err
+			}
 		}
 		request.RequestId = fmt.Sprintf("%s/automatic/%d/action/start", s.Incarnation, event.Nominal)
 		frozen, err := proto.MarshalOptions{Deterministic: true}.Marshal(request)
@@ -78,7 +93,6 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 		}
 		event.Request = frozen
 	}
-	before := s.state(ctx)
 	next, err := decision.Step(before, event)
 	if err != nil {
 		return err
@@ -86,7 +100,10 @@ func (s *Scheduler) Apply(ctx chasm.MutableContext, event decision.Event) error 
 	s.RootState = &scheduler2pb.RootState{
 		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
 		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
-		Started: next.Root.Started,
+		Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
+	}
+	if next.Carryover != nil {
+		s.Carryover = chasm.NewDataField(ctx, &scheduler2pb.CarryoverState{Result: bytes.Clone(next.Carryover.Result), Failure: bytes.Clone(next.Carryover.Failure), FailurePresent: next.Carryover.FailurePresent})
 	}
 	if op := next.Operation; op != nil {
 		s.OperationId = op.ID

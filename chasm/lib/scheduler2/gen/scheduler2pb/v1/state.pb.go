@@ -111,9 +111,13 @@ type RootState struct {
 	// Started counts operations with evidence of acceptance.
 	Started int64 `protobuf:"varint,7,opt,name=started,proto3" json:"started,omitempty"`
 	// OperationId identifies the single operation in this prototype.
-	OperationId   string `protobuf:"bytes,8,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	OperationId string `protobuf:"bytes,8,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	// CarryoverSet indicates that a separate carryover node has been initialized.
+	CarryoverSet bool `protobuf:"varint,9,opt,name=carryover_set,json=carryoverSet,proto3" json:"carryover_set,omitempty"`
+	// PauseOnFailure applies the current policy to failed or timed-out completions.
+	PauseOnFailure bool `protobuf:"varint,10,opt,name=pause_on_failure,json=pauseOnFailure,proto3" json:"pause_on_failure,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RootState) Reset() {
@@ -200,6 +204,20 @@ func (x *RootState) GetOperationId() string {
 		return x.OperationId
 	}
 	return ""
+}
+
+func (x *RootState) GetCarryoverSet() bool {
+	if x != nil {
+		return x.CarryoverSet
+	}
+	return false
+}
+
+func (x *RootState) GetPauseOnFailure() bool {
+	if x != nil {
+		return x.PauseOnFailure
+	}
+	return false
 }
 
 // OperationState holds metadata without decoding request payloads.
@@ -403,11 +421,75 @@ func (x *StartTask) GetOperationId() string {
 	return ""
 }
 
+// CarryoverState retains opaque completion values separately from control metadata.
+type CarryoverState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Result is a serialized Payload; empty bytes represent an absent result.
+	Result []byte `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
+	// Failure is a serialized Failure from the last failure outcome.
+	Failure []byte `protobuf:"bytes,2,opt,name=failure,proto3" json:"failure,omitempty"`
+	// FailurePresent distinguishes an empty failure message from absence.
+	FailurePresent bool `protobuf:"varint,3,opt,name=failure_present,json=failurePresent,proto3" json:"failure_present,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CarryoverState) Reset() {
+	*x = CarryoverState{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CarryoverState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CarryoverState) ProtoMessage() {}
+
+func (x *CarryoverState) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CarryoverState.ProtoReflect.Descriptor instead.
+func (*CarryoverState) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CarryoverState) GetResult() []byte {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
+func (x *CarryoverState) GetFailure() []byte {
+	if x != nil {
+		return x.Failure
+	}
+	return nil
+}
+
+func (x *CarryoverState) GetFailurePresent() bool {
+	if x != nil {
+		return x.FailurePresent
+	}
+	return false
+}
+
 var File_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto protoreflect.FileDescriptor
 
 const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "" +
 	"\n" +
-	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\"\xee\x01\n" +
+	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\"\xbd\x02\n" +
 	"\tRootState\x12 \n" +
 	"\vincarnation\x18\x01 \x01(\tR\vincarnation\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x16\n" +
@@ -416,7 +498,10 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\alimited\x18\x05 \x01(\bR\alimited\x12\x1c\n" +
 	"\tremaining\x18\x06 \x01(\x03R\tremaining\x12\x18\n" +
 	"\astarted\x18\a \x01(\x03R\astarted\x12!\n" +
-	"\foperation_id\x18\b \x01(\tR\voperationId\"\x9a\x02\n" +
+	"\foperation_id\x18\b \x01(\tR\voperationId\x12#\n" +
+	"\rcarryover_set\x18\t \x01(\bR\fcarryoverSet\x12(\n" +
+	"\x10pause_on_failure\x18\n" +
+	" \x01(\bR\x0epauseOnFailure\"\x9a\x02\n" +
 	"\x0eOperationState\x12#\n" +
 	"\roccurrence_id\x18\x01 \x01(\tR\foccurrenceId\x12\x1b\n" +
 	"\taction_id\x18\x02 \x01(\tR\bactionId\x12\x0e\n" +
@@ -429,7 +514,11 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\aPayload\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\".\n" +
 	"\tStartTask\x12!\n" +
-	"\foperation_id\x18\x01 \x01(\tR\voperationId*n\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\"k\n" +
+	"\x0eCarryoverState\x12\x16\n" +
+	"\x06result\x18\x01 \x01(\fR\x06result\x12\x18\n" +
+	"\afailure\x18\x02 \x01(\fR\afailure\x12'\n" +
+	"\x0ffailure_present\x18\x03 \x01(\bR\x0efailurePresent*n\n" +
 	"\x05Phase\x12\x15\n" +
 	"\x11PHASE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rPHASE_PENDING\x10\x01\x12\x11\n" +
@@ -450,13 +539,14 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(
 }
 
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []any{
 	(Phase)(0),             // 0: temporal.server.chasm.lib.scheduler2.proto.v1.Phase
 	(*RootState)(nil),      // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState
 	(*OperationState)(nil), // 2: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState
 	(*Payload)(nil),        // 3: temporal.server.chasm.lib.scheduler2.proto.v1.Payload
 	(*StartTask)(nil),      // 4: temporal.server.chasm.lib.scheduler2.proto.v1.StartTask
+	(*CarryoverState)(nil), // 5: temporal.server.chasm.lib.scheduler2.proto.v1.CarryoverState
 }
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_depIdxs = []int32{
 	0, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
@@ -478,7 +568,7 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc), len(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
