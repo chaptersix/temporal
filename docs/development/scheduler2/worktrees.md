@@ -79,3 +79,10 @@ WI-003 final disposition (all retained):
 - Original checkout: no task writes, current inventory/hash recorded separately;
   all initially untracked entries retained. Concurrent unrelated changes remain.
   No push, production routing, rollout, migration, branch or worktree deletion.
+
+WI-004 planned assignments: parent owns schema, generator and adapter/reducer;
+history_contract read-only review. New model worktree
+/private/tmp/sch-redesign-sequential-model owns model/sequential/; new tests
+/private/tmp/sch-redesign-sequential-tests owns sequential/generator test additions.
+Both start from committed WI-004 contract prerequisite, with explicit API patch
+transfer before test implementation; source/creation identities verified below.
