@@ -203,3 +203,8 @@ integrated explicitly as e20467cd1 on sch-redesign. No conflicts; exact Git tree
 and all checks.json source fingerprints match. Retained source worktree, no push.
 Original /Users/alex/repos/temporal remains03ecd1d228 with unrelated changes;
 this item did not modify that checkout. WI-012 starts from this accepted integration.
+
+WI-012: /private/tmp/sch-redesign-functional, branch sch-redesign-functional,
+base352dafa83; source owner history_contract, inventory owner tooling_harness,
+integrator owns records/verification. Source updates worktree remains retained at
+5b86032de. No changes to original checkout or production selection.

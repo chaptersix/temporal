@@ -75,29 +75,31 @@ func expectScheduleProgressesWhilePaused(policy enumspb.ScheduleOverlapPolicy) b
 
 func (suite *ScheduleV1Suite) TestWorkflowPauseInteraction() {
 	t := suite.T()
-	t.Run("Overlap", func(t *testing.T) { runSchedulePauseOverlapMatrix(t, v1ContextFactory) })
-	t.Run("UnpauseRecovery", func(t *testing.T) { runSchedulePauseRecoveryMatrix(t, v1ContextFactory) })
-	t.Run("ContinueAsNew", func(t *testing.T) { testSchedulePauseContinueAsNew(t, v1ContextFactory) })
-	t.Run("Reset", func(t *testing.T) { testSchedulePauseReset(t, v1ContextFactory) })
+	t.Run("Overlap", func(t *testing.T) { runSchedulePauseOverlapMatrix(t, scheduleV1Backend) })
+	t.Run("UnpauseRecovery", func(t *testing.T) { runSchedulePauseRecoveryMatrix(t, scheduleV1Backend) })
+	t.Run("ContinueAsNew", func(t *testing.T) { testSchedulePauseContinueAsNew(t, scheduleV1Backend) })
+	t.Run("Reset", func(t *testing.T) { testSchedulePauseReset(t, scheduleV1Backend) })
 }
 
 func (suite *ScheduleCHASMSuite) TestWorkflowPauseInteraction() {
 	t := suite.T()
-	t.Run("Overlap", func(t *testing.T) { runSchedulePauseOverlapMatrix(t, chasmContextFactory) })
-	t.Run("UnpauseRecovery", func(t *testing.T) { runSchedulePauseRecoveryMatrix(t, chasmContextFactory) })
-	t.Run("ContinueAsNew", func(t *testing.T) { testSchedulePauseContinueAsNew(t, chasmContextFactory) })
-	t.Run("Reset", func(t *testing.T) { testSchedulePauseReset(t, chasmContextFactory) })
+	t.Run("Overlap", func(t *testing.T) { runSchedulePauseOverlapMatrix(t, scheduleCHASMBackend) })
+	t.Run("UnpauseRecovery", func(t *testing.T) { runSchedulePauseRecoveryMatrix(t, scheduleCHASMBackend) })
+	t.Run("ContinueAsNew", func(t *testing.T) { testSchedulePauseContinueAsNew(t, scheduleCHASMBackend) })
+	t.Run("Reset", func(t *testing.T) { testSchedulePauseReset(t, scheduleCHASMBackend) })
 }
 
-func runSchedulePauseOverlapMatrix(t *testing.T, newContext contextFactory) {
+func runSchedulePauseOverlapMatrix(t *testing.T, backend scheduleBackend) {
+
 	for _, policy := range allOverlapPolicies {
 		t.Run(policy.String(), func(t *testing.T) {
-			testSchedulePauseOverlap(t, newContext, policy)
+			testSchedulePauseOverlap(t, backend, policy)
 		})
 	}
 }
 
-func runSchedulePauseRecoveryMatrix(t *testing.T, newContext contextFactory) {
+func runSchedulePauseRecoveryMatrix(t *testing.T, backend scheduleBackend) {
+
 	for _, policy := range allOverlapPolicies {
 		// Recovery is only interesting for policies whose schedule was blocked
 		// by the paused workflow. Policies that keep progressing never stall,
@@ -107,17 +109,15 @@ func runSchedulePauseRecoveryMatrix(t *testing.T, newContext contextFactory) {
 			continue
 		}
 		t.Run(policy.String(), func(t *testing.T) {
-			testSchedulePauseUnpauseRecovery(t, newContext, policy)
+			testSchedulePauseUnpauseRecovery(t, backend, policy)
 		})
 	}
 }
 
 // pauseInteractionOpts returns the schedule test options plus the dynamic config
 // required to enable the workflow pause feature.
-func pauseInteractionOpts(t *testing.T) []testcore.TestOption {
-	return append(scheduleCommonOpts(t),
-		testcore.WithDynamicConfig(dynamicconfig.WorkflowPauseEnabled, true),
-	)
+func pauseInteractionOpts(t *testing.T, backend scheduleBackend) []testcore.TestOption {
+	return []testcore.TestOption{testcore.WithDynamicConfig(dynamicconfig.WorkflowPauseEnabled, true)}
 }
 
 // scheduledPauseFixture holds the handles produced by setupPausedScheduledWorkflow.
@@ -137,11 +137,12 @@ type scheduledPauseFixture struct {
 // the handles needed to drive the rest of a pause-interaction test.
 func setupPausedScheduledWorkflow(
 	t *testing.T,
-	newContext contextFactory,
+	backend scheduleBackend,
 	policy enumspb.ScheduleOverlapPolicy,
 	register func(s *testcore.TestEnv, wt string),
 ) *scheduledPauseFixture {
-	env := newScheduleEnv(t, pauseInteractionOpts(t)...)
+	newContext := backend.context
+	env := newScheduleEnv(t, []scheduleBackend{backend}, pauseInteractionOpts(t, backend)...)
 
 	sid := testcore.RandomizeStr("sched-pause-" + policy.String())
 	wid := testcore.RandomizeStr("sched-pause-wf-" + policy.String())
@@ -259,8 +260,9 @@ func registerSignalCompletableWorkflow(s *testcore.TestEnv, wt string) {
 // testSchedulePauseOverlap creates a schedule (1s interval) that starts a single
 // long-running workflow, pauses that workflow, and then asserts whether the
 // schedule keeps taking scheduled actions, per expectScheduleProgressesWhilePaused.
-func testSchedulePauseOverlap(t *testing.T, newContext contextFactory, policy enumspb.ScheduleOverlapPolicy) {
-	f := setupPausedScheduledWorkflow(t, newContext, policy, registerForeverWorkflow)
+func testSchedulePauseOverlap(t *testing.T, backend scheduleBackend, policy enumspb.ScheduleOverlapPolicy) {
+
+	f := setupPausedScheduledWorkflow(t, backend, policy, registerForeverWorkflow)
 
 	if expectScheduleProgressesWhilePaused(policy) {
 		// The schedule should keep taking new actions despite the paused workflow.
@@ -290,8 +292,9 @@ func testSchedulePauseOverlap(t *testing.T, newContext contextFactory, policy en
 // a paused workflow resumes taking actions once that workflow is unpaused and
 // allowed to close (by signalling it, and/or via the scheduler's own
 // cancellation for CANCEL_OTHER).
-func testSchedulePauseUnpauseRecovery(t *testing.T, newContext contextFactory, policy enumspb.ScheduleOverlapPolicy) {
-	f := setupPausedScheduledWorkflow(t, newContext, policy, registerSignalCompletableWorkflow)
+func testSchedulePauseUnpauseRecovery(t *testing.T, backend scheduleBackend, policy enumspb.ScheduleOverlapPolicy) {
+
+	f := setupPausedScheduledWorkflow(t, backend, policy, registerSignalCompletableWorkflow)
 
 	// Unpause the workflow.
 	_, err := f.env.FrontendClient().UnpauseWorkflowExecution(f.ctx, &workflowservice.UnpauseWorkflowExecutionRequest{
@@ -325,13 +328,14 @@ func testSchedulePauseUnpauseRecovery(t *testing.T, newContext contextFactory, p
 // tests, which both need a single triggered run to pause.
 func setupPausedTriggeredWorkflow(
 	t *testing.T,
-	newContext contextFactory,
+	backend scheduleBackend,
 	opts []testcore.TestOption,
 	idPrefix string,
 	register func(s *testcore.TestEnv, wt string),
 	afterStart func(s *testcore.TestEnv, firstRun *commonpb.WorkflowExecution),
 ) *scheduledPauseFixture {
-	env := newScheduleEnv(t, opts...)
+	newContext := backend.context
+	env := newScheduleEnv(t, []scheduleBackend{backend}, opts...)
 
 	sid := testcore.RandomizeStr(idPrefix)
 	wid := testcore.RandomizeStr(idPrefix + "-wf")
@@ -429,11 +433,12 @@ func setupPausedTriggeredWorkflow(
 //   - After unpause, the workflow continues-as-new and the continued run
 //     completes, and the scheduler observes that completion across the
 //     continue-as-new boundary.
-func testSchedulePauseContinueAsNew(t *testing.T, newContext contextFactory) {
+func testSchedulePauseContinueAsNew(t *testing.T, backend scheduleBackend) {
+
 	// The scheduler matches the continued run's completion by the request ID in
 	// the completion callback token, which only survives continue-as-new in the
 	// envelope token format (gated off by default).
-	opts := append(pauseInteractionOpts(t), testcore.WithDynamicConfig(callback.EncodeInternalTokenWithEnvelope, true))
+	opts := append(pauseInteractionOpts(t, backend), testcore.WithDynamicConfig(callback.EncodeInternalTokenWithEnvelope, true))
 
 	// First run waits for the "go" signal, then continues-as-new; the continued
 	// run completes immediately.
@@ -447,7 +452,7 @@ func testSchedulePauseContinueAsNew(t *testing.T, newContext contextFactory) {
 		}, workflow.RegisterOptions{Name: wt})
 	}
 
-	f := setupPausedTriggeredWorkflow(t, newContext, opts, "sched-pause-can", register, nil)
+	f := setupPausedTriggeredWorkflow(t, backend, opts, "sched-pause-can", register, nil)
 
 	// Signal "go" while paused. The signal is recorded but not processed, so the
 	// workflow must not continue-as-new: it stays on the same run, still PAUSED.
@@ -507,7 +512,8 @@ func testSchedulePauseContinueAsNew(t *testing.T, newContext contextFactory) {
 // to a point before the pause. The reset run is no longer paused (the pause
 // event is not part of the reset history), and the scheduler keeps tracking the
 // reset run through to completion.
-func testSchedulePauseReset(t *testing.T, newContext contextFactory) {
+func testSchedulePauseReset(t *testing.T, backend scheduleBackend) {
+
 	register := func(s *testcore.TestEnv, wt string) {
 		s.SdkWorker().RegisterWorkflowWithOptions(func(ctx workflow.Context) error {
 			workflow.GetSignalChannel(ctx, "complete").Receive(ctx, nil)
@@ -528,7 +534,7 @@ func testSchedulePauseReset(t *testing.T, newContext contextFactory) {
 		)
 	}
 
-	f := setupPausedTriggeredWorkflow(t, newContext, pauseInteractionOpts(t), "sched-pause-reset", register, afterStart)
+	f := setupPausedTriggeredWorkflow(t, backend, pauseInteractionOpts(t, backend), "sched-pause-reset", register, afterStart)
 
 	// Reset the paused workflow to a point before it was paused.
 	resetResp, err := f.env.FrontendClient().ResetWorkflowExecution(f.ctx, &workflowservice.ResetWorkflowExecutionRequest{

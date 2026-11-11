@@ -1,0 +1,30 @@
+=== RUN   TestScheduleV1SharedSuite
+=== PAUSE TestScheduleV1SharedSuite
+=== RUN   TestScheduleCHASMSharedSuite
+=== PAUSE TestScheduleCHASMSharedSuite
+=== CONT  TestScheduleV1SharedSuite
+=== CONT  TestScheduleCHASMSharedSuite
+=== RUN   TestScheduleCHASMSharedSuite/TestCreateScheduleDuplicateSdkError
+=== PAUSE TestScheduleCHASMSharedSuite/TestCreateScheduleDuplicateSdkError
+=== RUN   TestScheduleV1SharedSuite/TestCreateScheduleDuplicateSdkError
+=== PAUSE TestScheduleV1SharedSuite/TestCreateScheduleDuplicateSdkError
+=== RUN   TestScheduleCHASMSharedSuite/TestLastCompletionResultAfterNoResultWorkflow
+=== PAUSE TestScheduleCHASMSharedSuite/TestLastCompletionResultAfterNoResultWorkflow
+=== RUN   TestScheduleV1SharedSuite/TestLastCompletionResultAfterNoResultWorkflow
+=== PAUSE TestScheduleV1SharedSuite/TestLastCompletionResultAfterNoResultWorkflow
+=== CONT  TestScheduleCHASMSharedSuite/TestCreateScheduleDuplicateSdkError
+=== CONT  TestScheduleCHASMSharedSuite/TestLastCompletionResultAfterNoResultWorkflow
+2026/11/11 16:40:18 CLUSTEREVENT {"kind":"shared","reason":"shared pool","suite":"TestScheduleCHASMSharedSuite","test":"TestScheduleCHASMSharedSuite/TestCreateScheduleDuplicateSdkError","worker":false}
+2026/11/11 16:40:18 CLUSTEREVENT {"kind":"shared","reason":"shared pool","suite":"TestScheduleCHASMSharedSuite","test":"TestScheduleCHASMSharedSuite/TestLastCompletionResultAfterNoResultWorkflow","worker":false}
+=== CONT  TestScheduleV1SharedSuite/TestCreateScheduleDuplicateSdkError
+2026/11/11 16:40:18 CLUSTEREVENT {"kind":"dedicated","reason":"worker service required: V1 scheduler","suite":"TestScheduleV1SharedSuite","test":"TestScheduleV1SharedSuite/TestCreateScheduleDuplicateSdkError","worker":true}
+=== CONT  TestScheduleV1SharedSuite/TestLastCompletionResultAfterNoResultWorkflow
+2026/11/11 16:40:18 CLUSTEREVENT {"kind":"dedicated","reason":"worker service required: V1 scheduler","suite":"TestScheduleV1SharedSuite","test":"TestScheduleV1SharedSuite/TestLastCompletionResultAfterNoResultWorkflow","worker":true}
+--- PASS: TestScheduleV1SharedSuite (0.00s)
+    --- PASS: TestScheduleV1SharedSuite/TestCreateScheduleDuplicateSdkError (0.06s)
+    --- PASS: TestScheduleV1SharedSuite/TestLastCompletionResultAfterNoResultWorkflow (11.91s)
+--- PASS: TestScheduleCHASMSharedSuite (0.00s)
+    --- PASS: TestScheduleCHASMSharedSuite/TestCreateScheduleDuplicateSdkError (0.10s)
+    --- PASS: TestScheduleCHASMSharedSuite/TestLastCompletionResultAfterNoResultWorkflow (12.14s)
+PASS
+ok  	go.temporal.io/server/tests	13.369s

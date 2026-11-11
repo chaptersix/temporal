@@ -1,0 +1,14 @@
+# go.temporal.io/server/tests [go.temporal.io/server/tests.test]
+tests/schedule_test.go:380:2: declared and not used: newContext
+tests/schedule_test.go:381:32: undefined: backend
+tests/schedule_test.go:383:51: undefined: backend
+tests/schedule_test.go:386:40: undefined: backend
+tests/schedule_test.go:389:42: undefined: backend
+tests/schedule_test.go:394:2: declared and not used: newContext
+tests/schedule_test.go:396:37: undefined: backend
+tests/schedule_test.go:399:50: undefined: backend
+tests/schedule_test.go:402:54: undefined: backend
+tests/schedule_test.go:405:43: undefined: backend
+tests/schedule_test.go:394:2: too many errors
+FAIL	go.temporal.io/server/tests [build failed]
+FAIL

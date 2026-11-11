@@ -297,3 +297,10 @@ this acceptance does not close M2–M4.
 | E71 | numeric boundary and recovery | [configuration](wi011/configuration-limits.log), [enumeration](wi011/occurrence-limits.log), [focused race](wi011/boundary-final-race.log); limit neighbors, rejected publication and recovery pass, including scan8 and effect deadline. [Effect request-byte race](wi011/effect-limits-race.log) passes both effect kinds; [complete matrix](../design/m2-coverage.md) records structural bounds and recovery. [Independent acceptance review](wi011/acceptance-review.md) passes; M2 complete. |
 
 WI-011 and M2 accepted E67–E71 with [final scoped lint](wi011/acceptance-lint.log) and [source fingerprints](wi011/checks.json). M3/P2.5 and M4 remain open.
+
+## WI-012 explicit functional backends and inventory (accepted)
+
+| ID | Claim | Evidence |
+|---|---|---|
+| E72 | Baseline inventory and applicability audit | [242 baseline rows](../design/functional-coverage.md), [machine-readable source hashes](../design/functional-coverage.json); refinements preserve public/observability obligations, scheduler2 rows pending. |
+| E73 | Existing backend setup preservation | [checks](wi012/checks.json), [full shared suites](wi012/shared-suites.log), [final descriptor cases](wi012/descriptor-expectations.log), [mixed backend](wi012/mixed-backend.log), [helper race](wi012/helper-race.log), [lint](wi012/lint-final.log), [independent review](wi012/review.md); pass. No scheduler2 frontend execution claimed. |

@@ -1,0 +1,30 @@
+=== RUN   TestScheduleV1SharedSuite
+=== PAUSE TestScheduleV1SharedSuite
+=== RUN   TestScheduleCHASMSharedSuite
+=== PAUSE TestScheduleCHASMSharedSuite
+=== CONT  TestScheduleV1SharedSuite
+=== CONT  TestScheduleCHASMSharedSuite
+=== RUN   TestScheduleV1SharedSuite/TestCountSchedules
+=== PAUSE TestScheduleV1SharedSuite/TestCountSchedules
+=== RUN   TestScheduleCHASMSharedSuite/TestCountSchedules
+=== PAUSE TestScheduleCHASMSharedSuite/TestCountSchedules
+=== RUN   TestScheduleV1SharedSuite/TestDeletedScheduleOperations
+=== PAUSE TestScheduleV1SharedSuite/TestDeletedScheduleOperations
+=== RUN   TestScheduleCHASMSharedSuite/TestDeletedScheduleOperations
+=== PAUSE TestScheduleCHASMSharedSuite/TestDeletedScheduleOperations
+=== CONT  TestScheduleV1SharedSuite/TestCountSchedules
+=== CONT  TestScheduleV1SharedSuite/TestDeletedScheduleOperations
+2026/11/11 16:31:06 CLUSTEREVENT {"kind":"dedicated","reason":"worker service required: V1 scheduler","suite":"TestScheduleV1SharedSuite","test":"TestScheduleV1SharedSuite/TestDeletedScheduleOperations","worker":true}
+2026/11/11 16:31:06 CLUSTEREVENT {"kind":"dedicated","reason":"worker service required: V1 scheduler","suite":"TestScheduleV1SharedSuite","test":"TestScheduleV1SharedSuite/TestCountSchedules","worker":true}
+=== CONT  TestScheduleCHASMSharedSuite/TestCountSchedules
+2026/11/11 16:31:06 CLUSTEREVENT {"kind":"shared","reason":"shared pool","suite":"TestScheduleCHASMSharedSuite","test":"TestScheduleCHASMSharedSuite/TestCountSchedules","worker":false}
+--- PASS: TestScheduleV1SharedSuite (0.00s)
+    --- PASS: TestScheduleV1SharedSuite/TestDeletedScheduleOperations (0.07s)
+    --- PASS: TestScheduleV1SharedSuite/TestCountSchedules (1.08s)
+=== CONT  TestScheduleCHASMSharedSuite/TestDeletedScheduleOperations
+2026/11/11 16:31:07 CLUSTEREVENT {"kind":"shared","reason":"shared pool","suite":"TestScheduleCHASMSharedSuite","test":"TestScheduleCHASMSharedSuite/TestDeletedScheduleOperations","worker":false}
+--- PASS: TestScheduleCHASMSharedSuite (0.00s)
+    --- PASS: TestScheduleCHASMSharedSuite/TestDeletedScheduleOperations (0.04s)
+    --- PASS: TestScheduleCHASMSharedSuite/TestCountSchedules (1.05s)
+PASS
+ok  	go.temporal.io/server/tests	2.492s

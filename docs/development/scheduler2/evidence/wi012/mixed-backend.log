@@ -1,0 +1,5 @@
+=== RUN   TestScheduleLastCompletionResultMatchesV1
+2026/11/11 16:41:10 CLUSTEREVENT {"kind":"dedicated","reason":"worker service required: V1 scheduler","suite":"TestScheduleLastCompletionResultMatchesV1","test":"TestScheduleLastCompletionResultMatchesV1","worker":true}
+--- PASS: TestScheduleLastCompletionResultMatchesV1 (20.01s)
+PASS
+ok  	go.temporal.io/server/tests	21.262s

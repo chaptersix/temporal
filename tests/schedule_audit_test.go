@@ -14,14 +14,14 @@ import (
 	"go.temporal.io/server/tools/tdbg/scheduleaudit"
 )
 
-func TestScheduleV1AuditVisibility(t *testing.T) { testScheduleAuditVisibility(t, v1ContextFactory) }
+func TestScheduleV1AuditVisibility(t *testing.T) { testScheduleAuditVisibility(t, scheduleV1Backend) }
 func TestScheduleCHASMAuditVisibility(t *testing.T) {
-	testScheduleAuditVisibility(t, chasmContextFactory)
+	testScheduleAuditVisibility(t, scheduleCHASMBackend)
 }
 
-func testScheduleAuditVisibility(t *testing.T, newContext contextFactory) {
-	env := newScheduleEnv(t, scheduleCommonOpts(t)...)
-	ctx := newContext(testcore.NewContext())
+func testScheduleAuditVisibility(t *testing.T, backend scheduleBackend) {
+	env := newScheduleEnv(t, []scheduleBackend{backend})
+	ctx := backend.context(testcore.NewContext())
 	sid := testcore.RandomizeStr("audit-schedule")
 	wid := testcore.RandomizeStr("audit-workflow")
 	wt := testcore.RandomizeStr("audit-type")

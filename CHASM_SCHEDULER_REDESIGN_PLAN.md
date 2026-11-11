@@ -6,7 +6,7 @@
 | --- | --- |
 | Status | Authorized local execution through M4 |
 | Updated | 2026-11-11 |
-| Current milestone | M2 passed; M3 next: backend descriptor, functional inventory and proof completion |
+| Current milestone | M2 passed; M3 active: functional setup accepted, local API wiring and proofs pending |
 | Implementation status | WI-000 through WI-008 accepted; WI-009 range helpers implemented, coordinator pending |
 | Authorization | User authorized local execution, branches/worktrees and task commits, continuing through all milestones M2–M4; no human-review stops. No pushes, production routing, rollout or migration. |
 | Provisional component directory | `chasm/lib/scheduler2` |
@@ -902,3 +902,9 @@ verified source fingerprints. [WI-012](docs/development/scheduler2/work-items/WI
 is ready for explicit functional backend setup and complete scenario inventory.
 
 WI-013 independently advances M3 SP2/SP3 proofs and executable correspondence under D57; its ready record preserves full M3/M4 requirements.
+WI-012 accepted E72–E73: explicit backend descriptor/setup/cleanup, full existing
+shared-suite preservation and242-row baseline inventory. Named carryover and SDK
+configuration expectations replace backend-name branches. Required scheduler2
+public execution/promotion remains pending; P5.1/P5.5–P5.7 stay unchecked. Next
+API item must add real independent component identity and typed visibility routing
+through local test wiring, with no production selection changes.
