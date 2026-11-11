@@ -55,15 +55,26 @@ func addBackfiller(
 }
 
 func newBackfillerWithState(ctx chasm.MutableContext, state *schedulerpb.BackfillerState) *Backfiller {
-	backfiller := &Backfiller{
-		BackfillerState: state,
-		EventLog:        chasm.NewComponentField(ctx, NewEventLog(ctx)),
-	}
-	backfiller.scheduleTask(ctx, chasm.TaskScheduledTimeImmediate)
+	backfiller := newBackfillerWithStateWithoutTask(ctx, state)
+	backfiller.scheduleInitialTask(ctx)
 	return backfiller
 }
 
-// scheduleTask advances the stamp for the initial task or a successor.
+func newBackfillerWithStateWithoutTask(ctx chasm.MutableContext, state *schedulerpb.BackfillerState) *Backfiller {
+	return &Backfiller{
+		BackfillerState: state,
+		EventLog:        chasm.NewComponentField(ctx, NewEventLog(ctx)),
+	}
+}
+
+func (b *Backfiller) scheduleInitialTask(ctx chasm.MutableContext) {
+	if b.GetTaskStamp() != 0 {
+		return
+	}
+
+	b.scheduleTask(ctx, chasm.TaskScheduledTimeImmediate)
+}
+
 func (b *Backfiller) scheduleTask(ctx chasm.MutableContext, scheduledTime time.Time) {
 	b.TaskStamp++
 	b.getOrCreateEventLog(ctx).LogEvent(ctx,

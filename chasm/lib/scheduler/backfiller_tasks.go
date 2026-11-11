@@ -155,6 +155,7 @@ func (b *BackfillerTaskHandler) Execute(
 
 	// Otherwise, update watermark and reschedule.
 	backfiller.LastProcessedTime = timestamppb.New(result.LastProcessedTime)
+	backfiller.HasRecordedProgress = true
 	b.rescheduleBackfill(ctx, backfiller)
 
 	return nil
@@ -180,7 +181,7 @@ func (b *BackfillerTaskHandler) processBackfill(
 	// so a fresh or capacity-stalled backfiller starts from the range start.
 	var startTime time.Time
 	lastProcessed := backfiller.GetLastProcessedTime()
-	if hasRecordedProgress(lastProcessed) {
+	if hasRecordedProgress(backfiller) {
 		startTime = lastProcessed.AsTime()
 	} else {
 		// On the first attempt, start slightly behind to make the range inclusive.
@@ -214,10 +215,12 @@ func (b *BackfillerTaskHandler) processBackfill(
 }
 
 // hasRecordedProgress reports whether a backfiller's high watermark reflects a
-// batch that was actually processed. An unset (nil or zero) watermark means no
-// progress yet - a fresh backfiller.
-func hasRecordedProgress(lastProcessed *timestamppb.Timestamp) bool {
-	return lastProcessed != nil && (lastProcessed.GetSeconds() != 0 || lastProcessed.GetNanos() != 0)
+// batch that was actually processed. Older persisted state inferred progress
+// from a nonzero watermark before HasRecordedProgress was added.
+func hasRecordedProgress(backfiller *Backfiller) bool {
+	lastProcessed := backfiller.GetLastProcessedTime()
+	return backfiller.GetHasRecordedProgress() ||
+		(lastProcessed != nil && (lastProcessed.GetSeconds() != 0 || lastProcessed.GetNanos() != 0))
 }
 
 // backoffDelay returns the amount of delay that should be added when retrying.
