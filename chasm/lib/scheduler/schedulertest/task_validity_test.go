@@ -22,7 +22,7 @@ func TestStalePhysicalTaskIsNotProgress(t *testing.T) {
 	d := NewDriver(t, WithSchedule(schedule))
 	require.NoError(t, d.TriggerImmediately())
 	require.NotEmpty(t, d.runner.PendingSideEffectTasks())
-	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.ref,
+	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.Ref,
 		func(ctx chasm.MutableContext, c chasm.Component) error {
 			c.(*scheduler.Scheduler).Invoker.Get(ctx).BufferedStarts = nil
 			return nil
@@ -44,7 +44,7 @@ func TestOldExecuteTaskCanProcessCurrentWork(t *testing.T) {
 	tasks := d.runner.PendingSideEffectTasks()
 	require.NotEmpty(t, tasks)
 	old := tasks[0]
-	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.ref,
+	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.Ref,
 		func(ctx chasm.MutableContext, c chasm.Component) error {
 			inv := c.(*scheduler.Scheduler).Invoker.Get(ctx)
 			current := common.CloneProto(inv.BufferedStarts[0])
@@ -73,7 +73,7 @@ func TestIdleDeadlineRequiresValidIdleTask(t *testing.T) {
 	schedule.State.LimitedActions = true
 	d := NewDriver(t, WithSchedule(schedule), WithoutStateInvariant())
 	require.Empty(t, d.StateViolations())
-	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.ref,
+	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.Ref,
 		func(ctx chasm.MutableContext, c chasm.Component) error {
 			s := c.(*scheduler.Scheduler)
 			s.LastEventTime = timestamppb.New(d.Now().Add(time.Hour))
@@ -94,7 +94,7 @@ func TestRetryTaskEqualityAndRearming(t *testing.T) {
 	d := NewDriver(t, WithSchedule(schedule))
 	require.NoError(t, d.TriggerImmediately())
 	deadline := d.Now().Add(time.Minute)
-	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.ref,
+	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.Ref,
 		func(ctx chasm.MutableContext, c chasm.Component) error {
 			inv := c.(*scheduler.Scheduler).Invoker.Get(ctx)
 			inv.BufferedStarts[0].Attempt = 2

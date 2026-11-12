@@ -25,7 +25,7 @@ func TestStartResultSurvivesBufferReordering(t *testing.T) {
 	require.NoError(t, err)
 	acceptedSecond, err := second.Accept()
 	require.NoError(t, err)
-	_, err = d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.ref,
+	_, err = d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.Ref,
 		func(ctx chasm.MutableContext, c chasm.Component) error {
 			starts := c.(*scheduler.Scheduler).Invoker.Get(ctx).BufferedStarts
 			starts[0], starts[1] = starts[1], starts[0]

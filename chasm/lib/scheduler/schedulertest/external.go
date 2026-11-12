@@ -6,13 +6,10 @@ import (
 	"maps"
 	"sync"
 
-	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/api/workflowservice/v1"
-	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/scheduler"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // ExternalStart records acceptance outside the scheduler's transaction.
@@ -176,19 +173,6 @@ func (e *recordingEngine) UpdateComponent(ctx context.Context, ref chasm.Compone
 func (c *RecordCall) Record() error {
 	ref, err := c.engine.UpdateComponent(c.ctx, c.ref, c.update, c.opts...)
 	c.result <- recordResponse{ref: ref, err: err}
-	return err
-}
-
-// DeliverCompletion also supports accepted starts whose RPC results have not
-// been recorded locally, and duplicate or obsolete callback request identities.
-func (d *Driver) DeliverCompletion(requestID string) error {
-	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.ref,
-		func(ctx chasm.MutableContext, c chasm.Component) error {
-			return c.(*scheduler.Scheduler).HandleNexusCompletion(ctx, &persistencespb.ChasmNexusCompletion{
-				RequestId: requestID, CloseTime: timestamppb.New(d.Now()),
-				Outcome: &persistencespb.ChasmNexusCompletion_Success{Success: &commonpb.Payload{}},
-			})
-		})
 	return err
 }
 
