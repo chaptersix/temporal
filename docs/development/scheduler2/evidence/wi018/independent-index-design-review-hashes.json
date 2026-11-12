@@ -1,0 +1,14 @@
+{
+  "docs/development/scheduler2/design/bounded-public-work.md": "ea4bedd1f3619eea756e566bdc390bdc4fd7e5bca25fdc5bdca89d022f0e5e65",
+  "docs/development/scheduler2/work-items/WI-018.md": "ddedbfe581835697fb5aea311fc0b2ee0c5310b90849133976a41bb8b056f6ef",
+  "chasm/lib/scheduler2/internal/decision/buffer.go": "c4af526e1c14ac4cf6f32ec31940d4d07d14c31a38ca301c248743b616ee8818",
+  "chasm/lib/scheduler2/internal/decision/manual.go": "d2b86f31e7b4ee0d47d1e289bfdfb780fea35086c913bb9e6a9da1931ded782d",
+  "chasm/lib/scheduler2/internal/decision/decision.go": "2c03b21919e9b707ae58e807ea201b9a6837a875429ffb3f011f391ad4030902",
+  "chasm/lib/scheduler2/internal/decision/capacity.go": "70835137633179079314be75111dbe49ceccc4f8f2f1111c70e897d8b09be0c4",
+  "chasm/lib/scheduler2/internal/decision/timestamp.go": "5bd303b3f11289dfbf2801abee57d919d5450b8d17da21a1ec5dbcd6a5424b50",
+  "chasm/lib/scheduler2/public_projection.go": "73212a0778041978bd9eaef11ff903eb11ab92be5844c5a3224c0724fc93fe79",
+  "chasm/lib/scheduler2/public_mutation.go": "23f66e7f17fd6fbefabaf0b5dcafdc807299fe253a3db96e70394189eba48dec",
+  "chasm/lib/scheduler2/public_capacity_retention.go": "923b175dcbe8be16e7311dfd1a76570b95d616f8d3b8c27692f5bf8d584e5b2f",
+  "chasm/lib/scheduler2/payload_storage.go": "5c7da7fd00e7381e64882741261407e783f5c5dfbccb0ed55cc6a03fb22e8919",
+  "service/worker/scheduler/calendar.go": "479689bac6ee9d23ddf4e721d174a6578781fd1008cb56b4040981dc04dbd97d"
+}
