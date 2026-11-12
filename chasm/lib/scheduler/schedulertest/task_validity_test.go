@@ -21,14 +21,14 @@ func TestStalePhysicalTaskIsNotProgress(t *testing.T) {
 	schedule.Spec.Interval = nil
 	d := NewDriver(t, WithSchedule(schedule))
 	require.NoError(t, d.TriggerImmediately())
-	require.NotEmpty(t, d.pendingSideEffectTasks())
+	require.NotEmpty(t, d.runner.PendingSideEffectTasks())
 	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.ref,
 		func(ctx chasm.MutableContext, c chasm.Component) error {
 			c.(*scheduler.Scheduler).Invoker.Get(ctx).BufferedStarts = nil
 			return nil
 		})
 	require.NoError(t, err)
-	require.NotEmpty(t, d.pendingSideEffectTasks(), "physical deliveries survive logical invalidation")
+	require.NotEmpty(t, d.runner.PendingSideEffectTasks(), "physical deliveries survive logical invalidation")
 	require.False(t, d.HasPendingTask())
 	require.False(t, d.StepSideEffect())
 	require.Empty(t, d.Snapshot().AcceptedStarts)
@@ -41,7 +41,7 @@ func TestOldExecuteTaskCanProcessCurrentWork(t *testing.T) {
 	schedule.Policies.OverlapPolicy = enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL
 	d := NewDriver(t, WithSchedule(schedule))
 	require.NoError(t, d.TriggerImmediately())
-	tasks := d.pendingSideEffectTasks()
+	tasks := d.runner.PendingSideEffectTasks()
 	require.NotEmpty(t, tasks)
 	old := tasks[0]
 	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.ref,
@@ -55,8 +55,7 @@ func TestOldExecuteTaskCanProcessCurrentWork(t *testing.T) {
 			return nil
 		})
 	require.NoError(t, err)
-	inTree, valid, err := d.node().ValidateSideEffectTask(context.Background(), old)
-	require.NoError(t, err)
+	inTree, valid := d.runner.ValidateSideEffectTask(old)
 	require.True(t, inTree)
 	require.True(t, valid)
 	require.True(t, d.StepSideEffect())

@@ -81,31 +81,10 @@ func WithControlledStarts() DriverOption {
 // handler is waiting at NextRecord.
 func (d *Driver) BeginSideEffect() bool {
 	d.T.Helper()
-	if d.startCalls == nil || d.sideEffectDone != nil {
-		d.T.Fatal("controlled starts required; only one task may be in flight")
+	if d.startCalls == nil {
+		d.T.Fatal("controlled starts required")
 	}
-	next := d.nextSideEffect()
-	if next == nil {
-		return false
-	}
-	d.actionsBefore = d.actionCount()
-	done := make(chan error, 1)
-	d.sideEffectDone = done
-	ctx, cancel := context.WithCancel(d.T.Context())
-	d.T.Cleanup(func() {
-		cancel()
-		if d.sideEffectDone == done {
-			<-done
-			d.sideEffectDone = nil
-		}
-	})
-	node := d.node()
-	go func() {
-		engine := &recordingEngine{Engine: d.Engine, calls: d.recordCalls}
-		done <- node.ExecuteSideEffectTask(chasm.NewEngineContext(ctx, engine), d.execKey, next,
-			func(chasm.NodeBackend, chasm.Context, chasm.Component) error { return nil })
-	}()
-	return true
+	return d.runner.BeginSideEffect()
 }
 
 func (d *Driver) NextStart() *StartCall {
@@ -113,8 +92,8 @@ func (d *Driver) NextStart() *StartCall {
 	select {
 	case call := <-d.startCalls:
 		return call
-	case err := <-d.sideEffectDone:
-		d.sideEffectDone = nil
+	case err := <-d.runner.SideEffectDone():
+		d.runner.AbandonSideEffect()
 		d.T.Fatalf("task finished before expected start: %v", err)
 	case <-d.T.Context().Done():
 		d.T.Fatal("waiting for start: test canceled")
@@ -132,9 +111,8 @@ func (d *Driver) FinishSideEffect() {
 			}
 		case call := <-d.startCalls:
 			d.T.Fatalf("unconsumed start RPC for request %s; call NextStart before FinishSideEffect", call.Request.GetRequestId())
-		case err := <-d.sideEffectDone:
-			d.sideEffectDone = nil
-			d.finishSideEffect(d.actionsBefore, err)
+		case err := <-d.runner.SideEffectDone():
+			d.runner.FinishSideEffect(err)
 			return
 		case <-d.T.Context().Done():
 			d.T.Fatal("waiting for side effect: test canceled")
@@ -149,8 +127,8 @@ func (d *Driver) NextRecord() *RecordCall {
 	select {
 	case call := <-d.recordCalls:
 		return call
-	case err := <-d.sideEffectDone:
-		d.sideEffectDone = nil
+	case err := <-d.runner.SideEffectDone():
+		d.runner.AbandonSideEffect()
 		d.T.Fatalf("task finished before result recording: %v", err)
 	case <-d.T.Context().Done():
 		d.T.Fatal("waiting for recording: test canceled")

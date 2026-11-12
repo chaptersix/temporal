@@ -1,12 +1,10 @@
 package schedulertest
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"maps"
-	"slices"
 	"sync"
 	"time"
 
@@ -31,33 +29,25 @@ import (
 	"go.temporal.io/server/common/metrics/metricstest"
 	"go.temporal.io/server/common/testing/mockapi/workflowservicemock/v1"
 	"go.temporal.io/server/common/testing/testlogger"
-	"go.temporal.io/server/service/history/tasks"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-// maxKeyFireTime is the sentinel returned by MockNodeBackend.LastDeletePureTaskCall
-// when the tree has no pending pure task. It matches the value passed by
-// Node.closeTransactionGeneratePhysicalPureTask in that case.
-var maxKeyFireTime = tasks.MaximumKey.FireTime
 
 // Driver builds a real CHASM scheduler on top of a [chasmtest.Engine] and steps
 // it forward through every task it schedules for itself, advancing a controllable
 // clock. After each settled transition it invokes AfterStep (if set), which is
 // where invariant assertions are plugged in.
 //
-// A "step" fires every pure task due at the current reference time (via
-// [chasm.Node.EachPureTask]) and every side-effect task whose visibility time has
-// arrived (via [chasm.Node.ExecuteSideEffectTask]), then advances the clock to the
-// next scheduled task. A healthy interval schedule never truly quiesces (it always
+// A "step", run by a [chasmtest.TaskRunner], fires every pure task due at the
+// current reference time and every side-effect task whose visibility time has
+// arrived, then advances the clock to the next scheduled task. A healthy interval schedule never truly quiesces (it always
 // re-arms a generator task), so callers bound the run with maxSteps; quiescence is
 // reached only for paused/exhausted/closed schedules.
 type Driver struct {
 	recordCalls        chan *RecordCall
 	external           *externalLedger
 	startCalls         chan *StartCall
-	sideEffectDone     chan error
 	actionsBefore      int
 	recorded           map[string]ExternalStart
 	initialActionCount int64
@@ -79,9 +69,8 @@ type Driver struct {
 	ref     chasm.ComponentRef
 	execKey chasm.ExecutionKey
 
-	// dispatchedSideEffects tracks physical side-effect tasks already executed,
-	// keyed by pointer identity, since MockNodeBackend accumulates tasks append-only.
-	dispatchedSideEffects map[*tasks.ChasmTask]struct{}
+	// runner steps the execution through its pure and side-effect tasks.
+	runner *chasmtest.TaskRunner
 
 	// actionRPCs points at the running count of action RPCs (StartWorkflowExecution
 	// + TerminateWorkflowExecution + RequestCancelWorkflowExecution) made through
@@ -99,10 +88,6 @@ type Driver struct {
 	// rpcMu guards actionRPCs and startRequests: InvokerExecuteTask issues
 	// starts from concurrent goroutines.
 	rpcMu *sync.Mutex
-
-	// maxSideEffectLag caps how far StepPure may move the clock past the oldest
-	// undispatched side-effect task. Zero means unbounded.
-	maxSideEffectLag time.Duration
 
 	// maxRunDuration auto-completes a started workflow before the clock moves
 	// past its StartTime plus this. Zero means workflows only complete through
@@ -301,23 +286,24 @@ func newDriverScaffold(t chasmtest.TB, opts ...DriverOption) (*Driver, *driverCo
 	d := &Driver{
 		recordCalls: make(chan *RecordCall),
 		external:    external, startCalls: startCalls, recorded: make(map[string]ExternalStart),
-		T:                     t,
-		Engine:                engine,
-		Registry:              registry,
-		TimeSource:            ts,
-		Logger:                logger,
-		Frontend:              frontend,
-		History:               history,
-		Config:                cfg.config,
-		dispatchedSideEffects: make(map[*tasks.ChasmTask]struct{}),
-		actionRPCs:            actionRPCs,
-		startRequests:         startRequests,
-		rpcMu:                 rpcMu,
-		metricsCapture:        capture,
-		maxSideEffectLag:      cfg.maxLag,
-		maxRunDuration:        cfg.maxRun,
-		AfterStep:             cfg.afterStep,
+		T:              t,
+		Engine:         engine,
+		Registry:       registry,
+		TimeSource:     ts,
+		Logger:         logger,
+		Frontend:       frontend,
+		History:        history,
+		Config:         cfg.config,
+		actionRPCs:     actionRPCs,
+		startRequests:  startRequests,
+		rpcMu:          rpcMu,
+		metricsCapture: capture,
+		maxRunDuration: cfg.maxRun,
+		AfterStep:      cfg.afterStep,
+		execKey:        chasm.ExecutionKey{NamespaceID: NamespaceID, BusinessID: ScheduleID},
 	}
+	d.ref = chasm.NewComponentRef[*scheduler.Scheduler](d.execKey)
+	d.runner = d.newTaskRunner(cfg.maxLag)
 	return d, cfg
 }
 
@@ -325,7 +311,6 @@ func newDriverScaffold(t chasmtest.TB, opts ...DriverOption) (*Driver, *driverCo
 func (d *Driver) startExecution(startFn func(chasm.MutableContext) (*scheduler.Scheduler, error)) {
 	d.T.Helper()
 
-	d.execKey = chasm.ExecutionKey{NamespaceID: NamespaceID, BusinessID: ScheduleID}
 	engineCtx := chasm.NewEngineContext(context.Background(), d.Engine)
 
 	_, err := chasm.StartExecution(engineCtx, d.execKey, func(mctx chasm.MutableContext, _ *struct{}) (*scheduler.Scheduler, error) {
@@ -335,7 +320,6 @@ func (d *Driver) startExecution(startFn func(chasm.MutableContext) (*scheduler.S
 		d.T.Fatalf("failed to start scheduler execution: %v", err)
 	}
 
-	d.ref = chasm.NewComponentRef[*scheduler.Scheduler](d.execKey)
 	d.ReadScheduler(func(s *scheduler.Scheduler, _ chasm.Context) { d.initialActionCount = s.Info.GetActionCount() })
 }
 
@@ -361,204 +345,62 @@ func (d *Driver) ReadScheduler(fn func(s *scheduler.Scheduler, ctx chasm.Context
 	}
 }
 
-// node returns the CHASM tree node backing the scheduler execution.
-func (d *Driver) node() *chasm.Node {
-	d.T.Helper()
-	node, err := d.Engine.NodeForRef(d.ref)
-	if err != nil {
-		d.T.Fatalf("NodeForRef failed: %v", err)
-	}
-	return node
-}
-
-func (d *Driver) backend() *chasm.MockNodeBackend {
-	d.T.Helper()
-	backend, err := d.Engine.BackendForRef(d.ref)
-	if err != nil {
-		d.T.Fatalf("BackendForRef failed: %v", err)
-	}
-	return backend
-}
-
-// nextPureFireTime returns the earliest pending pure task time, if any. It is
-// recorded by closeTransactionGeneratePhysicalPureTask via
-// DeleteCHASMPureTasks(earliestPureTaskTime), or MaximumKey.FireTime if none.
-func (d *Driver) nextPureFireTime() (time.Time, bool) {
-	pureTime := d.backend().LastDeletePureTaskCall()
-	if pureTime.IsZero() || pureTime.Equal(maxKeyFireTime) {
-		return time.Time{}, false
-	}
-	return pureTime, true
-}
-
-// oldestSideEffectTime returns the earliest visibility time among undispatched
-// side-effect tasks, if any.
-func (d *Driver) oldestSideEffectTime() (time.Time, bool) {
-	var oldest time.Time
-	have := false
-	for _, t := range d.pendingSideEffectTasks() {
-		if vt := t.GetVisibilityTime(); !have || vt.Before(oldest) {
-			oldest, have = vt, true
-		}
-	}
-	return oldest, have
-}
-
-// nextFireTime returns the earliest time at which any pending task (pure or
-// side-effect) is due, and whether any task is pending at all.
-func (d *Driver) nextFireTime() (time.Time, bool) {
-	pure, havePure := d.nextPureFireTime()
-	side, haveSide := d.oldestSideEffectTime()
-	switch {
-	case havePure && haveSide:
-		if side.Before(pure) {
-			return side, true
-		}
-		return pure, true
-	case havePure:
-		return pure, true
-	default:
-		return side, haveSide
-	}
-}
-
-// pendingSideEffectTasks returns physical side-effect tasks that have not yet
-// been dispatched by this driver.
-func (d *Driver) pendingSideEffectTasks() []*tasks.ChasmTask {
-	backend := d.backend()
-	var out []*tasks.ChasmTask
-	for category, categoryTasks := range backend.TasksByCategory {
-		// Visibility tasks are framework-managed (indexing search attributes) and
-		// processed by a separate queue, not the CHASM side-effect executor; their
-		// handler panics if invoked directly. Skip them.
-		if category.ID() == tasks.CategoryVisibility.ID() {
-			continue
-		}
-		for _, t := range categoryTasks {
-			ct, ok := t.(*tasks.ChasmTask)
-			if !ok {
-				continue
-			}
-			if _, done := d.dispatchedSideEffects[ct]; done {
-				continue
-			}
-			out = append(out, ct)
-		}
-	}
-	slices.SortStableFunc(out, func(a, b *tasks.ChasmTask) int {
-		if cmp := a.GetVisibilityTime().Compare(b.GetVisibilityTime()); cmp != 0 {
-			return cmp
-		}
-		if c := cmp.Compare(a.Info.GetTaskVersionedTransition().GetTransitionCount(), b.Info.GetTaskVersionedTransition().GetTransitionCount()); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(a.Info.GetTaskVersionedTransitionOffset(), b.Info.GetTaskVersionedTransitionOffset()); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(a.Info.GetTypeId(), b.Info.GetTypeId()); c != 0 {
-			return c
-		}
-		return slices.Compare(a.Info.GetPath(), b.Info.GetPath())
-	})
-	return out
-}
-
 // Step advances the clock to the next scheduled task and fires all tasks due at
 // that time: pure tasks first, then every due side-effect task. It returns false
 // if nothing was pending (the schedule is quiescent).
 func (d *Driver) Step() bool {
 	d.T.Helper()
-
-	fireTime, have := d.nextFireTime()
-	if !have {
-		return false
-	}
-	d.advanceTo(fireTime)
-	d.firePureTasks()
-	for d.StepSideEffect() {
-	}
-	return true
+	return d.runner.Step()
 }
 
 // StepPure advances the clock to the next pending pure task and fires every pure
 // task due then, leaving side-effect tasks undispatched. This models
 // InvokerExecuteTask lagging behind the scheduler's timers. It returns false if
 // no pure task is pending, or if firing it would move the clock more than
-// maxSideEffectLag past the oldest undispatched side-effect task.
+// the configured max side-effect lag past the oldest undispatched side-effect task.
 func (d *Driver) StepPure() bool {
 	d.T.Helper()
-
-	fireTime, have := d.nextPureFireTime()
-	if !have {
-		return false
-	}
-	if oldest, ok := d.oldestSideEffectTime(); ok && d.maxSideEffectLag > 0 &&
-		fireTime.After(oldest.Add(d.maxSideEffectLag)) {
-		return false
-	}
-	d.advanceTo(fireTime)
-	d.firePureTasks()
-	return true
+	return d.runner.StepPure()
 }
 
 // StepSideEffect dispatches the oldest side-effect task that is due at the
 // current time, without moving the clock. It returns false if none is due.
 func (d *Driver) StepSideEffect() bool {
 	d.T.Helper()
-	next := d.nextSideEffect()
-	if next == nil {
-		return false
-	}
-	before := d.actionCount()
-	err := d.executeSideEffect(next)
-	d.finishSideEffect(before, err)
-	return true
+	return d.runner.StepSideEffect()
 }
 
-func (d *Driver) nextSideEffect() *tasks.ChasmTask {
-	for _, task := range d.pendingSideEffectTasks() {
-		if task.GetVisibilityTime().After(d.Now()) {
-			continue
-		}
-		d.dispatchedSideEffects[task] = struct{}{}
-		inTree, valid, err := d.node().ValidateSideEffectTask(context.Background(), task)
-		if err != nil {
-			d.T.Fatalf("ValidateSideEffectTask: %v", err)
-		}
-		if inTree && valid {
-			return task
-		}
-	}
-	return nil
-}
-
-func (d *Driver) executeSideEffect(task *tasks.ChasmTask) error {
-	return d.node().ExecuteSideEffectTask(
-		chasm.NewEngineContext(context.Background(), d.Engine), d.execKey, task,
-		func(chasm.NodeBackend, chasm.Context, chasm.Component) error { return nil },
+// newTaskRunner wires the scheduler-specific behaviour into a generic task
+// runner.
+func (d *Driver) newTaskRunner(maxLag time.Duration) *chasmtest.TaskRunner {
+	return chasmtest.NewTaskRunner(d.T, d.Engine, d.ref, d.TimeSource,
+		chasmtest.WithMaxSideEffectLag(maxLag),
+		chasmtest.WithAsyncEngine(func(engine chasm.Engine) chasm.Engine {
+			return &recordingEngine{Engine: engine, calls: d.recordCalls}
+		}),
+		chasmtest.WithTaskRunnerHooks(chasmtest.TaskRunnerHooks{
+			BeforeAdvance:    d.completeWorkflowsBefore,
+			BeforeSideEffect: func() { d.actionsBefore = d.actionCount() },
+			// A side-effect task may find the schedule already closed and gone.
+			TolerateSideEffectError: func(err error) bool {
+				_, ok := errors.AsType[*serviceerror.NotFound](err)
+				return ok
+			},
+			AfterSideEffect:       func() { d.maxActionsObserved = max(d.maxActionsObserved, d.actionCount()-d.actionsBefore) },
+			AfterSideEffectCommit: d.observeRecordedStarts,
+			AfterStep: func() {
+				if d.AfterStep != nil {
+					d.AfterStep(d)
+				}
+			},
+		}),
 	)
 }
 
-func (d *Driver) finishSideEffect(before int, err error) {
-	d.T.Helper()
-	if err != nil {
-		if _, ok := errors.AsType[*serviceerror.NotFound](err); !ok {
-			d.T.Fatalf("ExecuteSideEffectTask failed: %v", err)
-		}
-	}
-	d.maxActionsObserved = max(d.maxActionsObserved, d.actionCount()-before)
-	if err := d.Engine.CloseTransaction(context.Background(), d.ref); err != nil {
-		d.T.Fatalf("CloseTransaction: %v", err)
-	}
-	d.observeRecordedStarts()
-	if d.AfterStep != nil {
-		d.AfterStep(d)
-	}
-}
-
-// advanceTo moves the clock to t, never backward, first completing any
-// workflow that would exceed maxRunDuration on the way.
-func (d *Driver) advanceTo(t time.Time) {
+// completeWorkflowsBefore completes any workflow that would exceed
+// maxRunDuration before the clock moves to t, moving the clock to the deadline
+// first.
+func (d *Driver) completeWorkflowsBefore(t time.Time) {
 	for d.maxRunDuration > 0 {
 		startTime, ok := d.oldestRunningStartTime()
 		if !ok {
@@ -575,9 +417,6 @@ func (d *Driver) advanceTo(t time.Time) {
 		// The completion may ready a deferred start; don't skip its execute task.
 		for d.StepSideEffect() {
 		}
-	}
-	if t.After(d.Now()) {
-		d.TimeSource.Update(t)
 	}
 }
 
@@ -645,55 +484,20 @@ func (d *Driver) CompleteWorkflow() bool {
 	return completed
 }
 
-// firePureTasks fires every pure task due at the current time and commits.
-func (d *Driver) firePureTasks() {
-	d.T.Helper()
-	now := d.Now()
-	pureCtx := chasm.NewEngineContext(context.Background(), d.Engine)
-	err := d.node().EachPureTask(now, func(executor chasm.NodePureTask, attrs chasm.TaskAttributes, taskInstance any) (bool, error) {
-		return executor.ExecutePureTask(pureCtx, attrs, taskInstance)
-	})
-	if err != nil {
-		d.T.Fatalf("EachPureTask failed: %v", err)
-	}
-	if err := d.Engine.CloseTransaction(context.Background(), d.ref); err != nil {
-		d.T.Fatalf("CloseTransaction after pure tasks failed: %v", err)
-	}
-	if d.AfterStep != nil {
-		d.AfterStep(d)
-	}
-}
-
 // RunToQuiescence steps until no task is pending or maxSteps is reached. It
 // returns the number of steps taken and whether the schedule reached quiescence
 // (no pending task). A normal running schedule never quiesces and will stop at
 // maxSteps with quiescent == false.
 func (d *Driver) RunToQuiescence(maxSteps int) (steps int, quiescent bool) {
 	d.T.Helper()
-	for steps = 0; steps < maxSteps; steps++ {
-		if !d.Step() {
-			return steps, true
-		}
-	}
-	return steps, false
+	return d.runner.RunToQuiescence(maxSteps)
 }
 
 // HasPendingTask reports whether any task (pure or side-effect) is currently
 // scheduled to fire.
 func (d *Driver) HasPendingTask() bool {
-	if _, have := d.nextPureFireTime(); have {
-		return true
-	}
-	for _, task := range d.pendingSideEffectTasks() {
-		inTree, valid, err := d.node().ValidateSideEffectTask(context.Background(), task)
-		if err != nil {
-			d.T.Fatalf("ValidateSideEffectTask: %v", err)
-		}
-		if inTree && valid {
-			return true
-		}
-	}
-	return false
+	d.T.Helper()
+	return d.runner.HasPendingTask()
 }
 
 // Patch applies a SchedulePatch through the production Scheduler.Patch path in a
