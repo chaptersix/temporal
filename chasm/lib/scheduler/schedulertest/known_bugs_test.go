@@ -13,16 +13,14 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// TestActionBudgetSharedAcrossPhases reproduces a bug found by
-// TestSchedulerProperties. InvokerExecuteTask.Execute passes its
+// TestActionBudgetSharedAcrossPhases pins a bug found by
+// TestSchedulerProperties. InvokerExecuteTask.Execute used to pass its
 // invokerTaskHandlerContext by value to terminateWorkflows, cancelWorkflows and
-// startWorkflows, so each phase spends from its own copy of the action budget.
+// startWorkflows, so each phase spent from its own copy of the action budget.
 // A cancel from a CANCEL_OTHER start and a terminate from a later
 // TERMINATE_OTHER start both target the same running workflow, and one
-// execution makes two RPCs although MaxActionsPerExecution is 1.
+// execution made two RPCs although MaxActionsPerExecution was 1.
 func TestActionBudgetSharedAcrossPhases(t *testing.T) {
-	t.Skip("InvokerExecuteTask spends the MaxActionsPerExecution budget separately in the terminate, cancel and start phases (invoker_tasks.go Execute passes ictx by value)")
-
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	s := schedulertest.DefaultSchedule()
 	s.Spec.Interval[0].Interval = durationpb.New(10 * time.Second)
@@ -55,7 +53,7 @@ func TestActionBudgetSharedAcrossPhases(t *testing.T) {
 // keeps adding starts until the buffer holds about recentActionCount plus
 // MaxBufferSize/2 entries.
 func TestBackfillRespectsSmallMaxBufferSize(t *testing.T) {
-	t.Skip("backfillerBufferCapacity assumes recentActionCount completed starts are retained, so a backfill overfills a MaxBufferSize below 20 (backfiller_tasks.go allowedBufferedStarts)")
+	t.Skip("backfillerBufferCapacity discounts a constant recentActionCount (10) buffered starts as retained history, so a backfill overfills a MaxBufferSize below 20; upstream pins this arithmetic in TestAllowedBufferedStartsDiscountsRetainedHistory")
 
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	s := schedulertest.DefaultSchedule()

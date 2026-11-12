@@ -46,27 +46,17 @@ func TestSchedulerProperties(t *testing.T) {
 		// buffer (see TestBackfillRespectsSmallMaxBufferSize).
 		maxBuffer := rapid.SampledFrom([]int{20, 24, 40}).Draw(rt, "maxBufferSize")
 		reserve := rapid.IntRange(0, 1).Draw(rt, "generatorBufferReserve")
-		// CANCEL_OTHER and TERMINATE_OTHER put terminate and cancel RPCs in the same
-		// execution as starts, and the invoker spends the action budget separately
-		// per phase (see TestActionBudgetSharedAcrossPhases). Runs that use them
-		// therefore get a budget of 8 and no ALLOW_ALL, so at most one workflow runs
-		// and no execution reaches it; the budget invariant stays meaningful in the
-		// runs without them. 8 also keeps one execution's starts within the 10
-		// recent actions the driver reads recorded starts from.
+		// The budget stays well below the 10 recent actions the driver reads
+		// recorded starts from, so one execution cannot trim them out of view.
 		policies := []enumspb.ScheduleOverlapPolicy{
 			enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
 			enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
 			enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL,
+			enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL,
+			enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER,
+			enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER,
 		}
 		maxActions := rapid.SampledFrom([]int{1, 2, 3}).Draw(rt, "maxActionsPerExecution")
-		if rapid.Bool().Draw(rt, "replacingPolicies") {
-			policies = append(policies,
-				enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER,
-				enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER)
-			maxActions = 8
-		} else {
-			policies = append(policies, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL)
-		}
 		sched := drawSchedule(rt, start, idle, policies)
 
 		d := schedulertest.NewDriver(rt,
