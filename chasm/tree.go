@@ -177,8 +177,10 @@ type (
 
 		// Root component's search attributes and memo at the start of a transaction.
 		// They will be updated upon CloseTransaction() if they are changed.
-		currentSA   map[string]VisibilityValue
-		currentMemo proto.Message
+		currentSA             map[string]VisibilityValue
+		currentMemo           proto.Message
+		currentMemoVersion    uint64
+		hasCurrentMemoVersion bool
 
 		needsPointerResolution bool
 
@@ -378,11 +380,7 @@ func newTreeInitSearchAttributesAndMemo(
 		saSlice := saProvider.SearchAttributes(immutableContext)
 		root.currentSA = searchAttributeKeyValuesToMap(saSlice)
 	}
-	if memoProvider, ok := rootComponent.(VisibilityMemoProvider); ok {
-		root.currentMemo = proto.Clone(memoProvider.Memo(immutableContext))
-	}
-
-	return nil
+	return root.refreshMemoCache(immutableContext, rootComponent)
 }
 
 func searchAttributeKeyValuesToMap(saSlice []SearchAttributeKeyValue) map[string]VisibilityValue {
@@ -2050,14 +2048,11 @@ func (n *Node) closeTransactionForceUpdateVisibility(
 		n.currentSA = newSA
 	}
 
-	memoProvider, ok := rootComponent.(VisibilityMemoProvider)
-	if ok {
-		newMemo := memoProvider.Memo(immutableContext)
-		if !proto.Equal(n.currentMemo, newMemo) {
-			needUpdate = true
-		}
-		n.currentMemo = proto.Clone(newMemo)
+	memoChanged, err := n.updateMemoCache(immutableContext, rootComponent)
+	if err != nil {
+		return err
 	}
+	needUpdate = needUpdate || memoChanged
 
 	if !needUpdate {
 		return nil
@@ -2990,12 +2985,7 @@ func (n *Node) ApplyMutation(
 		saSlice := saProvider.SearchAttributes(immutableContext)
 		n.currentSA = searchAttributeKeyValuesToMap(saSlice)
 	}
-	memoProvider, ok := rootComponent.(VisibilityMemoProvider)
-	if ok {
-		n.currentMemo = proto.Clone(memoProvider.Memo(immutableContext))
-	}
-
-	return nil
+	return n.refreshMemoCache(immutableContext, rootComponent)
 }
 
 // ApplySnapshot is used by replication stack to apply node

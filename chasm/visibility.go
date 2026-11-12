@@ -44,6 +44,19 @@ type VisibilityMemoProvider interface {
 	Memo(Context) proto.Message
 }
 
+// VisibilityMemoVersionProvider supplements VisibilityMemoProvider with a
+// persisted, nonzero revision. Every change to Memo content must atomically
+// increase this revision; the provider must reject overflow before changing its
+// projection. MemoVersion must not assemble the full memo or depend on runtime
+// configuration, because cold and detached readers call it as well.
+//
+// CHASM compares revisions instead of calling, cloning, or comparing Memo during
+// transaction close. Actual visibility export still reads the complete Memo.
+// An unchanged revision is an application guarantee of identical memo content.
+type VisibilityMemoVersionProvider interface {
+	MemoVersion(Context) uint64
+}
+
 // VisibilitySearchAttributesMapper is a mapper for CHASM search attributes.
 type VisibilitySearchAttributesMapper struct {
 	// map from CHASM and predefined search attribute aliases to field names.

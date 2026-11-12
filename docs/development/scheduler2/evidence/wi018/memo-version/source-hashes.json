@@ -1,0 +1,7 @@
+{
+  "chasm/visibility.go": "d6d900bb713d07ac2f6c0baf622e57def4f4da8714a9bd0a0ce349b60ea4471d",
+  "chasm/visibility_version.go": "dee63fc8e01c258974f7228ea43d40544580aba7ff82890f3d23fd5377636dad",
+  "chasm/visibility_version_test.go": "2ad6ee0cd2aea953928052123994f8f8a05a626a66cc8fd45dd24e087c465334",
+  "chasm/tree.go": "6dfbc4684cf84d2d55a7c4a78a27deb46480a0e045d2e2776f4327179d3da574",
+  "chasm/registry.go": "fc2fd8934040c5f8f5894437ecbc66dd6a6c00d32110bc60817ea402b96bd409"
+}

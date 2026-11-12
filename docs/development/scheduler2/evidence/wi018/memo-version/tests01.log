@@ -1,0 +1,30 @@
+=== RUN   TestVisibilityMemoVersionSkipsAssembly
+=== PAUSE TestVisibilityMemoVersionSkipsAssembly
+=== RUN   TestVisibilityMemoVersionFailedPublicationAndLimits
+=== PAUSE TestVisibilityMemoVersionFailedPublicationAndLimits
+=== RUN   TestVisibilityMemoVersionPassiveAndDetached
+=== PAUSE TestVisibilityMemoVersionPassiveAndDetached
+=== RUN   TestVisibilityMemoVersionDefaultProviderParity
+=== PAUSE TestVisibilityMemoVersionDefaultProviderParity
+=== CONT  TestVisibilityMemoVersionSkipsAssembly
+=== CONT  TestVisibilityMemoVersionPassiveAndDetached
+=== CONT  TestVisibilityMemoVersionFailedPublicationAndLimits
+=== CONT  TestVisibilityMemoVersionDefaultProviderParity
+    visibility_version_test.go:209: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/visibility_version_test.go:209
+        	Error:      	Not equal: 
+        	            	expected: 2
+        	            	actual  : 1
+        	Test:       	TestVisibilityMemoVersionDefaultProviderParity
+--- FAIL: TestVisibilityMemoVersionDefaultProviderParity (0.00s)
+=== NAME  TestVisibilityMemoVersionFailedPublicationAndLimits
+    visibility_version_test.go:164: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/visibility_version_test.go:164
+        	Error:      	An error is expected but got nil.
+        	Test:       	TestVisibilityMemoVersionFailedPublicationAndLimits
+--- FAIL: TestVisibilityMemoVersionFailedPublicationAndLimits (0.00s)
+--- PASS: TestVisibilityMemoVersionSkipsAssembly (0.00s)
+--- PASS: TestVisibilityMemoVersionPassiveAndDetached (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm	0.455s
+FAIL

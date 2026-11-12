@@ -1,0 +1,4 @@
+# go.temporal.io/server/chasm [go.temporal.io/server/chasm.test]
+chasm/visibility_version_test.go:242:57: *memoVersionOnlyFixture does not satisfy Component (missing method LifecycleState)
+FAIL	go.temporal.io/server/chasm [build failed]
+FAIL

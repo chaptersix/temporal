@@ -1,0 +1,18 @@
+=== RUN   TestVisibilityMemoVersionSkipsAssembly
+=== PAUSE TestVisibilityMemoVersionSkipsAssembly
+=== RUN   TestVisibilityMemoVersionFailedPublicationAndLimits
+=== PAUSE TestVisibilityMemoVersionFailedPublicationAndLimits
+=== RUN   TestVisibilityMemoVersionPassiveAndDetached
+=== PAUSE TestVisibilityMemoVersionPassiveAndDetached
+=== RUN   TestVisibilityMemoVersionDefaultProviderParity
+=== PAUSE TestVisibilityMemoVersionDefaultProviderParity
+=== CONT  TestVisibilityMemoVersionSkipsAssembly
+=== CONT  TestVisibilityMemoVersionPassiveAndDetached
+=== CONT  TestVisibilityMemoVersionDefaultProviderParity
+=== CONT  TestVisibilityMemoVersionFailedPublicationAndLimits
+--- PASS: TestVisibilityMemoVersionDefaultProviderParity (0.01s)
+--- PASS: TestVisibilityMemoVersionSkipsAssembly (0.01s)
+--- PASS: TestVisibilityMemoVersionFailedPublicationAndLimits (0.01s)
+--- PASS: TestVisibilityMemoVersionPassiveAndDetached (0.01s)
+PASS
+ok  	go.temporal.io/server/chasm	0.458s
