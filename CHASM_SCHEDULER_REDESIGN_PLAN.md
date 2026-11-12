@@ -928,3 +928,8 @@ composition. Named routine100/exploration10000-per-property seed1 profiles, exha
 fixtures, savedv1/v2 replay, four production mutant shrink/replay/restoration checks,
 race and tagged lint pass. Finite ordered raw-source hypotheses and unproved Go/JSON/
 calendar boundaries are explicit. P5.4 closes; SP7/P5.2 and full public M3 remain open.
+WI-015 specified under D59 (design/public-execution-contract.md) after WI-014
+integration. Runtime workflow start must use actual FirstExecutionRunId; internal
+callback envelope/History transport and source-backed validation replace prototype
+assumptions. Full public execution/controls/projections/shared suite remains its goal.
+Worktree /private/tmp/sch-redesign-execution starts at faa449156; no production routing.
