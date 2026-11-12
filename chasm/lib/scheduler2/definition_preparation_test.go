@@ -253,3 +253,136 @@ func TestCalendarPreparationAddressedCorruption(t *testing.T) {
 		})
 	}
 }
+
+func TestCalendarPreparationCleanupFIFO(t *testing.T) {
+	t.Parallel()
+	first, err := StageCalendarSource(preparationCalendar(80), 1)
+	require.NoError(t, err)
+	h := newPreparationHarness(t, first)
+	p, ctx := preparationRoot(t, h, true)
+	_, err = p.InstallNextPages(ctx.(chasm.MutableContext), first, 3)
+	require.NoError(t, err)
+	h.commit(true)
+	second, err := StageCalendarSource(preparationCalendar(2), 2)
+	require.NoError(t, err)
+	p, ctx = preparationRoot(t, h, true)
+	require.NoError(t, p.ReplaceSource(ctx.(chasm.MutableContext), second))
+	h.commit(false)
+	p, ctx = preparationRoot(t, h, true)
+	require.EqualValues(t, 1, p.Revision)
+	require.Zero(t, p.CleanupCount)
+	require.NoError(t, p.ReplaceSource(ctx.(chasm.MutableContext), second))
+	h.commit(true)
+	installPreparation(t, h, second)
+	p, ctx = preparationRoot(t, h, true)
+	done, err := p.CleanupSuperseded(ctx.(chasm.MutableContext), 1)
+	require.NoError(t, err)
+	require.False(t, done)
+	h.commit(false)
+	p, ctx = preparationRoot(t, h, true)
+	owner, ok := p.Superseded.Get(ctx, "0")
+	require.True(t, ok)
+	require.Zero(t, owner.Cursor)
+	// Each new arrival appends; the original owner's three installed pages drain first.
+	for i := int64(3); i <= 5; i++ {
+		next, err := StageCalendarSource(preparationCalendar(1), i)
+		require.NoError(t, err)
+		p, ctx = preparationRoot(t, h, true)
+		require.NoError(t, p.ReplaceSource(ctx.(chasm.MutableContext), next))
+		_, err = p.CleanupSuperseded(ctx.(chasm.MutableContext), 1)
+		require.NoError(t, err)
+		h.commit(true)
+	}
+	p, ctx = preparationRoot(t, h, false)
+	require.EqualValues(t, 1, p.CleanupHead)
+	_, ok = p.Superseded.Get(ctx, "0")
+	require.False(t, ok)
+	for _, page := range first.pages[:3] {
+		_, ok = p.Pages.Get(ctx, calendarPageKey(page.SourceId, page.Field, page.Page))
+		require.False(t, ok)
+	}
+	current, err := StageCalendarSource(preparationCalendar(1), 5)
+	require.NoError(t, err)
+	installPreparation(t, h, current)
+	for i := 0; i < 20; i++ {
+		counts := h.node.BeginWorkInspectionForTest()
+		p, ctx = preparationRoot(t, h, true)
+		done, err = p.CleanupSuperseded(ctx.(chasm.MutableContext), 2)
+		require.NoError(t, err)
+		require.LessOrEqual(t, counts.Snapshot()["data_decode_calls"], int64(3))
+		require.Zero(t, counts.Snapshot()["map_hydration_keys"])
+		h.commit(true)
+		if done {
+			break
+		}
+		require.Less(t, i, 19)
+	}
+	p, ctx = preparationRoot(t, h, true)
+	require.Zero(t, p.CleanupCount)
+	require.Equal(t, p.CleanupHead, p.CleanupTail)
+	for _, page := range current.pages {
+		got, ok := p.Pages.Get(ctx, calendarPageKey(page.SourceId, page.Field, page.Page))
+		require.True(t, ok)
+		require.True(t, proto.Equal(page, got))
+	}
+	before := common.CloneProto(p.CalendarPreparationState)
+	done, err = p.CleanupSuperseded(ctx.(chasm.MutableContext), 2)
+	require.NoError(t, err)
+	require.True(t, done)
+	require.True(t, proto.Equal(before, p.CalendarPreparationState))
+	h.commit(true)
+}
+
+func TestCalendarPreparationCleanupCorruptionAndExhaustion(t *testing.T) {
+	t.Parallel()
+	for _, kind := range []string{"missing owner", "current source", "missing page", "wrong page", "exhaustion"} {
+		t.Run(kind, func(t *testing.T) {
+			t.Parallel()
+			first, err := StageCalendarSource(preparationCalendar(1), 1)
+			require.NoError(t, err)
+			second, err := StageCalendarSource(preparationCalendar(2), 2)
+			require.NoError(t, err)
+			h := newPreparationHarness(t, first)
+			installPreparation(t, h, first)
+			p, ctx := preparationRoot(t, h, true)
+			if kind == "exhaustion" {
+				p.CleanupHead, p.CleanupTail = ^uint64(0), ^uint64(0)
+				before := common.CloneProto(p.CalendarPreparationState)
+				require.ErrorContains(t, p.ReplaceSource(ctx.(chasm.MutableContext), second), "exhausted")
+				require.True(t, proto.Equal(before, p.CalendarPreparationState))
+				return
+			}
+			require.NoError(t, p.ReplaceSource(ctx.(chasm.MutableContext), second))
+			owner, ok := p.Superseded.Get(ctx, "0")
+			require.True(t, ok)
+			key := calendarPageKey(first.sourceID[:], 0, 0)
+			switch kind {
+			case "missing owner":
+				p.Superseded.Delete(ctx.(chasm.MutableContext), "0")
+			case "current source":
+				owner.SourceId = second.sourceID[:]
+				p.Superseded.Put(ctx.(chasm.MutableContext), "0", owner)
+			case "missing page":
+				p.Pages.Delete(ctx.(chasm.MutableContext), key)
+			case "wrong page":
+				page := common.CloneProto(first.pages[1])
+				key = calendarPageKey(page.SourceId, page.Field, page.Page)
+				page.Page++
+				p.Pages.Put(ctx.(chasm.MutableContext), key, page)
+			default:
+				t.Fatal("unexpected case")
+			}
+			h.commit(true)
+			p, ctx = preparationRoot(t, h, true)
+			before := common.CloneProto(p.CalendarPreparationState)
+			_, err = p.CleanupSuperseded(ctx.(chasm.MutableContext), 16)
+			require.Error(t, err)
+			require.True(t, proto.Equal(before, p.CalendarPreparationState))
+			if kind == "wrong page" {
+				_, exists := p.Pages.Get(ctx, calendarPageKey(first.sourceID[:], 0, 0))
+				require.True(t, exists, "later page corruption must not delete the earlier page")
+			}
+			h.commit(false)
+		})
+	}
+}

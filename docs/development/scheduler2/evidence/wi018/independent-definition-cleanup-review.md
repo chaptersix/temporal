@@ -1,0 +1,9 @@
+# Independent superseded-source cleanup review
+
+Reviewer: root. Reviewed the complete replacement/cleanup methods, new schema and cleanup tests. No blocking finding for this unselected preparation component.
+
+Replacement validates the current header and monotone FIFO counters before mutation, records exactly the old source identity, seven range counts and installed-page frontier, then publishes the new source while retaining FIFO ownership. A partial installation therefore never requires discovery by scanning the collection. Cleanup visits one head owner and at most sixteen installed pages, preflights every addressed page before deleting any, and advances/removes the owner atomically. Empty owners still consume only one call. New replacements append behind the current head and cannot reset its finite cursor. Current source identity is explicitly rejected as cleanup authority.
+
+Tests cover rejected replacement/cleanup publication via committed-image reload, multiple replacements during old-head progress, partial installation, empty owners, repeated empty cleanup, overflow before replacement, missing/incorrect owner or page metadata and a later-page error preserving earlier pages. Current source pages remain exact after the queue drains. The author full scheduler2 suite passes (root12.473s) and scoped lint has zero issues; root source review relies on that frozen evidence without a redundant rerun.
+
+This resolves the earlier missing superseded-header discovery/ownership mechanism at the component boundary. It does not yet install a scheduler maintenance task or prove fair runtime delivery, full CloseTransaction visit bounds, database fault recovery, or closed-execution retention behavior. Those remain integration gates. No scheduler activation or milestone acceptance is claimed.

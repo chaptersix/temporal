@@ -470,6 +470,10 @@ message CalendarPreparationState {
   uint64 installed_pages = 4;
   uint64 total_pages = 5;
   CalendarPreparationCursor cursor = 6;
+  // Monotone FIFO ordinals; count equals tail minus head.
+  uint64 cleanup_head = 7;
+  uint64 cleanup_tail = 8;
+  uint64 cleanup_count = 9;
 }
 
 // CalendarPreparationCursor is the durable value-only mask compiler continuation.
@@ -498,4 +502,12 @@ message CalendarPreparationPage {
   uint32 field = 2;
   uint32 page = 3;
   repeated CalendarPreparationRange ranges = 4;
+}
+
+// CalendarSupersededSource owns exactly the installed prefix of an old source.
+message CalendarSupersededSource {
+  bytes source_id = 1;
+  repeated uint32 range_counts = 2;
+  uint64 installed_pages = 3;
+  uint64 cursor = 4;
 }

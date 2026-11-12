@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"strconv"
 
 	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/serviceerror"
@@ -22,12 +23,13 @@ const maxPreparationInstallPages = 16
 
 // CalendarPreparation is an unselected preparation component. It has no tasks
 // and is not attached to the current Scheduler or Generator execution path.
-// Superseded source pages remain fenced by source identity pending bounded cleanup.
+// Superseded sources retain FIFO ownership until bounded page cleanup completes.
 type CalendarPreparation struct {
 	chasm.UnimplementedComponent
 	*scheduler2pb.CalendarPreparationState
-	Source chasm.Field[*schedulepb.StructuredCalendarSpec]
-	Pages  chasm.DataMap[*scheduler2pb.CalendarPreparationPage]
+	Source     chasm.Field[*schedulepb.StructuredCalendarSpec]
+	Pages      chasm.DataMap[*scheduler2pb.CalendarPreparationPage]
+	Superseded chasm.DataMap[*scheduler2pb.CalendarSupersededSource]
 }
 
 func (*CalendarPreparation) LifecycleState(chasm.Context) chasm.LifecycleState {
@@ -110,7 +112,7 @@ func NewCalendarPreparation(ctx chasm.MutableContext, stage *StagedCalendarSourc
 	if err := stage.validate(); err != nil {
 		return nil, err
 	}
-	return &CalendarPreparation{CalendarPreparationState: stage.state(), Source: chasm.NewDataField(ctx, common.CloneProto(stage.source)), Pages: chasm.NewDataMap[*scheduler2pb.CalendarPreparationPage](ctx)}, nil
+	return &CalendarPreparation{CalendarPreparationState: stage.state(), Source: chasm.NewDataField(ctx, common.CloneProto(stage.source)), Pages: chasm.NewDataMap[*scheduler2pb.CalendarPreparationPage](ctx), Superseded: chasm.NewDataMap[*scheduler2pb.CalendarSupersededSource](ctx)}, nil
 }
 
 // ReplaceSource invalidates partial preparation atomically without scanning old pages.
@@ -121,7 +123,27 @@ func (p *CalendarPreparation) ReplaceSource(ctx chasm.MutableContext, stage *Sta
 	if stage.revision <= p.Revision {
 		return serviceerror.NewFailedPrecondition("calendar replacement requires a newer revision")
 	}
-	p.CalendarPreparationState = stage.state()
+	if _, err := p.header(); err != nil {
+		return err
+	}
+	if err := p.validateCleanupQueue(); err != nil {
+		return err
+	}
+	if p.CleanupTail == math.MaxUint64 || p.CleanupCount == math.MaxUint64 {
+		return serviceerror.NewFailedPrecondition("calendar cleanup queue exhausted")
+	}
+	if bytes.Equal(stage.sourceID[:], p.SourceId) {
+		return serviceerror.NewInternal("calendar source identity reused")
+	}
+	key := strconv.FormatUint(p.CleanupTail, 10)
+	if _, exists := p.Superseded.Get(ctx, key); exists {
+		return serviceerror.NewInternal("calendar cleanup tail already owned")
+	}
+	owner := &scheduler2pb.CalendarSupersededSource{SourceId: bytes.Clone(p.SourceId), RangeCounts: append([]uint32(nil), p.RangeCounts...), InstalledPages: p.InstalledPages}
+	next := stage.state()
+	next.CleanupHead, next.CleanupTail, next.CleanupCount = p.CleanupHead, p.CleanupTail+1, p.CleanupCount+1
+	p.Superseded.Put(ctx, key, owner)
+	p.CalendarPreparationState = next
 	p.Source = chasm.NewDataField(ctx, common.CloneProto(stage.source))
 	return nil
 }
@@ -272,4 +294,65 @@ func (p *CalendarPreparation) PreparedMasks() (occurrence.CalendarMasks, bool, e
 		return occurrence.RangePage{}, serviceerror.NewInternal("completed calendar unexpectedly read a page")
 	}, 1)
 	return checked.Partial, err == nil, err
+}
+
+func (p *CalendarPreparation) validateCleanupQueue() error {
+	if p.CalendarPreparationState == nil || p.CleanupHead > p.CleanupTail || p.CleanupCount != p.CleanupTail-p.CleanupHead {
+		return serviceerror.NewInternal("invalid calendar cleanup queue")
+	}
+	return nil
+}
+
+// CleanupSuperseded removes at most limit pages belonging to the oldest source.
+// One call visits at most one owner, including owners with no installed pages.
+// New replacements append behind that owner and cannot reset its cursor.
+func (p *CalendarPreparation) CleanupSuperseded(ctx chasm.MutableContext, limit int) (bool, error) {
+	if limit < 1 || limit > maxPreparationInstallPages {
+		return false, serviceerror.NewInvalidArgument("calendar cleanup budget is outside supported bounds")
+	}
+	if _, err := p.header(); err != nil {
+		return false, err
+	}
+	if err := p.validateCleanupQueue(); err != nil {
+		return false, err
+	}
+	if p.CleanupCount == 0 {
+		return true, nil
+	}
+	key := strconv.FormatUint(p.CleanupHead, 10)
+	owner, ok := p.Superseded.Get(ctx, key)
+	if !ok || len(owner.SourceId) != 32 || bytes.Equal(owner.SourceId, p.SourceId) || bytes.Equal(owner.SourceId, make([]byte, 32)) || len(owner.RangeCounts) != 7 {
+		return false, serviceerror.NewInternal("missing or invalid calendar cleanup owner")
+	}
+	var counts [7]uint32
+	copy(counts[:], owner.RangeCounts)
+	var total uint64
+	for _, count := range counts {
+		total += (uint64(count) + occurrence.CalendarRangePageSize - 1) / occurrence.CalendarRangePageSize
+	}
+	if owner.Cursor > owner.InstalledPages || owner.InstalledPages > total {
+		return false, serviceerror.NewInternal("invalid calendar cleanup cursor")
+	}
+	end := owner.Cursor + min(uint64(limit), owner.InstalledPages-owner.Cursor)
+	for ordinal := owner.Cursor; ordinal < end; ordinal++ {
+		field, page := calendarPageOrdinal(counts, ordinal)
+		value, exists := p.Pages.Get(ctx, calendarPageKey(owner.SourceId, field, page))
+		expected := min(uint32(occurrence.CalendarRangePageSize), counts[field]-page*occurrence.CalendarRangePageSize)
+		if !exists || !bytes.Equal(value.SourceId, owner.SourceId) || value.Field != field || value.Page != page || len(value.Ranges) != int(expected) {
+			return false, serviceerror.NewInternal("missing or invalid superseded calendar page")
+		}
+	}
+	for ordinal := owner.Cursor; ordinal < end; ordinal++ {
+		field, page := calendarPageOrdinal(counts, ordinal)
+		p.Pages.Delete(ctx, calendarPageKey(owner.SourceId, field, page))
+	}
+	owner.Cursor = end
+	if end == owner.InstalledPages {
+		p.Superseded.Delete(ctx, key)
+		p.CleanupHead++
+		p.CleanupCount--
+	} else {
+		p.Superseded.Put(ctx, key, owner)
+	}
+	return p.CleanupCount == 0, nil
 }
