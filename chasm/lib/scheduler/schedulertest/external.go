@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"maps"
 	"sync"
-	"testing"
 
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -50,7 +50,7 @@ func (l *externalLedger) snapshot() map[string]ExternalStart {
 // test can deliver a callback or lose the response after external acceptance.
 type StartCall struct {
 	Request *workflowservice.StartWorkflowExecutionRequest
-	t       testing.TB
+	t       chasmtest.TB
 	result  chan startResponse
 	ledger  *externalLedger
 }

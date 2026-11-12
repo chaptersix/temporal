@@ -54,7 +54,7 @@ func TestGeneratorNextWakeupTimeStaysAtPendingJitteredFire(t *testing.T) {
 	require.NoError(t, err)
 	var timerDeadlines []time.Time
 	observeTimers := func(config *engineTestConfig) {
-		config.engineOpts = append(config.engineOpts, chasmtest.WithInvariantCheck(func(_ *testing.T, node *chasm.Node, _ chasm.RootComponent) {
+		config.engineOpts = append(config.engineOpts, chasmtest.WithInvariantCheck(func(_ chasmtest.TB, node *chasm.Node, _ chasm.RootComponent) {
 			timerDeadlines = nil
 			generator := node.Snapshot(nil).Nodes[generatorPath]
 			for _, task := range generator.GetMetadata().GetComponentAttributes().GetPureTasks() {

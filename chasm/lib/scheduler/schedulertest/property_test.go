@@ -20,9 +20,9 @@ import (
 // failing operation sequence to a minimal reproducer — directly useful for the
 // "stuck open" bug class.
 //
-// The outer *testing.T owns the engine scaffolding (it requires a real
-// testing.TB); invariant violations are reported through the *rapid.T so rapid
-// can shrink them.
+// The driver is built on the *rapid.T, so harness failures (not just invariant
+// violations) are shrunk by rapid and recorded in its failfile, and each
+// iteration's mocks and logger are scoped to that iteration.
 func TestSchedulerProperties(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -31,7 +31,7 @@ func TestSchedulerProperties(t *testing.T) {
 		idle := rapid.SampledFrom([]time.Duration{10 * time.Minute, time.Hour, 2 * time.Hour}).Draw(rt, "idleTime")
 		sched := drawSchedule(rt, start, idle)
 
-		d := schedulertest.NewDriver(t,
+		d := schedulertest.NewDriver(rt,
 			schedulertest.WithStartTime(start),
 			schedulertest.WithSchedule(sched),
 			schedulertest.WithConfig(configWith(func(tw *scheduler.Tweakables) {

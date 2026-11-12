@@ -6,8 +6,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	"go.temporal.io/server/chasm/lib/scheduler/schedulertest"
+	"pgregory.net/rapid"
 )
 
 // TestDriver_RunsIntervalScheduleForward verifies the driver fires the
@@ -70,3 +72,7 @@ func TestDriver_LimitedActionsExhaustedClosesAndQuiesces(t *testing.T) {
 		require.True(t, s.Closed, "schedule should be closed after idle task fires")
 	})
 }
+
+// *rapid.T must stay usable as the driver's test handle: harness failures then
+// flow through rapid's shrinking.
+var _ chasmtest.TB = (*rapid.T)(nil)

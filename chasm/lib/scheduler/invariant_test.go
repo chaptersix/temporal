@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -139,7 +140,7 @@ func idleTaskCount(registry *chasm.Registry, node *chasm.Node) int {
 // Only asserted in this direction. Sentinels legitimately arm an idle task
 // without setting IdleCloseTime (see NewSentinel), so an armed task with no
 // declared deadline is not a defect.
-func requireIdleCloseTimeBacked(t *testing.T, registry *chasm.Registry, node *chasm.Node, sched *scheduler.Scheduler) {
+func requireIdleCloseTimeBacked(t chasmtest.TB, registry *chasm.Registry, node *chasm.Node, sched *scheduler.Scheduler) {
 	t.Helper()
 
 	if sched.GetSentinel() || sched.GetClosed() || sched.GetIdleCloseTime() == nil {
@@ -153,7 +154,7 @@ func requireIdleCloseTimeBacked(t *testing.T, registry *chasm.Registry, node *ch
 }
 
 // requireNotStuck asserts the stuckness invariant against a clean tree.
-func requireNotStuck(t *testing.T, node *chasm.Node, sched *scheduler.Scheduler) {
+func requireNotStuck(t chasmtest.TB, node *chasm.Node, sched *scheduler.Scheduler) {
 	t.Helper()
 
 	total, byPath := liveTaskCount(node)
@@ -162,7 +163,7 @@ func requireNotStuck(t *testing.T, node *chasm.Node, sched *scheduler.Scheduler)
 }
 
 func requireValidSchedulerState(
-	t *testing.T,
+	t chasmtest.TB,
 	registry *chasm.Registry,
 	node *chasm.Node,
 	root chasm.RootComponent,

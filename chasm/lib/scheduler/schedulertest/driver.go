@@ -8,7 +8,6 @@ import (
 	"maps"
 	"slices"
 	"sync"
-	"testing"
 	"time"
 
 	commonpb "go.temporal.io/api/common/v1"
@@ -63,7 +62,7 @@ type Driver struct {
 	recorded           map[string]ExternalStart
 	initialActionCount int64
 
-	T          *testing.T
+	T          chasmtest.TB
 	Engine     *chasmtest.Engine
 	Registry   *chasm.Registry
 	TimeSource *clock.EventTimeSource
@@ -165,7 +164,7 @@ func WithMaxRunDuration(d time.Duration) DriverOption {
 // NewDriver constructs a Driver and starts a scheduler execution via the
 // production CreateScheduler path. startTime defaults to a fixed instant for
 // determinism.
-func NewDriver(t *testing.T, opts ...DriverOption) *Driver {
+func NewDriver(t chasmtest.TB, opts ...DriverOption) *Driver {
 	t.Helper()
 	d, cfg := newDriverScaffold(t, opts...)
 
@@ -187,7 +186,7 @@ func NewDriver(t *testing.T, opts ...DriverOption) *Driver {
 // NewDriverFromMigration constructs a Driver and starts a scheduler execution
 // from a migrated V1 state via the production CreateSchedulerFromMigration path.
 // This is the V1->V2 import side of a migration round trip.
-func NewDriverFromMigration(t *testing.T, req *schedulerpb.CreateFromMigrationStateRequest, opts ...DriverOption) *Driver {
+func NewDriverFromMigration(t chasmtest.TB, req *schedulerpb.CreateFromMigrationStateRequest, opts ...DriverOption) *Driver {
 	t.Helper()
 	d, _ := newDriverScaffold(t, opts...)
 	d.startExecution(func(mctx chasm.MutableContext) (*scheduler.Scheduler, error) {
@@ -198,7 +197,7 @@ func NewDriverFromMigration(t *testing.T, req *schedulerpb.CreateFromMigrationSt
 
 // newDriverScaffold builds the engine, registry, clients, and time source, but
 // does not start an execution.
-func newDriverScaffold(t *testing.T, opts ...DriverOption) (*Driver, *driverConfig) {
+func newDriverScaffold(t chasmtest.TB, opts ...DriverOption) (*Driver, *driverConfig) {
 	t.Helper()
 
 	cfg := &driverConfig{
