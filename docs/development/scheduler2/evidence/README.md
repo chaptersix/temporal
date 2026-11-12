@@ -499,3 +499,9 @@ DataMap implements point DATA access with detached ownership, coalesced deltas a
 The isolated calendar range compiler uses sixteen-value source pages and at most64 elementary steps per call. Fixed/mixed budget partitions,1025 duplicate ranges, reference UTC candidates, corruption and failed-read rollback checks pass (final0.806s). Review fixes reject invalid reversed endpoints and corrupt fixed masks. It is not wired into persisted scheduling or timezone/candidate evaluation. Evidence: wi018/calendar-preparation/ and independent-preparation-review.md.
 
 Combined required make lint-code-fast passes normal/minimal/vet with zero issues (wi018/combined-lint02.log). A standalone secondary count-trie prototype is undergoing separate review and is not included in these capability acceptance claims. M3 and M4 remain open.
+
+### Secondary count-index checkpoint
+
+The canonical Patricia secondary trie passes its final routine2.286s and independent review. Tests include100 Rapid traces of150 operations, shared roots, full96-bit depth and staged overflow rollback. At maximal depth the observed point operation uses1255 reads/290 writes/193 release visits; fixed source-derived ceilings are recorded in wi018/count-trie/review.md. Scoped required make lint-code normal/minimal/vet passes with zero issues. This is a standalone in-memory primitive, not the CHASM persistence adapter or complete queue index.
+
+Single-root10000-key value/ref storage is1,879,906 bytes (2,519,874 including bare IDs); framework overhead and outer-index duplication are excluded. No claim that the complete layout fits the existing execution size limit is made. The two-generation queue protocol preserves a completed drain predicate while finite old-generation cleanup proceeds, and now has an implementation direction using shared atomic batches. M3/M4 remain open.

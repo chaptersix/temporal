@@ -11,3 +11,5 @@ Initial source normalized any reversed End and accepted structurally impossible 
 No scheduler runtime path selects this primitive, no schema or durable continuation has been added, and no timezone/calendar-carry/union/jitter evaluator is replaced. This does not close WI018 or establish durable reload, full-definition preparation, custom timezone bounds or bounded List serialization. Those remain the staged contracts in definition-slices.md.
 
 Final review delta: author extracted preparationRange without changing lookup/count/arithmetic semantics and added mixed1..64 budget coverage. Reviewed that helper/callsite and final source hashes; previous independently run tests apply to the pre-extraction snapshot, and author final focused04 PASS0.800s covers final shape. Both fingerprints are retained separately; no unnecessary test rerun or historical hash overwrite.
+
+Final source-only refresh: validPreparationSource extracts the unchanged identity/field/allYears/mask conjunction. Reviewed exact equivalence and refreshed final fingerprints, preserving the preceding snapshot.

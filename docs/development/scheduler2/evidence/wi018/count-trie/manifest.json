@@ -1,0 +1,11 @@
+{
+  "source_sha256": {
+    "chasm/lib/scheduler2/internal/queueindex/count.go": "db888e1db8092f9feaa972185d0f108e542f8f974f62ab1a041348ff25f94e42",
+    "chasm/lib/scheduler2/internal/queueindex/count_test.go": "bc96c6e94888eb277152a018801a98268a8f935227b26964539d17f411068eaf",
+    "chasm/lib/scheduler2/internal/queueindex/keys.go": "515efea9645ae6168294bef7a785909c379b0fe1cb5d5a0143eac35d835c9272",
+    "chasm/lib/scheduler2/internal/queueindex/keys_test.go": "9b02e70ee77f42fbb4c18b2d571d3dbc7ad7a1d37c8e075a8bbca2b5176d4fba"
+  },
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2/internal/queueindex -count=1 -rapid.checks=100 -rapid.seed=1 -v",
+  "result": "PASS2.286s final routine04 after independent review followups",
+  "scope": "standalone secondary index only; no runtime adoption"
+}

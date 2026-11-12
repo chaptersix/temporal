@@ -1,0 +1,80 @@
+=== RUN   TestCountTrieReference
+=== PAUSE TestCountTrieReference
+=== RUN   TestCountTrieCanonicalSharingAndRollback
+=== PAUSE TestCountTrieCanonicalSharingAndRollback
+=== RUN   TestCountTrieExhaustionRollback
+=== PAUSE TestCountTrieExhaustionRollback
+=== RUN   TestCountTrieStorageAndWork
+=== PAUSE TestCountTrieStorageAndWork
+=== RUN   TestCountTrieFullWidthPaths
+=== PAUSE TestCountTrieFullWidthPaths
+=== RUN   TestCountTrieReferenceExhaustionRollback
+=== PAUSE TestCountTrieReferenceExhaustionRollback
+=== RUN   TestTimeKeyChronologicalOrder
+=== PAUSE TestTimeKeyChronologicalOrder
+=== RUN   TestTimeKeyNormalizesInstant
+=== PAUSE TestTimeKeyNormalizesInstant
+=== CONT  TestCountTrieReference
+=== CONT  TestCountTrieFullWidthPaths
+=== CONT  TestTimeKeyChronologicalOrder
+=== CONT  TestCountTrieReferenceExhaustionRollback
+=== RUN   TestCountTrieReferenceExhaustionRollback/fork_root
+=== PAUSE TestCountTrieReferenceExhaustionRollback/fork_root
+=== RUN   TestCountTrieReferenceExhaustionRollback/update_shared_child
+=== PAUSE TestCountTrieReferenceExhaustionRollback/update_shared_child
+=== CONT  TestCountTrieReferenceExhaustionRollback/fork_root
+--- PASS: TestTimeKeyChronologicalOrder (0.00s)
+=== CONT  TestTimeKeyNormalizesInstant
+=== RUN   TestTimeKeyNormalizesInstant/negative_nanosecond
+=== PAUSE TestTimeKeyNormalizesInstant/negative_nanosecond
+=== RUN   TestTimeKeyNormalizesInstant/normalized_nanosecond
+=== PAUSE TestTimeKeyNormalizesInstant/normalized_nanosecond
+=== CONT  TestCountTrieReferenceExhaustionRollback/update_shared_child
+=== RUN   TestTimeKeyNormalizesInstant/different_location
+=== PAUSE TestTimeKeyNormalizesInstant/different_location
+=== CONT  TestTimeKeyNormalizesInstant/negative_nanosecond
+=== CONT  TestTimeKeyNormalizesInstant/different_location
+=== CONT  TestTimeKeyNormalizesInstant/normalized_nanosecond
+--- PASS: TestTimeKeyNormalizesInstant (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/negative_nanosecond (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/different_location (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/normalized_nanosecond (0.00s)
+=== CONT  TestCountTrieExhaustionRollback
+--- PASS: TestCountTrieReferenceExhaustionRollback (0.00s)
+    --- PASS: TestCountTrieReferenceExhaustionRollback/fork_root (0.00s)
+    --- PASS: TestCountTrieReferenceExhaustionRollback/update_shared_child (0.00s)
+=== CONT  TestCountTrieCanonicalSharingAndRollback
+--- PASS: TestCountTrieExhaustionRollback (0.00s)
+=== CONT  TestCountTrieStorageAndWork
+=== RUN   TestCountTrieStorageAndWork/4
+=== PAUSE TestCountTrieStorageAndWork/4
+=== RUN   TestCountTrieStorageAndWork/5
+=== PAUSE TestCountTrieStorageAndWork/5
+=== RUN   TestCountTrieStorageAndWork/1000
+=== PAUSE TestCountTrieStorageAndWork/1000
+=== RUN   TestCountTrieStorageAndWork/10000
+=== PAUSE TestCountTrieStorageAndWork/10000
+=== CONT  TestCountTrieStorageAndWork/4
+    count_test.go:199: N=4 nodes=7 canonical_plus_ref_bytes=658 peak={Reads:27 Writes:6 Releases:3 EncodedBytes:258}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== CONT  TestCountTrieStorageAndWork/10000
+--- PASS: TestCountTrieCanonicalSharingAndRollback (0.00s)
+=== CONT  TestCountTrieStorageAndWork/1000
+=== NAME  TestCountTrieFullWidthPaths
+    count_test.go:225: maximal-depth increment work={Reads:1255 Writes:290 Releases:193 EncodedBytes:8342}
+--- PASS: TestCountTrieFullWidthPaths (0.01s)
+=== CONT  TestCountTrieStorageAndWork/5
+    count_test.go:199: N=5 nodes=9 canonical_plus_ref_bytes=846 peak={Reads:27 Writes:6 Releases:3 EncodedBytes:258}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== NAME  TestCountTrieStorageAndWork/1000
+    count_test.go:199: N=1000 nodes=1999 canonical_plus_ref_bytes=187906 peak={Reads:144 Writes:33 Releases:21 EncodedBytes:1032}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== NAME  TestCountTrieStorageAndWork/10000
+    count_test.go:199: N=10000 nodes=19999 canonical_plus_ref_bytes=1879906 peak={Reads:183 Writes:42 Releases:27 EncodedBytes:1290}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+--- PASS: TestCountTrieStorageAndWork (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/4 (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/5 (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/1000 (0.04s)
+    --- PASS: TestCountTrieStorageAndWork/10000 (0.19s)
+=== NAME  TestCountTrieReference
+    count_test.go:65: [rapid] OK, passed 100 tests (2.016192208s)
+--- PASS: TestCountTrieReference (2.02s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex	2.286s

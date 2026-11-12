@@ -1,0 +1,8 @@
+{
+  "chasm/context.go": "12c29743e5357576539d4f42a6c3d41f36d0465d7a47513d7d36bd5706d65f05",
+  "chasm/fields_iterator.go": "60f34874c4a2ea8f512695352782feda12297bacaa6518b2aa07aa3628baa382",
+  "chasm/registry.go": "9fb9f0b4aa049102db896d738ea43057f81a049911b84decadc30376c86f7e0c",
+  "chasm/tree.go": "d42dd4e7323b6820a61becb19782440e2eed8134b24d14552b907cef577931e6",
+  "chasm/data_map.go": "3253cc425f619c7afadd408e78e21b43de33617a5ca931387ba8da2692649fbe",
+  "chasm/data_map_test.go": "859cbdb208be9c0deadf0bad0d7bdc9f9be76aebee4f951ef98c066c859c0d38"
+}
