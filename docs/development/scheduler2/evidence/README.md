@@ -327,3 +327,13 @@ claim full scheduler2 shared-suite parity or generated SchedulerService transpor
 
 No universal Go/calendar/JSON/persistence refinement claim. Remaining SP7 calendar
 boundary and public functional M3 gates remain open, as does M4.
+
+## WI-016 bounded calendar verification (accepted)
+
+| ID | Claim | Evidence |
+|---|---|---|
+| E81 | Independent bounded calendar oracle and pinned boundary cases | [Profile](wi016/verification-profile.json), [oracle review](wi016/independent-oracle-review.md); 10,000 generated cases, exact source timing and trusted primitives explicit. |
+| E82 | London fold completeness correction | [Diagnosis](wi016/independent-fold-review.md), [non-author fix review](wi016/independent-calendar-review.md), [literal replay](wi016/calendar-fold-fix/manifest.json). |
+| E83 | Final-source fault sensitivity and verification | [Three shrinking/replay mutations](wi016/spec-mutations/campaign02/manifest.json), [acceptance](wi016/acceptance.md), [lint](wi016/acceptance-lint.log), [integration provenance](wi016/integration-provenance.json); bounded SP7/P5.2 accepted. |
+
+WI015 full public execution/shared coverage remains open; this is not M3 completion.
