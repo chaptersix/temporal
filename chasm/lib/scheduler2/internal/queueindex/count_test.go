@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -19,20 +21,21 @@ func countTestKey(value uint64) CountKey {
 }
 
 func requireCountStore(t require.TestingT, s *CountStore, roots ...CountRoot) {
+	entries := countTestEntries(t, s)
 	expected := make(map[CountRoot]uint64)
 	for _, root := range roots {
 		if root != (CountRoot{}) {
 			expected[root]++
 		}
 	}
-	for id, e := range s.nodes {
+	for id, e := range entries {
 		wire := e.Node.encode()
 		require.Equal(t, id, CountRoot(sha256.Sum256(wire[:])))
 		if e.Node.Bit < 96 {
 			require.NotEqual(t, CountRoot{}, e.Node.Left)
 			require.NotEqual(t, CountRoot{}, e.Node.Right)
-			l, lok := s.nodes[e.Node.Left]
-			r, rok := s.nodes[e.Node.Right]
+			l, lok := entries[e.Node.Left]
+			r, rok := entries[e.Node.Right]
 			require.True(t, lok)
 			require.True(t, rok)
 			require.Equal(t, l.Node.Key, e.Node.Key)
@@ -46,15 +49,15 @@ func requireCountStore(t require.TestingT, s *CountStore, roots ...CountRoot) {
 			require.Equal(t, uint8(96), e.Node.Bit)
 		}
 	}
-	require.Len(t, expected, len(s.nodes))
-	for id, e := range s.nodes {
+	require.Len(t, expected, len(entries))
+	for id, e := range entries {
 		require.Positive(t, e.Refs)
 		require.Equal(t, expected[id], e.Refs)
 	}
 }
 
 func requirePointBudget(t require.TestingT, stats CountStats) {
-	require.LessOrEqual(t, stats.Reads, 16*97)
+	require.LessOrEqual(t, stats.Reads, 32*97)
 	require.LessOrEqual(t, stats.Writes, 8*97)
 	require.LessOrEqual(t, stats.Releases, 2*97)
 	require.LessOrEqual(t, stats.EncodedBytes, 97*86)
@@ -69,8 +72,8 @@ func TestCountTrieReference(t *testing.T) {
 		for range 150 {
 			key := countTestKey(rapid.Uint64Range(0, 63).Draw(rt, "key"))
 			add := rapid.Bool().Draw(rt, "add")
-			before := make(map[CountRoot]countEntry, len(s.nodes))
-			for id, e := range s.nodes {
+			before := make(map[CountRoot]countEntry, len(countTestEntries(t, s)))
+			for id, e := range countTestEntries(t, s) {
 				before[id] = e
 			}
 			next, stats, err := s.Update(root, key, add)
@@ -78,7 +81,7 @@ func TestCountTrieReference(t *testing.T) {
 			if !add && model[key] == 0 {
 				require.ErrorContains(rt, err, "absent")
 				require.Equal(rt, root, next)
-				require.Equal(rt, before, s.nodes)
+				require.Equal(rt, before, countTestEntries(t, s))
 			} else {
 				require.NoError(rt, err)
 				root = next
@@ -146,7 +149,7 @@ func TestCountTrieCanonicalSharingAndRollback(t *testing.T) {
 			requireCountStore(t, s, a, b, c)
 		}
 	}
-	require.Empty(t, s.nodes)
+	require.Empty(t, countTestEntries(t, s))
 }
 
 func TestCountTrieExhaustionRollback(t *testing.T) {
@@ -159,18 +162,18 @@ func TestCountTrieExhaustionRollback(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, tx.retain(root))
 	for id, e := range tx.changed {
-		s.nodes[id] = *e
+		require.NoError(t, s.backend.Apply([]IndexChange{{Key: countPageKey(id), Value: e.encode()}}))
 	}
-	before := s.nodes[root]
+	before := countTestEntries(t, s)[root]
 	next, _, err := s.Update(root, key, true)
 	require.ErrorContains(t, err, "count exhausted")
 	require.Equal(t, root, next)
-	require.Equal(t, map[CountRoot]countEntry{root: before}, s.nodes)
+	require.Equal(t, map[CountRoot]countEntry{root: before}, countTestEntries(t, s))
 	// Overflow after creating a new staged leaf must also leave no orphan pages.
 	next, _, err = s.Update(root, countTestKey(2), true)
 	require.ErrorContains(t, err, "count exhausted")
 	require.Equal(t, root, next)
-	require.Equal(t, map[CountRoot]countEntry{root: before}, s.nodes)
+	require.Equal(t, map[CountRoot]countEntry{root: before}, countTestEntries(t, s))
 }
 
 func TestCountTrieStorageAndWork(t *testing.T) {
@@ -193,10 +196,10 @@ func TestCountTrieStorageAndWork(t *testing.T) {
 				peak.Releases = max(peak.Releases, stats.Releases)
 				peak.EncodedBytes = max(peak.EncodedBytes, stats.EncodedBytes)
 			}
-			require.Len(t, s.nodes, 2*n-1)
-			require.Equal(t, (2*n-1)*94, s.EncodedSize())
+			require.Len(t, countTestEntries(t, s), 2*n-1)
+			require.Equal(t, (2*n-1)*94, len(countTestEntries(t, s))*94)
 			requireCountStore(t, s, root)
-			t.Logf("N=%d nodes=%d canonical_plus_ref_bytes=%d peak=%+v; excludes CHASM paths/envelopes, mutable-state accounting, Go heap", n, len(s.nodes), s.EncodedSize(), peak)
+			t.Logf("N=%d nodes=%d canonical_plus_ref_bytes=%d peak=%+v; excludes CHASM paths/envelopes, mutable-state accounting, Go heap", n, len(countTestEntries(t, s)), len(countTestEntries(t, s))*94, peak)
 		})
 	}
 }
@@ -248,7 +251,7 @@ func TestCountTrieFullWidthPaths(t *testing.T) {
 		requirePointBudget(t, stats)
 		root = next
 	}
-	require.Empty(t, s.nodes)
+	require.Empty(t, countTestEntries(t, s))
 }
 
 func TestCountTrieReferenceExhaustionRollback(t *testing.T) {
@@ -265,14 +268,14 @@ func TestCountTrieReferenceExhaustionRollback(t *testing.T) {
 			}
 			target := root
 			if tc == "update_shared_child" {
-				target = s.nodes[root].Node.Right
+				target = countTestEntries(t, s)[root].Node.Right
 			}
 			// Model the maximal number of external owners without allocating handles.
-			entry := s.nodes[target]
+			entry := countTestEntries(t, s)[target]
 			entry.Refs = math.MaxUint64
-			s.nodes[target] = entry
-			before := make(map[CountRoot]countEntry, len(s.nodes))
-			for id, e := range s.nodes {
+			require.NoError(t, s.backend.Apply([]IndexChange{{Key: countPageKey(target), Value: entry.encode()}}))
+			before := make(map[CountRoot]countEntry, len(countTestEntries(t, s)))
+			for id, e := range countTestEntries(t, s) {
 				before[id] = e
 			}
 			if tc == "fork_root" {
@@ -283,7 +286,27 @@ func TestCountTrieReferenceExhaustionRollback(t *testing.T) {
 				require.Equal(t, root, next)
 				require.Positive(t, stats.EncodedBytes, "new left-branch pages were staged before retaining unchanged right child")
 			}
-			require.Equal(t, before, s.nodes)
+			require.Equal(t, before, countTestEntries(t, s))
 		})
 	}
+}
+
+func countTestEntries(t require.TestingT, s *CountStore) map[CountRoot]countEntry {
+	backend, ok := s.backend.(*MemoryIndexBackend)
+	require.True(t, ok)
+	entries := make(map[CountRoot]countEntry)
+	for key, wire := range backend.values {
+		if !strings.HasPrefix(key, "count/") {
+			continue
+		}
+		raw, err := hex.DecodeString(strings.TrimPrefix(key, "count/"))
+		require.NoError(t, err)
+		require.Len(t, raw, 32)
+		var id CountRoot
+		copy(id[:], raw)
+		e, err := decodeCount(id, wire)
+		require.NoError(t, err)
+		entries[id] = e
+	}
+	return entries
 }

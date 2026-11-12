@@ -1,0 +1,123 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 11.963542ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (exports_file|imports|types_sizes|compiled_files|deps|files|name) took 239.882291ms"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 13.39525ms"
+level=info msg="[linters_context/goanalysis] analyzers took 484.502548ms with top 10 stages: revive: 336.971958ms, goimports: 84.674875ms, QF1010: 5.285291ms, gci: 4.688208ms, S1038: 4.593083ms, SA1002: 4.461583ms, SA1027: 3.787458ms, S1036: 3.763083ms, asmdecl: 3.5875ms, buildir: 3.533002ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 2 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 48 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 72 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 5 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=warning msg="[runner/nolint_filter] Found unknown linters in //nolint directives: cognitive-complexity"
+level=info msg="[runner] Issues before processing: 253, after processing: 3"
+level=info msg="[runner] Processors filtering stat (in/out): exclusion_rules: 252/119, nolint_filter: 119/77, max_per_file_from_linter: 3/3, max_same_issues: 3/3, path_shortener: 3/3, filename_unadjuster: 253/253, max_from_linter: 3/3, sort_results: 3/3, path_absoluter: 253/253, invalid_issue: 253/253, path_relativity: 253/253, generated_file_filter: 253/252, diff: 77/3, fixer: 3/3, source_code: 3/3, severity-rules: 3/3, cgo: 253/253, uniq_by_line: 3/3, path_prettifier: 3/3, exclusion_paths: 253/253"
+level=info msg="[runner] processing took 81.426787ms with stages: diff: 69.749458ms, nolint_filter: 9.99875ms, generated_file_filter: 750µs, exclusion_rules: 684.916µs, path_relativity: 117.292µs, exclusion_paths: 58.75µs, source_code: 45.207µs, cgo: 6.208µs, invalid_issue: 5.083µs, path_absoluter: 3.791µs, uniq_by_line: 2.792µs, sort_results: 1.083µs, path_shortener: 959ns, max_same_issues: 833ns, filename_unadjuster: 749ns, path_prettifier: 250ns, max_per_file_from_linter: 250ns, fixer: 249ns, severity-rules: 84ns, max_from_linter: 83ns"
+level=info msg="[runner] linters took 633.99725ms with stages: goanalysis_metalinter: 552.516791ms"
+../chasm/lib/scheduler2/internal/queueindex/count.go:212:94: confusing-results: unnamed results of the same type may be confusing, consider using named results (revive)
+func validateCountBranch(n countNode, read func(CountRoot) (countEntry, error)) (countEntry, countEntry, error) {
+                                                                                             ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:231:1: cognitive-complexity: function (*countTxn).changeAfter has cognitive complexity 28 (> max enabled 25) (revive)
+func (t *countTxn) changeAfter(root CountRoot, key CountKey, add bool, parentBit int) (CountRoot, error) {
+	if root == (CountRoot{}) {
+		if !add {
+			return CountRoot{}, errors.New("count key absent")
+		}
+		return t.intern(countNode{Key: key, Bit: 96, Count: 1})
+	}
+	e, err := t.read(root)
+	if err != nil {
+		return CountRoot{}, err
+	}
+	n := e.Node
+	if int(n.Bit) <= parentBit {
+		return CountRoot{}, errors.New("invalid count branch progression")
+	}
+	if n.Bit < 96 {
+		if _, _, err := validateCountBranch(n, t.read); err != nil {
+			return CountRoot{}, err
+		}
+	}
+	different := firstDifferent(n.Key, key)
+	if different < n.Bit {
+		if !add {
+			return CountRoot{}, errors.New("count key absent")
+		}
+		leaf, err := t.intern(countNode{Key: key, Bit: 96, Count: 1})
+		if err != nil {
+			return CountRoot{}, err
+		}
+		if keyBit(key, different) == 0 {
+			return t.branch(leaf, root, different)
+		}
+		return t.branch(root, leaf, different)
+	}
+	if n.Bit == 96 {
+		if add {
+			if n.Count == math.MaxUint64 {
+				return CountRoot{}, errors.New("count exhausted")
+			}
+			n.Count++
+		} else {
+			if n.Count == 1 {
+				return CountRoot{}, nil
+			}
+			n.Count--
+		}
+		return t.intern(n)
+	}
+	if keyBit(key, n.Bit) == 0 {
+		n.Left, err = t.changeAfter(n.Left, key, add, int(n.Bit))
+	} else {
+		n.Right, err = t.changeAfter(n.Right, key, add, int(n.Bit))
+	}
+	if err != nil {
+		return CountRoot{}, err
+	}
+	if n.Left == (CountRoot{}) {
+		return n.Right, nil
+	}
+	if n.Right == (CountRoot{}) {
+		return n.Left, nil
+	}
+	return t.branch(n.Left, n.Right, n.Bit)
+}
+../chasm/lib/scheduler2/internal/queueindex/count.go:357:3: multiline-if-init: if-init statement should not span multiple lines (revive)
+		if _, _, err := validateCountBranch(e.Node, func(id CountRoot) (countEntry, error) {
+			child, ok, err := s.load(id)
+			if err != nil {
+				return countEntry{}, err
+			}
+			if !ok {
+				return countEntry{}, errors.New("missing count child")
+			}
+			return child, nil
+		}); err != nil {
+			return 0, err
+		}
+3 issues:
+* revive: 3
+level=info msg="File cache stats: 1 entries of total size 11.6KiB"
+level=info msg="Memory: 11 samples, avg is 85.1MB, max is 113.1MB"
+level=info msg="Execution took 924.522708ms"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

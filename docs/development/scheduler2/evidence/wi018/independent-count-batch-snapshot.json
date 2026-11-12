@@ -1,0 +1,14 @@
+{
+  "initial_tested": {
+    "chasm/lib/scheduler2/internal/queueindex/count.go": "544570300c0a8eba53f6a625f59689098022735db0315dbfa1133d5cee015907",
+    "chasm/lib/scheduler2/internal/queueindex/count_test.go": "9e238a12e3b479c14031e2e0fee71e9fe229e667a904cc6ab6f73a17a5374d6b",
+    "chasm/lib/scheduler2/internal/queueindex/backend.go": "330e89a4454d135531128e3111b7fe9d716aea5d51f074362bb9f3f8a85272e1",
+    "chasm/lib/scheduler2/internal/queueindex/backend_test.go": "b19488fc093e345303e640f5c8cd7de1ba18e11dfdd0b11ce8ce095908adeee7"
+  },
+  "final_reviewed_after_lint_extraction": {
+    "chasm/lib/scheduler2/internal/queueindex/count.go": "a2d026fea4cdbe385265828c57939bf468ea30b6a0fc77d2bafc9baba3ff3c57",
+    "chasm/lib/scheduler2/internal/queueindex/count_test.go": "9e238a12e3b479c14031e2e0fee71e9fe229e667a904cc6ab6f73a17a5374d6b",
+    "chasm/lib/scheduler2/internal/queueindex/backend.go": "330e89a4454d135531128e3111b7fe9d716aea5d51f074362bb9f3f8a85272e1",
+    "chasm/lib/scheduler2/internal/queueindex/backend_test.go": "b19488fc093e345303e640f5c8cd7de1ba18e11dfdd0b11ce8ce095908adeee7"
+  }
+}
