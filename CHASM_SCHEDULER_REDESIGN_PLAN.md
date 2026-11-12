@@ -515,6 +515,7 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D55 | Atomic local configuration | accepted E67–E71 | Full source/control replacement prepared before writes; preserves admitted bytes and frozen waiter policies. | E67–E71; strengthened10000-case relation |
 | D56 | Local update replay | accepted E67–E71 | Bounded CHASM request-ID success replay; stale new-ID revision rejects. Separate from public conflict tokens. | E67–E69 |
 | D57 | Exact enumeration proof/correspondence domain | specified for WI-013 | Independent executable uses explicit identity/origin/cache and exact shifted nanoseconds; nominal end differs from supported actual end. Strengthened reachable-state resumability and batching claims, no assumed output equivalence. | WI-013 and Lean correspondence investigation |
+| D58 | Local public API test seam | specified WI-014 | Dedicated test-only frontend→actual History adapter, ordinary validation, no fallback/sentinel; typed visibility uses native lifecycle and rejects resolved division overrides. Paused-empty first profile; full M3 API remains required. | local-api-contract.md / WI-014 |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 
