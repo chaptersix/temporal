@@ -1,0 +1,14 @@
+{
+  "command": "CGO_ENABLED=0 go test -tags test_dep,integration ./tests -run '^TestSchedule2LostEffectResponseAcrossChainChange$' -count=1 -timeout 4m",
+  "final_result": "PASS 8.163s",
+  "final_log": "run07.log.gz",
+  "source_sha256": {
+    "tests/schedule2_effect_recovery_test.go": "9fc2b621411aa59623b2112a23d48493215918c348fca9b65378804bc3724443"
+  },
+  "lint_command": "make lint-code LINT_CODE_TARGETS='./tests' GOLANGCI_LINT_FIX=false GOLANGCI_LINT_BASE_REV=HEAD",
+  "lint_scope": "Final scoped make lint-code PASS (normal/minimal/vet), zero issues. Earlier attempts retained concurrent clock fixture findings.",
+  "prior_run06_source_sha256": {
+    "tests/schedule2_effect_recovery_test.go": "be14db4aee8b9ba2010a110d5add0f77663deee86e45529de86c783536b8057a"
+  },
+  "lint_final_log": "lint03.log.gz"
+}

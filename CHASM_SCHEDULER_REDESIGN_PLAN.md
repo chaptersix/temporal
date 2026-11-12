@@ -1073,3 +1073,9 @@ specified as WI018, preserving single-execution atomicity and offline decoding;
 independent design review precedes implementation. True cold mutable-state load
 cost remains separately measured and cannot be confused with repeated hot mutation
 work. No public capacity restriction is reintroduced to hide the issue.
+
+### WI018 implementation preparation and recovery review
+
+WI018 now has a draft in design/bounded-public-work.md and a dependency record in work-items/WI-018.md. Independent framework review identifies five protocol gates: durable fair dispatch claims, closed-root cleanup ownership, transaction-scoped lazy handles, complete task invalidation, and exact indexed queue equivalence. Instrumentation and baseline growth witnesses are assigned before collection implementation. No bounded-work acceptance is claimed.
+
+The clock recovery witness passes both physical delivery orders (final run05,21.442s); root independently reviewed its source and verified manifest fingerprints against the tested checkpoint. Evidence: wi015/clock-recovery/independent-review.md. The effect recovery witness passed four cases, but root found its original completion barrier could be satisfied by a retry; the corrected exact original-invocation barrier passes run07,8.163s and awaits final independent inspection. Prior passing runs do not establish that stronger causal assertion. M3 remains open and M4 remains preparatory.

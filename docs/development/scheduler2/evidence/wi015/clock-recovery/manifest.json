@@ -1,0 +1,22 @@
+{
+  "source_sha256": {
+    "tests/schedule2_clock_recovery_test.go": "96f397ac1e3ccf3eb9f33f47ca60af675705252e3d95aa0b5d3c423d490e41ba",
+    "tests/testcore/history_task_recorder.go": "4f601c605f6af1a29829c65cc9d8b18d30f08365e59e6ab220db5867eba48c97",
+    "service/history/queues/active_standby_executor.go": "8591ca50927a2274c050c5c79221a67238e2472fa75a7eb42ebba91e36b4987e",
+    "service/history/timer_queue_task_executor_base.go": "2175e777245aadd406aed3b7ce270ccff00a13cfa11cacf0ba7d4ba653cf6744",
+    "service/history/timer_queue_active_task_executor.go": "127213a95f8737c0d9ab8bdc5a01f2e20271136dd9f05be85577a33ba0dfa154",
+    "service/history/shard/task_key_generator.go": "2f593c1d6bf3bd1331d07c2c0d5930aba9f28653c40848af9e21621ba0450903",
+    "chasm/tree.go": "a192a526bc98b401a271df958fbb941285a773aa41310d8e2698d3d9a36b99c3",
+    "chasm/lib/scheduler2/coordinator.go": "622eeb779c030c32b510d9c623e1057a192a39248015740c44ce6cc42b7d41a3",
+    "chasm/lib/scheduler2/timeskipping.go": "ec6380683017f1886f1c76ebf6e8eb6ed093d7bd6f07cfcbb255717b45311d30"
+  },
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 ./tests -run '^TestSchedule2ClockSkipReloadAndOldPhysicalTimer$' -count=1 -timeout=3m -v",
+  "results": {
+    "01": "FAIL31.284s: incorrect exact re-enqueued physical timestamp equality; shard key generator adds1ms precision",
+    "02": "FAIL40.881s: fixture omitted WorkflowTimeSkippingEnabled; child Start rejected propagated config",
+    "03": "PASS20.914s singleorder",
+    "04": "PASS20.499s twoorders",
+    "05": "PASS21.442s finaltwoorders with preexecution childbody counterzero"
+  },
+  "scope": "actual local clock skip, committed physical restamp, CloseShard/reload, actual AddTasks reenqueue+History timer dispatch under both causal orders; exact same retained logical WorkTask across skip/reload; no fabricated logical task or rewritten test-input fire timestamp"
+}

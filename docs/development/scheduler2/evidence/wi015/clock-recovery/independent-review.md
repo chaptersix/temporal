@@ -1,0 +1,7 @@
+# Independent clock recovery review
+
+Reviewer: root. Reviewed the complete final test and verified all manifest source fingerprints. chasm/tree.go matches the committed tested checkpoint; concurrent WI018 instrumentation changes that file and is not covered by this recovery run.
+
+Both orderings retain the exact persisted logical WorkTask payload, scheduled time and versioned fence across the clock patch (excluding physical publication status), then compare the reloaded coordinator token. The old-first ordering gates both existing physical envelopes and releases the explicitly re-enqueued original envelope while that token remains live. The shifted-first ordering executes the shifted envelope before observing consumption of the old duplicate. Post-dispatch barriers precede the final one-action assertion. Workflow identity and nominal time remain exact.
+
+Admin AddTasks assigns a new task ID and rounds physical time; the fixture preserves the original serialized input and permits the documented two-millisecond persisted-time comparison. This establishes actual local SQLite shard reload and physical consumption, not power-loss recovery, arbitrary backend coverage or cross-cluster failover. The twenty-second setup window can cause timeout on a sufficiently slow host; it cannot falsely satisfy the gated assertions. No blocking behavior finding. Final run05 reports PASS21.442s for both orderings; no redundant unchanged-test rerun.
