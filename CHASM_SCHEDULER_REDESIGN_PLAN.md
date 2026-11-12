@@ -918,3 +918,10 @@ focused race and lint pass. Separate frontend registry and List cleanup defects 
 fixed with retained failure evidence. Full public execution/controls/callbacks and
 scheduler2 shared suite remain required next work (WI-015 draft); WI-013 proofs remain
 open. M3 is active and M4 pending; no rollout or migration is authorized.
+
+
+WI-015 specified under D59 (design/public-execution-contract.md) after WI-014
+integration. Runtime workflow start must use actual FirstExecutionRunId; internal
+callback envelope/History transport and source-backed validation replace prototype
+assumptions. Full public execution/controls/projections/shared suite remains its goal.
+Worktree /private/tmp/sch-redesign-execution starts at faa449156; no production routing.
