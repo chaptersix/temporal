@@ -1,0 +1,33 @@
+=== RUN   TestCalendarFoldOrdering
+=== PAUSE TestCalendarFoldOrdering
+=== RUN   TestCalendarFoldNormalizationPreservesGaps
+=== PAUSE TestCalendarFoldNormalizationPreservesGaps
+=== CONT  TestCalendarFoldOrdering
+=== RUN   TestCalendarFoldOrdering/London
+=== CONT  TestCalendarFoldNormalizationPreservesGaps
+=== PAUSE TestCalendarFoldOrdering/London
+=== RUN   TestCalendarFoldOrdering/NewYork
+=== PAUSE TestCalendarFoldOrdering/NewYork
+=== CONT  TestCalendarFoldOrdering/London
+=== RUN   TestCalendarFoldNormalizationPreservesGaps/Europe/London
+=== CONT  TestCalendarFoldOrdering/NewYork
+=== PAUSE TestCalendarFoldNormalizationPreservesGaps/Europe/London
+=== RUN   TestCalendarFoldNormalizationPreservesGaps/America/New_York
+=== PAUSE TestCalendarFoldNormalizationPreservesGaps/America/New_York
+=== CONT  TestCalendarFoldNormalizationPreservesGaps/Europe/London
+=== CONT  TestCalendarFoldNormalizationPreservesGaps/America/New_York
+=== NAME  TestCalendarFoldOrdering/London
+    calendar_fold_regression_test.go:47: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/service/worker/scheduler/calendar_fold_regression_test.go:47
+        	Error:      	Should be true
+        	Test:       	TestCalendarFoldOrdering/London
+        	Messages:   	after=2024-10-26 23:59:59.999999999 +0000 UTC want=2024-10-27 00:00:00 +0000 UTC got=2024-10-27 01:00:00 +0000 GMT
+--- PASS: TestCalendarFoldNormalizationPreservesGaps (0.00s)
+    --- PASS: TestCalendarFoldNormalizationPreservesGaps/Europe/London (0.00s)
+    --- PASS: TestCalendarFoldNormalizationPreservesGaps/America/New_York (0.00s)
+--- FAIL: TestCalendarFoldOrdering (0.00s)
+    --- FAIL: TestCalendarFoldOrdering/London (0.00s)
+    --- PASS: TestCalendarFoldOrdering/NewYork (0.00s)
+FAIL
+FAIL	go.temporal.io/server/service/worker/scheduler	0.650s
+FAIL

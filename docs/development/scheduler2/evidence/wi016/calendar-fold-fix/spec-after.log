@@ -1,0 +1,42 @@
+=== RUN   TestSpec
+=== RUN   TestSpec/TestCanonicalize
+=== RUN   TestSpec/TestExcludeAll
+=== RUN   TestSpec/TestGetNextTimeComputeLimitExceeded
+=== RUN   TestSpec/TestGetNextTimeComputeLimitWarning
+=== RUN   TestSpec/TestGetNextTimeComputeLimitWarningThenResolves
+=== RUN   TestSpec/TestSpecBoundedJitter
+=== RUN   TestSpec/TestSpecCalendarAndCron
+=== RUN   TestSpec/TestSpecCalendarBasic
+=== RUN   TestSpec/TestSpecCalendarMultiple
+=== RUN   TestSpec/TestSpecEndTime
+=== RUN   TestSpec/TestSpecExclude
+=== RUN   TestSpec/TestSpecIntervalBasic
+=== RUN   TestSpec/TestSpecIntervalMultiple
+=== RUN   TestSpec/TestSpecIntervalPhase
+=== RUN   TestSpec/TestSpecJitterSeed
+=== RUN   TestSpec/TestSpecJitterSingleRun
+=== RUN   TestSpec/TestSpecMixedCalendarInterval
+=== RUN   TestSpec/TestSpecStartTime
+=== RUN   TestSpec/TestSpecStartTimeMinusOneSecond
+--- PASS: TestSpec (0.01s)
+    --- PASS: TestSpec/TestCanonicalize (0.00s)
+    --- PASS: TestSpec/TestExcludeAll (0.00s)
+    --- PASS: TestSpec/TestGetNextTimeComputeLimitExceeded (0.00s)
+    --- PASS: TestSpec/TestGetNextTimeComputeLimitWarning (0.00s)
+    --- PASS: TestSpec/TestGetNextTimeComputeLimitWarningThenResolves (0.00s)
+    --- PASS: TestSpec/TestSpecBoundedJitter (0.00s)
+    --- PASS: TestSpec/TestSpecCalendarAndCron (0.00s)
+    --- PASS: TestSpec/TestSpecCalendarBasic (0.00s)
+    --- PASS: TestSpec/TestSpecCalendarMultiple (0.00s)
+    --- PASS: TestSpec/TestSpecEndTime (0.00s)
+    --- PASS: TestSpec/TestSpecExclude (0.00s)
+    --- PASS: TestSpec/TestSpecIntervalBasic (0.00s)
+    --- PASS: TestSpec/TestSpecIntervalMultiple (0.00s)
+    --- PASS: TestSpec/TestSpecIntervalPhase (0.00s)
+    --- PASS: TestSpec/TestSpecJitterSeed (0.00s)
+    --- PASS: TestSpec/TestSpecJitterSingleRun (0.00s)
+    --- PASS: TestSpec/TestSpecMixedCalendarInterval (0.00s)
+    --- PASS: TestSpec/TestSpecStartTime (0.00s)
+    --- PASS: TestSpec/TestSpecStartTimeMinusOneSecond (0.00s)
+PASS
+ok  	go.temporal.io/server/service/worker/scheduler	0.661s

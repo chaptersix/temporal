@@ -1,0 +1,6 @@
+=== RUN   TestSpecBoundaryLondonFoldGolden
+=== PAUSE TestSpecBoundaryLondonFoldGolden
+=== CONT  TestSpecBoundaryLondonFoldGolden
+--- PASS: TestSpecBoundaryLondonFoldGolden (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	1.179s

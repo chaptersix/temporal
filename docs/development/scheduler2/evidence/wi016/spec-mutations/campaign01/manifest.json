@@ -1,0 +1,419 @@
+{
+  "status": "passed",
+  "checkout": "/private/tmp/sch-redesign-execution",
+  "sources_before": {
+    "service/worker/scheduler/calendar.go": "479689bac6ee9d23ddf4e721d174a6578781fd1008cb56b4040981dc04dbd97d",
+    "service/worker/scheduler/candidate.go": "794011c72c2705bc4a4d4bb76d603c794ae9d180bb2ec379edc3708722ccef09",
+    "service/worker/scheduler/spec.go": "c34ce2e2aee0bb05fe7bf2fdc8017638b36127c69e671fbe3c6bf69d48c9da84",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence.go": "a2bd64980ffa6e105f380c03ecc36fee9c57e09dd800787b29a7813fb94f942b",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence_test.go": "ed11486cbb44f6a29222bd1dbf769cf72eaa07aa942aa0b273807895f2dcee81",
+    "chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go": "4de5f547b0402f67149696620774341337c5c8c39b2e797ce5d1f70e4f6955ff",
+    "go.mod": "e6e484565f5051837f9300ae1a639ca62bd3d26c53dd037e978f3e71e10eb410",
+    "go.sum": "71d8480e2b1dc47b66e27f468b547df00e4a46a4c92363fe34df7582cbcc4fba",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/America_New_York.tzif": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/Europe_London.tzif": "c85495070dca42687df6a1c3ee780a27cbcb82f1844750ea6f642833a44d29b4"
+  },
+  "head": "2c69d8ad7a781bc3a35144b592317d7179526a56",
+  "go_version": "go version go1.27.3 darwin/arm64",
+  "rapid_version": "v1.2.0",
+  "commands": [
+    {
+      "argv": [
+        "go",
+        "test",
+        "-c",
+        "-tags",
+        "test_dep",
+        "-o",
+        "/private/tmp/scheduler2-wi016-mutations01/baseline.test",
+        "./chasm/lib/scheduler2/internal/occurrence"
+      ],
+      "cwd": "/private/tmp/sch-redesign-execution",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4"
+      },
+      "log": "baseline-compile.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 2.0049662499222904
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations01/baseline.test",
+        "-test.run=^TestSpecBoundaryProperties$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=150s",
+        "-rapid.checks=100",
+        "-rapid.seed=29",
+        "-rapid.shrinktime=20s",
+        "-rapid.nofailfile=true",
+        "-rapid.debug=true"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations01/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4"
+      },
+      "log": "baseline-property.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 1.3274870419409126
+    },
+    {
+      "argv": [
+        "go",
+        "test",
+        "-c",
+        "-tags",
+        "test_dep",
+        "-overlay",
+        "/private/tmp/scheduler2-wi016-mutations01/fold-late-base-overlay.json",
+        "-o",
+        "/private/tmp/scheduler2-wi016-mutations01/fold-late-base.test",
+        "./chasm/lib/scheduler2/internal/occurrence"
+      ],
+      "cwd": "/private/tmp/sch-redesign-execution",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4"
+      },
+      "log": "fold-late-base-compile.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 2.4402990411035717
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations01/fold-late-base.test",
+        "-test.run=^TestSpecBoundaryProperties$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=150s",
+        "-rapid.checks=1000",
+        "-rapid.seed=29",
+        "-rapid.shrinktime=20s",
+        "-rapid.nofailfile=true",
+        "-rapid.debug=true"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations01/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4"
+      },
+      "log": "fold-late-base-property.log",
+      "exit_code": 1,
+      "timed_out": false,
+      "seconds": 4.224972124909982
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations01/fold-late-base.test",
+        "-test.run=^TestSpecBoundarySavedReplay$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=60s"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations01/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4",
+        "SCHEDULER2_SPEC_REPLAY": "/private/tmp/scheduler2-wi016-mutations01/fold-late-base-minimized.json"
+      },
+      "log": "fold-late-base-standalone-mutant.log",
+      "exit_code": 1,
+      "timed_out": false,
+      "seconds": 0.019396415911614895
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations01/baseline.test",
+        "-test.run=^TestSpecBoundarySavedReplay$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=60s"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations01/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4",
+        "SCHEDULER2_SPEC_REPLAY": "/private/tmp/scheduler2-wi016-mutations01/fold-late-base-minimized.json"
+      },
+      "log": "fold-late-base-standalone-baseline.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 0.021103041945025325
+    },
+    {
+      "argv": [
+        "go",
+        "test",
+        "-c",
+        "-tags",
+        "test_dep",
+        "-overlay",
+        "/private/tmp/scheduler2-wi016-mutations01/jitter-ignore-lookahead-overlay.json",
+        "-o",
+        "/private/tmp/scheduler2-wi016-mutations01/jitter-ignore-lookahead.test",
+        "./chasm/lib/scheduler2/internal/occurrence"
+      ],
+      "cwd": "/private/tmp/sch-redesign-execution",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4"
+      },
+      "log": "jitter-ignore-lookahead-compile.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 2.0466517920140177
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations01/jitter-ignore-lookahead.test",
+        "-test.run=^TestSpecBoundaryProperties$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=150s",
+        "-rapid.checks=1000",
+        "-rapid.seed=29",
+        "-rapid.shrinktime=20s",
+        "-rapid.nofailfile=true",
+        "-rapid.debug=true"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations01/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4"
+      },
+      "log": "jitter-ignore-lookahead-property.log",
+      "exit_code": 1,
+      "timed_out": false,
+      "seconds": 5.295613874914125
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations01/jitter-ignore-lookahead.test",
+        "-test.run=^TestSpecBoundarySavedReplay$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=60s"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations01/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4",
+        "SCHEDULER2_SPEC_REPLAY": "/private/tmp/scheduler2-wi016-mutations01/jitter-ignore-lookahead-minimized.json"
+      },
+      "log": "jitter-ignore-lookahead-standalone-mutant.log",
+      "exit_code": 1,
+      "timed_out": false,
+      "seconds": 0.01960658305324614
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations01/baseline.test",
+        "-test.run=^TestSpecBoundarySavedReplay$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=60s"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations01/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4",
+        "SCHEDULER2_SPEC_REPLAY": "/private/tmp/scheduler2-wi016-mutations01/jitter-ignore-lookahead-minimized.json"
+      },
+      "log": "jitter-ignore-lookahead-standalone-baseline.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 0.020967541029676795
+    },
+    {
+      "argv": [
+        "go",
+        "test",
+        "-c",
+        "-tags",
+        "test_dep",
+        "-overlay",
+        "/private/tmp/scheduler2-wi016-mutations01/ignore-exclusions-overlay.json",
+        "-o",
+        "/private/tmp/scheduler2-wi016-mutations01/ignore-exclusions.test",
+        "./chasm/lib/scheduler2/internal/occurrence"
+      ],
+      "cwd": "/private/tmp/sch-redesign-execution",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4"
+      },
+      "log": "ignore-exclusions-compile.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 1.9862235421314836
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations01/ignore-exclusions.test",
+        "-test.run=^TestSpecBoundaryProperties$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=150s",
+        "-rapid.checks=1000",
+        "-rapid.seed=29",
+        "-rapid.shrinktime=20s",
+        "-rapid.nofailfile=true",
+        "-rapid.debug=true"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations01/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4"
+      },
+      "log": "ignore-exclusions-property.log",
+      "exit_code": 1,
+      "timed_out": false,
+      "seconds": 1.4254212081432343
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations01/ignore-exclusions.test",
+        "-test.run=^TestSpecBoundarySavedReplay$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=60s"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations01/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4",
+        "SCHEDULER2_SPEC_REPLAY": "/private/tmp/scheduler2-wi016-mutations01/ignore-exclusions-minimized.json"
+      },
+      "log": "ignore-exclusions-standalone-mutant.log",
+      "exit_code": 1,
+      "timed_out": false,
+      "seconds": 0.019601625157520175
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations01/baseline.test",
+        "-test.run=^TestSpecBoundarySavedReplay$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=60s"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations01/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4",
+        "SCHEDULER2_SPEC_REPLAY": "/private/tmp/scheduler2-wi016-mutations01/ignore-exclusions-minimized.json"
+      },
+      "log": "ignore-exclusions-standalone-baseline.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 0.02096641599200666
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations01/baseline.test",
+        "-test.run=^TestSpecBoundaryProperties$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=150s",
+        "-rapid.checks=100",
+        "-rapid.seed=29",
+        "-rapid.shrinktime=20s",
+        "-rapid.nofailfile=true",
+        "-rapid.debug=true"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations01/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4"
+      },
+      "log": "restored-baseline-property.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 0.44583091605454683
+    }
+  ],
+  "cases": [
+    {
+      "name": "fold-late-base",
+      "source": "service/worker/scheduler/calendar.go",
+      "old": "return earlier",
+      "new": "return result",
+      "original_sha256": "479689bac6ee9d23ddf4e721d174a6578781fd1008cb56b4040981dc04dbd97d",
+      "mutant_sha256": "6de2ef19ae362e7dfdc83559ce957e48692c447682c738355f71f67f24bbb1d5",
+      "overlay": "fold-late-base-overlay.json",
+      "detected": true,
+      "minimized": true,
+      "standalone_mutant_failed": true,
+      "standalone_baseline_passed": true,
+      "binary_sha256": "a93178fcec1e5a94878e41b9bf91e9a6a295805d7ba1c1f2f581d6f53ff988df",
+      "shrink": {
+        "rounds": 2,
+        "tries": 901,
+        "shrinks": 71
+      },
+      "replay": "fold-late-base-minimized.json",
+      "replay_sha256": "eea3d80d23e435fce51839f6eed646ef31e55a8abab091171e51aed2f0ca9349"
+    },
+    {
+      "name": "jitter-ignore-lookahead",
+      "source": "service/worker/scheduler/candidate.go",
+      "old": "maxJitter = min(maxJitter, following.Sub(nominal))",
+      "new": "maxJitter = timestamp.DurationValue(cs.spec.Jitter)",
+      "original_sha256": "794011c72c2705bc4a4d4bb76d603c794ae9d180bb2ec379edc3708722ccef09",
+      "mutant_sha256": "40fcc86605f28f6e1adbbe5d73b0c4c68b56a32100b75a980056c317ddd5513e",
+      "overlay": "jitter-ignore-lookahead-overlay.json",
+      "detected": true,
+      "minimized": true,
+      "standalone_mutant_failed": true,
+      "standalone_baseline_passed": true,
+      "binary_sha256": "b2462f486ac0b8c835855352908d075322b1a4455f5d3c20e3856e1add166e90",
+      "shrink": {
+        "rounds": 2,
+        "tries": 1187,
+        "shrinks": 57
+      },
+      "replay": "jitter-ignore-lookahead-minimized.json",
+      "replay_sha256": "ff125bfd4fa2a819dc559fa7ae96d2a32835af22fa297fe990691865423e6a9b"
+    },
+    {
+      "name": "ignore-exclusions",
+      "source": "service/worker/scheduler/candidate.go",
+      "old": "if cs.excluded(nominal) {",
+      "new": "if false && cs.excluded(nominal) {",
+      "original_sha256": "794011c72c2705bc4a4d4bb76d603c794ae9d180bb2ec379edc3708722ccef09",
+      "mutant_sha256": "1d4ae8f06378653049fd11d96202e3bc2985f2592278db32b8e3143b2387500b",
+      "overlay": "ignore-exclusions-overlay.json",
+      "detected": true,
+      "minimized": true,
+      "standalone_mutant_failed": true,
+      "standalone_baseline_passed": true,
+      "binary_sha256": "55d1f0fccc6bf6feb568d821f4e1d0a9aca3830295e5d38af708606f7559ba9c",
+      "shrink": {
+        "rounds": 3,
+        "tries": 192,
+        "shrinks": 32
+      },
+      "replay": "ignore-exclusions-minimized.json",
+      "replay_sha256": "bcc11605f3b28f60fc6576a18d97a66291aaa7b3ca217e0dd11caea873cedcf6"
+    }
+  ],
+  "baseline_binary_sha256": "7340f3ceee98a4082e1a5f45c9e71c08fecf1de2dde2a7ffa950941231a8d224",
+  "sources_after": {
+    "service/worker/scheduler/calendar.go": "479689bac6ee9d23ddf4e721d174a6578781fd1008cb56b4040981dc04dbd97d",
+    "service/worker/scheduler/candidate.go": "794011c72c2705bc4a4d4bb76d603c794ae9d180bb2ec379edc3708722ccef09",
+    "service/worker/scheduler/spec.go": "c34ce2e2aee0bb05fe7bf2fdc8017638b36127c69e671fbe3c6bf69d48c9da84",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence.go": "a2bd64980ffa6e105f380c03ecc36fee9c57e09dd800787b29a7813fb94f942b",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence_test.go": "ed11486cbb44f6a29222bd1dbf769cf72eaa07aa942aa0b273807895f2dcee81",
+    "chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go": "4de5f547b0402f67149696620774341337c5c8c39b2e797ce5d1f70e4f6955ff",
+    "go.mod": "e6e484565f5051837f9300ae1a639ca62bd3d26c53dd037e978f3e71e10eb410",
+    "go.sum": "71d8480e2b1dc47b66e27f468b547df00e4a46a4c92363fe34df7582cbcc4fba",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/America_New_York.tzif": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/Europe_London.tzif": "c85495070dca42687df6a1c3ee780a27cbcb82f1844750ea6f642833a44d29b4"
+  },
+  "checkout_unchanged": true
+}

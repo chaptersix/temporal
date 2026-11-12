@@ -1,0 +1,6 @@
+=== RUN   TestSpecBoundarySavedReplay
+=== PAUSE TestSpecBoundarySavedReplay
+=== CONT  TestSpecBoundarySavedReplay
+--- PASS: TestSpecBoundarySavedReplay (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.632s

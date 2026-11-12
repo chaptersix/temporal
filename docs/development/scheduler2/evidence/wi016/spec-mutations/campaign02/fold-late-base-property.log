@@ -1,0 +1,463 @@
+=== RUN   TestSpecBoundaryProperties
+=== PAUSE TestSpecBoundaryProperties
+=== CONT  TestSpecBoundaryProperties
+    shrink.go:96: [shrink] round 0 start
+    shrink.go:282: [shrink] remove_group success: remove group "" at 16: [11, 12)
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 0: 3620077265775342 to 0
+    shrink.go:282: [shrink] minblock_shift success: minimize block 1: 4223823090079384 to 2111911545039692
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 2111911545039692 to 1971174056684364
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1971174056684364 to 1970624300870476
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970624300870476 to 1970349422963532
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970349422963532 to 1970332243094348
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970332243094348 to 1970327948127052
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970327948127052 to 1970325800643404
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970325800643404 to 1970325263772492
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970325263772492 to 1970324995337036
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324995337036 to 1970324861119308
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324861119308 to 1970324844342092
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324844342092 to 1970324840147788
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324840147788 to 1970324838050636
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324838050636 to 1970324837002060
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324837002060 to 1970324836985676
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324836985676 to 1970324836977484
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324836977484 to 1970324836975436
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324836975436 to 1970324836974924
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324836974924 to 1970324836974668
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324836974668 to 1970324836974604
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324836974604 to 1970324836974596
+    shrink.go:282: [shrink] minblock_unset success: minimize block 1: 1970324836974596 to 1970324836974592
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1970324836974592 to 1970324836974591
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1970324836974591 to 1908752185819135
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1908752185819135 to 1893359023030271
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1893359023030271 to 1891434877681663
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1891434877681663 to 1890472805007359
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890472805007359 to 1890412675465215
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890412675465215 to 1890405159272447
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890405159272447 to 1890401401176063
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890401401176063 to 1890400461651967
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890400461651967 to 1890399991889919
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399991889919 to 1890399874449407
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399874449407 to 1890399845089279
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399845089279 to 1890399844171775
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399844171775 to 1890399843713023
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843713023 to 1890399843598335
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843598335 to 1890399843591167
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843591167 to 1890399843589375
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843589375 to 1890399843588479
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843588479 to 1890399843588031
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843588031 to 1890399843587807
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843587807 to 1890399843587695
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843587695 to 1890399843587639
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843587639 to 1890399843587625
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843587625 to 1890399843587618
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843587618 to 1890399843587617
+    shrink.go:282: [shrink] minblock_binsearch success: minimize block 1: 1890399843587617 to 1890399843587616
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 3: 1385057593417549 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 4: 1 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 5: 4050063061193599 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 6: 1 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 7: 5740559743383908 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 9: 6432865857730913 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 15: 1 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 16: 4 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 17: 1 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 20: 1 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 21: 1 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 23: 3388306250908229 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 25: 5481219119767230 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 26: 19 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 28: 7572449100573776 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 30: 1849889675079979 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 33: 1 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 34: 1 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 36: 2 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 37: 1 to 0
+    shrink.go:282: [shrink] minblock_trysmall success: minimize block 39: 1 to 0
+    shrink.go:96: [shrink] round 1 start
+    shrink.go:101: [shrink] trying expensive algorithms for round 1
+    shrink.go:113: [shrink] done, 2 rounds total (901 tries, 71 shrinks, 223 cache hits):
+        map[minblock_binsearch:79 minblock_shift:4 minblock_sort:584 minblock_trysmall:62 minblock_unset:67 remove_group:28 remove_group_lower:10 remove_groupspan:47 sort_groups:20]
+    spec_boundaries_test.go:344: [rapid] failed after 3 tests: window 0 sequence: got [{Nominal:2024-10-26 23:00:00 +0000 UTC Actual:2024-10-26 23:00:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:00:30 +0000 UTC Actual:2024-10-26 23:00:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:00 +0000 UTC Actual:2024-10-26 23:30:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:30 +0000 UTC Actual:2024-10-26 23:30:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:00:00 +0000 UTC Actual:2024-10-27 00:00:00 +0000 UTC Revision:7 Excluded:false}] expected [{Nominal:2024-10-26 23:00:00 +0000 UTC Actual:2024-10-26 23:00:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:00:30 +0000 UTC Actual:2024-10-26 23:00:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:00 +0000 UTC Actual:2024-10-26 23:30:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:30 +0000 UTC Actual:2024-10-26 23:30:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:00:00 +0000 UTC Actual:2024-10-27 00:00:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:00:30 +0000 UTC Actual:2024-10-27 00:00:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:30:00 +0000 UTC Actual:2024-10-27 00:30:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:30:30 +0000 UTC Actual:2024-10-27 00:30:30 +0000 UTC Revision:7 Excluded:false}]
+        SPEC_BOUNDARY_REPLAY={
+          "version": "spec-boundaries-v1",
+          "name": "family-4",
+          "spec": {
+            "structuredCalendar": [
+              {
+                "second": [
+                  {
+                    "end": 59,
+                    "step": 30
+                  }
+                ],
+                "minute": [
+                  {
+                    "end": 59,
+                    "step": 30
+                  }
+                ],
+                "hour": [
+                  {
+                    "end": 23,
+                    "step": 1
+                  }
+                ],
+                "dayOfMonth": [
+                  {
+                    "start": 1,
+                    "end": 31,
+                    "step": 1
+                  }
+                ],
+                "month": [
+                  {
+                    "start": 1,
+                    "end": 12,
+                    "step": 1
+                  }
+                ],
+                "year": [
+                  {
+                    "start": 2024,
+                    "end": 2024,
+                    "step": 1
+                  }
+                ],
+                "dayOfWeek": [
+                  {
+                    "end": 6,
+                    "step": 1
+                  }
+                ]
+              }
+            ],
+            "startTime": "2024-10-26T23:00:00Z",
+            "endTime": "2024-10-27T02:59:59.999999999Z",
+            "jitter": "0s",
+            "timezoneName": "Europe/London",
+            "timezoneData": "VFppZjIAAAAAAAAAAAAAAAAAAAAAAAAIAAAACAAAAAAAAADyAAAACAAAABGAAAAAmyatoJvWBSCczzCgnaTDoJ6cnaCflxqgoIW6IKF2/KCiZZwgo3vIoKROuKClP/sgpiVgIKcnxiCoKiwgqOv4oKoA06Cq1RUgq+nwIKzHbCCtydIgrqdOIK+geaCwhzAgsZLQoLJwTKCzcrKgtFAuoLVJWiC2MBCgtzJ2oLgP8qC5Eligue/UoLrpACC72PEgvNtXIL240yC+sf6gv5i1IMCbGyDBeJcgwnr9IMNYeSDEUaSgxThbIMY6wSDHWNagx9oJoMoWJpDKl1mQy9EekMx3O5DNsQCQzmBYEM+Q4pDQbl6Q0XIWENH7MhDSaf4g02MpoNRJ4CDVHiGg1UL9kNXf4BDWTqwg1v4DoNgujiDY+ZUg2g5wINrr7CDb5Reg3MvOIN3E+aDetOqg364WIOCUzKDhckig4mt0IONSKqDkVJCg5TIMoOY9rSDnGykg6BRUoOj7CyDp/XEg6trtIOvdUyDsus8g7bP6oO6asSDvgWeg8J99IPFhSaDyf18g80pmIPRfQSD1IQ2g9j8jIPcA76D4HwUg+ODRoPn+5yD6wLOg++gDoPx7q6D9x7twA3DGIAQpWCAFUKggBgk6IAcwiiAH6RwgCRBsIAnI/iAK8E4gC7IaoAzQMCANkfygDrASIA9x3qAQmS6gEVHAoBJ5EKATMaKgFFjyoBUj65AWOMaQFwPNkBgYqJAY46+QGfiKkBrDkZAb4acQHKyuEB3BiRAejJAQH6FrECBschAhgU0QIkxUECNhLxAkLDYQJUpLkCYMGBAnKi2QJ/U0kCkKD5Ap1RaQKunxkCu0+JAsydOQLZTakC6ptZAvdLyQMImXkDFd2RAycrQQMz27EDRSlhA1HZ0QNjJ4EDb9fxA4G5SQON1hEDn7dpA6vUMQO9tYkDymX5A9uzqQPoZBkD+bHJBAZiOQQYQ5EEJGBZBDZBsQRCXnkEVD/RBGBcmQRyPfEEfu5hBJA8EQSc7IEErjoxBLrqoQTMy/kE2OjBBOrKGQT25uEFCMg5BRV4qQUmxlkFM3bJBUTEeQVRdOkFYsKZBW9zCQWBVGEFjXEpBZ9SgQWrb0kFvVChBcoBEQXbTsEF5/8xBflM4QYF/VEGF96pBiP7cQY13MkGQfmRBlPa6QZgi1kGcdkJBn6JeQaP1ykGnIeZBq3VSQa6hbkGzGcRBtiD2QbqZTEG9oH5BwhjUQcVE8EHJmFxBzMR4QdEX5EHURABB2LxWQdvDiEHgO95B40MQQee7ZkHqwphB7zruQfJnCkH2unZB+eaSQf45/kAQBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAwEDAQMBAwEDAQIBAgEDAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQUHAQIBAgECAQIBAgECAQIBAgECBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYH////tQAAAAAOEAEEAAAAAAAIAAAcIAEMAAAAAAAIAAAOEAAEAAAOEAEEAAAAAAAITE1UAEJTVABHTVQAQkRTVAAAAQEBAAABAQAAAAAAAAEBVFppZjIAAAAAAAAAAAAAAAAAAAAAAAAIAAAACAAAAAAAAADyAAAACAAAABH/////Gl0Jy/////+bJq2g/////5vWBSD/////nM8woP////+dpMOg/////56cnaD/////n5caoP////+ghbog/////6F2/KD/////omWcIP////+je8ig/////6ROuKD/////pT/7IP////+mJWAg/////6cnxiD/////qCosIP////+o6/ig/////6oA06D/////qtUVIP////+r6fAg/////6zHbCD/////rcnSIP////+up04g/////6+geaD/////sIcwIP////+xktCg/////7JwTKD/////s3KyoP////+0UC6g/////7VJWiD/////tjAQoP////+3Mnag/////7gP8qD/////uRJYoP////+579Sg/////7rpACD/////u9jxIP////+821cg/////7240yD/////vrH+oP////+/mLUg/////8CbGyD/////wXiXIP/////Cev0g/////8NYeSD/////xFGkoP/////FOFsg/////8Y6wSD/////x1jWoP/////H2gmg/////8oWJpD/////ypdZkP/////L0R6Q/////8x3O5D/////zbEAkP/////OYFgQ/////8+Q4pD/////0G5ekP/////RchYQ/////9H7MhD/////0mn+IP/////TYymg/////9RJ4CD/////1R4hoP/////VQv2Q/////9Xf4BD/////1k6sIP/////W/gOg/////9gujiD/////2PmVIP/////aDnAg/////9rr7CD/////2+UXoP/////cy84g/////93E+aD/////3rTqoP/////frhYg/////+CUzKD/////4XJIoP/////ia3Qg/////+NSKqD/////5FSQoP/////lMgyg/////+Y9rSD/////5xspIP/////oFFSg/////+j7CyD/////6f1xIP/////q2u0g/////+vdUyD/////7LrPIP/////ts/qg/////+6asSD/////74FnoP/////wn30g//////FhSaD/////8n9fIP/////zSmYg//////RfQSD/////9SENoP/////2PyMg//////cA76D/////+B8FIP/////44NGg//////n+5yD/////+sCzoP/////76AOg//////x7q6D//////ce7cAAAAAADcMYgAAAAAAQpWCAAAAAABVCoIAAAAAAGCTogAAAAAAcwiiAAAAAAB+kcIAAAAAAJEGwgAAAAAAnI/iAAAAAACvBOIAAAAAALshqgAAAAAAzQMCAAAAAADZH8oAAAAAAOsBIgAAAAAA9x3qAAAAAAEJkuoAAAAAARUcCgAAAAABJ5EKAAAAAAEzGioAAAAAAUWPKgAAAAABUj65AAAAAAFjjGkAAAAAAXA82QAAAAABgYqJAAAAAAGOOvkAAAAAAZ+IqQAAAAABrDkZAAAAAAG+GnEAAAAAAcrK4QAAAAAB3BiRAAAAAAHoyQEAAAAAAfoWsQAAAAACBschAAAAAAIYFNEAAAAAAiTFQQAAAAACNhLxAAAAAAJCw2EAAAAAAlSkuQAAAAACYMGBAAAAAAJyotkAAAAAAn9TSQAAAAACkKD5AAAAAAKdUWkAAAAAAq6fGQAAAAACu0+JAAAAAALMnTkAAAAAAtlNqQAAAAAC6ptZAAAAAAL3S8kAAAAAAwiZeQAAAAADFd2RAAAAAAMnK0EAAAAAAzPbsQAAAAADRSlhAAAAAANR2dEAAAAAA2MngQAAAAADb9fxAAAAAAOBuUkAAAAAA43WEQAAAAADn7dpAAAAAAOr1DEAAAAAA721iQAAAAADymX5AAAAAAPbs6kAAAAAA+hkGQAAAAAD+bHJAAAAAAQGYjkAAAAABBhDkQAAAAAEJGBZAAAAAAQ2QbEAAAAABEJeeQAAAAAEVD/RAAAAAARgXJkAAAAABHI98QAAAAAEfu5hAAAAAASQPBEAAAAABJzsgQAAAAAErjoxAAAAAAS66qEAAAAABMzL+QAAAAAE2OjBAAAAAATqyhkAAAAABPbm4QAAAAAFCMg5AAAAAAUVeKkAAAAABSbGWQAAAAAFM3bJAAAAAAVExHkAAAAABVF06QAAAAAFYsKZAAAAAAVvcwkAAAAABYFUYQAAAAAFjXEpAAAAAAWfUoEAAAAABatvSQAAAAAFvVChAAAAAAXKAREAAAAABdtOwQAAAAAF5/8xAAAAAAX5TOEAAAAABgX9UQAAAAAGF96pAAAAAAYj+3EAAAAABjXcyQAAAAAGQfmRAAAAAAZT2ukAAAAABmCLWQAAAAAGcdkJAAAAAAZ+iXkAAAAABo/XKQAAAAAGnIeZAAAAAAat1UkAAAAABrqFuQAAAAAGzGcRAAAAAAbYg9kAAAAABuplMQAAAAAG9oH5AAAAAAcIY1EAAAAABxUTwQAAAAAHJmFxAAAAAAczEeEAAAAAB0RfkQAAAAAHURABAAAAAAdi8VkAAAAAB28OIQAAAAAHgO95AAAAAAeNDEEAAAAAB57tmQAAAAAHqwphAAAAAAe867kAAAAAB8mcKQAAAAAH2unZAAAAAAfnmkkAAAAAB/jn+QBAECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgEDAQMBAwEDAQMBAgECAQMBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBBQcBAgECAQIBAgECAQIBAgECAQIGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgf///+1AAAAAA4QAQQAAAAAAAgAABwgAQwAAAAAAAgAAA4QAAQAAA4QAQQAAAAAAAhMTVQAQlNUAEdNVABCRFNUAAABAQEAAAEBAAAAAAAAAQEKR01UMEJTVCxNMy41LjAvMSxNMTAuNS4wCg=="
+          },
+          "seed": "a",
+          "revision": 7,
+          "after": "2024-10-26T22:59:59.999999999Z",
+          "timezone_sha256": "c85495070dca42687df6a1c3ee780a27cbcb82f1844750ea6f642833a44d29b4",
+          "windows": [
+            {
+              "through": "2024-10-27T00:59:59.999999999Z",
+              "probes": 1,
+              "outputs": 1
+            },
+            {
+              "through": "2024-10-27T00:59:59.999999999Z",
+              "probes": 1,
+              "outputs": 1
+            },
+            {
+              "through": "2024-10-27T03:00:01Z",
+              "probes": 8,
+              "outputs": 4
+            }
+          ],
+          "expected": [
+            {
+              "Nominal": "2024-10-26T23:00:00Z",
+              "Actual": "2024-10-26T23:00:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-26T23:00:30Z",
+              "Actual": "2024-10-26T23:00:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-26T23:30:00Z",
+              "Actual": "2024-10-26T23:30:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-26T23:30:30Z",
+              "Actual": "2024-10-26T23:30:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T00:00:00Z",
+              "Actual": "2024-10-27T00:00:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T00:00:30Z",
+              "Actual": "2024-10-27T00:00:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T00:30:00Z",
+              "Actual": "2024-10-27T00:30:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T00:30:30Z",
+              "Actual": "2024-10-27T00:30:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T01:00:00Z",
+              "Actual": "2024-10-27T01:00:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T01:00:30Z",
+              "Actual": "2024-10-27T01:00:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T01:30:00Z",
+              "Actual": "2024-10-27T01:30:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T01:30:30Z",
+              "Actual": "2024-10-27T01:30:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T02:00:00Z",
+              "Actual": "2024-10-27T02:00:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T02:00:30Z",
+              "Actual": "2024-10-27T02:00:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T02:30:00Z",
+              "Actual": "2024-10-27T02:30:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T02:30:30Z",
+              "Actual": "2024-10-27T02:30:30Z",
+              "Revision": 7,
+              "Excluded": false
+            }
+          ]
+        }
+        To reproduce, specify -run="TestSpecBoundaryProperties" -rapid.seed=35
+        Failed test output:
+    spec_boundaries_test.go:345: [rapid] draw family: 4
+    spec_boundaries_test.go:350: [rapid] draw second: 0
+    spec_boundaries_test.go:352: [rapid] draw minute: 0
+    spec_boundaries_test.go:358: [rapid] draw start_fraction: 0
+    spec_boundaries_test.go:358: [rapid] draw end_fraction: -1
+    spec_boundaries_test.go:367: [rapid] draw restrict_date: false
+    spec_boundaries_test.go:373: [rapid] draw restrict_hour: false
+    spec_boundaries_test.go:377: [rapid] draw duplicate: false
+    spec_boundaries_test.go:380: [rapid] draw interval: false
+    spec_boundaries_test.go:383: [rapid] draw exclude: false
+    spec_boundaries_test.go:388: [rapid] draw jitter: 0
+    spec_boundaries_test.go:390: [rapid] draw seed: "a"
+    spec_boundaries_test.go:391: [rapid] draw after: time.Date(2024, time.October, 26, 22, 59, 59, 999999999, time.UTC)
+    spec_boundaries_test.go:401: [rapid] draw partitions: 2
+    spec_boundaries_test.go:403: [rapid] draw cut0: time.Date(2024, time.October, 27, 0, 59, 59, 999999999, time.UTC)
+    spec_boundaries_test.go:404: [rapid] draw probes0: 1
+    spec_boundaries_test.go:404: [rapid] draw outputs0: 1
+    spec_boundaries_test.go:403: [rapid] draw cut1: time.Date(2024, time.October, 27, 0, 59, 59, 999999999, time.UTC)
+    spec_boundaries_test.go:404: [rapid] draw probes1: 1
+    spec_boundaries_test.go:404: [rapid] draw outputs1: 1
+    spec_boundaries_test.go:414: window 0 sequence: got [{Nominal:2024-10-26 23:00:00 +0000 UTC Actual:2024-10-26 23:00:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:00:30 +0000 UTC Actual:2024-10-26 23:00:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:00 +0000 UTC Actual:2024-10-26 23:30:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:30 +0000 UTC Actual:2024-10-26 23:30:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:00:00 +0000 UTC Actual:2024-10-27 00:00:00 +0000 UTC Revision:7 Excluded:false}] expected [{Nominal:2024-10-26 23:00:00 +0000 UTC Actual:2024-10-26 23:00:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:00:30 +0000 UTC Actual:2024-10-26 23:00:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:00 +0000 UTC Actual:2024-10-26 23:30:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:30 +0000 UTC Actual:2024-10-26 23:30:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:00:00 +0000 UTC Actual:2024-10-27 00:00:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:00:30 +0000 UTC Actual:2024-10-27 00:00:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:30:00 +0000 UTC Actual:2024-10-27 00:30:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:30:30 +0000 UTC Actual:2024-10-27 00:30:30 +0000 UTC Revision:7 Excluded:false}]
+        SPEC_BOUNDARY_REPLAY={
+          "version": "spec-boundaries-v1",
+          "name": "family-4",
+          "spec": {
+            "structuredCalendar": [
+              {
+                "second": [
+                  {
+                    "end": 59,
+                    "step": 30
+                  }
+                ],
+                "minute": [
+                  {
+                    "end": 59,
+                    "step": 30
+                  }
+                ],
+                "hour": [
+                  {
+                    "end": 23,
+                    "step": 1
+                  }
+                ],
+                "dayOfMonth": [
+                  {
+                    "start": 1,
+                    "end": 31,
+                    "step": 1
+                  }
+                ],
+                "month": [
+                  {
+                    "start": 1,
+                    "end": 12,
+                    "step": 1
+                  }
+                ],
+                "year": [
+                  {
+                    "start": 2024,
+                    "end": 2024,
+                    "step": 1
+                  }
+                ],
+                "dayOfWeek": [
+                  {
+                    "end": 6,
+                    "step": 1
+                  }
+                ]
+              }
+            ],
+            "startTime": "2024-10-26T23:00:00Z",
+            "endTime": "2024-10-27T02:59:59.999999999Z",
+            "jitter": "0s",
+            "timezoneName": "Europe/London",
+            "timezoneData": "VFppZjIAAAAAAAAAAAAAAAAAAAAAAAAIAAAACAAAAAAAAADyAAAACAAAABGAAAAAmyatoJvWBSCczzCgnaTDoJ6cnaCflxqgoIW6IKF2/KCiZZwgo3vIoKROuKClP/sgpiVgIKcnxiCoKiwgqOv4oKoA06Cq1RUgq+nwIKzHbCCtydIgrqdOIK+geaCwhzAgsZLQoLJwTKCzcrKgtFAuoLVJWiC2MBCgtzJ2oLgP8qC5Eligue/UoLrpACC72PEgvNtXIL240yC+sf6gv5i1IMCbGyDBeJcgwnr9IMNYeSDEUaSgxThbIMY6wSDHWNagx9oJoMoWJpDKl1mQy9EekMx3O5DNsQCQzmBYEM+Q4pDQbl6Q0XIWENH7MhDSaf4g02MpoNRJ4CDVHiGg1UL9kNXf4BDWTqwg1v4DoNgujiDY+ZUg2g5wINrr7CDb5Reg3MvOIN3E+aDetOqg364WIOCUzKDhckig4mt0IONSKqDkVJCg5TIMoOY9rSDnGykg6BRUoOj7CyDp/XEg6trtIOvdUyDsus8g7bP6oO6asSDvgWeg8J99IPFhSaDyf18g80pmIPRfQSD1IQ2g9j8jIPcA76D4HwUg+ODRoPn+5yD6wLOg++gDoPx7q6D9x7twA3DGIAQpWCAFUKggBgk6IAcwiiAH6RwgCRBsIAnI/iAK8E4gC7IaoAzQMCANkfygDrASIA9x3qAQmS6gEVHAoBJ5EKATMaKgFFjyoBUj65AWOMaQFwPNkBgYqJAY46+QGfiKkBrDkZAb4acQHKyuEB3BiRAejJAQH6FrECBschAhgU0QIkxUECNhLxAkLDYQJUpLkCYMGBAnKi2QJ/U0kCkKD5Ap1RaQKunxkCu0+JAsydOQLZTakC6ptZAvdLyQMImXkDFd2RAycrQQMz27EDRSlhA1HZ0QNjJ4EDb9fxA4G5SQON1hEDn7dpA6vUMQO9tYkDymX5A9uzqQPoZBkD+bHJBAZiOQQYQ5EEJGBZBDZBsQRCXnkEVD/RBGBcmQRyPfEEfu5hBJA8EQSc7IEErjoxBLrqoQTMy/kE2OjBBOrKGQT25uEFCMg5BRV4qQUmxlkFM3bJBUTEeQVRdOkFYsKZBW9zCQWBVGEFjXEpBZ9SgQWrb0kFvVChBcoBEQXbTsEF5/8xBflM4QYF/VEGF96pBiP7cQY13MkGQfmRBlPa6QZgi1kGcdkJBn6JeQaP1ykGnIeZBq3VSQa6hbkGzGcRBtiD2QbqZTEG9oH5BwhjUQcVE8EHJmFxBzMR4QdEX5EHURABB2LxWQdvDiEHgO95B40MQQee7ZkHqwphB7zruQfJnCkH2unZB+eaSQf45/kAQBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAwEDAQMBAwEDAQIBAgEDAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQUHAQIBAgECAQIBAgECAQIBAgECBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYH////tQAAAAAOEAEEAAAAAAAIAAAcIAEMAAAAAAAIAAAOEAAEAAAOEAEEAAAAAAAITE1UAEJTVABHTVQAQkRTVAAAAQEBAAABAQAAAAAAAAEBVFppZjIAAAAAAAAAAAAAAAAAAAAAAAAIAAAACAAAAAAAAADyAAAACAAAABH/////Gl0Jy/////+bJq2g/////5vWBSD/////nM8woP////+dpMOg/////56cnaD/////n5caoP////+ghbog/////6F2/KD/////omWcIP////+je8ig/////6ROuKD/////pT/7IP////+mJWAg/////6cnxiD/////qCosIP////+o6/ig/////6oA06D/////qtUVIP////+r6fAg/////6zHbCD/////rcnSIP////+up04g/////6+geaD/////sIcwIP////+xktCg/////7JwTKD/////s3KyoP////+0UC6g/////7VJWiD/////tjAQoP////+3Mnag/////7gP8qD/////uRJYoP////+579Sg/////7rpACD/////u9jxIP////+821cg/////7240yD/////vrH+oP////+/mLUg/////8CbGyD/////wXiXIP/////Cev0g/////8NYeSD/////xFGkoP/////FOFsg/////8Y6wSD/////x1jWoP/////H2gmg/////8oWJpD/////ypdZkP/////L0R6Q/////8x3O5D/////zbEAkP/////OYFgQ/////8+Q4pD/////0G5ekP/////RchYQ/////9H7MhD/////0mn+IP/////TYymg/////9RJ4CD/////1R4hoP/////VQv2Q/////9Xf4BD/////1k6sIP/////W/gOg/////9gujiD/////2PmVIP/////aDnAg/////9rr7CD/////2+UXoP/////cy84g/////93E+aD/////3rTqoP/////frhYg/////+CUzKD/////4XJIoP/////ia3Qg/////+NSKqD/////5FSQoP/////lMgyg/////+Y9rSD/////5xspIP/////oFFSg/////+j7CyD/////6f1xIP/////q2u0g/////+vdUyD/////7LrPIP/////ts/qg/////+6asSD/////74FnoP/////wn30g//////FhSaD/////8n9fIP/////zSmYg//////RfQSD/////9SENoP/////2PyMg//////cA76D/////+B8FIP/////44NGg//////n+5yD/////+sCzoP/////76AOg//////x7q6D//////ce7cAAAAAADcMYgAAAAAAQpWCAAAAAABVCoIAAAAAAGCTogAAAAAAcwiiAAAAAAB+kcIAAAAAAJEGwgAAAAAAnI/iAAAAAACvBOIAAAAAALshqgAAAAAAzQMCAAAAAADZH8oAAAAAAOsBIgAAAAAA9x3qAAAAAAEJkuoAAAAAARUcCgAAAAABJ5EKAAAAAAEzGioAAAAAAUWPKgAAAAABUj65AAAAAAFjjGkAAAAAAXA82QAAAAABgYqJAAAAAAGOOvkAAAAAAZ+IqQAAAAABrDkZAAAAAAG+GnEAAAAAAcrK4QAAAAAB3BiRAAAAAAHoyQEAAAAAAfoWsQAAAAACBschAAAAAAIYFNEAAAAAAiTFQQAAAAACNhLxAAAAAAJCw2EAAAAAAlSkuQAAAAACYMGBAAAAAAJyotkAAAAAAn9TSQAAAAACkKD5AAAAAAKdUWkAAAAAAq6fGQAAAAACu0+JAAAAAALMnTkAAAAAAtlNqQAAAAAC6ptZAAAAAAL3S8kAAAAAAwiZeQAAAAADFd2RAAAAAAMnK0EAAAAAAzPbsQAAAAADRSlhAAAAAANR2dEAAAAAA2MngQAAAAADb9fxAAAAAAOBuUkAAAAAA43WEQAAAAADn7dpAAAAAAOr1DEAAAAAA721iQAAAAADymX5AAAAAAPbs6kAAAAAA+hkGQAAAAAD+bHJAAAAAAQGYjkAAAAABBhDkQAAAAAEJGBZAAAAAAQ2QbEAAAAABEJeeQAAAAAEVD/RAAAAAARgXJkAAAAABHI98QAAAAAEfu5hAAAAAASQPBEAAAAABJzsgQAAAAAErjoxAAAAAAS66qEAAAAABMzL+QAAAAAE2OjBAAAAAATqyhkAAAAABPbm4QAAAAAFCMg5AAAAAAUVeKkAAAAABSbGWQAAAAAFM3bJAAAAAAVExHkAAAAABVF06QAAAAAFYsKZAAAAAAVvcwkAAAAABYFUYQAAAAAFjXEpAAAAAAWfUoEAAAAABatvSQAAAAAFvVChAAAAAAXKAREAAAAABdtOwQAAAAAF5/8xAAAAAAX5TOEAAAAABgX9UQAAAAAGF96pAAAAAAYj+3EAAAAABjXcyQAAAAAGQfmRAAAAAAZT2ukAAAAABmCLWQAAAAAGcdkJAAAAAAZ+iXkAAAAABo/XKQAAAAAGnIeZAAAAAAat1UkAAAAABrqFuQAAAAAGzGcRAAAAAAbYg9kAAAAABuplMQAAAAAG9oH5AAAAAAcIY1EAAAAABxUTwQAAAAAHJmFxAAAAAAczEeEAAAAAB0RfkQAAAAAHURABAAAAAAdi8VkAAAAAB28OIQAAAAAHgO95AAAAAAeNDEEAAAAAB57tmQAAAAAHqwphAAAAAAe867kAAAAAB8mcKQAAAAAH2unZAAAAAAfnmkkAAAAAB/jn+QBAECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgEDAQMBAwEDAQMBAgECAQMBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBBQcBAgECAQIBAgECAQIBAgECAQIGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgcGBwYHBgf///+1AAAAAA4QAQQAAAAAAAgAABwgAQwAAAAAAAgAAA4QAAQAAA4QAQQAAAAAAAhMTVQAQlNUAEdNVABCRFNUAAABAQEAAAEBAAAAAAAAAQEKR01UMEJTVCxNMy41LjAvMSxNMTAuNS4wCg=="
+          },
+          "seed": "a",
+          "revision": 7,
+          "after": "2024-10-26T22:59:59.999999999Z",
+          "timezone_sha256": "c85495070dca42687df6a1c3ee780a27cbcb82f1844750ea6f642833a44d29b4",
+          "windows": [
+            {
+              "through": "2024-10-27T00:59:59.999999999Z",
+              "probes": 1,
+              "outputs": 1
+            },
+            {
+              "through": "2024-10-27T00:59:59.999999999Z",
+              "probes": 1,
+              "outputs": 1
+            },
+            {
+              "through": "2024-10-27T03:00:01Z",
+              "probes": 8,
+              "outputs": 4
+            }
+          ],
+          "expected": [
+            {
+              "Nominal": "2024-10-26T23:00:00Z",
+              "Actual": "2024-10-26T23:00:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-26T23:00:30Z",
+              "Actual": "2024-10-26T23:00:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-26T23:30:00Z",
+              "Actual": "2024-10-26T23:30:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-26T23:30:30Z",
+              "Actual": "2024-10-26T23:30:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T00:00:00Z",
+              "Actual": "2024-10-27T00:00:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T00:00:30Z",
+              "Actual": "2024-10-27T00:00:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T00:30:00Z",
+              "Actual": "2024-10-27T00:30:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T00:30:30Z",
+              "Actual": "2024-10-27T00:30:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T01:00:00Z",
+              "Actual": "2024-10-27T01:00:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T01:00:30Z",
+              "Actual": "2024-10-27T01:00:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T01:30:00Z",
+              "Actual": "2024-10-27T01:30:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T01:30:30Z",
+              "Actual": "2024-10-27T01:30:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T02:00:00Z",
+              "Actual": "2024-10-27T02:00:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T02:00:30Z",
+              "Actual": "2024-10-27T02:00:30Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T02:30:00Z",
+              "Actual": "2024-10-27T02:30:00Z",
+              "Revision": 7,
+              "Excluded": false
+            },
+            {
+              "Nominal": "2024-10-27T02:30:30Z",
+              "Actual": "2024-10-27T02:30:30Z",
+              "Revision": 7,
+              "Excluded": false
+            }
+          ]
+        }
+--- FAIL: TestSpecBoundaryProperties (3.38s)
+FAIL

@@ -1,0 +1,10 @@
+=== RUN   TestSpecBoundarySavedReplay
+=== PAUSE TestSpecBoundarySavedReplay
+=== CONT  TestSpecBoundarySavedReplay
+    spec_boundaries_test.go:434: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:434
+        	Error:      	Received unexpected error:
+        	            	window 0 sequence: got [{Nominal:2024-10-26 23:00:00 +0000 UTC Actual:2024-10-26 23:00:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:00:30 +0000 UTC Actual:2024-10-26 23:00:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:00 +0000 UTC Actual:2024-10-26 23:30:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:30 +0000 UTC Actual:2024-10-26 23:30:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:00:00 +0000 UTC Actual:2024-10-27 00:00:00 +0000 UTC Revision:7 Excluded:false}] expected [{Nominal:2024-10-26 23:00:00 +0000 UTC Actual:2024-10-26 23:00:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:00:30 +0000 UTC Actual:2024-10-26 23:00:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:00 +0000 UTC Actual:2024-10-26 23:30:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-26 23:30:30 +0000 UTC Actual:2024-10-26 23:30:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:00:00 +0000 UTC Actual:2024-10-27 00:00:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:00:30 +0000 UTC Actual:2024-10-27 00:00:30 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:30:00 +0000 UTC Actual:2024-10-27 00:30:00 +0000 UTC Revision:7 Excluded:false} {Nominal:2024-10-27 00:30:30 +0000 UTC Actual:2024-10-27 00:30:30 +0000 UTC Revision:7 Excluded:false}]
+        	Test:       	TestSpecBoundarySavedReplay
+--- FAIL: TestSpecBoundarySavedReplay (0.00s)
+FAIL

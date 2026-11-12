@@ -1,0 +1,9 @@
+=== RUN   TestSpecBoundarySavedReplay
+=== PAUSE TestSpecBoundarySavedReplay
+=== CONT  TestSpecBoundarySavedReplay
+    spec_boundaries_test.go:432: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:432
+        	Error:      	Expected error with "EOF" in chain but got nil.
+        	Test:       	TestSpecBoundarySavedReplay
+--- FAIL: TestSpecBoundarySavedReplay (0.00s)
+FAIL

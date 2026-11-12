@@ -1,0 +1,103 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 30.36775ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (types_sizes|compiled_files|exports_file|deps|files|imports|name) took 18.324179292s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 133.636417ms"
+level=info msg="[linters_context/goanalysis] analyzers took 35.899123521s with top 10 stages: goimports: 5.334362208s, revive: 3.678028667s, gci: 2.216430667s, buildir: 1.8332164s, S1038: 1.71125175s, forbidigo: 1.414823s, testifylint: 1.339491209s, QF1010: 846.235916ms, printf: 681.606896ms, nilness: 616.609566ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 958 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 2 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 10 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 61 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 30 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 79 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 92 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 120 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 29 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 33 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 21 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner] Issues before processing: 4284, after processing: 20"
+level=info msg="[runner] Processors filtering stat (in/out): uniq_by_line: 29/23, max_per_file_from_linter: 23/20, max_from_linter: 20/20, source_code: 20/20, path_shortener: 20/20, path_prettifier: 20/20, generated_file_filter: 4284/4212, diff: 2263/29, fixer: 29/29, max_same_issues: 20/20, sort_results: 20/20, cgo: 4284/4284, invalid_issue: 4284/4284, exclusion_rules: 4212/2771, severity-rules: 20/20, path_absoluter: 4284/4284, filename_unadjuster: 4284/4284, path_relativity: 4284/4284, exclusion_paths: 4284/4284, nolint_filter: 2771/2263"
+level=info msg="[runner] processing took 339.324292ms with stages: nolint_filter: 185.36325ms, diff: 128.329875ms, exclusion_rules: 13.636583ms, generated_file_filter: 8.839625ms, path_relativity: 2.265625ms, exclusion_paths: 403.166µs, source_code: 172.292µs, cgo: 132.208µs, invalid_issue: 102.792µs, path_absoluter: 35.292µs, uniq_by_line: 18.25µs, filename_unadjuster: 17.166µs, sort_results: 2.542µs, max_per_file_from_linter: 1.875µs, path_shortener: 1.834µs, max_same_issues: 1.042µs, fixer: 375ns, path_prettifier: 334ns, max_from_linter: 84ns, severity-rules: 82ns"
+level=info msg="[runner] linters took 9.065025667s with stages: goanalysis_metalinter: 8.725622292s"
+../chasm/lib/callback/internal_chain_test.go:3:1: File is not properly formatted (gci)
+import (
+^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:56:76: SA1019: (go.temporal.io/api/schedule/v1.ScheduleSpec).ExcludeCalendar is deprecated: Marked as deprecated in temporal/api/schedule/v1/message.proto. (staticcheck)
+	if spec.StartTime == nil || spec.EndTime == nil || len(spec.Calendar)+len(spec.ExcludeCalendar)+len(spec.CronString) != 0 {
+	                                                                          ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:57:15: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return nil, fmt.Errorf("reference requires explicit finite bounds and structured syntax")
+		            ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:63:16: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+			return nil, fmt.Errorf("reference requires pinned timezone bytes")
+			            ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:74:17: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+				return nil, fmt.Errorf("reference requires nonnil calendars")
+				            ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:78:18: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+					return nil, fmt.Errorf("reference requires explicit calendar fields")
+					            ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:82:19: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+						return nil, fmt.Errorf("reference requires normalized valid ranges")
+						            ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:90:16: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+			return nil, fmt.Errorf("reference requires valid whole-second intervals")
+			            ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:95:15: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return nil, fmt.Errorf("negative reference jitter")
+		            ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:104:15: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return nil, fmt.Errorf("reference scan exceeds explicit 12-hour domain")
+		            ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:178:10: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return fmt.Errorf("unsupported or empty boundary scenario")
+		       ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:185:10: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return fmt.Errorf("timezone digest mismatch")
+		       ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:207:11: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+			return fmt.Errorf("windows must be nondecreasing")
+			       ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:225:12: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+				return fmt.Errorf("nominal identity did not strictly advance")
+				       ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:237:12: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+				return fmt.Errorf("future pending was not an exact waiting stutter")
+				       ^
+../chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:249:10: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return fmt.Errorf("settled partition/full-state equivalence failed")
+		       ^
+../common/nexus/nexusrpc/completion_internal_test.go:4:1: File is not properly formatted (gci)
+	"github.com/stretchr/testify/require"
+^
+../service/history/hsm/callbacks/chasm_chain_test.go:3:1: File is not properly formatted (gci)
+import (
+^
+../service/worker/scheduler/calendar.go:202:3: ST1003: var nextTs should be nextTS (staticcheck)
+		nextTs := calendarDate(y, mo, d, h, m, s, cc.tz)
+		^
+../service/worker/scheduler/calendar_fold_regression_test.go:8:1: File is not properly formatted (gci)
+
+^
+20 issues:
+* gci: 4
+* revive: 14
+* staticcheck: 2
+level=info msg="File cache stats: 6 entries of total size 47.9KiB"
+level=info msg="Memory: 277 samples, avg is 698.3MB, max is 3193.2MB"
+level=info msg="Execution took 27.610475333s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

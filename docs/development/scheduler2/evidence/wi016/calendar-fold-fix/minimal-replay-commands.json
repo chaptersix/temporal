@@ -1,0 +1,50 @@
+{
+  "environment": {
+    "CGO_ENABLED": "0",
+    "GOMAXPROCS": "4",
+    "SCHEDULER2_SPEC_REPLAY": "/private/tmp/sch-redesign-execution/docs/development/scheduler2/evidence/wi016/calendar-fold-fix/minimal-replay.json"
+  },
+  "commands": [
+    {
+      "name": "minimal-replay-before",
+      "command": [
+        "go",
+        "test",
+        "-overlay=/private/tmp/scheduler2-wi016-independent-fold/overlay.json",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=3m",
+        "./chasm/lib/scheduler2/internal/occurrence",
+        "-run",
+        "^TestSpecBoundarySavedReplay$",
+        "-v"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "minimal-replay-after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "2",
+        "-parallel",
+        "4",
+        "-tags",
+        "test_dep",
+        "-count=1",
+        "-timeout=3m",
+        "./chasm/lib/scheduler2/internal/occurrence",
+        "-run",
+        "^TestSpecBoundarySavedReplay$",
+        "-v"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

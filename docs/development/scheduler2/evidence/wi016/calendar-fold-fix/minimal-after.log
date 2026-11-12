@@ -1,0 +1,10 @@
+literal 2024-10-27T00:00:00Z -> 2024-10-27T01:00:00+01:00 BST
+literal 2024-10-27T00:00:30Z -> 2024-10-27T01:00:30+01:00 BST
+literal 2024-10-27T01:00:00Z -> 2024-10-27T01:00:00+00:00 GMT
+literal 2024-10-27T01:00:30Z -> 2024-10-27T01:00:30+00:00 GMT
+literal 2024-10-27T02:00:30Z -> 2024-10-27T02:00:30+00:00 GMT
+time.Date ambiguous 01:00:30 chooses 2024-10-27T01:00:30Z
+production after=2024-10-27T00:00:00Z nominal=2024-10-27T00:00:30Z local=2024-10-27T01:00:30+01:00 BST excluded=false
+production after=2024-10-27T00:00:30Z nominal=2024-10-27T01:00:30Z local=2024-10-27T01:00:30+00:00 GMT excluded=false
+production after=2024-10-27T01:00:30Z nominal=0001-01-01T00:00:00Z local=0000-12-31T23:58:45-00:01 LMT excluded=false
+second-fold cursor=2024-10-27T01:00:00Z nominal=2024-10-27T01:00:30Z local=2024-10-27T01:00:30+00:00 GMT excluded=false

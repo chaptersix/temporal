@@ -1,0 +1,88 @@
+=== RUN   TestCalendarFoldOrdering
+=== PAUSE TestCalendarFoldOrdering
+=== RUN   TestCalendarFoldNormalizationPreservesGaps
+=== PAUSE TestCalendarFoldNormalizationPreservesGaps
+=== RUN   TestCalendar
+=== RUN   TestCalendar/TestCalendarDSTStartInRepeatedHourButNotEnd
+=== RUN   TestCalendar/TestCalendarMatch
+=== RUN   TestCalendar/TestCalendarNextBasic
+=== RUN   TestCalendar/TestCalendarNextDST
+=== RUN   TestCalendar/TestDaysInMonth
+=== RUN   TestCalendar/TestGoDSTBehavior
+=== RUN   TestCalendar/TestMakeMatcher
+=== RUN   TestCalendar/TestMakeRange
+=== RUN   TestCalendar/TestParseCronString
+=== RUN   TestCalendar/TestParseValue
+--- PASS: TestCalendar (0.17s)
+    --- PASS: TestCalendar/TestCalendarDSTStartInRepeatedHourButNotEnd (0.00s)
+    --- PASS: TestCalendar/TestCalendarMatch (0.00s)
+    --- PASS: TestCalendar/TestCalendarNextBasic (0.00s)
+    --- PASS: TestCalendar/TestCalendarNextDST (0.17s)
+    --- PASS: TestCalendar/TestDaysInMonth (0.00s)
+    --- PASS: TestCalendar/TestGoDSTBehavior (0.00s)
+    --- PASS: TestCalendar/TestMakeMatcher (0.00s)
+    --- PASS: TestCalendar/TestMakeRange (0.00s)
+    --- PASS: TestCalendar/TestParseCronString (0.00s)
+    --- PASS: TestCalendar/TestParseValue (0.00s)
+=== RUN   TestSpec
+=== RUN   TestSpec/TestCanonicalize
+=== RUN   TestSpec/TestExcludeAll
+=== RUN   TestSpec/TestGetNextTimeComputeLimitExceeded
+=== RUN   TestSpec/TestGetNextTimeComputeLimitWarning
+=== RUN   TestSpec/TestGetNextTimeComputeLimitWarningThenResolves
+=== RUN   TestSpec/TestSpecBoundedJitter
+=== RUN   TestSpec/TestSpecCalendarAndCron
+=== RUN   TestSpec/TestSpecCalendarBasic
+=== RUN   TestSpec/TestSpecCalendarMultiple
+=== RUN   TestSpec/TestSpecEndTime
+=== RUN   TestSpec/TestSpecExclude
+=== RUN   TestSpec/TestSpecIntervalBasic
+=== RUN   TestSpec/TestSpecIntervalMultiple
+=== RUN   TestSpec/TestSpecIntervalPhase
+=== RUN   TestSpec/TestSpecJitterSeed
+=== RUN   TestSpec/TestSpecJitterSingleRun
+=== RUN   TestSpec/TestSpecMixedCalendarInterval
+=== RUN   TestSpec/TestSpecStartTime
+=== RUN   TestSpec/TestSpecStartTimeMinusOneSecond
+--- PASS: TestSpec (0.00s)
+    --- PASS: TestSpec/TestCanonicalize (0.00s)
+    --- PASS: TestSpec/TestExcludeAll (0.00s)
+    --- PASS: TestSpec/TestGetNextTimeComputeLimitExceeded (0.00s)
+    --- PASS: TestSpec/TestGetNextTimeComputeLimitWarning (0.00s)
+    --- PASS: TestSpec/TestGetNextTimeComputeLimitWarningThenResolves (0.00s)
+    --- PASS: TestSpec/TestSpecBoundedJitter (0.00s)
+    --- PASS: TestSpec/TestSpecCalendarAndCron (0.00s)
+    --- PASS: TestSpec/TestSpecCalendarBasic (0.00s)
+    --- PASS: TestSpec/TestSpecCalendarMultiple (0.00s)
+    --- PASS: TestSpec/TestSpecEndTime (0.00s)
+    --- PASS: TestSpec/TestSpecExclude (0.00s)
+    --- PASS: TestSpec/TestSpecIntervalBasic (0.00s)
+    --- PASS: TestSpec/TestSpecIntervalMultiple (0.00s)
+    --- PASS: TestSpec/TestSpecIntervalPhase (0.00s)
+    --- PASS: TestSpec/TestSpecJitterSeed (0.00s)
+    --- PASS: TestSpec/TestSpecJitterSingleRun (0.00s)
+    --- PASS: TestSpec/TestSpecMixedCalendarInterval (0.00s)
+    --- PASS: TestSpec/TestSpecStartTime (0.00s)
+    --- PASS: TestSpec/TestSpecStartTimeMinusOneSecond (0.00s)
+=== CONT  TestCalendarFoldOrdering
+=== RUN   TestCalendarFoldOrdering/London
+=== CONT  TestCalendarFoldNormalizationPreservesGaps
+=== PAUSE TestCalendarFoldOrdering/London
+=== RUN   TestCalendarFoldNormalizationPreservesGaps/Europe/London
+=== RUN   TestCalendarFoldOrdering/NewYork
+=== PAUSE TestCalendarFoldNormalizationPreservesGaps/Europe/London
+=== RUN   TestCalendarFoldNormalizationPreservesGaps/America/New_York
+=== PAUSE TestCalendarFoldNormalizationPreservesGaps/America/New_York
+=== PAUSE TestCalendarFoldOrdering/NewYork
+=== CONT  TestCalendarFoldNormalizationPreservesGaps/Europe/London
+=== CONT  TestCalendarFoldOrdering/London
+=== CONT  TestCalendarFoldOrdering/NewYork
+=== CONT  TestCalendarFoldNormalizationPreservesGaps/America/New_York
+--- PASS: TestCalendarFoldNormalizationPreservesGaps (0.00s)
+    --- PASS: TestCalendarFoldNormalizationPreservesGaps/Europe/London (0.00s)
+    --- PASS: TestCalendarFoldNormalizationPreservesGaps/America/New_York (0.00s)
+--- PASS: TestCalendarFoldOrdering (0.00s)
+    --- PASS: TestCalendarFoldOrdering/London (0.00s)
+    --- PASS: TestCalendarFoldOrdering/NewYork (0.00s)
+PASS
+ok  	go.temporal.io/server/service/worker/scheduler	0.827s

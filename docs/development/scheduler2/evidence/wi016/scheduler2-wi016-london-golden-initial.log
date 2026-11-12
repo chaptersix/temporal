@@ -1,0 +1,9 @@
+--- FAIL: TestSpecBoundaryLondonFoldGolden (0.00s)
+    spec_boundaries_test.go:515: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go:515
+        	Error:      	Received unexpected error:
+        	            	window 0 sequence: got [] expected [{Nominal:2024-10-27 00:00:30 +0000 UTC Actual:2024-10-27 00:00:30 +0000 UTC Revision:7 Excluded:false}]
+        	Test:       	TestSpecBoundaryLondonFoldGolden
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.611s
+FAIL

@@ -1,0 +1,48 @@
+=== RUN   TestCalendarFoldOrdering
+=== PAUSE TestCalendarFoldOrdering
+=== RUN   TestCalendarFoldNormalizationPreservesGaps
+=== PAUSE TestCalendarFoldNormalizationPreservesGaps
+=== RUN   TestCalendar
+=== RUN   TestCalendar/TestCalendarDSTStartInRepeatedHourButNotEnd
+=== RUN   TestCalendar/TestCalendarMatch
+=== RUN   TestCalendar/TestCalendarNextBasic
+=== RUN   TestCalendar/TestCalendarNextDST
+=== RUN   TestCalendar/TestDaysInMonth
+=== RUN   TestCalendar/TestGoDSTBehavior
+=== RUN   TestCalendar/TestMakeMatcher
+=== RUN   TestCalendar/TestMakeRange
+=== RUN   TestCalendar/TestParseCronString
+=== RUN   TestCalendar/TestParseValue
+--- PASS: TestCalendar (0.17s)
+    --- PASS: TestCalendar/TestCalendarDSTStartInRepeatedHourButNotEnd (0.00s)
+    --- PASS: TestCalendar/TestCalendarMatch (0.00s)
+    --- PASS: TestCalendar/TestCalendarNextBasic (0.00s)
+    --- PASS: TestCalendar/TestCalendarNextDST (0.17s)
+    --- PASS: TestCalendar/TestDaysInMonth (0.00s)
+    --- PASS: TestCalendar/TestGoDSTBehavior (0.00s)
+    --- PASS: TestCalendar/TestMakeMatcher (0.00s)
+    --- PASS: TestCalendar/TestMakeRange (0.00s)
+    --- PASS: TestCalendar/TestParseCronString (0.00s)
+    --- PASS: TestCalendar/TestParseValue (0.00s)
+=== CONT  TestCalendarFoldOrdering
+=== RUN   TestCalendarFoldOrdering/London
+=== PAUSE TestCalendarFoldOrdering/London
+=== RUN   TestCalendarFoldOrdering/NewYork
+=== PAUSE TestCalendarFoldOrdering/NewYork
+=== CONT  TestCalendarFoldOrdering/London
+=== CONT  TestCalendarFoldNormalizationPreservesGaps
+=== CONT  TestCalendarFoldOrdering/NewYork
+=== RUN   TestCalendarFoldNormalizationPreservesGaps/Europe/London
+=== PAUSE TestCalendarFoldNormalizationPreservesGaps/Europe/London
+=== RUN   TestCalendarFoldNormalizationPreservesGaps/America/New_York
+=== PAUSE TestCalendarFoldNormalizationPreservesGaps/America/New_York
+=== CONT  TestCalendarFoldNormalizationPreservesGaps/Europe/London
+=== CONT  TestCalendarFoldNormalizationPreservesGaps/America/New_York
+--- PASS: TestCalendarFoldOrdering (0.00s)
+    --- PASS: TestCalendarFoldOrdering/London (0.00s)
+    --- PASS: TestCalendarFoldOrdering/NewYork (0.00s)
+--- PASS: TestCalendarFoldNormalizationPreservesGaps (0.00s)
+    --- PASS: TestCalendarFoldNormalizationPreservesGaps/Europe/London (0.00s)
+    --- PASS: TestCalendarFoldNormalizationPreservesGaps/America/New_York (0.00s)
+PASS
+ok  	go.temporal.io/server/service/worker/scheduler	0.803s

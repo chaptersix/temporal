@@ -1,0 +1,33 @@
+{
+  "head": "2c69d8ad7a781bc3a35144b592317d7179526a56",
+  "go": "go version go1.27.3 darwin/arm64",
+  "python": "Python 3.15.2",
+  "source_before_sha256": "5f38a015c80dcf53bc5810db0aa4841301db3dcb3c95dcc014980f5a0a586432",
+  "sources_after": {
+    "service/worker/scheduler/calendar.go": "479689bac6ee9d23ddf4e721d174a6578781fd1008cb56b4040981dc04dbd97d",
+    "service/worker/scheduler/calendar_fold_regression_test.go": "bcacf90d4e9903eb00e85310baf59b23628d4a59a8cd0ba57a5cf3402274a643",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/Europe_London.tzif": "c85495070dca42687df6a1c3ee780a27cbcb82f1844750ea6f642833a44d29b4",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/spec_boundaries_fold_regression_v1.json": "eea3d80d23e435fce51839f6eed646ef31e55a8abab091171e51aed2f0ca9349"
+  },
+  "evidence": {
+    "calendar-before.go.txt": "5f38a015c80dcf53bc5810db0aa4841301db3dcb3c95dcc014980f5a0a586432",
+    "calendar-before.sha256": "9aada2f56f3d23f99f5d7081a86f8973c994b856ffbf33d12f62eb527a75a08b",
+    "go.log": "4ddd932603cc3ba84e8d7dfcb92214c043c6caf28fcb47bc83ac1c048140d5df",
+    "golden-after.log": "0bc6b63c02d363d5be8e91e0d2b3719b62c97b755124a1ff8e39d19fc2734a84",
+    "legacy-after.log": "0776b478ece3c71cf6e123928702f94c3c34aef1d601c305ed17fe81118ec888",
+    "legacy-before.log": "274d141547fa19516860f47981ecb79e80bec91f6eae294e013bfcdf3cb0f7da",
+    "legacy-final.log": "7e0363612b89151ed3f50a8566a6b3ffb3f4bc9bd93651d572570c30404755ae",
+    "lint-after.log": "a583feb43434a6e41d0954904ca445d703f2af19f33d01093cf8ac0f4866e1df",
+    "minimal-after.log": "1d06aa05a1f7918e2e5591d7ea56a13aea77ea8c453af2ad76a602b64bea01d4",
+    "minimal-before.log": "63987272f8267a3998ee14c2f95aa8f5353dddfc022d64ec48ec2b81432a1849",
+    "minimal-public-candidate.go.txt": "044127f9c1508cc977182d5194168e811ad36fe76ca13cd9eb47c5f54c4b2622",
+    "minimal-replay-after.log": "51f5d875c9807e0b0c4c1033d60de60deeb57e5f477cc20f76a2db08e6193d5d",
+    "minimal-replay-before.log": "c6eb86e200462eba7631bdfa981f28ff59262a6e6da80b7acdfd59aec1cd1a83",
+    "minimal-replay-commands.json": "b7c8029fc387af361df7094c3f6d278ae9c4838e4cbc67c7efe16d0f455b3677",
+    "minimal-replay.json": "4059f5bcda11d6e58e0185369dcb697d27ac567f8d178c8719d7853f1e584c2d",
+    "overlay.json": "7c263c257248fa0ea71d09f4fdcbaf3d92a45f4695832d2d2adcf0411fcf90ca",
+    "python-zoneinfo.log": "740d1f457b36030d6656dee4c0365a4d08e93dde5a8df99dfe600304c7f38bdf",
+    "replay-after.log": "088cc86d03061b9107c0443247645a0e4024a97c934e34964a6d68e9ed1936ea",
+    "spec-after.log": "63cd81c206fa19566abaf2c5481aca27e3eafb5f849d8674acea365f3f2dc5cd"
+  }
+}
