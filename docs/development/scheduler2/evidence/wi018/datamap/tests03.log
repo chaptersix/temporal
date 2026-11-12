@@ -1,0 +1,74 @@
+=== RUN   TestDataMapDetachedOwnership
+=== PAUSE TestDataMapDetachedOwnership
+=== RUN   TestDataMapCoalescedDeltas
+=== PAUSE TestDataMapCoalescedDeltas
+=== RUN   TestDataMapLazyHydrationAndCorruption
+=== PAUSE TestDataMapLazyHydrationAndCorruption
+=== RUN   TestDataMapAttachmentAndReplicationIdentity
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity
+=== CONT  TestDataMapDetachedOwnership
+=== CONT  TestDataMapLazyHydrationAndCorruption
+=== RUN   TestDataMapLazyHydrationAndCorruption/0
+=== CONT  TestDataMapAttachmentAndReplicationIdentity
+=== RUN   TestDataMapAttachmentAndReplicationIdentity/double_attachment
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity/double_attachment
+=== RUN   TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner
+=== RUN   TestDataMapAttachmentAndReplicationIdentity/removed_owner
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity/removed_owner
+=== CONT  TestDataMapAttachmentAndReplicationIdentity/double_attachment
+=== CONT  TestDataMapCoalescedDeltas
+=== PAUSE TestDataMapLazyHydrationAndCorruption/0
+=== RUN   TestDataMapCoalescedDeltas/p
+=== PAUSE TestDataMapCoalescedDeltas/p
+=== RUN   TestDataMapCoalescedDeltas/pd
+=== PAUSE TestDataMapCoalescedDeltas/pd
+=== RUN   TestDataMapCoalescedDeltas/dp
+=== PAUSE TestDataMapCoalescedDeltas/dp
+=== RUN   TestDataMapCoalescedDeltas/pdp
+=== PAUSE TestDataMapCoalescedDeltas/pdp
+=== RUN   TestDataMapCoalescedDeltas/d
+=== PAUSE TestDataMapCoalescedDeltas/d
+=== RUN   TestDataMapCoalescedDeltas/dd
+=== RUN   TestDataMapLazyHydrationAndCorruption/4
+=== CONT  TestDataMapAttachmentAndReplicationIdentity/removed_owner
+=== PAUSE TestDataMapLazyHydrationAndCorruption/4
+=== RUN   TestDataMapLazyHydrationAndCorruption/5
+=== PAUSE TestDataMapLazyHydrationAndCorruption/5
+=== RUN   TestDataMapLazyHydrationAndCorruption/1000
+=== PAUSE TestDataMapLazyHydrationAndCorruption/1000
+=== PAUSE TestDataMapCoalescedDeltas/dd
+=== RUN   TestDataMapCoalescedDeltas/dpd
+=== PAUSE TestDataMapCoalescedDeltas/dpd
+=== CONT  TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner
+=== CONT  TestDataMapLazyHydrationAndCorruption/0
+=== CONT  TestDataMapCoalescedDeltas/p
+--- PASS: TestDataMapAttachmentAndReplicationIdentity (0.00s)
+    --- PASS: TestDataMapAttachmentAndReplicationIdentity/double_attachment (0.00s)
+    --- PASS: TestDataMapAttachmentAndReplicationIdentity/removed_owner (0.00s)
+    --- PASS: TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner (0.00s)
+=== CONT  TestDataMapCoalescedDeltas/dpd
+=== CONT  TestDataMapLazyHydrationAndCorruption/1000
+=== CONT  TestDataMapLazyHydrationAndCorruption/5
+--- PASS: TestDataMapDetachedOwnership (0.00s)
+=== CONT  TestDataMapLazyHydrationAndCorruption/4
+=== CONT  TestDataMapCoalescedDeltas/dd
+=== CONT  TestDataMapCoalescedDeltas/dp
+=== CONT  TestDataMapCoalescedDeltas/pdp
+=== CONT  TestDataMapCoalescedDeltas/pd
+=== CONT  TestDataMapCoalescedDeltas/d
+--- PASS: TestDataMapCoalescedDeltas (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/p (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/dpd (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/dd (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/dp (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/pdp (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/pd (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/d (0.00s)
+--- PASS: TestDataMapLazyHydrationAndCorruption (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/0 (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/5 (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/4 (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/1000 (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm	0.474s

@@ -1,0 +1,93 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 12.839041ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (compiled_files|exports_file|files|types_sizes|deps|imports|name) took 439.34525ms"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 13.031084ms"
+level=info msg="[linters_context/goanalysis] analyzers took 5.692606425s with top 10 stages: goimports: 1.367171792s, revive: 1.151573041s, gci: 197.787625ms, buildir: 138.334366ms, testifylint: 101.544833ms, S1038: 83.560124ms, printf: 69.466254ms, exhaustive: 62.837996ms, forbidigo: 59.644416ms, nilness: 57.29679ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 55 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 14 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 5 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 48 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=warning msg="[runner/nolint_filter] Found unknown linters in //nolint directives: cognitive-complexity"
+level=info msg="[runner] Issues before processing: 247, after processing: 4"
+level=info msg="[runner] Processors filtering stat (in/out): source_code: 4/4, path_prettifier: 4/4, filename_unadjuster: 247/247, invalid_issue: 247/247, exclusion_paths: 247/247, nolint_filter: 120/78, diff: 78/4, fixer: 4/4, max_same_issues: 4/4, max_from_linter: 4/4, cgo: 247/247, generated_file_filter: 247/246, exclusion_rules: 246/120, uniq_by_line: 4/4, max_per_file_from_linter: 4/4, severity-rules: 4/4, sort_results: 4/4, path_shortener: 4/4, path_absoluter: 247/247, path_relativity: 247/247"
+level=info msg="[runner] processing took 82.613959ms with stages: diff: 71.181459ms, nolint_filter: 9.700918ms, generated_file_filter: 849.708µs, exclusion_rules: 664.833µs, path_relativity: 95.957µs, exclusion_paths: 56.875µs, source_code: 46µs, cgo: 7µs, invalid_issue: 3.875µs, uniq_by_line: 2.25µs, sort_results: 1.208µs, filename_unadjuster: 792ns, max_same_issues: 750ns, path_shortener: 708ns, path_absoluter: 624ns, fixer: 334ns, max_per_file_from_linter: 292ns, path_prettifier: 208ns, max_from_linter: 126ns, severity-rules: 42ns"
+level=info msg="[runner] linters took 2.050837916s with stages: goanalysis_metalinter: 1.96815925s"
+../chasm/data_map.go:44:10: unchecked-type-assertion: type cast result is unchecked in proto.Clone(v).(D) - type assertion will panic if not matched (revive)
+		return proto.Clone(v).(D), true
+		       ^
+../chasm/data_map.go:64:9: unchecked-type-assertion: type cast result is unchecked in proto.Clone(v).(D) - type assertion will panic if not matched (revive)
+	return proto.Clone(v).(D), true
+	       ^
+../chasm/data_map.go:167:7: unchecked-type-assertion: type cast result is unchecked in internal.Interface().(dataMapInternal) - type assertion will panic if not matched (revive)
+	m := internal.Interface().(dataMapInternal)
+	     ^
+../chasm/data_map.go:193:1: cognitive-complexity: function (*dataMapState).sync has cognitive complexity 29 (> max enabled 25) (revive)
+func (s *dataMapState) sync() error {
+	n := s.owner
+	if n.value != s.ownerValue || s.root.valueToNode[s.ownerValue] != n {
+		return serviceerror.NewInternal("DataMap owner has been removed or replaced")
+	}
+	collection := s.collection()
+	for key, value := range s.delta {
+		if value == nil {
+			if collection != nil {
+				if child, ok := collection.children[key]; ok {
+					if !child.isData() {
+						return serviceerror.NewInternal("DataMap entry is not DATA")
+					}
+					if err := child.delete(false); err != nil {
+						return err
+					}
+				}
+			}
+			continue
+		}
+		if collection == nil {
+			collection = newNode(n.nodeBase, n, s.field)
+			collection.initSerializedCollectionNode()
+			collection.setValueState(valueStateNeedSerialize)
+			n.children[s.field] = collection
+		}
+		child, exists := collection.children[key]
+		if exists && !child.isData() {
+			return serviceerror.NewInternal("DataMap entry is not DATA")
+		}
+		if !exists {
+			child = newNode(n.nodeBase, collection, key)
+			child.initSerializedNode(fieldTypeData)
+			collection.children[key] = child
+		}
+		child.setValue(value)
+		child.setValueState(valueStateNeedSerialize)
+	}
+	clear(s.delta)
+	return nil
+}
+4 issues:
+* revive: 4
+level=info msg="File cache stats: 1 entries of total size 7.5KiB"
+level=info msg="Memory: 27 samples, avg is 423.0MB, max is 625.8MB"
+level=info msg="Execution took 2.536467625s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

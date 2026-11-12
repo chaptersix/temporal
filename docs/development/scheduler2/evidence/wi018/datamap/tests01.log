@@ -1,0 +1,82 @@
+=== RUN   TestDataMapDetachedOwnership
+=== PAUSE TestDataMapDetachedOwnership
+=== RUN   TestDataMapCoalescedDeltas
+=== PAUSE TestDataMapCoalescedDeltas
+=== RUN   TestDataMapLazyHydrationAndCorruption
+=== PAUSE TestDataMapLazyHydrationAndCorruption
+=== RUN   TestDataMapAttachmentAndReplicationIdentity
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity
+=== CONT  TestDataMapDetachedOwnership
+=== CONT  TestDataMapLazyHydrationAndCorruption
+=== CONT  TestDataMapCoalescedDeltas
+=== CONT  TestDataMapAttachmentAndReplicationIdentity
+=== RUN   TestDataMapLazyHydrationAndCorruption/0
+=== RUN   TestDataMapCoalescedDeltas/p
+=== RUN   TestDataMapAttachmentAndReplicationIdentity/double_attachment
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity/double_attachment
+=== RUN   TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner
+=== RUN   TestDataMapAttachmentAndReplicationIdentity/removed_owner
+=== PAUSE TestDataMapCoalescedDeltas/p
+=== RUN   TestDataMapCoalescedDeltas/pd
+=== PAUSE TestDataMapCoalescedDeltas/pd
+=== PAUSE TestDataMapLazyHydrationAndCorruption/0
+=== RUN   TestDataMapCoalescedDeltas/dp
+=== PAUSE TestDataMapCoalescedDeltas/dp
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity/removed_owner
+=== CONT  TestDataMapAttachmentAndReplicationIdentity/double_attachment
+=== RUN   TestDataMapCoalescedDeltas/pdp
+=== PAUSE TestDataMapCoalescedDeltas/pdp
+=== RUN   TestDataMapLazyHydrationAndCorruption/4
+=== PAUSE TestDataMapLazyHydrationAndCorruption/4
+=== RUN   TestDataMapCoalescedDeltas/d
+=== RUN   TestDataMapLazyHydrationAndCorruption/5
+=== PAUSE TestDataMapCoalescedDeltas/d
+=== CONT  TestDataMapAttachmentAndReplicationIdentity/removed_owner
+=== RUN   TestDataMapCoalescedDeltas/dd
+=== PAUSE TestDataMapCoalescedDeltas/dd
+=== RUN   TestDataMapCoalescedDeltas/dpd
+=== PAUSE TestDataMapCoalescedDeltas/dpd
+=== CONT  TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner
+=== PAUSE TestDataMapLazyHydrationAndCorruption/5
+=== RUN   TestDataMapLazyHydrationAndCorruption/1000
+=== PAUSE TestDataMapLazyHydrationAndCorruption/1000
+=== CONT  TestDataMapCoalescedDeltas/p
+=== CONT  TestDataMapCoalescedDeltas/dpd
+--- PASS: TestDataMapAttachmentAndReplicationIdentity (0.00s)
+    --- PASS: TestDataMapAttachmentAndReplicationIdentity/double_attachment (0.00s)
+    --- PASS: TestDataMapAttachmentAndReplicationIdentity/removed_owner (0.00s)
+    --- PASS: TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner (0.00s)
+=== CONT  TestDataMapCoalescedDeltas/dd
+=== NAME  TestDataMapDetachedOwnership
+    data_map_test.go:92: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/data_map_test.go:92
+        	Error:      	Not equal: 
+        	            	expected: []uint8([]byte{0xa0, 0x6, 0x1})
+        	            	actual  : protoreflect.RawFields(protoreflect.RawFields{0xa0, 0x6, 0x1})
+        	Test:       	TestDataMapDetachedOwnership
+--- FAIL: TestDataMapDetachedOwnership (0.00s)
+=== CONT  TestDataMapCoalescedDeltas/d
+=== CONT  TestDataMapCoalescedDeltas/pdp
+=== CONT  TestDataMapCoalescedDeltas/dp
+=== CONT  TestDataMapCoalescedDeltas/pd
+=== CONT  TestDataMapLazyHydrationAndCorruption/0
+=== CONT  TestDataMapLazyHydrationAndCorruption/1000
+=== CONT  TestDataMapLazyHydrationAndCorruption/5
+--- PASS: TestDataMapCoalescedDeltas (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/d (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/dpd (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/dd (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/p (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/pd (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/pdp (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/dp (0.00s)
+=== CONT  TestDataMapLazyHydrationAndCorruption/4
+--- PASS: TestDataMapLazyHydrationAndCorruption (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/0 (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/5 (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/4 (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/1000 (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm	0.443s
+FAIL

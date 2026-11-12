@@ -1,0 +1,142 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 11.641209ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (compiled_files|exports_file|files|imports|name|types_sizes|deps) took 401.41125ms"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 11.796041ms"
+level=info msg="[linters_context/goanalysis] analyzers took 1.270026296s with top 10 stages: revive: 622.429541ms, goimports: 243.250126ms, buildir: 28.165482ms, printf: 24.999326ms, typeindex: 24.247745ms, S1008: 24.125374ms, gci: 22.960584ms, SA4000: 22.372334ms, ST1018: 22.029999ms, S1032: 21.788333ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 48 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 63 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 5 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 23 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=warning msg="[runner/nolint_filter] Found unknown linters in //nolint directives: cognitive-complexity"
+level=info msg="[runner] Issues before processing: 279, after processing: 17"
+level=info msg="[runner] Processors filtering stat (in/out): path_prettifier: 17/17, exclusion_paths: 279/279, source_code: 17/17, path_shortener: 17/17, sort_results: 17/17, uniq_by_line: 18/17, max_per_file_from_linter: 17/17, max_from_linter: 17/17, path_absoluter: 279/279, cgo: 279/279, path_relativity: 279/279, exclusion_rules: 278/135, diff: 92/18, max_same_issues: 17/17, severity-rules: 17/17, filename_unadjuster: 279/279, invalid_issue: 279/279, generated_file_filter: 279/278, nolint_filter: 135/92, fixer: 18/18"
+level=info msg="[runner] processing took 86.296249ms with stages: diff: 73.909751ms, nolint_filter: 10.400666ms, generated_file_filter: 951.333µs, exclusion_rules: 760.959µs, path_relativity: 111.625µs, source_code: 65.751µs, exclusion_paths: 64.583µs, uniq_by_line: 10.874µs, cgo: 7.251µs, invalid_issue: 4.625µs, sort_results: 2.25µs, path_absoluter: 1.874µs, path_shortener: 1.334µs, filename_unadjuster: 1.25µs, max_same_issues: 958ns, max_per_file_from_linter: 542ns, fixer: 250ns, path_prettifier: 250ns, severity-rules: 82ns, max_from_linter: 41ns"
+level=info msg="[runner] linters took 1.296701625s with stages: goanalysis_metalinter: 1.210345209s"
+../chasm/lib/scheduler2/internal/occurrence/preparation.go:53:1: cyclomatic: function PrepareCalendar has cyclomatic complexity 26 (> max enabled 25) (revive)
+func PrepareCalendar(state PreparationState, header CalendarHeader, readPage func(field uint8, page uint32) (RangePage, error), budget int) (PreparationState, PreparationStats, error) {
+	original := state
+	stats := PreparationStats{}
+	fail := func(message string) (PreparationState, PreparationStats, error) {
+		return original, stats, serviceerror.NewInternal(message)
+	}
+	if budget <= 0 || budget > MaxPreparationSteps {
+		return original, stats, serviceerror.NewInvalidArgument("calendar preparation budget is outside supported bounds")
+	}
+	if header.SourceID == [32]byte{} || readPage == nil {
+		return fail("calendar preparation source is missing")
+	}
+	if state == (PreparationState{}) {
+		state.SourceID = header.SourceID
+		state.Partial.AllYears = header.Ranges[6] == 0
+	}
+	if state.SourceID != header.SourceID || state.Field > 7 || state.Partial.AllYears != (header.Ranges[6] == 0) || !validPreparationMasks(state) {
+		return fail("calendar preparation source or cursor is invalid")
+	}
+	if state.Done {
+		if state.Field != 7 || state.Range != 0 || state.InRange || state.Next != 0 {
+			return fail("completed calendar preparation cursor is invalid")
+		}
+		return state, stats, nil
+	}
+	if state.Field == 7 || (!state.InRange && state.Next != 0) {
+		return fail("calendar preparation cursor is invalid")
+	}
+	for stats.Steps < budget && !state.Done {
+		stats.Steps++
+		count := header.Ranges[state.Field]
+		if state.Range > count || (state.Range == count && state.InRange) {
+			return fail("calendar preparation range cursor is invalid")
+		}
+		if state.Range == count {
+			state.Field++
+			state.Range = 0
+			state.Done = state.Field == 7
+			continue
+		}
+		stats.Pages++
+		r, err := preparationRange(state, header, readPage)
+		if err != nil {
+			return original, stats, err
+		}
+		if err := prepareRangeValue(&state, r); err != nil {
+			return original, stats, err
+		}
+	}
+	return state, stats, nil
+}
+../chasm/lib/scheduler2/internal/queueindex/count.go:53:10: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return fmt.Errorf("missing count root")
+		       ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:56:10: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return fmt.Errorf("count references exhausted")
+		       ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:73:25: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+			return countEntry{}, fmt.Errorf("missing staged count node")
+			                     ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:79:24: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return countEntry{}, fmt.Errorf("missing count node")
+		                     ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:105:10: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return fmt.Errorf("count references exhausted")
+		       ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:117:14: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return id, fmt.Errorf("reserved count identity")
+		           ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:122:24: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+			return CountRoot{}, fmt.Errorf("count identity collision")
+			                    ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:128:24: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+			return CountRoot{}, fmt.Errorf("count identity collision")
+			                    ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:163:23: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return CountRoot{}, fmt.Errorf("count exhausted")
+		                    ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:171:24: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+			return CountRoot{}, fmt.Errorf("count key absent")
+			                    ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:183:24: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+			return CountRoot{}, fmt.Errorf("count key absent")
+			                    ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:197:25: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+				return CountRoot{}, fmt.Errorf("count exhausted")
+				                    ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:235:10: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return fmt.Errorf("count reference underflow")
+		       ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:281:13: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+		return 0, fmt.Errorf("missing count root")
+		          ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:294:21: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+			return 0, reads, fmt.Errorf("missing count node")
+			                 ^
+../chasm/lib/scheduler2/internal/queueindex/count.go:309:22: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+				return 0, reads, fmt.Errorf("missing count child")
+				                 ^
+17 issues:
+* revive: 17
+level=info msg="File cache stats: 2 entries of total size 13.4KiB"
+level=info msg="Memory: 19 samples, avg is 348.3MB, max is 687.0MB"
+level=info msg="Execution took 1.748895542s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

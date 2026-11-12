@@ -1,0 +1,169 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 10.76475ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (types_sizes|deps|name|compiled_files|exports_file|files|imports) took 2.706616583s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 12.019625ms"
+level=info msg="[linters_context/goanalysis] analyzers took 8.090851921s with top 10 stages: goimports: 2.023481876s, revive: 1.893092499s, buildir: 846.529748ms, nilness: 767.832594ms, gci: 265.008374ms, testifylint: 238.935959ms, fact_deprecated: 214.840626ms, fact_purity: 165.216545ms, exhaustive: 156.962922ms, printf: 122.580015ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 5 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 23 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 48 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 61 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=warning msg="[runner/nolint_filter] Found unknown linters in //nolint directives: cognitive-complexity"
+level=info msg="[runner] Issues before processing: 264, after processing: 4"
+level=info msg="[runner] Processors filtering stat (in/out): source_code: 4/4, path_prettifier: 4/4, sort_results: 4/4, filename_unadjuster: 264/264, generated_file_filter: 264/263, max_same_issues: 4/4, path_shortener: 4/4, severity-rules: 4/4, invalid_issue: 264/264, path_relativity: 264/264, exclusion_paths: 264/264, exclusion_rules: 263/122, diff: 79/5, fixer: 5/5, uniq_by_line: 5/4, max_from_linter: 4/4, path_absoluter: 264/264, cgo: 264/264, nolint_filter: 122/79, max_per_file_from_linter: 4/4"
+level=info msg="[runner] processing took 88.553749ms with stages: diff: 75.246458ms, nolint_filter: 11.220917ms, generated_file_filter: 1.021583ms, exclusion_rules: 793.084µs, path_relativity: 107.291µs, source_code: 81.209µs, exclusion_paths: 62.916µs, cgo: 6.292µs, invalid_issue: 5.958µs, uniq_by_line: 2.708µs, sort_results: 1.084µs, max_same_issues: 917ns, filename_unadjuster: 875ns, path_shortener: 875ns, path_absoluter: 584ns, max_per_file_from_linter: 375ns, fixer: 249ns, path_prettifier: 208ns, severity-rules: 83ns, max_from_linter: 83ns"
+level=info msg="[runner] linters took 2.777554375s with stages: goanalysis_metalinter: 2.688943083s"
+../chasm/data_map_test.go:208:4: enforce-switch-style: switch must have a default case clause (revive)
+			switch op {
+			case "missing-delete":
+				value.Records.Delete(ctx, "missing")
+				require.False(t, root.IsDirty())
+			case "new-put-delete":
+				value.Records.Put(ctx, "missing", &commonpb.Payload{})
+				value.Records.Delete(ctx, "missing")
+			case "read":
+				_, ok := value.Records.Get(ctx, "present")
+				require.True(t, ok)
+				require.False(t, root.IsDirty())
+			}
+../chasm/data_map_test.go:318:3: SA4006: this value of ctx is never used (staticcheck)
+		root, value, ctx := newDataMapFixture(t)
+		^
+../chasm/lib/scheduler2/internal/occurrence/preparation.go:53:1: cognitive-complexity: function PrepareCalendar has cognitive complexity 45 (> max enabled 25) (revive)
+func PrepareCalendar(state PreparationState, header CalendarHeader, readPage func(field uint8, page uint32) (RangePage, error), budget int) (PreparationState, PreparationStats, error) {
+	original := state
+	stats := PreparationStats{}
+	fail := func(message string) (PreparationState, PreparationStats, error) {
+		return original, stats, serviceerror.NewInternal(message)
+	}
+	if budget <= 0 || budget > MaxPreparationSteps {
+		return original, stats, serviceerror.NewInvalidArgument("calendar preparation budget is outside supported bounds")
+	}
+	if header.SourceID == [32]byte{} || readPage == nil {
+		return fail("calendar preparation source is missing")
+	}
+	if state == (PreparationState{}) {
+		state.SourceID = header.SourceID
+		state.Partial.AllYears = header.Ranges[6] == 0
+	}
+	if state.SourceID != header.SourceID || state.Field > 7 || state.Partial.AllYears != (header.Ranges[6] == 0) {
+		return fail("calendar preparation source or cursor is invalid")
+	}
+	if state.Done {
+		if state.Field != 7 || state.Range != 0 || state.InRange || state.Next != 0 {
+			return fail("completed calendar preparation cursor is invalid")
+		}
+		return state, stats, nil
+	}
+	if state.Field == 7 || (!state.InRange && state.Next != 0) {
+		return fail("calendar preparation cursor is invalid")
+	}
+	for stats.Steps < budget && !state.Done {
+		stats.Steps++
+		count := header.Ranges[state.Field]
+		if state.Range > count || (state.Range == count && state.InRange) {
+			return fail("calendar preparation range cursor is invalid")
+		}
+		if state.Range == count {
+			state.Field++
+			state.Range = 0
+			state.Done = state.Field == 7
+			continue
+		}
+		page, err := readPage(state.Field, state.Range/CalendarRangePageSize)
+		stats.Pages++
+		if err != nil {
+			return original, stats, err
+		}
+		expected := min(uint32(CalendarRangePageSize), count-(state.Range/CalendarRangePageSize)*CalendarRangePageSize)
+		if uint32(page.Count) != expected {
+			return fail("calendar preparation page length is invalid")
+		}
+		r := page.Ranges[state.Range%CalendarRangePageSize]
+		low, high := int32(0), int32(59)
+		switch state.Field {
+		case 2:
+			high = 23
+		case 3:
+			low, high = 1, 31
+		case 4:
+			low, high = 1, 12
+		case 5:
+			high = 6
+		case 6:
+			low, high = 2000, 2100
+		}
+		// These normalizations match the reference iterateRanges semantics.
+		if r.End < r.Start {
+			r.End = r.Start
+		}
+		if r.Step == 0 {
+			r.Step = 1
+		}
+		if r.Start < low || r.End > high || r.Step < 0 {
+			return fail("calendar preparation range is outside its field domain")
+		}
+		value := r.Start
+		if state.InRange {
+			value = state.Next
+			if value < r.Start || value > r.End || (value-r.Start)%r.Step != 0 {
+				return fail("calendar preparation value cursor is invalid")
+			}
+		}
+		if state.Field == 6 {
+			bit := value - 2000
+			state.Partial.Years[bit/64] |= uint64(1) << (bit % 64)
+		} else {
+			state.Partial.Fields[state.Field] |= uint64(1) << value
+		}
+		// Compare before adding, since an accepted step can exceed the field width.
+		if r.Step > r.End-value {
+			state.Range++
+			state.InRange, state.Next = false, 0
+		} else {
+			state.InRange, state.Next = true, value+r.Step
+		}
+	}
+	return state, stats, nil
+}
+../chasm/lib/scheduler2/internal/occurrence/preparation.go:104:3: enforce-switch-style: switch must have a default case clause (revive)
+		switch state.Field {
+		case 2:
+			high = 23
+		case 3:
+			low, high = 1, 31
+		case 4:
+			low, high = 1, 12
+		case 5:
+			high = 6
+		case 6:
+			low, high = 2000, 2100
+		}
+4 issues:
+* revive: 3
+* staticcheck: 1
+level=info msg="File cache stats: 2 entries of total size 17.7KiB"
+level=info msg="Memory: 57 samples, avg is 472.4MB, max is 1191.4MB"
+level=info msg="Execution took 5.536757416s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

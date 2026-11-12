@@ -142,12 +142,15 @@ type (
 
 	// nodeBase is a set of dependencies and states shared by all nodes in a CHASM tree.
 	nodeBase struct {
-		observation    workObservation
-		registry       *Registry
-		backend        NodeBackend
-		pathEncoder    NodePathEncoder
-		logger         log.Logger
-		metricsHandler metrics.Handler
+		epoch           uint64
+		pendingDataMaps map[*dataMapState]struct{}
+		touchedDataMaps map[*dataMapState]struct{}
+		observation     workObservation
+		registry        *Registry
+		backend         NodeBackend
+		pathEncoder     NodePathEncoder
+		logger          log.Logger
+		metricsHandler  metrics.Handler
 
 		// Following fields are changes accumulated in this transaction,
 		// and will get cleaned up after CloseTransaction().
@@ -930,6 +933,14 @@ func (n *Node) serializeComponentNode() error {
 // nolint:revive,cognitive-complexity
 func (n *Node) syncSubComponents() error {
 	n.noteWork(workSyncVisits, 1)
+	if n.parent == nil {
+		for pending := range n.pendingDataMaps {
+			if err := pending.sync(); err != nil {
+				return err
+			}
+		}
+		clear(n.pendingDataMaps)
+	}
 	if n.valueState < valueStateNeedSyncStructure {
 		for _, childNode := range n.children {
 			err := childNode.syncSubComponents()
@@ -976,6 +987,11 @@ func (n *Node) syncSubComponents() error {
 				internal.currentNode = n
 				internalField.Set(reflect.ValueOf(internal))
 			}
+		case fieldKindDataMap:
+			if err := n.syncDataMap(field); err != nil {
+				return err
+			}
+			childrenToKeep[field.name] = struct{}{}
 		case fieldKindSubMap:
 			// Validate map type before doing anything with it.
 			if !field.val.IsNil() && field.val.Kind() != reflect.Map {
@@ -1372,6 +1388,16 @@ func (n *Node) deserializeComponentNode(
 				chasmFieldV.FieldByName(internalFieldName).Set(internalValue)
 				field.val.Set(chasmFieldV)
 			}
+		case fieldKindDataMap:
+			if child, exists := n.children[field.name]; exists && !child.isMap() {
+				return serviceerror.NewInternal("DataMap field is not a collection")
+			}
+			typ := field.val.Interface().(interface{ dataType() reflect.Type }).dataType()
+			if err := validateDataMapType(typ); err != nil {
+				return err
+			}
+			state := &dataMapState{root: n.root(), owner: n, ownerValue: valueV.Interface(), field: field.name, delta: make(map[string]proto.Message)}
+			field.val.FieldByName(internalFieldName).Set(reflect.ValueOf(dataMapInternal{state: state}))
 		case fieldKindSubMap:
 			if collectionNode, found := n.children[field.name]; found {
 				mapFieldV := field.val
@@ -2712,6 +2738,13 @@ func (n *Node) andAllChildren() iter.Seq2[[]string, *Node] {
 }
 
 func (n *Node) cleanupTransaction() {
+	n.epoch++
+	for touched := range n.touchedDataMaps {
+		clear(touched.delta)
+		clear(touched.removed)
+	}
+	clear(n.touchedDataMaps)
+	clear(n.pendingDataMaps)
 	n.mutation = NodesMutation{
 		UpdatedNodes: make(map[string]*persistencespb.ChasmNode),
 		DeletedNodes: make(map[string]struct{}),

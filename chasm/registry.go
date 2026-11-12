@@ -278,6 +278,9 @@ func (r *Registry) registerComponent(
 		(rc.goType.Kind() == reflect.Pointer && rc.goType.Elem().Kind() == reflect.Struct)) {
 		return fmt.Errorf("component type %s must be struct or pointer to struct", rc.goType.String())
 	}
+	if err := validateDataMapFields(rc.goType); err != nil {
+		return err
+	}
 	if err := validateFieldNames(rc); err != nil {
 		return err
 	}

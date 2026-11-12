@@ -145,7 +145,8 @@ type immutableCtx struct {
 
 	// Not embedding the Node here to avoid exposing AddTask() method on Node,
 	// so that ContextImpl won't implement MutableContext interface.
-	root *Node
+	root  *Node
+	epoch uint64
 }
 
 type mutableCtx struct {
@@ -171,9 +172,10 @@ func newContext(
 	root := node.root()
 	workflowKey := node.backend.GetWorkflowKey()
 	return &immutableCtx{
-		ctx:  ctx,
-		now:  root.Now(nil),
-		root: root,
+		ctx:   ctx,
+		now:   root.Now(nil),
+		root:  root,
+		epoch: root.epoch,
 		executionKey: ExecutionKey{
 			NamespaceID: workflowKey.NamespaceID,
 			BusinessID:  workflowKey.WorkflowID,
@@ -265,6 +267,7 @@ func (c *immutableCtx) withValue(key any, value any) Context {
 		ctx:          context.WithValue(c.goContext(), key, value),
 		now:          c.now,
 		root:         c.root,
+		epoch:        c.epoch,
 		executionKey: c.executionKey,
 	}
 }

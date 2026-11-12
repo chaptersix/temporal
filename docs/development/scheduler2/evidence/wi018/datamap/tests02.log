@@ -1,0 +1,9 @@
+# go.temporal.io/server/chasm [go.temporal.io/server/chasm.test]
+chasm/data_map.go:141:13: s.root.pendingDataMaps undefined (type *Node has no field or method pendingDataMaps)
+chasm/data_map.go:142:11: s.root.pendingDataMaps undefined (type *Node has no field or method pendingDataMaps)
+chasm/data_map.go:144:10: s.root.pendingDataMaps undefined (type *Node has no field or method pendingDataMaps)
+chasm/tree.go:935:26: n.pendingDataMaps undefined (type *Node has no field or method pendingDataMaps)
+chasm/tree.go:940:11: n.pendingDataMaps undefined (type *Node has no field or method pendingDataMaps)
+chasm/tree.go:2737:10: n.pendingDataMaps undefined (type *Node has no field or method pendingDataMaps)
+FAIL	go.temporal.io/server/chasm [build failed]
+FAIL

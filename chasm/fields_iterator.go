@@ -10,6 +10,7 @@ import (
 
 const (
 	chasmFieldTypePrefix         = "chasm.Field["
+	chasmDataMapTypePrefix       = "chasm.DataMap["
 	chasmMapTypePrefix           = "chasm.Map["
 	chasmMSPointerType           = "chasm.MSPointer"
 	chasmParentPointerTypePrefix = "chasm.ParentPtr["
@@ -24,6 +25,7 @@ const (
 	fieldKindData
 	fieldKindSubField
 	fieldKindSubMap
+	fieldKindDataMap
 	fieldKindMutableState
 	fieldKindParentPtr
 )
@@ -66,6 +68,7 @@ func fieldsOf(valueV reflect.Value) iter.Seq[fieldInfo] {
 					switch prefix[1:] {
 					case chasmFieldTypePrefix,
 						chasmMapTypePrefix,
+						chasmDataMapTypePrefix,
 						chasmMSPointerType,
 						chasmParentPointerTypePrefix:
 						fieldErr = serviceerror.NewInternalf("%s.%s: CHASM fields must not be pointers", valueT, fieldN)
@@ -76,6 +79,8 @@ func fieldsOf(valueV reflect.Value) iter.Seq[fieldInfo] {
 					switch prefix {
 					case chasmFieldTypePrefix:
 						fieldK = fieldKindSubField
+					case chasmDataMapTypePrefix:
+						fieldK = fieldKindDataMap
 					case chasmMapTypePrefix:
 						fieldK = fieldKindSubMap
 					case chasmMSPointerType:
@@ -122,6 +127,7 @@ func unmanagedFieldsOf(valueT reflect.Type) iter.Seq[fieldInfo] {
 			switch prefix {
 			case chasmFieldTypePrefix,
 				chasmMapTypePrefix,
+				chasmDataMapTypePrefix,
 				chasmMSPointerType,
 				chasmParentPointerTypePrefix:
 				continue // Skip CHASM fields.

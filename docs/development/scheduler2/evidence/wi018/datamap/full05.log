@@ -1,0 +1,1480 @@
+=== RUN   TestNewContextWithOperationIntent
+=== PAUSE TestNewContextWithOperationIntent
+=== RUN   TestMutableContextSetTimeSkippingConfigNil
+=== PAUSE TestMutableContextSetTimeSkippingConfigNil
+=== RUN   TestDataMapDetachedOwnership
+=== PAUSE TestDataMapDetachedOwnership
+=== RUN   TestDataMapCoalescedDeltas
+=== PAUSE TestDataMapCoalescedDeltas
+=== RUN   TestDataMapLazyHydrationAndCorruption
+=== PAUSE TestDataMapLazyHydrationAndCorruption
+=== RUN   TestDataMapAttachmentAndReplicationIdentity
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity
+=== RUN   TestDataMapNoOpDoesNotPublish
+=== PAUSE TestDataMapNoOpDoesNotPublish
+=== RUN   TestDataMapDetachedAndFailedPublication
+=== PAUSE TestDataMapDetachedAndFailedPublication
+=== RUN   TestDataMapInterleavedSynchronization
+=== PAUSE TestDataMapInterleavedSynchronization
+=== RUN   TestDataMapRejectsCorruptKindAndReplacedOwner
+=== PAUSE TestDataMapRejectsCorruptKindAndReplacedOwner
+=== RUN   TestDataMapSerializerFailureReload
+=== PAUSE TestDataMapSerializerFailureReload
+=== RUN   TestReadOnlyNodeBackend_UnsupportedPanics
+--- PASS: TestReadOnlyNodeBackend_UnsupportedPanics (0.00s)
+=== RUN   TestReadOnlyNodeBackend_IsWorkflow
+=== RUN   TestReadOnlyNodeBackend_IsWorkflow/no_CHASM_nodes
+=== RUN   TestReadOnlyNodeBackend_IsWorkflow/workflow_root
+=== RUN   TestReadOnlyNodeBackend_IsWorkflow/non-workflow_root
+--- PASS: TestReadOnlyNodeBackend_IsWorkflow (0.00s)
+    --- PASS: TestReadOnlyNodeBackend_IsWorkflow/no_CHASM_nodes (0.00s)
+    --- PASS: TestReadOnlyNodeBackend_IsWorkflow/workflow_root (0.00s)
+    --- PASS: TestReadOnlyNodeBackend_IsWorkflow/non-workflow_root (0.00s)
+=== RUN   TestFieldSuite
+=== RUN   TestFieldSuite/TestChildComponentPointerRejected
+    logger.go:146: 2026-11-11T21:18:59.182-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+    logger.go:146: 2026-11-11T21:18:59.182-0600	error	failed assertion: failed to resolve deferred pointer during transaction close	{"failed-assertion": true, "softassert-error-details": "pointer target is not an ancestor of component at path []", "logging-call-at": "/private/tmp/sch-redesign-execution/common/softassert/softassert.go:44"}
+        go.temporal.io/server/common/log.(*zapLogger).Error
+        	/private/tmp/sch-redesign-execution/common/log/zap_logger.go:191
+        go.temporal.io/server/common/testing/testlogger.(*TestLogger).Error
+        	/private/tmp/sch-redesign-execution/common/testing/testlogger/testlogger.go:543
+        go.temporal.io/server/common/softassert.Fail
+        	/private/tmp/sch-redesign-execution/common/softassert/softassert.go:44
+        go.temporal.io/server/common/softassert.UnexpectedInternalErr
+        	/private/tmp/sch-redesign-execution/common/softassert/serviceerror.go:27
+        go.temporal.io/server/chasm.(*Node).resolveDeferredPointers-range1-range1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2695
+        go.temporal.io/server/chasm.fieldsOf.func1
+        	/private/tmp/sch-redesign-execution/chasm/fields_iterator.go:97
+        go.temporal.io/server/chasm.(*Node).resolveDeferredPointers-range1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2657
+        go.temporal.io/server/chasm.(*Node).andAllChildren.func1.func1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2723
+        go.temporal.io/server/chasm.(*Node).andAllChildren.func1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2736
+        go.temporal.io/server/chasm.(*Node).resolveDeferredPointers
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2652
+        go.temporal.io/server/chasm.(*Node).CloseTransaction
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:1856
+        go.temporal.io/server/chasm.(*fieldSuite).TestChildComponentPointerRejected
+        	/private/tmp/sch-redesign-execution/chasm/field_test.go:431
+        reflect.Value.call
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+        reflect.Value.Call
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+        github.com/stretchr/testify/suite.Run.func1
+        	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+        testing.tRunner
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+=== RUN   TestFieldSuite/TestDeferredPointerResolution
+    logger.go:146: 2026-11-11T21:18:59.182-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestFieldSuite/TestFieldGetComponent
+    logger.go:146: 2026-11-11T21:18:59.183-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestFieldSuite/TestFieldGetSimple
+    logger.go:146: 2026-11-11T21:18:59.183-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestFieldSuite/TestFieldGetSimple/Get_with_non-nil_value
+=== RUN   TestFieldSuite/TestFieldGetSimple/Get_with_nil_value_and_nil_node
+=== RUN   TestFieldSuite/TestInternalFieldName
+    logger.go:146: 2026-11-11T21:18:59.183-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestFieldSuite/TestMixedPointerScenario
+    logger.go:146: 2026-11-11T21:18:59.183-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestFieldSuite/TestNonAncestorComponentPointerRejected
+    logger.go:146: 2026-11-11T21:18:59.183-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+    logger.go:146: 2026-11-11T21:18:59.183-0600	error	failed assertion: failed to resolve deferred pointer during transaction close	{"failed-assertion": true, "softassert-error-details": "pointer target is not an ancestor of component at path []", "logging-call-at": "/private/tmp/sch-redesign-execution/common/softassert/softassert.go:44"}
+        go.temporal.io/server/common/log.(*zapLogger).Error
+        	/private/tmp/sch-redesign-execution/common/log/zap_logger.go:191
+        go.temporal.io/server/common/testing/testlogger.(*TestLogger).Error
+        	/private/tmp/sch-redesign-execution/common/testing/testlogger/testlogger.go:543
+        go.temporal.io/server/common/softassert.Fail
+        	/private/tmp/sch-redesign-execution/common/softassert/softassert.go:44
+        go.temporal.io/server/common/softassert.UnexpectedInternalErr
+        	/private/tmp/sch-redesign-execution/common/softassert/serviceerror.go:27
+        go.temporal.io/server/chasm.(*Node).resolveDeferredPointers-range1-range1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2695
+        go.temporal.io/server/chasm.fieldsOf.func1
+        	/private/tmp/sch-redesign-execution/chasm/fields_iterator.go:97
+        go.temporal.io/server/chasm.(*Node).resolveDeferredPointers-range1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2657
+        go.temporal.io/server/chasm.(*Node).andAllChildren.func1.func1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2723
+        go.temporal.io/server/chasm.(*Node).andAllChildren.func1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2736
+        go.temporal.io/server/chasm.(*Node).resolveDeferredPointers
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2652
+        go.temporal.io/server/chasm.(*Node).CloseTransaction
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:1856
+        go.temporal.io/server/chasm.(*fieldSuite).TestNonAncestorComponentPointerRejected
+        	/private/tmp/sch-redesign-execution/chasm/field_test.go:391
+        reflect.Value.call
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+        reflect.Value.Call
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+        github.com/stretchr/testify/suite.Run.func1
+        	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+        testing.tRunner
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+=== RUN   TestFieldSuite/TestUnresolvableDeferredPointerError
+    logger.go:146: 2026-11-11T21:18:59.183-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+    logger.go:146: 2026-11-11T21:18:59.183-0600	error	failed assertion: failed to resolve deferred pointer during transaction close	{"failed-assertion": true, "softassert-error-details": "component not found", "logging-call-at": "/private/tmp/sch-redesign-execution/common/softassert/softassert.go:44"}
+        go.temporal.io/server/common/log.(*zapLogger).Error
+        	/private/tmp/sch-redesign-execution/common/log/zap_logger.go:191
+        go.temporal.io/server/common/testing/testlogger.(*TestLogger).Error
+        	/private/tmp/sch-redesign-execution/common/testing/testlogger/testlogger.go:543
+        go.temporal.io/server/common/softassert.Fail
+        	/private/tmp/sch-redesign-execution/common/softassert/softassert.go:44
+        go.temporal.io/server/common/softassert.UnexpectedInternalErr
+        	/private/tmp/sch-redesign-execution/common/softassert/serviceerror.go:27
+        go.temporal.io/server/chasm.(*Node).resolveDeferredPointers-range1-range1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2695
+        go.temporal.io/server/chasm.fieldsOf.func1
+        	/private/tmp/sch-redesign-execution/chasm/fields_iterator.go:97
+        go.temporal.io/server/chasm.(*Node).resolveDeferredPointers-range1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2657
+        go.temporal.io/server/chasm.(*Node).andAllChildren.func1.func1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2723
+        go.temporal.io/server/chasm.(*Node).andAllChildren.func1
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2736
+        go.temporal.io/server/chasm.(*Node).resolveDeferredPointers
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:2652
+        go.temporal.io/server/chasm.(*Node).CloseTransaction
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:1856
+        go.temporal.io/server/chasm.(*fieldSuite).TestUnresolvableDeferredPointerError
+        	/private/tmp/sch-redesign-execution/chasm/field_test.go:345
+        reflect.Value.call
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+        reflect.Value.Call
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+        github.com/stretchr/testify/suite.Run.func1
+        	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+        testing.tRunner
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+--- PASS: TestFieldSuite (0.00s)
+    --- PASS: TestFieldSuite/TestChildComponentPointerRejected (0.00s)
+    --- PASS: TestFieldSuite/TestDeferredPointerResolution (0.00s)
+    --- PASS: TestFieldSuite/TestFieldGetComponent (0.00s)
+    --- PASS: TestFieldSuite/TestFieldGetSimple (0.00s)
+        --- PASS: TestFieldSuite/TestFieldGetSimple/Get_with_non-nil_value (0.00s)
+        --- PASS: TestFieldSuite/TestFieldGetSimple/Get_with_nil_value_and_nil_node (0.00s)
+    --- PASS: TestFieldSuite/TestInternalFieldName (0.00s)
+    --- PASS: TestFieldSuite/TestMixedPointerScenario (0.00s)
+    --- PASS: TestFieldSuite/TestNonAncestorComponentPointerRejected (0.00s)
+    --- PASS: TestFieldSuite/TestUnresolvableDeferredPointerError (0.00s)
+=== RUN   TestFieldsIteratorSuite
+=== RUN   TestFieldsIteratorSuite/TestChasmFieldTypePrefix
+=== RUN   TestFieldsIteratorSuite/TestChasmMapTypePrefix
+=== RUN   TestFieldsIteratorSuite/TestFieldsOf
+=== RUN   TestFieldsIteratorSuite/TestFieldsOf/Valid_component_with_one_data_field
+=== RUN   TestFieldsIteratorSuite/TestFieldsOf/Component_with_no_data_field
+=== RUN   TestFieldsIteratorSuite/TestFieldsOf/Component_with_*Field
+=== RUN   TestFieldsIteratorSuite/TestFieldsOf/Component_with_multiple_data_fields
+=== RUN   TestFieldsIteratorSuite/TestFieldsOf/Component_with_UnimplementedComponent_only
+=== RUN   TestFieldsIteratorSuite/TestGenericTypePrefix
+=== RUN   TestFieldsIteratorSuite/TestGenericTypePrefix/Field_type
+=== RUN   TestFieldsIteratorSuite/TestGenericTypePrefix/Map_type
+=== RUN   TestFieldsIteratorSuite/TestGenericTypePrefix/Non-generic_type
+=== RUN   TestFieldsIteratorSuite/TestGenericTypePrefix/Map_type#01
+=== RUN   TestFieldsIteratorSuite/TestHasVisibilityField
+=== RUN   TestFieldsIteratorSuite/TestHasVisibilityField/component_with_Visibility_field
+=== RUN   TestFieldsIteratorSuite/TestHasVisibilityField/component_without_Visibility_field
+=== RUN   TestFieldsIteratorSuite/TestHasVisibilityField/non-struct_type
+=== RUN   TestFieldsIteratorSuite/TestUnmanagedFieldsOf
+--- PASS: TestFieldsIteratorSuite (0.00s)
+    --- PASS: TestFieldsIteratorSuite/TestChasmFieldTypePrefix (0.00s)
+    --- PASS: TestFieldsIteratorSuite/TestChasmMapTypePrefix (0.00s)
+    --- PASS: TestFieldsIteratorSuite/TestFieldsOf (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestFieldsOf/Valid_component_with_one_data_field (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestFieldsOf/Component_with_no_data_field (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestFieldsOf/Component_with_*Field (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestFieldsOf/Component_with_multiple_data_fields (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestFieldsOf/Component_with_UnimplementedComponent_only (0.00s)
+    --- PASS: TestFieldsIteratorSuite/TestGenericTypePrefix (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestGenericTypePrefix/Field_type (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestGenericTypePrefix/Map_type (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestGenericTypePrefix/Non-generic_type (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestGenericTypePrefix/Map_type#01 (0.00s)
+    --- PASS: TestFieldsIteratorSuite/TestHasVisibilityField (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestHasVisibilityField/component_with_Visibility_field (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestHasVisibilityField/component_without_Visibility_field (0.00s)
+        --- PASS: TestFieldsIteratorSuite/TestHasVisibilityField/non-struct_type (0.00s)
+    --- PASS: TestFieldsIteratorSuite/TestUnmanagedFieldsOf (0.00s)
+=== RUN   TestMapKeyTypesMatchConst
+--- PASS: TestMapKeyTypesMatchConst (0.00s)
+=== RUN   TestMSPointer_LifecycleState
+=== PAUSE TestMSPointer_LifecycleState
+=== RUN   TestMSPointer_LifecycleState_UnknownStatus
+=== PAUSE TestMSPointer_LifecycleState_UnknownStatus
+=== RUN   TestNexusOperationProcessor_ProcessInput
+=== PAUSE TestNexusOperationProcessor_ProcessInput
+=== RUN   TestNexusServiceProcessor_ProcessInput
+=== PAUSE TestNexusServiceProcessor_ProcessInput
+=== RUN   TestNexusEndpointProcessor_ProcessInput
+=== PAUSE TestNexusEndpointProcessor_ProcessInput
+=== RUN   TestDefaultPathEncoder_EncodeDecode
+--- PASS: TestDefaultPathEncoder_EncodeDecode (0.00s)
+=== RUN   TestIsRootPath
+=== RUN   TestIsRootPath/nil_path
+=== RUN   TestIsRootPath/empty_path
+=== RUN   TestIsRootPath/rootPath
+=== RUN   TestIsRootPath/non-root
+=== RUN   TestIsRootPath/root_child
+--- PASS: TestIsRootPath (0.00s)
+    --- PASS: TestIsRootPath/nil_path (0.00s)
+    --- PASS: TestIsRootPath/empty_path (0.00s)
+    --- PASS: TestIsRootPath/rootPath (0.00s)
+    --- PASS: TestIsRootPath/non-root (0.00s)
+    --- PASS: TestIsRootPath/root_child (0.00s)
+=== RUN   TestIsRootPath_DecodedRoot
+--- PASS: TestIsRootPath_DecodedRoot (0.00s)
+=== RUN   TestComponentRefSuite
+=== RUN   TestComponentRefSuite/TestArchetypeID
+2026-11-11T21:18:59.184-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestComponentRefSuite/TestForConsistencyLevel
+2026-11-11T21:18:59.184-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestComponentRefSuite/TestForConsistencyLevel/ExecutionLastUpdate_keeps_everything
+=== RUN   TestComponentRefSuite/TestForConsistencyLevel/ComponentCreation_keys_staleness_off_the_component_creation_VT
+=== RUN   TestComponentRefSuite/TestForConsistencyLevel/CurrentRun_drops_both_VTs_and_the_run_ID
+=== RUN   TestComponentRefSuite/TestForConsistencyLevel/CurrentRun_is_rejected_for_a_non-workflow_archetype
+=== RUN   TestComponentRefSuite/TestNewComponentRefByArchetypeID
+2026-11-11T21:18:59.184-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestComponentRefSuite/TestSerializeDeserialize
+2026-11-11T21:18:59.185-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+--- PASS: TestComponentRefSuite (0.00s)
+    --- PASS: TestComponentRefSuite/TestArchetypeID (0.00s)
+    --- PASS: TestComponentRefSuite/TestForConsistencyLevel (0.00s)
+        --- PASS: TestComponentRefSuite/TestForConsistencyLevel/ExecutionLastUpdate_keeps_everything (0.00s)
+        --- PASS: TestComponentRefSuite/TestForConsistencyLevel/ComponentCreation_keys_staleness_off_the_component_creation_VT (0.00s)
+        --- PASS: TestComponentRefSuite/TestForConsistencyLevel/CurrentRun_drops_both_VTs_and_the_run_ID (0.00s)
+        --- PASS: TestComponentRefSuite/TestForConsistencyLevel/CurrentRun_is_rejected_for_a_non-workflow_archetype (0.00s)
+    --- PASS: TestComponentRefSuite/TestNewComponentRefByArchetypeID (0.00s)
+    --- PASS: TestComponentRefSuite/TestSerializeDeserialize (0.00s)
+=== RUN   TestResolveTaskCountMetricThreshold
+=== RUN   TestResolveTaskCountMetricThreshold/registered_threshold
+=== RUN   TestResolveTaskCountMetricThreshold/dynamic_config_overrides_registered_threshold
+=== RUN   TestResolveTaskCountMetricThreshold/negative_dynamic_config_disables
+--- PASS: TestResolveTaskCountMetricThreshold (0.00s)
+    --- PASS: TestResolveTaskCountMetricThreshold/registered_threshold (0.00s)
+    --- PASS: TestResolveTaskCountMetricThreshold/dynamic_config_overrides_registered_threshold (0.00s)
+    --- PASS: TestResolveTaskCountMetricThreshold/negative_dynamic_config_disables (0.00s)
+=== RUN   TestRegistryTaskCountMetricComponentIDs
+=== RUN   TestRegistryTaskCountMetricComponentIDs/concrete_component_type
+=== RUN   TestRegistryTaskCountMetricComponentIDs/interface_component_type
+=== RUN   TestRegistryTaskCountMetricComponentIDs/not_opted_in
+=== RUN   TestRegistryTaskCountMetricComponentIDs/non-positive_threshold
+=== RUN   TestRegistryTaskCountMetricComponentIDs/component_not_registered
+--- PASS: TestRegistryTaskCountMetricComponentIDs (0.00s)
+    --- PASS: TestRegistryTaskCountMetricComponentIDs/concrete_component_type (0.00s)
+    --- PASS: TestRegistryTaskCountMetricComponentIDs/interface_component_type (0.00s)
+    --- PASS: TestRegistryTaskCountMetricComponentIDs/not_opted_in (0.00s)
+    --- PASS: TestRegistryTaskCountMetricComponentIDs/non-positive_threshold (0.00s)
+    --- PASS: TestRegistryTaskCountMetricComponentIDs/component_not_registered (0.00s)
+=== RUN   TestSearchAttributesMap_Get
+=== RUN   TestSearchAttributesMap_Get/GetBool
+=== RUN   TestSearchAttributesMap_Get/GetInt64
+=== RUN   TestSearchAttributesMap_Get/GetFloat64
+=== RUN   TestSearchAttributesMap_Get/GetString
+=== RUN   TestSearchAttributesMap_Get/GetTime
+=== RUN   TestSearchAttributesMap_Get/GetStringSlice
+=== RUN   TestSearchAttributesMap_Get/GetText
+=== RUN   TestSearchAttributesMap_Get/NotFound
+=== RUN   TestSearchAttributesMap_Get/NilMap
+--- PASS: TestSearchAttributesMap_Get (0.00s)
+    --- PASS: TestSearchAttributesMap_Get/GetBool (0.00s)
+    --- PASS: TestSearchAttributesMap_Get/GetInt64 (0.00s)
+    --- PASS: TestSearchAttributesMap_Get/GetFloat64 (0.00s)
+    --- PASS: TestSearchAttributesMap_Get/GetString (0.00s)
+    --- PASS: TestSearchAttributesMap_Get/GetTime (0.00s)
+    --- PASS: TestSearchAttributesMap_Get/GetStringSlice (0.00s)
+    --- PASS: TestSearchAttributesMap_Get/GetText (0.00s)
+    --- PASS: TestSearchAttributesMap_Get/NotFound (0.00s)
+    --- PASS: TestSearchAttributesMap_Get/NilMap (0.00s)
+=== RUN   TestNewSearchAttributesMapFromProto
+=== RUN   TestNewSearchAttributesMapFromProto/NilSearchAttributes
+=== RUN   TestNewSearchAttributesMapFromProto/EmptyIndexedFields
+=== RUN   TestNewSearchAttributesMapFromProto/SingleBoolValue
+=== RUN   TestNewSearchAttributesMapFromProto/MultipleValueTypes
+=== RUN   TestNewSearchAttributesMapFromProto/InvalidPayload
+--- PASS: TestNewSearchAttributesMapFromProto (0.00s)
+    --- PASS: TestNewSearchAttributesMapFromProto/NilSearchAttributes (0.00s)
+    --- PASS: TestNewSearchAttributesMapFromProto/EmptyIndexedFields (0.00s)
+    --- PASS: TestNewSearchAttributesMapFromProto/SingleBoolValue (0.00s)
+    --- PASS: TestNewSearchAttributesMapFromProto/MultipleValueTypes (0.00s)
+    --- PASS: TestNewSearchAttributesMapFromProto/InvalidPayload (0.00s)
+=== RUN   TestPropagateTimeSkippingToOtherExecution
+=== PAUSE TestPropagateTimeSkippingToOtherExecution
+=== RUN   TestTimeSkippingInfoForDescribe
+=== PAUSE TestTimeSkippingInfoForDescribe
+=== RUN   TestTimeSkippingTransition
+=== PAUSE TestTimeSkippingTransition
+=== RUN   TestNodeSuite
+=== RUN   TestNodeSuite/TestAndAllChildren_PathIndependence
+    logger.go:146: 2026-11-11T21:18:59.185-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestApplyMutation
+    logger.go:146: 2026-11-11T21:18:59.185-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestApplyMutation_DeleteUpdateSamePath
+    logger.go:146: 2026-11-11T21:18:59.186-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestApplyMutation_InvalidatesHydratedMapAncestors
+    logger.go:146: 2026-11-11T21:18:59.186-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestApplyMutation_InvalidatesHydratedMapAncestors/CreateMapItem
+=== RUN   TestNodeSuite/TestApplyMutation_InvalidatesHydratedMapAncestors/UpdateMapItem
+=== RUN   TestNodeSuite/TestApplyMutation_InvalidatesHydratedMapAncestors/DeleteMapItem
+=== RUN   TestNodeSuite/TestApplyMutation_OutOfOrder
+    logger.go:146: 2026-11-11T21:18:59.186-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestApplySnapshot
+    logger.go:146: 2026-11-11T21:18:59.186-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestApplySnapshot_EmptySnapshot
+    logger.go:146: 2026-11-11T21:18:59.187-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCarryOverTaskStatus
+    logger.go:146: 2026-11-11T21:18:59.187-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransactionHandleTimeSkipping
+    logger.go:146: 2026-11-11T21:18:59.187-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransactionHandleTimeSkipping/NilTimeSkippingInfoIsSafeNoOp
+=== RUN   TestNodeSuite/TestCloseTransactionHandleTimeSkipping/NonRootNodeIsNoOp
+=== RUN   TestNodeSuite/TestCloseTransactionHandleTimeSkipping/ConfigDisabledAndGateNotImplemented_NoError
+=== RUN   TestNodeSuite/TestCloseTransactionHandleTimeSkipping/ConfigEnabledAndGateNotImplemented_InternalError
+=== NAME  TestNodeSuite/TestCloseTransactionHandleTimeSkipping
+    logger.go:146: 2026-11-11T21:18:59.187-0600	error	root component does not implement TimeSkippingRuntimeGate when executions have turned on time skipping	{"error": "type: ", "logging-call-at": "/private/tmp/sch-redesign-execution/chasm/tree.go:4278"}
+        go.temporal.io/server/common/log.(*zapLogger).Error
+        	/private/tmp/sch-redesign-execution/common/log/zap_logger.go:191
+        go.temporal.io/server/common/testing/testlogger.(*TestLogger).Error
+        	/private/tmp/sch-redesign-execution/common/testing/testlogger/testlogger.go:543
+        go.temporal.io/server/chasm.(*Node).closeTransactionHandleTimeSkipping
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:4278
+        go.temporal.io/server/chasm.(*nodeSuite).TestCloseTransactionHandleTimeSkipping.func7
+        	/private/tmp/sch-redesign-execution/chasm/tree_test.go:6318
+        github.com/stretchr/testify/suite.(*Suite).Run.func1
+        	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+        testing.tRunner
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+=== RUN   TestNodeSuite/TestCloseTransactionHandleTimeSkipping/FeatureFlagDisabled_LeavesStateUnchanged
+=== RUN   TestNodeSuite/TestCloseTransactionHandleTimeSkipping/GateNotSkippable_NoStateChange
+=== NAME  TestNodeSuite/TestCloseTransactionHandleTimeSkipping
+    logger.go:146: 2026-11-11T21:18:59.187-0600	debug	chasm time skipping skipped because the execution is not skippable	{"archetype": "test_timeskipping_component", "logging-call-at": "/private/tmp/sch-redesign-execution/chasm/tree.go:4286"}
+=== RUN   TestNodeSuite/TestCloseTransactionHandleTimeSkipping/GateSkippableButTimerDue_NoStateChange
+=== NAME  TestNodeSuite/TestCloseTransactionHandleTimeSkipping
+    logger.go:146: 2026-11-11T21:18:59.187-0600	debug	a pending task blocks chasm time skipping	{"archetype": "test_timeskipping_component", "chasm-task-type": "TestLibrary.test_pure_task", "logging-call-at": "/private/tmp/sch-redesign-execution/chasm/tree.go:4388"}
+=== RUN   TestNodeSuite/TestCloseTransactionHandleTimeSkipping/GateSkippable_RecordsTransitionAndRegeneratesTasks
+=== NAME  TestNodeSuite/TestCloseTransactionHandleTimeSkipping
+    logger.go:146: 2026-11-11T21:18:59.187-0600	debug	chasm time skipping transition recorded	{"archetype": "test_timeskipping_component", "current-time": "2027-01-01T12:00:00.000Z", "target-time": "2027-01-01T13:00:00.000Z", "skipped-duration": 3600, "disabled-after-fast-forward": false, "logging-call-at": "/private/tmp/sch-redesign-execution/chasm/tree.go:4309"}
+=== RUN   TestNodeSuite/TestCloseTransactionHandleTimeSkipping/AccumulatedDurationCap_RejectsTransition
+=== NAME  TestNodeSuite/TestCloseTransactionHandleTimeSkipping
+    logger.go:146: 2026-11-11T21:18:59.187-0600	warn	chasm time skipping exceeds maximum accumulated duration	{"archetype": "test_timeskipping_component", "accumulated-skipped-duration": 3600, "proposed-skipped-duration": 3600, "maximum-accumulated-skipped-duration": 5400, "logging-call-at": "/private/tmp/sch-redesign-execution/chasm/tree.go:4299"}
+=== RUN   TestNodeSuite/TestCloseTransactionHandleTimeSkipping/FastForwardReached_RecordsTransitionWithoutRegeneratingTasks
+=== NAME  TestNodeSuite/TestCloseTransactionHandleTimeSkipping
+    logger.go:146: 2026-11-11T21:18:59.187-0600	debug	chasm time skipping transition recorded	{"archetype": "test_timeskipping_component", "current-time": "2027-01-01T12:00:00.000Z", "target-time": "0001-01-01T00:00:00.000Z", "skipped-duration": 0, "disabled-after-fast-forward": true, "logging-call-at": "/private/tmp/sch-redesign-execution/chasm/tree.go:4309"}
+=== RUN   TestNodeSuite/TestCloseTransaction_AppliesPendingComponentMetadata
+    logger.go:146: 2026-11-11T21:18:59.187-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_ApplyMutation_PureTasks
+    logger.go:146: 2026-11-11T21:18:59.187-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_ApplyMutation_SideEffectTasks
+    logger.go:146: 2026-11-11T21:18:59.187-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_CleanupTasksAfterInvalidTask
+    logger.go:146: 2026-11-11T21:18:59.187-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_DropsOrphanedComponentMetadata
+    logger.go:146: 2026-11-11T21:18:59.188-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+    logger.go:146: 2026-11-11T21:18:59.188-0600	warn	chasm: dropped staged component metadata for components that were never registered as nodes	{"orphan-request-link-components": 1, "orphan-user-metadata-components": 1, "logging-call-at": "/private/tmp/sch-redesign-execution/chasm/tree.go:1658"}
+=== RUN   TestNodeSuite/TestCloseTransaction_EmptyNode
+    logger.go:146: 2026-11-11T21:18:59.188-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_ForceUpdateVisibility_RootLifecycleChanged
+    logger.go:146: 2026-11-11T21:18:59.188-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_ForceUpdateVisibility_RootSAMemoChanged
+    logger.go:146: 2026-11-11T21:18:59.188-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_InvalidateComponentTasks
+    logger.go:146: 2026-11-11T21:18:59.188-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_KeepsPersistedRootInitialVT
+    logger.go:146: 2026-11-11T21:18:59.188-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_LifecycleChange
+    logger.go:146: 2026-11-11T21:18:59.188-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_LifecycleChange_PausedRootKeepsRunning
+    logger.go:146: 2026-11-11T21:18:59.188-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics
+    logger.go:146: 2026-11-11T21:18:59.188-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics/registered_over_threshold
+=== RUN   TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics/registered_at_threshold
+=== RUN   TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics/dynamic_config_lowers_threshold
+=== RUN   TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics/dynamic_config_raises_threshold
+=== RUN   TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics/dynamic_config_disables
+=== RUN   TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics_AggregatesAcrossComponents
+    logger.go:146: 2026-11-11T21:18:59.188-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics_ExcludesInvalidatedTasks
+    logger.go:146: 2026-11-11T21:18:59.189-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics_NotEmittedForTaskTypeNotOptedIn
+    logger.go:146: 2026-11-11T21:18:59.189-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_MarkTotalTimeSkippedUpdatedInPassive
+    logger.go:146: 2026-11-11T21:18:59.189-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_MarkTotalTimeSkippedUpdatedInPassive/WithoutFlagLeavesCreatedTasksUntouched
+=== RUN   TestNodeSuite/TestCloseTransaction_MarkTotalTimeSkippedUpdatedInPassive/WithFlagRegeneratesTimerAndPureTasks
+=== RUN   TestNodeSuite/TestCloseTransaction_NewComponentTasks
+    logger.go:146: 2026-11-11T21:18:59.189-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_PausedStateInvalidatesTasks
+    logger.go:146: 2026-11-11T21:18:59.189-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_PausedStateInvalidatesTasks/paused_component_invalidates_its_own_tasks_without_calling_task_validator
+=== RUN   TestNodeSuite/TestCloseTransaction_PausedStateInvalidatesTasks/paused_parent_invalidates_non-detached_sub-component_tasks
+=== RUN   TestNodeSuite/TestCloseTransaction_PausedStateInvalidatesTasks/detached_sub-component_tasks_are_NOT_invalidated_by_parent_pause
+=== RUN   TestNodeSuite/TestCloseTransaction_PausedStateInvalidatesTasks/write_access_accepted_on_paused_component
+=== RUN   TestNodeSuite/TestCloseTransaction_PersistsAcrossTransactions
+    logger.go:146: 2026-11-11T21:18:59.189-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_RecordPrincipal
+    logger.go:146: 2026-11-11T21:18:59.189-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_RecordPrincipal_CloseWithoutPrincipal
+    logger.go:146: 2026-11-11T21:18:59.190-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_RecordPrincipal_Passive
+    logger.go:146: 2026-11-11T21:18:59.190-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_RecordPrincipal_Terminate
+    logger.go:146: 2026-11-11T21:18:59.190-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_RecordStartedByPrincipal
+    logger.go:146: 2026-11-11T21:18:59.190-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_RecordStartedByPrincipal/RecordedOnCreate
+=== RUN   TestNodeSuite/TestCloseTransaction_RecordStartedByPrincipal/NoPrincipal
+=== RUN   TestNodeSuite/TestCloseTransaction_RecordStartedByPrincipal/Passive
+=== RUN   TestNodeSuite/TestCloseTransaction_RecordStartedByPrincipal/ArchetypeNotOptedIn
+=== RUN   TestNodeSuite/TestCloseTransaction_SingletonTask_Ignore_Pure
+    logger.go:146: 2026-11-11T21:18:59.190-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_SingletonTask_Ignore_SideEffect
+    logger.go:146: 2026-11-11T21:18:59.190-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_SingletonTask_InvalidNewTask_DoesNotDisplaceExisting
+    logger.go:146: 2026-11-11T21:18:59.190-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_SingletonTask_Replace_Pure
+    logger.go:146: 2026-11-11T21:18:59.190-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_SingletonTask_Replace_SideEffect
+    logger.go:146: 2026-11-11T21:18:59.190-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_StampsRootInitialVTOnFirstPersist
+    logger.go:146: 2026-11-11T21:18:59.190-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_Success
+    logger.go:146: 2026-11-11T21:18:59.191-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty
+    logger.go:146: 2026-11-11T21:18:59.191-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty/unrelated_sibling_subtree_tasks_are_not_validated
+=== RUN   TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty/dirty_ancestor_causes_descendant_tasks_to_be_validated
+=== RUN   TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty/dirty_descendant_causes_ancestor_tasks_to_be_validated
+=== RUN   TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty/subtreeIsDirty_resets_after_CloseTransaction
+=== RUN   TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty/ExecutePureTask_with_no_state_mutations_still_cleans_up_the_executed_task
+=== RUN   TestNodeSuite/TestCollectionAttributes
+    logger.go:146: 2026-11-11T21:18:59.191-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestCollectionAttributes/Sync_and_serialize_component_with_map_of_string_key
+=== RUN   TestNodeSuite/TestCollectionAttributes/Deserialize_component_with_map_of_string_key
+=== RUN   TestNodeSuite/TestCollectionAttributes/Clear_map_of_string_key_by_setting_it_to_nil
+=== RUN   TestNodeSuite/TestCollectionAttributes/Delete_single_map_of_string_key_item
+=== RUN   TestNodeSuite/TestCollectionAttributes/Clear_map_of_string_key_by_deleting_all_items
+=== RUN   TestNodeSuite/TestCollectionAttributes/Nil_map_of_string_key_on_first_transaction_produces_no_deletions
+=== RUN   TestNodeSuite/TestCollectionAttributes/Empty_(non-nil)_map_of_string_key_on_first_transaction_produces_no_deletions
+=== RUN   TestNodeSuite/TestCollectionAttributes/Sync_and_serialize_component_with_map_of_int_key
+=== RUN   TestNodeSuite/TestCollectionAttributes/Deserialize_component_with_map_of_int_key
+=== RUN   TestNodeSuite/TestCollectionAttributes/Clear_map_of_int_key_by_setting_it_to_nil
+=== RUN   TestNodeSuite/TestCollectionAttributes/Delete_single_map_of_int_key_item
+=== RUN   TestNodeSuite/TestCollectionAttributes/Clear_map_of_int_key_by_deleting_all_items
+=== RUN   TestNodeSuite/TestCollectionAttributes/Nil_map_of_int_key_on_first_transaction_produces_no_deletions
+=== RUN   TestNodeSuite/TestCollectionAttributes/Empty_(non-nil)_map_of_int_key_on_first_transaction_produces_no_deletions
+=== RUN   TestNodeSuite/TestComponentPath
+    logger.go:146: 2026-11-11T21:18:59.191-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestContextNowStableWithinContext
+    logger.go:146: 2026-11-11T21:18:59.191-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestDefaultFindNextTargetTime
+    logger.go:146: 2026-11-11T21:18:59.191-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestDefaultFindNextTargetTime/NoTasksInvalidTransition
+=== RUN   TestNodeSuite/TestDefaultFindNextTargetTime/EarliestFutureTaskWins
+=== RUN   TestNodeSuite/TestDefaultFindNextTargetTime/EarlierFastForwardCapsAndDisables
+=== RUN   TestNodeSuite/TestDeserializeNode_ComponentAttributes
+    logger.go:146: 2026-11-11T21:18:59.192-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestDeserializeNode_DataAttributes
+    logger.go:146: 2026-11-11T21:18:59.192-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestDeserializeNode_EmptyPersistence
+    logger.go:146: 2026-11-11T21:18:59.192-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestEachPureTask
+    logger.go:146: 2026-11-11T21:18:59.192-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestExecuteImmediatePureTask
+    logger.go:146: 2026-11-11T21:18:59.192-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestExecuteImmediatePureTaskSkipsPostExecutionValidation
+    logger.go:146: 2026-11-11T21:18:59.192-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestExecutePureTask
+    logger.go:146: 2026-11-11T21:18:59.192-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+    logger.go:146: 2026-11-11T21:18:59.192-0600	warn	CHASM pure task remained valid after successful execution	{"wf-namespace-id": "", "wf-id": "", "wf-run-id": "", "chasm-task-kind": "pure", "chasm-task-type": "TestLibrary.test_pure_task", "chasm-task-type-id": 750117194, "archetype": "test_component", "archetype-id": 612176635, "chasm-component-path": "", "chasm-task-scheduled-time": "1969-12-31T18:00:00.000-0600", "logging-call-at": "/private/tmp/sch-redesign-execution/chasm/tree.go:3922"}
+    logger.go:146: 2026-11-11T21:18:59.192-0600	warn	chasm: failed to validate pure task after successful execution	{"error": "dummy", "logging-call-at": "/private/tmp/sch-redesign-execution/chasm/tree.go:3896"}
+=== RUN   TestNodeSuite/TestExecuteSideEffectDiscardTask
+    logger.go:146: 2026-11-11T21:18:59.192-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestExecuteSideEffectDiscardTask/Success
+=== RUN   TestNodeSuite/TestExecuteSideEffectDiscardTask/InvalidTask
+=== RUN   TestNodeSuite/TestExecuteSideEffectDiscardTask/ValidationError
+=== RUN   TestNodeSuite/TestExecuteSideEffectDiscardTask/DiscardHandlerError
+=== RUN   TestNodeSuite/TestExecuteSideEffectTask
+    logger.go:146: 2026-11-11T21:18:59.192-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestExecuteSideEffectTask_RootComponentIgnoresInitialVT
+    logger.go:146: 2026-11-11T21:18:59.193-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestExecutionType
+    logger.go:146: 2026-11-11T21:18:59.193-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestExecutionType/no_registered_execution_type
+=== RUN   TestNodeSuite/TestExecutionType/registered_execution_type
+=== RUN   TestNodeSuite/TestFieldInterface
+    logger.go:146: 2026-11-11T21:18:59.193-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestGenerateSerializedNodes
+    logger.go:146: 2026-11-11T21:18:59.193-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+    tree_test.go:923: This test is used to generate serialized nodes for other tests.
+=== RUN   TestNodeSuite/TestGetComponent
+    logger.go:146: 2026-11-11T21:18:59.193-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestGetComponent/path_not_found
+=== RUN   TestNodeSuite/TestGetComponent/initialVT_mismatch
+=== RUN   TestNodeSuite/TestGetComponent/validation_failure
+=== RUN   TestNodeSuite/TestGetComponent/success_readonly_access
+=== RUN   TestNodeSuite/TestGetComponent/success_mutable_access
+=== RUN   TestNodeSuite/TestGetComponent_ClosedTargetSucceeds
+    logger.go:146: 2026-11-11T21:18:59.193-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestGetComponent_DetachedNodeBypassesParentValidation
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestImmediatePureTaskNowStableWithinTaskOnly
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestInitSerializedNode_TypeComponent
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestInitSerializedNode_TypeData
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestMapDeserializeNilToEmpty
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestMergeClusterLocalState_ReportsExtraStatuses
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestMergeClusterLocalState_ReportsLengthMismatch
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestMergeClusterLocalState_SkipsMissingNodes
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestNewTree
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestNodeSnapshot
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestParentPointer_FromDB
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestParentPointer_InMemory
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestPartitionedSnapshot
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestPartitionedSnapshot_MergeRoundTrip
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestPartitionedSnapshot_NoClusterLocalState
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestPointerAttributes
+    logger.go:146: 2026-11-11T21:18:59.194-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestPointerAttributes/Sync_and_serialize_component_with_ancestor_pointer
+=== RUN   TestNodeSuite/TestPointerAttributes/Deserialize_ancestor_pointer_component
+=== RUN   TestNodeSuite/TestPointerAttributes/Clear_ancestor_pointer_by_setting_it_to_the_empty_field
+=== RUN   TestNodeSuite/TestRef
+    logger.go:146: 2026-11-11T21:18:59.195-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRef/root
+=== RUN   TestNodeSuite/TestRef/subComponent1
+=== RUN   TestNodeSuite/TestRef/subComponent11
+=== RUN   TestNodeSuite/TestRef/unknown
+=== RUN   TestNodeSuite/TestRef_RootComponentIgnoresInitialVT
+    logger.go:146: 2026-11-11T21:18:59.195-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRefreshTasks
+    logger.go:146: 2026-11-11T21:18:59.195-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRegenerateTimerTasksForTimeSkipping
+    logger.go:146: 2026-11-11T21:18:59.195-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRegenerateTimerTasksForTimeSkipping/RegeneratesSideEffectTimersAndEarliestPureTask
+=== RUN   TestNodeSuite/TestRegenerateTimerTasksForTimeSkipping/NoPureTasksDeletesWithMaximumKey
+=== RUN   TestNodeSuite/TestRegenerateTimerTasksForTimeSkipping/RegeneratesAlreadyCreatedEarliestPureTask
+=== RUN   TestNodeSuite/TestRequestIDs_AttachAndHas
+    logger.go:146: 2026-11-11T21:18:59.195-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRequestIDs_ExpiredEntryIsReplaced
+    logger.go:146: 2026-11-11T21:18:59.195-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRequestIDs_HasDoesNotMutate
+    logger.go:146: 2026-11-11T21:18:59.195-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRequestIDs_LoadFromDB
+    logger.go:146: 2026-11-11T21:18:59.195-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRequestIDs_MaxAge
+    logger.go:146: 2026-11-11T21:18:59.195-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRequestIDs_MaxCount
+    logger.go:146: 2026-11-11T21:18:59.195-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+    logger.go:146: 2026-11-11T21:18:59.195-0600	error	failed assertion: request ID is already recorded	{"failed-assertion": true, "request-id": "req-5", "logging-call-at": "/private/tmp/sch-redesign-execution/common/softassert/softassert.go:44"}
+        go.temporal.io/server/common/log.(*zapLogger).Error
+        	/private/tmp/sch-redesign-execution/common/log/zap_logger.go:191
+        go.temporal.io/server/common/testing/testlogger.(*TestLogger).Error
+        	/private/tmp/sch-redesign-execution/common/testing/testlogger/testlogger.go:543
+        go.temporal.io/server/common/softassert.Fail
+        	/private/tmp/sch-redesign-execution/common/softassert/softassert.go:44
+        go.temporal.io/server/common/softassert.UnexpectedInternalErr
+        	/private/tmp/sch-redesign-execution/common/softassert/serviceerror.go:27
+        go.temporal.io/server/chasm.(*Node).AttachRequestID
+        	/private/tmp/sch-redesign-execution/chasm/request_ids.go:58
+        go.temporal.io/server/chasm.(*nodeSuite).TestRequestIDs_MaxCount
+        	/private/tmp/sch-redesign-execution/chasm/request_ids_test.go:109
+        reflect.Value.call
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+        reflect.Value.Call
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+        github.com/stretchr/testify/suite.Run.func1
+        	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+        testing.tRunner
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+=== RUN   TestNodeSuite/TestRequestIDs_MaxCountKeepsNewID
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRequestIDs_NonRootNode
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRequestIDs_RecordTimeTruncatedToSeconds
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRequestIDs_Replication_ApplyMutation
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRequestIDs_Replication_ApplySnapshot
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRequestIDs_SurvivesRootStructureSync
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestRequestLinks_PrefersPendingOverPersisted
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSerializeDeserializeTask
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSerializeDeserializeTask/ProtoTask
+=== RUN   TestNodeSuite/TestSerializeDeserializeTask/EmptyTask
+=== RUN   TestNodeSuite/TestSerializeDeserializeTask/StructWithProtoField
+=== RUN   TestNodeSuite/TestSerializeNode_ClearComponentData
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSerializeNode_ClearSubDataField
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSerializeNode_ComponentAttributes
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSerializeNode_DataAttributes
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSetComponentMetadata_MarksTreeDirty
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSetComponentRequestLinks_RejectsEmptyRequestID
+    logger.go:146: 2026-11-11T21:18:59.196-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSetRequestLinks_MultipleRequestsCoexist
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSetRequestLinks_RemovesEntryWhenEmptyLinks
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSetRequestLinks_ReplacesEntryForSameRequestID
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSetRootComponent_SetsArchetypeID
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSetRootComponent_SyncsStructureChangedBeforeClose
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSetUserMetadata_NilClearsPersistedValue
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSkipPersistenceIfClean_DeleteUnpersistedNode
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSkipPersistenceIfClean_DynamicConfig
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSkipPersistenceIfClean_LoadedModified
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSkipPersistenceIfClean_LoadedUnmodified
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSkipPersistenceIfClean_NewNode
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSkipPersistenceIfClean_WithNewTask
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSyncSubComponents_DeleteLeafNode
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestSyncSubComponents_DeleteMiddleNode
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestTerminate
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestValidateAccess
+    logger.go:146: 2026-11-11T21:18:59.197-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestNodeSuite/TestValidateAccess/access_check_applies_only_to_ancestors_(terminated)
+=== RUN   TestNodeSuite/TestValidateAccess/access_check_applies_only_to_ancestors_(closed)
+=== RUN   TestNodeSuite/TestValidateAccess/read-only_always_succeeds
+=== RUN   TestNodeSuite/TestValidateAccess/valid_write_access
+=== RUN   TestNodeSuite/TestValidateAccess/invalid_write_access_(parent_closed)
+=== RUN   TestNodeSuite/TestValidateAccess/invalid_write_access_(component_terminated)
+=== RUN   TestNodeSuite/TestValidateAccess/invalid_write_access_(component_terminated_and_reload)
+=== RUN   TestNodeSuite/TestValidateAccess/detached_node_skips_parent_validation
+=== RUN   TestNodeSuite/TestValidateSideEffectTask
+    logger.go:146: 2026-11-11T21:18:59.198-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+--- PASS: TestNodeSuite (0.01s)
+    --- PASS: TestNodeSuite/TestAndAllChildren_PathIndependence (0.00s)
+    --- PASS: TestNodeSuite/TestApplyMutation (0.00s)
+    --- PASS: TestNodeSuite/TestApplyMutation_DeleteUpdateSamePath (0.00s)
+    --- PASS: TestNodeSuite/TestApplyMutation_InvalidatesHydratedMapAncestors (0.00s)
+        --- PASS: TestNodeSuite/TestApplyMutation_InvalidatesHydratedMapAncestors/CreateMapItem (0.00s)
+        --- PASS: TestNodeSuite/TestApplyMutation_InvalidatesHydratedMapAncestors/UpdateMapItem (0.00s)
+        --- PASS: TestNodeSuite/TestApplyMutation_InvalidatesHydratedMapAncestors/DeleteMapItem (0.00s)
+    --- PASS: TestNodeSuite/TestApplyMutation_OutOfOrder (0.00s)
+    --- PASS: TestNodeSuite/TestApplySnapshot (0.00s)
+    --- PASS: TestNodeSuite/TestApplySnapshot_EmptySnapshot (0.00s)
+    --- PASS: TestNodeSuite/TestCarryOverTaskStatus (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransactionHandleTimeSkipping (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransactionHandleTimeSkipping/NilTimeSkippingInfoIsSafeNoOp (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransactionHandleTimeSkipping/NonRootNodeIsNoOp (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransactionHandleTimeSkipping/ConfigDisabledAndGateNotImplemented_NoError (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransactionHandleTimeSkipping/ConfigEnabledAndGateNotImplemented_InternalError (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransactionHandleTimeSkipping/FeatureFlagDisabled_LeavesStateUnchanged (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransactionHandleTimeSkipping/GateNotSkippable_NoStateChange (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransactionHandleTimeSkipping/GateSkippableButTimerDue_NoStateChange (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransactionHandleTimeSkipping/GateSkippable_RecordsTransitionAndRegeneratesTasks (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransactionHandleTimeSkipping/AccumulatedDurationCap_RejectsTransition (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransactionHandleTimeSkipping/FastForwardReached_RecordsTransitionWithoutRegeneratingTasks (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_AppliesPendingComponentMetadata (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_ApplyMutation_PureTasks (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_ApplyMutation_SideEffectTasks (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_CleanupTasksAfterInvalidTask (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_DropsOrphanedComponentMetadata (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_EmptyNode (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_ForceUpdateVisibility_RootLifecycleChanged (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_ForceUpdateVisibility_RootSAMemoChanged (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_InvalidateComponentTasks (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_KeepsPersistedRootInitialVT (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_LifecycleChange (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_LifecycleChange_PausedRootKeepsRunning (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics/registered_over_threshold (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics/registered_at_threshold (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics/dynamic_config_lowers_threshold (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics/dynamic_config_raises_threshold (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics/dynamic_config_disables (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics_AggregatesAcrossComponents (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics_ExcludesInvalidatedTasks (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_LogicalTaskCountMetrics_NotEmittedForTaskTypeNotOptedIn (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_MarkTotalTimeSkippedUpdatedInPassive (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_MarkTotalTimeSkippedUpdatedInPassive/WithoutFlagLeavesCreatedTasksUntouched (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_MarkTotalTimeSkippedUpdatedInPassive/WithFlagRegeneratesTimerAndPureTasks (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_NewComponentTasks (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_PausedStateInvalidatesTasks (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_PausedStateInvalidatesTasks/paused_component_invalidates_its_own_tasks_without_calling_task_validator (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_PausedStateInvalidatesTasks/paused_parent_invalidates_non-detached_sub-component_tasks (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_PausedStateInvalidatesTasks/detached_sub-component_tasks_are_NOT_invalidated_by_parent_pause (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_PausedStateInvalidatesTasks/write_access_accepted_on_paused_component (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_PersistsAcrossTransactions (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_RecordPrincipal (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_RecordPrincipal_CloseWithoutPrincipal (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_RecordPrincipal_Passive (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_RecordPrincipal_Terminate (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_RecordStartedByPrincipal (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_RecordStartedByPrincipal/RecordedOnCreate (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_RecordStartedByPrincipal/NoPrincipal (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_RecordStartedByPrincipal/Passive (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_RecordStartedByPrincipal/ArchetypeNotOptedIn (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_SingletonTask_Ignore_Pure (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_SingletonTask_Ignore_SideEffect (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_SingletonTask_InvalidNewTask_DoesNotDisplaceExisting (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_SingletonTask_Replace_Pure (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_SingletonTask_Replace_SideEffect (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_StampsRootInitialVTOnFirstPersist (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_Success (0.00s)
+    --- PASS: TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty/unrelated_sibling_subtree_tasks_are_not_validated (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty/dirty_ancestor_causes_descendant_tasks_to_be_validated (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty/dirty_descendant_causes_ancestor_tasks_to_be_validated (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty/subtreeIsDirty_resets_after_CloseTransaction (0.00s)
+        --- PASS: TestNodeSuite/TestCloseTransaction_TaskValidationSubtreeDirty/ExecutePureTask_with_no_state_mutations_still_cleans_up_the_executed_task (0.00s)
+    --- PASS: TestNodeSuite/TestCollectionAttributes (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Sync_and_serialize_component_with_map_of_string_key (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Deserialize_component_with_map_of_string_key (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Clear_map_of_string_key_by_setting_it_to_nil (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Delete_single_map_of_string_key_item (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Clear_map_of_string_key_by_deleting_all_items (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Nil_map_of_string_key_on_first_transaction_produces_no_deletions (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Empty_(non-nil)_map_of_string_key_on_first_transaction_produces_no_deletions (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Sync_and_serialize_component_with_map_of_int_key (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Deserialize_component_with_map_of_int_key (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Clear_map_of_int_key_by_setting_it_to_nil (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Delete_single_map_of_int_key_item (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Clear_map_of_int_key_by_deleting_all_items (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Nil_map_of_int_key_on_first_transaction_produces_no_deletions (0.00s)
+        --- PASS: TestNodeSuite/TestCollectionAttributes/Empty_(non-nil)_map_of_int_key_on_first_transaction_produces_no_deletions (0.00s)
+    --- PASS: TestNodeSuite/TestComponentPath (0.00s)
+    --- PASS: TestNodeSuite/TestContextNowStableWithinContext (0.00s)
+    --- PASS: TestNodeSuite/TestDefaultFindNextTargetTime (0.00s)
+        --- PASS: TestNodeSuite/TestDefaultFindNextTargetTime/NoTasksInvalidTransition (0.00s)
+        --- PASS: TestNodeSuite/TestDefaultFindNextTargetTime/EarliestFutureTaskWins (0.00s)
+        --- PASS: TestNodeSuite/TestDefaultFindNextTargetTime/EarlierFastForwardCapsAndDisables (0.00s)
+    --- PASS: TestNodeSuite/TestDeserializeNode_ComponentAttributes (0.00s)
+    --- PASS: TestNodeSuite/TestDeserializeNode_DataAttributes (0.00s)
+    --- PASS: TestNodeSuite/TestDeserializeNode_EmptyPersistence (0.00s)
+    --- PASS: TestNodeSuite/TestEachPureTask (0.00s)
+    --- PASS: TestNodeSuite/TestExecuteImmediatePureTask (0.00s)
+    --- PASS: TestNodeSuite/TestExecuteImmediatePureTaskSkipsPostExecutionValidation (0.00s)
+    --- PASS: TestNodeSuite/TestExecutePureTask (0.00s)
+    --- PASS: TestNodeSuite/TestExecuteSideEffectDiscardTask (0.00s)
+        --- PASS: TestNodeSuite/TestExecuteSideEffectDiscardTask/Success (0.00s)
+        --- PASS: TestNodeSuite/TestExecuteSideEffectDiscardTask/InvalidTask (0.00s)
+        --- PASS: TestNodeSuite/TestExecuteSideEffectDiscardTask/ValidationError (0.00s)
+        --- PASS: TestNodeSuite/TestExecuteSideEffectDiscardTask/DiscardHandlerError (0.00s)
+    --- PASS: TestNodeSuite/TestExecuteSideEffectTask (0.00s)
+    --- PASS: TestNodeSuite/TestExecuteSideEffectTask_RootComponentIgnoresInitialVT (0.00s)
+    --- PASS: TestNodeSuite/TestExecutionType (0.00s)
+        --- PASS: TestNodeSuite/TestExecutionType/no_registered_execution_type (0.00s)
+        --- PASS: TestNodeSuite/TestExecutionType/registered_execution_type (0.00s)
+    --- PASS: TestNodeSuite/TestFieldInterface (0.00s)
+    --- SKIP: TestNodeSuite/TestGenerateSerializedNodes (0.00s)
+    --- PASS: TestNodeSuite/TestGetComponent (0.00s)
+        --- PASS: TestNodeSuite/TestGetComponent/path_not_found (0.00s)
+        --- PASS: TestNodeSuite/TestGetComponent/initialVT_mismatch (0.00s)
+        --- PASS: TestNodeSuite/TestGetComponent/validation_failure (0.00s)
+        --- PASS: TestNodeSuite/TestGetComponent/success_readonly_access (0.00s)
+        --- PASS: TestNodeSuite/TestGetComponent/success_mutable_access (0.00s)
+    --- PASS: TestNodeSuite/TestGetComponent_ClosedTargetSucceeds (0.00s)
+    --- PASS: TestNodeSuite/TestGetComponent_DetachedNodeBypassesParentValidation (0.00s)
+    --- PASS: TestNodeSuite/TestImmediatePureTaskNowStableWithinTaskOnly (0.00s)
+    --- PASS: TestNodeSuite/TestInitSerializedNode_TypeComponent (0.00s)
+    --- PASS: TestNodeSuite/TestInitSerializedNode_TypeData (0.00s)
+    --- PASS: TestNodeSuite/TestMapDeserializeNilToEmpty (0.00s)
+    --- PASS: TestNodeSuite/TestMergeClusterLocalState_ReportsExtraStatuses (0.00s)
+    --- PASS: TestNodeSuite/TestMergeClusterLocalState_ReportsLengthMismatch (0.00s)
+    --- PASS: TestNodeSuite/TestMergeClusterLocalState_SkipsMissingNodes (0.00s)
+    --- PASS: TestNodeSuite/TestNewTree (0.00s)
+    --- PASS: TestNodeSuite/TestNodeSnapshot (0.00s)
+    --- PASS: TestNodeSuite/TestParentPointer_FromDB (0.00s)
+    --- PASS: TestNodeSuite/TestParentPointer_InMemory (0.00s)
+    --- PASS: TestNodeSuite/TestPartitionedSnapshot (0.00s)
+    --- PASS: TestNodeSuite/TestPartitionedSnapshot_MergeRoundTrip (0.00s)
+    --- PASS: TestNodeSuite/TestPartitionedSnapshot_NoClusterLocalState (0.00s)
+    --- PASS: TestNodeSuite/TestPointerAttributes (0.00s)
+        --- PASS: TestNodeSuite/TestPointerAttributes/Sync_and_serialize_component_with_ancestor_pointer (0.00s)
+        --- PASS: TestNodeSuite/TestPointerAttributes/Deserialize_ancestor_pointer_component (0.00s)
+        --- PASS: TestNodeSuite/TestPointerAttributes/Clear_ancestor_pointer_by_setting_it_to_the_empty_field (0.00s)
+    --- PASS: TestNodeSuite/TestRef (0.00s)
+        --- PASS: TestNodeSuite/TestRef/root (0.00s)
+        --- PASS: TestNodeSuite/TestRef/subComponent1 (0.00s)
+        --- PASS: TestNodeSuite/TestRef/subComponent11 (0.00s)
+        --- PASS: TestNodeSuite/TestRef/unknown (0.00s)
+    --- PASS: TestNodeSuite/TestRef_RootComponentIgnoresInitialVT (0.00s)
+    --- PASS: TestNodeSuite/TestRefreshTasks (0.00s)
+    --- PASS: TestNodeSuite/TestRegenerateTimerTasksForTimeSkipping (0.00s)
+        --- PASS: TestNodeSuite/TestRegenerateTimerTasksForTimeSkipping/RegeneratesSideEffectTimersAndEarliestPureTask (0.00s)
+        --- PASS: TestNodeSuite/TestRegenerateTimerTasksForTimeSkipping/NoPureTasksDeletesWithMaximumKey (0.00s)
+        --- PASS: TestNodeSuite/TestRegenerateTimerTasksForTimeSkipping/RegeneratesAlreadyCreatedEarliestPureTask (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_AttachAndHas (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_ExpiredEntryIsReplaced (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_HasDoesNotMutate (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_LoadFromDB (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_MaxAge (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_MaxCount (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_MaxCountKeepsNewID (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_NonRootNode (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_RecordTimeTruncatedToSeconds (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_Replication_ApplyMutation (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_Replication_ApplySnapshot (0.00s)
+    --- PASS: TestNodeSuite/TestRequestIDs_SurvivesRootStructureSync (0.00s)
+    --- PASS: TestNodeSuite/TestRequestLinks_PrefersPendingOverPersisted (0.00s)
+    --- PASS: TestNodeSuite/TestSerializeDeserializeTask (0.00s)
+        --- PASS: TestNodeSuite/TestSerializeDeserializeTask/ProtoTask (0.00s)
+        --- PASS: TestNodeSuite/TestSerializeDeserializeTask/EmptyTask (0.00s)
+        --- PASS: TestNodeSuite/TestSerializeDeserializeTask/StructWithProtoField (0.00s)
+    --- PASS: TestNodeSuite/TestSerializeNode_ClearComponentData (0.00s)
+    --- PASS: TestNodeSuite/TestSerializeNode_ClearSubDataField (0.00s)
+    --- PASS: TestNodeSuite/TestSerializeNode_ComponentAttributes (0.00s)
+    --- PASS: TestNodeSuite/TestSerializeNode_DataAttributes (0.00s)
+    --- PASS: TestNodeSuite/TestSetComponentMetadata_MarksTreeDirty (0.00s)
+    --- PASS: TestNodeSuite/TestSetComponentRequestLinks_RejectsEmptyRequestID (0.00s)
+    --- PASS: TestNodeSuite/TestSetRequestLinks_MultipleRequestsCoexist (0.00s)
+    --- PASS: TestNodeSuite/TestSetRequestLinks_RemovesEntryWhenEmptyLinks (0.00s)
+    --- PASS: TestNodeSuite/TestSetRequestLinks_ReplacesEntryForSameRequestID (0.00s)
+    --- PASS: TestNodeSuite/TestSetRootComponent_SetsArchetypeID (0.00s)
+    --- PASS: TestNodeSuite/TestSetRootComponent_SyncsStructureChangedBeforeClose (0.00s)
+    --- PASS: TestNodeSuite/TestSetUserMetadata_NilClearsPersistedValue (0.00s)
+    --- PASS: TestNodeSuite/TestSkipPersistenceIfClean_DeleteUnpersistedNode (0.00s)
+    --- PASS: TestNodeSuite/TestSkipPersistenceIfClean_DynamicConfig (0.00s)
+    --- PASS: TestNodeSuite/TestSkipPersistenceIfClean_LoadedModified (0.00s)
+    --- PASS: TestNodeSuite/TestSkipPersistenceIfClean_LoadedUnmodified (0.00s)
+    --- PASS: TestNodeSuite/TestSkipPersistenceIfClean_NewNode (0.00s)
+    --- PASS: TestNodeSuite/TestSkipPersistenceIfClean_WithNewTask (0.00s)
+    --- PASS: TestNodeSuite/TestSyncSubComponents_DeleteLeafNode (0.00s)
+    --- PASS: TestNodeSuite/TestSyncSubComponents_DeleteMiddleNode (0.00s)
+    --- PASS: TestNodeSuite/TestTerminate (0.00s)
+    --- PASS: TestNodeSuite/TestValidateAccess (0.00s)
+        --- PASS: TestNodeSuite/TestValidateAccess/access_check_applies_only_to_ancestors_(terminated) (0.00s)
+        --- PASS: TestNodeSuite/TestValidateAccess/access_check_applies_only_to_ancestors_(closed) (0.00s)
+        --- PASS: TestNodeSuite/TestValidateAccess/read-only_always_succeeds (0.00s)
+        --- PASS: TestNodeSuite/TestValidateAccess/valid_write_access (0.00s)
+        --- PASS: TestNodeSuite/TestValidateAccess/invalid_write_access_(parent_closed) (0.00s)
+        --- PASS: TestNodeSuite/TestValidateAccess/invalid_write_access_(component_terminated) (0.00s)
+        --- PASS: TestNodeSuite/TestValidateAccess/invalid_write_access_(component_terminated_and_reload) (0.00s)
+        --- PASS: TestNodeSuite/TestValidateAccess/detached_node_skips_parent_validation (0.00s)
+    --- PASS: TestNodeSuite/TestValidateSideEffectTask (0.00s)
+=== RUN   TestPartitionedSnapshot_ClusterLocalFieldGuard
+=== PAUSE TestPartitionedSnapshot_ClusterLocalFieldGuard
+=== RUN   TestTaskValidator
+--- PASS: TestTaskValidator (0.00s)
+=== RUN   TestVisibilitySuite
+=== RUN   TestVisibilitySuite/TestComponentFqType
+=== RUN   TestVisibilitySuite/TestLifeCycleState
+=== RUN   TestVisibilitySuite/TestMergeCustomMemo
+=== RUN   TestVisibilitySuite/TestMergeCustomSearchAttributes
+=== RUN   TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes
+=== RUN   TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalCustomKey
+=== RUN   TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalInt01
+=== RUN   TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalNamespaceDivision
+=== RUN   TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/WorkflowId
+=== RUN   TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/ExecutionStatus
+=== RUN   TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/BuildIds
+=== RUN   TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/BatcherUser
+=== RUN   TestVisibilitySuite/TestNewVisibilityWithData_FilterNilSearchAttributes
+=== RUN   TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes
+=== RUN   TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/TemporalCustomKey
+=== RUN   TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/TemporalInt01
+=== RUN   TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/TemporalNamespaceDivision
+=== RUN   TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/WorkflowId
+=== RUN   TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/ExecutionStatus
+=== RUN   TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/BuildIds
+=== RUN   TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/BatcherUser
+=== RUN   TestVisibilitySuite/TestReplaceCustomMemo
+=== RUN   TestVisibilitySuite/TestReplaceCustomSearchAttributes
+=== RUN   TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes
+=== RUN   TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalCustomKey
+=== RUN   TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalInt01
+=== RUN   TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalNamespaceDivision
+=== RUN   TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/WorkflowId
+=== RUN   TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/ExecutionStatus
+=== RUN   TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/BuildIds
+=== RUN   TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/BatcherUser
+=== RUN   TestVisibilitySuite/TestTaskFqType
+--- PASS: TestVisibilitySuite (0.00s)
+    --- PASS: TestVisibilitySuite/TestComponentFqType (0.00s)
+    --- PASS: TestVisibilitySuite/TestLifeCycleState (0.00s)
+    --- PASS: TestVisibilitySuite/TestMergeCustomMemo (0.00s)
+    --- PASS: TestVisibilitySuite/TestMergeCustomSearchAttributes (0.00s)
+    --- PASS: TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes (0.00s)
+        --- PASS: TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalCustomKey (0.00s)
+        --- PASS: TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalInt01 (0.00s)
+        --- PASS: TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalNamespaceDivision (0.00s)
+        --- PASS: TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/WorkflowId (0.00s)
+        --- PASS: TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/ExecutionStatus (0.00s)
+        --- PASS: TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/BuildIds (0.00s)
+        --- PASS: TestVisibilitySuite/TestMergeCustomSearchAttributes_RejectsReservedSearchAttributes/BatcherUser (0.00s)
+    --- PASS: TestVisibilitySuite/TestNewVisibilityWithData_FilterNilSearchAttributes (0.00s)
+    --- PASS: TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes (0.00s)
+        --- PASS: TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/TemporalCustomKey (0.00s)
+        --- PASS: TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/TemporalInt01 (0.00s)
+        --- PASS: TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/TemporalNamespaceDivision (0.00s)
+        --- PASS: TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/WorkflowId (0.00s)
+        --- PASS: TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/ExecutionStatus (0.00s)
+        --- PASS: TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/BuildIds (0.00s)
+        --- PASS: TestVisibilitySuite/TestNewVisibilityWithData_RejectsReservedSearchAttributes/BatcherUser (0.00s)
+    --- PASS: TestVisibilitySuite/TestReplaceCustomMemo (0.00s)
+    --- PASS: TestVisibilitySuite/TestReplaceCustomSearchAttributes (0.00s)
+    --- PASS: TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes (0.00s)
+        --- PASS: TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalCustomKey (0.00s)
+        --- PASS: TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalInt01 (0.00s)
+        --- PASS: TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/TemporalNamespaceDivision (0.00s)
+        --- PASS: TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/WorkflowId (0.00s)
+        --- PASS: TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/ExecutionStatus (0.00s)
+        --- PASS: TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/BuildIds (0.00s)
+        --- PASS: TestVisibilitySuite/TestReplaceCustomSearchAttributes_RejectsReservedSearchAttributes/BatcherUser (0.00s)
+    --- PASS: TestVisibilitySuite/TestTaskFqType (0.00s)
+=== RUN   TestVisibilityValue
+=== RUN   TestVisibilityValue/Int64
+=== RUN   TestVisibilityValue/String
+=== RUN   TestVisibilityValue/Bool
+=== RUN   TestVisibilityValue/Float64
+=== RUN   TestVisibilityValue/StringSlice
+=== RUN   TestVisibilityValue/Time
+=== RUN   TestVisibilityValue/Text
+--- PASS: TestVisibilityValue (0.00s)
+    --- PASS: TestVisibilityValue/Int64 (0.00s)
+    --- PASS: TestVisibilityValue/String (0.00s)
+    --- PASS: TestVisibilityValue/Bool (0.00s)
+    --- PASS: TestVisibilityValue/Float64 (0.00s)
+    --- PASS: TestVisibilityValue/StringSlice (0.00s)
+    --- PASS: TestVisibilityValue/Time (0.00s)
+    --- PASS: TestVisibilityValue/Text (0.00s)
+=== RUN   TestIsVisibilityValueEqual
+--- PASS: TestIsVisibilityValueEqual (0.00s)
+=== RUN   TestWorkObservationOrdinaryMapBaseline
+=== PAUSE TestWorkObservationOrdinaryMapBaseline
+=== RUN   TestChasmEngineInterceptor_ShouldRespond
+--- PASS: TestChasmEngineInterceptor_ShouldRespond (0.00s)
+=== RUN   TestChasmVisibilityInterceptor_ShouldRespond
+--- PASS: TestChasmVisibilityInterceptor_ShouldRespond (0.00s)
+=== RUN   TestRegistryTestSuite
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_name_must_not_be_empty
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_name_must_follow_rules
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_field_must_not_use_a_reserved_name
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_is_already_registered_by_name
+2026-11-11T21:18:59.204-0600	info	Warning: CHASM component TestLibrary.Component1 declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_is_already_registered_by_type
+2026-11-11T21:18:59.204-0600	info	Warning: CHASM component TestLibrary.Component1 declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_is_already_registered_in_another_library
+2026-11-11T21:18:59.204-0600	info	Warning: CHASM component TestLibrary2.Component1 declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_must_be_a_struct
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/duplicate_search_attribute_alias_panics
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/duplicate_search_attribute_field_panics
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/valid_search_attributes_do_not_panic
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/ExecutionStatus_alias_is_allowed_for_CHASM_components
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/TaskQueue_preallocated_search_attribute_is_allowed
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/CHASM_system_search_attribute_alias_panics
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/identity-mapped_system_search_attributes_are_registered_as_overrides
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_with_Visibility_field_must_have_businessID_alias
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_with_Visibility_field_and_businessID_alias_succeeds
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_Success
+2026-11-11T21:18:59.205-0600	info	Warning: CHASM component TestLibrary.Component1 declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_WithDetached
+2026-11-11T21:18:59.205-0600	info	Warning: CHASM component TestLibrary.DetachedComponent declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterComponents_WithRetention
+2026-11-11T21:18:59.205-0600	info	Warning: CHASM component TestLibrary.RetentionComponent declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:425"}
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterNexusServiceProcessors
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterNexusServices_Error
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterNexusServices_Error/nexus_service_is_already_registered
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterNexusServices_Success
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterTasks_Error
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_name_must_not_be_empty
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_name_must_follow_rules
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_is_already_registered_by_name
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_is_already_registered_by_type
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_is_already_registered_in_another_library
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_must_be_struct
+=== RUN   TestRegistryTestSuite/TestRegistry_RegisterTasks_Success
+=== RUN   TestRegistryTestSuite/TestRegistry_Register_LibraryError
+=== RUN   TestRegistryTestSuite/TestRegistry_Register_LibraryError/library_name_must_not_be_empty
+=== RUN   TestRegistryTestSuite/TestRegistry_Register_LibraryError/library_name_must_follow_rules
+--- PASS: TestRegistryTestSuite (0.00s)
+    --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_name_must_not_be_empty (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_name_must_follow_rules (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_field_must_not_use_a_reserved_name (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_is_already_registered_by_name (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_is_already_registered_by_type (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_is_already_registered_in_another_library (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_must_be_a_struct (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/duplicate_search_attribute_alias_panics (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/duplicate_search_attribute_field_panics (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/valid_search_attributes_do_not_panic (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/ExecutionStatus_alias_is_allowed_for_CHASM_components (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/TaskQueue_preallocated_search_attribute_is_allowed (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/CHASM_system_search_attribute_alias_panics (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/identity-mapped_system_search_attributes_are_registered_as_overrides (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_with_Visibility_field_must_have_businessID_alias (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Error/component_with_Visibility_field_and_businessID_alias_succeeds (0.00s)
+    --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_Success (0.00s)
+    --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_WithDetached (0.00s)
+    --- PASS: TestRegistryTestSuite/TestRegistry_RegisterComponents_WithRetention (0.00s)
+    --- PASS: TestRegistryTestSuite/TestRegistry_RegisterNexusServiceProcessors (0.00s)
+    --- PASS: TestRegistryTestSuite/TestRegistry_RegisterNexusServices_Error (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterNexusServices_Error/nexus_service_is_already_registered (0.00s)
+    --- PASS: TestRegistryTestSuite/TestRegistry_RegisterNexusServices_Success (0.00s)
+    --- PASS: TestRegistryTestSuite/TestRegistry_RegisterTasks_Error (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_name_must_not_be_empty (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_name_must_follow_rules (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_is_already_registered_by_name (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_is_already_registered_by_type (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_is_already_registered_in_another_library (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_RegisterTasks_Error/task_must_be_struct (0.00s)
+    --- PASS: TestRegistryTestSuite/TestRegistry_RegisterTasks_Success (0.00s)
+    --- PASS: TestRegistryTestSuite/TestRegistry_Register_LibraryError (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_Register_LibraryError/library_name_must_not_be_empty (0.00s)
+        --- PASS: TestRegistryTestSuite/TestRegistry_Register_LibraryError/library_name_must_follow_rules (0.00s)
+=== CONT  TestNewContextWithOperationIntent
+=== RUN   TestNewContextWithOperationIntent/bare_context_carries_no_intent
+=== PAUSE TestNewContextWithOperationIntent/bare_context_carries_no_intent
+=== CONT  TestMSPointer_LifecycleState
+=== RUN   TestNewContextWithOperationIntent/round-trips_the_set_intent
+=== PAUSE TestNewContextWithOperationIntent/round-trips_the_set_intent
+=== RUN   TestMSPointer_LifecycleState/Unspecified
+=== CONT  TestDataMapSerializerFailureReload
+=== CONT  TestDataMapInterleavedSynchronization
+=== RUN   TestDataMapInterleavedSynchronization/dp
+=== PAUSE TestDataMapInterleavedSynchronization/dp
+=== RUN   TestDataMapInterleavedSynchronization/dpd
+=== PAUSE TestDataMapInterleavedSynchronization/dpd
+=== PAUSE TestMSPointer_LifecycleState/Unspecified
+=== RUN   TestMSPointer_LifecycleState/Running
+=== PAUSE TestMSPointer_LifecycleState/Running
+=== RUN   TestMSPointer_LifecycleState/Paused
+=== PAUSE TestMSPointer_LifecycleState/Paused
+=== RUN   TestMSPointer_LifecycleState/Completed
+=== PAUSE TestMSPointer_LifecycleState/Completed
+=== RUN   TestMSPointer_LifecycleState/ContinuedAsNew
+=== PAUSE TestMSPointer_LifecycleState/ContinuedAsNew
+=== RUN   TestMSPointer_LifecycleState/Failed
+=== PAUSE TestMSPointer_LifecycleState/Failed
+=== RUN   TestMSPointer_LifecycleState/Canceled
+=== PAUSE TestMSPointer_LifecycleState/Canceled
+=== RUN   TestMSPointer_LifecycleState/Terminated
+=== PAUSE TestMSPointer_LifecycleState/Terminated
+=== RUN   TestMSPointer_LifecycleState/TimedOut
+=== PAUSE TestMSPointer_LifecycleState/TimedOut
+=== CONT  TestDataMapRejectsCorruptKindAndReplacedOwner
+=== RUN   TestDataMapRejectsCorruptKindAndReplacedOwner/wrong_kind_is_not_absence
+=== PAUSE TestDataMapRejectsCorruptKindAndReplacedOwner/wrong_kind_is_not_absence
+=== RUN   TestDataMapRejectsCorruptKindAndReplacedOwner/pending_delta_does_not_move_to_replacement
+=== PAUSE TestDataMapRejectsCorruptKindAndReplacedOwner/pending_delta_does_not_move_to_replacement
+=== CONT  TestDataMapDetachedAndFailedPublication
+=== RUN   TestDataMapInterleavedSynchronization/dpdp
+=== CONT  TestDataMapNoOpDoesNotPublish
+=== RUN   TestDataMapNoOpDoesNotPublish/missing-delete
+=== PAUSE TestDataMapInterleavedSynchronization/dpdp
+=== CONT  TestDataMapAttachmentAndReplicationIdentity
+=== RUN   TestDataMapInterleavedSynchronization/pd
+--- PASS: TestDataMapSerializerFailureReload (0.00s)
+=== RUN   TestDataMapAttachmentAndReplicationIdentity/double_attachment
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity/double_attachment
+=== PAUSE TestDataMapInterleavedSynchronization/pd
+=== RUN   TestDataMapInterleavedSynchronization/pdp
+=== PAUSE TestDataMapNoOpDoesNotPublish/missing-delete
+=== RUN   TestDataMapNoOpDoesNotPublish/new-put-delete
+=== PAUSE TestDataMapNoOpDoesNotPublish/new-put-delete
+=== RUN   TestDataMapNoOpDoesNotPublish/read
+=== RUN   TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner
+--- PASS: TestDataMapDetachedAndFailedPublication (0.00s)
+=== CONT  TestDataMapLazyHydrationAndCorruption
+=== RUN   TestDataMapLazyHydrationAndCorruption/0
+=== PAUSE TestDataMapLazyHydrationAndCorruption/0
+=== RUN   TestDataMapLazyHydrationAndCorruption/4
+=== PAUSE TestDataMapLazyHydrationAndCorruption/4
+=== RUN   TestDataMapLazyHydrationAndCorruption/5
+=== PAUSE TestDataMapLazyHydrationAndCorruption/5
+=== RUN   TestDataMapLazyHydrationAndCorruption/1000
+=== PAUSE TestDataMapLazyHydrationAndCorruption/1000
+=== CONT  TestDataMapCoalescedDeltas
+=== RUN   TestDataMapCoalescedDeltas/p
+=== PAUSE TestDataMapCoalescedDeltas/p
+=== RUN   TestDataMapCoalescedDeltas/pd
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner
+=== PAUSE TestDataMapCoalescedDeltas/pd
+=== PAUSE TestDataMapInterleavedSynchronization/pdp
+=== RUN   TestDataMapAttachmentAndReplicationIdentity/removed_owner
+=== RUN   TestDataMapCoalescedDeltas/dp
+=== CONT  TestDataMapDetachedOwnership
+=== PAUSE TestDataMapCoalescedDeltas/dp
+=== RUN   TestDataMapCoalescedDeltas/pdp
+=== PAUSE TestDataMapCoalescedDeltas/pdp
+=== PAUSE TestDataMapAttachmentAndReplicationIdentity/removed_owner
+=== PAUSE TestDataMapNoOpDoesNotPublish/read
+=== CONT  TestMutableContextSetTimeSkippingConfigNil
+=== RUN   TestDataMapCoalescedDeltas/d
+=== PAUSE TestDataMapCoalescedDeltas/d
+=== CONT  TestPartitionedSnapshot_ClusterLocalFieldGuard
+--- PASS: TestMutableContextSetTimeSkippingConfigNil (0.00s)
+--- PASS: TestDataMapDetachedOwnership (0.00s)
+=== CONT  TestWorkObservationOrdinaryMapBaseline
+=== RUN   TestWorkObservationOrdinaryMapBaseline/records4
+=== PAUSE TestWorkObservationOrdinaryMapBaseline/records4
+=== RUN   TestDataMapCoalescedDeltas/dd
+=== CONT  TestTimeSkippingTransition
+=== RUN   TestWorkObservationOrdinaryMapBaseline/records5
+=== PAUSE TestDataMapCoalescedDeltas/dd
+=== RUN   TestDataMapCoalescedDeltas/dpd
+=== PAUSE TestDataMapCoalescedDeltas/dpd
+=== CONT  TestPropagateTimeSkippingToOtherExecution
+=== RUN   TestPropagateTimeSkippingToOtherExecution/when_time-skipping_info_is_nil,_nothing_is_propagated
+=== RUN   TestTimeSkippingTransition/new_transition_sets_only_the_current_time
+--- PASS: TestPartitionedSnapshot_ClusterLocalFieldGuard (0.00s)
+=== PAUSE TestWorkObservationOrdinaryMapBaseline/records5
+=== CONT  TestTimeSkippingInfoForDescribe
+=== RUN   TestPropagateTimeSkippingToOtherExecution/by_default,_state_and_config_are_propagated_to_other_executions_without_fast-forward
+=== RUN   TestTimeSkippingTransition/nil_inputs_are_safe
+=== RUN   TestWorkObservationOrdinaryMapBaseline/records1000
+=== PAUSE TestWorkObservationOrdinaryMapBaseline/records1000
+=== RUN   TestTimeSkippingTransition/track_earliest_future_time
+=== RUN   TestTimeSkippingTransition/track_earliest_future_time/ignores_zero_and_past_candidates
+=== RUN   TestTimeSkippingTransition/track_earliest_future_time/keeps_the_earliest_future_candidate
+--- PASS: TestTimeSkippingInfoForDescribe (0.00s)
+=== RUN   TestTimeSkippingTransition/track_earliest_future_time/ignores_a_candidate_equal_to_the_current_time
+=== RUN   TestPropagateTimeSkippingToOtherExecution/when_propagation_is_disabled,_only_virtual_time_is_propagated
+=== RUN   TestTimeSkippingTransition/gate_by_fast-forward
+=== RUN   TestTimeSkippingTransition/gate_by_fast-forward/uses_fast-forward_when_no_earlier_target_exists
+--- PASS: TestPropagateTimeSkippingToOtherExecution (0.00s)
+    --- PASS: TestPropagateTimeSkippingToOtherExecution/when_time-skipping_info_is_nil,_nothing_is_propagated (0.00s)
+    --- PASS: TestPropagateTimeSkippingToOtherExecution/by_default,_state_and_config_are_propagated_to_other_executions_without_fast-forward (0.00s)
+    --- PASS: TestPropagateTimeSkippingToOtherExecution/when_propagation_is_disabled,_only_virtual_time_is_propagated (0.00s)
+=== CONT  TestMSPointer_LifecycleState_UnknownStatus
+=== RUN   TestTimeSkippingTransition/gate_by_fast-forward/earlier_tracked_target_wins_over_fast-forward
+--- PASS: TestMSPointer_LifecycleState_UnknownStatus (0.00s)
+=== CONT  TestNexusServiceProcessor_ProcessInput
+=== RUN   TestTimeSkippingTransition/gate_by_fast-forward/earlier_fast-forward_wins_and_disables_time_skipping
+=== RUN   TestTimeSkippingTransition/gate_by_fast-forward/ignores_an_already_reached_fast-forward
+=== CONT  TestNexusOperationProcessor_ProcessInput
+=== CONT  TestNexusEndpointProcessor_ProcessInput
+=== RUN   TestNexusServiceProcessor_ProcessInput/operation_not_found
+=== RUN   TestNexusEndpointProcessor_ProcessInput/service_not_found
+=== RUN   TestNexusOperationProcessor_ProcessInput/valid_input_returns_routing_key,_no_overwrite
+=== RUN   TestNexusServiceProcessor_ProcessInput/valid_input
+=== RUN   TestTimeSkippingTransition/gate_by_fast-forward/ignores_a_zero_fast-forward_target
+--- PASS: TestNexusServiceProcessor_ProcessInput (0.00s)
+    --- PASS: TestNexusServiceProcessor_ProcessInput/operation_not_found (0.00s)
+    --- PASS: TestNexusServiceProcessor_ProcessInput/valid_input (0.00s)
+=== RUN   TestNexusOperationProcessor_ProcessInput/overwrite_payload_with_valid_input
+=== CONT  TestNewContextWithOperationIntent/bare_context_carries_no_intent
+=== RUN   TestNexusOperationProcessor_ProcessInput/invalid_input
+=== RUN   TestNexusEndpointProcessor_ProcessInput/valid_request
+=== RUN   TestNexusOperationProcessor_ProcessInput/decode_error
+=== CONT  TestNewContextWithOperationIntent/round-trips_the_set_intent
+--- PASS: TestNewContextWithOperationIntent (0.00s)
+    --- PASS: TestNewContextWithOperationIntent/bare_context_carries_no_intent (0.00s)
+    --- PASS: TestNewContextWithOperationIntent/round-trips_the_set_intent (0.00s)
+=== CONT  TestMSPointer_LifecycleState/Unspecified
+--- PASS: TestNexusOperationProcessor_ProcessInput (0.00s)
+    --- PASS: TestNexusOperationProcessor_ProcessInput/valid_input_returns_routing_key,_no_overwrite (0.00s)
+    --- PASS: TestNexusOperationProcessor_ProcessInput/overwrite_payload_with_valid_input (0.00s)
+    --- PASS: TestNexusOperationProcessor_ProcessInput/invalid_input (0.00s)
+    --- PASS: TestNexusOperationProcessor_ProcessInput/decode_error (0.00s)
+=== CONT  TestDataMapRejectsCorruptKindAndReplacedOwner/wrong_kind_is_not_absence
+=== CONT  TestMSPointer_LifecycleState/Completed
+=== CONT  TestMSPointer_LifecycleState/TimedOut
+=== RUN   TestTimeSkippingTransition/gate_by_fast-forward/fast-forward_at_current_time_disables_without_a_target
+--- PASS: TestNexusEndpointProcessor_ProcessInput (0.00s)
+    --- PASS: TestNexusEndpointProcessor_ProcessInput/service_not_found (0.00s)
+    --- PASS: TestNexusEndpointProcessor_ProcessInput/valid_request (0.00s)
+=== CONT  TestMSPointer_LifecycleState/Canceled
+=== CONT  TestMSPointer_LifecycleState/Terminated
+=== CONT  TestMSPointer_LifecycleState/ContinuedAsNew
+=== CONT  TestMSPointer_LifecycleState/Failed
+=== RUN   TestTimeSkippingTransition/gate_by_fast-forward/past_fast-forward_disables_without_a_target
+=== CONT  TestMSPointer_LifecycleState/Running
+=== CONT  TestDataMapRejectsCorruptKindAndReplacedOwner/pending_delta_does_not_move_to_replacement
+=== CONT  TestDataMapLazyHydrationAndCorruption/0
+=== CONT  TestMSPointer_LifecycleState/Paused
+=== RUN   TestTimeSkippingTransition/gate_by_fast-forward/stale_fast-forward_clears_the_tracked_target_and_disables_time_skipping
+--- PASS: TestMSPointer_LifecycleState (0.00s)
+    --- PASS: TestMSPointer_LifecycleState/Unspecified (0.00s)
+    --- PASS: TestMSPointer_LifecycleState/Completed (0.00s)
+    --- PASS: TestMSPointer_LifecycleState/TimedOut (0.00s)
+    --- PASS: TestMSPointer_LifecycleState/Canceled (0.00s)
+    --- PASS: TestMSPointer_LifecycleState/Terminated (0.00s)
+    --- PASS: TestMSPointer_LifecycleState/ContinuedAsNew (0.00s)
+    --- PASS: TestMSPointer_LifecycleState/Failed (0.00s)
+    --- PASS: TestMSPointer_LifecycleState/Running (0.00s)
+    --- PASS: TestMSPointer_LifecycleState/Paused (0.00s)
+=== RUN   TestTimeSkippingTransition/missing_current_time
+=== CONT  TestDataMapLazyHydrationAndCorruption/4
+=== RUN   TestTimeSkippingTransition/missing_current_time/a_directly_set_target_remains_invalid
+=== RUN   TestTimeSkippingTransition/missing_current_time/a_directly_set_disable_signal_remains_invalid
+--- PASS: TestDataMapRejectsCorruptKindAndReplacedOwner (0.00s)
+    --- PASS: TestDataMapRejectsCorruptKindAndReplacedOwner/wrong_kind_is_not_absence (0.00s)
+    --- PASS: TestDataMapRejectsCorruptKindAndReplacedOwner/pending_delta_does_not_move_to_replacement (0.00s)
+=== CONT  TestDataMapLazyHydrationAndCorruption/1000
+=== CONT  TestDataMapLazyHydrationAndCorruption/5
+=== RUN   TestTimeSkippingTransition/missing_current_time/setters_are_no-ops
+=== RUN   TestTimeSkippingTransition/skipped_duration
+=== RUN   TestTimeSkippingTransition/skipped_duration/nil_receiver_is_zero
+=== RUN   TestTimeSkippingTransition/skipped_duration/no_current_time_is_zero
+=== CONT  TestDataMapInterleavedSynchronization/dp
+=== RUN   TestTimeSkippingTransition/skipped_duration/no_target_time_is_zero
+=== RUN   TestTimeSkippingTransition/skipped_duration/target_after_current_is_the_gap
+=== RUN   TestTimeSkippingTransition/skipped_duration/target_equal_to_current_is_zero
+=== RUN   TestTimeSkippingTransition/skipped_duration/a_past_candidate_leaves_no_target_and_is_zero
+=== CONT  TestDataMapInterleavedSynchronization/pd
+--- PASS: TestTimeSkippingTransition (0.00s)
+    --- PASS: TestTimeSkippingTransition/new_transition_sets_only_the_current_time (0.00s)
+    --- PASS: TestTimeSkippingTransition/nil_inputs_are_safe (0.00s)
+    --- PASS: TestTimeSkippingTransition/track_earliest_future_time (0.00s)
+        --- PASS: TestTimeSkippingTransition/track_earliest_future_time/ignores_zero_and_past_candidates (0.00s)
+        --- PASS: TestTimeSkippingTransition/track_earliest_future_time/keeps_the_earliest_future_candidate (0.00s)
+        --- PASS: TestTimeSkippingTransition/track_earliest_future_time/ignores_a_candidate_equal_to_the_current_time (0.00s)
+    --- PASS: TestTimeSkippingTransition/gate_by_fast-forward (0.00s)
+        --- PASS: TestTimeSkippingTransition/gate_by_fast-forward/uses_fast-forward_when_no_earlier_target_exists (0.00s)
+        --- PASS: TestTimeSkippingTransition/gate_by_fast-forward/earlier_tracked_target_wins_over_fast-forward (0.00s)
+        --- PASS: TestTimeSkippingTransition/gate_by_fast-forward/earlier_fast-forward_wins_and_disables_time_skipping (0.00s)
+        --- PASS: TestTimeSkippingTransition/gate_by_fast-forward/ignores_an_already_reached_fast-forward (0.00s)
+        --- PASS: TestTimeSkippingTransition/gate_by_fast-forward/ignores_a_zero_fast-forward_target (0.00s)
+        --- PASS: TestTimeSkippingTransition/gate_by_fast-forward/fast-forward_at_current_time_disables_without_a_target (0.00s)
+        --- PASS: TestTimeSkippingTransition/gate_by_fast-forward/past_fast-forward_disables_without_a_target (0.00s)
+        --- PASS: TestTimeSkippingTransition/gate_by_fast-forward/stale_fast-forward_clears_the_tracked_target_and_disables_time_skipping (0.00s)
+    --- PASS: TestTimeSkippingTransition/missing_current_time (0.00s)
+        --- PASS: TestTimeSkippingTransition/missing_current_time/a_directly_set_target_remains_invalid (0.00s)
+        --- PASS: TestTimeSkippingTransition/missing_current_time/a_directly_set_disable_signal_remains_invalid (0.00s)
+        --- PASS: TestTimeSkippingTransition/missing_current_time/setters_are_no-ops (0.00s)
+    --- PASS: TestTimeSkippingTransition/skipped_duration (0.00s)
+        --- PASS: TestTimeSkippingTransition/skipped_duration/nil_receiver_is_zero (0.00s)
+        --- PASS: TestTimeSkippingTransition/skipped_duration/no_current_time_is_zero (0.00s)
+        --- PASS: TestTimeSkippingTransition/skipped_duration/no_target_time_is_zero (0.00s)
+        --- PASS: TestTimeSkippingTransition/skipped_duration/target_after_current_is_the_gap (0.00s)
+        --- PASS: TestTimeSkippingTransition/skipped_duration/target_equal_to_current_is_zero (0.00s)
+        --- PASS: TestTimeSkippingTransition/skipped_duration/a_past_candidate_leaves_no_target_and_is_zero (0.00s)
+=== CONT  TestDataMapInterleavedSynchronization/pdp
+=== CONT  TestDataMapInterleavedSynchronization/dpd
+=== CONT  TestDataMapInterleavedSynchronization/dpdp
+=== CONT  TestDataMapAttachmentAndReplicationIdentity/double_attachment
+=== CONT  TestDataMapNoOpDoesNotPublish/missing-delete
+=== CONT  TestDataMapNoOpDoesNotPublish/read
+=== CONT  TestDataMapNoOpDoesNotPublish/new-put-delete
+--- PASS: TestDataMapInterleavedSynchronization (0.00s)
+    --- PASS: TestDataMapInterleavedSynchronization/dp (0.00s)
+    --- PASS: TestDataMapInterleavedSynchronization/pd (0.00s)
+    --- PASS: TestDataMapInterleavedSynchronization/dpdp (0.00s)
+    --- PASS: TestDataMapInterleavedSynchronization/dpd (0.00s)
+    --- PASS: TestDataMapInterleavedSynchronization/pdp (0.00s)
+=== CONT  TestDataMapAttachmentAndReplicationIdentity/removed_owner
+=== CONT  TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner
+--- PASS: TestDataMapNoOpDoesNotPublish (0.00s)
+    --- PASS: TestDataMapNoOpDoesNotPublish/missing-delete (0.00s)
+    --- PASS: TestDataMapNoOpDoesNotPublish/new-put-delete (0.00s)
+    --- PASS: TestDataMapNoOpDoesNotPublish/read (0.00s)
+=== CONT  TestDataMapCoalescedDeltas/p
+=== CONT  TestDataMapCoalescedDeltas/dpd
+--- PASS: TestDataMapAttachmentAndReplicationIdentity (0.00s)
+    --- PASS: TestDataMapAttachmentAndReplicationIdentity/double_attachment (0.00s)
+    --- PASS: TestDataMapAttachmentAndReplicationIdentity/removed_owner (0.00s)
+    --- PASS: TestDataMapAttachmentAndReplicationIdentity/replication_invalidates_old_owner (0.00s)
+=== CONT  TestDataMapCoalescedDeltas/dd
+=== CONT  TestDataMapCoalescedDeltas/d
+=== CONT  TestDataMapCoalescedDeltas/pdp
+=== CONT  TestDataMapCoalescedDeltas/dp
+=== CONT  TestDataMapCoalescedDeltas/pd
+=== CONT  TestWorkObservationOrdinaryMapBaseline/records4
+=== CONT  TestWorkObservationOrdinaryMapBaseline/records1000
+=== NAME  TestWorkObservationOrdinaryMapBaseline/records4
+    work_observation_test.go:94: WORK_COUNTS {"size":4,"phase":"cold","counts":{"cold_nodes":6,"data_decode_calls":0,"decode_calls":1,"decode_data_bytes":9,"delete_child_visits":0,"map_hydration_keys":4,"map_key_copies":0,"map_sync_keys":0,"serialize_calls":0,"serialize_data_bytes":0,"serialized_node_proto_bytes":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+    work_observation_test.go:113: WORK_COUNTS {"size":4,"phase":"hot0","counts":{"cold_nodes":0,"data_decode_calls":0,"decode_calls":0,"decode_data_bytes":0,"delete_child_visits":5,"map_hydration_keys":0,"map_key_copies":8,"map_sync_keys":4,"serialize_calls":1,"serialize_data_bytes":7,"serialized_node_proto_bytes":65,"sync_visits":1,"task_validations":1,"tree_visits":30}}
+    work_observation_test.go:113: WORK_COUNTS {"size":4,"phase":"hot1","counts":{"cold_nodes":0,"data_decode_calls":0,"decode_calls":0,"decode_data_bytes":0,"delete_child_visits":5,"map_hydration_keys":0,"map_key_copies":8,"map_sync_keys":4,"serialize_calls":1,"serialize_data_bytes":7,"serialized_node_proto_bytes":65,"sync_visits":1,"task_validations":1,"tree_visits":30}}
+    work_observation_test.go:126: WORK_COUNTS {"size":4,"phase":"point-read","counts":{"cold_nodes":0,"data_decode_calls":1,"decode_calls":1,"decode_data_bytes":13,"delete_child_visits":0,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"serialize_calls":0,"serialize_data_bytes":0,"serialized_node_proto_bytes":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+=== CONT  TestWorkObservationOrdinaryMapBaseline/records5
+    work_observation_test.go:94: WORK_COUNTS {"size":5,"phase":"cold","counts":{"cold_nodes":7,"data_decode_calls":0,"decode_calls":1,"decode_data_bytes":9,"delete_child_visits":0,"map_hydration_keys":5,"map_key_copies":0,"map_sync_keys":0,"serialize_calls":0,"serialize_data_bytes":0,"serialized_node_proto_bytes":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+    work_observation_test.go:113: WORK_COUNTS {"size":5,"phase":"hot0","counts":{"cold_nodes":0,"data_decode_calls":0,"decode_calls":0,"decode_data_bytes":0,"delete_child_visits":6,"map_hydration_keys":0,"map_key_copies":10,"map_sync_keys":5,"serialize_calls":1,"serialize_data_bytes":7,"serialized_node_proto_bytes":65,"sync_visits":1,"task_validations":1,"tree_visits":35}}
+    work_observation_test.go:113: WORK_COUNTS {"size":5,"phase":"hot1","counts":{"cold_nodes":0,"data_decode_calls":0,"decode_calls":0,"decode_data_bytes":0,"delete_child_visits":6,"map_hydration_keys":0,"map_key_copies":10,"map_sync_keys":5,"serialize_calls":1,"serialize_data_bytes":7,"serialized_node_proto_bytes":65,"sync_visits":1,"task_validations":1,"tree_visits":35}}
+    work_observation_test.go:126: WORK_COUNTS {"size":5,"phase":"point-read","counts":{"cold_nodes":0,"data_decode_calls":1,"decode_calls":1,"decode_data_bytes":13,"delete_child_visits":0,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"serialize_calls":0,"serialize_data_bytes":0,"serialized_node_proto_bytes":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+--- PASS: TestDataMapCoalescedDeltas (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/dpd (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/p (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/d (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/dp (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/pdp (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/dd (0.00s)
+    --- PASS: TestDataMapCoalescedDeltas/pd (0.00s)
+--- PASS: TestDataMapLazyHydrationAndCorruption (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/0 (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/5 (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/4 (0.00s)
+    --- PASS: TestDataMapLazyHydrationAndCorruption/1000 (0.00s)
+=== NAME  TestWorkObservationOrdinaryMapBaseline/records1000
+    work_observation_test.go:94: WORK_COUNTS {"size":1000,"phase":"cold","counts":{"cold_nodes":1002,"data_decode_calls":0,"decode_calls":1,"decode_data_bytes":9,"delete_child_visits":0,"map_hydration_keys":1000,"map_key_copies":0,"map_sync_keys":0,"serialize_calls":0,"serialize_data_bytes":0,"serialized_node_proto_bytes":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+    work_observation_test.go:113: WORK_COUNTS {"size":1000,"phase":"hot0","counts":{"cold_nodes":0,"data_decode_calls":0,"decode_calls":0,"decode_data_bytes":0,"delete_child_visits":1001,"map_hydration_keys":0,"map_key_copies":2000,"map_sync_keys":1000,"serialize_calls":1,"serialize_data_bytes":7,"serialized_node_proto_bytes":65,"sync_visits":1,"task_validations":1,"tree_visits":5010}}
+    work_observation_test.go:113: WORK_COUNTS {"size":1000,"phase":"hot1","counts":{"cold_nodes":0,"data_decode_calls":0,"decode_calls":0,"decode_data_bytes":0,"delete_child_visits":1001,"map_hydration_keys":0,"map_key_copies":2000,"map_sync_keys":1000,"serialize_calls":1,"serialize_data_bytes":7,"serialized_node_proto_bytes":65,"sync_visits":1,"task_validations":1,"tree_visits":5010}}
+    work_observation_test.go:126: WORK_COUNTS {"size":1000,"phase":"point-read","counts":{"cold_nodes":0,"data_decode_calls":1,"decode_calls":1,"decode_data_bytes":13,"delete_child_visits":0,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"serialize_calls":0,"serialize_data_bytes":0,"serialized_node_proto_bytes":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+--- PASS: TestWorkObservationOrdinaryMapBaseline (0.00s)
+    --- PASS: TestWorkObservationOrdinaryMapBaseline/records4 (0.00s)
+    --- PASS: TestWorkObservationOrdinaryMapBaseline/records5 (0.00s)
+    --- PASS: TestWorkObservationOrdinaryMapBaseline/records1000 (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm	0.435s
