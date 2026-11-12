@@ -154,6 +154,8 @@ func (s *xdcBaseSuite) setupSuite(opts ...testcore.TestClusterOption) {
 			EnableMetricsCapture:      true,
 			EnableHistoryTaskRecorder: params.EnableHistoryTaskRecorder,
 			EnableReplicationRecorder: params.EnableReplicationRecorder,
+			ScheduleFrontendFactory:   params.ScheduleFrontendFactory,
+			ScheduleFrontendLibraries: params.ScheduleFrontendLibraries,
 		}
 		clusterConfig.Persistence.DBName += "_" + clusterName
 		clusterConfigs[clusterIndex] = clusterConfig

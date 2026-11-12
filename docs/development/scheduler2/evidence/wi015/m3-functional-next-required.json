@@ -2301,7 +2301,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleV1Suite.TestListBeforeRun",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "ported-public-obligation-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -2318,7 +2318,8 @@
       "evidence_ids": [
         "paused-public-profile-partial"
       ],
-      "baseline_body_sha256": "dba45a19d7382a9856ed4ca9e5be15f807dc99ccb42cbf27d796ac090dfb371c"
+      "baseline_body_sha256": "dba45a19d7382a9856ed4ca9e5be15f807dc99ccb42cbf27d796ac090dfb371c",
+      "execution_evidence": "listing-ports/manifest.json"
     },
     {
       "baseline_row": 91,
@@ -2395,7 +2396,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleV1Suite.TestUpdateScheduleMemoRejected",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "explained-backend-divergence",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -2412,7 +2413,9 @@
         "TestScheduleV1Suite/TestUpdateScheduleMemoRejected"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "e284b78552efc5376680a1d4f110c45b4cd18d632e96b4ad6c1dfbad4cb37771"
+      "baseline_body_sha256": "e284b78552efc5376680a1d4f110c45b4cd18d632e96b4ad6c1dfbad4cb37771",
+      "execution_evidence": "listing-ports/review.md",
+      "scope_note": "V1-only memo rejection; CHASM replacement supported and verified. Not a scheduler2 rejected-memo pass."
     },
     {
       "baseline_row": 95,
@@ -3781,7 +3784,7 @@
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestScheduleUpdateAfterDelete",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "ported-public-obligation-pass",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -3799,7 +3802,9 @@
         "TestScheduleMigrationTestSuite/TestScheduleUpdateAfterDelete"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "2d77e7d3e28b4673905c1c8c7888824f0b4e866010693e56720dab81180cc885"
+      "baseline_body_sha256": "2d77e7d3e28b4673905c1c8c7888824f0b4e866010693e56720dab81180cc885",
+      "execution_evidence": "context-metadata/manifest.json",
+      "scope_note": "Public closed-mutation and attribution parity; old internal fallback and sentinel ownership combinations remain unsupported migration scope."
     },
     {
       "baseline_row": 154,
@@ -3871,7 +3876,7 @@
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestDeleteScheduleContextMetadata",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "ported-public-obligation-pass",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -3885,7 +3890,9 @@
         "TestScheduleMigrationTestSuite/TestDeleteScheduleContextMetadata"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9"
+      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9",
+      "execution_evidence": "context-metadata/manifest.json",
+      "scope_note": "Public closed-mutation and attribution parity; old internal fallback and sentinel ownership combinations remain unsupported migration scope."
     },
     {
       "baseline_row": 158,
@@ -4018,7 +4025,7 @@
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestPatchScheduleContextMetadata",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "ported-public-obligation-pass",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -4032,7 +4039,9 @@
         "TestScheduleMigrationTestSuite/TestPatchScheduleContextMetadata"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "00c2a3b9289a99a1c0ce174cd25bd01fcae054f501d9b48e0f4c70b2da20ac9b"
+      "baseline_body_sha256": "00c2a3b9289a99a1c0ce174cd25bd01fcae054f501d9b48e0f4c70b2da20ac9b",
+      "execution_evidence": "context-metadata/manifest.json",
+      "scope_note": "Public closed-mutation and attribution parity; old internal fallback and sentinel ownership combinations remain unsupported migration scope."
     },
     {
       "baseline_row": 165,
@@ -4459,7 +4468,7 @@
       "source": "tests/advanced_visibility_test.go",
       "symbol": "AdvancedVisibilitySuite.TestScheduleListingWithSearchAttributes",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "ported-public-obligation-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -4474,7 +4483,8 @@
         "TestAdvancedVisibilitySuite/TestScheduleListingWithSearchAttributes"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "e88743a652cd5688bc7c094cf4ca11a9eb18dc907317c0d963977b491ca1030c"
+      "baseline_body_sha256": "e88743a652cd5688bc7c094cf4ca11a9eb18dc907317c0d963977b491ca1030c",
+      "execution_evidence": "listing-ports/manifest.json"
     },
     {
       "baseline_row": 184,
@@ -4529,7 +4539,7 @@
       "source": "tests/xdc/chasm_timeskipping_replication_test.go",
       "symbol": "chasmTimeSkippingReplicationSuite.TestStandbyRestampsCHASMTimerAfterSkip",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "physical-recovery-replication",
       "contracts": [
@@ -4546,7 +4556,8 @@
       "evidence_ids": [
         "timeskipping-functional03-partial"
       ],
-      "baseline_body_sha256": "987195cf05a72e44b76cd02783a1ca3607dab2753e01fcc9d46710aeab296943"
+      "baseline_body_sha256": "987195cf05a72e44b76cd02783a1ca3607dab2753e01fcc9d46710aeab296943",
+      "execution_evidence": "xdc-restamp/manifest.json"
     },
     {
       "baseline_row": 187,

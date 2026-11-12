@@ -1,0 +1,31 @@
+{
+  "status": "verified increment, not M3 acceptance",
+  "results": {
+    "metadata01": {
+      "sha256": "bed8ebfcaf391cd42647f82b7c768022ea14c73ea12c99e83fd7d0e00356eed6",
+      "result": "FAIL1.338s missing Patch/Delete attribution trailers"
+    },
+    "metadata02": {
+      "sha256": "8ecfcbb30b7f592b72a9b1601f9b9032765cb4edad45f8a114d8fc845dec2d87",
+      "result": "BUILD FAIL duplicate existing nil ContextMetadata stub; fixed by removing stub"
+    },
+    "metadata03": {
+      "sha256": "d1940f761d5073aebe894d9bb17f6d1f74b5e08ac86d7ec8649270168edb8ec0",
+      "result": "PASS1.246s metadata public cases"
+    },
+    "metadata04": {
+      "sha256": "41748b4bcec693268bfc62aba1a96511cb237b5f77e237e0498412d591cf81a2",
+      "result": "PASS1.174s metadata and old/new public closed-mutation comparison"
+    },
+    "metadata-unit01": {
+      "sha256": "29332c88d8fe062847ec7cd1924760ec0d412af472bb823155493966087a414a",
+      "result": "PASS0.646s empty/closed/skeleton-only metadata"
+    }
+  },
+  "source_sha256": {
+    "chasm/lib/scheduler2/public_context.go": "0d6b74aed0c4f402cfe235e62635d1452b434180109e724c3dba9a4328e3ae20",
+    "chasm/lib/scheduler2/public_context_test.go": "a6872947a42f11bd0fee23a18385745baa409717516634dc4547d4592bff7735",
+    "chasm/lib/scheduler2/lifecycle.go": "1c5488f7e447103556cbaa7305459193a581bf73a5828075d00b57f74e819e55",
+    "tests/schedule2_metadata_test.go": "179b66a1a2a362383a1ec5c852a75dc827f61e99e22cc568edb5a4ee7a914943"
+  }
+}

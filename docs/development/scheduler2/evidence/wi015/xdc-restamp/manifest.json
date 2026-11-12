@@ -1,0 +1,21 @@
+{
+  "source_sha256": {
+    "tests/xdc/scheduler2_timeskipping_replication_test.go": "d04ff5871a58aad9e5315e44438536ead1799613b621b045647a1ace3541a73b",
+    "tests/testcore/schedule_frontend_cluster.go": "7d82623de90b517343d312f0dff9bb8a13a74f33c276366c1f3031aceb853725",
+    "tests/xdc/base.go": "1dc26c7429fec0e24699069fcfbd41ca5bf8b187158db569478e571ffced5412",
+    "tests/xdc/chasm_timeskipping_replication_test.go": "b32fdea1da4cf559e2d0813012bf01136f7051a1f199b2ac7ea8b593762eb6b2",
+    "tests/testcore/history_task_recorder.go": "4f601c605f6af1a29829c65cc9d8b18d30f08365e59e6ab220db5867eba48c97",
+    "chasm/tree.go": "a192a526bc98b401a271df958fbb941285a773aa41310d8e2698d3d9a36b99c3"
+  },
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 ./tests/xdc -run '^TestScheduler2TimeSkippingReplicationSuite$' -count=1 -timeout=5m",
+  "results": {
+    "missing-forwarding": "FAIL27.331s: initial standby CHASM timer missing because XDC config did not forward explicit frontend factory",
+    "initial-pass": "PASS13.026s with forwarding",
+    "final-pass": "PASS11.794s with initial standby offset=0 and distinct physical timer taskID assertions",
+    "identity-pass": "PASS12.298s with exact registered/durable archetype and typed reads on both clusters, same run filter",
+    "temporary-compile-failure": "run05 could not compile during concurrent ContextMetadata replacement; no runtime conclusion"
+  },
+  "baseline": "chasmTimeSkippingReplicationSuite.TestStandbyRestampsCHASMTimerAfterSkip",
+  "port": "scheduler2TimeSkippingReplicationSuite.TestStandbyRestampsCHASMTimerAfterSkip",
+  "scope": "Two local SQLite clusters; actual passive replication and successfully persisted physical timer task writes; no failover or later envelope consumption claim."
+}

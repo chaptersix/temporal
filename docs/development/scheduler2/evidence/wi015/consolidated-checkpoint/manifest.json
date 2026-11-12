@@ -118,5 +118,12 @@
     "tests/schedule_test.go": "d2961c0a67cf57762d7e0c590b1ef8b9ccecbb26a84ebd70f19ff6a48fdb523b",
     "tests/testcore/onebox.go": "1923a3d227b7915194c7d92e4f2dfe6a190515440e011566aefe6dc4dce2977e",
     "tests/testcore/schedule_frontend.go": "15e34bb77622c064db28006c506be7d7b367191783ee6a3f9b7be81d1d9149ec"
+  },
+  "checkpoint_race": {
+    "result": "PASS193.095s root, all selected packages pass",
+    "source_commit": "8dd3cda3a",
+    "scope": "Compiled before later context-metadata/capacity/timestamp increments",
+    "sha256": "aeae5ae9f7ef49b65d5ac0419acdf22f885403186e30dddde390f3dd9d5bb07a",
+    "command": "CGO_ENABLED=1 SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk GOMAXPROCS=4 go test -race -tags test_dep -p 2 -parallel 4 ./chasm/lib/scheduler2/... ./chasm/lib/callback ./common/nexus/nexusrpc ./service/history/hsm/callbacks -count=1"
   }
 }

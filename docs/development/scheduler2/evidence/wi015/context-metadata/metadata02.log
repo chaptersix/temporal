@@ -1,0 +1,4 @@
+# go.temporal.io/server/chasm/lib/scheduler2
+chasm/lib/scheduler2/public_context.go:9:21: method Scheduler.ContextMetadata already declared at chasm/lib/scheduler2/lifecycle.go:15:19
+FAIL	go.temporal.io/server/tests [build failed]
+FAIL

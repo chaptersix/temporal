@@ -12,7 +12,6 @@ func (s *Scheduler) LifecycleState(chasm.Context) chasm.LifecycleState {
 	}
 	return chasm.LifecycleStateRunning
 }
-func (*Scheduler) ContextMetadata(chasm.Context) map[string]string { return nil }
 
 // Close revokes future scheduling authority while preserving historical evidence.
 // A request snapshot authorized before close may still be issued outside the
