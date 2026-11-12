@@ -1,0 +1,3 @@
+ld64.lld: error: undefined symbol: initialize_Kernel
+>>> referenced by /var/folders/8c/pk84y2sn1ssfpjzw58m6qlzw0000gn/T/Oracle-b45c16.o:(symbol initialize_docs_development_scheduler2_lean_exact_Oracle+0xd8)
+clang: error: linker command failed with exit code 1 (use -v to see invocation)

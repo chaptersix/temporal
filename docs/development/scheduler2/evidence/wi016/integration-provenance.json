@@ -1,0 +1,17 @@
+{
+  "source_commit": "8995bfea4",
+  "integration_commit": "42d57a60a",
+  "verified_sources": {
+    "service/worker/scheduler/calendar.go": true,
+    "service/worker/scheduler/candidate.go": true,
+    "service/worker/scheduler/spec.go": true,
+    "chasm/lib/scheduler2/internal/occurrence/occurrence.go": true,
+    "chasm/lib/scheduler2/internal/occurrence/occurrence_test.go": true,
+    "chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go": true,
+    "go.mod": true,
+    "go.sum": true,
+    "chasm/lib/scheduler2/internal/occurrence/testdata/America_New_York.tzif": true,
+    "chasm/lib/scheduler2/internal/occurrence/testdata/Europe_London.tzif": true
+  },
+  "scope": "WI016 only; ongoing WI015 remains in execution worktree"
+}

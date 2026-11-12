@@ -1,0 +1,41 @@
+Controls.lean:13:2: error: unsolved goals
+case isTrue
+src : Source
+after : Nat
+s : State
+h✝ : after > upper
+success : (fun a => initial src after) <$> throw "input-invalid" = Except.ok s
+⊢ s.identity = src.identity ∧
+    s.revision = src.revision ∧
+      s.origin = after ∧
+        s.searchAfter = after ∧
+          s.disposedThrough = after ∧
+            s.pending = none ∧
+              s.fullRange = decide (after < src.lower) ∧ s.eligibleSeen = false ∧ s.terminal = Stop.active
+Controls.lean:15:4: error: Tactic `subst` failed: did not find equation for eliminating 's'
+
+case isFalse
+src : Source
+after : Nat
+s : State
+h✝ : ¬after > upper
+success :
+  (do
+      Except.ok PUnit.unit
+      Except.ok (initial src after)) =
+    Except.ok s
+⊢ s.identity = src.identity ∧
+    s.revision = src.revision ∧
+      s.origin = after ∧
+        s.searchAfter = after ∧
+          s.disposedThrough = after ∧
+            s.pending = none ∧
+              s.fullRange = decide (after < src.lower) ∧ s.eligibleSeen = false ∧ s.terminal = Stop.active
+Controls.lean:14:34: warning: This simp argument is unused:
+  Except.ok.injEq
+
+Hint: Omit it from the simp argument list.
+  simp only [pure, Except.pure,̵ ̵E̵x̵c̵e̵p̵t̵.̵o̵k̵.̵i̵n̵j̵E̵q̵] at success
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+Controls.lean:22:48: error: unexpected token 'at'; expected '=>'

@@ -1,0 +1,163 @@
+docs/development/scheduler2/lean/exact/Kernel.lean:272:19: error: unexpected rec
+docs/development/scheduler2/lean/exact/Kernel.lean:248:60: error: Type mismatch: After simplification, term
+  ht
+ has type
+  (m.state.terminal != Stop.active) = true
+but is expected to have type
+  ¬m.state.terminal = Stop.active
+docs/development/scheduler2/lean/exact/Kernel.lean:251:53: error: Type mismatch: After simplification, term
+  ht
+ has type
+  (m.state.terminal != Stop.active) = false
+but is expected to have type
+  m.state.terminal = Stop.active
+docs/development/scheduler2/lean/exact/Kernel.lean:272:14: error: unexpected syntax
+  failed to pretty print term (use 'set_option pp.rawOnError true' for raw representation)
+docs/development/scheduler2/lean/exact/Kernel.lean:261:10: error: unsolved goals
+case h_1.isFalse.isFalse
+through ticks : Nat
+ih :
+  ∀ (fuel slots : Nat) (m : Machine),
+    rank m < ticks →
+      m.rest.length < fuel →
+        (remaining m).length < slots →
+          m.state.terminal = Stop.active ∨ remaining m = [] →
+            (loop through ticks fuel slots m).output = expected through (remaining m)
+fuel slots : Nat
+m : Machine
+hticks : rank m < ticks + 1
+hfuel : m.rest.length < fuel
+hslots : (remaining m).length < slots
+hcache : m.state.terminal = Stop.active ∨ remaining m = []
+ht : ¬(m.state.terminal != Stop.active) = true
+active : m.state.terminal = Stop.active
+h✝¹ : ¬(slots == 0) = true
+x✝ : Option Candidate
+c : Candidate
+hp : m.state.pending = some c
+hw : ¬through < c.actual
+due : c.actual ≤ through
+next : Machine :=
+  {
+    state :=
+      let __src := m.state;
+      { identity := __src.identity, revision := __src.revision, origin := __src.origin,
+        searchAfter := __src.searchAfter, disposedThrough := c.nominal, fullRange := __src.fullRange,
+        eligibleSeen := __src.eligibleSeen, terminal := __src.terminal },
+    rest := m.rest }
+nt : rank next < ticks
+ns : (remaining next).length + 1 < slots
+nc : next.state.terminal = Stop.active ∨ remaining next = []
+h✝ : ¬c.excluded = true
+⊢ {
+        machine :=
+          (loop through ticks fuel (slots - 1)
+              {
+                state :=
+                  { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                    searchAfter := m.state.searchAfter, disposedThrough := c.nominal, fullRange := m.state.fullRange,
+                    eligibleSeen := m.state.eligibleSeen, terminal := m.state.terminal },
+                rest := m.rest }).machine,
+        output :=
+          c ::
+            (loop through ticks fuel (slots - 1)
+                {
+                  state :=
+                    { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                      searchAfter := m.state.searchAfter, disposedThrough := c.nominal, fullRange := m.state.fullRange,
+                      eligibleSeen := m.state.eligibleSeen, terminal := m.state.terminal },
+                  rest := m.rest }).output,
+        probes :=
+          (loop through ticks fuel (slots - 1)
+              {
+                state :=
+                  { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                    searchAfter := m.state.searchAfter, disposedThrough := c.nominal, fullRange := m.state.fullRange,
+                    eligibleSeen := m.state.eligibleSeen, terminal := m.state.terminal },
+                rest := m.rest }).probes,
+        stop :=
+          (loop through ticks fuel (slots - 1)
+              {
+                state :=
+                  { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                    searchAfter := m.state.searchAfter, disposedThrough := c.nominal, fullRange := m.state.fullRange,
+                    eligibleSeen := m.state.eligibleSeen, terminal := m.state.terminal },
+                rest := m.rest }).stop }.output =
+    expected through (remaining m)
+docs/development/scheduler2/lean/exact/Kernel.lean:256:6: error: unsolved goals
+case h_2
+through ticks : Nat
+ih :
+  ∀ (fuel slots : Nat) (m : Machine),
+    rank m < ticks →
+      m.rest.length < fuel →
+        (remaining m).length < slots →
+          m.state.terminal = Stop.active ∨ remaining m = [] →
+            (loop through ticks fuel slots m).output = expected through (remaining m)
+fuel slots : Nat
+m : Machine
+hticks : rank m < ticks + 1
+hfuel : m.rest.length < fuel
+hslots : (remaining m).length < slots
+hcache : m.state.terminal = Stop.active ∨ remaining m = []
+ht : ¬(m.state.terminal != Stop.active) = true
+active : m.state.terminal = Stop.active
+h✝ : ¬(slots == 0) = true
+x✝ : Option Candidate
+heq✝ : m.state.pending = none
+⊢ (if (fuel == 0) = true then done m Stop.yielded
+      else
+        match m.rest with
+        | [] =>
+          {
+            machine :=
+              {
+                state :=
+                  { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                    searchAfter := m.state.searchAfter, disposedThrough := m.state.disposedThrough,
+                    pending := m.state.pending, fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen,
+                    terminal :=
+                      if (m.state.fullRange && !m.state.eligibleSeen) = true then Stop.impossible else Stop.exhausted },
+                rest := m.rest },
+            probes := 1,
+            stop := if (m.state.fullRange && !m.state.eligibleSeen) = true then Stop.impossible else Stop.exhausted }
+        | c :: cs =>
+          {
+            machine :=
+              (loop through ticks (fuel - 1) slots
+                  {
+                    state :=
+                      { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                        searchAfter := c.nominal, disposedThrough := m.state.disposedThrough, pending := some c,
+                        fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen || !c.excluded,
+                        terminal := m.state.terminal },
+                    rest := cs }).machine,
+            output :=
+              (loop through ticks (fuel - 1) slots
+                  {
+                    state :=
+                      { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                        searchAfter := c.nominal, disposedThrough := m.state.disposedThrough, pending := some c,
+                        fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen || !c.excluded,
+                        terminal := m.state.terminal },
+                    rest := cs }).output,
+            probes :=
+              (loop through ticks (fuel - 1) slots
+                    {
+                      state :=
+                        { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                          searchAfter := c.nominal, disposedThrough := m.state.disposedThrough, pending := some c,
+                          fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen || !c.excluded,
+                          terminal := m.state.terminal },
+                      rest := cs }).probes +
+                1,
+            stop :=
+              (loop through ticks (fuel - 1) slots
+                  {
+                    state :=
+                      { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                        searchAfter := c.nominal, disposedThrough := m.state.disposedThrough, pending := some c,
+                        fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen || !c.excluded,
+                        terminal := m.state.terminal },
+                    rest := cs }).stop }).output =
+    expected through (remaining m)

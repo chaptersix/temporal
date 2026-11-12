@@ -1,0 +1,14 @@
+Controls.lean:14:15: warning: This simp argument is unused:
+  pure
+
+Hint: Omit it from the simp argument list.
+  simp only [p̵u̵r̵e̵,̵ ̵Except.pure, Except.ok.injEq] at success
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+Controls.lean:14:21: warning: This simp argument is unused:
+  Except.pure
+
+Hint: Omit it from the simp argument list.
+  simp only [pure, Except.p̵u̵r̵e̵,̵ ̵E̵x̵c̵e̵p̵t̵.̵ok.injEq] at success
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`

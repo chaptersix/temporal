@@ -1,0 +1,4 @@
+Oracle.lean:24:41: error: Invalid field `toString`: The environment does not contain `String.toString`
+  s.drop 1
+has type
+  String

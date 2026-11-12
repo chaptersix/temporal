@@ -1,0 +1,12 @@
+Public.lean:68:52: warning: This simp argument is unused:
+  budget
+
+Hint: Omit it from the simp argument list.
+  simp [scan, hi, hr, hv, hf, he, active, window, b̵u̵d̵g̵e̵t̵,̵
+  ̵ ̵ ̵ ̵ ̵ ̵ ̵show ¬probes < 1 by omega,
+  ̲  ̲ ̲ ̲ ̲ ̲show ¬probes > 1024 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵show ¬outputs < 1 by omega, show ¬outputs > 128 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵run,
+  ̲  ̲ ̲ ̲ ̲ ̲loop, restore, bounded, done] at rest ⊢
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`

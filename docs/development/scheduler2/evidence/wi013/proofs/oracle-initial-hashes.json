@@ -1,0 +1,6 @@
+{
+  "docs/development/scheduler2/lean/exact/Kernel.lean": "7e2619a198c0dc83c541444c746d10416d3da2306c36e37a75481c0fe2bb16b1",
+  "docs/development/scheduler2/lean/exact/Oracle.lean": "f62310d579181995e884e5d9238f141260c211d7a4b14a244d67a3a849e4bd59",
+  "/private/tmp/scheduler2-wi013-lean/oracle": "6639b8782a8ce26e03e12dd70e618a3ac76cdf6fbad95a015197b96caf3679ae",
+  "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean": "9544be237d91099efe1db8cb97d0c359fa13aa94f565e9972bfb8b63abbcb437"
+}

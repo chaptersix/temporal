@@ -1,0 +1,49 @@
+docs/development/scheduler2/lean/exact/Public.lean:68:52: warning: This simp argument is unused:
+  budget
+
+Hint: Omit it from the simp argument list.
+  simp [scan, hi, hr, hv, hf, he, active, window, b̵u̵d̵g̵e̵t̵,̵
+  ̵ ̵ ̵ ̵ ̵ ̵ ̵show ¬probes < 1 by omega,
+  ̲  ̲ ̲ ̲ ̲ ̲show ¬probes > 1024 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵show ¬outputs < 1 by omega, show ¬outputs > 128 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵run,
+  ̲  ̲ ̲ ̲ ̲ ̲loop, restore, bounded, done] at rest ⊢
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Public.lean:147:86: error: unexpected identifier; expected '}'
+docs/development/scheduler2/lean/exact/Public.lean:147:34: error: invalid {...} notation, expected type is not known
+docs/development/scheduler2/lean/exact/Public.lean:147:4: error: Type mismatch
+  congrArg fun suffix => ?m.60
+has type
+  ?m.57 = ?m.58 → ?m.61 ?m.57 = ?m.61 ?m.58
+but is expected to have type
+  {
+      state :=
+        { identity := r.machine.state.identity, revision := r.machine.state.revision, origin := r.machine.state.origin,
+          searchAfter := r.machine.state.searchAfter,
+          disposedThrough :=
+            List.foldl (fun x x => x.nominal) initial.state.disposedThrough
+              (List.takeWhile (fun x => decide (x.nominal < c.nominal)) (remaining initial)),
+          pending := some c, fullRange := r.machine.state.fullRange, eligibleSeen := r.machine.state.eligibleSeen,
+          terminal := r.machine.state.terminal },
+      rest := List.filter (fun c => decide (r.machine.state.searchAfter < c.nominal)) raw } =
+    {
+      state :=
+        { identity := r.machine.state.identity, revision := r.machine.state.revision, origin := r.machine.state.origin,
+          searchAfter := r.machine.state.searchAfter,
+          disposedThrough :=
+            List.foldl (fun x x => x.nominal) initial.state.disposedThrough
+              (List.takeWhile (fun x => decide (x.nominal < c.nominal)) (remaining initial)),
+          pending := some c, fullRange := r.machine.state.fullRange, eligibleSeen := r.machine.state.eligibleSeen,
+          terminal := r.machine.state.terminal },
+      rest := r.machine.rest }
+docs/development/scheduler2/lean/exact/Public.lean:165:11: error: (deterministic) timeout at `whnf`, maximum number of heartbeats (200000) has been reached
+
+Note: Use `set_option maxHeartbeats <num>` to set the limit.
+
+Hint: Additional diagnostic information may be available using the `set_option diagnostics true` command.
+docs/development/scheduler2/lean/exact/Public.lean:151:0: error: (deterministic) timeout at `whnf`, maximum number of heartbeats (200000) has been reached
+
+Note: Use `set_option maxHeartbeats <num>` to set the limit.
+
+Hint: Additional diagnostic information may be available using the `set_option diagnostics true` command.

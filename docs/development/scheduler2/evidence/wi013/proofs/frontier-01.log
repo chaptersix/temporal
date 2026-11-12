@@ -1,0 +1,12 @@
+Frontier.lean:16:74: error: unexpected identifier; expected '}'
+Frontier.lean:25:2: error: unsolved goals
+case refine_2
+identity : String
+revision lower after : Nat
+raw : List Candidate
+ordered : List.Pairwise (fun a b => a.nominal < b.nominal) raw
+⊢ sorry = after
+Frontier.lean:24:11: warning: declaration uses 'sorry'
+Frontier.lean:37:83: error: unexpected identifier; expected '}'
+Frontier.lean:50:8: warning: declaration uses 'sorry'
+Frontier.lean:106:8: warning: declaration uses 'sorry'

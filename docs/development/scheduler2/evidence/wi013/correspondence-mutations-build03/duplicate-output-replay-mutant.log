@@ -1,0 +1,13 @@
+=== RUN   TestLeanCorrespondenceSavedReplay
+    lean_correspondence_test.go:485: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:485
+        	Error:      	Received unexpected error:
+        	            	request={"version":1,"source":{"identity":"b7a6a4c0e220dff961fde77bb95b06646be8cc1ef8d031927e136fc2b19b2bb6","revision":"1","lower":"757382400000000001","nominalEnd":"757382401000000001","upper":"3187296000000000000","hasInclusions":true,"raw":[{"nominal":"757382400000000001","actual":"757382400000000001","revision":"1","excluded":false},{"nominal":"757382401000000001","actual":"757382401000000001","revision":"1","excluded":false}]},"state":{"identity":"b7a6a4c0e220dff961fde77bb95b06646be8cc1ef8d031927e136fc2b19b2bb6","revision":"1","origin":"757382400000000000","searchAfter":"757382400000000000","disposedThrough":"757382400000000000","pending":null,"fullRange":true,"eligibleSeen":false,"terminal":"active"},"op":"run","through":"757382409000000001","probes":"1","outputs":"1"}
+        	            	Go={"version":1,"ok":true,"state":{"identity":"b7a6a4c0e220dff961fde77bb95b06646be8cc1ef8d031927e136fc2b19b2bb6","revision":"1","origin":"757382400000000000","searchAfter":"757382400000000001","disposedThrough":"757382400000000001","pending":null,"fullRange":true,"eligibleSeen":true,"terminal":"active"},"status":"yield","outputs":[{"nominal":"757382400000000001","actual":"757382400000000001","revision":"1","excluded":false},{"nominal":"757382400000000001","actual":"757382400000000001","revision":"1","excluded":false}],"probes":"1"}
+        	            	Lean={"version":1,"ok":true,"state":{"identity":"b7a6a4c0e220dff961fde77bb95b06646be8cc1ef8d031927e136fc2b19b2bb6","revision":"1","origin":"757382400000000000","searchAfter":"757382400000000001","disposedThrough":"757382400000000001","pending":null,"fullRange":true,"eligibleSeen":true,"terminal":"active"},"status":"limited","outputs":[{"nominal":"757382400000000001","actual":"757382400000000001","revision":"1","excluded":false}],"probes":"1"}
+        	Test:       	TestLeanCorrespondenceSavedReplay
+        	Messages:   	saved step 1
+--- FAIL: TestLeanCorrespondenceSavedReplay (0.03s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.736s
+FAIL

@@ -1,0 +1,7 @@
+{
+  "source_commit": "16b820a5e",
+  "integration_commit": "6d42b5e17",
+  "hashes_verified": 18,
+  "conflicts": "Only central plan/ledger append conflicts; preserved both accepted WI012/WI014 and WI013 entries.",
+  "scope": "P5.4 accepted; SP7/full public M3 and M4 still open."
+}

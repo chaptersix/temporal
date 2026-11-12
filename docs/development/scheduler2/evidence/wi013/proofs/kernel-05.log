@@ -1,0 +1,13 @@
+docs/development/scheduler2/lean/exact/Kernel.lean:147:20: error: Invalid field `trans_eq`: The environment does not contain `Nat.le.trans_eq`
+  Nat.add_le_add_right h 1
+has type
+  ((loop through ticks (fuel - 1) slots
+            {
+              state :=
+                { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                  searchAfter := c.nominal, disposedThrough := m.state.disposedThrough, pending := some c,
+                  fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen || !c.excluded,
+                  terminal := m.state.terminal },
+              rest := cs }).probes +
+        1).le
+    (fuel - 1 + 1)

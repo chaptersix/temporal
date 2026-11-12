@@ -1,0 +1,89 @@
+docs/development/scheduler2/lean/exact/Public.lean:68:52: warning: This simp argument is unused:
+  budget
+
+Hint: Omit it from the simp argument list.
+  simp [scan, hi, hr, hv, hf, he, active, window, b̵u̵d̵g̵e̵t̵,̵
+  ̵ ̵ ̵ ̵ ̵ ̵ ̵show ¬probes < 1 by omega,
+  ̲  ̲ ̲ ̲ ̲ ̲show ¬probes > 1024 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵show ¬outputs < 1 by omega, show ¬outputs > 128 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵run,
+  ̲  ̲ ̲ ̲ ̲ ̲loop, restore, bounded, done] at rest ⊢
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Public.lean:107:4: error: Tactic `rfl` failed: The left-hand side
+  do
+    let first ← Except.ok (run c.through c.probes c.outputs (restore (bounded src) s))
+    let rest ← publicResume src calls first.machine.state
+    pure
+        { machine := rest.machine, output := first.output ++ rest.output, probes := first.probes + rest.probes,
+          stop := rest.stop }
+is not definitionally equal to the right-hand side
+  Except.ok
+    { machine := (resume calls (run c.through c.probes c.outputs (restore (bounded src) s)).machine).machine,
+      output :=
+        (run c.through c.probes c.outputs (restore (bounded src) s)).output ++
+          (resume calls (run c.through c.probes c.outputs (restore (bounded src) s)).machine).output,
+      probes :=
+        (run c.through c.probes c.outputs (restore (bounded src) s)).probes +
+          (resume calls (run c.through c.probes c.outputs (restore (bounded src) s)).machine).probes,
+      stop := (resume calls (run c.through c.probes c.outputs (restore (bounded src) s)).machine).stop }
+
+case cons
+src : Source
+source : SourceValid src
+inclusions : src.hasInclusions = true
+c : Call
+calls : List Call
+ih :
+  ∀ (s : State),
+    Ready src s →
+      (∀ (c : Call), c ∈ calls → PublicCallValid c) →
+        publicResume src calls s = Except.ok (resume calls (restore (bounded src) s))
+s : State
+ready : Ready src s
+valid : ∀ (c_1 : Call), c_1 ∈ c :: calls → PublicCallValid c_1
+head : PublicCallValid c
+tail : ∀ (c : Call), c ∈ calls → PublicCallValid c
+hs :
+  scan src s c.through c.probes c.outputs false = Except.ok (run c.through c.probes c.outputs (restore (bounded src) s))
+readyNext : Ready src (run c.through c.probes c.outputs (restore (bounded src) s)).machine.state
+frontier : Frontier (restore (bounded src) s)
+reconstruct :
+  restore (bounded src) (run c.through c.probes c.outputs (restore (bounded src) s)).machine.state =
+    (run c.through c.probes c.outputs (restore (bounded src) s)).machine
+⊢ (do
+      let first ← Except.ok (run c.through c.probes c.outputs (restore (bounded src) s))
+      let rest ← publicResume src calls first.machine.state
+      pure
+          { machine := rest.machine, output := first.output ++ rest.output, probes := first.probes + rest.probes,
+            stop := rest.stop }) =
+    Except.ok
+      { machine := (resume calls (run c.through c.probes c.outputs (restore (bounded src) s)).machine).machine,
+        output :=
+          (run c.through c.probes c.outputs (restore (bounded src) s)).output ++
+            (resume calls (run c.through c.probes c.outputs (restore (bounded src) s)).machine).output,
+        probes :=
+          (run c.through c.probes c.outputs (restore (bounded src) s)).probes +
+            (resume calls (run c.through c.probes c.outputs (restore (bounded src) s)).machine).probes,
+        stop := (resume calls (run c.through c.probes c.outputs (restore (bounded src) s)).machine).stop }
+docs/development/scheduler2/lean/exact/Public.lean:106:33: warning: This simp argument is unused:
+  Except.bind
+
+Hint: Omit it from the simp argument list.
+  simp only [publicResume, hs, E̵x̵c̵e̵p̵t̵.̵b̵in̵d̵,̵ ̵i̵h _ readyNext tail, reconstruct, resume]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Public.lean:106:46: warning: This simp argument is unused:
+  ih _ readyNext tail
+
+Hint: Omit it from the simp argument list.
+  simp only [publicResume, hs, Except.bind, i̵h̵ ̵_̵ ̵r̵e̵a̵d̵y̵N̵e̵x̵t̵ ̵t̵a̵i̵l̵,̵ ̵reconstruct, resume]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Public.lean:106:67: warning: This simp argument is unused:
+  reconstruct
+
+Hint: Omit it from the simp argument list.
+  simp only [publicResume, hs, Except.bind, ih _ readyNext tail, rec̵o̵n̵st̵r̵uc̵t̵,̵ ̵r̵e̵s̵u̵me]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`

@@ -1,0 +1,46 @@
+=== RUN   TestLeanCorrespondenceExhaustive
+--- PASS: TestLeanCorrespondenceExhaustive (1.92s)
+=== RUN   TestLeanCorrespondenceRapid
+    lean_correspondence_test.go:406: [rapid] OK, passed 100 tests (70.222083ms)
+--- PASS: TestLeanCorrespondenceRapid (0.07s)
+=== RUN   TestLeanCorrespondenceSavedReplay
+--- PASS: TestLeanCorrespondenceSavedReplay (0.03s)
+=== RUN   TestLeanCorrespondenceControlsAndRejections
+--- PASS: TestLeanCorrespondenceControlsAndRejections (0.03s)
+=== RUN   TestLeanCorrespondenceExactBoundaries
+--- PASS: TestLeanCorrespondenceExactBoundaries (0.02s)
+=== RUN   TestLeanCorrespondenceRapidWindowsAndUpdates
+    lean_correspondence_test.go:617: [rapid] OK, passed 100 tests (147.739958ms)
+--- PASS: TestLeanCorrespondenceRapidWindowsAndUpdates (0.15s)
+=== RUN   TestLeanCorrespondenceValidBudgetEdges
+--- PASS: TestLeanCorrespondenceValidBudgetEdges (0.11s)
+=== RUN   TestLeanCorrespondenceMalformedWire
+=== RUN   TestLeanCorrespondenceMalformedWire/unknown_version
+=== RUN   TestLeanCorrespondenceMalformedWire/unknown_operation
+=== RUN   TestLeanCorrespondenceMalformedWire/unknown_top_key
+=== RUN   TestLeanCorrespondenceMalformedWire/missing_time
+=== RUN   TestLeanCorrespondenceMalformedWire/numeric_time
+=== RUN   TestLeanCorrespondenceMalformedWire/fraction_string
+=== RUN   TestLeanCorrespondenceMalformedWire/bad_digits
+=== RUN   TestLeanCorrespondenceMalformedWire/nonnull_begin_state
+=== RUN   TestLeanCorrespondenceMalformedWire/unknown_source_key
+=== RUN   TestLeanCorrespondenceMalformedWire/wrong_source_bool
+=== RUN   TestLeanCorrespondenceMalformedWire/unknown_raw_key
+=== RUN   TestLeanCorrespondenceMalformedWire/empty_identity
+=== RUN   TestLeanCorrespondenceMalformedWire/wrong_upper
+--- PASS: TestLeanCorrespondenceMalformedWire (0.03s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/unknown_version (0.02s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/unknown_operation (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/unknown_top_key (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/missing_time (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/numeric_time (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/fraction_string (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/bad_digits (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/nonnull_begin_state (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/unknown_source_key (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/wrong_source_bool (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/unknown_raw_key (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/empty_identity (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/wrong_upper (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	2.918s

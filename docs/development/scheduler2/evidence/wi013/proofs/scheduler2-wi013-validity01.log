@@ -1,0 +1,119 @@
+docs/development/scheduler2/lean/exact/Validity.lean:20:68: error: unsolved goals
+src : Source
+after : Nat
+ha : after ≤ upper
+hi : src.identity ≠ ""
+hr : 0 < src.revision
+right✝ :
+  supported src.lower = true ∧
+    supported src.nominalEnd = true ∧
+      src.upper = upper ∧
+        (∀ (c : Candidate), c ∈ src.raw → CandidateValid src.revision c) ∧
+          List.Pairwise (fun a b => a.nominal < b.nominal) src.raw ∧
+            List.Pairwise (fun a b => a.actual ≤ b.actual) src.raw ∧ (src.hasInclusions = false → src.raw = [])
+⊢ (((((Stop.active == Stop.active) = true ∨ (Stop.active == Stop.empty) = true) ∨
+          (Stop.active == Stop.impossible) = true) ∨
+        (Stop.active == Stop.exhausted) = true) ∧
+      src.identity.isEmpty = false) ∧
+    ((Stop.active != Stop.impossible) = true ∨ after < src.lower)
+docs/development/scheduler2/lean/exact/Validity.lean:22:52: warning: This simp argument is unused:
+  hi
+
+Hint: Omit it from the simp argument list.
+  simp [validState, initial, beginMachine, restore, hi̵,̵ ̵h̵r, ha]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:34:68: error: unexpected identifier; expected '}'
+docs/development/scheduler2/lean/exact/Validity.lean:42:123: error: unsolved goals
+case false.false
+s : State
+h :
+  ((((((((((s.terminal == Stop.active) = true ∨ (s.terminal == Stop.empty) = true) ∨
+                    (s.terminal == Stop.impossible) = true) ∨
+                  (s.terminal == Stop.exhausted) = true) ∧
+                0 < s.revision) ∧
+              s.identity.isEmpty = false) ∧
+            s.origin ≤ s.disposedThrough) ∧
+          s.disposedThrough ≤ s.searchAfter) ∧
+        s.searchAfter ≤ upper) ∧
+      (s.terminal != Stop.impossible) = true) ∧
+    s.searchAfter = s.disposedThrough
+hp : s.pending = none
+hf : s.fullRange = false
+he : s.eligibleSeen = false
+⊢ (((((Stop.exhausted == Stop.active) = true ∨ (Stop.exhausted == Stop.empty) = true) ∨
+          (Stop.exhausted == Stop.impossible) = true) ∨
+        (Stop.exhausted == Stop.exhausted) = true) ∧
+      s.disposedThrough ≤ upper) ∧
+    (Stop.exhausted != Stop.impossible) = true
+
+case false.true
+s : State
+h :
+  ((((((((((s.terminal == Stop.active) = true ∨ (s.terminal == Stop.empty) = true) ∨
+                    (s.terminal == Stop.impossible) = true) ∨
+                  (s.terminal == Stop.exhausted) = true) ∧
+                0 < s.revision) ∧
+              s.identity.isEmpty = false) ∧
+            s.origin ≤ s.disposedThrough) ∧
+          s.disposedThrough ≤ s.searchAfter) ∧
+        s.searchAfter ≤ upper) ∧
+      (s.terminal != Stop.impossible) = true) ∧
+    s.searchAfter = s.disposedThrough
+hp : s.pending = none
+hf : s.fullRange = false
+he : s.eligibleSeen = true
+⊢ (((((Stop.exhausted == Stop.active) = true ∨ (Stop.exhausted == Stop.empty) = true) ∨
+          (Stop.exhausted == Stop.impossible) = true) ∨
+        (Stop.exhausted == Stop.exhausted) = true) ∧
+      s.disposedThrough ≤ upper) ∧
+    (Stop.exhausted != Stop.impossible) = true
+
+case true.false
+s : State
+h :
+  (((((((((s.terminal == Stop.active) = true ∨ (s.terminal == Stop.empty) = true) ∨
+                  (s.terminal == Stop.impossible) = true) ∨
+                (s.terminal == Stop.exhausted) = true) ∧
+              0 < s.revision) ∧
+            s.identity.isEmpty = false) ∧
+          s.origin ≤ s.disposedThrough) ∧
+        s.disposedThrough ≤ s.searchAfter) ∧
+      s.searchAfter ≤ upper) ∧
+    s.searchAfter = s.disposedThrough
+hp : s.pending = none
+hf : s.fullRange = true
+he : s.eligibleSeen = false
+⊢ ((((Stop.impossible == Stop.active) = true ∨ (Stop.impossible == Stop.empty) = true) ∨
+        (Stop.impossible == Stop.impossible) = true) ∨
+      (Stop.impossible == Stop.exhausted) = true) ∧
+    s.disposedThrough ≤ upper
+
+case true.true
+s : State
+h :
+  ((((((((((s.terminal == Stop.active) = true ∨ (s.terminal == Stop.empty) = true) ∨
+                    (s.terminal == Stop.impossible) = true) ∨
+                  (s.terminal == Stop.exhausted) = true) ∧
+                0 < s.revision) ∧
+              s.identity.isEmpty = false) ∧
+            s.origin ≤ s.disposedThrough) ∧
+          s.disposedThrough ≤ s.searchAfter) ∧
+        s.searchAfter ≤ upper) ∧
+      (s.terminal != Stop.impossible) = true) ∧
+    s.searchAfter = s.disposedThrough
+hp : s.pending = none
+hf : s.fullRange = true
+he : s.eligibleSeen = true
+⊢ (((((Stop.exhausted == Stop.active) = true ∨ (Stop.exhausted == Stop.empty) = true) ∨
+          (Stop.exhausted == Stop.impossible) = true) ∨
+        (Stop.exhausted == Stop.exhausted) = true) ∧
+      s.disposedThrough ≤ upper) ∧
+    (Stop.exhausted != Stop.impossible) = true
+docs/development/scheduler2/lean/exact/Validity.lean:44:26: warning: This simp argument is unused:
+  supported
+
+Hint: Omit it from the simp argument list.
+  simp_all [validState,̵ ̵s̵u̵p̵p̵o̵r̵t̵e̵d̵]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`

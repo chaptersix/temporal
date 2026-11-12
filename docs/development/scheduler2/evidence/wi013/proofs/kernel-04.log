@@ -1,0 +1,17 @@
+docs/development/scheduler2/lean/exact/Kernel.lean:147:14: error: omega could not prove the goal:
+a possible counterexample may satisfy the constraints
+  d ≥ 1
+  b ≥ 1
+  a ≥ 0
+  a - b ≥ 0
+where
+ a := ↑(loop through ticks (fuel - 1) slots
+      {
+        state :=
+          { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+            searchAfter := c.nominal, disposedThrough := m.state.disposedThrough, pending := some c,
+            fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen || !c.excluded,
+            terminal := m.state.terminal },
+        rest := cs }).probes
+ b := ↑fuel
+ d := ↑slots

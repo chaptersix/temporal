@@ -1,0 +1,73 @@
+docs/development/scheduler2/lean/exact/Public.lean:68:52: warning: This simp argument is unused:
+  budget
+
+Hint: Omit it from the simp argument list.
+  simp [scan, hi, hr, hv, hf, he, active, window, b̵u̵d̵g̵e̵t̵,̵
+  ̵ ̵ ̵ ̵ ̵ ̵ ̵show ¬probes < 1 by omega,
+  ̲  ̲ ̲ ̲ ̲ ̲show ¬probes > 1024 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵show ¬outputs < 1 by omega, show ¬outputs > 128 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵run,
+  ̲  ̲ ̲ ̲ ̲ ̲loop, restore, bounded, done] at rest ⊢
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Public.lean:188:52: error: unsolved goals
+src : Source
+s : State
+hv :
+  (((((0 < s.revision ∧ s.identity.isEmpty = false) ∧ s.origin ≤ s.disposedThrough) ∧
+          s.disposedThrough ≤ s.searchAfter) ∧
+        s.searchAfter ≤ upper) ∧
+      (¬s.terminal = Stop.impossible ∨ s.origin < src.lower ∧ s.eligibleSeen = false)) ∧
+    s.searchAfter = s.disposedThrough
+hi : src.identity = s.identity
+hr : src.revision = s.revision
+hf : s.fullRange = decide (s.origin < src.lower)
+hp : s.pending = none
+ht : s.terminal = Stop.active ∨ s.terminal = Stop.empty
+⊢ s.disposedThrough ≤ upper
+docs/development/scheduler2/lean/exact/Public.lean:208:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+  { identity := s.identity, revision := s.revision, origin := s.origin, searchAfter := s.searchAfter,
+    disposedThrough := s.disposedThrough, pending := s.pending, fullRange := s.fullRange,
+    eligibleSeen := s.eligibleSeen, terminal := Stop.empty }
+in the target expression
+  done { state := s, rest := [] } Stop.empty =
+    done
+      {
+        state :=
+          { identity := s.identity, revision := s.revision, origin := s.origin, searchAfter := s.searchAfter,
+            disposedThrough := s.disposedThrough, fullRange := decide (s.origin < src.lower),
+            eligibleSeen := s.eligibleSeen, terminal := Stop.empty },
+        rest := [] }
+      Stop.empty
+
+case inr
+src : Source
+s : State
+c : Call
+inclusions : src.hasInclusions = false
+peek : Bool
+hv : validState s = true
+hi : src.identity = s.identity
+hr : src.revision = s.revision
+hf : s.fullRange = decide (s.origin < src.lower)
+hp : s.pending = none
+window : supported c.through = true
+pb : 1 ≤ c.probes
+pe : c.probes ≤ 1024
+ob : 1 ≤ c.outputs
+oe : c.outputs ≤ 128
+ht : s.terminal = Stop.empty
+equal :
+  { identity := s.identity, revision := s.revision, origin := s.origin, searchAfter := s.searchAfter,
+      disposedThrough := s.disposedThrough, pending := s.pending, fullRange := s.fullRange,
+      eligibleSeen := s.eligibleSeen, terminal := Stop.empty } =
+    s
+⊢ done { state := s, rest := [] } Stop.empty =
+    done
+      {
+        state :=
+          { identity := s.identity, revision := s.revision, origin := s.origin, searchAfter := s.searchAfter,
+            disposedThrough := s.disposedThrough, fullRange := decide (s.origin < src.lower),
+            eligibleSeen := s.eligibleSeen, terminal := Stop.empty },
+        rest := [] }
+      Stop.empty

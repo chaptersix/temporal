@@ -1,0 +1,16 @@
+=== RUN   TestLeanCorrespondenceSavedReplay
+=== RUN   TestLeanCorrespondenceSavedReplay//private/tmp/scheduler2-wi013/correspondence-update-mutation/lost-superseded-minimized.json
+    lean_correspondence_test.go:492: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:540
+        	            				/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:492
+        	Error:      	Received unexpected error:
+        	            	request={"version":1,"source":{"identity":"863011e33eb613db4bfeb09f89720f6c12ee716f3beb0cfeb77d51dfaed4f72e","revision":"2","lower":"757382400000000001","nominalEnd":"757382408000000001","upper":"3187296000000000000","hasInclusions":true,"raw":[{"nominal":"757382400000000001","actual":"757382400000000001","revision":"2","excluded":false},{"nominal":"757382401000000001","actual":"757382401000000001","revision":"2","excluded":false},{"nominal":"757382402000000001","actual":"757382402000000001","revision":"2","excluded":false},{"nominal":"757382403000000001","actual":"757382403000000001","revision":"2","excluded":false},{"nominal":"757382404000000001","actual":"757382404000000001","revision":"2","excluded":false},{"nominal":"757382405000000001","actual":"757382405000000001","revision":"2","excluded":false},{"nominal":"757382406000000001","actual":"757382406000000001","revision":"2","excluded":false},{"nominal":"757382407000000001","actual":"757382407000000001","revision":"2","excluded":false},{"nominal":"757382408000000001","actual":"757382408000000001","revision":"2","excluded":false}]},"state":{"identity":"7346953cfd1c2ac4e419a16562cfdf0a2d928331076a1e9d527478d111e1d926","revision":"1","origin":"757382400000000000","searchAfter":"757382401000000001","disposedThrough":"757382400000000001","pending":{"nominal":"757382401000000001","actual":"757382401000000001","revision":"1","excluded":false},"fullRange":true,"eligibleSeen":true,"terminal":"active"},"op":"update","at":"757382401000000001"}
+        	            	Go={"version":1,"ok":true,"state":{"identity":"863011e33eb613db4bfeb09f89720f6c12ee716f3beb0cfeb77d51dfaed4f72e","revision":"2","origin":"757382401000000001","searchAfter":"757382401000000001","disposedThrough":"757382401000000001","pending":null,"fullRange":false,"eligibleSeen":false,"terminal":"active"},"status":"active","probes":"0"}
+        	            	Lean={"version":1,"ok":true,"state":{"identity":"863011e33eb613db4bfeb09f89720f6c12ee716f3beb0cfeb77d51dfaed4f72e","revision":"2","origin":"757382401000000001","searchAfter":"757382401000000001","disposedThrough":"757382401000000001","pending":null,"fullRange":false,"eligibleSeen":false,"terminal":"active"},"status":"active","probes":"0","superseded":{"nominal":"757382401000000001","actual":"757382401000000001","revision":"1","excluded":false}}
+        	Test:       	TestLeanCorrespondenceSavedReplay//private/tmp/scheduler2-wi013/correspondence-update-mutation/lost-superseded-minimized.json
+        	Messages:   	saved step 2
+--- FAIL: TestLeanCorrespondenceSavedReplay (0.04s)
+    --- FAIL: TestLeanCorrespondenceSavedReplay//private/tmp/scheduler2-wi013/correspondence-update-mutation/lost-superseded-minimized.json (0.03s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.611s
+FAIL

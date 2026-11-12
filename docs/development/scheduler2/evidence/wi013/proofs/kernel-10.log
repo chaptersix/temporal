@@ -1,0 +1,33 @@
+Kernel.lean:260:49: warning: This simp argument is unused:
+  List.takeWhile_cons
+
+Hint: Omit it from the simp argument list.
+  simp [done, expected, remaining, hp, L̵i̵s̵t̵.̵t̵a̵k̵e̵W̵h̵i̵l̵e̵_̵c̵o̵n̵s̵,̵ ̵show ¬c.actual ≤ through by omega, eligible]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+Kernel.lean:325:20: error: Invalid field `trans`: The environment does not contain `Nat.le.trans`
+  ih ?m.126 ?m.127 ?m.128
+has type
+  (rank (loop through ticks ?m.126 ?m.127 ?m.128).machine).le (rank ?m.128)
+Kernel.lean:326:20: error: Invalid field `trans`: The environment does not contain `Nat.le.trans`
+  ih ?m.129 ?m.130 ?m.131
+has type
+  (rank (loop through ticks ?m.129 ?m.130 ?m.131).machine).le (rank ?m.131)
+Kernel.lean:333:20: error: Invalid field `trans`: The environment does not contain `Nat.le.trans`
+  ih ?m.184 ?m.185 ?m.186
+has type
+  (rank (loop through ticks ?m.184 ?m.185 ?m.186).machine).le (rank ?m.186)
+Kernel.lean:334:14: error: No goals to be solved
+Kernel.lean:432:18: error: Invalid field `trans_lt`: The environment does not contain `Nat.le.trans_lt`
+  loop_rank_le ?m.166 ?m.167 ?m.168 ?m.169 ?m.170
+has type
+  (rank (loop ?m.166 ?m.167 ?m.168 ?m.169 ?m.170).machine).le (rank ?m.170)
+Kernel.lean:433:18: error: Invalid field `trans_lt`: The environment does not contain `Nat.le.trans_lt`
+  loop_rank_le ?m.171 ?m.172 ?m.173 ?m.174 ?m.175
+has type
+  (rank (loop ?m.171 ?m.172 ?m.173 ?m.174 ?m.175).machine).le (rank ?m.175)
+Kernel.lean:445:18: error: Invalid field `trans_lt`: The environment does not contain `Nat.le.trans_lt`
+  loop_rank_le ?m.257 ?m.258 ?m.259 ?m.260 ?m.261
+has type
+  (rank (loop ?m.257 ?m.258 ?m.259 ?m.260 ?m.261).machine).le (rank ?m.261)
+Kernel.lean:446:12: error: No goals to be solved

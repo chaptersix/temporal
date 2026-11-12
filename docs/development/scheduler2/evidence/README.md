@@ -313,7 +313,7 @@ WI-011 and M2 accepted E67–E71 with [final scoped lint](wi011/acceptance-lint.
 | E75 | Typed query isolation and API boundary preservation | [public run](wi014/public-accepted.log), [component review](wi014/component-review.md), [seam review](wi014/seam-review.md); old same-ID row, alias collision, pagination, internal-field cleanup, metadata, invalid input and authorization. |
 | E76 | Regression/race/lint | [default shared suites](wi014/default-shared.log), [race](wi014/race-accepted.log), [lint](wi014/lint-accepted.log); pass with limits/source timing in checks. |
 
-WI-013 proofs and WI-015 full execution remain M3 requirements. These entries do not
+WI-013 proofs are accepted separately below; WI-015 full execution remains open. These entries do not
 claim full scheduler2 shared-suite parity or generated SchedulerService transport.
 
 ## Active WI-015/WI-016 checkpoint (not acceptance)
@@ -431,3 +431,25 @@ composed race completion, integration of already accepted WI013 proof artifacts
 and final correspondence revalidation remain open. M4 workload specification is
 WI017 draft; cardinality-dependent metadata work remains its implementation and
 measurement obligation. No milestone completion is inferred from this checkpoint.
+
+## WI-013 exact enumeration proofs and Go correspondence (accepted)
+
+| ID | Claim | Evidence |
+|---|---|---|
+| E77 | Actual executable/public enumeration proof obligations | [checks](wi013/checks.json), [final proof build](wi013/proofs/build11/manifest.json), [obligation map](wi013/proofs/review-repair-status.md);93 exports audited, finite raw-source hypotheses explicit. |
+| E78 | Independent correspondence and reproducible profiles | [routine](wi013/runner-routine02/manifest.json), [exploration](wi013/runner-exploration01/manifest.json), [proofs runner](wi013/runner-proofs01/manifest.json); both10000-case properties with explicitseed1, exhaustive/direct/savedv1/v2 comparisons pass. |
+| E79 | Defect sensitivity and repair provenance | [three core mutants](wi013/correspondence-mutations-build07/manifest.json), [replacement mutant](wi013/correspondence-update-mutation/manifest.json); direct Rapid failures, shrunk concrete replay, mutant failure and restored pass. |
+| E80 | Independent review and checks | [public proof review](wi013/independent-proof-review.md), [composition review](wi013/independent-composition-review.md), [integrator review](wi013/integrator-review.md), [race](wi013/build08-race.log), [tagged lint](wi013/tagged-lint.log); runtime binary identity reuse explicit. |
+
+No universal Go/calendar/JSON/persistence refinement claim. Remaining SP7 calendar
+boundary and public functional M3 gates remain open, as does M4.
+
+## WI-016 bounded calendar verification (accepted)
+
+| ID | Claim | Evidence |
+|---|---|---|
+| E81 | Independent bounded calendar oracle and pinned boundary cases | [Profile](wi016/verification-profile.json), [oracle review](wi016/independent-oracle-review.md); 10,000 generated cases, exact source timing and trusted primitives explicit. |
+| E82 | London fold completeness correction | [Diagnosis](wi016/independent-fold-review.md), [non-author fix review](wi016/independent-calendar-review.md), [literal replay](wi016/calendar-fold-fix/manifest.json). |
+| E83 | Final-source fault sensitivity and verification | [Three shrinking/replay mutations](wi016/spec-mutations/campaign02/manifest.json), [acceptance](wi016/acceptance.md), [lint](wi016/acceptance-lint.log), [integration provenance](wi016/integration-provenance.json); bounded SP7/P5.2 accepted. |
+
+WI015 full public execution/shared coverage remains open; this is not M3 completion.

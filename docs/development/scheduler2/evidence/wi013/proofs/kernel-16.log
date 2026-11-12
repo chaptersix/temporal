@@ -1,0 +1,21 @@
+Kernel.lean:654:48: error: unexpected token 'prefix'; expected '_' or identifier
+Kernel.lean:654:54: error: unexpected identifier; expected ':'
+Kernel.lean:655:27: error: unexpected token ','; expected ':'
+Kernel.lean:657:33: error: unexpected identifier; expected ':'
+Kernel.lean:660:18: error: unexpected identifier; expected ':'
+Kernel.lean:660:61: error: unexpected identifier; expected ':'
+Kernel.lean:662:58: error: unexpected identifier; expected ':'
+Kernel.lean:663:36: error: unexpected identifier; expected ':'
+Kernel.lean:664:49: error: unexpected identifier; expected ':'
+Kernel.lean:675:12: error(lean.unknownIdentifier): Unknown identifier `finite_window_batching`
+Kernel.lean:673:79: error: unsolved goals
+middle through probes slots : Nat
+suffix : List Call
+m : Machine
+increasing : middle ≤ through
+positive : ∀ (c : Call), c ∈ suffix → 0 < c.probes ∧ 0 < c.outputs ∧ c.through = through
+enough : rank (run middle probes slots m).machine < suffix.length
+ordered : List.Pairwise (fun a b => a.actual ≤ b.actual) (remaining m)
+cache : m.state.terminal = Stop.active ∨ remaining m = []
+⊢ (run middle probes slots m).output ++ (resume suffix (run middle probes slots m).machine).output =
+    expected through (remaining m)

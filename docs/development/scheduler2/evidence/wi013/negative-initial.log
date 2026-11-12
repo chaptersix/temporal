@@ -1,0 +1,72 @@
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/identity_before_negative_probe
+    lean_correspondence_test.go:874: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:874
+        	Error:      	Received unexpected error:
+        	            	request={"version":1,"source":{"identity":"c8bf3366927b35c68bf92076e54aa104ebac98eee7d6fe10acd8475ac21aac52","revision":"1","lower":"757382400000000001","nominalEnd":"757382404000000001","upper":"3187296000000000000","hasInclusions":true,"raw":[{"nominal":"757382400000000001","actual":"757382400000000001","revision":"1","excluded":false},{"nominal":"757382401000000001","actual":"757382401000000001","revision":"1","excluded":false},{"nominal":"757382402000000001","actual":"757382402000000001","revision":"1","excluded":false},{"nominal":"757382403000000001","actual":"757382403000000001","revision":"1","excluded":false},{"nominal":"757382404000000001","actual":"757382404000000001","revision":"1","excluded":false}]},"state":{"identity":"other","revision":"1","origin":"757382400000000000","searchAfter":"757382400000000000","disposedThrough":"757382400000000000","pending":null,"fullRange":true,"eligibleSeen":false,"terminal":"active"},"op":"run","through":"757382400000000001","probes":"-1","outputs":"1"}
+        	            	Go={"version":1,"ok":false,"error":"identity-mismatch"}
+        	            	Lean={"version":1,"ok":false,"error":"input-invalid"}
+        	Test:       	TestLeanCorrespondenceNegativeInputPrecedence/identity_before_negative_probe
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/identity_before_negative_window
+    lean_correspondence_test.go:874: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:874
+        	Error:      	Received unexpected error:
+        	            	request={"version":1,"source":{"identity":"c8bf3366927b35c68bf92076e54aa104ebac98eee7d6fe10acd8475ac21aac52","revision":"1","lower":"757382400000000001","nominalEnd":"757382404000000001","upper":"3187296000000000000","hasInclusions":true,"raw":[{"nominal":"757382400000000001","actual":"757382400000000001","revision":"1","excluded":false},{"nominal":"757382401000000001","actual":"757382401000000001","revision":"1","excluded":false},{"nominal":"757382402000000001","actual":"757382402000000001","revision":"1","excluded":false},{"nominal":"757382403000000001","actual":"757382403000000001","revision":"1","excluded":false},{"nominal":"757382404000000001","actual":"757382404000000001","revision":"1","excluded":false}]},"state":{"identity":"other","revision":"1","origin":"757382400000000000","searchAfter":"757382400000000000","disposedThrough":"757382400000000000","pending":null,"fullRange":true,"eligibleSeen":false,"terminal":"active"},"op":"run","through":"-1","probes":"1","outputs":"1"}
+        	            	Go={"version":1,"ok":false,"error":"identity-mismatch"}
+        	            	Lean={"version":1,"ok":false,"error":"input-invalid"}
+        	Test:       	TestLeanCorrespondenceNegativeInputPrecedence/identity_before_negative_window
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/update_validates_negative_revision
+    lean_correspondence_test.go:874: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:874
+        	Error:      	Received unexpected error:
+        	            	request={"version":1,"source":{"identity":"c8bf3366927b35c68bf92076e54aa104ebac98eee7d6fe10acd8475ac21aac52","revision":"2","lower":"757382400000000001","nominalEnd":"757382404000000001","upper":"3187296000000000000","hasInclusions":true,"raw":[{"nominal":"757382400000000001","actual":"757382400000000001","revision":"2","excluded":false},{"nominal":"757382401000000001","actual":"757382401000000001","revision":"2","excluded":false},{"nominal":"757382402000000001","actual":"757382402000000001","revision":"2","excluded":false},{"nominal":"757382403000000001","actual":"757382403000000001","revision":"2","excluded":false},{"nominal":"757382404000000001","actual":"757382404000000001","revision":"2","excluded":false}]},"state":{"identity":"c8bf3366927b35c68bf92076e54aa104ebac98eee7d6fe10acd8475ac21aac52","revision":"-1","origin":"757382400000000000","searchAfter":"757382400000000000","disposedThrough":"757382400000000000","pending":null,"fullRange":true,"eligibleSeen":false,"terminal":"active"},"op":"update","at":"757382400000000001"}
+        	            	Go={"version":1,"ok":false,"error":"state-invalid"}
+        	            	Lean={"version":1,"ok":false,"error":"input-invalid"}
+        	Test:       	TestLeanCorrespondenceNegativeInputPrecedence/update_validates_negative_revision
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/stale_update_before_negative_time
+    lean_correspondence_test.go:874: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:874
+        	Error:      	Received unexpected error:
+        	            	request={"version":1,"source":{"identity":"c8bf3366927b35c68bf92076e54aa104ebac98eee7d6fe10acd8475ac21aac52","revision":"1","lower":"757382400000000001","nominalEnd":"757382404000000001","upper":"3187296000000000000","hasInclusions":true,"raw":[{"nominal":"757382400000000001","actual":"757382400000000001","revision":"1","excluded":false},{"nominal":"757382401000000001","actual":"757382401000000001","revision":"1","excluded":false},{"nominal":"757382402000000001","actual":"757382402000000001","revision":"1","excluded":false},{"nominal":"757382403000000001","actual":"757382403000000001","revision":"1","excluded":false},{"nominal":"757382404000000001","actual":"757382404000000001","revision":"1","excluded":false}]},"state":{"identity":"c8bf3366927b35c68bf92076e54aa104ebac98eee7d6fe10acd8475ac21aac52","revision":"1","origin":"757382400000000000","searchAfter":"757382400000000000","disposedThrough":"757382400000000000","pending":null,"fullRange":true,"eligibleSeen":false,"terminal":"active"},"op":"update","at":"-1"}
+        	            	Go={"version":1,"ok":false,"error":"stale-revision"}
+        	            	Lean={"version":1,"ok":false,"error":"input-invalid"}
+        	Test:       	TestLeanCorrespondenceNegativeInputPrecedence/stale_update_before_negative_time
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/negative_origin_is_malformed_state
+    lean_correspondence_test.go:874: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:874
+        	Error:      	Received unexpected error:
+        	            	request={"version":1,"source":{"identity":"c8bf3366927b35c68bf92076e54aa104ebac98eee7d6fe10acd8475ac21aac52","revision":"1","lower":"757382400000000001","nominalEnd":"757382404000000001","upper":"3187296000000000000","hasInclusions":true,"raw":[{"nominal":"757382400000000001","actual":"757382400000000001","revision":"1","excluded":false},{"nominal":"757382401000000001","actual":"757382401000000001","revision":"1","excluded":false},{"nominal":"757382402000000001","actual":"757382402000000001","revision":"1","excluded":false},{"nominal":"757382403000000001","actual":"757382403000000001","revision":"1","excluded":false},{"nominal":"757382404000000001","actual":"757382404000000001","revision":"1","excluded":false}]},"state":{"identity":"c8bf3366927b35c68bf92076e54aa104ebac98eee7d6fe10acd8475ac21aac52","revision":"1","origin":"-1","searchAfter":"757382400000000000","disposedThrough":"757382400000000000","pending":null,"fullRange":true,"eligibleSeen":false,"terminal":"active"},"op":"run","through":"757382400000000001","probes":"1","outputs":"1"}
+        	            	Go={"version":1,"ok":false,"error":"state-invalid"}
+        	            	Lean={"version":1,"ok":false,"error":"input-invalid"}
+        	Test:       	TestLeanCorrespondenceNegativeInputPrecedence/negative_origin_is_malformed_state
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/dispose_identity_before_negative_state
+    lean_correspondence_test.go:874: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:874
+        	Error:      	Received unexpected error:
+        	            	request={"version":1,"source":{"identity":"c8bf3366927b35c68bf92076e54aa104ebac98eee7d6fe10acd8475ac21aac52","revision":"1","lower":"757382400000000001","nominalEnd":"757382404000000001","upper":"3187296000000000000","hasInclusions":true,"raw":[{"nominal":"757382400000000001","actual":"757382400000000001","revision":"1","excluded":false},{"nominal":"757382401000000001","actual":"757382401000000001","revision":"1","excluded":false},{"nominal":"757382402000000001","actual":"757382402000000001","revision":"1","excluded":false},{"nominal":"757382403000000001","actual":"757382403000000001","revision":"1","excluded":false},{"nominal":"757382404000000001","actual":"757382404000000001","revision":"1","excluded":false}]},"state":{"identity":"other","revision":"1","origin":"-1","searchAfter":"757382400000000000","disposedThrough":"757382400000000000","pending":null,"fullRange":true,"eligibleSeen":false,"terminal":"active"},"op":"disposeRange"}
+        	            	Go={"version":1,"ok":false,"error":"identity-mismatch"}
+        	            	Lean={"version":1,"ok":false,"error":"input-invalid"}
+        	Test:       	TestLeanCorrespondenceNegativeInputPrecedence/dispose_identity_before_negative_state
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/malformed_state_before_stale_update_and_negative_time
+    lean_correspondence_test.go:874: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:874
+        	Error:      	Received unexpected error:
+        	            	request={"version":1,"source":{"identity":"c8bf3366927b35c68bf92076e54aa104ebac98eee7d6fe10acd8475ac21aac52","revision":"1","lower":"757382400000000001","nominalEnd":"757382404000000001","upper":"3187296000000000000","hasInclusions":true,"raw":[{"nominal":"757382400000000001","actual":"757382400000000001","revision":"1","excluded":false},{"nominal":"757382401000000001","actual":"757382401000000001","revision":"1","excluded":false},{"nominal":"757382402000000001","actual":"757382402000000001","revision":"1","excluded":false},{"nominal":"757382403000000001","actual":"757382403000000001","revision":"1","excluded":false},{"nominal":"757382404000000001","actual":"757382404000000001","revision":"1","excluded":false}]},"state":{"identity":"c8bf3366927b35c68bf92076e54aa104ebac98eee7d6fe10acd8475ac21aac52","revision":"1","origin":"-1","searchAfter":"757382400000000000","disposedThrough":"757382400000000000","pending":null,"fullRange":true,"eligibleSeen":false,"terminal":"active"},"op":"update","at":"-1"}
+        	            	Go={"version":1,"ok":false,"error":"state-invalid"}
+        	            	Lean={"version":1,"ok":false,"error":"input-invalid"}
+        	Test:       	TestLeanCorrespondenceNegativeInputPrecedence/malformed_state_before_stale_update_and_negative_time
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/invalid_budget_before_negative_state
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/range_end_before_identity
+--- FAIL: TestLeanCorrespondenceNegativeInputPrecedence (0.18s)
+    --- FAIL: TestLeanCorrespondenceNegativeInputPrecedence/identity_before_negative_probe (0.18s)
+    --- FAIL: TestLeanCorrespondenceNegativeInputPrecedence/identity_before_negative_window (0.00s)
+    --- FAIL: TestLeanCorrespondenceNegativeInputPrecedence/update_validates_negative_revision (0.00s)
+    --- FAIL: TestLeanCorrespondenceNegativeInputPrecedence/stale_update_before_negative_time (0.00s)
+    --- FAIL: TestLeanCorrespondenceNegativeInputPrecedence/negative_origin_is_malformed_state (0.00s)
+    --- FAIL: TestLeanCorrespondenceNegativeInputPrecedence/dispose_identity_before_negative_state (0.00s)
+    --- FAIL: TestLeanCorrespondenceNegativeInputPrecedence/malformed_state_before_stale_update_and_negative_time (0.00s)
+    --- PASS: TestLeanCorrespondenceNegativeInputPrecedence/invalid_budget_before_negative_state (0.00s)
+    --- PASS: TestLeanCorrespondenceNegativeInputPrecedence/range_end_before_identity (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	1.538s
+FAIL

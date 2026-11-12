@@ -1,0 +1,6 @@
+docs/development/scheduler2/lean/exact/Oracle.lean:20:65: error: invalid use of `(<- ...)`, must be nested inside a 'do' expression
+docs/development/scheduler2/lean/exact/Oracle.lean:27:63: error: invalid use of `(<- ...)`, must be nested inside a 'do' expression
+docs/development/scheduler2/lean/exact/Oracle.lean:36:78: error: unexpected identifier; expected '}'
+docs/development/scheduler2/lean/exact/Oracle.lean:42:85: error: unexpected identifier; expected '}'
+docs/development/scheduler2/lean/exact/Oracle.lean:59:85: error: unexpected identifier; expected '}'
+docs/development/scheduler2/lean/exact/Oracle.lean:105:57: error: unexpected identifier; expected '}'

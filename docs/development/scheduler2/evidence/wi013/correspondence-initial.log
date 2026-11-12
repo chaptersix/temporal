@@ -1,0 +1,59 @@
+=== RUN   TestLeanCorrespondenceExhaustive
+    lean_correspondence_test.go:126: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:126
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:1462
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:1822
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2189
+        	Error:      	Received unexpected error:
+        	            	signal: killed
+        	Test:       	TestLeanCorrespondenceExhaustive
+        	Messages:   	oracle stderr: 
+--- FAIL: TestLeanCorrespondenceExhaustive (2.02s)
+=== RUN   TestLeanCorrespondenceRapid
+    lean_correspondence_test.go:394: [rapid] OK, passed 100 tests (77.139417ms)
+    lean_correspondence_test.go:126: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:126
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:1462
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:1822
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2189
+        	Error:      	Received unexpected error:
+        	            	signal: killed
+        	Test:       	TestLeanCorrespondenceRapid
+        	Messages:   	oracle stderr: 
+--- FAIL: TestLeanCorrespondenceRapid (0.08s)
+=== RUN   TestLeanCorrespondenceSavedReplay
+    lean_correspondence_test.go:126: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:126
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:1462
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:1822
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2189
+        	Error:      	Received unexpected error:
+        	            	context canceled
+        	Test:       	TestLeanCorrespondenceSavedReplay
+        	Messages:   	oracle stderr: 
+--- FAIL: TestLeanCorrespondenceSavedReplay (0.03s)
+=== RUN   TestLeanCorrespondenceControlsAndRejections
+    lean_correspondence_test.go:126: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:126
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:1462
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:1822
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2189
+        	Error:      	Received unexpected error:
+        	            	context canceled
+        	Test:       	TestLeanCorrespondenceControlsAndRejections
+        	Messages:   	oracle stderr: 
+--- FAIL: TestLeanCorrespondenceControlsAndRejections (0.03s)
+=== RUN   TestLeanCorrespondenceExactBoundaries
+    lean_correspondence_test.go:126: 
+        	Error Trace:	/private/tmp/sch-redesign-proofs/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go:126
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:1462
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:1822
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2189
+        	Error:      	Received unexpected error:
+        	            	context canceled
+        	Test:       	TestLeanCorrespondenceExactBoundaries
+        	Messages:   	oracle stderr: 
+--- FAIL: TestLeanCorrespondenceExactBoundaries (0.03s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	2.875s
+FAIL

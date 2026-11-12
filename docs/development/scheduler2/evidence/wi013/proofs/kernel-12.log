@@ -1,0 +1,36 @@
+Kernel.lean:260:49: warning: This simp argument is unused:
+  List.takeWhile_cons
+
+Hint: Omit it from the simp argument list.
+  simp [done, expected, remaining, hp, L̵i̵s̵t̵.̵t̵a̵k̵e̵W̵h̵i̵l̵e̵_̵c̵o̵n̵s̵,̵ ̵show ¬c.actual ≤ through by omega, eligible]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+Kernel.lean:470:8: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+  (resume calls (loop ?m.53 ?m.54 ?m.55 ?m.56 m).machine).output ++
+    expected through (remaining (resume calls (loop ?m.53 ?m.54 ?m.55 ?m.56 m).machine).machine)
+in the target expression
+  (run call.through call.probes call.outputs m).output ++
+      ((resume calls (run call.through call.probes call.outputs m).machine).output ++
+        expected through (remaining (resume calls (run call.through call.probes call.outputs m).machine).machine)) =
+    expected through (remaining m)
+
+case cons
+through : Nat
+call : Call
+calls : List Call
+ih :
+  ∀ (m : Machine),
+    (∀ (c : Call), c ∈ calls → c.through = through) →
+      m.state.terminal = Stop.active ∨ remaining m = [] →
+        (resume calls m).output ++ expected through (remaining (resume calls m).machine) =
+          expected through (remaining m)
+m : Machine
+windows : ∀ (c : Call), c ∈ call :: calls → c.through = through
+cache : m.state.terminal = Stop.active ∨ remaining m = []
+hc : call.through = through
+tail : ∀ (c : Call), c ∈ calls → c.through = through
+⊢ (run call.through call.probes call.outputs m).output ++
+      ((resume calls (run call.through call.probes call.outputs m).machine).output ++
+        expected through (remaining (resume calls (run call.through call.probes call.outputs m).machine).machine)) =
+    expected through (remaining m)
+Kernel.lean:502:13: error(lean.unknownIdentifier): Unknown constant `List.append_eq_nil.mp`

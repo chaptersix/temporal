@@ -1,0 +1,31 @@
+{
+  "source_sha256": "2a5eb6e4cf5b0586a42151e0fb808d392d09bd27427e16bd8ea1be0eff1d5d75",
+  "kernel_source_sha256": "4ae8bfa669039aefd8cd74478ba72fa759d1623012138538f772d261fecc62e3",
+  "imported_kernel_olean_sha256": "6083dcd1c566f8494bd1e85c9de1fa68c494cc73352880679a21e2f004e51a30",
+  "tool_sha256": "9544be237d91099efe1db8cb97d0c359fa13aa94f565e9972bfb8b63abbcb437",
+  "LEAN_PATH": "/private/tmp/scheduler2-wi013-composition01:/private/tmp/scheduler2-wi013-lean-build07",
+  "commands": [
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "-o",
+        "/private/tmp/scheduler2-wi013-composition01/KernelComposition.olean",
+        "KernelComposition.lean"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "exit_code": 0,
+      "seconds": 1.7192751250695437
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "/private/tmp/scheduler2-wi013-composition01/CompositionAudit.lean"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "exit_code": 0,
+      "seconds": 0.5100214998237789
+    }
+  ],
+  "source_sha256_after": "2a5eb6e4cf5b0586a42151e0fb808d392d09bd27427e16bd8ea1be0eff1d5d75",
+  "status": "passed"
+}

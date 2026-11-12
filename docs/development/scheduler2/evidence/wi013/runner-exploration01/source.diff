@@ -1,0 +1,1344 @@
+diff --git a/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go b/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go
+new file mode 100644
+index 000000000..af0b68a89
+--- /dev/null
++++ b/chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go
+@@ -0,0 +1,878 @@
++//go:build lean_correspondence
++
++package occurrence_test
++
++import (
++	"bufio"
++	"bytes"
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"math"
++	"os"
++	"os/exec"
++	"strconv"
++	"testing"
++	"time"
++
++	"github.com/dgryski/go-farm"
++	"github.com/stretchr/testify/require"
++	schedulepb "go.temporal.io/api/schedule/v1"
++	"go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence"
++	"google.golang.org/protobuf/types/known/durationpb"
++	"google.golang.org/protobuf/types/known/timestamppb"
++	"pgregory.net/rapid"
++)
++
++// This explicitly selected suite requires the independently compiled oracle.
++// Example: SCHEDULER2_LEAN_ORACLE=/path/oracle go test -tags test_dep,lean_correspondence
++// ./chasm/lib/scheduler2/internal/occurrence -run '^TestLeanCorrespondence' .
++// Missing binaries fail: ordinary package runs do not silently count as oracle evidence.
++type leanCandidate struct {
++	Nominal  string `json:"nominal"`
++	Actual   string `json:"actual"`
++	Revision string `json:"revision"`
++	Excluded bool   `json:"excluded"`
++}
++type leanSource struct {
++	Identity      string          `json:"identity"`
++	Revision      string          `json:"revision"`
++	Lower         string          `json:"lower"`
++	NominalEnd    string          `json:"nominalEnd"`
++	Upper         string          `json:"upper"`
++	HasInclusions bool            `json:"hasInclusions"`
++	Raw           []leanCandidate `json:"raw"`
++}
++type leanState struct {
++	Identity        string         `json:"identity"`
++	Revision        string         `json:"revision"`
++	Origin          string         `json:"origin"`
++	SearchAfter     string         `json:"searchAfter"`
++	DisposedThrough string         `json:"disposedThrough"`
++	Pending         *leanCandidate `json:"pending"`
++	FullRange       bool           `json:"fullRange"`
++	EligibleSeen    bool           `json:"eligibleSeen"`
++	Terminal        string         `json:"terminal"`
++}
++type leanRequest struct {
++	Version int        `json:"version"`
++	Source  leanSource `json:"source"`
++	State   *leanState `json:"state"`
++	Op      string     `json:"op"`
++	After   string     `json:"after,omitempty"`
++	Start   string     `json:"start,omitempty"`
++	End     string     `json:"end,omitempty"`
++	Through string     `json:"through,omitempty"`
++	Probes  string     `json:"probes,omitempty"`
++	Outputs string     `json:"outputs,omitempty"`
++	At      string     `json:"at,omitempty"`
++}
++type leanResponse struct {
++	Version    int             `json:"version"`
++	OK         bool            `json:"ok"`
++	State      *leanState      `json:"state,omitempty"`
++	Status     string          `json:"status,omitempty"`
++	Outputs    []leanCandidate `json:"outputs,omitempty"`
++	Probes     string          `json:"probes,omitempty"`
++	Superseded *leanCandidate  `json:"superseded,omitempty"`
++	Error      string          `json:"error,omitempty"`
++}
++
++var leanEpoch = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond)
++var leanUpper = time.Date(2101, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond)
++
++func leanTime(t time.Time) string { return strconv.FormatInt(t.Sub(leanEpoch).Nanoseconds(), 10) }
++func leanStatus(s occurrence.Status) string {
++	return map[occurrence.Status]string{occurrence.Active: "active", occurrence.Yield: "yield", occurrence.Limited: "limited", occurrence.Waiting: "waiting", occurrence.Empty: "empty", occurrence.Impossible: "impossible", occurrence.Exhausted: "exhausted"}[s]
++}
++func leanCandidateOf(c *occurrence.Candidate) *leanCandidate {
++	if c == nil {
++		return nil
++	}
++	return &leanCandidate{leanTime(c.Nominal), leanTime(c.Actual), strconv.FormatInt(c.Revision, 10), c.Excluded}
++}
++func leanStateOf(s occurrence.State) *leanState {
++	return &leanState{s.DefinitionID, strconv.FormatInt(s.Revision, 10), leanTime(s.Origin), leanTime(s.SearchAfter), leanTime(s.DisposedThrough), leanCandidateOf(s.Pending), s.FullRange, s.EligibleSeen, leanStatus(s.Terminal)}
++}
++
++type leanProcess struct {
++	input   io.WriteCloser
++	output  *bufio.Scanner
++	command *exec.Cmd
++	stderr  bytes.Buffer
++}
++
++func newLeanProcess(t *testing.T) *leanProcess {
++	t.Helper()
++	path := os.Getenv("SCHEDULER2_LEAN_ORACLE")
++	require.NotEmpty(t, path, "required executable oracle: set SCHEDULER2_LEAN_ORACLE; no skip/fallback is supported")
++	// testing cancels t.Context before cleanup. Own the process context so EOF
++	// and Wait can complete normally; the independent deadline still kills a
++	// hung oracle, and cleanup reports every nonzero exit.
++	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
++	p := &leanProcess{command: exec.CommandContext(ctx, path)}
++	var err error
++	p.input, err = p.command.StdinPipe()
++	require.NoError(t, err)
++	out, err := p.command.StdoutPipe()
++	require.NoError(t, err)
++	p.output = bufio.NewScanner(out)
++	p.output.Buffer(make([]byte, 4096), 4*1024*1024)
++	p.command.Stderr = &p.stderr
++	require.NoError(t, p.command.Start())
++	t.Cleanup(func() {
++		_ = p.input.Close()
++		err := p.command.Wait()
++		cancel()
++		require.NoError(t, err, "oracle stderr: %s", p.stderr.String())
++	})
++	return p
++}
++func (p *leanProcess) call(r leanRequest) (leanResponse, error) {
++	b, err := json.Marshal(r)
++	if err != nil {
++		return leanResponse{}, err
++	}
++	return p.callRaw(b)
++}
++func (p *leanProcess) callRaw(b []byte) (leanResponse, error) {
++	if _, err := p.input.Write(append(b, '\n')); err != nil {
++		return leanResponse{}, err
++	}
++	if !p.output.Scan() {
++		return leanResponse{}, fmt.Errorf("oracle response missing: %v", p.output.Err())
++	}
++	var response leanResponse
++	decoder := json.NewDecoder(bytes.NewReader(p.output.Bytes()))
++	decoder.DisallowUnknownFields()
++	if err := decoder.Decode(&response); err != nil {
++		return response, fmt.Errorf("oracle response %q: %w", p.output.Text(), err)
++	}
++	return response, nil
++}
++
++// This fixture defines an independently evaluable subset: union of integer-second
++// intervals, UTC second exclusions, explicit finite nominal bounds, and jitter.
++// It does not call production calendar search, canonicalization or NextTimeCandidate.
++// time.MarshalBinary and Farm32 are trusted shared primitives, not proven by this test.
++type leanFixture struct {
++	Start    time.Time `json:"start"`
++	Span     int       `json:"span"`
++	Periods  []int     `json:"periods"`
++	Exclude  []int     `json:"exclude"`
++	JitterMS int       `json:"jitter_ms"`
++	Seed     string    `json:"seed"`
++	Revision int64     `json:"revision"`
++}
++
++func (f leanFixture) compile() (*occurrence.Enumerator, leanSource, error) {
++	end := f.Start.Add(time.Duration(f.Span) * time.Second)
++	spec := &schedulepb.ScheduleSpec{StartTime: timestamppb.New(f.Start), EndTime: timestamppb.New(end), Jitter: durationpb.New(time.Duration(f.JitterMS) * time.Millisecond)}
++	for _, period := range f.Periods {
++		spec.Interval = append(spec.Interval, &schedulepb.IntervalSpec{Interval: durationpb.New(time.Duration(period) * time.Second)})
++	}
++	for _, second := range f.Exclude {
++		spec.ExcludeStructuredCalendar = append(spec.ExcludeStructuredCalendar, &schedulepb.StructuredCalendarSpec{
++			Second: []*schedulepb.Range{{Start: int32(second)}}, Minute: []*schedulepb.Range{{Start: 0, End: 59}}, Hour: []*schedulepb.Range{{Start: 0, End: 23}},
++			DayOfMonth: []*schedulepb.Range{{Start: 1, End: 31}}, Month: []*schedulepb.Range{{Start: 1, End: 12}}, DayOfWeek: []*schedulepb.Range{{Start: 0, End: 6}}, Year: []*schedulepb.Range{{Start: 2000, End: 2100}},
++		})
++	}
++	e, err := occurrence.New(spec, f.Seed, f.Revision)
++	if err != nil {
++		return nil, leanSource{}, err
++	}
++	// DefinitionID is opaque authentication, obtained from the public initial state.
++	// This is deliberately not evidence that the production hash is collision-free.
++	initial, err := e.Begin(f.Start.Add(-time.Nanosecond))
++	if err != nil {
++		return nil, leanSource{}, err
++	}
++	src := leanSource{Identity: initial.DefinitionID, Revision: strconv.FormatInt(f.Revision, 10), Lower: leanTime(f.Start), NominalEnd: leanTime(end), Upper: leanTime(leanUpper), HasInclusions: len(f.Periods) > 0, Raw: []leanCandidate{}}
++	// Our periods are at most seven seconds; 8 seconds provides the following
++	// nominal even beyond the spec end, necessary to cap the last candidate's jitter.
++	var raw []time.Time
++	for at := f.Start.Truncate(time.Second); !at.After(end.Add(8 * time.Second)); at = at.Add(time.Second) {
++		if at.Before(f.Start) {
++			continue
++		}
++		for _, period := range f.Periods {
++			if at.Unix()%int64(period) == 0 {
++				raw = append(raw, at)
++				break
++			}
++		}
++	}
++	for i, nominal := range raw {
++		if nominal.After(end) {
++			break
++		}
++		excluded := false
++		for _, second := range f.Exclude {
++			excluded = excluded || nominal.Second() == second
++		}
++		actual := nominal
++		if !excluded {
++			bound := time.Duration(f.JitterMS) * time.Millisecond
++			if i+1 < len(raw) {
++				bound = min(bound, raw[i+1].Sub(nominal))
++			}
++			b, err := nominal.MarshalBinary()
++			if err != nil {
++				return nil, leanSource{}, err
++			}
++			fraction := uint64(farm.Fingerprint32(append(b, []byte(f.Seed)...)))
++			millis := min(uint64(bound/time.Millisecond), uint64(math.MaxUint32))
++			actual = nominal.Add(time.Duration(fraction*millis>>32) * time.Millisecond)
++		}
++		src.Raw = append(src.Raw, *leanCandidateOf(&occurrence.Candidate{Nominal: nominal, Actual: actual, Revision: f.Revision, Excluded: excluded}))
++	}
++	return e, src, nil
++}
++
++// Error mapping is exact and closed over concrete public messages. A new error is
++// a test failure, not a catch-all normalization that can hide a changed contract.
++func leanError(err error, op string) (string, error) {
++	if err == nil {
++		return "", nil
++	}
++	switch err.Error() {
++	case "continuation belongs to another definition revision":
++		return "identity-mismatch", nil
++	case "invalid enumeration continuation", "backfill handoff requires an eligible pending candidate":
++		return "state-invalid", nil
++	case "cursor is outside the prototype range", "invalid inclusive backfill range", "backfill end precedes origin", "unsupported backfill range or probe limit", "unsupported window or enumeration limits":
++		return "input-invalid", nil
++	case "range rebase requires a newer revision":
++		return "stale-revision", nil
++	case "update requires a newer revision and supported time":
++		return "", fmt.Errorf("classify update rejection using its explicit inputs: %w", err)
++	case "jittered time is outside the prototype range":
++		return "actual-outside-range", nil
++	default:
++		return "", fmt.Errorf("unmapped %s error: %w", op, err)
++	}
++}
++
++type leanStep struct {
++	Definition    string    `json:"definition,omitempty"`
++	ExpectSuccess bool      `json:"expect_success,omitempty"`
++	Op            string    `json:"op"`
++	Time          time.Time `json:"time"`
++	End           time.Time `json:"end"`
++	Probes        int       `json:"probes"`
++	Outputs       int       `json:"outputs"`
++}
++
++func compareLeanStep(p *leanProcess, e *occurrence.Enumerator, src leanSource, state occurrence.State, step leanStep) (occurrence.State, leanResponse, error) {
++	before, _ := json.Marshal(state)
++	req := leanRequest{Version: 1, Source: src, State: leanStateOf(state), Op: step.Op}
++	var next occurrence.State
++	var result occurrence.Result
++	var superseded *occurrence.Candidate
++	var err error
++	switch step.Op {
++	case "begin":
++		req.State = nil
++		req.After = leanTime(step.Time)
++		next, err = e.Begin(step.Time)
++	case "beginRange":
++		req.State = nil
++		req.Start = leanTime(step.Time)
++		req.End = leanTime(step.End)
++		next, err = e.BeginRange(step.Time, step.End)
++	case "run":
++		req.Through = leanTime(step.Time)
++		req.Probes = strconv.Itoa(step.Probes)
++		req.Outputs = strconv.Itoa(step.Outputs)
++		result, err = e.Run(state, step.Time, occurrence.Limits{Probes: step.Probes, Outputs: step.Outputs})
++		next = result.State
++	case "peek":
++		req.Through = leanTime(step.Time)
++		req.Probes = strconv.Itoa(step.Probes)
++		result, err = e.Peek(state, step.Time, step.Probes)
++		next = result.State
++	case "peekRange":
++		req.End = leanTime(step.Time)
++		req.Probes = strconv.Itoa(step.Probes)
++		result, err = e.PeekRange(state, step.Time, step.Probes)
++		next = result.State
++	case "disposeRange":
++		next, err = e.DisposeRange(state)
++	case "update":
++		req.At = leanTime(step.Time)
++		next, superseded, err = e.Update(state, step.Time)
++	case "rebaseRange":
++		next, superseded, err = e.RebaseRange(state)
++	default:
++		return state, leanResponse{}, fmt.Errorf("unsupported Go test step %q", step.Op)
++	}
++	after, _ := json.Marshal(state)
++	if !bytes.Equal(before, after) {
++		return state, leanResponse{}, errors.New("Go mutated supplied continuation")
++	}
++	expected := leanResponse{Version: 1, OK: err == nil}
++	if err != nil {
++		if step.Op == "update" && err.Error() == "update requires a newer revision and supported time" {
++			// Go combines these conditions in one error. Classify stale first,
++			// matching the named wire projection when both conditions fail.
++			revision, parseErr := strconv.ParseInt(src.Revision, 10, 64)
++			if parseErr != nil {
++				return state, expected, parseErr
++			}
++			if revision <= state.Revision {
++				expected.Error = "stale-revision"
++			} else {
++				expected.Error = "input-invalid"
++			}
++		} else {
++			expected.Error, err = leanError(err, step.Op)
++			if err != nil {
++				return state, expected, err
++			}
++		}
++	} else {
++		expected.State = leanStateOf(next)
++		expected.Status = leanStatus(next.Terminal)
++		expected.Probes = "0"
++		expected.Outputs = []leanCandidate{}
++		expected.Superseded = leanCandidateOf(superseded)
++		if step.Op == "run" || step.Op == "peek" || step.Op == "peekRange" {
++			expected.Status = leanStatus(result.Status)
++			expected.Probes = strconv.Itoa(result.Probes)
++			for _, c := range result.Occurrences {
++				expected.Outputs = append(expected.Outputs, *leanCandidateOf(&c))
++			}
++		}
++	}
++	got, callErr := p.call(req)
++	if callErr != nil {
++		return state, got, callErr
++	}
++	// Marshal the typed observation to compare every mapped field, including exact
++	// cursors, terminal cache, pending exclusions, probes and superseded identity.
++	wantJSON, _ := json.Marshal(expected)
++	gotJSON, _ := json.Marshal(got)
++	if !bytes.Equal(wantJSON, gotJSON) {
++		requestJSON, _ := json.Marshal(req)
++		return state, got, fmt.Errorf("request=%s\nGo=%s\nLean=%s", requestJSON, wantJSON, gotJSON)
++	}
++	if step.ExpectSuccess && !got.OK {
++		requestJSON, _ := json.Marshal(req)
++		return state, got, fmt.Errorf("positive replay step rejected: request=%s\nGo=%s\nLean=%s", requestJSON, wantJSON, gotJSON)
++	}
++	if !expected.OK {
++		return state, got, nil
++	}
++	return next, got, nil
++}
++
++func TestLeanCorrespondenceExhaustive(t *testing.T) {
++	p := newLeanProcess(t)
++	// Exhaust all 16 exclusion subsets, 2 fractional starts, 2 jitter settings,
++	// and 3x2 bounded budgets. Every trace resumes to a cached terminal result.
++	for mask := 0; mask < 16; mask++ {
++		for _, fraction := range []time.Duration{0, time.Nanosecond} {
++			for _, jitter := range []int{0, 1700} {
++				for probes := 1; probes <= 3; probes++ {
++					for outputs := 1; outputs <= 2; outputs++ {
++						f := leanFixture{Start: instant().Add(fraction), Span: 4, Periods: []int{1}, JitterMS: jitter, Seed: "exhaustive", Revision: 1}
++						for second := 0; second < 4; second++ {
++							if mask&(1<<second) != 0 {
++								f.Exclude = append(f.Exclude, second)
++							}
++						}
++						e, src, err := f.compile()
++						require.NoError(t, err)
++						state, _, err := compareLeanStep(p, e, src, occurrence.State{}, leanStep{Op: "begin", Time: f.Start.Add(-time.Nanosecond)})
++						require.NoError(t, err)
++						done := false
++						for n := 0; n < 16; n++ {
++							next, response, err := compareLeanStep(p, e, src, state, leanStep{Op: "run", Time: f.Start.Add(6 * time.Second), Probes: probes, Outputs: outputs})
++							require.NoError(t, err)
++							state = next
++							if response.Status == "impossible" || response.Status == "exhausted" {
++								done = true
++								break
++							}
++						}
++						require.True(t, done, "bounded exhaustive continuation did not terminate")
++						_, _, err = compareLeanStep(p, e, src, state, leanStep{Op: "run", Time: f.Start.Add(6 * time.Second), Probes: probes, Outputs: outputs})
++						require.NoError(t, err)
++					}
++				}
++			}
++		}
++	}
++}
++
++func TestLeanCorrespondenceRapid(t *testing.T) {
++	p := newLeanProcess(t)
++	rapid.Check(t, func(t *rapid.T) {
++		f := leanFixture{Start: instant().Add(time.Duration(rapid.IntRange(0, 999999999).Draw(t, "fraction"))), Span: rapid.IntRange(1, 12).Draw(t, "span"), Periods: []int{rapid.IntRange(1, 7).Draw(t, "periodA"), rapid.IntRange(1, 7).Draw(t, "periodB")}, JitterMS: rapid.IntRange(0, 9000).Draw(t, "jitterMS"), Seed: rapid.StringMatching("[a-z]{1,8}").Draw(t, "seed"), Revision: 1}
++		f.Exclude = rapid.SliceOfN(rapid.IntRange(0, 15), 0, 10).Draw(t, "excludedSeconds")
++		trace := newLeanReplay(f)
++		e, src, err := f.compile()
++		if err != nil {
++			leanRapidFailure(t, trace, err)
++		}
++		begin := leanStep{Op: "beginRange", Time: f.Start, End: f.Start.Add(time.Duration(f.Span+8) * time.Second)}
++		begin = recordLeanStep(&trace, "initial", begin)
++		state, _, err := compareLeanStep(p, e, src, occurrence.State{}, begin)
++		if err != nil {
++			leanRapidFailure(t, trace, err)
++		}
++		historical := rapid.Bool().Draw(t, "historical")
++		for n := 0; n < 40; n++ {
++			op := "run"
++			if historical {
++				op = "peekRange"
++			}
++			step := leanStep{Op: op, Time: f.Start.Add(time.Duration(f.Span+8) * time.Second), Probes: rapid.IntRange(1, 4).Draw(t, fmt.Sprintf("probes%d", n)), Outputs: rapid.IntRange(1, 3).Draw(t, fmt.Sprintf("outputs%d", n))}
++			step = recordLeanStep(&trace, "initial", step)
++			var response leanResponse
++			state, response, err = compareLeanStep(p, e, src, state, step)
++			if err != nil {
++				leanRapidFailure(t, trace, err)
++			}
++			if historical && response.Status == "active" {
++				dispose := leanStep{Op: "disposeRange"}
++				dispose = recordLeanStep(&trace, "initial", dispose)
++				state, _, err = compareLeanStep(p, e, src, state, dispose)
++				if err != nil {
++					leanRapidFailure(t, trace, err)
++				}
++			}
++			if response.Status == "empty" || response.Status == "impossible" || response.Status == "exhausted" {
++				return
++			}
++		}
++		leanRapidFailure(t, trace, errors.New("40-call bound exceeded"))
++	})
++}
++
++type leanReplay struct {
++	Version     int                    `json:"version"`
++	Fixture     *leanFixture           `json:"fixture,omitempty"`
++	Definitions map[string]leanFixture `json:"definitions,omitempty"`
++	Steps       []leanStep             `json:"steps"`
++}
++
++func newLeanReplay(initial leanFixture) leanReplay {
++	return leanReplay{Version: 2, Definitions: map[string]leanFixture{"initial": initial}}
++}
++
++func recordLeanStep(trace *leanReplay, definition string, step leanStep) leanStep {
++	step.Definition = definition
++	step.ExpectSuccess = true
++	trace.Steps = append(trace.Steps, step)
++	return step
++}
++
++func leanRapidFailure(t *rapid.T, trace leanReplay, err error) {
++	t.Helper()
++	encoded, marshalErr := json.Marshal(trace)
++	if marshalErr != nil {
++		t.Fatal(marshalErr)
++	}
++	// This is a direct property assertion. Rapid shrinks failing draws and emits
++	// the final concrete trace; a seed is useful but never the sole replay artifact.
++	t.Fatalf("lean-replay=%s\n%v", encoded, err)
++}
++
++// Saved traces are plain JSON and replay without Rapid or generator seed recovery.
++func TestLeanCorrespondenceSavedReplay(t *testing.T) {
++	p := newLeanProcess(t)
++	paths := []string{"testdata/lean_correspondence_v1.json", "testdata/lean_correspondence_update_v2.json", "testdata/lean_correspondence_rebase_v2.json"}
++	if path := os.Getenv("SCHEDULER2_LEAN_REPLAY"); path != "" {
++		paths = []string{path}
++	}
++	for _, path := range paths {
++		t.Run(path, func(t *testing.T) { replayLeanFile(t, p, path) })
++	}
++}
++
++func replayLeanFile(t *testing.T, p *leanProcess, path string) {
++	t.Helper()
++	data, err := os.ReadFile(path)
++	require.NoError(t, err)
++	var saved leanReplay
++	decoder := json.NewDecoder(bytes.NewReader(data))
++	decoder.DisallowUnknownFields()
++	require.NoError(t, decoder.Decode(&saved))
++	require.ErrorIs(t, decoder.Decode(&struct{}{}), io.EOF)
++	definitions := saved.Definitions
++	switch saved.Version {
++	case 1:
++		require.NotNil(t, saved.Fixture, "v1 requires its immutable fixture")
++		require.Empty(t, saved.Definitions, "v1 cannot contain replacement definitions")
++		definitions = map[string]leanFixture{"": *saved.Fixture}
++	case 2:
++		require.Nil(t, saved.Fixture, "v2 uses explicit named definitions")
++		require.NotEmpty(t, definitions)
++		for name := range definitions {
++			require.NotEmpty(t, name)
++		}
++	default:
++		t.Fatalf("unsupported replay version %d", saved.Version)
++	}
++	type compiledDefinition struct {
++		enumerator *occurrence.Enumerator
++		source     leanSource
++	}
++	compiled := make(map[string]compiledDefinition, len(definitions))
++	for name, fixture := range definitions {
++		e, src, err := fixture.compile()
++		require.NoError(t, err, "definition %q", name)
++		compiled[name] = compiledDefinition{e, src}
++	}
++	var state occurrence.State
++	for i, step := range saved.Steps {
++		if saved.Version == 1 {
++			require.Empty(t, step.Definition, "v1 step cannot select a definition")
++		} else {
++			require.NotEmpty(t, step.Definition, "v2 step must select a definition")
++		}
++		definition, ok := compiled[step.Definition]
++		require.True(t, ok, "step %d references unknown definition %q", i, step.Definition)
++		state, _, err = compareLeanStep(p, definition.enumerator, definition.source, state, step)
++		require.NoError(t, err, "saved step %d", i)
++	}
++}
++
++func TestLeanCorrespondenceControlsAndRejections(t *testing.T) {
++	p := newLeanProcess(t)
++	f := leanFixture{Start: instant(), Span: 4, Periods: []int{1}, JitterMS: 1700, Seed: "controls", Revision: 1}
++	e, src, err := f.compile()
++	require.NoError(t, err)
++	state, _, err := compareLeanStep(p, e, src, occurrence.State{}, leanStep{Op: "begin", Time: f.Start.Add(-time.Nanosecond)})
++	require.NoError(t, err)
++	state, _, err = compareLeanStep(p, e, src, state, leanStep{Op: "peek", Time: f.Start, Probes: 1})
++	require.NoError(t, err)
++	require.NotNil(t, state.Pending)
++	for _, op := range []string{"run", "peek", "peekRange"} {
++		for _, probes := range []int{0, 1025} {
++			_, r, err := compareLeanStep(p, e, src, state, leanStep{Op: op, Time: f.Start.Add(time.Second), Probes: probes, Outputs: 1})
++			require.NoError(t, err)
++			require.False(t, r.OK)
++		}
++	}
++	for _, outputs := range []int{0, 129} {
++		_, r, err := compareLeanStep(p, e, src, state, leanStep{Op: "run", Time: f.Start, Probes: 1, Outputs: outputs})
++		require.NoError(t, err)
++		require.False(t, r.OK)
++	}
++	for _, op := range []string{"update", "rebaseRange"} {
++		_, r, err := compareLeanStep(p, e, src, state, leanStep{Op: op, Time: f.Start})
++		require.NoError(t, err)
++		require.Equal(t, "stale-revision", r.Error)
++	}
++	wrong := state
++	wrong.DefinitionID = "different-definition"
++	_, r, err := compareLeanStep(p, e, src, wrong, leanStep{Op: "run", Time: f.Start, Probes: 1, Outputs: 1})
++	require.NoError(t, err)
++	require.Equal(t, "identity-mismatch", r.Error)
++	malformed := state
++	malformed.Origin = state.SearchAfter.Add(time.Second)
++	_, r, err = compareLeanStep(p, e, src, malformed, leanStep{Op: "peek", Time: f.Start, Probes: 1})
++	require.NoError(t, err)
++	require.Equal(t, "state-invalid", r.Error)
++
++	// A genuinely different immutable definition with the SAME numeric revision
++	// must not accept this continuation; this is not just a forged identity string.
++	changed := f
++	changed.Seed = "same-revision-other-seed"
++	changedE, changedSrc, err := changed.compile()
++	require.NoError(t, err)
++	require.NotEqual(t, src.Identity, changedSrc.Identity)
++	for _, op := range []string{"run", "peek", "disposeRange"} {
++		_, r, err := compareLeanStep(p, changedE, changedSrc, state, leanStep{Op: op, Time: f.Start, Probes: 1, Outputs: 1})
++		require.NoError(t, err)
++		require.Equal(t, "identity-mismatch", r.Error)
++	}
++	f.Revision = 2
++	f.Seed = "updated"
++	newE, newSrc, err := f.compile()
++	require.NoError(t, err)
++	for _, op := range []string{"update", "rebaseRange"} {
++		next, r, err := compareLeanStep(p, newE, newSrc, state, leanStep{Op: op, Time: f.Start.Add(1500 * time.Millisecond)})
++		require.NoError(t, err)
++		require.NotNil(t, r.Superseded)
++		_, _, err = compareLeanStep(p, newE, newSrc, next, leanStep{Op: "run", Time: f.Start.Add(6 * time.Second), Probes: 10, Outputs: 10})
++		require.NoError(t, err)
++	}
++	// Exact lower sentinel and cached Empty; no timestamp rounding in either state.
++	empty := leanFixture{Start: leanEpoch.Add(time.Nanosecond), Span: 1, Revision: 1}
++	emptyE, emptySrc, err := empty.compile()
++	require.NoError(t, err)
++	initial, _, err := compareLeanStep(p, emptyE, emptySrc, occurrence.State{}, leanStep{Op: "begin", Time: leanEpoch})
++	require.NoError(t, err)
++	_, r, err = compareLeanStep(p, emptyE, emptySrc, initial, leanStep{Op: "run", Time: empty.Start, Probes: 1, Outputs: 1})
++	require.NoError(t, err)
++	require.Equal(t, "empty", r.Status)
++	// Boundary rejection must not accidentally serialize time.Duration saturation.
++	_, r, err = compareLeanStep(p, e, src, state, leanStep{Op: "begin", Time: leanEpoch.Add(-time.Nanosecond)})
++	require.NoError(t, err)
++	require.Equal(t, "input-invalid", r.Error)
++}
++
++func TestLeanCorrespondenceExactBoundaries(t *testing.T) {
++	p := newLeanProcess(t)
++	f := leanFixture{Start: leanEpoch.Add(time.Nanosecond), Span: 0, Periods: []int{1}, JitterMS: 1700, Seed: "boundary", Revision: 1}
++	e, src, err := f.compile()
++	require.NoError(t, err)
++	require.Len(t, src.Raw, 1)
++	state, _, err := compareLeanStep(p, e, src, occurrence.State{}, leanStep{Op: "beginRange", Time: f.Start, End: f.Start})
++	require.NoError(t, err)
++	// The spec's nominal end is the first nominal, but jitter may legitimately
++	// cross that end. Range exhaustion must preserve an Active pending witness.
++	state, response, err := compareLeanStep(p, e, src, state, leanStep{Op: "peekRange", Time: f.Start, Probes: 1})
++	require.NoError(t, err)
++	require.Equal(t, "exhausted", response.Status)
++	require.Equal(t, occurrence.Active, state.Terminal)
++	require.NotNil(t, state.Pending)
++	actual := state.Pending.Actual
++	require.True(t, actual.After(f.Start))
++	for _, through := range []time.Time{actual.Add(-time.Nanosecond), actual, actual.Add(time.Nanosecond)} {
++		_, _, err := compareLeanStep(p, e, src, state, leanStep{Op: "run", Time: through, Probes: 1, Outputs: 1})
++		require.NoError(t, err)
++	}
++	_, _, err = compareLeanStep(p, e, src, state, leanStep{Op: "beginRange", Time: f.Start.Add(time.Nanosecond), End: f.Start})
++	require.NoError(t, err)
++	// Probe-time unsupported actual, rather than eager rejection of the raw
++	// source. Search a small deterministic independent fixture space for a
++	// positive jitter crossing the supported maximum.
++	found := false
++	for seed := 0; seed < 32 && !found; seed++ {
++		upperFixture := leanFixture{Start: leanUpper.Add(-6 * time.Second).Truncate(time.Second), Span: 6, Periods: []int{7}, JitterMS: 7000, Seed: strconv.Itoa(seed), Revision: 1}
++		upperE, upperSrc, err := upperFixture.compile()
++		require.NoError(t, err)
++		bad := false
++		for _, c := range upperSrc.Raw {
++			ns, err := strconv.ParseInt(c.Actual, 10, 64)
++			require.NoError(t, err)
++			bad = bad || ns > leanUpper.Sub(leanEpoch).Nanoseconds()
++		}
++		if !bad {
++			continue
++		}
++		found = true
++		start, _, err := compareLeanStep(p, upperE, upperSrc, occurrence.State{}, leanStep{Op: "begin", Time: upperFixture.Start.Add(-time.Nanosecond)})
++		require.NoError(t, err)
++		_, r, err := compareLeanStep(p, upperE, upperSrc, start, leanStep{Op: "run", Time: leanUpper, Probes: 10, Outputs: 10})
++		require.NoError(t, err)
++		require.Equal(t, "actual-outside-range", r.Error)
++	}
++	require.True(t, found, "fixture must exercise unsupported actual at probe time")
++}
++
++func TestLeanCorrespondenceRapidWindowsAndUpdates(t *testing.T) {
++	p := newLeanProcess(t)
++	rapid.Check(t, func(t *rapid.T) {
++		f := leanFixture{Start: instant().Add(time.Duration(rapid.IntRange(0, 999999999).Draw(t, "fraction"))), Span: 8, Periods: []int{rapid.IntRange(1, 3).Draw(t, "period")}, JitterMS: rapid.IntRange(0, 5000).Draw(t, "jitter"), Seed: "before", Revision: 1}
++		f.Exclude = rapid.SliceOfN(rapid.IntRange(0, 8), 0, 5).Draw(t, "exclude")
++		trace := newLeanReplay(f)
++		definition := "initial"
++		e, src, err := f.compile()
++		if err != nil {
++			leanRapidFailure(t, trace, err)
++		}
++		begin := recordLeanStep(&trace, definition, leanStep{Op: "beginRange", Time: f.Start, End: f.Start.Add(16 * time.Second)})
++		state, _, err := compareLeanStep(p, e, src, occurrence.State{}, begin)
++		if err != nil {
++			leanRapidFailure(t, trace, err)
++		}
++		historical := rapid.Bool().Draw(t, "historical")
++		for n := 0; n < 24; n++ {
++			through := f.Start.Add(time.Duration(min(n, 16)) * time.Second)
++			if n == 1 {
++				f.Revision = 2
++				f.Seed = "after"
++				f.Periods = []int{rapid.IntRange(1, 3).Draw(t, "updatedPeriod")}
++				definition = "replacement"
++				trace.Definitions[definition] = f
++				e, src, err = f.compile()
++				if err != nil {
++					leanRapidFailure(t, trace, err)
++				}
++				op := "update"
++				if historical {
++					op = "rebaseRange"
++				}
++				replacement := recordLeanStep(&trace, definition, leanStep{Op: op, Time: through})
++				state, _, err = compareLeanStep(p, e, src, state, replacement)
++				if err != nil {
++					leanRapidFailure(t, trace, err)
++				}
++			}
++			op := "run"
++			if historical {
++				op = "peek"
++			}
++			var r leanResponse
++			step := recordLeanStep(&trace, definition, leanStep{Op: op, Time: through, Probes: rapid.IntRange(1, 3).Draw(t, fmt.Sprintf("probes%d", n)), Outputs: rapid.IntRange(1, 2).Draw(t, fmt.Sprintf("outputs%d", n))})
++			state, r, err = compareLeanStep(p, e, src, state, step)
++			if err != nil {
++				leanRapidFailure(t, trace, err)
++			}
++			if historical && r.Status == "active" {
++				dispose := recordLeanStep(&trace, definition, leanStep{Op: "disposeRange"})
++				state, _, err = compareLeanStep(p, e, src, state, dispose)
++				if err != nil {
++					leanRapidFailure(t, trace, err)
++				}
++			}
++			if n > 1 && (r.Status == "empty" || r.Status == "impossible" || r.Status == "exhausted") {
++				return
++			}
++		}
++		leanRapidFailure(t, trace, errors.New("window/update trace did not finish within 24 transactions"))
++	})
++}
++
++func TestLeanCorrespondenceValidBudgetEdges(t *testing.T) {
++	p := newLeanProcess(t)
++	// Actual saturation, not merely accepting a large budget on a tiny source.
++	f := leanFixture{Start: instant(), Span: 1030, Periods: []int{1}, Seed: "budget", Revision: 1}
++	for second := 0; second < 60; second++ {
++		f.Exclude = append(f.Exclude, second)
++	}
++	e, src, err := f.compile()
++	require.NoError(t, err)
++	initial, _, err := compareLeanStep(p, e, src, occurrence.State{}, leanStep{Op: "begin", Time: f.Start.Add(-time.Nanosecond)})
++	require.NoError(t, err)
++	for _, probes := range []int{1023, 1024} {
++		for _, op := range []string{"run", "peek", "peekRange"} {
++			next, r, err := compareLeanStep(p, e, src, initial, leanStep{Op: op, Time: f.Start.Add(1032 * time.Second), Probes: probes, Outputs: 128})
++			require.NoError(t, err)
++			require.Equal(t, "yield", r.Status)
++			require.Equal(t, strconv.Itoa(probes), r.Probes)
++			_, r, err = compareLeanStep(p, e, src, next, leanStep{Op: op, Time: f.Start.Add(1032 * time.Second), Probes: probes, Outputs: 128})
++			require.NoError(t, err)
++			require.Equal(t, "impossible", r.Status)
++		}
++	}
++	f.Exclude = nil
++	f.Span = 130
++	e, src, err = f.compile()
++	require.NoError(t, err)
++	initial, _, err = compareLeanStep(p, e, src, occurrence.State{}, leanStep{Op: "begin", Time: f.Start.Add(-time.Nanosecond)})
++	require.NoError(t, err)
++	for _, outputs := range []int{127, 128} {
++		next, r, err := compareLeanStep(p, e, src, initial, leanStep{Op: "run", Time: f.Start.Add(132 * time.Second), Probes: 1024, Outputs: outputs})
++		require.NoError(t, err)
++		require.Equal(t, "limited", r.Status)
++		require.Len(t, r.Outputs, outputs)
++		_, r, err = compareLeanStep(p, e, src, next, leanStep{Op: "run", Time: f.Start.Add(132 * time.Second), Probes: 1024, Outputs: outputs})
++		require.NoError(t, err)
++		require.Equal(t, "exhausted", r.Status)
++		require.Len(t, r.Outputs, 131-outputs)
++	}
++}
++
++func TestLeanCorrespondenceMalformedWire(t *testing.T) {
++	p := newLeanProcess(t)
++	f := leanFixture{Start: instant(), Span: 1, Periods: []int{1}, Revision: 1}
++	_, src, err := f.compile()
++	require.NoError(t, err)
++	base := leanRequest{Version: 1, Source: src, Op: "begin", After: leanTime(f.Start)}
++	valid, err := json.Marshal(base)
++	require.NoError(t, err)
++	cases := []struct {
++		name       string
++		patch      func(map[string]any)
++		errorClass string
++	}{
++		{"unknown version", func(m map[string]any) { m["version"] = 2 }, "wire-invalid"},
++		{"unknown operation", func(m map[string]any) { m["op"] = "next" }, "wire-invalid"},
++		{"unknown top key", func(m map[string]any) { m["ignored"] = true }, "wire-invalid"},
++		{"missing time", func(m map[string]any) { delete(m, "after") }, "wire-invalid"},
++		{"numeric time", func(m map[string]any) { m["after"] = 1 }, "wire-invalid"},
++		{"fraction string", func(m map[string]any) { m["after"] = "1.25" }, "wire-invalid"},
++		{"bad digits", func(m map[string]any) { m["after"] = "12garbage" }, "wire-invalid"},
++		{"nonnull begin state", func(m map[string]any) { m["state"] = map[string]any{} }, "wire-invalid"},
++		{"unknown source key", func(m map[string]any) { m["source"].(map[string]any)["ignored"] = true }, "wire-invalid"},
++		{"wrong source bool", func(m map[string]any) { m["source"].(map[string]any)["hasInclusions"] = "true" }, "wire-invalid"},
++		{"unknown raw key", func(m map[string]any) {
++			m["source"].(map[string]any)["raw"].([]any)[0].(map[string]any)["ignored"] = true
++		}, "wire-invalid"},
++		{"empty identity", func(m map[string]any) { m["source"].(map[string]any)["identity"] = "" }, "source-invalid"},
++		{"wrong upper", func(m map[string]any) { m["source"].(map[string]any)["upper"] = "1" }, "source-invalid"},
++	}
++	for _, tc := range cases {
++		t.Run(tc.name, func(t *testing.T) {
++			var m map[string]any
++			require.NoError(t, json.Unmarshal(valid, &m))
++			tc.patch(m)
++			b, err := json.Marshal(m)
++			require.NoError(t, err)
++			r, err := p.callRaw(b)
++			require.NoError(t, err)
++			require.Equal(t, leanResponse{Version: 1, Error: tc.errorClass}, r)
++			// Invalid messages must not kill or contaminate the long-lived process.
++			recovered, err := p.call(base)
++			require.NoError(t, err)
++			require.True(t, recovered.OK)
++		})
++	}
++	r, err := p.callRaw([]byte("{not json"))
++	require.NoError(t, err)
++	require.Equal(t, leanResponse{Version: 1, Error: "wire-invalid"}, r)
++}
++
++// Parsing signed wire quantities must not reorder the public operation's guards.
++// These cases deliberately combine invalid inputs to discriminate precedence.
++func TestLeanCorrespondenceNegativeInputPrecedence(t *testing.T) {
++	p := newLeanProcess(t)
++	f := leanFixture{Start: instant(), Span: 4, Periods: []int{1}, Seed: "negative", Revision: 1}
++	e, src, err := f.compile()
++	require.NoError(t, err)
++	initial, err := e.Begin(f.Start.Add(-time.Nanosecond))
++	require.NoError(t, err)
++	newFixture := f
++	newFixture.Revision = 2
++	newE, newSrc, err := newFixture.compile()
++	require.NoError(t, err)
++	negativeTime := leanEpoch.Add(-time.Nanosecond)
++	cases := []struct {
++		name             string
++		newDefinition    bool
++		wrongIdentity    bool
++		negativeRevision bool
++		negativeOrigin   bool
++		step             leanStep
++		want             string
++	}{
++		{name: "identity before negative probe", wrongIdentity: true, step: leanStep{Op: "run", Time: f.Start, Probes: -1, Outputs: 1}, want: "identity-mismatch"},
++		{name: "identity before negative window", wrongIdentity: true, step: leanStep{Op: "run", Time: negativeTime, Probes: 1, Outputs: 1}, want: "identity-mismatch"},
++		{name: "update validates negative revision", newDefinition: true, negativeRevision: true, step: leanStep{Op: "update", Time: f.Start}, want: "state-invalid"},
++		{name: "stale update before negative time", step: leanStep{Op: "update", Time: negativeTime}, want: "stale-revision"},
++		{name: "negative origin is malformed state", negativeOrigin: true, step: leanStep{Op: "run", Time: f.Start, Probes: 1, Outputs: 1}, want: "state-invalid"},
++		{name: "dispose identity before negative state", wrongIdentity: true, negativeOrigin: true, step: leanStep{Op: "disposeRange"}, want: "identity-mismatch"},
++		{name: "malformed state before stale update and negative time", negativeOrigin: true, step: leanStep{Op: "update", Time: negativeTime}, want: "state-invalid"},
++		{name: "invalid budget before negative state", negativeOrigin: true, step: leanStep{Op: "run", Time: f.Start, Probes: 0, Outputs: 1}, want: "input-invalid"},
++		{name: "range end before identity", wrongIdentity: true, step: leanStep{Op: "peekRange", Time: negativeTime, Probes: 1}, want: "input-invalid"},
++	}
++	for _, tc := range cases {
++		t.Run(tc.name, func(t *testing.T) {
++			state := initial
++			if tc.wrongIdentity {
++				state.DefinitionID = "other"
++			}
++			if tc.negativeRevision {
++				state.Revision = -1
++			}
++			if tc.negativeOrigin {
++				state.Origin = negativeTime
++			}
++			enumerator, source := e, src
++			if tc.newDefinition {
++				enumerator, source = newE, newSrc
++			}
++			_, response, err := compareLeanStep(p, enumerator, source, state, tc.step)
++			require.NoError(t, err)
++			require.Equal(t, leanResponse{Version: 1, Error: tc.want}, response)
++		})
++	}
++}
+diff --git a/docs/development/scheduler2/README.md b/docs/development/scheduler2/README.md
+index 098954e59..6e28b4515 100644
+--- a/docs/development/scheduler2/README.md
++++ b/docs/development/scheduler2/README.md
+@@ -20,8 +20,8 @@ CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast GOLANGCI_LINT_BASE_REV=85b80a1836
+ 
+ The runner emits exact commands, source SHA, dirty diff, per-source hashes, tool
+ versions, settings, outcome, duration and log paths. Missing commands/timeouts
+-fail. The proofs/fuzz/benchmarks profiles emit unsupported, exit nonzero, and are
+-not required for the bounded M1 acceptance; they remain later-milestone work.
++fail. The fuzz/benchmarks profiles emit unsupported and exit nonzero. The proofs profile
++runs the pinned local exact Lean build and axiom audit described below.
+ Go checks use test_dep. Normal runs disable CGO; race selects installed macOS
+ 26.5 SDK because the default macOS 27 SDK cannot be linked by the installed linker.
+ No system SDK setting is modified. FizzBee release/tar hash is in contract.md.
+@@ -177,3 +177,61 @@ cover full CloseTransaction/reload. Physical persistence reads are not reduced.
+ 
+ No persisted-layout migration, public API routing, cancel/terminate or manual/backfill
+ claim follows. Those remaining gates are tracked in the active M2–M4 plan.
++
++## WI-013 required Lean correspondence profile
++
++This named local profile requires an explicit prebuilt Lean 4.24.0 oracle, its passed
++build manifest (with adjacent `version.log`), and an explicit seed. It never builds,
++downloads, substitutes or skips the oracle. A mismatched binary hash, missing required
++test, input drift, nonzero test exit or timeout fails the profile. Use a fresh output
++directory to preserve prior evidence. Existing runner profiles keep their commands
++and default seed. The separate `proofs` profile runs the pinned local build and
++axiom audit (no download), recording its nested build manifest, source/tool/binary
++hashes and Lean version:
++
++```sh
++python3 docs/development/scheduler2/run.py proofs \
++  --output /private/tmp/scheduler2-verification/lean-proofs
++```
++
++```sh
++python3 docs/development/scheduler2/run.py lean-correspondence \
++  --oracle /private/tmp/scheduler2-wi013-lean-build11/oracle \
++  --oracle-manifest /private/tmp/scheduler2-wi013-lean-build11/manifest.json \
++  --seed 1 --output /private/tmp/scheduler2-verification/lean-routine
++python3 docs/development/scheduler2/run.py lean-correspondence --exploration \
++  --oracle /private/tmp/scheduler2-wi013-lean-build11/oracle \
++  --oracle-manifest /private/tmp/scheduler2-wi013-lean-build11/manifest.json \
++  --seed 1 --output /private/tmp/scheduler2-verification/lean-exploration
++```
++
++The routine command runs the following with `CGO_ENABLED=0`, `GOMAXPROCS=4`, and
++`SCHEDULER2_LEAN_ORACLE` set to the selected absolute executable path:
++
++```sh
++go test -p 2 -parallel 4 -tags test_dep,lean_correspondence -count=1 -timeout=10m \
++  ./chasm/lib/scheduler2/internal/occurrence -run '^TestLeanCorrespondence' \
++  -rapid.seed=1 -rapid.checks=100 -v
++```
++
++Exploration uses `-rapid.checks=10000` for **each of two Rapid properties**. Both modes
++also run 384 bounded exhaustive traces, directed validation/boundary checks and all
++three checked-in v1/v2 replay fixtures, including Update and historical Rebase.
++Inherited `SCHEDULER2_LEAN_REPLAY` is cleared so it cannot silently replace that
++coverage. Saved custom replay remains available through the direct Go test command.
++
++The manifest records the executable SHA256, Lean version/tool hash, build-manifest
++reference/hash and built source hashes, alongside driver/fixture/runner/config hashes,
++exact commands, seed, Go version, environment and logs. Production source/testdata hashes, focused inputs and executable provenance
++are checked again after execution; drift fails the correspondence profile. `profile.json` records separate generator bounds:
++1–12 second interval-union traces with up to 40 scan iterations, or 8-second
++window/replacement traces with up to 24 scan iterations. Historical dispositions
++can add one extra call per scan; these are not coordinator event bounds.
++
++Expected raw candidates come from independent integer-second interval membership
++and UTC second exclusions, including fractional starts and exact timestamps. The
++fixture never calls production next-occurrence search. Time binary encoding,
++Farm32 jitter primitives and opaque identity obtained from Begin are shared
++assumptions; this is not proof of hashing, timezone/calendar coverage or deployed
++behavior. Formal proof building and mutation sensitivity remain separately recorded
++evidence. Passing this profile alone does not accept WI-013 or M3.
+diff --git a/docs/development/scheduler2/profile.json b/docs/development/scheduler2/profile.json
+index 39a5d5aea..76f1e602a 100644
+--- a/docs/development/scheduler2/profile.json
++++ b/docs/development/scheduler2/profile.json
+@@ -39,7 +39,7 @@
+     "go": "go1.27.3",
+     "rapid": "v1.2.0",
+     "fizzbee": "v0.5.4",
+-    "lean": "v4.24.0; executable draft only; M3 proofs pending"
++    "lean": "v4.24.0; explicit compiled oracle and build manifest required for lean-correspondence"
+   },
+   "limits": "Automatic overload disposition and accepted-command waiting per D47\u2013D50; terminal-only cap4 retention, unresolved starts retained; no migration",
+   "enumeration": {
+@@ -189,5 +189,122 @@
+     "limits": "unsupported ingress rejected; expiry retains ambiguity; no retention eviction in bounded slice",
+     "recovery": "one authenticated completion; an explicit finite suffix, not a liveness proof"
+   },
+-  "executor_concurrency_scope": "Separate Start and Effect handlers each permit1 per library instance; combined maximum2, not a shared global permit"
++  "executor_concurrency_scope": "Separate Start and Effect handlers each permit1 per library instance; combined maximum2, not a shared global permit",
++  "lean_correspondence": {
++    "status": "Required WI-013 local correspondence profile; acceptance remains evidence-based",
++    "oracle": "Explicit existing executable and passed build manifest; Lean 4.24.0, wire v1, no build/download/fallback",
++    "routine_checks_per_rapid_property": 100,
++    "exploration_checks_per_rapid_property": 10000,
++    "rapid_properties": 2,
++    "seed_policy": "explicit --seed required for routine and exploration",
++    "exhaustive_traces": 384,
++    "exhaustive_bounds": {
++      "exclusion_subsets": 16,
++      "fractional_starts_ns": [
++        0,
++        1
++      ],
++      "jitter_ms": [
++        0,
++        1700
++      ],
++      "probes": [
++        1,
++        2,
++        3
++      ],
++      "outputs": [
++        1,
++        2
++      ],
++      "span_seconds": 4,
++      "resume_calls_max": 16
++    },
++    "rapid_bounds": {
++      "span_seconds": [
++        1,
++        12
++      ],
++      "interval_period_seconds": [
++        1,
++        7
++      ],
++      "interval_terms": 2,
++      "start_fraction_ns": [
++        0,
++        999999999
++      ],
++      "jitter_ms": [
++        0,
++        9000
++      ],
++      "exclusion_seconds": [
++        0,
++        15
++      ],
++      "exclusion_entries_max": 10,
++      "probes": [
++        1,
++        4
++      ],
++      "outputs": [
++        1,
++        3
++      ],
++      "scan_iterations_max": 40,
++      "historical_dispose": "at most one extra call per scan"
++    },
++    "windows_updates_bounds": {
++      "span_seconds": 8,
++      "interval_period_seconds": [
++        1,
++        3
++      ],
++      "start_fraction_ns": [
++        0,
++        999999999
++      ],
++      "jitter_ms": [
++        0,
++        5000
++      ],
++      "exclusion_seconds": [
++        0,
++        8
++      ],
++      "exclusion_entries_max": 5,
++      "probes": [
++        1,
++        3
++      ],
++      "outputs": [
++        1,
++        2
++      ],
++      "scan_iterations_max": 24,
++      "replacement_iteration": 1,
++      "revisions": [
++        1,
++        2
++      ],
++      "final_window_offset_seconds": 16,
++      "historical_dispose": "at most one extra call per scan"
++    },
++    "replay": "Checked-in v1 and v2 Update/Rebase traces; generated failures emit concrete v2 definitions and steps",
++    "independence": "Integer-second interval union and UTC second exclusions evaluated directly, never production next-occurrence search; exact fractional timestamps, independent raw list",
++    "shared_assumptions": "time.MarshalBinary, Farm32 jitter primitive, opaque definition identity obtained from Begin; not hash collision freedom or complete timezone/calendar proof",
++    "additional_checks": "Directed controls, exact boundary neighbors, valid budget edges, malformed wire and signed-input precedence; mutation sensitivity is a separate profile/script",
++    "environment": "CGO_ENABLED=0 GOMAXPROCS=4; test_dep,lean_correspondence; saved replay environment override cleared",
++    "required_tests": [
++      "TestLeanCorrespondenceExhaustive",
++      "TestLeanCorrespondenceRapid",
++      "TestLeanCorrespondenceSavedReplay",
++      "TestLeanCorrespondenceControlsAndRejections",
++      "TestLeanCorrespondenceExactBoundaries",
++      "TestLeanCorrespondenceRapidWindowsAndUpdates",
++      "TestLeanCorrespondenceValidBudgetEdges",
++      "TestLeanCorrespondenceMalformedWire",
++      "TestLeanCorrespondenceNegativeInputPrecedence"
++    ]
++  }
+ }
+diff --git a/docs/development/scheduler2/run.py b/docs/development/scheduler2/run.py
+index 2497e6ffb..7d02b4a03 100644
+--- a/docs/development/scheduler2/run.py
++++ b/docs/development/scheduler2/run.py
+@@ -11,22 +11,70 @@ import time
+ 
+ ROOT = Path(__file__).resolve().parents[3]
+ HERE = Path(__file__).resolve().parent
+-PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model", "manual", "manual-model", "backfill-range", "backfill", "backfill-model", "lifecycle", "lifecycle-model", "updates")
++PROFILES = ("regressions", "model", "properties", "simulation", "proofs", "fuzz", "race", "benchmarks", "enumeration", "completion", "completion-model", "sequential", "sequential-model", "buffer", "buffer-model", "allowall", "allowall-model", "effects", "effects-model", "manual", "manual-model", "backfill-range", "backfill", "backfill-model", "lifecycle", "lifecycle-model", "updates", "lean-correspondence")
+ 
+ 
+ def git(*args):
+     return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
+ 
+ 
++def sha256(path):
++    return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++def oracle_metadata(binary, build_manifest):
++    """Require an already built, explicitly selected, fingerprinted local oracle."""
++    binary, build_manifest = binary.resolve(), build_manifest.resolve()
++    if not binary.is_file() or not os.access(binary, os.X_OK):
++        raise ValueError("--oracle must name an existing executable file")
++    build = json.loads(build_manifest.read_text())
++    binary_sha = sha256(binary)
++    if build.get("status") != "passed" or build.get("binary_sha256") != binary_sha:
++        raise ValueError("oracle must match a passed --oracle-manifest binary SHA256")
++    version_log = build_manifest.parent / "version.log"
++    version = version_log.read_text().strip()
++    if "version 4.24.0," not in version:
++        raise ValueError("oracle manifest version.log must identify pinned Lean 4.24.0")
++    return {
++        "path": str(binary), "sha256": binary_sha, "wire_version": 1,
++        "lean_version": version, "tool_sha256": build["tool_sha256"],
++        "build_manifest": str(build_manifest), "build_manifest_sha256": sha256(build_manifest),
++        "version_log": str(version_log), "version_log_sha256": sha256(version_log),
++        "build_sources": build["sources"],
++    }
++
++
++def source_hashes():
++    files = list((ROOT / "chasm/lib/scheduler2").rglob("*.go")) + list((ROOT / "chasm/lib/scheduler2").rglob("*.proto"))
++    files += [ROOT / "service/worker/scheduler" / name for name in ("candidate.go", "spec.go")]
++    files += [p for p in (ROOT / "chasm/lib/scheduler2").rglob("*") if "testdata" in p.parts]
++    return {str(p.relative_to(ROOT)): sha256(p) for p in sorted(files) if p.is_file()}
++
++
+ def main():
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument("profile", choices=PROFILES)
+     parser.add_argument("--output", type=Path, required=True)
+     parser.add_argument("--exploration", action="store_true")
+-    parser.add_argument("--seed", type=int, default=1)
++    parser.add_argument("--seed", type=int)
+     parser.add_argument("--fizz", default="/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz")
++    parser.add_argument("--oracle", type=Path, help="required local executable for lean-correspondence")
++    parser.add_argument("--oracle-manifest", type=Path, help="required passed oracle build manifest, with adjacent version.log")
+     args = parser.parse_args()
++    lean = args.profile == "lean-correspondence"
++    oracle = None
++    if lean:
++        if args.oracle is None or args.oracle_manifest is None or args.seed is None:
++            parser.error("lean-correspondence requires explicit --oracle, --oracle-manifest and --seed")
++        try:
++            oracle = oracle_metadata(args.oracle, args.oracle_manifest)
++        except (OSError, ValueError, KeyError, TypeError) as exc:
++            parser.error(str(exc))
++    elif args.seed is None:
++        args.seed = 1  # Preserve the existing profiles' default.
+     output = args.output.resolve()
++    if args.profile in ("lean-correspondence", "proofs") and output.exists() and any(output.iterdir()):
++        parser.error(args.profile + " output directory must be new or empty")
+     output.mkdir(parents=True, exist_ok=True)
+     config = json.loads((HERE / "profile.json").read_text())
+     env = dict(os.environ, GOMAXPROCS="4", CGO_ENABLED="0")
+@@ -39,6 +87,7 @@ def main():
+     if args.profile == "updates":
+         events = config["updates"]["scenario_events"]
+     commands = {
++        "proofs": [[sys.executable, str(HERE / "lean/exact/build.py"), "--out", str(output / "lean-build")]],
+         "updates": [common + [package, "-run", "TestUpdate", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+         "regressions": [common + [package, "-run", "Test(Replay|Snapshot|Lost|Failed|Metadata|Dropped|Independent|Task)", "-v"]],
+         "lifecycle": [common + [package, package + "/internal/decision", "-run", "Test(Activity|Idle|Lifecycle)", "-rapid.seed=" + str(args.seed), "-rapid.checks=" + str(checks), "-v"]],
+@@ -64,6 +113,15 @@ def main():
+         "race": [["go", "test", "-race", "-p", "2", "-parallel", "4", "-tags", "test_dep", "-count=1", "-timeout=15m", package + "/...", "./chasm/lib/all", "-rapid.seed=" + str(args.seed)]],
+         "model": [[sys.executable, str(HERE / "model/run.py"), "--fizz", args.fizz, "--output", str(output / "model")]],
+     }
++    if lean:
++        lean_common = common.copy()
++        lean_common[lean_common.index("test_dep")] = "test_dep,lean_correspondence"
++        commands[args.profile] = [lean_common + [package + "/internal/occurrence",
++            "-run", "^TestLeanCorrespondence", "-rapid.seed=" + str(args.seed),
++            "-rapid.checks=" + str(checks), "-v"]]
++        env["SCHEDULER2_LEAN_ORACLE"] = oracle["path"]
++        # This named profile always runs all three checked-in saved traces.
++        env.pop("SCHEDULER2_LEAN_REPLAY", None)
+     if args.profile == "race":
+         env["CGO_ENABLED"] = "1"
+         env["SDKROOT"] = "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+@@ -71,22 +129,41 @@ def main():
+         commands["race"][0] = commands["race"][0][:-1]
+     diff = subprocess.check_output(["git", "diff", "HEAD", "--binary"], cwd=ROOT)
+     (output / "source.diff").write_bytes(diff)
+-    files = list((ROOT / "chasm/lib/scheduler2").rglob("*.go")) + list((ROOT / "chasm/lib/scheduler2").rglob("*.proto"))
+-    files += [ROOT / "service/worker/scheduler" / name for name in ("candidate.go", "spec.go")]
+-    files += [p for p in (ROOT / "chasm/lib/scheduler2").rglob("*") if "testdata" in p.parts]
+-    files = [p for p in files if p.is_file()]
+     manifest = {
+         "profile": args.profile, "source_sha": git("rev-parse", "HEAD"),
+         "status_before": git("status", "--short"), "diff_sha256": hashlib.sha256(diff).hexdigest(),
+-        "source_files": {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)},
++        "source_files": source_hashes(),
+         "configuration": config, "seed": args.seed, "scenarios": checks, "event_limit": events,
+         "go_version": subprocess.check_output(["go", "version"], text=True).strip(),
+         "python_version": sys.version, "environment": {k: env[k] for k in ("GOMAXPROCS", "CGO_ENABLED", "SDKROOT") if k in env},
+         "trace_schema": 1, "results": [],
+     }
++    if args.profile == "proofs":
++        manifest["lean_proofs"] = {
++            "build_manifest": str(output / "lean-build/manifest.json"),
++            "toolchain": "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin",
++            "builder": str(HERE / "lean/exact/build.py"),
++            "builder_sha256": sha256(HERE / "lean/exact/build.py"),
++        }
++        manifest["event_limit"] = None
++        manifest["scenarios"] = None
++    if lean:
++        occurrence = ROOT / "chasm/lib/scheduler2/internal/occurrence"
++        inputs = [occurrence / "lean_correspondence_test.go", HERE / "run.py", HERE / "profile.json"]
++        inputs += sorted((occurrence / "testdata").glob("lean_correspondence_*.json"))
++        manifest["lean_correspondence"] = {
++            "oracle": oracle, "replay_version": 2,
++            "rapid_checks_per_property": checks, "rapid_property_count": 2,
++            "inputs": {str(p.relative_to(ROOT)): sha256(p) for p in inputs},
++            "saved_replay_override": None,
++        }
++        manifest["trace_schema"] = 2
++        manifest["event_limit"] = None  # The two properties have different bounds.
++        manifest["environment"]["SCHEDULER2_LEAN_ORACLE"] = oracle["path"]
++        manifest["environment"]["GOFLAGS"] = env.get("GOFLAGS", "")
+     if args.profile not in commands:
+         manifest["result"] = "unsupported"
+-        manifest["reason"] = "Deferred beyond M1; no completed Lean, fuzz target, or load benchmark is claimed"
++        manifest["reason"] = "No implemented command for this fuzz or load benchmark profile; no passing evidence is claimed"
+         (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+         return 1
+     passed = True
+@@ -102,8 +179,46 @@ def main():
+             code, outcome = None, "blocked"
+             with log.open("a") as stream:
+                 stream.write(str(exc) + "\n")
++        if lean:
++            lines = log.read_text().splitlines()
++            missing = [name for name in config["lean_correspondence"]["required_tests"]
++                if not any(line.startswith("--- PASS: " + name + " ") for line in lines)]
++            manifest["lean_correspondence"]["missing_required_tests"] = missing
++            if missing:
++                outcome = "failed"
+         passed &= outcome == "passed"
+         manifest["results"].append({"command": command, "exit_code": code, "result": outcome, "seconds": time.monotonic() - start, "log": str(log)})
++    if lean:
++        # Fail closed if evidence inputs or the selected binary drift during a run.
++        try:
++            oracle_after = oracle_metadata(args.oracle, args.oracle_manifest)
++            inputs_after = {str(p.relative_to(ROOT)): sha256(p) for p in inputs}
++            manifest["source_files_after"] = source_hashes()
++            source_unchanged = manifest["source_files_after"] == manifest["source_files"]
++            unchanged = source_unchanged and oracle_after == oracle and inputs_after == manifest["lean_correspondence"]["inputs"]
++            manifest["lean_correspondence"]["production_sources_unchanged"] = source_unchanged
++            manifest["lean_correspondence"]["inputs_after"] = inputs_after
++            manifest["lean_correspondence"]["oracle_after"] = oracle_after
++            manifest["lean_correspondence"]["inputs_unchanged"] = unchanged
++            passed &= unchanged
++        except (OSError, ValueError, KeyError, TypeError) as exc:
++            passed = False
++            manifest["lean_correspondence"]["postcheck_error"] = str(exc)
++    if args.profile == "proofs":
++        try:
++            build_manifest = output / "lean-build/manifest.json"
++            build = json.loads(build_manifest.read_text())
++            manifest["lean_proofs"]["build_manifest_sha256"] = sha256(build_manifest)
++            manifest["lean_proofs"]["status"] = build["status"]
++            manifest["lean_proofs"]["sources"] = build["sources"]
++            manifest["lean_proofs"]["sources_after"] = build["sources_after"]
++            manifest["lean_proofs"]["tool_sha256"] = build["tool_sha256"]
++            manifest["lean_proofs"]["lean_version"] = (output / "lean-build/version.log").read_text().strip()
++            manifest["lean_proofs"]["binary_sha256"] = build.get("binary_sha256")
++            passed &= build["status"] == "passed" and build["sources"] == build["sources_after"]
++        except (OSError, ValueError, KeyError, TypeError) as exc:
++            passed = False
++            manifest["lean_proofs"]["metadata_error"] = str(exc)
+     manifest["result"] = "passed" if passed else "failed"
+     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+     print(json.dumps({"profile": args.profile, "result": manifest["result"], "manifest": str(output / "manifest.json")}))
+diff --git a/docs/development/scheduler2/work-items/WI-013.md b/docs/development/scheduler2/work-items/WI-013.md
+index 04f875f7a..7bde12b26 100644
+--- a/docs/development/scheduler2/work-items/WI-013.md
++++ b/docs/development/scheduler2/work-items/WI-013.md
+@@ -1,6 +1,6 @@
+ # WI-013 — Enumeration proofs and executable Go correspondence
+ 
+-Status: ready. Milestone M3; dependencies accepted WI-002 executable/contract and
++Status: accepted (E77–E80). Milestone M3; dependencies accepted WI-002 executable/contract and
+ WI-011/M2. Isolated /private/tmp/sch-redesign-proofs, branch sch-redesign-proofs,
+ base352dafa83. Independent of WI-012 functional setup. Local only.
+ Phase P5.4, P2.5 enumeration portion; properties SP1–SP6, especially SP2/SP3.
+@@ -63,3 +63,37 @@ No production Go semantics change is authorized by a model convenience. Resolve
+ mismatches from the accepted contract and preserve counterexamples. Full SP7
+ boundary-biased DST/calendar coverage and functional/differential API execution
+ remain M3 dependencies if not closed here. M4 requirements are unchanged.
++
++## Current verification
++
++Exact Lean kernel/oracle and tagged Go correspondence driver are implemented in
++progress. Initial driver compiles. First routine comparison run failed solely
++because testing.T.Context was canceled before cleanup, killing the subprocess;
++no semantic mismatch was reported. The harness now owns a bounded context through
++EOF/Wait, and still rejects arbitrary process errors. The initial log is retained;
++a corrected routine run is pending. This is not proof or item acceptance.
++
++Corrected routine and exploration comparisons pass against immutable oracle binary
++6639b8782a8c:384 exhaustive traces, two10000-case generated profiles, saved replay
++and directed boundary/error/control checks. Manifests/logs in evidence/wi013 record
++scope and source identity. Exact guard-neighbor/sensitivity additions and theorem
++completion/review remain required. No M3 acceptance follows from these comparisons.
++
++Independent review found public validity/Peek proof bridges and replacement replay
++incomplete. Replay v2 now names definitions and steps, with saved Update/Rebase
++traces. Negative signed-input/validation-order cases failed build03 as expected;
++contextual parsing fixed in build05, and all current correspondence tests pass
++100-case routine profile. Three production mutants were independently detected,
++shrunk, replayed and restored against build03 before the replay expansion. Evidence
++is retained; final source proof/axiom audit, expanded replay sensitivity and review
++still remain. No M3 acceptance claim.
++
++## Acceptance — 2026-11-11
++
++Build11 proves repaired public validity/existence/completeness/uniqueness and exact
++full-state batching/probe resume/Peek-Dispose, with93 audited exports and separate
++non-author reviews. Source hashes checked. Named proofs/profile routine02 pass; the
++identical runtime binary passes both10000-case properties, directed/exhaustive/saved
++v1/v2 traces, race, tagged lint, and four shrink/replay/restoration mutations.
++Evidence/wi013/checks.json records exact scope, commands and immutable binary reuse.
++No production Go semantic edit. SP7/calendar and full public M3 remain required.

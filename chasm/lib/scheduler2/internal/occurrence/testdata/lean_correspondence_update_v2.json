@@ -1,0 +1,80 @@
+{
+  "version": 2,
+  "definitions": {
+    "initial": {
+      "start": "2024-01-01T00:00:00Z",
+      "span": 4,
+      "periods": [
+        1
+      ],
+      "exclude": [],
+      "jitter_ms": 1700,
+      "seed": "before",
+      "revision": 1
+    },
+    "replacement": {
+      "start": "2024-01-01T00:00:00Z",
+      "span": 4,
+      "periods": [
+        2
+      ],
+      "exclude": [],
+      "jitter_ms": 1700,
+      "seed": "after",
+      "revision": 2
+    }
+  },
+  "steps": [
+    {
+      "op": "begin",
+      "definition": "initial",
+      "expect_success": true,
+      "time": "2023-12-31T23:59:59.999999999Z"
+    },
+    {
+      "op": "peek",
+      "definition": "initial",
+      "expect_success": true,
+      "time": "2024-01-01T00:00:00Z",
+      "probes": 1
+    },
+    {
+      "op": "update",
+      "definition": "replacement",
+      "expect_success": true,
+      "time": "2024-01-01T00:00:01.500000000Z"
+    },
+    {
+      "op": "run",
+      "definition": "replacement",
+      "expect_success": true,
+      "time": "2024-01-01T00:00:08Z",
+      "probes": 1,
+      "outputs": 1
+    },
+    {
+      "op": "run",
+      "definition": "replacement",
+      "expect_success": true,
+      "time": "2024-01-01T00:00:08Z",
+      "probes": 1,
+      "outputs": 1
+    },
+    {
+      "op": "run",
+      "definition": "replacement",
+      "expect_success": true,
+      "time": "2024-01-01T00:00:08Z",
+      "probes": 1,
+      "outputs": 1
+    },
+    {
+      "op": "run",
+      "definition": "replacement",
+      "expect_success": true,
+      "time": "2024-01-01T00:00:08Z",
+      "probes": 1,
+      "outputs": 1
+    }
+  ]
+}

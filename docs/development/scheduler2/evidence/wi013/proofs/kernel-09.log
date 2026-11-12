@@ -1,0 +1,7 @@
+docs/development/scheduler2/lean/exact/Kernel.lean:260:49: warning: This simp argument is unused:
+  List.takeWhile_cons
+
+Hint: Omit it from the simp argument list.
+  simp [done, expected, remaining, hp, L̵i̵s̵t̵.̵t̵a̵k̵e̵W̵h̵i̵l̵e̵_̵c̵o̵n̵s̵,̵ ̵show ¬c.actual ≤ through by omega, eligible]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`

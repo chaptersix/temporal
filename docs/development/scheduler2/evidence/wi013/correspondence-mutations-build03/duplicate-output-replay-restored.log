@@ -1,0 +1,4 @@
+=== RUN   TestLeanCorrespondenceSavedReplay
+--- PASS: TestLeanCorrespondenceSavedReplay (0.03s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.732s

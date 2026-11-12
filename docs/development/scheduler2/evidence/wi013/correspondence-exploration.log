@@ -1,0 +1,16 @@
+=== RUN   TestLeanCorrespondenceExhaustive
+--- PASS: TestLeanCorrespondenceExhaustive (1.28s)
+=== RUN   TestLeanCorrespondenceRapid
+    lean_correspondence_test.go:403: [rapid] OK, passed 10000 tests (5.1263855s)
+--- PASS: TestLeanCorrespondenceRapid (5.13s)
+=== RUN   TestLeanCorrespondenceSavedReplay
+--- PASS: TestLeanCorrespondenceSavedReplay (0.03s)
+=== RUN   TestLeanCorrespondenceControlsAndRejections
+--- PASS: TestLeanCorrespondenceControlsAndRejections (0.03s)
+=== RUN   TestLeanCorrespondenceExactBoundaries
+--- PASS: TestLeanCorrespondenceExactBoundaries (0.03s)
+=== RUN   TestLeanCorrespondenceRapidWindowsAndUpdates
+    lean_correspondence_test.go:591: [rapid] OK, passed 10000 tests (12.398577542s)
+--- PASS: TestLeanCorrespondenceRapidWindowsAndUpdates (12.40s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	19.581s

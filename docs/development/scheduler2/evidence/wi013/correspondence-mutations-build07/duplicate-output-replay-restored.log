@@ -1,0 +1,6 @@
+=== RUN   TestLeanCorrespondenceSavedReplay
+=== RUN   TestLeanCorrespondenceSavedReplay//private/tmp/scheduler2-wi013/correspondence-mutations-build07/duplicate-output-minimized.json
+--- PASS: TestLeanCorrespondenceSavedReplay (0.05s)
+    --- PASS: TestLeanCorrespondenceSavedReplay//private/tmp/scheduler2-wi013/correspondence-mutations-build07/duplicate-output-minimized.json (0.03s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.753s
