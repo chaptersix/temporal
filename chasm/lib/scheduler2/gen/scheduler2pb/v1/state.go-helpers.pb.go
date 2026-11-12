@@ -895,6 +895,154 @@ func (this *PublicCompletedOperation) Equal(that interface{}) bool {
 	return proto.Equal(this, that1)
 }
 
+// Marshal an object of type CalendarPreparationState to the protobuf v3 wire format
+func (val *CalendarPreparationState) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type CalendarPreparationState from the protobuf v3 wire format
+func (val *CalendarPreparationState) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *CalendarPreparationState) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two CalendarPreparationState values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *CalendarPreparationState) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *CalendarPreparationState
+	switch t := that.(type) {
+	case *CalendarPreparationState:
+		that1 = t
+	case CalendarPreparationState:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type CalendarPreparationCursor to the protobuf v3 wire format
+func (val *CalendarPreparationCursor) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type CalendarPreparationCursor from the protobuf v3 wire format
+func (val *CalendarPreparationCursor) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *CalendarPreparationCursor) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two CalendarPreparationCursor values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *CalendarPreparationCursor) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *CalendarPreparationCursor
+	switch t := that.(type) {
+	case *CalendarPreparationCursor:
+		that1 = t
+	case CalendarPreparationCursor:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type CalendarPreparationRange to the protobuf v3 wire format
+func (val *CalendarPreparationRange) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type CalendarPreparationRange from the protobuf v3 wire format
+func (val *CalendarPreparationRange) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *CalendarPreparationRange) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two CalendarPreparationRange values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *CalendarPreparationRange) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *CalendarPreparationRange
+	switch t := that.(type) {
+	case *CalendarPreparationRange:
+		that1 = t
+	case CalendarPreparationRange:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type CalendarPreparationPage to the protobuf v3 wire format
+func (val *CalendarPreparationPage) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type CalendarPreparationPage from the protobuf v3 wire format
+func (val *CalendarPreparationPage) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *CalendarPreparationPage) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two CalendarPreparationPage values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *CalendarPreparationPage) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *CalendarPreparationPage
+	switch t := that.(type) {
+	case *CalendarPreparationPage:
+		that1 = t
+	case CalendarPreparationPage:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
 var (
 	Phase_shorthandValue = map[string]int32{
 		"Unspecified": 0,

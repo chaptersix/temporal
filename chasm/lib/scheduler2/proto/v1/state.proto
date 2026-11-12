@@ -36,7 +36,8 @@ message RootState {
   bool has_generator = 11;
   // Policy applies to newly arriving automatic occurrences.
   temporal.api.enums.v1.ScheduleOverlapPolicy policy = 12;
-  // Queue holds at most four waiting occurrence identities without payloads.
+  // Queue holds waiting occurrence identities without payloads: the internal profile caps four;
+  // public configured capacity may retain a larger backlog pending WI-018 indexed storage.
   repeated QueuedOccurrence queue = 13;
   // BufferDropped counts automatic arrivals rejected by the bounded buffer policy.
   int64 buffer_dropped = 14;
@@ -52,7 +53,8 @@ message RootState {
   string blocking_operation_id = 19;
   // CapacityDropped counts new automatic arrivals dropped at operation capacity.
   int64 capacity_dropped = 20;
-  // PendingStarts validates bounded start tasks without loading operation records.
+  // PendingStarts validates start tasks without loading operation records. The finite internal
+  // profile is bounded; public backlog-sized tasks await the WI-018 dispatcher conversion.
   map<string, int64> pending_starts = 21;
   // OverlapSuperseded counts unadmitted selected candidates replaced by overlap policy.
   int64 overlap_superseded = 22;
@@ -457,4 +459,43 @@ message PublicAction {
 message PublicCompletedOperation {
   string operation_id = 1;
   google.protobuf.Timestamp close_time = 2;
+}
+
+// CalendarPreparationState owns one unselected calendar preparation revision.
+message CalendarPreparationState {
+  int64 revision = 1;
+  bytes source_id = 2;
+  // Exactly seven counts, ordered second/minute/hour/day/month/weekday/year.
+  repeated uint32 range_counts = 3;
+  uint64 installed_pages = 4;
+  uint64 total_pages = 5;
+  CalendarPreparationCursor cursor = 6;
+}
+
+// CalendarPreparationCursor is the durable value-only mask compiler continuation.
+message CalendarPreparationCursor {
+  bytes source_id = 1;
+  uint32 field = 2;
+  uint32 range = 3;
+  int32 next = 4;
+  bool in_range = 5;
+  // Exactly six fixed field masks and two explicit-year mask words.
+  repeated uint64 field_masks = 6;
+  repeated uint64 year_masks = 7;
+  bool all_years = 8;
+  bool done = 9;
+}
+
+message CalendarPreparationRange {
+  int32 start = 1;
+  int32 end = 2;
+  int32 step = 3;
+}
+
+// CalendarPreparationPage contains at most sixteen canonical range values.
+message CalendarPreparationPage {
+  bytes source_id = 1;
+  uint32 field = 2;
+  uint32 page = 3;
+  repeated CalendarPreparationRange ranges = 4;
 }
