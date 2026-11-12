@@ -295,19 +295,18 @@ func newDriverScaffold(t chasmtest.TB, opts ...DriverOption) (*Driver, *driverCo
 			}, nil
 		}).AnyTimes()
 
-	specProcessor := NewRealSpecProcessor(ctrl, logger)
-
-	registry := chasm.NewRegistry(logger)
-	if err := registry.Register(&chasm.CoreLibrary{}); err != nil {
-		t.Fatalf("failed to register core library: %v", err)
-	}
 	metricsHandler := metricstest.NewCaptureHandler()
 	capture := metricsHandler.StartCapture()
-	if err := registry.Register(NewTestLibrary(cfg.config, logger, metricsHandler, ts, specProcessor, frontend, history)); err != nil {
-		t.Fatalf("failed to register scheduler library: %v", err)
-	}
-
-	engine := chasmtest.NewEngine(t, registry, chasmtest.WithTimeSource(ts))
+	base := NewEngine(t,
+		WithLogger(logger),
+		WithSchedulerConfig(cfg.config),
+		WithTimeSource(ts),
+		WithInvokerTimeSource(ts),
+		WithInvokerMetrics(metricsHandler),
+		WithClients(frontend, history),
+	)
+	engine := base.Engine
+	registry := base.Registry
 
 	d := &Driver{
 		recordCalls: make(chan *RecordCall),

@@ -7,15 +7,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	commonpb "go.temporal.io/api/common/v1"
 	schedulepb "go.temporal.io/api/schedule/v1"
-	workflowpb "go.temporal.io/api/workflow/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/chasmtest"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
+	"go.temporal.io/server/chasm/lib/scheduler/schedulertest"
 	"go.temporal.io/server/common/backoff"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/log"
@@ -25,115 +24,48 @@ import (
 	"go.temporal.io/server/service/history/tasks"
 	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 	"go.uber.org/mock/gomock"
-	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
-	namespace   = "ns"
-	namespaceID = "ns-id"
-	scheduleID  = "sched-id"
+	namespace   = schedulertest.Namespace
+	namespaceID = schedulertest.NamespaceID
+	scheduleID  = schedulertest.ScheduleID
 
-	defaultInterval      = 1 * time.Minute
-	defaultCatchupWindow = 5 * time.Minute
+	defaultInterval      = schedulertest.DefaultInterval
+	defaultCatchupWindow = schedulertest.DefaultCatchupWindow
 )
 
 // newLegacySpecBuilder builds a legacy SpecBuilder with the given warn/max compute-limit bounds.
 // A value of 0 means "use the default" (GetNextTime treats a non-positive bound as its default).
 func newLegacySpecBuilder(warnIter, maxIter int) *legacyscheduler.SpecBuilder {
-	return legacyscheduler.NewSpecBuilder(func() int { return warnIter }, func() int { return maxIter })
+	return schedulertest.NewSpecBuilder(warnIter, maxIter)
 }
 
 // defaultSchedule returns a protobuf definition for a schedule matching this
 // package's other testing defaults.
 func defaultSchedule() *schedulepb.Schedule {
-	return &schedulepb.Schedule{
-		Spec: &schedulepb.ScheduleSpec{
-			Interval: []*schedulepb.IntervalSpec{
-				{
-					Interval: durationpb.New(defaultInterval),
-					Phase:    durationpb.New(0),
-				},
-			},
-		},
-		Action: &schedulepb.ScheduleAction{
-			Action: &schedulepb.ScheduleAction_StartWorkflow{
-				StartWorkflow: &workflowpb.NewWorkflowExecutionInfo{
-					WorkflowId:   "scheduled-wf",
-					WorkflowType: &commonpb.WorkflowType{Name: "scheduled-wf-type"},
-				},
-			},
-		},
-		Policies: &schedulepb.SchedulePolicies{
-			CatchupWindow: durationpb.New(defaultCatchupWindow),
-		},
-		State: &schedulepb.ScheduleState{
-			Paused:           false,
-			LimitedActions:   false,
-			RemainingActions: 0,
-		},
-	}
+	return schedulertest.DefaultSchedule()
 }
 
+// defaultConfig is the shared default config with the production-style jittered
+// exponential retry policy. The lifecycle harness swaps in a deterministic one
+// so that rapid replays a failure identically; these tests never needed that.
 func defaultConfig() *scheduler.Config {
-	return &scheduler.Config{
-		Tweakables: func(_ string) scheduler.Tweakables {
-			return scheduler.DefaultTweakables
-		},
-		ServiceCallTimeout: func() time.Duration {
-			return 5 * time.Second
-		},
-		EncodeInternalTokenWithEnvelope: func(string) bool {
-			return true
-		},
-		RetryPolicy: func() backoff.RetryPolicy {
-			return backoff.NewExponentialRetryPolicy(1 * time.Second)
-		},
+	cfg := schedulertest.DefaultConfig()
+	cfg.RetryPolicy = func() backoff.RetryPolicy {
+		return backoff.NewExponentialRetryPolicy(1 * time.Second)
 	}
+	return cfg
 }
 
 func newTestLibrary(logger log.Logger, specProcessor scheduler.SpecProcessor) *scheduler.Library {
-	config := defaultConfig()
-	specBuilder := newLegacySpecBuilder(0, 0)
-	invokerOpts := scheduler.InvokerTaskHandlerOptions{
-		Config:         config,
-		MetricsHandler: metrics.NoopMetricsHandler,
-		BaseLogger:     logger,
-		SpecProcessor:  specProcessor,
-	}
-	return scheduler.NewLibrary(
-		config,
-		nil,
-		scheduler.NewSchedulerIdleTaskHandler(scheduler.SchedulerIdleTaskHandlerOptions{
-			Config:         config,
-			MetricsHandler: metrics.NoopMetricsHandler,
-			BaseLogger:     logger,
-		}),
-		scheduler.NewSchedulerCallbacksTaskHandler(scheduler.SchedulerCallbacksTaskHandlerOptions{
-			Config:         config,
-			MetricsHandler: metrics.NoopMetricsHandler,
-		}),
-		scheduler.NewGeneratorTaskHandler(scheduler.GeneratorTaskHandlerOptions{
-			Config:         config,
-			MetricsHandler: metrics.NoopMetricsHandler,
-			BaseLogger:     logger,
-			SpecProcessor:  specProcessor,
-			SpecBuilder:    specBuilder,
-		}),
-		scheduler.NewInvokerExecuteTaskHandler(invokerOpts),
-		scheduler.NewInvokerProcessBufferTaskHandler(invokerOpts),
-		scheduler.NewBackfillerTaskHandler(scheduler.BackfillerTaskHandlerOptions{
-			Config:         config,
-			MetricsHandler: metrics.NoopMetricsHandler,
-			BaseLogger:     logger,
-			SpecProcessor:  specProcessor,
-		}),
-		scheduler.NewSchedulerMigrateToWorkflowTaskHandler(scheduler.SchedulerMigrateToWorkflowTaskHandlerOptions{
-			Config:         config,
-			MetricsHandler: metrics.NoopMetricsHandler,
-			BaseLogger:     logger,
-		}),
-	)
+	return schedulertest.NewTestLibrary(schedulertest.LibraryOptions{
+		Config:        defaultConfig(),
+		Logger:        logger,
+		SpecProcessor: specProcessor,
+		SpecBuilder:   newLegacySpecBuilder(0, 0),
+	})
 }
 
 // testEnv holds all components needed for scheduler tests.
@@ -201,17 +133,7 @@ func expiredSchedule(now time.Time) *schedulepb.Schedule {
 
 // newRealSpecProcessor creates a real SpecProcessor for tests.
 func newRealSpecProcessor(ctrl *gomock.Controller, logger log.Logger) scheduler.SpecProcessor {
-	mockMetrics := metrics.NewMockHandler(ctrl)
-	mockMetrics.EXPECT().Counter(gomock.Any()).Return(metrics.NoopCounterMetricFunc).AnyTimes()
-	mockMetrics.EXPECT().WithTags(gomock.Any()).Return(mockMetrics).AnyTimes()
-	mockMetrics.EXPECT().Timer(gomock.Any()).Return(metrics.NoopTimerMetricFunc).AnyTimes()
-
-	return scheduler.NewSpecProcessor(
-		defaultConfig(),
-		mockMetrics,
-		logger,
-		newLegacySpecBuilder(0, 0),
-	)
+	return schedulertest.NewSpecProcessor(ctrl, logger, newLegacySpecBuilder(0, 0))
 }
 
 // engineTestConfig holds configuration options for newTestEngineContext.
@@ -237,7 +159,6 @@ func withEngineSpecProcessor(sp scheduler.SpecProcessor) engineTestOption {
 func withEngineTimeSource(ts *clock.EventTimeSource) engineTestOption {
 	return func(c *engineTestConfig) {
 		c.timeSource = ts
-		c.engineOpts = append(c.engineOpts, chasmtest.WithTimeSource(ts))
 	}
 }
 
@@ -268,28 +189,37 @@ func newTestEngineContextFromConfig(
 	logger log.Logger,
 	config *engineTestConfig,
 ) (*chasmtest.Engine, context.Context) {
-	specProcessor := config.specProcessor
-	if specProcessor == nil {
-		specProcessor = newRealSpecProcessor(gomock.NewController(t), logger)
+	base := newBaseEngine(t, logger, config)
+	return base.Engine, base.Ctx
+}
+
+// newBaseEngine builds the shared scheduler engine with this package's config,
+// spec builder and stuckness invariants.
+func newBaseEngine(t *testing.T, logger log.Logger, config *engineTestConfig) *schedulertest.SchedulerEngine {
+	opts := []schedulertest.Option{
+		schedulertest.WithLogger(logger),
+		schedulertest.WithSchedulerConfig(defaultConfig()),
+		schedulertest.WithSpecBuilder(newLegacySpecBuilder(0, 0)),
+		schedulertest.WithEngineOptions(config.engineOpts...),
+		schedulertest.WithSchedulerInvariant(func(t chasmtest.TB, registry *chasm.Registry, node *chasm.Node, sched *scheduler.Scheduler) {
+			requireNotStuck(t, node, sched)
+			requireIdleCloseTimeBacked(t, registry, node, sched)
+		}),
 	}
-
-	registry := chasm.NewRegistry(logger)
-	require.NoError(t, registry.Register(&chasm.CoreLibrary{}))
-	require.NoError(t, registry.Register(newTestLibrary(logger, specProcessor)))
-
-	config.engineOpts = append(config.engineOpts, chasmtest.WithInvariantCheck(
-		func(t chasmtest.TB, node *chasm.Node, root chasm.RootComponent) {
-			requireValidSchedulerState(t, registry, node, root)
-		},
-	))
-	engine := chasmtest.NewEngine(t, registry, config.engineOpts...)
-	return engine, chasm.NewEngineContext(context.Background(), engine)
+	if config.specProcessor != nil {
+		opts = append(opts, schedulertest.WithSpecProcessor(config.specProcessor))
+	}
+	if config.timeSource != nil {
+		opts = append(opts, schedulertest.WithTimeSource(config.timeSource))
+	}
+	return schedulertest.NewEngine(t, opts...)
 }
 
 // schedulerTestEngine bundles a CHASM test engine, a created Scheduler root
 // component, and convenience accessors, for tests that drive a Scheduler
 // through its actual task handlers rather than the newTestEnv rapid harness.
 type schedulerTestEngine struct {
+	base       *schedulertest.SchedulerEngine
 	engine     *chasmtest.Engine
 	engineCtx  context.Context
 	rootRef    chasm.ComponentRef
@@ -313,14 +243,9 @@ func newSchedulerTestEngine(
 	if config.timeSource == nil {
 		config.timeSource = clock.NewEventTimeSource()
 		config.timeSource.Update(time.Now())
-		config.engineOpts = append(config.engineOpts, chasmtest.WithTimeSource(config.timeSource))
 	}
-	engine, engineCtx := newTestEngineContextFromConfig(t, logger, config)
-	rootRef := chasm.NewComponentRef[*scheduler.Scheduler](chasm.ExecutionKey{
-		NamespaceID: namespaceID,
-		BusinessID:  scheduleID,
-	})
-	_, err := scheduler.NewTestHandler(logger).CreateSchedule(engineCtx, &schedulerpb.CreateScheduleRequest{
+	base := newBaseEngine(t, logger, config)
+	_, err := scheduler.NewTestHandler(logger).CreateSchedule(base.Ctx, &schedulerpb.CreateScheduleRequest{
 		NamespaceId: namespaceID,
 		FrontendRequest: &workflowservice.CreateScheduleRequest{
 			Namespace:  namespace,
@@ -331,9 +256,10 @@ func newSchedulerTestEngine(
 	})
 	require.NoError(t, err)
 	return &schedulerTestEngine{
-		engine:     engine,
-		engineCtx:  engineCtx,
-		rootRef:    rootRef,
+		base:       base,
+		engine:     base.Engine,
+		engineCtx:  base.Ctx,
+		rootRef:    base.Ref,
 		logger:     logger,
 		timeSource: config.timeSource,
 	}
@@ -344,15 +270,7 @@ func newSchedulerTestEngine(
 func (e *schedulerTestEngine) updateScheduler(
 	update func(*scheduler.Scheduler, chasm.MutableContext) error,
 ) error {
-	_, _, err := chasm.UpdateComponent(
-		e.engineCtx,
-		e.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.MutableContext, _ struct{}) (struct{}, error) {
-			return struct{}{}, update(s, ctx)
-		},
-		struct{}{},
-	)
-	return err
+	return e.base.Update(update)
 }
 
 // readScheduler runs read against the Scheduler root component through the
@@ -360,15 +278,7 @@ func (e *schedulerTestEngine) updateScheduler(
 func (e *schedulerTestEngine) readScheduler(
 	read func(*scheduler.Scheduler, chasm.Context) error,
 ) error {
-	_, err := chasm.ReadComponent(
-		e.engineCtx,
-		e.rootRef,
-		func(s *scheduler.Scheduler, ctx chasm.Context, _ struct{}) (struct{}, error) {
-			return struct{}{}, read(s, ctx)
-		},
-		struct{}{},
-	)
-	return err
+	return e.base.Read(read)
 }
 
 // newTestEnv creates a new test environment with the given options.

@@ -6,9 +6,11 @@
 // stuck without a task to drive the next state").
 //
 // It deliberately lives in a non-test package so that property tests
-// (pgregory.net/rapid) and the V1<->V2 migration round-trip test can import the
-// driver. The helpers below mirror chasm/lib/scheduler/helper_test.go, but are
-// exported and accept the mock clients the side-effect task handlers need.
+// (pgregory.net/rapid), the V1<->V2 migration round-trip test and the unit tests
+// in package scheduler_test can all import it. It is the single home of the
+// scheduler fixtures (default schedule and config, spec processor, library
+// wiring) and of [SchedulerEngine], the typed wrapper around a chasmtest engine
+// that helper_test.go and [Driver] are both built on.
 package schedulertest
 
 import (
@@ -98,51 +100,84 @@ func (deterministicRetryPolicy) ComputeNextDelay(_ time.Duration, numAttempts in
 
 var _ backoff.RetryPolicy = deterministicRetryPolicy{}
 
-// NewRealSpecProcessor builds a real SpecProcessor with no-op metrics, matching
-// production spec processing so generated buffered starts and next-times are
-// realistic.
-func NewRealSpecProcessor(ctrl *gomock.Controller, logger log.Logger) scheduler.SpecProcessor {
+// NewSpecBuilder returns a legacy SpecBuilder with the given warn/max compute-limit
+// bounds. A value of 0 means "use the default": GetNextTime treats a non-positive
+// warn bound as its default and a non-positive max bound as unlimited.
+func NewSpecBuilder(warnIter, maxIter int) *legacyscheduler.SpecBuilder {
+	return legacyscheduler.NewSpecBuilder(func() int { return warnIter }, func() int { return maxIter })
+}
+
+// DefaultSpecBuilder returns a SpecBuilder bounded by the production dynamic
+// config defaults.
+func DefaultSpecBuilder() *legacyscheduler.SpecBuilder {
+	return legacyscheduler.NewSpecBuilder(
+		dynamicconfig.SchedulerSpecWarnIterations.Get(dynamicconfig.NewNoopCollection()),
+		dynamicconfig.SchedulerSpecMaxIterations.Get(dynamicconfig.NewNoopCollection()),
+	)
+}
+
+// NewSpecProcessor builds a real SpecProcessor over builder with no-op metrics,
+// matching production spec processing so generated buffered starts and
+// next-times are realistic.
+func NewSpecProcessor(ctrl *gomock.Controller, logger log.Logger, builder *legacyscheduler.SpecBuilder) scheduler.SpecProcessor {
 	mockMetrics := metrics.NewMockHandler(ctrl)
 	mockMetrics.EXPECT().Counter(gomock.Any()).Return(metrics.NoopCounterMetricFunc).AnyTimes()
 	mockMetrics.EXPECT().WithTags(gomock.Any()).Return(mockMetrics).AnyTimes()
 	mockMetrics.EXPECT().Timer(gomock.Any()).Return(metrics.NoopTimerMetricFunc).AnyTimes()
 
-	return scheduler.NewSpecProcessor(
-		DefaultConfig(),
-		mockMetrics,
-		logger,
-		legacyscheduler.NewSpecBuilder(
-			dynamicconfig.SchedulerSpecWarnIterations.Get(dynamicconfig.NewNoopCollection()),
-			dynamicconfig.SchedulerSpecMaxIterations.Get(dynamicconfig.NewNoopCollection()),
-		),
-	)
+	return scheduler.NewSpecProcessor(DefaultConfig(), mockMetrics, logger, builder)
+}
+
+// NewRealSpecProcessor is NewSpecProcessor over [DefaultSpecBuilder].
+func NewRealSpecProcessor(ctrl *gomock.Controller, logger log.Logger) scheduler.SpecProcessor {
+	return NewSpecProcessor(ctrl, logger, DefaultSpecBuilder())
+}
+
+// LibraryOptions wires a scheduler Library. Zero values select the defaults
+// noted on each field.
+type LibraryOptions struct {
+	// Config defaults to [DefaultConfig].
+	Config *scheduler.Config
+	Logger log.Logger
+	// MetricsHandler is given to the invoker task handlers; the other handlers
+	// always use the no-op handler. Defaults to the no-op handler.
+	MetricsHandler metrics.Handler
+	// TimeSource stamps StartTime in the invoker. Nil leaves the handler's
+	// default (real time).
+	TimeSource    clock.TimeSource
+	SpecProcessor scheduler.SpecProcessor
+	// SpecBuilder defaults to [DefaultSpecBuilder].
+	SpecBuilder *legacyscheduler.SpecBuilder
+	// FrontendClient and HistoryClient back the side-effect task handlers
+	// (execute/callbacks/migrate). Nil unless the test exercises those paths.
+	FrontendClient workflowservice.WorkflowServiceClient
+	HistoryClient  resource.HistoryClient
 }
 
 // NewTestLibrary builds a scheduler Library with all task handlers wired to the
-// supplied spec processor and mock clients. The clients back the side-effect
-// task handlers (execute/callbacks/migrate); pass mocks whose StartWorkflow /
-// Terminate / Cancel expectations the test controls.
-func NewTestLibrary(
-	config *scheduler.Config,
-	logger log.Logger,
-	metricsHandler metrics.Handler,
-	timeSource clock.TimeSource,
-	specProcessor scheduler.SpecProcessor,
-	frontendClient workflowservice.WorkflowServiceClient,
-	historyClient resource.HistoryClient,
-) *scheduler.Library {
-	specBuilder := legacyscheduler.NewSpecBuilder(
-		dynamicconfig.SchedulerSpecWarnIterations.Get(dynamicconfig.NewNoopCollection()),
-		dynamicconfig.SchedulerSpecMaxIterations.Get(dynamicconfig.NewNoopCollection()),
-	)
+// supplied options.
+func NewTestLibrary(o LibraryOptions) *scheduler.Library {
+	config := o.Config
+	if config == nil {
+		config = DefaultConfig()
+	}
+	invokerMetrics := o.MetricsHandler
+	if invokerMetrics == nil {
+		invokerMetrics = metrics.NoopMetricsHandler
+	}
+	specBuilder := o.SpecBuilder
+	if specBuilder == nil {
+		specBuilder = DefaultSpecBuilder()
+	}
+	logger := o.Logger
 	invokerOpts := scheduler.InvokerTaskHandlerOptions{
 		Config:         config,
-		MetricsHandler: metricsHandler,
+		MetricsHandler: invokerMetrics,
 		BaseLogger:     logger,
-		SpecProcessor:  specProcessor,
-		HistoryClient:  historyClient,
-		FrontendClient: frontendClient,
-		TimeSource:     timeSource,
+		SpecProcessor:  o.SpecProcessor,
+		HistoryClient:  o.HistoryClient,
+		FrontendClient: o.FrontendClient,
+		TimeSource:     o.TimeSource,
 	}
 	return scheduler.NewLibrary(
 		config,
@@ -154,14 +189,15 @@ func NewTestLibrary(
 		}),
 		scheduler.NewSchedulerCallbacksTaskHandler(scheduler.SchedulerCallbacksTaskHandlerOptions{
 			Config:         config,
-			HistoryClient:  historyClient,
-			FrontendClient: frontendClient,
+			MetricsHandler: metrics.NoopMetricsHandler,
+			HistoryClient:  o.HistoryClient,
+			FrontendClient: o.FrontendClient,
 		}),
 		scheduler.NewGeneratorTaskHandler(scheduler.GeneratorTaskHandlerOptions{
 			Config:         config,
 			MetricsHandler: metrics.NoopMetricsHandler,
 			BaseLogger:     logger,
-			SpecProcessor:  specProcessor,
+			SpecProcessor:  o.SpecProcessor,
 			SpecBuilder:    specBuilder,
 		}),
 		scheduler.NewInvokerExecuteTaskHandler(invokerOpts),
@@ -170,13 +206,13 @@ func NewTestLibrary(
 			Config:         config,
 			MetricsHandler: metrics.NoopMetricsHandler,
 			BaseLogger:     logger,
-			SpecProcessor:  specProcessor,
+			SpecProcessor:  o.SpecProcessor,
 		}),
 		scheduler.NewSchedulerMigrateToWorkflowTaskHandler(scheduler.SchedulerMigrateToWorkflowTaskHandlerOptions{
 			Config:           config,
 			MetricsHandler:   metrics.NoopMetricsHandler,
 			BaseLogger:       logger,
-			HistoryClient:    historyClient,
+			HistoryClient:    o.HistoryClient,
 			SaMapperProvider: searchattribute.NewTestMapperProvider(nil),
 		}),
 	)
