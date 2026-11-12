@@ -2543,6 +2543,11 @@ func (adh *AdminHandler) migrateScheduleToWorkflow(
 	request *adminservice.MigrateScheduleRequest,
 	namespaceID string,
 ) (*adminservice.MigrateScheduleResponse, error) {
+	// The scheduler stores this ID and uses it to start the V1 workflow.
+	migrationRequestID := request.GetRequestId()
+	if migrationRequestID == "" {
+		migrationRequestID = uuid.NewString()
+	}
 	workflowID := scheduler.WorkflowIDPrefix + request.GetScheduleId()
 	descResp, err := adh.historyClient.DescribeWorkflowExecution(ctx, &historyservice.DescribeWorkflowExecutionRequest{
 		NamespaceId: namespaceID,
@@ -2587,7 +2592,7 @@ func (adh *AdminHandler) migrateScheduleToWorkflow(
 			NamespaceId: namespaceID,
 			ScheduleId:  request.GetScheduleId(),
 			Identity:    request.GetIdentity(),
-			RequestId:   request.GetRequestId(),
+			RequestId:   migrationRequestID,
 		},
 	)
 	if err != nil {

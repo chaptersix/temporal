@@ -324,6 +324,33 @@ jobs:
           path: ${{ env.LEAK_OUTPUT_DIR }}
           if-no-files-found: ignore
 
+  property-test:
+    name: Property test
+    needs: [pre-build]
+    runs-on: ubuntu-24.04-arm
+    env:
+      GITHUB_TIMEOUT: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ env.COMMIT }}
+
+      - name: Prepare Go
+        uses: ./.github/actions/prepare-go
+
+      - name: Run property tests
+        timeout-minutes: ${{ fromJSON(env.GITHUB_TIMEOUT) }}
+        run: make PROPERTY_TEST_TIMEOUT="$(("$GITHUB_TIMEOUT" - 1))m" property-test
+
+      - name: Upload failing cases
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: property-test-failfiles
+          path: "**/testdata/rapid/**/*.fail"
+          if-no-files-found: ignore
+
   integration-test:
     name: Integration test
     needs: [pre-build]
@@ -511,6 +538,7 @@ jobs:
     needs:
       - misc-checks
       - unit-test
+      - property-test
       - integration-test
       - functional-test
     runs-on: ubuntu-latest

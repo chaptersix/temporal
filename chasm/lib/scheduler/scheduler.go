@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/google/uuid"
 	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	schedulepb "go.temporal.io/api/schedule/v1"
@@ -115,7 +116,9 @@ var (
 	ErrSentinel              = serviceerror.NewNotFound("schedule is a sentinel")
 	ErrSentinelBlocked       = serviceerror.NewUnavailable("schedule is a sentinel; please retry after sentinel expires")
 	ErrMigrationPending      = serviceerror.NewUnavailable("schedule has a pending migration to workflow; please retry later")
-	ErrTimeSkippingMigration = serviceerror.NewFailedPrecondition("schedule with time skipping cannot migrate to workflow-backed scheduler")
+	// ErrMigrationActionsPending is retryable: the invoker finishes the actions and a later attempt succeeds.
+	ErrMigrationActionsPending = serviceerror.NewUnavailable("schedule has in-flight actions; retry migration after they finish")
+	ErrTimeSkippingMigration   = serviceerror.NewFailedPrecondition("schedule with time skipping cannot migrate to workflow-backed scheduler")
 )
 
 // NewScheduler returns an initialized CHASM scheduler root component.
@@ -325,8 +328,17 @@ func CreateSchedulerFromMigration(
 	sched.Invoker = chasm.NewComponentField(ctx, newInvokerWithState(ctx, state.GetInvokerState()))
 	sched.Generator = chasm.NewComponentField(ctx, newGeneratorWithState(ctx, state.GetGeneratorState()))
 
+	// Backfillers also wait for SchedulerCallbacksTask when it is needed, so they
+	// don't buffer starts against stale running-workflow state.
+	needsCallbacks := slices.ContainsFunc(state.GetInvokerState().GetBufferedStarts(), needsCallback)
 	for backfillID, backfillerState := range state.GetBackfillers() {
-		sched.Backfillers[backfillID] = chasm.NewComponentField(ctx, newBackfillerWithState(ctx, backfillerState))
+		var backfiller *Backfiller
+		if needsCallbacks {
+			backfiller = newBackfillerWithStateWithoutTask(ctx, backfillerState)
+		} else {
+			backfiller = newBackfillerWithState(ctx, backfillerState)
+		}
+		sched.Backfillers[backfillID] = chasm.NewComponentField(ctx, backfiller)
 	}
 
 	visibility, err := chasm.NewVisibilityWithData(ctx, state.GetSearchAttributes(), state.GetMemo())
@@ -337,7 +349,7 @@ func CreateSchedulerFromMigration(
 
 	// Defer generation until SchedulerCallbacksTask resolves stale running-workflow
 	// state; if there are none, generate directly.
-	if slices.ContainsFunc(state.GetInvokerState().GetBufferedStarts(), needsCallback) {
+	if needsCallbacks {
 		ctx.AddTask(sched, chasm.TaskAttributes{}, &schedulerpb.SchedulerCallbacksTask{})
 	} else {
 		sched.Generator.Get(ctx).Generate(ctx)
@@ -879,10 +891,22 @@ func (s *Scheduler) MigrateToWorkflow(
 		return nil, ErrTimeSkippingMigration
 	}
 
+	if !s.Invoker.Get(ctx).canMigrateToWorkflow() {
+		return nil, ErrMigrationActionsPending
+	}
+
+	// The request ID is sent on every start attempt of the destination workflow,
+	// so a retry can recognize its own workflow.
+	requestID := req.GetRequestId()
+	if requestID == "" {
+		requestID = uuid.NewString()
+	}
+
 	// Save pre-migration paused state, mark migration as pending, then pause.
 	s.WorkflowMigration = &schedulerpb.WorkflowMigrationState{
 		PreMigrationPaused: s.Schedule.State.Paused,
 		PreMigrationNotes:  s.Schedule.State.Notes,
+		RequestId:          requestID,
 	}
 	s.Schedule.State.Paused = true
 	s.Schedule.State.Notes = "paused for migration to workflow-backed scheduler"

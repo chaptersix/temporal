@@ -516,6 +516,29 @@ leak-test:
 			-timeout $(LEAK_TIMEOUT) $(TEST_TAG_FLAG) \
 			./tests/leakcheck/ -args -persistenceType=sql -persistenceDriver=sqlite
 
+# Property tests get a dedicated run: more generated cases than the unit-test
+# default, and no retries, so a failing seed is reported instead of retried away.
+# Failing cases are minimized into testdata/rapid/ next to the test.
+# Default: every package with a test file that imports pgregory.net/rapid (the
+# -rapid.checks flag is only defined in test binaries that link rapid, so any
+# other package would fail with "flag provided but not defined").
+PROPERTY_TEST_DIRS    ?= $(patsubst %/,%,$(sort $(dir $(shell grep -l '"pgregory.net/rapid"' $(filter %_test.go,$(filter-out ./common/testx/% ./tests/mixedbrain/%,$(ALL_SRC)))))))
+PROPERTY_TEST_CHECKS  ?= 5000
+PROPERTY_TEST_TIMEOUT ?= 10m
+property-test:
+	@printf $(COLOR) "Run property tests..."
+	CGO_ENABLED=$(TEST_CGO_ENABLED) go test $(PROPERTY_TEST_DIRS) -count=1 \
+		-timeout $(PROPERTY_TEST_TIMEOUT) \
+		$(if $(TEST_RACE_ENABLED),-race,) \
+		$(TEST_TAG_FLAG) \
+		-rapid.checks=$(PROPERTY_TEST_CHECKS) $(TEST_ARGS)
+
+# Mutation checks: each mutates one production file via a go test overlay and
+# requires the named regression test to fail. See cmd/tools/mutationtest.
+mutation-test:
+	@printf $(COLOR) "Run mutation tests..."
+	CGO_ENABLED=$(TEST_CGO_ENABLED) go run ./cmd/tools/mutationtest
+
 verify-test-log:
 	@test -s test.log || (echo "TEST FAILURE: test.log is missing or empty" && exit 1)
 	@grep -q "^ok" test.log || (echo "TEST FAILURE: no passing test found in test.log" && exit 1)

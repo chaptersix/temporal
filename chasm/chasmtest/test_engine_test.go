@@ -50,7 +50,7 @@ func TestTasksArePhysicallyGenerated(t *testing.T) {
 func TestInvariantCheckRunsAfterSuccessfulTransitions(t *testing.T) {
 	var calls []string
 	check := func(name string) chasmtest.InvariantCheck {
-		return func(checkT *testing.T, node *chasm.Node, root chasm.RootComponent) {
+		return func(checkT chasmtest.TB, node *chasm.Node, root chasm.RootComponent) {
 			checkT.Helper()
 			require.Same(checkT, t, checkT)
 			require.IsType(checkT, &tests.PayloadStore{}, root)
@@ -122,7 +122,7 @@ func TestInvariantCheckRunsAfterSuccessfulTransitions(t *testing.T) {
 // sub-components its update adds must become nodes in the tree, not only exist in memory.
 func TestUpdateWithStartSyncsSubComponentsAddedByUpdate(t *testing.T) {
 	var nodePaths []string
-	check := func(_ *testing.T, node *chasm.Node, _ chasm.RootComponent) {
+	check := func(_ chasmtest.TB, node *chasm.Node, _ chasm.RootComponent) {
 		nodePaths = slices.Collect(maps.Keys(node.Snapshot(nil).Nodes))
 	}
 	e, _ := startStoreWithEngineOptions(t, 0, []chasmtest.EngineOption{chasmtest.WithInvariantCheck(check)})
@@ -368,7 +368,7 @@ func TestRecordsCallerPrincipal(t *testing.T) {
 	worker := &commonpb.Principal{Type: "jwt", Name: "worker"}
 
 	var rootAttributes *persistencespb.ChasmComponentAttributes
-	captureRoot := func(_ *testing.T, node *chasm.Node, _ chasm.RootComponent) {
+	captureRoot := func(_ chasmtest.TB, node *chasm.Node, _ chasm.RootComponent) {
 		rootAttributes = node.Snapshot(nil).Nodes[""].GetMetadata().GetComponentAttributes()
 	}
 

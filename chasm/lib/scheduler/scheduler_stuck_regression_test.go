@@ -9,6 +9,7 @@ import (
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler"
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
+	"go.temporal.io/server/chasm/lib/scheduler/schedulertest"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -46,7 +47,7 @@ func TestIdleDeadlineRearmedAfterRecordingStart(t *testing.T) {
 
 	armedDeadline := sched.GetIdleCloseTime()
 	require.NotNil(t, armedDeadline, "precondition: exhausted schedule should arm an idle deadline")
-	require.NotZero(t, idleTaskCount(env.Registry, env.Node), "precondition: an idle task should be armed")
+	require.NotZero(t, schedulertest.IdleTaskCount(env.Registry, env.Node), "precondition: an idle task should be armed")
 
 	// Record the start through the real invoker path.
 	ctx2 := env.MutableContext()
@@ -80,7 +81,7 @@ func TestIdleDeadlineRearmedAfterRecordingStart(t *testing.T) {
 
 	// The schedule must still have a path to closing: a replacement idle task,
 	// armed from the new deadline.
-	require.NotZero(t, idleTaskCount(env.Registry, env.Node),
+	require.NotZero(t, schedulertest.IdleTaskCount(env.Registry, env.Node),
 		"recording a start invalidated the idle task with no replacement armed, while "+
 			"IdleCloseTime still advertises %v: the schedule will never close and the "+
 			"stuck-schedule scanner is told otherwise", sched.GetIdleCloseTime().AsTime())

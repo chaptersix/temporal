@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"sync"
-	"testing"
 	"time"
 
 	enumspb "go.temporal.io/api/enums/v1"
@@ -25,19 +24,30 @@ import (
 )
 
 type (
+	// TB is the subset of [testing.TB] the engine, gomock controllers and
+	// testlogger need. Both *testing.T and *rapid.T satisfy it, so an engine can
+	// be built inside a rapid property and have failures flow through rapid's
+	// shrinking. It is declared here, rather than imported from rapid, so this
+	// package does not depend on rapid.
+	TB interface {
+		testlogger.CleanupCapableT
+		Errorf(format string, args ...any)
+		Context() context.Context
+	}
+
 	EngineOption func(*Engine)
 
 	// InvariantCheck validates an execution after a successful transition. The
 	// node is clean, so checks may inspect its snapshot without affecting the
 	// state being validated.
-	InvariantCheck func(*testing.T, *chasm.Node, chasm.RootComponent)
+	InvariantCheck func(TB, *chasm.Node, chasm.RootComponent)
 
 	// Engine is a lightweight in memory CHASM engine for unit tests. It implements
 	// [chasm.Engine] and supports the full set of conflict and reuse policies, as
 	// well as blocking [PollComponent] with [NotifyExecution], matching the behavior
 	// of the production engine as closely as possible without persistence or shard logic.
 	Engine struct {
-		t          *testing.T
+		t          TB
 		registry   *chasm.Registry
 		logger     log.Logger
 		metrics    metrics.Handler
@@ -107,7 +117,7 @@ var defaultTransitionOptions = chasm.TransitionOptions{
 var _ chasm.Engine = (*Engine)(nil)
 
 func NewEngine(
-	t *testing.T,
+	t TB,
 	registry *chasm.Registry,
 	opts ...EngineOption,
 ) *Engine {

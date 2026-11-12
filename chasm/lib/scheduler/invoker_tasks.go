@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	"go.temporal.io/server/chasm/lib/scheduler/internal"
 	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/metrics"
@@ -44,6 +46,9 @@ type (
 		// the request makes it through metering's interceptor. Because we don't change for
 		// terminate/cancels, we can go directly to history for other service calls.
 		FrontendClient workflowservice.WorkflowServiceClient
+
+		// TimeSource stamps StartTime on started workflows. Defaults to real time.
+		TimeSource clock.TimeSource `optional:"true"`
 	}
 
 	InvokerExecuteTaskHandler struct {
@@ -53,6 +58,7 @@ type (
 		baseLogger     log.Logger
 		historyClient  resource.HistoryClient
 		frontendClient workflowservice.WorkflowServiceClient
+		timeSource     clock.TimeSource
 	}
 
 	InvokerProcessBufferTaskHandler struct {
@@ -108,12 +114,17 @@ const (
 )
 
 func NewInvokerExecuteTaskHandler(opts InvokerTaskHandlerOptions) *InvokerExecuteTaskHandler {
+	timeSource := opts.TimeSource
+	if timeSource == nil {
+		timeSource = clock.NewRealTimeSource()
+	}
 	return &InvokerExecuteTaskHandler{
 		config:         opts.Config,
 		metricsHandler: opts.MetricsHandler,
 		baseLogger:     opts.BaseLogger,
 		historyClient:  opts.HistoryClient,
 		frontendClient: opts.FrontendClient,
+		timeSource:     timeSource,
 	}
 }
 
@@ -234,7 +245,8 @@ func (h *InvokerExecuteTaskHandler) Execute(
 	// Invoker will never have work pending for more than one of these calls (terminate,
 	// cancel, start) at a time, so it isn't sensible to run them in parallel. The
 	// structure below is simply for code simplicity.
-	ictx := h.newInvokerTaskHandlerContext(ctx, scheduler)
+	// One budget is shared by all three phases, so pass the context by pointer.
+	ictx := new(h.newInvokerTaskHandlerContext(ctx, scheduler))
 	result = result.Append(h.terminateWorkflows(ictx, logger, metricsHandler, scheduler, invoker.GetTerminateWorkflows()))
 	result = result.Append(h.cancelWorkflows(ictx, logger, metricsHandler, scheduler, invoker.GetCancelWorkflows()))
 	result = result.Append(h.startWorkflows(
@@ -289,7 +301,7 @@ func (i *invokerTaskHandlerContext) takeNextAction() bool {
 
 // cancelWorkflows does a best-effort attempt to cancel all workflow executions provided in targets.
 func (h *InvokerExecuteTaskHandler) cancelWorkflows(
-	ctx invokerTaskHandlerContext,
+	ctx *invokerTaskHandlerContext,
 	logger log.Logger,
 	metricsHandler metrics.Handler,
 	scheduler *Scheduler,
@@ -331,7 +343,7 @@ func (h *InvokerExecuteTaskHandler) cancelWorkflows(
 
 // terminateWorkflows does a best-effort attempt to terminate all workflow executions provided in targets.
 func (h *InvokerExecuteTaskHandler) terminateWorkflows(
-	ctx invokerTaskHandlerContext,
+	ctx *invokerTaskHandlerContext,
 	logger log.Logger,
 	metricsHandler metrics.Handler,
 	scheduler *Scheduler,
@@ -373,7 +385,7 @@ func (h *InvokerExecuteTaskHandler) terminateWorkflows(
 
 // startWorkflows executes the provided list of starts, returning a result with their outcomes.
 func (h *InvokerExecuteTaskHandler) startWorkflows(
-	ctx invokerTaskHandlerContext,
+	ctx *invokerTaskHandlerContext,
 	logger log.Logger,
 	metricsHandler metrics.Handler,
 	scheduler *Scheduler,
@@ -527,7 +539,14 @@ func (h *InvokerProcessBufferTaskHandler) processBuffer(
 	scheduler *Scheduler,
 ) (result processBufferResult) {
 	runningWorkflows := invoker.runningWorkflowExecutions()
-	isRunning := len(runningWorkflows) > 0
+	// A start that was selected for execution but has no recorded RunId yet still
+	// holds the overlap slot, otherwise a second pass could select another start
+	// before the first StartWorkflowExecution response is recorded.
+	isRunning := len(runningWorkflows) > 0 ||
+		slices.ContainsFunc(invoker.GetBufferedStarts(), func(start *schedulespb.BufferedStart) bool {
+			return start.GetAttempt() > 0 && start.GetCompleted() == nil &&
+				internal.TracksCompletionResult(start.GetOverlapPolicy())
+		})
 	result.missedCatchupByActionRunning = make(map[bool]int64)
 
 	// Processing ignores starts that are already executing or backing off. An existing
@@ -741,7 +760,7 @@ func (h *InvokerExecuteTaskHandler) startWorkflow(
 	if err != nil {
 		return err
 	}
-	actualStartTime := time.Now()
+	actualStartTime := h.timeSource.Now()
 	// Reconstruct virtual time from wall time.
 	actualStartTime = actualStartTime.Add(
 		timeSkippingStatePropagation.GetInitialSkippedDuration().AsDuration(),

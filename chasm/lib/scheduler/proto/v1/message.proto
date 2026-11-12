@@ -68,6 +68,12 @@ message WorkflowMigrationState {
 
   // The schedule's notes before migration was initiated.
   string pre_migration_notes = 2;
+
+  // Request ID used for every StartWorkflowExecution attempt of the destination
+  // V1 workflow. It identifies the destination as created by this migration.
+  // Empty only on migrations persisted before this field existed; the migrate
+  // task assigns one before its first start attempt.
+  string request_id = 3;
 }
 
 // CHASM scheduler's Generator internal state.

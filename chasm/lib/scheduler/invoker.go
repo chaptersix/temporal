@@ -28,6 +28,20 @@ type Invoker struct {
 	EventLog chasm.Field[*EventLog]
 }
 
+// canMigrateToWorkflow reports whether V1 can take over this invoker's work.
+// V1 state has no place for pending cancel/terminate requests or for starts that
+// are ready or retrying, so those would be lost on migration. A start with
+// Attempt > 0 becomes transferable once it records a RunId or a Completed
+// result, or once processing resets its Attempt to 0 or -1.
+func (i *Invoker) canMigrateToWorkflow() bool {
+	if len(i.CancelWorkflows) > 0 || len(i.TerminateWorkflows) > 0 {
+		return false
+	}
+	return !slices.ContainsFunc(i.BufferedStarts, func(start *schedulespb.BufferedStart) bool {
+		return start.GetAttempt() > 0 && start.GetRunId() == "" && start.GetCompleted() == nil
+	})
+}
+
 func (i *Invoker) LifecycleState(ctx chasm.Context) chasm.LifecycleState {
 	return chasm.LifecycleStateRunning
 }
@@ -123,6 +137,18 @@ func (i *Invoker) recordProcessBufferResult(ctx chasm.MutableContext, result *pr
 	i.TerminateWorkflows = append(i.GetTerminateWorkflows(), result.terminateWorkflows...)
 	i.LastProcessedTime = timestamppb.New(ctx.Now(i))
 
+	// A discarded selection cannot produce the completion that would release
+	// deferred work. Reconsider it while each pass removes at least one start.
+	if len(discards) > 0 && !slices.ContainsFunc(starts, func(start *schedulespb.BufferedStart) bool {
+		return start.GetCompleted() == nil && (start.GetRunId() != "" || start.GetAttempt() > 0)
+	}) {
+		for _, start := range starts {
+			if start.GetAttempt() == -1 {
+				start.Attempt = 0
+			}
+		}
+	}
+
 	// Re-arm tasks if this call changed state, or if the LastProcessedTime advance
 	// just unblocked backed-off starts.
 	i.addTasks(ctx)
@@ -197,6 +223,7 @@ func (i *Invoker) recordExecuteResult(
 		}
 		return failed
 	})
+	dropped := removedStarts > 0
 	i.CancelWorkflows = slices.DeleteFunc(i.GetCancelWorkflows(), func(we *commonpb.WorkflowExecution) bool {
 		canceled := canceled[we.RunId]
 		if canceled {
@@ -243,6 +270,12 @@ func (i *Invoker) recordExecuteResult(
 		_, remove := startedUntracked[start.GetRequestId()]
 		return remove
 	})
+	// A selected start holds the overlap slot until its RunId is recorded. Dropping it
+	// produces no completion, and recording its RunId makes it cancelable, so either
+	// way deferred starts must be re-evaluated against the new state.
+	if dropped || newlyStarted > 0 {
+		i.reenableDeferredStarts()
+	}
 	i.getOrCreateEventLog(ctx).LogEvent(ctx,
 		fmt.Sprintf("recordExecuteResult kicked off %d starts, removed %d starts, retried %d starts",
 			newlyStarted,
@@ -304,11 +337,7 @@ func (i *Invoker) recordCompletedAction(
 	// Re-enable deferred starts (Attempt == -1) so they can be re-processed by
 	// ProcessBuffer now that a workflow has completed. This allows the overlap
 	// policy to be re-evaluated.
-	for _, start := range i.BufferedStarts {
-		if start.Attempt == -1 {
-			start.Attempt = 0
-		}
-	}
+	i.reenableDeferredStarts()
 
 	// Update DesiredTime on the first pending start for metrics. DesiredTime is used
 	// to drive action latency between buffered starts (the time it takes between
@@ -331,6 +360,16 @@ func (i *Invoker) recordCompletedAction(
 	i.addTasks(ctx)
 
 	return
+}
+
+// reenableDeferredStarts returns deferred starts (Attempt == -1) to the pending
+// state so the next ProcessBuffer pass re-evaluates their overlap policy.
+func (i *Invoker) reenableDeferredStarts() {
+	for _, start := range i.BufferedStarts {
+		if start.Attempt == -1 {
+			start.Attempt = 0
+		}
+	}
 }
 
 // addTasks adds both ProcessBuffer and Execute tasks as needed. It should be
