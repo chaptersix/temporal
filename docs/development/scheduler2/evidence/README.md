@@ -487,3 +487,15 @@ The clock recovery witness passes both physical delivery orders (final run05,21.
 Checkpoint60ad60b62 adds operation-site counters with disabled production observers and a deterministic ordinary-map witness. At N4/5/1000, each hot mutation visits30/35/5010 iterator nodes and copies8/10/2000 map keys while decoding zero unrelated DATA. Complete serialized node size remains65 bytes (DATA7 bytes); output size alone therefore misses the work violation. Full CHASM tests pass0.494s and required lint passes. Scope and excluded work are recorded in wi018/baseline/README.md.
 
 The opt-in DataMap API/ownership protocol is specified and implementation is assigned, with default traversal unchanged until the separate worklist stage. Dispatch/cleanup review resolves the physical task context deadline and closed-data ownership. Queue index review is testing a monotone automatic-time invariant before accepting any cross-index range bound. Definition preparation must also cover list-preview rebuilds and per-term range expansion. Fixed-width time-key tests pass0.269s; this is a representation prerequisite only. WI018/M3 remain incomplete and M4 measurements remain pending.
+
+### Queue expiry counterexample
+
+The new reducer regression TestBufferClockRollbackAllowsNonPrefixExpiry passes0.275s and scoped normal/minimal lint passes. Three automatic entries with Actual109,102,110 require removing the middle entry at drain110/catchup3 while preserving the last. This rejects the proposed monotone-Actual simplification without changing accepted clock behavior. Evidence: wi018/queue-nonprefix/. A two-generation queue with an atomically published drain predicate and bounded physical cleanup is under design review; no implementation or complexity acceptance yet.
+
+### DataMap and bounded range preparation capability checkpoint
+
+DataMap implements point DATA access with detached ownership, coalesced deltas and transaction/owner checks. Full CHASM suite passes0.435s; independent directed runs pass0.448s/0.415s. Review discovered and repaired delete/reinsert tombstones across multiple synchronization passes. Actual child-only replication, serializer failure with durable reload, nil-library detached reading and unchanged raw-map behavior are covered. Evidence: wi018/datamap/ and independent-datamap-review.md. Default full-tree traversal remains; this capability alone does not close the work bound.
+
+The isolated calendar range compiler uses sixteen-value source pages and at most64 elementary steps per call. Fixed/mixed budget partitions,1025 duplicate ranges, reference UTC candidates, corruption and failed-read rollback checks pass (final0.806s). Review fixes reject invalid reversed endpoints and corrupt fixed masks. It is not wired into persisted scheduling or timezone/candidate evaluation. Evidence: wi018/calendar-preparation/ and independent-preparation-review.md.
+
+Combined required make lint-code-fast passes normal/minimal/vet with zero issues (wi018/combined-lint02.log). A standalone secondary count-trie prototype is undergoing separate review and is not included in these capability acceptance claims. M3 and M4 remain open.

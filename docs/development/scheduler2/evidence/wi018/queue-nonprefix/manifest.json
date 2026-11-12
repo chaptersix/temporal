@@ -1,0 +1,9 @@
+{
+  "source_sha256": {
+    "chasm/lib/scheduler2/internal/decision/queue_index_contract_test.go": "d64253f23f82643d4af01836192fcad3bb63a4690775cccceb59454d32180b51"
+  },
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2/internal/decision -run '^TestBufferClockRollbackAllowsNonPrefixExpiry$' -count=1",
+  "result": "PASS0.275s",
+  "lint": "Scoped make lint-code LINT_CODE_TARGETS=./chasm/lib/scheduler2/internal/decision GOLANGCI_LINT_BASE_REV=HEAD GOLANGCI_LINT_FIX=false passes; initial incorrect variable launched whole-tree lint and was explicitly terminated, not a test failure",
+  "scope": "Reducer counterexample to monotone automatic Actual-time ordering; not a full generator/clock integration witness"
+}

@@ -1,0 +1,16 @@
+{
+  "source_sha256": {
+    "chasm/lib/scheduler2/internal/occurrence/preparation.go": "ed5140387a49c97451796ef033a8829b5364a7526f41f687180a535ae93be110",
+    "chasm/lib/scheduler2/internal/occurrence/preparation_test.go": "7fa0638ca8db261f5805cf5c87744c4f1b4e729b0f6bfeed8a90e2837872c625"
+  },
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2/internal/occurrence -run '^TestCalendarPreparation' -count=1",
+  "result": "final run05 PASS0.806s",
+  "bounds": {
+    "range_page_values": 16,
+    "max_steps_per_call": 64,
+    "page_reads_per_call": "at most steps",
+    "work_step": "one range value or field advance"
+  },
+  "scope": "Standalone value-only source-range preparation; not wired into runtime, no durable serialization or timezone/candidate-loop boundedness claim",
+  "lint": "combined required make lint-code-fast normal/minimal/vet passes; ../combined-lint02.log"
+}
