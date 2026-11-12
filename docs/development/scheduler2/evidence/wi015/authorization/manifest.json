@@ -1,0 +1,13 @@
+{
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 -parallel 4 ./tests -run ^TestSchedule2AuthorizationPrecedesEveryPublicOperation$ -count=1 -timeout=2m",
+  "results": {
+    "auth01": "FAIL1.345s fixture cleanup hit denying adapter; authorization assertions passed; cleanup fixed to delegate normally",
+    "auth02": "PASS1.176s all8 schedule APIs denied before selected dispatch"
+  },
+  "source_sha256": "96e5990f6398659ef044e72b3de021eb17b661bb49538ed9fab3eb6e04459944",
+  "logs_sha256": {
+    "auth01": "692a9befb99473c4620e97e5da5d0e901515993e52053a942fd8aa62ba685d4b",
+    "auth02": "f1c63c71ece3f3bce98c9379804d47cf913431011d6fbe12642da5e5f2070ad7"
+  },
+  "scope": "Real frontend authorization interceptor; explicit selected execution backend wrapper increments on any dispatch while deny policy active. Valid requests cover Create,Describe,Delete,List,Count,Update,Patch,MatchingTimes. No assertion that denial creates a persisted root; authorized creation identity covered separately. Cleanup restores authorization and delegates ordinary adapter methods."
+}

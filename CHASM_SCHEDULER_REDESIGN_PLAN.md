@@ -990,3 +990,11 @@ M3 remains open. The read-only remaining-public-contract-audit identifies fixed4
 public capacity and timestamp-domain mismatches. Configured capacity semantics,
 full source-backed timestamp acceptance, and actual close/recreate stale physical
 delivery are assigned for implementation; M4 load/state-growth remains pending.
+
+### M4 workload preparation
+
+[WI-017](docs/development/scheduler2/work-items/WI-017.md) specifies the remaining
+P6 workload, measurement and independent-review obligations. It is a draft with
+WI-015/M3 acceptance as its implementation dependency; no load result or milestone
+completion is claimed. It preserves all six workload families, matched baseline/10x
+offered traces, physical cost/recovery evidence and unsupported migration boundary.
