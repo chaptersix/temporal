@@ -150,7 +150,7 @@ Phases describe coverage areas, not a requirement to finish all modeling before 
 | M0 | Workspace provenance, first-slice contract, early CHASM guarantees | passed | E4–E8 |
 | M1 | Independently registered local component surviving accepted-start/lost-ack/restart/early-completion traces with selective loading | passed | E9–E16; bounded scope and trusted boundaries below |
 | M2 | Complete policy, update, backfill, and callback behavior with model mappings | passed | WI-002–WI-011 E17–E71; current mappings, atomic updates, numeric boundaries and independent review |
-| M3 | Differential API and shared functional coverage with no unexplained differences | in progress | WI-012 E72–E73 setup/inventory accepted; WI-013 proofs/correspondence and scheduler2 frontend execution open |
+| M3 | Differential API and shared functional coverage with no unexplained differences | in progress | WI-012 setup/inventory, WI-014 paused API/visibility and WI-013 proofs accepted E72–E80; full public execution/shared suite and calendar boundary checks open |
 | M4 | Load/state-growth report and explicit migration support boundary | pending | — |
 
 ### Gate ownership and proof scope

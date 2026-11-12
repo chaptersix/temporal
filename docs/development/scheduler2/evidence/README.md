@@ -313,7 +313,7 @@ WI-011 and M2 accepted E67–E71 with [final scoped lint](wi011/acceptance-lint.
 | E75 | Typed query isolation and API boundary preservation | [public run](wi014/public-accepted.log), [component review](wi014/component-review.md), [seam review](wi014/seam-review.md); old same-ID row, alias collision, pagination, internal-field cleanup, metadata, invalid input and authorization. |
 | E76 | Regression/race/lint | [default shared suites](wi014/default-shared.log), [race](wi014/race-accepted.log), [lint](wi014/lint-accepted.log); pass with limits/source timing in checks. |
 
-WI-013 proofs and WI-015 full execution remain M3 requirements. These entries do not
+WI-013 proofs are accepted separately below; WI-015 full execution remains open. These entries do not
 claim full scheduler2 shared-suite parity or generated SchedulerService transport.
 
 ## WI-013 exact enumeration proofs and Go correspondence (accepted)
