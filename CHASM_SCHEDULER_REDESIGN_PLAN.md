@@ -472,7 +472,7 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D15 | Verification runner path and commands | decided for M1 | docs/development/scheduler2/run.py; all named profiles emit manifests; proofs/fuzz/benchmarks explicitly unsupported | Later profile implementations deferred |
 | D16 | Proof completion gate | decided | Draft during core design; reviewed executable specification by M2; proofs and correspondence required by M3, not M1 | M2, M3 |
 | D17 | Functional test backend selection | decided | Explicit V1/existing CHASM/scheduler2 descriptor; shared API assertions, backend-aware setup/cleanup, local-only wiring, and verified independent component identity | P5.5, P5.6 |
-| D18 | Local frontend test seam | open | Inspect test-cluster injection hooks; cover scheduler client plus typed List/Count paths without production routing changes | P5.6 |
+| D18 | Local frontend test seam | decided; D58/WI-014 accepted | Dedicated selected frontend to actual History engine, typed List/Count and independent archetype; no fallback or production routing changes. Full execution verification remains WI-015. | E74–E76; P5.6 |
 | D19 | Completion payload subset | decided | M1 checks matching identities and models absent-result completion; result_present=true is rejected by replay. Frozen start carryover is preserved. Null/result/failure carryover updates stay M2, rather than inventing a partial public API. E11–E13. | M2 C6 expansion |
 | D20 | Local executor limit | decided | Conservative one-RPC gate per local library instance for the one-schedule experiment. Per-schedule concurrent partitioning remains later work; no production activation. E13. | Expanded multi-schedule concurrency |
 | D21 | Recovery suffix and simulation bounds | decided | One authenticated completion resolves the single operation; replace proposed 16/32 padded recovery steps with this explicit finite suffix. Reducer runs 128 exploration events; CHASM generation uses 12–28 dependency-valid events. This matches the implemented scope and does not change a failed assertion or claim infinite liveness. E10/E12. | Expanded protocol requires new bounds |
@@ -516,6 +516,8 @@ Read applicable `AGENTS.md`, `.github/copilot-instructions.md`, `docs/developmen
 | D56 | Local update replay | accepted E67–E71 | Bounded CHASM request-ID success replay; stale new-ID revision rejects. Separate from public conflict tokens. | E67–E69 |
 | D57 | Exact enumeration proof/correspondence domain | specified for WI-013 | Independent executable uses explicit identity/origin/cache and exact shifted nanoseconds; nominal end differs from supported actual end. Strengthened reachable-state resumability and batching claims, no assumed output equivalence. | WI-013 and Lean correspondence investigation |
 | D58 | Local public API test seam | specified WI-014 | Dedicated test-only frontend→actual History adapter, ordinary validation, no fallback/sentinel; typed visibility uses native lifecycle and rejects resolved division overrides. Paused-empty first profile; full M3 API remains required. | local-api-contract.md / WI-014 |
+
+| D59 | Public execution and compatibility | implemented; verification incomplete | Source-backed actual workflow/callback transport, atomic API mutations, shared public coverage; D59-E1 retains ambiguous authority after possibly retried RPC errors. Public capacity/timestamp profiles differ from finite internal proof profile. | public-execution-contract.md; WI-015 closure audit; bounded metadata work and two recovery scenarios remain |
 
 For new decisions, record alternatives, rationale, source/evidence IDs, dependent work, and any superseded decision ID.
 
@@ -1038,3 +1040,36 @@ predicate oracle, boundary-biased Rapid, final-source shrink/replay mutations an
 review. London fold traversal correction is independently reproduced/reviewed.
 Source8995bfea4 integrated42d57a60a; source fingerprints verified. WI015 full public
 execution remains active; M3 open and M4 pending. All work remains local.
+
+### Integration and independent closure audit
+
+Runtime checkpoint6bcc1cb42 records composed public capacity/timestamp changes;
+ff3645950 merges accepted WI013 proof/correspondence and WI016 calendar artifacts
+from sch-redesign without modifying that checkout. Documentation conflicts retain
+both accepted evidence and current runtime contract/progress. Composed race passes
+(root193.913s plus callback/queue packages). Pinned proof/correspondence integration
+revalidation is running separately.
+
+Independent M3 closure review identifies remaining actual accepted-effect-response
+loss across chain changes, combined virtual-clock/shard-reload/stale timer delivery,
+and the stronger bounded-metadata-work requirement. Two logical quanta do not
+bound growing public scans/copies; this requirement remains open and cannot be
+closed merely by deferring it to performance reporting. These findings now drive
+implementation. M3 is not accepted; M4 workload design remains preparatory.
+
+### Integrated proof revalidation and bounded-work investigation
+
+Fresh pinned proof build and routine correspondence on ff3645950 pass all required
+commands,93 axiom reports,9 Go tests,384 exhaustive traces and two100-case Rapid
+properties at seed1; binary hash matches the independently verified build11 oracle.
+Evidence: wi015/integration-correspondence.md. The finite-profile boundary remains
+explicit and does not establish larger public collection work bounds.
+
+Read-only CHASM investigation found prepareComponentValue hydrates all ordinary
+map keys, syncSubComponents visits every map key and recursively visits even clean
+children. Scheduler-only queue paging would therefore leave cardinality-dependent
+framework work. An additive lazy/delta collection and dirty-subtree design is being
+specified as WI018, preserving single-execution atomicity and offline decoding;
+independent design review precedes implementation. True cold mutable-state load
+cost remains separately measured and cannot be confused with repeated hot mutation
+work. No public capacity restriction is reintroduced to hide the issue.

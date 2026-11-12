@@ -1,0 +1,11 @@
+{
+  "CHASM_SCHEDULER_REDESIGN_PLAN.md": "c224867482cc546bd3984cc6af6ed2f3753e06f8b27bcb7ae243dc786a712e10",
+  "docs/development/scheduler2/work-items/WI-015.md": "a5328b284cc3d072627bbfec4bf430ecb4ed947f7f5f92413f9464d7c655cae1",
+  "docs/development/scheduler2/design/public-execution-contract.md": "5f1dee51536e486d2afdf00239c315b3bce505f922e7ac0a1bf7ca17d376a255",
+  "docs/development/scheduler2/design/functional-coverage.json": "a5d967c211784c6a1a5b853841de7cb34707a99470b20000bb799d864d7d0950",
+  "docs/development/scheduler2/evidence/wi015/m3-functional-next-required.json": "c5e22a2157637ea2014346d7cfa8d6dec4e1976b81d5b80353dfaaa2372b2e91",
+  "docs/development/scheduler2/evidence/wi015/migration-and-policy-boundaries.md": "e6411c2a17731720998c50a75cebcc1e453d1c7f5aac13352d214540d857cdf5",
+  "tests/schedule2_recovery_test.go": "645fc997c64514409ebd5e248b20e145aa9f03d98308f1d2d53dce2dea028e32",
+  "tests/schedule2_effect_recreation_test.go": "5d2c46bc01bfca44caea6ee745df8d20e2d8f683cfa3ae84ceb0a291cb4289f1",
+  "tests/schedule2_authorization_test.go": "96e5990f6398659ef044e72b3de021eb17b661bb49538ed9fab3eb6e04459944"
+}

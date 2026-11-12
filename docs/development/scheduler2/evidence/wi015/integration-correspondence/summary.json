@@ -1,0 +1,13 @@
+{
+  "source_sha": "ff3645950019ab521bae51e08622aec89138358e",
+  "routine_result": "passed",
+  "routine_seed": 1,
+  "rapid_checks_per_property": 100,
+  "rapid_properties": 2,
+  "required_tests": 9,
+  "axiom_reports": 93,
+  "fresh_build_result": "passed",
+  "fresh_and_build11_oracle_sha256": "3e0b7213a8e63024cc7a219c003cbe4fff22e8b683029ce4694c15b58112db6d",
+  "production_and_inputs_unchanged": true,
+  "scope": "Finite internal occurrence.New profile; excludes public wide timestamps and configured runtime capacity."
+}

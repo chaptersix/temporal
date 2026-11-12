@@ -1,0 +1,72 @@
+=== RUN   TestLeanCorrespondenceExhaustive
+--- PASS: TestLeanCorrespondenceExhaustive (0.24s)
+=== RUN   TestLeanCorrespondenceRapid
+    lean_correspondence_test.go:412: [rapid] OK, passed 100 tests (71.273625ms)
+--- PASS: TestLeanCorrespondenceRapid (0.07s)
+=== RUN   TestLeanCorrespondenceSavedReplay
+=== RUN   TestLeanCorrespondenceSavedReplay/testdata/lean_correspondence_v1.json
+=== RUN   TestLeanCorrespondenceSavedReplay/testdata/lean_correspondence_update_v2.json
+=== RUN   TestLeanCorrespondenceSavedReplay/testdata/lean_correspondence_rebase_v2.json
+--- PASS: TestLeanCorrespondenceSavedReplay (0.03s)
+    --- PASS: TestLeanCorrespondenceSavedReplay/testdata/lean_correspondence_v1.json (0.02s)
+    --- PASS: TestLeanCorrespondenceSavedReplay/testdata/lean_correspondence_update_v2.json (0.00s)
+    --- PASS: TestLeanCorrespondenceSavedReplay/testdata/lean_correspondence_rebase_v2.json (0.00s)
+=== RUN   TestLeanCorrespondenceControlsAndRejections
+--- PASS: TestLeanCorrespondenceControlsAndRejections (0.03s)
+=== RUN   TestLeanCorrespondenceExactBoundaries
+--- PASS: TestLeanCorrespondenceExactBoundaries (0.03s)
+=== RUN   TestLeanCorrespondenceRapidWindowsAndUpdates
+    lean_correspondence_test.go:672: [rapid] OK, passed 100 tests (153.67275ms)
+--- PASS: TestLeanCorrespondenceRapidWindowsAndUpdates (0.16s)
+=== RUN   TestLeanCorrespondenceValidBudgetEdges
+--- PASS: TestLeanCorrespondenceValidBudgetEdges (0.14s)
+=== RUN   TestLeanCorrespondenceMalformedWire
+=== RUN   TestLeanCorrespondenceMalformedWire/unknown_version
+=== RUN   TestLeanCorrespondenceMalformedWire/unknown_operation
+=== RUN   TestLeanCorrespondenceMalformedWire/unknown_top_key
+=== RUN   TestLeanCorrespondenceMalformedWire/missing_time
+=== RUN   TestLeanCorrespondenceMalformedWire/numeric_time
+=== RUN   TestLeanCorrespondenceMalformedWire/fraction_string
+=== RUN   TestLeanCorrespondenceMalformedWire/bad_digits
+=== RUN   TestLeanCorrespondenceMalformedWire/nonnull_begin_state
+=== RUN   TestLeanCorrespondenceMalformedWire/unknown_source_key
+=== RUN   TestLeanCorrespondenceMalformedWire/wrong_source_bool
+=== RUN   TestLeanCorrespondenceMalformedWire/unknown_raw_key
+=== RUN   TestLeanCorrespondenceMalformedWire/empty_identity
+=== RUN   TestLeanCorrespondenceMalformedWire/wrong_upper
+--- PASS: TestLeanCorrespondenceMalformedWire (0.03s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/unknown_version (0.02s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/unknown_operation (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/unknown_top_key (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/missing_time (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/numeric_time (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/fraction_string (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/bad_digits (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/nonnull_begin_state (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/unknown_source_key (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/wrong_source_bool (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/unknown_raw_key (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/empty_identity (0.00s)
+    --- PASS: TestLeanCorrespondenceMalformedWire/wrong_upper (0.00s)
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/identity_before_negative_probe
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/identity_before_negative_window
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/update_validates_negative_revision
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/stale_update_before_negative_time
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/negative_origin_is_malformed_state
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/dispose_identity_before_negative_state
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/malformed_state_before_stale_update_and_negative_time
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/invalid_budget_before_negative_state
+=== RUN   TestLeanCorrespondenceNegativeInputPrecedence/range_end_before_identity
+--- PASS: TestLeanCorrespondenceNegativeInputPrecedence (0.04s)
+    --- PASS: TestLeanCorrespondenceNegativeInputPrecedence/identity_before_negative_probe (0.03s)
+    --- PASS: TestLeanCorrespondenceNegativeInputPrecedence/identity_before_negative_window (0.00s)
+    --- PASS: TestLeanCorrespondenceNegativeInputPrecedence/update_validates_negative_revision (0.00s)
+    --- PASS: TestLeanCorrespondenceNegativeInputPrecedence/stale_update_before_negative_time (0.00s)
+    --- PASS: TestLeanCorrespondenceNegativeInputPrecedence/negative_origin_is_malformed_state (0.00s)
+    --- PASS: TestLeanCorrespondenceNegativeInputPrecedence/dispose_identity_before_negative_state (0.00s)
+    --- PASS: TestLeanCorrespondenceNegativeInputPrecedence/malformed_state_before_stale_update_and_negative_time (0.00s)
+    --- PASS: TestLeanCorrespondenceNegativeInputPrecedence/invalid_budget_before_negative_state (0.00s)
+    --- PASS: TestLeanCorrespondenceNegativeInputPrecedence/range_end_before_identity (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	1.426s

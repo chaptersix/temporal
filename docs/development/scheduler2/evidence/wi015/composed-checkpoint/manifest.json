@@ -22,5 +22,11 @@
     "result": "PASS88.049s unchanged V1 and CHASM shared suites",
     "sha256": "f9c2d6a91143a07c9b780486567c4769147070d6d83465b923e82042c88fafa8",
     "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 -parallel 4 ./tests -run ^TestSchedule(V1|CHASM)SharedSuite$ -count=1 -timeout=8m"
+  },
+  "composed_race": {
+    "result": "PASS193.913s scheduler2 and all selected callback/queue packages",
+    "sha256": "8646718810ec41a1a63f82996129862f91473fdf33b4abd10a7907f1949af584",
+    "scope": "Runtime snapshot composed before docs/proof merge; no runtime difference introduced by merge",
+    "command": "CGO_ENABLED=1 SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk GOMAXPROCS=4 go test -race -tags test_dep -p 2 -parallel 4 ./chasm/lib/scheduler2/... ./chasm/lib/callback ./common/nexus/nexusrpc ./service/history/hsm/callbacks ./service/history/queues -count=1"
   }
 }

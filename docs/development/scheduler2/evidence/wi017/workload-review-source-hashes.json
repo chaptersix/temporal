@@ -1,0 +1,9 @@
+{
+  "CHASM_SCHEDULER_REDESIGN_PLAN.md": "a4de70adaf6e98a3b18ba5c8148402fde23e251ab5c384907a11c5be694a54ff",
+  "docs/development/scheduler2/work-items/WI-017.md": "f31de8d7d5a76b693f84455503a441504d507b59dc59322c45d312f7568dcd2c",
+  "tests/testcore/history_task_recorder.go": "4f601c605f6af1a29829c65cc9d8b18d30f08365e59e6ab220db5867eba48c97",
+  "tests/testcore/test_env.go": "251ed387e59ac9fa2284c970e796ed515ed9304956f0b6a81b5a2c68770ae639",
+  "tests/testcore/functional_test_base.go": "4504a814625cd7b3fb5e236f4f73300a6bba271e78e1ef5847f4ab4e0eec59ef",
+  "common/metrics/metric_defs.go": "d8b9cc24a0c1470dad79aa2b34f61787af43ad6306afe122eebf2f5532898373",
+  "tests/schedule2_recovery_test.go": "645fc997c64514409ebd5e248b20e145aa9f03d98308f1d2d53dce2dea028e32"
+}

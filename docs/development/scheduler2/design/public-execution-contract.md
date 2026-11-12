@@ -263,12 +263,15 @@ checks retained authority through expiry and eventual callback reconciliation.
 
 ## Definition bounds and terminal payload retention checkpoint
 
-Valid public StartTime/EndTime values are preserved even outside the prototype's
-execution cursor domain; protobuf validity is the ingress check. An epoch lower
-bound does not mean a current cursor has traversed the full definition. Effective
-enumeration still stops at its existing supported horizon; wider timestamp execution
-and backfill remain a separate unfinished compatibility boundary. Domain exhaustion
-must not be presented as proof of global absence of later public occurrences.
+Public StartTime/EndTime and historical range acceptance use protobuf validity,
+with optional timestamp fields for manual/queue/operation/candidate/continuation
+values outside the int64 nanosecond range. These values must round-trip without
+wrapping, including workflow identity and search/recent metadata. The public path
+preserves the reference enumerator's nominal/calendar horizon through2100; accepted
+later ranges can settle without occurrences. Contemporary execution clocks and
+retry deadlines remain int64 nanoseconds. The internal finite enumeration profile
+retains its original domain; its proofs do not automatically cover the larger public
+profile. See timestamp-domain evidence and independent-timestamp-review.md.
 
 The prototype365d catchup maximum is removed. A nonnegative duration remains intact;
 adding it to an occurrence saturates only the stored int64 deadline when the true
@@ -280,8 +283,9 @@ results and physical tasks. Their issuance payload is now reclaimable immediatel
 Issue never returns a terminal request, and effect publication freezes its own
 request while its target is active. Pending, Started and Ambiguous records retain
 their immutable issuance bytes. This implements the existing D59 reclamation
-requirement; it does not resolve duplicate large payloads among live definitions,
-active admissions and carryover. Aggregate capacity remains open.
+requirement. Immutable typed payload owners now share action/result/failure bytes
+among public definitions, active admissions and carryover. Aggregate transport/state
+capacity retains its measured limits; no arbitrary-concurrency capacity guarantee follows.
 
 ### Measured aggregate transport boundary
 
@@ -292,3 +296,14 @@ boundary without changing globals, truncating accepted carryover or falsely mark
 the pending intent successful. Separate positive within-transport and negative
 aggregate-overflow tests are required; individual blob limits do not promise
 unbounded combined RPC size. See evidence/wi015/physical-capacity/investigation.md.
+
+## Closure-audit bounded-work requirement
+
+The public capacity/timestamp compatibility changes preserve a bounded number of
+logical coordinator quanta, but metadata copying/scanning still grows with public
+queue/operation cardinality. This does not establish the stronger bounded-work
+contract retained above. The independent M3 closure audit records it as unresolved;
+it cannot be closed by relabeling it as a performance caveat or by the existing
+finite-profile proofs. A source-backed representation/work-budget correction and
+verification are required before accepting the applicable gate. M4 measurements
+must then report actual costs; they do not substitute for that correctness claim.

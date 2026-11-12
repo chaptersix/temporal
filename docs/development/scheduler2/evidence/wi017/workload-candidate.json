@@ -1,0 +1,23 @@
+{
+  "status": "proposed parameters, no runner or measurements claimed",
+  "seed": 17,
+  "backends": ["old-chasm", "scheduler2"],
+  "repetitions": 3,
+  "backend_order": ["old/new", "new/old", "old/new"],
+  "topology": {"local_clusters": 1, "history_shards": 4, "persistence": "SQLite", "dedicated": true, "production_routing": false},
+  "driver": {"max_in_flight_rpcs": 64, "arrival_clock": "absolute monotonic deadlines", "pending_arrival_capacity": 4096, "overflow": "record missed offered work; never silently slow trace"},
+  "periods_seconds": {"warmup": 15, "measure": 120, "drain_limit": 120},
+  "sampling": {"state_seconds": 5, "rss_seconds": 1, "raw_observation_loss": "invalidates affected metric", "minimum_observations_for_tail_claim": 1000},
+  "server_settings": {"max_buffer_size": 1000, "payload_limits": "existing namespace defaults; record exact values", "other_dynamic_config": "frozen identically after calibration"},
+  "families": [
+    {"name": "metadata", "schedules": 32, "action_input_bytes": 1048576, "paused": true, "mix": {"describe": 8, "list": 1, "count": 1}, "baseline_rpcs_per_second": 10, "tenfold_rpcs_per_second": 100, "variants": ["warm cache", "fixed shard reload before read trace"]},
+    {"name": "due-burst", "schedules": 16, "action_input_bytes": 1024, "workflow": "no-op", "policy": "ALLOW_ALL", "common_phase": true, "baseline_interval_seconds": 10, "tenfold_interval_seconds": 1, "offered_unit": "nominal occurrences per second:1.6 versus16"},
+    {"name": "large-payload-backfill", "schedules": 4, "action_input_bytes": 1048576, "result_bytes": 1048576, "failure_bytes": 1048576, "outcome_trace": ["success", "failure", "success"], "range_occurrences": 4, "range_spacing_seconds": 1, "historical_trace_epoch": "2001-01-01T00:00:00Z", "baseline_commands_per_second": 0.1, "tenfold_commands_per_second": 1, "policy": "BUFFER_ALL"},
+    {"name": "long-lived-tracked", "schedules": 16, "policy": "BUFFER_ALL", "workflow": "wait until the frozen run-relative release instant then complete", "release_after_measure_start_seconds": 60, "baseline_interval_seconds": 10, "tenfold_interval_seconds": 1, "capacity_correctness_variants": [1, 1000, 0]},
+    {"name": "callback-storm", "fixed_running_workflows": 64, "release_order_seed": 17, "baseline_release_spacing_ms": 100, "tenfold_release_spacing_ms": 10, "observation_window_seconds": 120, "rate_definition": "active finite-burst intensity10/s versus100/s; total64 both; not tenfold average callbacks over120s", "completion": "signal each already-running gated workflow once", "duplicate_callback_injection": "separate named correctness variant, not included in primary throughput"},
+    {"name": "sustained-overload", "schedules": 8, "policy": "ALLOW_ALL", "workflow": "no-op", "input_bytes": 1024, "calibration_arrival_rates_per_second": [1, 2, 5, 10, 20, 50], "calibration_duration_seconds": 10, "baseline_offered_rate": "1.2 times frozen measured old-backend service rate", "tenfold_offered_rate": "10 times baseline", "max_scheduled_offers": 10000, "cap_hit": "report censored workload, not a completed120s trace"}
+  ],
+  "restart_variant": {"barrier": "after32 accepted commands with unfinished work, before acknowledgments are released", "operation": "CloseShard and actual cache reload", "assertions": ["same immutable request identity", "no duplicate workflow start", "pending work resumes", "record time to first read and progress"]},
+  "retention_variant": {"horizon": "record existing configured completed-record horizon", "observations": ["immediately after drain", "after horizon and explicit maintenance transition"], "replay": ["duplicate accepted request", "late duplicate completion"], "claim": "within observed horizon only"},
+  "migration": "unsupported; no source ownership transfer, destination activation or routing change"
+}

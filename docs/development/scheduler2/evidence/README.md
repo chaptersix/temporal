@@ -453,3 +453,25 @@ boundary and public functional M3 gates remain open, as does M4.
 | E83 | Final-source fault sensitivity and verification | [Three shrinking/replay mutations](wi016/spec-mutations/campaign02/manifest.json), [acceptance](wi016/acceptance.md), [lint](wi016/acceptance-lint.log), [integration provenance](wi016/integration-provenance.json); bounded SP7/P5.2 accepted. |
 
 WI015 full public execution/shared coverage remains open; this is not M3 completion.
+
+### Integration and independent closure audit
+
+Runtime checkpoint6bcc1cb42 records composed public capacity/timestamp changes;
+ff3645950 merges accepted WI013 proof/correspondence and WI016 calendar artifacts
+from sch-redesign without modifying that checkout. Documentation conflicts retain
+both accepted evidence and current runtime contract/progress. Composed race passes
+(root193.913s plus callback/queue packages). Pinned proof/correspondence integration
+revalidation is running separately.
+
+Independent M3 closure review identifies remaining actual accepted-effect-response
+loss across chain changes, combined virtual-clock/shard-reload/stale timer delivery,
+and the stronger bounded-metadata-work requirement. Two logical quanta do not
+bound growing public scans/copies; this requirement remains open and cannot be
+closed merely by deferring it to performance reporting. These findings now drive
+implementation. M3 is not accepted; M4 workload design remains preparatory.
+
+Integrated finite proof/correspondence revalidation passes (integration-correspondence.md).
+The bounded-work gap reaches CHASM ordinary-map hydration/synchronization and clean
+subtree traversal; source investigation now requires additive lazy/delta collection
+and dirty-subtree support, not only scheduler paging. WI018 is being specified with
+independent design review and count-based hot/cold scope gates. WI015/M3 remain open.
