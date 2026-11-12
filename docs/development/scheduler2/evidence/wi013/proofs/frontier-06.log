@@ -1,0 +1,18 @@
+Frontier.lean:237:4: error: Type mismatch: After simplification, term
+  complete
+ has type
+  (resume calls
+        {
+          state :=
+            { identity := identity, revision := revision, origin := after, searchAfter := after,
+              disposedThrough := after, fullRange := decide (after < lower) },
+          rest := List.filter (fun c => decide (after < c.nominal)) raw }).output =
+    List.filter (fun a => decide (a.actual ≤ through) && (!a.excluded && decide (after < a.nominal))) raw
+but is expected to have type
+  (resume calls
+        {
+          state :=
+            { identity := identity, revision := revision, origin := after, searchAfter := after,
+              disposedThrough := after, fullRange := decide (after < lower) },
+          rest := List.filter (fun c => decide (after < c.nominal)) raw }).output =
+    List.filter (fun c => decide (after < c.nominal) && (!c.excluded && decide (c.actual ≤ through))) raw

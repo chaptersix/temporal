@@ -1,0 +1,6 @@
+=== RUN   TestLeanCorrespondenceSavedReplay
+=== RUN   TestLeanCorrespondenceSavedReplay//private/tmp/scheduler2-wi013/correspondence-mutations-build07/lost-pending-minimized.json
+--- PASS: TestLeanCorrespondenceSavedReplay (0.03s)
+    --- PASS: TestLeanCorrespondenceSavedReplay//private/tmp/scheduler2-wi013/correspondence-mutations-build07/lost-pending-minimized.json (0.03s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.698s

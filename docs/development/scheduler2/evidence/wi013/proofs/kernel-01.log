@@ -1,0 +1,24 @@
+docs/development/scheduler2/lean/exact/Kernel.lean:70:90: error: unexpected identifier; expected '}'
+docs/development/scheduler2/lean/exact/Kernel.lean:114:88: error: unexpected identifier; expected '}'
+docs/development/scheduler2/lean/exact/Kernel.lean:87:9: error: unsolved goals
+case zero
+through fuel slots : Nat
+m : Machine
+⊢ (sorry through 0 fuel slots m).output ++ eligible (remaining (sorry through 0 fuel slots m).machine) =
+    eligible (remaining m)
+docs/development/scheduler2/lean/exact/Kernel.lean:90:4: error: Tactic `split` failed: Could not split an `if` or `match` expression in the goal
+
+Hint: Use `set_option trace.split.failure true` to display additional diagnostic information
+
+case succ
+through ticks : Nat
+ih :
+  ∀ (fuel slots : Nat) (m : Machine),
+    (loop through ticks fuel slots m).output ++ eligible (remaining (loop through ticks fuel slots m).machine) =
+      eligible (remaining m)
+fuel slots : Nat
+m : Machine
+⊢ (sorry through (ticks + 1) fuel slots m).output ++
+      eligible (remaining (sorry through (ticks + 1) fuel slots m).machine) =
+    eligible (remaining m)
+docs/development/scheduler2/lean/exact/Kernel.lean:87:18: warning: declaration uses 'sorry'

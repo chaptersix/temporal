@@ -1,0 +1,17 @@
+Frontier.lean:46:12: error: omega could not prove the goal:
+a possible counterexample may satisfy the constraints
+  d ≥ 0
+  b ≥ 0
+  a ≥ 0
+  a - b ≥ 1
+  a - d ≤ 0
+where
+ a := ↑c.nominal
+ b := ↑m.state.disposedThrough
+ d := ↑{
+        state :=
+          let __src := m.state;
+          { identity := __src.identity, revision := __src.revision, origin := __src.origin, searchAfter := c.nominal,
+            disposedThrough := __src.disposedThrough, pending := some c, fullRange := __src.fullRange,
+            eligibleSeen := m.state.eligibleSeen || !c.excluded, terminal := __src.terminal },
+        rest := cs }.state.disposedThrough

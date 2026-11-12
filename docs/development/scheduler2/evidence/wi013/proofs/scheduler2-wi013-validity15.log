@@ -1,0 +1,194 @@
+docs/development/scheduler2/lean/exact/Validity.lean:48:26: warning: This simp argument is unused:
+  supported
+
+Hint: Omit it from the simp argument list.
+  simp_all [validState,̵ ̵s̵u̵p̵p̵o̵r̵t̵e̵d̵]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:127:19: warning: This simp argument is unused:
+  beq_self_eq_true
+
+Hint: Omit it from the simp argument list.
+  simp only [scan, identity, revision, hv, active, full, inclusions, window,
+      show ¬probes < 1 by omega, show ¬probes > 1024 by omega, show ¬outputs < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬outputs > 128 by omega, Bool.not_true, b̵e̵q̵_̵s̵e̵l̵f̵_̵e̵q̵_̵t̵r̵u̵e̵,̵ ̵Bool.false_or, Bool.true_and, Bool.false_and,
+  ̲  ̲ ̲ ̲Bool.false_eq_true, ↓reduceIte, decide_false, decide_true, Bool.or_false, Bool.not_false,
+  ̲  ̲ ̲ ̲bne_self_eq_false, noBad, stop_beq, noLimit]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:127:52: warning: This simp argument is unused:
+  Bool.true_and
+
+Hint: Omit it from the simp argument list.
+  simp only [scan, identity, revision, hv, active, full, inclusions, window,
+      show ¬probes < 1 by omega, show ¬probes > 1024 by omega, show ¬outputs < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬outputs > 128 by omega, Bool.not_true, beq_self_eq_true, Bool.false_or, B̵o̵o̵l̵.̵t̵r̵u̵e̵_̵a̵n̵d̵,̵Bool.false_and,
+      Bool.false_eq_true, ↓reduceIte, decide_false, decide_true, Bool.or_false, Bool.not_false,
+  ̲  ̲ ̲ ̲bne_self_eq_false, noBad, stop_beq, noLimit]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:128:4: warning: This simp argument is unused:
+  Bool.false_and
+
+Hint: Omit it from the simp argument list.
+  simp only [scan, identity, revision, hv, active, full, inclusions, window,
+      show ¬probes < 1 by omega, show ¬probes > 1024 by omega, show ¬outputs < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬outputs > 128 by omega, Bool.not_true, beq_self_eq_true, Bool.false_or, Bool.true_and,
+      B̵o̵o̵l̵.̵f̵a̵l̵s̵e̵_̵a̵n̵d̵,̵ ̵Bool.false_eq_true, ↓reduceIte, decide_false, decide_true, Bool.or_false, Bool.not_false,
+  ̲  ̲ ̲ ̲bne_self_eq_false, noBad, stop_beq, noLimit]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:128:66: warning: This simp argument is unused:
+  decide_true
+
+Hint: Omit it from the simp argument list.
+  simp only [scan, identity, revision, hv, active, full, inclusions, window,
+      show ¬probes < 1 by omega, show ¬probes > 1024 by omega,
+  ̵  ̵ ̵ ̵show ¬outputs < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬outputs > 128 by omega,
+  ̵  ̵ ̵ ̵Bool.not_true, beq_self_eq_true, Bool.false_or, Bool.true_and,
+      Bool.false_and, Bool.false_eq_true, ↓reduceIte, decide_false, d̵e̵c̵i̵d̵e̵_̵t̵B̲o̲o̲l̲.̲o̲ru̵_̲f̲a̲l̲s̲e, ̲B̲o̲o̲l̲.̲n̲o̲t̲_̲f̲a̲l̲s̲e̲,̲
+      B̵o̵o̵l̵.̵o̵r̵_̵f̵a̵l̵s̵e̵,̵ ̵B̵o̵o̵l̵.̵n̵o̵t̵_̵f̵a̵l̵s̵e̵,̵ ̵bne_self_eq_false, noBad, stop_beq, noLimit]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:129:19: warning: This simp argument is unused:
+  Bool.not_false
+
+Hint: Omit it from the simp argument list.
+  simp only [scan, identity, revision, hv, active, full, inclusions, window,
+      show ¬probes < 1 by omega, show ¬probes > 1024 by omega,
+  ̵  ̵ ̵ ̵show ¬outputs < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬outputs > 128 by omega,
+  ̵  ̵ ̵ ̵Bool.not_true, beq_self_eq_true, Bool.false_or, Bool.true_and,
+      Bool.false_and, Bool.false_eq_true, ↓reduceIte, decide_false, decide_true, ̲B̲o̲o̲l̲.̲o̲r̲_̲f̲a̲l̲s̲e̲,̲
+      B̵o̵o̵l̵.̵o̵r̵_̵f̵a̵l̵s̵e̵,̵ ̵B̵o̵o̵l̵.̵n̵o̵t̵_̵f̵a̵l̵s̵e̵,̵ ̵bne_self_eq_false, noBad, stop_beq, noLimit]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:198:53: warning: This simp argument is unused:
+  done
+
+Hint: Omit it from the simp argument list.
+  simp ̵[̵d̵o̵n̵e̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:227:50: error(lean.unknownIdentifier): Unknown identifier `b`
+docs/development/scheduler2/lean/exact/Validity.lean:227:64: error: Application type mismatch: The argument
+  ht
+has type
+  m.state.terminal = Stop.active
+but is expected to have type
+  (if Stop.active ≠ Stop.active then done m Stop.active
+          else
+            {
+              machine :=
+                (loop through ticks fuel 0
+                    {
+                      state :=
+                        { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                          searchAfter := m.state.searchAfter, disposedThrough := c.nominal,
+                          fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen },
+                      rest := m.rest }).machine,
+              output :=
+                c ::
+                  (loop through ticks fuel 0
+                      {
+                        state :=
+                          { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                            searchAfter := m.state.searchAfter, disposedThrough := c.nominal,
+                            fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen },
+                        rest := m.rest }).output,
+              probes :=
+                (loop through ticks fuel 0
+                    {
+                      state :=
+                        { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                          searchAfter := m.state.searchAfter, disposedThrough := c.nominal,
+                          fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen },
+                      rest := m.rest }).probes,
+              stop :=
+                (loop through ticks fuel 0
+                    {
+                      state :=
+                        { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                          searchAfter := m.state.searchAfter, disposedThrough := c.nominal,
+                          fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen },
+                      rest := m.rest }).stop }).machine.state.terminal =
+    Stop.active
+in the application
+  And.intro ht
+docs/development/scheduler2/lean/exact/Validity.lean:227:29: error: Application type mismatch: The argument
+  rfl
+has type
+  ?m.205 = ?m.205
+but is expected to have type
+  (if Stop.active ≠ Stop.active then done m Stop.active
+          else
+            {
+              machine :=
+                (loop through ticks fuel 0
+                    {
+                      state :=
+                        { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                          searchAfter := m.state.searchAfter, disposedThrough := c.nominal,
+                          fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen },
+                      rest := m.rest }).machine,
+              output :=
+                c ::
+                  (loop through ticks fuel 0
+                      {
+                        state :=
+                          { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                            searchAfter := m.state.searchAfter, disposedThrough := c.nominal,
+                            fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen },
+                        rest := m.rest }).output,
+              probes :=
+                (loop through ticks fuel 0
+                    {
+                      state :=
+                        { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                          searchAfter := m.state.searchAfter, disposedThrough := c.nominal,
+                          fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen },
+                      rest := m.rest }).probes,
+              stop :=
+                (loop through ticks fuel 0
+                    {
+                      state :=
+                        { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+                          searchAfter := m.state.searchAfter, disposedThrough := c.nominal,
+                          fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen },
+                      rest := m.rest }).stop }).machine.state.disposedThrough =
+    c.nominal
+in the application
+  And.intro rfl
+docs/development/scheduler2/lean/exact/Validity.lean:223:49: warning: This simp argument is unused:
+  hz.2
+
+Hint: Omit it from the simp argument list.
+  simp only [loop, ht, hp, wait, he, ↓reduceIte, show (1 == 0) = false from rfl,
+                Bool.false_eq_true, Nat.reduceSub, h̵z̵.̵2̵,̵ ̵List.cons.injEq] at output
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:223:55: warning: This simp argument is unused:
+  List.cons.injEq
+
+Hint: Omit it from the simp argument list.
+  simp only [loop, ht, hp, wait, he, ↓reduceIte, show (1 == 0) = false from rfl,
+                Bool.false_eq_true, Nat.reduceSub, hz.2,̵ ̵L̵i̵s̵t̵.̵c̵o̵n̵s̵.̵i̵n̵j̵E̵q̵] at output
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:226:81: warning: This simp argument is unused:
+  hz.1
+
+Hint: Omit it from the simp argument list.
+  simp only [loop, ht, hp, wait, he, ↓reduceIte, show (1 == 0) = false from rfl,
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲Bool.false_eq_true, N̵a̵t̵.̵r̵e̵d̵u̵c̵e̵S̵u̵b̵,̵ ̵h̵z̵.̵1̵]̵N̲a̲t̲.̲r̲e̲d̲u̲c̲e̲S̲u̲b̲]̲
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:234:37: warning: This simp argument is unused:
+  fuel0
+
+Hint: Omit it from the simp argument list.
+  simp only [loop, ht, hp, f̵u̵e̵l̵0̵,̵ ̵rest, ↓reduceIte, show (1 == 0) = false from rfl,
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲Bool.false_eq_true, show (fuel == 0) = false from by simp [fuel0]] at output ⊢
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`

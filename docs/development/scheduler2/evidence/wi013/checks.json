@@ -1,0 +1,45 @@
+{
+  "status": "accepted WI-013; M3 remains open",
+  "source_base": "ea609329f7e4fed5163c3def9fc42be842d9dc69",
+  "source_sha256": {
+    "docs/development/scheduler2/lean/exact/build.py": "e8897c7be6993af079d561e5507d7a3a6e1f2d4ac3f3f5d64071f061c0ba4ba4",
+    "docs/development/scheduler2/lean/exact/Validity.lean": "1b51cc5617287863470af71783ad5a2d293a8f2ddf0a0a5765a806b0813309ac",
+    "docs/development/scheduler2/lean/exact/Public.lean": "1c50bf0c7367e907076a91e656256e04a65f9adeceb1a34fdd9043fe1d9b6257",
+    "docs/development/scheduler2/lean/exact/PublicComposition.lean": "ce1fe975301d9690a7f237036e0216886fc9e9746dd03e5ba4387c28777709f2",
+    "docs/development/scheduler2/lean/exact/KernelComposition.lean": "2a5eb6e4cf5b0586a42151e0fb808d392d09bd27427e16bd8ea1be0eff1d5d75",
+    "docs/development/scheduler2/lean/exact/README.md": "5f561d833f396706155833ce52bb7376a654d8df393e7678088bdc32767fd778",
+    "docs/development/scheduler2/lean/exact/Controls.lean": "6879c408511995ae05c5d106fe648a193a54d21880bf380153bd84e309c766b0",
+    "docs/development/scheduler2/lean/exact/Audit.lean": "4e00918c590948f81b96cc7e9aef7e56222bbb45c6f501314d327d15c057fcdd",
+    "docs/development/scheduler2/lean/exact/Frontier.lean": "c7b90bda984551e14b2e2e1b8a255e476f6fcc074838aba5890511440ca32a76",
+    "docs/development/scheduler2/lean/exact/Kernel.lean": "4ae8bfa669039aefd8cd74478ba72fa759d1623012138538f772d261fecc62e3",
+    "docs/development/scheduler2/lean/exact/Oracle.lean": "143cca85dbfd48e23bc10cb7ddb711209051f1ae2169d3e06df3b71ff9ac560d",
+    "docs/development/scheduler2/lean/exact/wire-v1.md": "9399ad5f5c17701e8d0066cf89a195b40139d56c584e11e9b2ba00a84b7f2ebc",
+    "chasm/lib/scheduler2/internal/occurrence/lean_correspondence_test.go": "6acc15898e81612c90fba9bf47747ecd6e44a7a5d0d53c76bd307e6c4252b050",
+    "docs/development/scheduler2/run.py": "32a59bde3b81f9d3ee5fdfa86b76cfd15839f89546e23253da89943a19c3b65d",
+    "docs/development/scheduler2/profile.json": "7ea1e4540e2b15c65adc6bbb5995b47867371ba10a9033227582e6794cda9f23",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/lean_correspondence_rebase_v2.json": "d42968d8e0c782ddb13b30148bc6b771fe78cf23cb9f8166d1c0aed3694534ba",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/lean_correspondence_update_v2.json": "b6bd1071fc1b729ad80b28c9b45bc2f51fa78fe17cb623b2f2e4c67ea7ab0431",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/lean_correspondence_v1.json": "d322429f2d2126154de4a253aeda546b35814c49af741622c4e38e8a50a66c62"
+  },
+  "final_proof_build": "proofs/build11/manifest.json",
+  "axiom_reports": 93,
+  "oracle_sha256": "3e0b7213a8e63024cc7a219c003cbe4fff22e8b683029ce4694c15b58112db6d",
+  "artifact_identity_reuse": [
+    "build07 and build08 binary SHA256 equals build11; compile/audit validity from build11, runtime comparison evidence from tested identical binaries"
+  ],
+  "evidence": {
+    "named_proofs": "runner-proofs01/manifest.json",
+    "named_correspondence": "runner-routine02/manifest.json",
+    "exploration": "runner-exploration01/manifest.json",
+    "race": "build08-race.log",
+    "tagged_lint": "tagged-lint.log",
+    "original_mutations": "correspondence-mutations-build07/manifest.json",
+    "replacement_mutation": "correspondence-update-mutation/manifest.json"
+  },
+  "commands": {
+    "exploration": "python3 docs/development/scheduler2/run.py lean-correspondence --oracle /private/tmp/scheduler2-wi013-lean-build11/oracle --oracle-manifest /private/tmp/scheduler2-wi013-lean-build11/manifest.json --seed 1 --exploration --output /private/tmp/scheduler2-wi013-runner-exploration01",
+    "race": "CGO_ENABLED=1 SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk GOMAXPROCS=4 SCHEDULER2_LEAN_ORACLE=/private/tmp/scheduler2-wi013-lean-build08/oracle go test -race -p 2 -tags test_dep,lean_correspondence ./chasm/lib/scheduler2/internal/occurrence -run '^TestLeanCorrespondence' -count=1 -timeout=3m",
+    "lint": "CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast TEST_TAG=lean_correspondence GOLANGCI_LINT_BASE_REV=ea609329f GOLANGCI_LINT_FIX=false"
+  },
+  "limits": "See exact README, wire-v1, profile.json and independent reviews; SP7/P5.2 and public execution separate."
+}

@@ -1,0 +1,117 @@
+docs/development/scheduler2/lean/exact/Validity.lean:48:26: warning: This simp argument is unused:
+  supported
+
+Hint: Omit it from the simp argument list.
+  simp_all [validState,̵ ̵s̵u̵p̵p̵o̵r̵t̵e̵d̵]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:111:95: error: unsolved goals
+src : Source
+s : State
+through probes outputs : Nat
+identity : src.identity = s.identity
+revision : src.revision = s.revision
+hv : validState s = true
+active : s.terminal = Stop.active
+full : s.fullRange = decide (s.origin < src.lower)
+inclusions : src.hasInclusions = true
+window : supported through = true
+budget : 1 ≤ probes ∧ probes ≤ 1024 ∧ 1 ≤ outputs ∧ outputs ≤ 128
+source : ∀ (c : Candidate), c ∈ src.raw → CandidateValid src.revision c
+m : Machine :=
+  restore (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd)) src.raw) s
+safe : ∀ (c : Candidate), c ∈ m.rest → supported c.actual = true
+noBad :
+  ((List.take (m.rest.length - (run through probes outputs m).machine.rest.length) m.rest).any fun c =>
+      !c.excluded && !supported c.actual) =
+    false
+noLimit : (run through probes outputs m).stop ≠ Stop.internalLimit
+⊢ (if
+        ∃ x,
+          x ∈
+              List.take
+                ((restore
+                        (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd))
+                          src.raw)
+                        s).rest.length -
+                  (run through probes outputs
+                          (restore
+                            (List.filter
+                              (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd)) src.raw)
+                            s)).machine.rest.length)
+                (restore
+                    (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd))
+                      src.raw)
+                    s).rest ∧
+            x.excluded = false ∧ supported x.actual = false then
+      Except.error "actual-outside-range"
+    else
+      if
+          (run through probes outputs
+                (restore
+                  (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd)) src.raw)
+                  s)).stop =
+            Stop.internalLimit then
+        Except.error "state-invalid"
+      else
+        Except.ok
+          (run through probes outputs
+            (restore
+              (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd)) src.raw)
+              s))) =
+    Except.ok
+      (run through probes outputs
+        (restore (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd)) src.raw)
+          s))
+docs/development/scheduler2/lean/exact/Validity.lean:126:4: warning: This simp argument is unused:
+  show
+        (m.rest.take (m.rest.length - (run through probes outputs m).machine.rest.length)).any
+            (fun c => !c.excluded && !supported c.actual) =
+          false
+        from noBad
+
+Hint: Omit it from the simp argument list.
+  simp [scan, identity, revision, hv, active, full, inclusions, window, show ¬probes < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬probes > 1024 by omega, show ¬outputs < 1 by omega, show ¬outputs > 128 by omega, s̵h̵o̵w̵ ̵(̵m̵.̵r̵e̵s̵t̵.̵t̵a̵k̵e̵ ̵(̵m̵.̵r̵e̵s̵t̵.̵l̵e̵n̵g̵t̵h̵ ̵-̵ ̵(̵r̵u̵n̵ ̵t̵h̵r̵o̵u̵g̵h̵ ̵p̵r̵o̵b̵e̵s̵ ̵o̵u̵t̵p̵u̵t̵s̵ ̵m̵)̵.̵m̵a̵c̵h̵i̵n̵e̵.̵r̵e̵s̵t̵.̵l̵e̵n̵g̵t̵h̵)̵)̵.̵a̵n̵y̵
+  ̵ ̵ ̵ ̵ ̵ ̵ ̵(̵f̵u̵n̵ ̵c̵ ̵=̵>̵ ̵!̵c̵.̵e̵x̵c̵l̵u̵d̵e̵d̵ ̵&̵&̵ ̵!̵s̵u̵p̵p̵o̵r̵t̵e̵d̵ ̵c̵.̵a̵c̵t̵u̵a̵l̵)̵ ̵=̵ ̵f̵a̵l̵s̵e̵ ̵f̵r̵o̵m̵ ̵n̵o̵B̵a̵d̵,̵noLimit,
+      ←
+  ̲  ̲ ̲ ̲ ̲ ̲show
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲restore (src.raw.filter (fun c => src.lower ≤ c.nominal && c.nominal ≤ src.nominalEnd)) s =
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲m
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲from rfl]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:128:4: warning: This simp argument is unused:
+  noLimit
+
+Hint: Omit it from the simp argument list.
+  simp [scan, identity, revision, hv, active, full, inclusions, window, show ¬probes < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬probes > 1024 by omega, show ¬outputs < 1 by omega, show ¬outputs > 128 by omega,
+      show
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲(m.rest.take (m.rest.length - (run through probes outputs m).machine.rest.length)).any
+              (fun c => !c.excluded && !supported c.actual) =
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲false
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲from noBad,
+      n̵o̵L̵i̵m̵i̵t̵,̵ ̵←
+  ̲  ̲ ̲ ̲ ̲ ̲show
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲restore (src.raw.filter (fun c => src.lower ≤ c.nominal && c.nominal ≤ src.nominalEnd)) s =
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲m
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲from rfl]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:128:13: warning: This simp argument is unused:
+  ← show restore (src.raw.filter (fun c => src.lower ≤ c.nominal && c.nominal ≤ src.nominalEnd)) s = m from rfl
+
+Hint: Omit it from the simp argument list.
+  simp [scan, identity, revision, hv, active, full, inclusions, window, show ¬probes < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬probes > 1024 by omega, show ¬outputs < 1 by omega, show ¬outputs > 128 by omega,
+      show
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲(m.rest.take (m.rest.length - (run through probes outputs m).machine.rest.length)).any
+              (fun c => !c.excluded && !supported c.actual) =
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲ ̲false
+  ̲  ̲ ̲ ̲ ̲ ̲ ̲ ̲from noBad,
+      n̵o̵L̵i̵m̵i̵t̵,̵ ̵←̵ ̵s̵h̵o̵w̵ ̵r̵e̵s̵t̵o̵r̵e̵ ̵(̵s̵r̵c̵.̵r̵a̵w̵.̵f̵i̵l̵t̵e̵r̵ ̵(̵f̵u̵n̵ ̵c̵ ̵=̵>̵ ̵s̵r̵c̵.̵l̵o̵w̵e̵r̵ ̵≤̵ ̵c̵.̵n̵o̵m̵i̵n̵a̵l̵ ̵&̵&̵ ̵c̵.̵n̵o̵m̵i̵n̵a̵l̵ ̵≤̵ ̵s̵r̵c̵.̵n̵o̵m̵i̵n̵a̵l̵E̵n̵d̵)̵)̵ ̵s̵ ̵=̵ ̵m̵ ̵f̵r̵o̵m̵ ̵r̵f̵l̵]̵n̲o̲L̲i̲m̲i̲t̲]̲
+
+Note: Simp arguments with `←` have the additional effect of removing the other direction from the simp set, even if the simp argument itself is unused. If the hint above does not work, try replacing `←` with `-` to only get that effect and silence this warning.
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`

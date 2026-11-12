@@ -1,0 +1,202 @@
+{
+  "sources": {
+    "Audit.lean": "c2b03b92276cc7e26f535f1b81a152b3d26b2936a7cab3070aea8cadf8e721d7",
+    "Controls.lean": "6879c408511995ae05c5d106fe648a193a54d21880bf380153bd84e309c766b0",
+    "Frontier.lean": "c7b90bda984551e14b2e2e1b8a255e476f6fcc074838aba5890511440ca32a76",
+    "Kernel.lean": "4ae8bfa669039aefd8cd74478ba72fa759d1623012138538f772d261fecc62e3",
+    "KernelComposition.lean": "2a5eb6e4cf5b0586a42151e0fb808d392d09bd27427e16bd8ea1be0eff1d5d75",
+    "Oracle.lean": "143cca85dbfd48e23bc10cb7ddb711209051f1ae2169d3e06df3b71ff9ac560d",
+    "Public.lean": "1c50bf0c7367e907076a91e656256e04a65f9adeceb1a34fdd9043fe1d9b6257",
+    "PublicComposition.lean": "4ec54165141c5db3d14eda3f4c810100be0953942cf9b3495e598eab52a5663f",
+    "Validity.lean": "1b51cc5617287863470af71783ad5a2d293a8f2ddf0a0a5765a806b0813309ac",
+    "wire-v1.md": "9399ad5f5c17701e8d0066cf89a195b40139d56c584e11e9b2ba00a84b7f2ebc",
+    "build.py": "e8897c7be6993af079d561e5507d7a3a6e1f2d4ac3f3f5d64071f061c0ba4ba4"
+  },
+  "tool_sha256": "9544be237d91099efe1db8cb97d0c359fa13aa94f565e9972bfb8b63abbcb437",
+  "commands": [
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "--version"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "LEAN_PATH": "/private/tmp/scheduler2-wi013-lean-build10",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 0.024920249823480844,
+      "log": "version.log"
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "-o",
+        "/private/tmp/scheduler2-wi013-lean-build10/Kernel.olean",
+        "-c",
+        "/private/tmp/scheduler2-wi013-lean-build10/Kernel.c",
+        "Kernel.lean"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "LEAN_PATH": "/private/tmp/scheduler2-wi013-lean-build10",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 1.2242165410425514,
+      "log": "Kernel.log"
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "-o",
+        "/private/tmp/scheduler2-wi013-lean-build10/Frontier.olean",
+        "-c",
+        "/private/tmp/scheduler2-wi013-lean-build10/Frontier.c",
+        "Frontier.lean"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "LEAN_PATH": "/private/tmp/scheduler2-wi013-lean-build10",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 0.6499491250142455,
+      "log": "Frontier.log"
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "-o",
+        "/private/tmp/scheduler2-wi013-lean-build10/Oracle.olean",
+        "-c",
+        "/private/tmp/scheduler2-wi013-lean-build10/Oracle.c",
+        "Oracle.lean"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "LEAN_PATH": "/private/tmp/scheduler2-wi013-lean-build10",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 0.9549530420918018,
+      "log": "Oracle.log"
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "-o",
+        "/private/tmp/scheduler2-wi013-lean-build10/Controls.olean",
+        "-c",
+        "/private/tmp/scheduler2-wi013-lean-build10/Controls.c",
+        "Controls.lean"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "LEAN_PATH": "/private/tmp/scheduler2-wi013-lean-build10",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 1.5517980828881264,
+      "log": "Controls.log"
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "-o",
+        "/private/tmp/scheduler2-wi013-lean-build10/Validity.olean",
+        "-c",
+        "/private/tmp/scheduler2-wi013-lean-build10/Validity.c",
+        "Validity.lean"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "LEAN_PATH": "/private/tmp/scheduler2-wi013-lean-build10",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 1.6101812499109656,
+      "log": "Validity.log"
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "-o",
+        "/private/tmp/scheduler2-wi013-lean-build10/Public.olean",
+        "-c",
+        "/private/tmp/scheduler2-wi013-lean-build10/Public.c",
+        "Public.lean"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "LEAN_PATH": "/private/tmp/scheduler2-wi013-lean-build10",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 0.8988388339057565,
+      "log": "Public.log"
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "-o",
+        "/private/tmp/scheduler2-wi013-lean-build10/KernelComposition.olean",
+        "-c",
+        "/private/tmp/scheduler2-wi013-lean-build10/KernelComposition.c",
+        "KernelComposition.lean"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "LEAN_PATH": "/private/tmp/scheduler2-wi013-lean-build10",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 1.189835875062272,
+      "log": "KernelComposition.log"
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "-o",
+        "/private/tmp/scheduler2-wi013-lean-build10/PublicComposition.olean",
+        "-c",
+        "/private/tmp/scheduler2-wi013-lean-build10/PublicComposition.c",
+        "PublicComposition.lean"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "LEAN_PATH": "/private/tmp/scheduler2-wi013-lean-build10",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 0.6146071250550449,
+      "log": "PublicComposition.log"
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/lean",
+        "Audit.lean"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "LEAN_PATH": "/private/tmp/scheduler2-wi013-lean-build10",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 1.4410418330226094,
+      "log": "audit.log"
+    },
+    {
+      "argv": [
+        "/private/tmp/scheduler2-lean-toolchain/lean-4.24.0-darwin_aarch64/bin/leanc",
+        "/private/tmp/scheduler2-wi013-lean-build10/Oracle.c",
+        "/private/tmp/scheduler2-wi013-lean-build10/Kernel.c",
+        "/private/tmp/scheduler2-wi013-lean-build10/Frontier.c",
+        "-o",
+        "/private/tmp/scheduler2-wi013-lean-build10/oracle"
+      ],
+      "cwd": "/private/tmp/sch-redesign-proofs/docs/development/scheduler2/lean/exact",
+      "LEAN_PATH": "/private/tmp/scheduler2-wi013-lean-build10",
+      "exit_code": 0,
+      "timed_out": false,
+      "seconds": 1.4898392499890178,
+      "log": "link.log"
+    }
+  ],
+  "status": "passed",
+  "binary_sha256": "3e0b7213a8e63024cc7a219c003cbe4fff22e8b683029ce4694c15b58112db6d",
+  "binary": "/private/tmp/scheduler2-wi013-lean-build10/oracle",
+  "sources_after": {
+    "Audit.lean": "c2b03b92276cc7e26f535f1b81a152b3d26b2936a7cab3070aea8cadf8e721d7",
+    "Controls.lean": "6879c408511995ae05c5d106fe648a193a54d21880bf380153bd84e309c766b0",
+    "Frontier.lean": "c7b90bda984551e14b2e2e1b8a255e476f6fcc074838aba5890511440ca32a76",
+    "Kernel.lean": "4ae8bfa669039aefd8cd74478ba72fa759d1623012138538f772d261fecc62e3",
+    "KernelComposition.lean": "2a5eb6e4cf5b0586a42151e0fb808d392d09bd27427e16bd8ea1be0eff1d5d75",
+    "Oracle.lean": "143cca85dbfd48e23bc10cb7ddb711209051f1ae2169d3e06df3b71ff9ac560d",
+    "Public.lean": "1c50bf0c7367e907076a91e656256e04a65f9adeceb1a34fdd9043fe1d9b6257",
+    "PublicComposition.lean": "4ec54165141c5db3d14eda3f4c810100be0953942cf9b3495e598eab52a5663f",
+    "Validity.lean": "1b51cc5617287863470af71783ad5a2d293a8f2ddf0a0a5765a806b0813309ac",
+    "wire-v1.md": "9399ad5f5c17701e8d0066cf89a195b40139d56c584e11e9b2ba00a84b7f2ebc",
+    "build.py": "e8897c7be6993af079d561e5507d7a3a6e1f2d4ac3f3f5d64071f061c0ba4ba4"
+  }
+}

@@ -273,7 +273,7 @@ Drive old and new implementations with equivalent commands and external outcomes
 - [ ] P5.1: Run the shared Schedule functional suite against scheduler2 through the public frontend API using the backend-selection design below. Classify every existing Schedule functional test and record its outcome.
 - [ ] P5.2: Test calendar jitter, DST gaps/folds, exclusions, strict advancement, bounded computation, and batch partition equivalence separately.
 - [ ] P5.3: Give every intentional divergence a named expectation and reproduction.
-- [ ] P5.4: Complete the Lean resumable-enumeration theorem and Go correspondence checks defined in section 7; report theorem assumptions and the unproved implementation boundary explicitly.
+- [x] P5.4: Complete the Lean resumable-enumeration theorem and Go correspondence checks defined in section 7; report theorem assumptions and the unproved implementation boundary explicitly.
 - [ ] P5.5: Replace boolean backend selection with an explicit test backend descriptor and add a scheduler2 shared-suite entry point; preserve V1 and existing CHASM coverage.
 - [ ] P5.6: Implement local test wiring for all Schedule API paths, including typed List/Count queries, setup, and cleanup. Prove component identity and detect unintended fallback.
 - [ ] P5.7: Promote applicable CHASM-only public-contract tests into shared coverage and inventory implementation-specific tests and named divergences.
@@ -918,3 +918,13 @@ focused race and lint pass. Separate frontend registry and List cleanup defects 
 fixed with retained failure evidence. Full public execution/controls/callbacks and
 scheduler2 shared suite remain required next work (WI-015 draft); WI-013 proofs remain
 open. M3 is active and M4 pending; no rollout or migration is authorized.
+
+
+
+WI-013 accepted E77–E80: pinned Lean build11 checks93 theorem axioms, including
+actual public serialized completeness/uniqueness, exact state/probe/stop batching and
+Peek/Dispose lifecycle. Separate non-author reviews accepted proof bridges and
+composition. Named routine100/exploration10000-per-property seed1 profiles, exhaustive
+fixtures, savedv1/v2 replay, four production mutant shrink/replay/restoration checks,
+race and tagged lint pass. Finite ordered raw-source hypotheses and unproved Go/JSON/
+calendar boundaries are explicit. P5.4 closes; SP7/P5.2 and full public M3 remain open.

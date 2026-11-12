@@ -315,3 +315,15 @@ WI-011 and M2 accepted E67–E71 with [final scoped lint](wi011/acceptance-lint.
 
 WI-013 proofs and WI-015 full execution remain M3 requirements. These entries do not
 claim full scheduler2 shared-suite parity or generated SchedulerService transport.
+
+## WI-013 exact enumeration proofs and Go correspondence (accepted)
+
+| ID | Claim | Evidence |
+|---|---|---|
+| E77 | Actual executable/public enumeration proof obligations | [checks](wi013/checks.json), [final proof build](wi013/proofs/build11/manifest.json), [obligation map](wi013/proofs/review-repair-status.md);93 exports audited, finite raw-source hypotheses explicit. |
+| E78 | Independent correspondence and reproducible profiles | [routine](wi013/runner-routine02/manifest.json), [exploration](wi013/runner-exploration01/manifest.json), [proofs runner](wi013/runner-proofs01/manifest.json); both10000-case properties with explicitseed1, exhaustive/direct/savedv1/v2 comparisons pass. |
+| E79 | Defect sensitivity and repair provenance | [three core mutants](wi013/correspondence-mutations-build07/manifest.json), [replacement mutant](wi013/correspondence-update-mutation/manifest.json); direct Rapid failures, shrunk concrete replay, mutant failure and restored pass. |
+| E80 | Independent review and checks | [public proof review](wi013/independent-proof-review.md), [composition review](wi013/independent-composition-review.md), [integrator review](wi013/integrator-review.md), [race](wi013/build08-race.log), [tagged lint](wi013/tagged-lint.log); runtime binary identity reuse explicit. |
+
+No universal Go/calendar/JSON/persistence refinement claim. Remaining SP7 calendar
+boundary and public functional M3 gates remain open, as does M4.

@@ -1,0 +1,42 @@
+Controls.lean:70:8: error: unsolved goals
+case isFalse.isFalse.isFalse.isTrue
+src : Source
+s : State
+through probes outputs : Nat
+result : Result
+active : s.terminal = Stop.active
+inclusions : src.hasInclusions = true
+h✝³ : ¬(src.identity != s.identity || src.revision != s.revision) = true
+h✝² :
+  ¬(!supported through || decide (probes < 1) || decide (probes > 1024) || decide (outputs < 1) ||
+        decide (outputs > 128)) =
+      true
+h✝¹ :
+  ¬(!validState s || s.fullRange != decide (s.origin < src.lower) || s.terminal == Stop.empty && src.hasInclusions) =
+      true
+h✝ : (Stop.active != Stop.active) = true
+success : done { state := s, rest := [] } Stop.active = result
+⊢ result =
+    run through probes outputs
+      (restore (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd)) src.raw) s)
+Controls.lean:73:12: error: Type mismatch: After simplification, term
+  Eq.symm success
+ has type
+  Except.ok result =
+    if
+        ((run through probes outputs
+                (restore
+                  (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd)) src.raw)
+                  s)).stop ==
+            Stop.internalLimit) =
+          true then
+      Except.error "state-invalid"
+    else
+      Except.ok
+        (run through probes outputs
+          (restore
+            (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd)) src.raw) s))
+but is expected to have type
+  result =
+    run through probes outputs
+      (restore (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd)) src.raw) s)

@@ -1,0 +1,57 @@
+docs/development/scheduler2/lean/exact/Public.lean:68:52: warning: This simp argument is unused:
+  budget
+
+Hint: Omit it from the simp argument list.
+  simp [scan, hi, hr, hv, hf, he, active, window, b̵u̵d̵g̵e̵t̵,̵
+  ̵ ̵ ̵ ̵ ̵ ̵ ̵show ¬probes < 1 by omega,
+  ̲  ̲ ̲ ̲ ̲ ̲show ¬probes > 1024 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵show ¬outputs < 1 by omega, show ¬outputs > 128 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵run,
+  ̲  ̲ ̲ ̲ ̲ ̲loop, restore, bounded, done] at rest ⊢
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Public.lean:284:23: warning: This simp argument is unused:
+  m
+
+Hint: Omit it from the simp argument list.
+  simp [run, loop, m̵,̵ ̵restore, h, done] at due
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Public.lean:306:4: error: Type mismatch
+  valid.right.left.left.left.left.left.left.left.left
+has type
+  s.terminal = Stop.active ∧ c.revision = s.revision
+but is expected to have type
+  s.terminal = Stop.active
+docs/development/scheduler2/lean/exact/Public.lean:310:6: error: Tactic `rewrite` failed: Did not find an occurrence of the pattern
+  asPeek (restore (bounded src) s) (run through probes 1 (restore (bounded src) s))
+in the target expression
+  scan src s through probes 1 true =
+    Except.ok
+      (asPeek
+        (restore (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd)) src.raw)
+          s)
+        (run through probes 1 (restore (bounded src) s)))
+
+src : Source
+s : State
+c : Candidate
+through probes : Nat
+source : SourceValid src
+ready : Ready src s
+inclusions : src.hasInclusions = true
+window : supported through = true
+budget : 1 ≤ probes ∧ probes ≤ 1024
+pending : s.pending = some c
+eligible : c.excluded = false
+due : c.actual ≤ through
+active : s.terminal = Stop.active
+success : scan src s through probes 1 false = Except.ok (run through probes 1 (restore (bounded src) s))
+peek :
+  scan src s through probes 1 true =
+    Except.ok
+      (asPeek
+        (restore (List.filter (fun c => decide (src.lower ≤ c.nominal) && decide (c.nominal ≤ src.nominalEnd)) src.raw)
+          s)
+        (run through probes 1 (restore (bounded src) s)))
+⊢ scan src s through probes 1 true = Except.ok (done (restore (bounded src) s) Stop.active)

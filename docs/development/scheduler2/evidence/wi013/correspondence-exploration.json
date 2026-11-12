@@ -1,0 +1,13 @@
+{
+  "binary": "/private/tmp/scheduler2-wi013-lean/oracle-6639b8782a8c",
+  "binary_sha256": "6639b8782a8ce26e03e12dd70e618a3ac76cdf6fbad95a015197b96caf3679ae",
+  "driver_sha256": "62ba6731853304027541a6444021605fb2269fddfabcc860368550cfe69c590e",
+  "source_base": "ea609329f",
+  "result": "exploration pass",
+  "bounds": "384 exhaustive traces; two10000-case Rapid profiles seed1; directed controls/boundaries and standalone replay",
+  "command": "SCHEDULER2_LEAN_ORACLE=/private/tmp/scheduler2-wi013-lean/oracle-6639b8782a8c CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,lean_correspondence -p 2 -parallel 4 ./chasm/lib/scheduler2/internal/occurrence -run ^TestLeanCorrespondence -count=1 -rapid.checks=10000 -rapid.seed=1 -timeout=4m -v",
+  "exit_code": 0,
+  "scope": "Proofs, complete calendar coverage, sensitivity and final acceptance pending; binary build source manifest owned by Lean author",
+  "log": "correspondence-exploration.log",
+  "driver_snapshot": "correspondence-driver-initial.go.txt"
+}

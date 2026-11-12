@@ -1,0 +1,63 @@
+docs/development/scheduler2/lean/exact/Public.lean:68:52: warning: This simp argument is unused:
+  budget
+
+Hint: Omit it from the simp argument list.
+  simp [scan, hi, hr, hv, hf, he, active, window, b̵u̵d̵g̵e̵t̵,̵
+  ̵ ̵ ̵ ̵ ̵ ̵ ̵show ¬probes < 1 by omega,
+  ̲  ̲ ̲ ̲ ̲ ̲show ¬probes > 1024 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵show ¬outputs < 1 by omega, show ¬outputs > 128 by omega,
+  ̵  ̵ ̵ ̵ ̵ ̵run,
+  ̲  ̲ ̲ ̲ ̲ ̲loop, restore, bounded, done] at rest ⊢
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Public.lean:284:23: warning: This simp argument is unused:
+  m
+
+Hint: Omit it from the simp argument list.
+  simp [run, loop, m̵,̵ ̵restore, h, done] at due
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Public.lean:333:43: error: Application type mismatch: The argument
+  tail
+has type
+  ∀ (x : Candidate),
+    x ∈
+        remaining
+          {
+            state :=
+              let __src := m.state;
+              { identity := __src.identity, revision := __src.revision, origin := __src.origin,
+                searchAfter := __src.searchAfter, disposedThrough := c.nominal, fullRange := __src.fullRange,
+                eligibleSeen := __src.eligibleSeen, terminal := __src.terminal },
+            rest := m.rest } →
+      x.excluded = true ∧ x.actual ≤ through
+but is expected to have type
+  ∀ (c : Candidate), c ∈ remaining m → c.excluded = true ∧ c.actual ≤ through
+in the application
+  ih fuel slots m active full unseen tail
+docs/development/scheduler2/lean/exact/Public.lean:346:69: error: Application type mismatch: The argument
+  tail
+has type
+  ∀ (x : Candidate),
+    x ∈
+        remaining
+          {
+            state :=
+              let __src := m.state;
+              { identity := __src.identity, revision := __src.revision, origin := __src.origin,
+                searchAfter := c.nominal, disposedThrough := __src.disposedThrough, pending := some c,
+                fullRange := __src.fullRange, eligibleSeen := m.state.eligibleSeen || !c.excluded,
+                terminal := __src.terminal },
+            rest := cs } →
+      x.excluded = true ∧ x.actual ≤ through
+but is expected to have type
+  ∀ (c : Candidate), c ∈ remaining m → c.excluded = true ∧ c.actual ≤ through
+in the application
+  ih (fuel - 1) slots m active full ?m.255 tail
+docs/development/scheduler2/lean/exact/Public.lean:346:62: warning: This simp argument is unused:
+  hc.1
+
+Hint: Omit it from the simp argument list.
+  simp [unseen,̵ ̵h̵c̵.̵1̵]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`

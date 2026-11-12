@@ -1,0 +1,76 @@
+docs/development/scheduler2/lean/exact/Validity.lean:48:26: warning: This simp argument is unused:
+  supported
+
+Hint: Omit it from the simp argument list.
+  simp_all [validState,̵ ̵s̵u̵p̵p̵o̵r̵t̵e̵d̵]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:127:19: warning: This simp argument is unused:
+  beq_self_eq_true
+
+Hint: Omit it from the simp argument list.
+  simp only [scan, identity, revision, hv, active, full, inclusions, window,
+      show ¬probes < 1 by omega, show ¬probes > 1024 by omega, show ¬outputs < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬outputs > 128 by omega, Bool.not_true, b̵e̵q̵_̵s̵e̵l̵f̵_̵e̵q̵_̵t̵r̵u̵e̵,̵ ̵Bool.false_or, Bool.true_and, Bool.false_and,
+  ̲  ̲ ̲ ̲Bool.false_eq_true, ↓reduceIte, decide_false, decide_true, Bool.or_false, Bool.not_false,
+  ̲  ̲ ̲ ̲bne_self_eq_false, noBad, stop_beq, noLimit]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:127:52: warning: This simp argument is unused:
+  Bool.true_and
+
+Hint: Omit it from the simp argument list.
+  simp only [scan, identity, revision, hv, active, full, inclusions, window,
+      show ¬probes < 1 by omega, show ¬probes > 1024 by omega, show ¬outputs < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬outputs > 128 by omega, Bool.not_true, beq_self_eq_true, Bool.false_or, B̵o̵o̵l̵.̵t̵r̵u̵e̵_̵a̵n̵d̵,̵Bool.false_and,
+      Bool.false_eq_true, ↓reduceIte, decide_false, decide_true, Bool.or_false, Bool.not_false,
+  ̲  ̲ ̲ ̲bne_self_eq_false, noBad, stop_beq, noLimit]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:128:4: warning: This simp argument is unused:
+  Bool.false_and
+
+Hint: Omit it from the simp argument list.
+  simp only [scan, identity, revision, hv, active, full, inclusions, window,
+      show ¬probes < 1 by omega, show ¬probes > 1024 by omega, show ¬outputs < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬outputs > 128 by omega, Bool.not_true, beq_self_eq_true, Bool.false_or, Bool.true_and,
+      B̵o̵o̵l̵.̵f̵a̵l̵s̵e̵_̵a̵n̵d̵,̵ ̵Bool.false_eq_true, ↓reduceIte, decide_false, decide_true, Bool.or_false, Bool.not_false,
+  ̲  ̲ ̲ ̲bne_self_eq_false, noBad, stop_beq, noLimit]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:128:66: warning: This simp argument is unused:
+  decide_true
+
+Hint: Omit it from the simp argument list.
+  simp only [scan, identity, revision, hv, active, full, inclusions, window,
+      show ¬probes < 1 by omega, show ¬probes > 1024 by omega,
+  ̵  ̵ ̵ ̵show ¬outputs < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬outputs > 128 by omega,
+  ̵  ̵ ̵ ̵Bool.not_true, beq_self_eq_true, Bool.false_or, Bool.true_and,
+      Bool.false_and, Bool.false_eq_true, ↓reduceIte, decide_false, d̵e̵c̵i̵d̵e̵_̵t̵B̲o̲o̲l̲.̲o̲ru̵_̲f̲a̲l̲s̲e, ̲B̲o̲o̲l̲.̲n̲o̲t̲_̲f̲a̲l̲s̲e̲,̲
+      B̵o̵o̵l̵.̵o̵r̵_̵f̵a̵l̵s̵e̵,̵ ̵B̵o̵o̵l̵.̵n̵o̵t̵_̵f̵a̵l̵s̵e̵,̵ ̵bne_self_eq_false, noBad, stop_beq, noLimit]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:129:19: warning: This simp argument is unused:
+  Bool.not_false
+
+Hint: Omit it from the simp argument list.
+  simp only [scan, identity, revision, hv, active, full, inclusions, window,
+      show ¬probes < 1 by omega, show ¬probes > 1024 by omega,
+  ̵  ̵ ̵ ̵show ¬outputs < 1 by omega,
+  ̲  ̲ ̲ ̲show ¬outputs > 128 by omega,
+  ̵  ̵ ̵ ̵Bool.not_true, beq_self_eq_true, Bool.false_or, Bool.true_and,
+      Bool.false_and, Bool.false_eq_true, ↓reduceIte, decide_false, decide_true, ̲B̲o̲o̲l̲.̲o̲r̲_̲f̲a̲l̲s̲e̲,̲
+      B̵o̵o̵l̵.̵o̵r̵_̵f̵a̵l̵s̵e̵,̵ ̵B̵o̵o̵l̵.̵n̵o̵t̵_̵f̵a̵l̵s̵e̵,̵ ̵bne_self_eq_false, noBad, stop_beq, noLimit]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+docs/development/scheduler2/lean/exact/Validity.lean:174:12: error: (deterministic) timeout at `whnf`, maximum number of heartbeats (200000) has been reached
+
+Note: Use `set_option maxHeartbeats <num>` to set the limit.
+
+Hint: Additional diagnostic information may be available using the `set_option diagnostics true` command.
+docs/development/scheduler2/lean/exact/Validity.lean:176:2: error: (deterministic) timeout at `«tactic execution»`, maximum number of heartbeats (200000) has been reached
+
+Note: Use `set_option maxHeartbeats <num>` to set the limit.
+
+Hint: Additional diagnostic information may be available using the `set_option diagnostics true` command.

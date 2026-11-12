@@ -1,0 +1,27 @@
+docs/development/scheduler2/lean/exact/Kernel.lean:141:14: error: omega could not prove the goal:
+No usable constraints found. You may need to unfold definitions so `omega` can see linear arithmetic facts about `Nat` and `Int`, which may also involve multiplication, division, and modular remainder by constants.
+docs/development/scheduler2/lean/exact/Kernel.lean:146:14: error: omega could not prove the goal:
+a possible counterexample may satisfy the constraints
+  d ≥ 1
+  b ≥ 0
+  b - d ≥ 0
+  a ≥ 0
+  a - d ≤ -1
+where
+ a := ↑(loop through ticks (fuel - 1) slots
+      {
+        state :=
+          let __src := m.state;
+          { identity := __src.identity, revision := __src.revision, origin := __src.origin, searchAfter := c.nominal,
+            disposedThrough := __src.disposedThrough, pending := some c, fullRange := __src.fullRange,
+            eligibleSeen := m.state.eligibleSeen || !c.excluded, terminal := __src.terminal },
+        rest := cs }).probes
+ b := ↑(loop through ticks (fuel - 1) slots
+      {
+        state :=
+          { identity := m.state.identity, revision := m.state.revision, origin := m.state.origin,
+            searchAfter := c.nominal, disposedThrough := m.state.disposedThrough, pending := some c,
+            fullRange := m.state.fullRange, eligibleSeen := m.state.eligibleSeen || !c.excluded,
+            terminal := m.state.terminal },
+        rest := cs }).probes
+ d := ↑fuel

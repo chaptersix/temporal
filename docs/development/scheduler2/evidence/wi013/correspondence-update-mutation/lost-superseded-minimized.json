@@ -1,0 +1,56 @@
+{
+  "version": 2,
+  "definitions": {
+    "initial": {
+      "start": "2024-01-01T00:00:00Z",
+      "span": 8,
+      "periods": [
+        1
+      ],
+      "exclude": [],
+      "jitter_ms": 0,
+      "seed": "before",
+      "revision": 1
+    },
+    "replacement": {
+      "start": "2024-01-01T00:00:00Z",
+      "span": 8,
+      "periods": [
+        1
+      ],
+      "exclude": [],
+      "jitter_ms": 0,
+      "seed": "after",
+      "revision": 2
+    }
+  },
+  "steps": [
+    {
+      "definition": "initial",
+      "expect_success": true,
+      "op": "beginRange",
+      "time": "2024-01-01T00:00:00Z",
+      "end": "2024-01-01T00:00:16Z",
+      "probes": 0,
+      "outputs": 0
+    },
+    {
+      "definition": "initial",
+      "expect_success": true,
+      "op": "run",
+      "time": "2024-01-01T00:00:00Z",
+      "end": "0001-01-01T00:00:00Z",
+      "probes": 2,
+      "outputs": 2
+    },
+    {
+      "definition": "replacement",
+      "expect_success": true,
+      "op": "update",
+      "time": "2024-01-01T00:00:01Z",
+      "end": "0001-01-01T00:00:00Z",
+      "probes": 0,
+      "outputs": 0
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+KernelComposition.lean:167:13: warning: unused variable `hp`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+KernelComposition.lean:174:18: warning: unused variable `hr`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+KernelComposition.lean:203:17: warning: This simp argument is unused:
+  hp
+
+Hint: Omit it from the simp argument list.
+  simp only ̵[̵h̵p̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+KernelComposition.lean:214:17: warning: This simp argument is unused:
+  hp
+
+Hint: Omit it from the simp argument list.
+  simp only ̵[̵h̵p̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+KernelComposition.lean:218:26: warning: This simp argument is unused:
+  hr
+
+Hint: Omit it from the simp argument list.
+  simp only ̵[̵h̵r̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+KernelComposition.lean:220:19: warning: This simp argument is unused:
+  hr
+
+Hint: Omit it from the simp argument list.
+  simp only ̵[̵h̵r̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+KernelComposition.lean:235:17: warning: This simp argument is unused:
+  ht
+
+Hint: Omit it from the simp argument list.
+  simp only [h̵t̵,̵ ̵↓reduceIte, done, joinResult]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+KernelComposition.lean:235:21: warning: This simp argument is unused:
+  ↓reduceIte
+
+Hint: Omit it from the simp argument list.
+  simp only [ht, ↓̵r̵e̵d̵u̵c̵e̵I̵t̵e̵,̵ ̵done, joinResult]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+KernelComposition.lean:241:17: warning: This simp argument is unused:
+  hp
+
+Hint: Omit it from the simp argument list.
+  simp only ̵[̵h̵p̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+KernelComposition.lean:255:19: warning: This simp argument is unused:
+  he
+
+Hint: Omit it from the simp argument list.
+  simp only [h̵e̵,̵ ̵Bool.false_eq_true, ↓reduceIte]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+KernelComposition.lean:259:17: warning: This simp argument is unused:
+  hp
+
+Hint: Omit it from the simp argument list.
+  simp only ̵[̵h̵p̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+KernelComposition.lean:262:19: warning: This simp argument is unused:
+  hr
+
+Hint: Omit it from the simp argument list.
+  simp only ̵[̵h̵r̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+KernelComposition.lean:265:19: warning: This simp argument is unused:
+  hr
+
+Hint: Omit it from the simp argument list.
+  simp only ̵[̵h̵r̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`

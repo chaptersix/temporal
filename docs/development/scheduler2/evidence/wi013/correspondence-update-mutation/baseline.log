@@ -1,0 +1,5 @@
+=== RUN   TestLeanCorrespondenceRapid
+    lean_correspondence_test.go:412: [rapid] OK, passed 100 tests (89.860375ms)
+--- PASS: TestLeanCorrespondenceRapid (0.09s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	3.657s

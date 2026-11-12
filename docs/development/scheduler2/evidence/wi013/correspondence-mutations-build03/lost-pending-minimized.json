@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "fixture": {
+    "start": "2024-01-01T00:00:00Z",
+    "span": 1,
+    "periods": [
+      1,
+      1
+    ],
+    "exclude": [],
+    "jitter_ms": 0,
+    "seed": "a",
+    "revision": 1
+  },
+  "steps": [
+    {
+      "op": "beginRange",
+      "time": "2024-01-01T00:00:00Z",
+      "end": "2024-01-01T00:00:09Z",
+      "probes": 0,
+      "outputs": 0
+    },
+    {
+      "op": "run",
+      "time": "2024-01-01T00:00:09Z",
+      "end": "0001-01-01T00:00:00Z",
+      "probes": 1,
+      "outputs": 1
+    }
+  ]
+}

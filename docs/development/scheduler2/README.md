@@ -20,8 +20,8 @@ CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast GOLANGCI_LINT_BASE_REV=85b80a1836
 
 The runner emits exact commands, source SHA, dirty diff, per-source hashes, tool
 versions, settings, outcome, duration and log paths. Missing commands/timeouts
-fail. The proofs/fuzz/benchmarks profiles emit unsupported, exit nonzero, and are
-not required for the bounded M1 acceptance; they remain later-milestone work.
+fail. The fuzz/benchmarks profiles emit unsupported and exit nonzero. The proofs profile
+runs the pinned local exact Lean build and axiom audit described below.
 Go checks use test_dep. Normal runs disable CGO; race selects installed macOS
 26.5 SDK because the default macOS 27 SDK cannot be linked by the installed linker.
 No system SDK setting is modified. FizzBee release/tar hash is in contract.md.
@@ -177,3 +177,61 @@ cover full CloseTransaction/reload. Physical persistence reads are not reduced.
 
 No persisted-layout migration, public API routing, cancel/terminate or manual/backfill
 claim follows. Those remaining gates are tracked in the active M2–M4 plan.
+
+## WI-013 required Lean correspondence profile
+
+This named local profile requires an explicit prebuilt Lean 4.24.0 oracle, its passed
+build manifest (with adjacent `version.log`), and an explicit seed. It never builds,
+downloads, substitutes or skips the oracle. A mismatched binary hash, missing required
+test, input drift, nonzero test exit or timeout fails the profile. Use a fresh output
+directory to preserve prior evidence. Existing runner profiles keep their commands
+and default seed. The separate `proofs` profile runs the pinned local build and
+axiom audit (no download), recording its nested build manifest, source/tool/binary
+hashes and Lean version:
+
+```sh
+python3 docs/development/scheduler2/run.py proofs \
+  --output /private/tmp/scheduler2-verification/lean-proofs
+```
+
+```sh
+python3 docs/development/scheduler2/run.py lean-correspondence \
+  --oracle /private/tmp/scheduler2-wi013-lean-build11/oracle \
+  --oracle-manifest /private/tmp/scheduler2-wi013-lean-build11/manifest.json \
+  --seed 1 --output /private/tmp/scheduler2-verification/lean-routine
+python3 docs/development/scheduler2/run.py lean-correspondence --exploration \
+  --oracle /private/tmp/scheduler2-wi013-lean-build11/oracle \
+  --oracle-manifest /private/tmp/scheduler2-wi013-lean-build11/manifest.json \
+  --seed 1 --output /private/tmp/scheduler2-verification/lean-exploration
+```
+
+The routine command runs the following with `CGO_ENABLED=0`, `GOMAXPROCS=4`, and
+`SCHEDULER2_LEAN_ORACLE` set to the selected absolute executable path:
+
+```sh
+go test -p 2 -parallel 4 -tags test_dep,lean_correspondence -count=1 -timeout=10m \
+  ./chasm/lib/scheduler2/internal/occurrence -run '^TestLeanCorrespondence' \
+  -rapid.seed=1 -rapid.checks=100 -v
+```
+
+Exploration uses `-rapid.checks=10000` for **each of two Rapid properties**. Both modes
+also run 384 bounded exhaustive traces, directed validation/boundary checks and all
+three checked-in v1/v2 replay fixtures, including Update and historical Rebase.
+Inherited `SCHEDULER2_LEAN_REPLAY` is cleared so it cannot silently replace that
+coverage. Saved custom replay remains available through the direct Go test command.
+
+The manifest records the executable SHA256, Lean version/tool hash, build-manifest
+reference/hash and built source hashes, alongside driver/fixture/runner/config hashes,
+exact commands, seed, Go version, environment and logs. Production source/testdata hashes, focused inputs and executable provenance
+are checked again after execution; drift fails the correspondence profile. `profile.json` records separate generator bounds:
+1–12 second interval-union traces with up to 40 scan iterations, or 8-second
+window/replacement traces with up to 24 scan iterations. Historical dispositions
+can add one extra call per scan; these are not coordinator event bounds.
+
+Expected raw candidates come from independent integer-second interval membership
+and UTC second exclusions, including fractional starts and exact timestamps. The
+fixture never calls production next-occurrence search. Time binary encoding,
+Farm32 jitter primitives and opaque identity obtained from Begin are shared
+assumptions; this is not proof of hashing, timezone/calendar coverage or deployed
+behavior. Formal proof building and mutation sensitivity remain separately recorded
+evidence. Passing this profile alone does not accept WI-013 or M3.
