@@ -48,3 +48,7 @@
 
 # Ignoring AI agent files
 .agents/
+
+# rapid failfiles replay raw draw sequences and go stale on generator changes;
+# pin regressions with hand-written tests. CI uploads them as artifacts on failure.
+**/testdata/rapid/
