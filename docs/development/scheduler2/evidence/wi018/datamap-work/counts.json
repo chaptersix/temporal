@@ -1,0 +1,182 @@
+[
+  {
+    "size": 5,
+    "phase": "datamap-cold",
+    "counts": {
+      "cold_nodes": 7,
+      "data_decode_calls": 0,
+      "decode_calls": 1,
+      "decode_data_bytes": 0,
+      "delete_child_visits": 0,
+      "map_hydration_keys": 0,
+      "map_key_copies": 0,
+      "map_sync_keys": 0,
+      "serialize_calls": 0,
+      "serialize_data_bytes": 0,
+      "serialized_node_proto_bytes": 0,
+      "sync_visits": 0,
+      "task_validations": 0,
+      "tree_visits": 0
+    }
+  },
+  {
+    "size": 4,
+    "phase": "datamap-cold",
+    "counts": {
+      "cold_nodes": 6,
+      "data_decode_calls": 0,
+      "decode_calls": 1,
+      "decode_data_bytes": 0,
+      "delete_child_visits": 0,
+      "map_hydration_keys": 0,
+      "map_key_copies": 0,
+      "map_sync_keys": 0,
+      "serialize_calls": 0,
+      "serialize_data_bytes": 0,
+      "serialized_node_proto_bytes": 0,
+      "sync_visits": 0,
+      "task_validations": 0,
+      "tree_visits": 0
+    }
+  },
+  {
+    "size": 4,
+    "phase": "datamap-hot0",
+    "counts": {
+      "cold_nodes": 0,
+      "data_decode_calls": 1,
+      "decode_calls": 1,
+      "decode_data_bytes": 11,
+      "delete_child_visits": 1,
+      "map_hydration_keys": 0,
+      "map_key_copies": 0,
+      "map_sync_keys": 0,
+      "serialize_calls": 2,
+      "serialize_data_bytes": 3,
+      "serialized_node_proto_bytes": 51,
+      "sync_visits": 1,
+      "task_validations": 0,
+      "tree_visits": 37
+    }
+  },
+  {
+    "size": 5,
+    "phase": "datamap-hot0",
+    "counts": {
+      "cold_nodes": 0,
+      "data_decode_calls": 1,
+      "decode_calls": 1,
+      "decode_data_bytes": 11,
+      "delete_child_visits": 1,
+      "map_hydration_keys": 0,
+      "map_key_copies": 0,
+      "map_sync_keys": 0,
+      "serialize_calls": 2,
+      "serialize_data_bytes": 3,
+      "serialized_node_proto_bytes": 51,
+      "sync_visits": 1,
+      "task_validations": 0,
+      "tree_visits": 43
+    }
+  },
+  {
+    "size": 4,
+    "phase": "datamap-hot1",
+    "counts": {
+      "cold_nodes": 0,
+      "data_decode_calls": 0,
+      "decode_calls": 0,
+      "decode_data_bytes": 0,
+      "delete_child_visits": 1,
+      "map_hydration_keys": 0,
+      "map_key_copies": 0,
+      "map_sync_keys": 0,
+      "serialize_calls": 2,
+      "serialize_data_bytes": 3,
+      "serialized_node_proto_bytes": 51,
+      "sync_visits": 1,
+      "task_validations": 0,
+      "tree_visits": 37
+    }
+  },
+  {
+    "size": 5,
+    "phase": "datamap-hot1",
+    "counts": {
+      "cold_nodes": 0,
+      "data_decode_calls": 0,
+      "decode_calls": 0,
+      "decode_data_bytes": 0,
+      "delete_child_visits": 1,
+      "map_hydration_keys": 0,
+      "map_key_copies": 0,
+      "map_sync_keys": 0,
+      "serialize_calls": 2,
+      "serialize_data_bytes": 3,
+      "serialized_node_proto_bytes": 51,
+      "sync_visits": 1,
+      "task_validations": 0,
+      "tree_visits": 43
+    }
+  },
+  {
+    "size": 1000,
+    "phase": "datamap-cold",
+    "counts": {
+      "cold_nodes": 1002,
+      "data_decode_calls": 0,
+      "decode_calls": 1,
+      "decode_data_bytes": 0,
+      "delete_child_visits": 0,
+      "map_hydration_keys": 0,
+      "map_key_copies": 0,
+      "map_sync_keys": 0,
+      "serialize_calls": 0,
+      "serialize_data_bytes": 0,
+      "serialized_node_proto_bytes": 0,
+      "sync_visits": 0,
+      "task_validations": 0,
+      "tree_visits": 0
+    }
+  },
+  {
+    "size": 1000,
+    "phase": "datamap-hot0",
+    "counts": {
+      "cold_nodes": 0,
+      "data_decode_calls": 1,
+      "decode_calls": 1,
+      "decode_data_bytes": 11,
+      "delete_child_visits": 1,
+      "map_hydration_keys": 0,
+      "map_key_copies": 0,
+      "map_sync_keys": 0,
+      "serialize_calls": 2,
+      "serialize_data_bytes": 3,
+      "serialized_node_proto_bytes": 51,
+      "sync_visits": 1,
+      "task_validations": 0,
+      "tree_visits": 6013
+    }
+  },
+  {
+    "size": 1000,
+    "phase": "datamap-hot1",
+    "counts": {
+      "cold_nodes": 0,
+      "data_decode_calls": 0,
+      "decode_calls": 0,
+      "decode_data_bytes": 0,
+      "delete_child_visits": 1,
+      "map_hydration_keys": 0,
+      "map_key_copies": 0,
+      "map_sync_keys": 0,
+      "serialize_calls": 2,
+      "serialize_data_bytes": 3,
+      "serialized_node_proto_bytes": 51,
+      "sync_visits": 1,
+      "task_validations": 0,
+      "tree_visits": 6013
+    }
+  }
+]

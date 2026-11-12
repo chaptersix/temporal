@@ -511,3 +511,9 @@ Single-root10000-key value/ref storage is1,879,906 bytes (2,519,874 including ba
 The optional VisibilityMemoVersionProvider now lets opted components compare a fixed persisted revision on transaction close instead of assembling/cloning the full Memo. Raw providers retain prior behavior; cold/passive cache refresh preserves existing visibility task authority. Full CHASM tests pass0.474s, root independent memo tests pass0.413s, and post-generation required fastlint03 passes with zero issues. Evidence: wi018/memo-version/ and independent-memo-version-review.md.
 
 This capability is not yet enabled by scheduler2. Providers must atomically version every semantic Memo change; rejected-publication coverage reconstructs the prior committed image and is not an actual database-fault experiment. Actual export remains unchanged and output-proportional. Bounded-layout worklists and scheduler integration remain open. M3/M4 remain incomplete.
+
+### DataMap full-transaction baseline and worklist implementation
+
+The new default DataMap fixture passes0.447s and independent source review. At N4/5/1000 it performs zero all-key hydration/copy/sync, but hot point transactions still visit37/43/6013 iterator nodes. Only the addressed DATA is decoded after reload; small root/addressed serialization stays51 full-node protobuf bytes. This is evidence of the remaining traversal gap, not an overall speedup or bounded-work claim. Raw counts/failures and exact source hashes are in wi018/datamap-work/.
+
+Required fastlint passes on a detached6e80c11cf checkout plus the exact test, avoiding concurrent unfinished framework edits. The reviewed worklist implementation plan classifies every hot/cold/export loop, keeps global snapshot traversal unchanged, defines fixed component/task slots and transaction worksets, and forbids silently falling back to full scans. Descriptor/cache implementation is underway; public scheduler opt-in waits for complete gates.

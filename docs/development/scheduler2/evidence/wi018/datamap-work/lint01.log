@@ -1,0 +1,48 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 10.416583ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (files|imports|types_sizes|compiled_files|deps|exports_file|name) took 213.157833ms"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 13.68675ms"
+level=info msg="[linters_context/goanalysis] analyzers took 23.678354ms with top 10 stages: inspect: 2.203791ms, fact_deprecated: 2.008204ms, nilness: 1.990245ms, tokenfileanalyzer: 1.987001ms, SA5012: 1.971346ms, buildir: 1.958088ms, typeindex: 1.947993ms, ctrlflow: 1.941516ms, printf: 1.935212ms, exhaustive: 1.917824ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner] Processors filtering stat (in/out): generated_file_filter: 1/1, sort_results: 1/1, fixer: 1/1, uniq_by_line: 1/1, max_from_linter: 1/1, severity-rules: 1/1, path_prettifier: 1/1, nolint_filter: 1/1, diff: 1/1, cgo: 1/1, invalid_issue: 1/1, exclusion_rules: 1/1, path_shortener: 1/1, max_per_file_from_linter: 1/1, max_same_issues: 1/1, source_code: 1/1, path_absoluter: 1/1, filename_unadjuster: 1/1, path_relativity: 1/1, exclusion_paths: 1/1"
+level=info msg="[runner] processing took 71.564165ms with stages: diff: 71.398333ms, exclusion_rules: 79.708µs, exclusion_paths: 43.333µs, source_code: 29.958µs, uniq_by_line: 4.625µs, cgo: 1.959µs, nolint_filter: 1.333µs, path_relativity: 1.125µs, path_shortener: 874ns, sort_results: 708ns, max_same_issues: 666ns, fixer: 334ns, invalid_issue: 250ns, path_prettifier: 209ns, filename_unadjuster: 208ns, max_per_file_from_linter: 166ns, path_absoluter: 126ns, severity-rules: 84ns, generated_file_filter: 83ns, max_from_linter: 83ns"
+level=info msg="[runner] linters took 538.512375ms with stages: goanalysis_metalinter: 466.904875ms"
+../chasm/archetype.go:1: : # go.temporal.io/server/chasm [go.temporal.io/server/chasm.test]
+chasm/bounded_layout.go:50:6: rc.boundedLayout undefined (type *RegistrableComponent has no field or method boundedLayout)
+chasm/bounded_layout.go:66:17: rc.boundedLayout undefined (type *RegistrableComponent has no field or method boundedLayout)
+chasm/bounded_layout.go:130:15: rc.compiledBoundedLayout undefined (type *RegistrableComponent has no field or method compiledBoundedLayout)
+chasm/bounded_layout.go:131:7: root.bounded undefined (type *Node has no field or method bounded)
+chasm/bounded_layout.go:131:38: rc.compiledBoundedLayout undefined (type *RegistrableComponent has no field or method compiledBoundedLayout)
+chasm/bounded_layout.go:137:7: n.bounded undefined (type *Node has no field or method bounded)
+chasm/bounded_layout.go:142:29: n.registry.componentForType undefined (type *Registry has no field or method componentForType) (typecheck)
+package chasm
+1 issues:
+* typecheck: 1
+level=info msg="File cache stats: 1 entries of total size 629B"
+level=info msg="Memory: 9 samples, avg is 157.0MB, max is 368.2MB"
+level=info msg="Execution took 799.21225ms"
+make: *** [lint-code] Error 1

@@ -1,0 +1,38 @@
+=== RUN   TestDataMapDefaultTraversalWork
+=== PAUSE TestDataMapDefaultTraversalWork
+=== CONT  TestDataMapDefaultTraversalWork
+=== RUN   TestDataMapDefaultTraversalWork/4
+=== PAUSE TestDataMapDefaultTraversalWork/4
+=== RUN   TestDataMapDefaultTraversalWork/5
+=== PAUSE TestDataMapDefaultTraversalWork/5
+=== RUN   TestDataMapDefaultTraversalWork/1000
+=== PAUSE TestDataMapDefaultTraversalWork/1000
+=== CONT  TestDataMapDefaultTraversalWork/4
+=== CONT  TestDataMapDefaultTraversalWork/1000
+=== CONT  TestDataMapDefaultTraversalWork/5
+=== NAME  TestDataMapDefaultTraversalWork/4
+    data_map_work_test.go:35: WORK_COUNTS {"size":4,"phase":"datamap-cold","counts":{"cold_nodes":6,"data_decode_calls":0,"decode_calls":1,"decode_data_bytes":0,"delete_child_visits":0,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"serialize_calls":0,"serialize_data_bytes":0,"serialized_node_proto_bytes":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+=== NAME  TestDataMapDefaultTraversalWork/5
+    data_map_work_test.go:35: WORK_COUNTS {"size":5,"phase":"datamap-cold","counts":{"cold_nodes":7,"data_decode_calls":0,"decode_calls":1,"decode_data_bytes":0,"delete_child_visits":0,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"serialize_calls":0,"serialize_data_bytes":0,"serialized_node_proto_bytes":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+    data_map_work_test.go:50: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/data_map_work_test.go:50
+        	Error:      	map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x4c2770c0b2c0), "Records#0":(*persistence.ChasmNode)(0x4c2770c0b140)} does not contain "Records$0"
+        	Test:       	TestDataMapDefaultTraversalWork/5
+=== NAME  TestDataMapDefaultTraversalWork/4
+    data_map_work_test.go:50: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/data_map_work_test.go:50
+        	Error:      	map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x4c2770da6180), "Records#0":(*persistence.ChasmNode)(0x4c2770da6480)} does not contain "Records$0"
+        	Test:       	TestDataMapDefaultTraversalWork/4
+=== NAME  TestDataMapDefaultTraversalWork/1000
+    data_map_work_test.go:35: WORK_COUNTS {"size":1000,"phase":"datamap-cold","counts":{"cold_nodes":1002,"data_decode_calls":0,"decode_calls":1,"decode_data_bytes":0,"delete_child_visits":0,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"serialize_calls":0,"serialize_data_bytes":0,"serialized_node_proto_bytes":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+    data_map_work_test.go:50: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/data_map_work_test.go:50
+        	Error:      	map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x4c2770f3bac0), "Records#0":(*persistence.ChasmNode)(0x4c2770f5cf40)} does not contain "Records$0"
+        	Test:       	TestDataMapDefaultTraversalWork/1000
+--- FAIL: TestDataMapDefaultTraversalWork (0.00s)
+    --- FAIL: TestDataMapDefaultTraversalWork/5 (0.00s)
+    --- FAIL: TestDataMapDefaultTraversalWork/4 (0.00s)
+    --- FAIL: TestDataMapDefaultTraversalWork/1000 (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm	0.442s
+FAIL

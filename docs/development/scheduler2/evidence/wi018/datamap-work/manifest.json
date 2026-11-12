@@ -1,0 +1,11 @@
+{
+  "source_sha256": {
+    "chasm/data_map_work_test.go": "ff333345603c5769224a4e95c36cd413021d07a90293dfe1b29106ff2fdc91e5",
+    "chasm/data_map.go": "3253cc425f619c7afadd408e78e21b43de33617a5ca931387ba8da2692649fbe",
+    "chasm/tree.go": "6dfbc4684cf84d2d55a7c4a78a27deb46480a0e045d2e2776f4327179d3da574",
+    "chasm/work_observation_test_dep.go": "4cd252b60f30eb4e03da6d682253c936cb432dedcd1d28ea7d8757ff34c4edfa"
+  },
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm -run '^TestDataMapDefaultTraversalWork$' -count=1 -v",
+  "result": "PASS0.447s",
+  "scope": "Default traversal with DataMap; not an opted bounded-layout test"
+}

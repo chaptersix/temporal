@@ -1,0 +1,6 @@
+# go.temporal.io/server/chasm [go.temporal.io/server/chasm.test]
+chasm/data_map_work_test.go:48:43: not enough arguments in call to DefaultPathEncoder.Encode
+	have ([]string)
+	want (*Node, []string)
+FAIL	go.temporal.io/server/chasm [build failed]
+FAIL
