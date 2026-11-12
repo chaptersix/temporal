@@ -124,10 +124,27 @@ Each fix has a default-run regression; none is gated.
 
 The component-agnostic stepping loop is `chasmtest.TaskRunner`: it finds the
 next pure or side-effect task, validates and dispatches it, advances the clock,
-and exposes hooks for component-specific behaviour. `schedulertest` supplies the
-scheduler's mocks, operations, `Snapshot` and invariants on top of it. The
-engine, the runner and the driver take `chasmtest.TB`, which `*rapid.T`
-satisfies, so a harness failure inside a property shrinks like any other.
+and exposes hooks for component-specific behaviour. The engine, the runner and
+the driver take `chasmtest.TB`, which `*rapid.T` satisfies, so a harness failure
+inside a property shrinks like any other.
+
+`schedulertest` holds the one copy of the scheduler's test scaffolding, used by
+both the unit tests in `chasm/lib/scheduler` and the lifecycle driver:
+
+- fixtures and library wiring (`DefaultSchedule`, `DefaultConfig`,
+  `NewTestLibrary`);
+- `SchedulerEngine`, a `chasmtest.Engine` with typed `Read` and `Update`;
+- `StateInvariant`, the stuck and idle-deadline checks, installed on every
+  engine through `chasmtest.WithInvariantCheck`. The idle-deadline check runs
+  armed idle tasks through the handler's `Validate`.
+
+The `Driver` embeds `SchedulerEngine` and adds the fake frontend and history
+services, the runner hooks, the schedule operations, and `Snapshot` for the
+invariants that need history or the start ledger. It keeps its own `no-stuck`
+rule next to the shared one: the test engine never dispatches the framework
+visibility task, which stays in the tree and hides a taskless schedule from the
+shared count, while the shared rule has no exemption for paused or backfilling
+schedules.
 
 `TestSchedulerProperties` runs as a Rapid state machine (`rt.Repeat`) over
 stepping, completion, pause, unpause, trigger, backfill, update, failed starts
