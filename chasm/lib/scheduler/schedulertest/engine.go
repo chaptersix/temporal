@@ -32,6 +32,9 @@ type SchedulerEngine struct {
 	Engine   *chasmtest.Engine
 	Registry *chasm.Registry
 	Logger   log.Logger
+	// State is the stuck and idle-deadline invariant the engine asserts after
+	// every committed transition (unless built WithoutStateCheck).
+	State *StateInvariant
 	// Config is the scheduler config the library was wired with.
 	Config *scheduler.Config
 	// TimeSource is the clock the engine was built with, or nil if the engine
@@ -44,14 +47,19 @@ type SchedulerEngine struct {
 	Ctx context.Context
 	Key chasm.ExecutionKey
 	Ref chasm.ComponentRef
+
+	// node and root are the tree and Scheduler as of the last committed
+	// transition, for StateViolations.
+	node *chasm.Node
+	root *scheduler.Scheduler
 }
 
 type engineOptions struct {
-	logger     log.Logger
-	library    LibraryOptions
-	engineOpts []chasmtest.EngineOption
-	timeSource *clock.EventTimeSource
-	invariants []func(chasmtest.TB, *chasm.Registry, *chasm.Node, *scheduler.Scheduler)
+	logger       log.Logger
+	library      LibraryOptions
+	engineOpts   []chasmtest.EngineOption
+	timeSource   *clock.EventTimeSource
+	noStateCheck bool
 }
 
 // Option configures [NewEngine].
@@ -114,10 +122,11 @@ func WithEngineOptions(opts ...chasmtest.EngineOption) Option {
 	return func(o *engineOptions) { o.engineOpts = append(o.engineOpts, opts...) }
 }
 
-// WithSchedulerInvariant installs a check run after every successful transition
-// with the Scheduler root. It is skipped for roots that are not a Scheduler.
-func WithSchedulerInvariant(check func(chasmtest.TB, *chasm.Registry, *chasm.Node, *scheduler.Scheduler)) Option {
-	return func(o *engineOptions) { o.invariants = append(o.invariants, check) }
+// WithoutStateCheck leaves the stuck and idle-deadline invariants off the
+// engine. Only a test that corrupts the scheduler on purpose and asserts
+// [StateInvariant.Violations] catches it should need this.
+func WithoutStateCheck() Option {
+	return func(o *engineOptions) { o.noStateCheck = true }
 }
 
 // NewEngine builds a registry with the core and scheduler libraries, wraps it in
@@ -151,34 +160,48 @@ func NewEngine(t chasmtest.TB, opts ...Option) *SchedulerEngine {
 		t.Fatalf("failed to register scheduler library: %v", err)
 	}
 
-	engineOpts := o.engineOpts
-	for _, check := range o.invariants {
-		engineOpts = append(engineOpts, chasmtest.WithInvariantCheck(
-			func(t chasmtest.TB, node *chasm.Node, root chasm.RootComponent) {
-				t.Helper()
-				sched, ok := root.(*scheduler.Scheduler)
-				if !ok {
-					t.Fatalf("scheduler test engine root has unexpected type %T", root)
-				}
-				check(t, registry, node, sched)
-			},
-		))
-	}
-	engine := chasmtest.NewEngine(t, registry, engineOpts...)
-
-	key := chasm.ExecutionKey{NamespaceID: NamespaceID, BusinessID: ScheduleID}
-	return &SchedulerEngine{
+	state := NewStateInvariant(registry, o.library.Config, o.logger)
+	se := &SchedulerEngine{
 		T:             t,
-		Engine:        engine,
 		Registry:      registry,
+		State:         state,
 		Logger:        o.logger,
 		Config:        o.library.Config,
 		TimeSource:    o.timeSource,
 		SpecProcessor: o.library.SpecProcessor,
-		Ctx:           chasm.NewEngineContext(context.Background(), engine),
-		Key:           key,
-		Ref:           chasm.NewComponentRef[*scheduler.Scheduler](key),
 	}
+	engineOpts := append(o.engineOpts, chasmtest.WithInvariantCheck(
+		func(t chasmtest.TB, node *chasm.Node, root chasm.RootComponent) {
+			t.Helper()
+			sched, ok := root.(*scheduler.Scheduler)
+			if !ok {
+				t.Fatalf("scheduler test engine root has unexpected type %T", root)
+			}
+			se.node, se.root = node, sched
+			if !o.noStateCheck {
+				state.Check(t, node, sched)
+			}
+		},
+	))
+	engine := chasmtest.NewEngine(t, registry, engineOpts...)
+
+	se.Engine = engine
+	se.Key = chasm.ExecutionKey{NamespaceID: NamespaceID, BusinessID: ScheduleID}
+	se.Ref = chasm.NewComponentRef[*scheduler.Scheduler](se.Key)
+	se.Ctx = chasm.NewEngineContext(context.Background(), engine)
+	return se
+}
+
+// StateViolations evaluates the stuck and idle-deadline invariants against the
+// last committed state without failing the test. It is how a test built
+// [WithoutStateCheck] asserts that the check catches state it corrupted on
+// purpose.
+func (e *SchedulerEngine) StateViolations() []string {
+	e.T.Helper()
+	if e.node == nil {
+		e.T.Fatalf("no transition has committed yet")
+	}
+	return e.State.Violations(e.node, e.root)
 }
 
 // Start starts the scheduler execution with startFn, recording [CreateRequestID].

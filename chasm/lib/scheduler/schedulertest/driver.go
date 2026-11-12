@@ -52,6 +52,7 @@ type startFaults struct {
 // re-arms a generator task), so callers bound the run with maxSteps; quiescence is
 // reached only for paused/exhausted/closed schedules.
 type Driver struct {
+	base               *SchedulerEngine
 	recordCalls        chan *RecordCall
 	external           *externalLedger
 	startCalls         chan *StartCall
@@ -118,6 +119,7 @@ type driverConfig struct {
 	maxLag           time.Duration
 	maxRun           time.Duration
 	controlledStarts bool
+	noStateCheck     bool
 }
 
 // DriverOption configures a Driver at construction.
@@ -143,6 +145,14 @@ func WithAfterStep(fn func(d *Driver)) DriverOption {
 // buffer-bound and action-budget invariants are meaningfully exercised.
 func WithConfig(cfg *scheduler.Config) DriverOption {
 	return func(c *driverConfig) { c.config = cfg }
+}
+
+// WithoutStateInvariant leaves the shared stuck and idle-deadline invariants
+// off the engine, which otherwise fails the test the moment a transition commits
+// a violating state. Use it only in a test that corrupts the scheduler on
+// purpose, and assert Driver.StateViolations instead.
+func WithoutStateInvariant() DriverOption {
+	return func(c *driverConfig) { c.noStateCheck = true }
 }
 
 // WithMaxSideEffectLag bounds how long StepPure may leave a side-effect task
@@ -297,18 +307,23 @@ func newDriverScaffold(t chasmtest.TB, opts ...DriverOption) (*Driver, *driverCo
 
 	metricsHandler := metricstest.NewCaptureHandler()
 	capture := metricsHandler.StartCapture()
-	base := NewEngine(t,
+	engineOpts := []Option{
 		WithLogger(logger),
 		WithSchedulerConfig(cfg.config),
 		WithTimeSource(ts),
 		WithInvokerTimeSource(ts),
 		WithInvokerMetrics(metricsHandler),
 		WithClients(frontend, history),
-	)
+	}
+	if cfg.noStateCheck {
+		engineOpts = append(engineOpts, WithoutStateCheck())
+	}
+	base := NewEngine(t, engineOpts...)
 	engine := base.Engine
 	registry := base.Registry
 
 	d := &Driver{
+		base:        base,
 		recordCalls: make(chan *RecordCall),
 		external:    external, startCalls: startCalls, recorded: make(map[string]ExternalStart),
 		replacingSeen:  make(map[string]struct{}),
@@ -348,6 +363,14 @@ func (d *Driver) startExecution(startFn func(chasm.MutableContext) (*scheduler.S
 	}
 
 	d.ReadScheduler(func(s *scheduler.Scheduler, _ chasm.Context) { d.initialActionCount = s.Info.GetActionCount() })
+}
+
+// StateViolations evaluates the shared stuck and idle-deadline invariants
+// against the last committed state without failing the test. See
+// [WithoutStateInvariant].
+func (d *Driver) StateViolations() []string {
+	d.T.Helper()
+	return d.base.StateViolations()
 }
 
 // Now returns the engine's current clock time.
@@ -652,7 +675,6 @@ func (d *Driver) MigrateToWorkflow() error {
 // step's CloseTransaction). It is the input to invariant checks.
 type Snapshot struct {
 	UntransferableActions int
-	HasValidIdleTask      bool
 	AcceptedStarts        map[string]ExternalStart
 	RecordedStarts        map[string]ExternalStart
 	ActionCount           int64
@@ -736,7 +758,6 @@ func (d *Driver) Snapshot() Snapshot {
 		DroppedStarts:          d.droppedStarts(),
 	}
 	d.ReadScheduler(func(s *scheduler.Scheduler, ctx chasm.Context) {
-		snap.HasValidIdleTask = d.validIdleTask(s, ctx)
 		snap.ActionCount = s.Info.GetActionCount()
 		snap.Closed = s.Closed
 		snap.IsSentinel = s.IsSentinel()

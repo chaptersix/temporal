@@ -81,9 +81,9 @@ type testEnv struct {
 	MockEngine    *chasm.MockEngine
 	Logger        log.Logger
 
-	// allowStuckReason, when non-empty, suppresses the stuckness invariant
-	// asserted by CloseTransaction. See AllowStuck.
-	allowStuckReason string
+	// state is the shared stuck and idle-deadline invariant asserted by
+	// CloseTransaction. See AllowStuck.
+	state *schedulertest.StateInvariant
 }
 
 // testEnvConfig holds configuration options for testEnv.
@@ -194,17 +194,14 @@ func newTestEngineContextFromConfig(
 }
 
 // newBaseEngine builds the shared scheduler engine with this package's config,
-// spec builder and stuckness invariants.
+// and spec builder. The engine asserts the shared stuck and idle-deadline
+// invariants after every transition.
 func newBaseEngine(t *testing.T, logger log.Logger, config *engineTestConfig) *schedulertest.SchedulerEngine {
 	opts := []schedulertest.Option{
 		schedulertest.WithLogger(logger),
 		schedulertest.WithSchedulerConfig(defaultConfig()),
 		schedulertest.WithSpecBuilder(newLegacySpecBuilder(0, 0)),
 		schedulertest.WithEngineOptions(config.engineOpts...),
-		schedulertest.WithSchedulerInvariant(func(t chasmtest.TB, registry *chasm.Registry, node *chasm.Node, sched *scheduler.Scheduler) {
-			requireNotStuck(t, node, sched)
-			requireIdleCloseTimeBacked(t, registry, node, sched)
-		}),
 	}
 	if config.specProcessor != nil {
 		opts = append(opts, schedulertest.WithSpecProcessor(config.specProcessor))
@@ -362,6 +359,7 @@ func newTestEnv(t *testing.T, opts ...testEnvOption) *testEnv {
 		Scheduler:     sched,
 		SpecProcessor: specProcessor,
 		Logger:        logger,
+		state:         schedulertest.NewStateInvariant(registry, defaultConfig(), logger),
 	}
 
 	if config.withMockEngine {
@@ -399,10 +397,7 @@ func (e *testEnv) CloseTransaction() error {
 	if err != nil {
 		return err
 	}
-	if e.allowStuckReason == "" {
-		requireNotStuck(e.t, e.Node, e.Scheduler)
-		requireIdleCloseTimeBacked(e.t, e.Registry, e.Node, e.Scheduler)
-	}
+	e.state.Check(e.t, e.Node, e.Scheduler)
 	return nil
 }
 
@@ -415,10 +410,7 @@ func (e *testEnv) CloseTransaction() error {
 // finding worth reviewing.
 func (e *testEnv) AllowStuck(reason string) {
 	e.t.Helper()
-	if reason == "" {
-		e.t.Fatal("AllowStuck requires a reason explaining why this test tolerates a stuck scheduler")
-	}
-	e.allowStuckReason = reason
+	e.state.AllowStuck(e.t, reason)
 }
 
 // HasTask returns true if the given task type was added with the given visibilityTime.

@@ -62,12 +62,17 @@ func TestOldExecuteTaskCanProcessCurrentWork(t *testing.T) {
 	require.Contains(t, d.Snapshot().AcceptedStarts, "current-request")
 }
 
-func TestIdleRouteRequiresMatchingLogicalTask(t *testing.T) {
+// TestIdleDeadlineRequiresValidIdleTask corrupts the advertised idle deadline so
+// the armed idle task no longer matches it, and asserts the shared state
+// invariant (which validates armed idle tasks through the handler) reports it.
+// The driver is built WithoutStateInvariant, since the engine would otherwise
+// fail the test the moment the corrupting transition commits.
+func TestIdleDeadlineRequiresValidIdleTask(t *testing.T) {
 	t.Parallel()
 	schedule := DefaultSchedule()
 	schedule.State.LimitedActions = true
-	d := NewDriver(t, WithSchedule(schedule))
-	require.True(t, d.Snapshot().HasValidIdleTask)
+	d := NewDriver(t, WithSchedule(schedule), WithoutStateInvariant())
+	require.Empty(t, d.StateViolations())
 	_, err := d.Engine.UpdateComponent(chasm.NewEngineContext(context.Background(), d.Engine), d.ref,
 		func(ctx chasm.MutableContext, c chasm.Component) error {
 			s := c.(*scheduler.Scheduler)
@@ -77,10 +82,9 @@ func TestIdleRouteRequiresMatchingLogicalTask(t *testing.T) {
 			return nil
 		})
 	require.NoError(t, err)
-	snap := d.Snapshot()
-	require.False(t, snap.HasValidIdleTask)
-	violations := CheckInvariants(nil, snap)
-	require.Contains(t, violations, Violation{Name: "idle-route", Message: "advertised idle deadline " + snap.IdleCloseTime.String() + " has no valid logical idle task"})
+	violations := d.StateViolations()
+	require.Len(t, violations, 1)
+	require.Contains(t, violations[0], "no valid SchedulerIdleTask is armed")
 }
 
 func TestRetryTaskEqualityAndRearming(t *testing.T) {

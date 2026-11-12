@@ -40,6 +40,14 @@ func CheckInvariants(prev *Snapshot, cur Snapshot) []Violation {
 	// progress. The only taskless, non-closed state allowed is "held open"
 	// (paused or pending backfill). When idle is armed there is a pending idle
 	// task, so HasPendingTask covers that case.
+	//
+	// The engine also asserts a stuck check on every commit (StateInvariant),
+	// but this rule is stronger in one way and is kept alongside it:
+	// HasPendingTask counts only side-effect tasks whose handler still considers
+	// them valid and ignores the framework visibility task, whereas the engine
+	// check counts every logical task, including the visibility task that a test
+	// engine never dispatches. The engine check is stronger in the other
+	// direction (no held-open exemption), which is why both run.
 	if !cur.Closed && !cur.HasPendingTask && !cur.IsHeldOpen {
 		vs.add("no-stuck",
 			"scheduler has no pending task, is not closed, and is not held open "+
@@ -78,9 +86,6 @@ func CheckInvariants(prev *Snapshot, cur Snapshot) []Violation {
 
 	vs = append(vs, checkLedger(prev, cur)...)
 	vs = append(vs, checkStartAccounting(cur)...)
-	if !cur.Closed && !cur.IdleCloseTime.IsZero() && !cur.HasValidIdleTask {
-		vs.add("idle-route", "advertised idle deadline %s has no valid logical idle task", cur.IdleCloseTime)
-	}
 
 	if prev != nil {
 		// (3) Closed is terminal: a closed schedule must never reopen.
