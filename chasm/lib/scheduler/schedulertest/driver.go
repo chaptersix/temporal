@@ -571,7 +571,6 @@ func (d *Driver) MigrateToWorkflow() error {
 // step's CloseTransaction). It is the input to invariant checks.
 type Snapshot struct {
 	UntransferableActions int
-	IdleRouteChecked      bool
 	HasValidIdleTask      bool
 	AcceptedStarts        map[string]ExternalStart
 	RecordedStarts        map[string]ExternalStart
@@ -635,8 +634,7 @@ func (d *Driver) Snapshot() Snapshot {
 	d.observeRecordedStarts()
 	tweakables := d.Config.Tweakables(Namespace)
 	snap := Snapshot{
-		IdleRouteChecked: true,
-		AcceptedStarts:   d.external.snapshot(), RecordedStarts: maps.Clone(d.recorded),
+		AcceptedStarts: d.external.snapshot(), RecordedStarts: maps.Clone(d.recorded),
 		InitialActionCount:     d.initialActionCount,
 		Now:                    d.Now(),
 		HasPendingTask:         d.HasPendingTask(),
