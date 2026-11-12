@@ -1,0 +1,7 @@
+{
+  "docs/development/scheduler2/design/bounded-public-work.md": "ea4bedd1f3619eea756e566bdc390bdc4fd7e5bca25fdc5bdca89d022f0e5e65",
+  "docs/development/scheduler2/work-items/WI-018.md": "ddedbfe581835697fb5aea311fc0b2ee0c5310b90849133976a41bb8b056f6ef",
+  "chasm/tree.go": "a192a526bc98b401a271df958fbb941285a773aa41310d8e2698d3d9a36b99c3",
+  "chasm/map.go": "3e29706fc5d67af4d1643300c22d0b1e270ed0bf667fd861d59487509b286fa1",
+  "chasm/lib/scheduler2/internal/decision/buffer.go": "c4af526e1c14ac4cf6f32ec31940d4d07d14c31a38ca301c248743b616ee8818"
+}

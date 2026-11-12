@@ -90,3 +90,13 @@ DATA byte accounting has a separate explicit input/output term for the addressed
 - Full-state cold DB read/reconstruction, snapshot export, replication snapshot and response-size work are explicitly reported; no repeated per-transaction map hydration is hidden as cold startup.
 
 Open design decisions for independent review are the exact lazy collection API, task-bearing dirty worklist compatibility, output-proportional read isolation (and optional stable snapshot handoff), and queue-index encoding/eligibility proof. These are implementation questions to resolve from source/tests; none authorizes a weaker public contract. WI-015 stays open until the resulting WI-018 gates pass.
+
+## Independent review follow-ups
+
+Concrete protocols are recorded in evidence/wi018/collection-contract.md, dispatch-cleanup-contract.md and queue-contract.md. The collection first stage can proceed with default traversal retained; bounded-layout worklists remain a separate gate. Dispatch uses the physical task context deadline after permit acquisition, durable generation-fenced claims, and independent positive-evidence reconciliation. Closed records remain owned until existing execution deletion.
+
+Review identified additional hot definition work: publishPublicTransition calls publishPublicList, cloning the full specification and synchronously computing future previews. Bounding currentEnumerator alone is insufficient. A single calendar term can contain many ranges/year expansions; term count alone is not a work bound. Both paths must be covered by the incremental preparation protocol.
+
+The proposed separate sequence/time index formula is not accepted: cross-index range deletion can touch arbitrarily many entries. Review is investigating whether source-proven monotone automatic Actual times reduce reachable expiry/removal sets to sequence prefixes; explicit commands remain a separate class. Until that invariant or another complete algorithm is verified, no queue complexity claim is established by the fixed key width. The standalone time-key encoding implementation is a prerequisite only.
+
+The automatic-time monotonicity hypothesis is not established: existing execution-clock rollback is admitted, and a definition update after rollback can enqueue a smaller Actual timestamp after an older larger one. The queue algorithm review must retain this case; do not impose a new monotonic-clock assumption to simplify indexes.

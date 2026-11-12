@@ -1,0 +1,35 @@
+# Dispatch and cleanup protocol proposal
+
+Owner: root. Status: implementation specification for independent review; not implemented or accepted.
+
+## Source constraints
+
+`tasks.go` and `effects_tasks.go` already serialize local RPC issuance independently through one permit per handler, take immutable request snapshots outside mutation, and merge into the original execution incarnation. Start identity and effect first-chain identity survive response loss. A replacement dispatcher must preserve these properties without retaining one root logical task per operation. `tree.go:closeTransactionHandleRootLifecycleChange` transitions a closed root to backend COMPLETED; no running maintenance task is assumed available afterward.
+
+## Durable bounded dispatch slots
+
+Use one fixed slot for Start and one for overlap effects, preserving their current separate concurrency classes. Each slot contains a monotonically increasing generation, selected operation/effect ID, selected logical wake revision, and claim expiry. The ready index contains ordered `(ready time, fairness sequence, identity)` entries. A short CHASM update atomically removes the selected ready entry, persists the claim and installs its recovery wake before exposing an immutable RPC snapshot. A failed publication exposes no snapshot for issuance. Claim expiry is a scheduling/recovery fence, never a new operation retry horizon or a change to request ID.
+
+The selected request is cloned under the lock, and RPC work runs outside it. The slot generation prevents a delayed completion from clearing or rescheduling a later claim. Positive Start acknowledgment and actual callback evidence still reconcile against the original operation/chain authority even if the dispatch claim expired; a claim timeout alone cannot discard a successful acceptance. A delayed failure may change retry scheduling only when the original claim generation and logical wake revision remain current. Callback settlement removes the addressed operation's ready/claimed authority atomically; it never scans all claims (there are exactly two).
+
+On recovery expiry, clear that claim and reinsert its still-eligible operation with a new monotonic fairness sequence and a due ready time. An unsuccessful RPC similarly returns an eligible operation at its contract-defined retry wake. Always select the minimum due ready entry; existing due waiters precede an expired claim reinserted at the current time. New arrivals cannot indefinitely overtake a finite existing set. Reject sequence/generation overflow before publication. In-memory permits are resource guards only; neither ownership nor recovery depends on them surviving reload.
+
+A stuck RPC must have a bounded caller context. The expiry wake can restore durable readiness even when its original delivery is lost; duplicate issuance after a timeout uses identical immutable request bytes and canonical chain fences. This proposal does not promise stronger at-most-once RPC delivery. Freeze the concrete RPC timeout and expiry relationship using existing client timeout configuration before code acceptance; do not introduce a new user-visible retry deadline. Time-skipping must schedule the recovery wake in execution time and preserve the existing wall-to-execution observation conversion.
+
+There are at most two dispatch logical tasks and two recovery wakes, plus the fixed coordinator/generator/idle/maintenance tasks. Each task payload includes slot generation; validator lookup is fixed work. Exact task count is to be frozen from the implementation, including immediate-task synchronization and duplicate physical envelopes.
+
+## Cleanup ownership
+
+After root closure, leave unreachable DATA for existing execution retention/deletion. Closure atomically revokes all logical issuance authority through the closed flag/incarnation fences and clears the fixed task set. Do not eagerly walk, decode or decrement every owner on close; retained refcounts continue to describe retained records until the entire closed execution is deleted. Report retained bytes and retention latency honestly in M4.
+
+While running, logically detached index subtrees enter a keyed FIFO cleanup queue with constant-sized root head/tail/count, rather than a root slice of detached roots. Each bounded logical transition appends at most a schema-fixed number of descriptors. A descriptor owns the detached subtree and its undisposed record references. Cleanup uses a persisted depth-first cursor whose stack has the schema-fixed radix depth; each batch visits at most a fixed number of pages/records and releases at most their bounded reference sets. Disposal and cursor advancement commit atomically. Replayed cleanup cannot decrement a reference twice.
+
+Detached records remain storage owners but are absent from live occupancy/index counters. Cleanup does not consume logical admission budgets or change queue leases. Give cleanup a dedicated bounded quantum alongside useful service so a continuous stream of new work cannot prevent all reclamation; do not require cleanup to catch up before serving accepted commands. The cleanup queue's physical storage may grow under overload; its root and each transaction remain bounded. M4 must measure that growth rather than claim a fixed total storage bound. Closure fences cleanup and delegates all remaining records to execution deletion.
+
+## Required protocol witnesses
+
+Crash before/after claim publication; failed persistence before snapshot exposure; crash before RPC; accepted RPC response loss; callback before claim release; expiry followed by a late success and a late failure; expiry and same-ID schedule recreation; configuration reduction during claimed work; clock skip across expiry; continuous arrivals with one slow/failing operation and an older ready waiter. Assert immutable request equality, canonical chain fencing, fixed task count and finite-waiter progress. For cleanup cover repeated range detachment, interruption/reload at each cursor phase, zero-ref blob disposal, rollback, and root close with an arbitrarily long cleanup queue.
+
+Independent review resolves the timeout source: physical History timer and transfer side-effect executors use a parent task context of 3 seconds times debug.TimeoutMultiplier (normal1/debug100), including lock/permit/snapshot/RPC/merge. Acquire the permit before the durable claim. Use that actual context deadline, which may be earlier, and convert its positive remaining wall duration to an execution-time recovery wake. Do not substitute the child client timeout defaults or add an arbitrary margin. Clock skipping may expire the claim before RPC return; generation fencing must make this safe. If a successful response arrives after context expiration, merge may fail and durable operation authority must still allow retry/callback recovery. These are implementation requirements from independent-dispatch-cleanup-review.md.
+
+The proposed slot count preserves current local serialization but still needs workload evidence that scheduling does not introduce starvation or unacceptable throughput loss.

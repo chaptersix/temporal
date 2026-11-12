@@ -1,0 +1,9 @@
+{
+  "source_sha256": {
+    "chasm/lib/scheduler2/internal/queueindex/keys.go": "515efea9645ae6168294bef7a785909c379b0fe1cb5d5a0143eac35d835c9272",
+    "chasm/lib/scheduler2/internal/queueindex/keys_test.go": "9b02e70ee77f42fbb4c18b2d571d3dbc7ad7a1d37c8e075a8bbca2b5176d4fba"
+  },
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2/internal/queueindex -count=1",
+  "result": "PASS 0.269s; command output observed in tool result, no separate raw test log",
+  "scope": "Fixed key chronological/tie ordering and exact normalization only; no index representation or transaction work guarantee"
+}
