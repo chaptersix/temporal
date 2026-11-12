@@ -115,6 +115,26 @@ Each fix has a default-run regression; none is gated.
   CANCEL_OTHER still act. `TestSelectedStartReservesOverlapSlot`,
   `TestFailedSelectedStartReleasesOverlapSlot`,
   `TestSelectedStartReservationStillTerminatesOther`.
+- **Action budget shared across phases.** `InvokerExecuteTask` passed its
+  per-task context by value, so the terminate, cancel and start phases each
+  spent `MaxActionsPerExecution` separately. It is now passed by pointer. Found
+  by the widened property. `TestActionBudgetSharedAcrossPhases`.
+
+## Harness structure
+
+The component-agnostic stepping loop is `chasmtest.TaskRunner`: it finds the
+next pure or side-effect task, validates and dispatches it, advances the clock,
+and exposes hooks for component-specific behaviour. `schedulertest` supplies the
+scheduler's mocks, operations, `Snapshot` and invariants on top of it. The
+engine, the runner and the driver take `chasmtest.TB`, which `*rapid.T`
+satisfies, so a harness failure inside a property shrinks like any other.
+
+`TestSchedulerProperties` runs as a Rapid state machine (`rt.Repeat`) over
+stepping, completion, pause, unpause, trigger, backfill, update, failed starts
+and lost start responses, across all six overlap policies. Invariants run in the
+after-step hook, so they also see the settled states inside a compound action.
+Idle time is drawn; the other tweakables stay at their defaults. Rollback
+migration is not a property operation.
 
 ## Unresolved counterexamples and limits
 

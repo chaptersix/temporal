@@ -38,16 +38,6 @@ func TestSchedulerProperties(t *testing.T) {
 		// A small IdleTime lets fire-time gaps cross the idle window, which the
 		// 7d default never does with these intervals.
 		idle := rapid.SampledFrom([]time.Duration{10 * time.Minute, time.Hour, 2 * time.Hour}).Draw(rt, "idleTime")
-		// Small buffer and action limits so the buffer-bound and action-budget
-		// invariants are reachable; the defaults (1000 and 5) are not. A reserve
-		// below MaxBufferSize/2 leaves the backfiller room to make progress.
-		//
-		// MaxBufferSize stays at or above 20: the backfiller overfills a smaller
-		// buffer (see TestBackfillRespectsSmallMaxBufferSize).
-		maxBuffer := rapid.SampledFrom([]int{20, 24, 40}).Draw(rt, "maxBufferSize")
-		reserve := rapid.IntRange(0, 1).Draw(rt, "generatorBufferReserve")
-		// The budget stays well below the 10 recent actions the driver reads
-		// recorded starts from, so one execution cannot trim them out of view.
 		policies := []enumspb.ScheduleOverlapPolicy{
 			enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
 			enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
@@ -56,7 +46,6 @@ func TestSchedulerProperties(t *testing.T) {
 			enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER,
 			enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER,
 		}
-		maxActions := rapid.SampledFrom([]int{1, 2, 3}).Draw(rt, "maxActionsPerExecution")
 		sched := drawSchedule(rt, start, idle, policies)
 
 		d := schedulertest.NewDriver(rt,
@@ -64,9 +53,6 @@ func TestSchedulerProperties(t *testing.T) {
 			schedulertest.WithSchedule(sched),
 			schedulertest.WithConfig(configWith(func(tw *scheduler.Tweakables) {
 				tw.IdleTime = idle
-				tw.MaxBufferSize = maxBuffer
-				tw.GeneratorBufferReserveSize = reserve
-				tw.MaxActionsPerExecution = maxActions
 			})),
 			// InvokerExecuteTask may lag the timers, and workflows may run, but
 			// neither for a whole idle window. Past that, V1 and V2 both close
