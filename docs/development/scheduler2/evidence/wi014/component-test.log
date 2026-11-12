@@ -1,0 +1,14 @@
+=== RUN   TestPublicPausedDefinitionRoundTripAndOwnership
+=== PAUSE TestPublicPausedDefinitionRoundTripAndOwnership
+=== RUN   TestPublicVisibilityAvoidsDefinitionPayload
+=== PAUSE TestPublicVisibilityAvoidsDefinitionPayload
+=== RUN   TestPublicProfileRejectsUnwiredWork
+=== PAUSE TestPublicProfileRejectsUnwiredWork
+=== CONT  TestPublicPausedDefinitionRoundTripAndOwnership
+=== CONT  TestPublicProfileRejectsUnwiredWork
+=== CONT  TestPublicVisibilityAvoidsDefinitionPayload
+--- PASS: TestPublicVisibilityAvoidsDefinitionPayload (0.00s)
+--- PASS: TestPublicPausedDefinitionRoundTripAndOwnership (0.00s)
+--- PASS: TestPublicProfileRejectsUnwiredWork (0.01s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	1.064s

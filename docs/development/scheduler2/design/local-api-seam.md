@@ -1,7 +1,8 @@
-# WI-014 proposed local frontend seam
+# WI-014 local frontend seam
 
-Proposal for D58 review, not an accepted contract or implementation. Source inspected
-at worktree base51448e84a plus specification fd8e7dd83. Only this document is changed.
+Specified by D58 (`local-api-contract.md`); frontend/testcluster implementation is
+now present for combined verification. Original source investigation used base51448e84a
+plus specification fd8e7dd83. Verification results belong in the WI-014 evidence ledger.
 The selected scope is public frontend gRPC → local adapter → actual History engine
 and persistence. It does not exercise the generated SchedulerService transport hop.
 
@@ -35,8 +36,9 @@ adapter error is returned directly; it never means “try another scheduler.”
 Non-test_dep Get always returns false (common/testing/testhooks/noop_impl.go:29).
 No new production configuration or rollout flag is needed.
 
-In tests/testcore, propose an optional construction parameter threaded from
-TestClusterConfig to temporalImplParams:
+In tests/testcore, `WithScheduleFrontend(factory ScheduleFrontendFactory, frontendLibraries ...chasm.Library)` selects a
+dedicated cluster. Its parameter is threaded through testClusterParams, TestClusterConfig
+and temporalParams into temporalImpl:
 
 ```go
 ScheduleFrontendFactory func(chasm.Engine, chasm.VisibilityManager, *chasm.Registry) (testhooks.ScheduleFrontend, error)
@@ -49,7 +51,11 @@ scheduler2 library before server.Start, and install FrontendSchedule on the same
 cluster-owned TestHooks. Capture a factory error and fail Start before server.Start;
 the existing runtime-provider callback cannot return an error. Keep hook cleanup
 until cluster shutdown (the current capture hook itself is intentionally removed
-after graph construction). No package-global hook or live registry mutation.
+after graph construction). No package-global hook or live registry mutation. Frontend has a separate registry;
+its construction hook registers explicitly supplied offline frontendLibraries before
+server.Start so Admin and visibility can resolve scheduler2 identity. Registration
+errors or a missing expected hook fail startup. The public profile passes
+scheduler2.NewNilLibrary for this registry.
 
 The factory implementation belongs in a test_dep helper package. It owns immutable
 engine/visibility handles, binds them onto each incoming context using
@@ -216,10 +222,16 @@ insufficient. Verify normal clusters retain unchanged behavior with hook absent 
 selected errors never invoke old clients. Use independent persisted-state and query
 observations rather than checking the adapter's own selected flag.
 
-D58 still owns the precise public stored definition/projection, supported paused
+D58 owns the precise public stored definition/projection, supported paused
 profile, conflict tokens, memo/search-attribute acceptance, duplicate Create,
 delete/recreate behavior and unsupported-input errors. This proposal leaves those
 to the parent implementation contract. Active dispatch, callbacks/authentication,
 all public controls, shared-suite parity and the generated service transport hop
-are not established by the five-method paused slice. No tests were run for this
-read-only design investigation.
+are not established by the five-method paused slice. The initial source investigation ran no tests. Implementation adds selected dispatch/
+no-fallback and exact query preservation frontend tests, plus opt-in isolation and
+custom ScheduleId precedence query tests; combined runs are owned by the parent.
+
+Implementation evidence correction: `validateSchedulePayloadSize` rejects a nil
+StartWorkflow action, even though the earlier action validator accepts nil. Retaining
+common validation therefore requires an explicitly supplied valid inert StartWorkflow
+action in the local public profile; no frontend template is fabricated.

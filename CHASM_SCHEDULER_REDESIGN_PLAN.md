@@ -909,3 +909,12 @@ configuration expectations replace backend-name branches. Required scheduler2
 public execution/promotion remains pending; P5.1/P5.5–P5.7 stay unchecked. Next
 API item must add real independent component identity and typed visibility routing
 through local test wiring, with no production selection changes.
+
+
+WI-014 accepted locally E74–E76: actual public frontend/SQLite paused lifecycle,
+independent stored scheduler2 identity, typed visibility and old-record/custom-alias
+isolation pass. Metadata/auth/error/pagination checks, default shared regressions,
+focused race and lint pass. Separate frontend registry and List cleanup defects were
+fixed with retained failure evidence. Full public execution/controls/callbacks and
+scheduler2 shared suite remain required next work (WI-015 draft); WI-013 proofs remain
+open. M3 is active and M4 pending; no rollout or migration is authorized.

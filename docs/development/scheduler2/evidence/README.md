@@ -304,3 +304,14 @@ WI-011 and M2 accepted E67–E71 with [final scoped lint](wi011/acceptance-lint.
 |---|---|---|
 | E72 | Baseline inventory and applicability audit | [242 baseline rows](../design/functional-coverage.md), [machine-readable source hashes](../design/functional-coverage.json); refinements preserve public/observability obligations, scheduler2 rows pending. |
 | E73 | Existing backend setup preservation | [checks](wi012/checks.json), [full shared suites](wi012/shared-suites.log), [final descriptor cases](wi012/descriptor-expectations.log), [mixed backend](wi012/mixed-backend.log), [helper race](wi012/helper-race.log), [lint](wi012/lint-final.log), [independent review](wi012/review.md); pass. No scheduler2 frontend execution claimed. |
+
+## WI-014 local public persistence and visibility (accepted)
+
+| ID | Claim | Evidence |
+|---|---|---|
+| E74 | Real public SQLite lifecycle and independent identity | [checks](wi014/checks.json), [public run](wi014/public-accepted.log); paused empty-spec profile, request replay, persisted archetype, retained old run, no old fallback. |
+| E75 | Typed query isolation and API boundary preservation | [public run](wi014/public-accepted.log), [component review](wi014/component-review.md), [seam review](wi014/seam-review.md); old same-ID row, alias collision, pagination, internal-field cleanup, metadata, invalid input and authorization. |
+| E76 | Regression/race/lint | [default shared suites](wi014/default-shared.log), [race](wi014/race-accepted.log), [lint](wi014/lint-accepted.log); pass with limits/source timing in checks. |
+
+WI-013 proofs and WI-015 full execution remain M3 requirements. These entries do not
+claim full scheduler2 shared-suite parity or generated SchedulerService transport.

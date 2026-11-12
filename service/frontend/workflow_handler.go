@@ -84,6 +84,7 @@ import (
 	"go.temporal.io/server/common/searchattribute/sadefs"
 	"go.temporal.io/server/common/sqlquery"
 	"go.temporal.io/server/common/tasktoken"
+	"go.temporal.io/server/common/testing/testhooks"
 	"go.temporal.io/server/common/tqid"
 	"go.temporal.io/server/common/util"
 	"go.temporal.io/server/common/worker_versioning"
@@ -139,6 +140,7 @@ type (
 		NexusOperationHandler
 
 		validator *workflow.RequestValidator
+		testHooks testhooks.TestHooks
 
 		status int32
 
@@ -356,6 +358,7 @@ func NewWorkflowHandler(
 	validator *workflow.RequestValidator,
 	chasmNsReplClient namespacereplicationpb.NamespaceReplicationServiceClient,
 	metricsHandler metrics.Handler,
+	testHooks testhooks.TestHooks,
 ) *WorkflowHandler {
 	handler := &WorkflowHandler{
 		ActivityHandler:       activityHandler,
@@ -413,6 +416,7 @@ func NewWorkflowHandler(
 		registry:                        registry,
 		workerDeploymentReadRateLimiter: workerDeploymentReadRateLimiter,
 		validator:                       validator,
+		testHooks:                       testHooks,
 	}
 
 	return handler
@@ -3946,7 +3950,8 @@ func (wh *WorkflowHandler) CreateSchedule(
 
 	namespaceName := namespace.Name(request.Namespace)
 
-	useChasmScheduler := wh.chasmSchedulerCreationEnabled(ctx, namespaceName.String(), request.ScheduleId)
+	selectedFrontend, selected := wh.scheduleFrontend()
+	useChasmScheduler := selected || wh.chasmSchedulerCreationEnabled(ctx, namespaceName.String(), request.ScheduleId)
 	wh.logger.Debug("Received CreateSchedule",
 		tag.ScheduleID(request.ScheduleId),
 		tag.WorkflowNamespace(namespaceName.String()),
@@ -3978,6 +3983,9 @@ func (wh *WorkflowHandler) CreateSchedule(
 		metrics.HeaderSize.With(metricsHandler).Record(int64(startWorkflow.GetHeader().Size()))
 	}
 
+	if selected {
+		return wh.createScheduleSelected(ctx, request, selectedFrontend)
+	}
 	if useChasmScheduler {
 		return wh.createScheduleCHASM(ctx, request)
 	}
@@ -4536,6 +4544,14 @@ func (wh *WorkflowHandler) DescribeSchedule(ctx context.Context, request *workfl
 		return nil, errSchedulesNotAllowed
 	}
 
+	if selectedFrontend, ok := wh.scheduleFrontend(); ok {
+		namespaceID, err := wh.namespaceRegistry.GetNamespaceID(namespace.Name(request.Namespace))
+		if err != nil {
+			return nil, err
+		}
+		return selectedFrontend.DescribeSchedule(ctx, namespaceID, request)
+	}
+
 	// Prefer CHASM scheduler if enabled.
 	if wh.chasmSchedulerEnabled(ctx, request.Namespace) {
 		resp, err := wh.describeScheduleCHASM(ctx, request)
@@ -4806,6 +4822,9 @@ func (wh *WorkflowHandler) UpdateSchedule(
 		return nil, err
 	}
 
+	if _, selected := wh.scheduleFrontend(); selected {
+		return nil, wh.unsupportedSelectedScheduleOperation(request.Namespace, "UpdateSchedule")
+	}
 	if wh.chasmSchedulerEnabled(ctx, request.Namespace) {
 		res, err := wh.updateScheduleCHASM(ctx, request)
 		if err == nil {
@@ -4933,7 +4952,8 @@ func (wh *WorkflowHandler) PatchSchedule(
 	if err := wh.validateSchedulePatchTimestamps(request.Patch, request.Namespace); err != nil {
 		return nil, err
 	}
-	useChasmScheduler := wh.chasmSchedulerEnabled(ctx, request.Namespace)
+	_, selected := wh.scheduleFrontend()
+	useChasmScheduler := selected || wh.chasmSchedulerEnabled(ctx, request.Namespace)
 	if err := wh.validateAndPopulateScheduleTimeSkippingConfig(request.Patch, namespace.Name(request.Namespace), useChasmScheduler); err != nil {
 		return nil, err
 	}
@@ -4971,6 +4991,9 @@ func (wh *WorkflowHandler) PatchSchedule(
 		return nil, err
 	}
 
+	if selected {
+		return nil, wh.unsupportedSelectedScheduleOperation(request.Namespace, "PatchSchedule")
+	}
 	if useChasmScheduler {
 		res, err := wh.patchScheduleCHASM(ctx, request)
 		if err == nil {
@@ -5051,6 +5074,9 @@ func (wh *WorkflowHandler) ListScheduleMatchingTimes(ctx context.Context, reques
 		return nil, err
 	}
 
+	if _, selected := wh.scheduleFrontend(); selected {
+		return nil, wh.unsupportedSelectedScheduleOperation(request.Namespace, "ListScheduleMatchingTimes")
+	}
 	// Prefer CHASM scheduler if enabled.
 	if wh.chasmSchedulerEnabled(ctx, request.Namespace) {
 		resp, err := wh.listScheduleMatchingTimesCHASM(ctx, request)
@@ -5140,6 +5166,14 @@ func (wh *WorkflowHandler) DeleteSchedule(ctx context.Context, request *workflow
 
 	if !wh.config.EnableSchedules(request.Namespace) {
 		return nil, errSchedulesNotAllowed
+	}
+
+	if selectedFrontend, ok := wh.scheduleFrontend(); ok {
+		namespaceID, err := wh.namespaceRegistry.GetNamespaceID(namespace.Name(request.Namespace))
+		if err != nil {
+			return nil, err
+		}
+		return selectedFrontend.DeleteSchedule(ctx, namespaceID, request)
 	}
 
 	// Always attempt deletion in both stacks. A schedule may exist in either or
@@ -5255,6 +5289,20 @@ func (wh *WorkflowHandler) ListSchedules(
 	}
 
 	metricsHandler := wh.metricsScope(ctx).WithTags(metrics.HeaderCallsiteTag("ListSchedules"))
+	if selectedFrontend, selected := wh.scheduleFrontend(); selected {
+		selectedQuery, err := wh.prepareSelectedSchedulerQuery(request.Query, namespaceName, metricsHandler, selectedFrontend)
+		if err != nil {
+			return nil, err
+		}
+		response, err := selectedFrontend.ListSchedules(ctx, namespaceID, request, selectedQuery)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range response.Schedules {
+			entry.SearchAttributes = wh.cleanScheduleSearchAttributes(entry.SearchAttributes)
+		}
+		return response, nil
+	}
 	chasmEnabled := wh.chasmSchedulerEnabled(ctx, namespaceName.String())
 	schedulerQuery, err := wh.prepareSchedulerQuery(
 		chasmEnabled,
@@ -5455,6 +5503,13 @@ func (wh *WorkflowHandler) CountSchedules(
 	}
 
 	metricsHandler := wh.metricsScope(ctx).WithTags(metrics.HeaderCallsiteTag("CountSchedules"))
+	if selectedFrontend, selected := wh.scheduleFrontend(); selected {
+		selectedQuery, err := wh.prepareSelectedSchedulerQuery(request.Query, namespaceName, metricsHandler, selectedFrontend)
+		if err != nil {
+			return nil, err
+		}
+		return selectedFrontend.CountSchedules(ctx, namespaceID, request, selectedQuery)
+	}
 	chasmEnabled := wh.chasmSchedulerEnabled(ctx, namespaceName.String())
 	schedulerQuery, err := wh.prepareSchedulerQuery(
 		chasmEnabled,

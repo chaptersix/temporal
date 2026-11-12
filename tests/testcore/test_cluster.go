@@ -19,6 +19,7 @@ import (
 	"go.temporal.io/server/api/historyservice/v1"
 	"go.temporal.io/server/api/matchingservice/v1"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
+	"go.temporal.io/server/chasm"
 	schedulerpb "go.temporal.io/server/chasm/lib/scheduler/gen/schedulerpb/v1"
 	"go.temporal.io/server/common/cluster"
 	"go.temporal.io/server/common/config"
@@ -79,6 +80,8 @@ type (
 		TokenProvider             auth.TokenProvider
 		TLSConfigProvider         *encryption.FixedTLSConfigProvider
 		AdditionalServerOptions   []temporal.ServerOption
+		ScheduleFrontendFactory   ScheduleFrontendFactory
+		ScheduleFrontendLibraries []chasm.Library
 	}
 
 	TestClusterFactory interface {
@@ -332,6 +335,8 @@ func newClusterWithPersistenceTestBaseFactory(
 		EnableReplicationRecorder: clusterConfig.EnableReplicationRecorder,
 		WorkerConfig:              clusterConfig.WorkerConfig,
 		AdditionalServerOptions:   clusterConfig.AdditionalServerOptions,
+		ScheduleFrontendFactory:   clusterConfig.ScheduleFrontendFactory,
+		ScheduleFrontendLibraries: clusterConfig.ScheduleFrontendLibraries,
 	})
 	if err = host.Start(); err != nil {
 		return nil, err

@@ -1,0 +1,11 @@
+=== RUN   TestSchedule2PublicPausedProfile
+2026/11/11 18:11:47 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PublicPausedProfile","test":"TestSchedule2PublicPausedProfile","worker":false}
+    schedule2_public_test.go:104: 
+        	Error Trace:	/private/tmp/sch-redesign-api/tests/schedule2_public_test.go:104
+        	Error:      	Received unexpected error:
+        	            	unknown archetype ID: 3600483531
+        	Test:       	TestSchedule2PublicPausedProfile
+--- FAIL: TestSchedule2PublicPausedProfile (0.05s)
+FAIL
+FAIL	go.temporal.io/server/tests	1.474s
+FAIL

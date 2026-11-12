@@ -70,6 +70,7 @@ import (
 	"go.temporal.io/server/common/tasktoken"
 	test "go.temporal.io/server/common/testing"
 	"go.temporal.io/server/common/testing/protorequire"
+	"go.temporal.io/server/common/testing/testhooks"
 	"go.temporal.io/server/common/tqid"
 	"go.temporal.io/server/common/wideevents"
 	"go.temporal.io/server/service/history/api"
@@ -377,6 +378,7 @@ func (s *WorkflowHandlerSuite) getWorkflowHandler(config *Config) *WorkflowHandl
 		),
 		nil,
 		metrics.NoopMetricsHandler,
+		testhooks.TestHooks{},
 	)
 }
 

@@ -51,11 +51,14 @@ type (
 		logger       log.Logger
 		serverConfig *config.Config
 
-		dcClient                 *dynamicconfig.MemoryClient
-		testHooks                testhooks.TestHooks
-		hostsByProtocolByService map[transferProtocol]map[primitives.ServiceName]static.Hosts
-		baseServerOptions        []temporal.ServerOption
-		workerConfig             WorkerConfig
+		dcClient                  *dynamicconfig.MemoryClient
+		testHooks                 testhooks.TestHooks
+		scheduleFrontendFactory   ScheduleFrontendFactory
+		scheduleFrontendLibraries []chasm.Library
+		scheduleFrontendCleanup   func()
+		hostsByProtocolByService  map[transferProtocol]map[primitives.ServiceName]static.Hosts
+		baseServerOptions         []temporal.ServerOption
+		workerConfig              WorkerConfig
 
 		metadataMgr       persistence.MetadataManager
 		tlsConfigProvider *encryption.FixedTLSConfigProvider
@@ -115,6 +118,8 @@ type (
 		EnableHistoryTaskRecorder bool
 		EnableReplicationRecorder bool
 		AdditionalServerOptions   []temporal.ServerOption
+		ScheduleFrontendFactory   ScheduleFrontendFactory
+		ScheduleFrontendLibraries []chasm.Library
 	}
 )
 
@@ -131,6 +136,8 @@ func newTemporal(t *testing.T, params *temporalParams) *temporalImpl {
 		captureMetricsHandler:     params.CaptureMetricsHandler,
 		dcClient:                  dynamicconfig.NewMemoryClient(),
 		testHooks:                 testhooks.NewTestHooks(),
+		scheduleFrontendFactory:   params.ScheduleFrontendFactory,
+		scheduleFrontendLibraries: params.ScheduleFrontendLibraries,
 		hostsByProtocolByService:  params.HostsByProtocolByService,
 		workerConfig:              params.WorkerConfig,
 		replicationStreamRecorder: NewReplicationStreamRecorder(),
@@ -288,22 +295,60 @@ func (c *temporalImpl) Start() error {
 	options = append(options, c.baseServerOptions...)
 
 	// Capture Chasm runtime handles while the server graph is constructed.
+	var factoryErr error
+	defer func() {
+		if c.server == nil && c.scheduleFrontendCleanup != nil {
+			c.scheduleFrontendCleanup()
+			c.scheduleFrontendCleanup = nil
+		}
+	}()
 	cleanupHooks := testhooks.Set(
 		c.testHooks,
 		testhooks.HistoryChasmRuntimeProvider,
-		func(chasmEngine chasm.Engine, chasmVisibilityManager chasm.VisibilityManager, _ *chasm.Registry) {
+		func(chasmEngine chasm.Engine, chasmVisibilityManager chasm.VisibilityManager, registry *chasm.Registry) {
 			c.chasmEngine = chasmEngine
 			c.chasmVisibilityMgr = chasmVisibilityManager
+			if c.scheduleFrontendFactory != nil {
+				var frontend testhooks.ScheduleFrontend
+				frontend, factoryErr = c.scheduleFrontendFactory(chasmEngine, chasmVisibilityManager, registry)
+				if factoryErr == nil {
+					if frontend == nil {
+						factoryErr = errors.New("schedule frontend factory returned nil")
+					} else {
+						c.scheduleFrontendCleanup = testhooks.Set(c.testHooks, testhooks.FrontendSchedule, frontend, testhooks.GlobalScope)
+					}
+				}
+			}
 		},
 		testhooks.GlobalScope,
 	)
 	defer cleanupHooks()
+	frontendRegistered := false
+	cleanupFrontendRegistry := testhooks.Set(c.testHooks, testhooks.FrontendChasmRegistryProvider, func(registry *chasm.Registry) error {
+		for _, library := range c.scheduleFrontendLibraries {
+			if err := registry.Register(library); err != nil {
+				return fmt.Errorf("register schedule frontend library: %w", err)
+			}
+		}
+		frontendRegistered = true
+		return nil
+	}, testhooks.GlobalScope)
+	defer cleanupFrontendRegistry()
 
 	server, err := temporal.NewServer(options...)
 	if err != nil {
 		return fmt.Errorf("unable to construct temporal server: %w", err)
 	}
 
+	if len(c.scheduleFrontendLibraries) != 0 && !frontendRegistered {
+		return errors.New("schedule frontend registry hook was not invoked")
+	}
+	if factoryErr != nil {
+		return fmt.Errorf("unable to construct schedule frontend: %w", factoryErr)
+	}
+	if c.scheduleFrontendFactory != nil && c.scheduleFrontendCleanup == nil {
+		return errors.New("schedule frontend factory was not invoked")
+	}
 	if err := server.Start(); err != nil {
 		return fmt.Errorf("unable to start temporal server: %w", err)
 	}
@@ -315,6 +360,10 @@ func (c *temporalImpl) Stop() error {
 	var errs []error
 	if c.server != nil {
 		errs = append(errs, c.server.Stop())
+	}
+	if c.scheduleFrontendCleanup != nil {
+		c.scheduleFrontendCleanup()
+		c.scheduleFrontendCleanup = nil
 	}
 	errs = append(errs, c.close()...)
 	return multierr.Combine(errs...)

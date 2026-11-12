@@ -20,8 +20,9 @@ transport is not exercised by this local direct-engine seam.
 ## Initial public profile and persisted fields
 
 This increment supports paused definitions without inclusion sources, no initial
-patch, and no actions executed. Nil Action is valid, as in the current frontend.
-A valid specified action is preserved verbatim but never issued. Nonempty inclusion
+patch, and no actions executed. A valid StartWorkflow action is required by the
+existing frontend payload validator, even though argument validation alone accepts
+nil. The action is preserved verbatim but never issued. Nonempty inclusion
 sources, unpaused creation or nonempty initial patches return Unimplemented before
 publishing state. This is a sequencing limit, not an accepted final API divergence;
 all those paths remain required M3 work. Accepted empty specs are still validated
@@ -90,3 +91,5 @@ absence of old scheduler/sentinel records, query isolation, alias collision, com
 validation/auth-denial dispatch checks, default-path regression, same-backend cleanup,
 applicable race and lint. Public action/callback/Update execution remains a separately
 visible dependency; neither this profile nor test hooks can count as full M3 parity.
+
+Source reconciliation: validateSchedulePayloadSize enforces StartWorkflow after validateStartWorkflowArgsForSchedule; the earlier nil-action interpretation considered only the latter and is corrected here without changing public validation.

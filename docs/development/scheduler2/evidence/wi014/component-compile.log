@@ -1,0 +1,4 @@
+# go.temporal.io/server/chasm/lib/scheduler2 [go.temporal.io/server/chasm/lib/scheduler2.test]
+chasm/lib/scheduler2/public.go:56:71: cannot use int32(policy) (value of type int32) as "go.temporal.io/api/enums/v1".ScheduleOverlapPolicy value in multiple assignment
+FAIL	go.temporal.io/server/chasm/lib/scheduler2 [build failed]
+FAIL

@@ -18,7 +18,7 @@ func NewLibrary(start *StartHandler, effects *EffectHandler) *Library {
 func (*Library) Name() string { return "scheduler2" }
 func (*Library) Components() []*chasm.RegistrableComponent {
 	return []*chasm.RegistrableComponent{
-		chasm.NewRegistrableComponent[*Scheduler]("scheduler"),
+		chasm.NewRegistrableComponent[*Scheduler]("scheduler", chasm.WithBusinessIDAlias("ScheduleId")),
 		chasm.NewRegistrableComponent[*Generator]("generator"),
 	}
 }

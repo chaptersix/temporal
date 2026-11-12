@@ -1,0 +1,668 @@
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.800s
+ok  	go.temporal.io/server/service/worker/scheduler	0.990s
+2026-11-11T18:08:16.367-0600	warn	rejecting time skipping configuration for workflow-backed schedule	{"wf-namespace": "test-namespace", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:779"}
+2026-11-11T18:08:16.368-0600	warn	rejecting time skipping configuration for workflow-backed schedule	{"wf-namespace": "test-namespace", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:779"}
+2026-11-11T18:08:16.368-0600	info	Register namespace succeeded	{"wf-namespace": "test-namespace", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:340"}
+2026-11-11T18:08:16.368-0600	info	Register namespace succeeded	{"wf-namespace": "test-namespace", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:340"}
+2026-11-11T18:08:16.368-0600	info	Update namespace succeeded	{"wf-namespace": "", "wf-namespace-id": "", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:814"}
+2026-11-11T18:08:16.369-0600	info	Register namespace succeeded	{"wf-namespace": "test-namespace", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:340"}
+2026-11-11T18:08:16.369-0600	info	Register namespace succeeded	{"wf-namespace": "test-namespace", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:340"}
+2026-11-11T18:08:16.369-0600	info	Update namespace succeeded	{"wf-namespace": "", "wf-namespace-id": "", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:814"}
+2026-11-11T18:08:16.371-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ExecuteMultiOperation
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:847
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestExecuteMultiOperation.func7
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:5459
+github.com/stretchr/testify/suite.(*Suite).Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.371-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ExecuteMultiOperation
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:847
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestExecuteMultiOperation.func8.1
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:5477
+github.com/stretchr/testify/suite.(*Suite).Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.371-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ExecuteMultiOperation
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:847
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestExecuteMultiOperation.func8.2
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:5494
+github.com/stretchr/testify/suite.(*Suite).Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.371-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ExecuteMultiOperation
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:847
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestExecuteMultiOperation.func8.3
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:5511
+github.com/stretchr/testify/suite.(*Suite).Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.371-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ExecuteMultiOperation
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:847
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestExecuteMultiOperation.func8.4
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:5528
+github.com/stretchr/testify/suite.(*Suite).Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.371-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ExecuteMultiOperation
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:847
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestExecuteMultiOperation.func8.5
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:5545
+github.com/stretchr/testify/suite.(*Suite).Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.371-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ExecuteMultiOperation
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:847
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestExecuteMultiOperation.func9.1
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:5570
+github.com/stretchr/testify/suite.(*Suite).Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.371-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ExecuteMultiOperation
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:847
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestExecuteMultiOperation.func9.2
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:5587
+github.com/stretchr/testify/suite.(*Suite).Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.371-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ExecuteMultiOperation
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:847
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestExecuteMultiOperation_TimeSkipping_DCDisabled
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:4592
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.371-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ExecuteMultiOperation
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:847
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestExecuteMultiOperation_TimeSkipping_DCEnabled
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:4655
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.373-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ListWorkflowExecutions
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:2861
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ListBatchOperations
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:6494
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestListBatchOperations
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:4248
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.373-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ListWorkflowExecutions
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:2861
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestListWorkflowExecutions
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2735
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.373-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ListWorkflowExecutions
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:2861
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestListWorkflowExecutions
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2751
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.373-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ListWorkflowExecutions
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:2861
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestListWorkflowExecutions
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2767
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.373-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).PatchSchedule
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:4987
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestPatchSchedule_TriggerImmediatelyScheduledTime.func4
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:5949
+github.com/stretchr/testify/suite.(*Suite).Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.373-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).PatchSchedule
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:4987
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestPatchSchedule_TriggerImmediatelyScheduledTime.func4
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:5949
+github.com/stretchr/testify/suite.(*Suite).Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.373-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).PatchSchedule
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:4987
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestPatchSchedule_TriggerImmediatelyScheduledTime.func4
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:5949
+github.com/stretchr/testify/suite.(*Suite).Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:115
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.374-0600	error	Context timeout not set for long poll API.	{"wf-handler-name": "PollWorkflowTaskQueue", "error": "Context timeout is not set.", "logging-call-at": "/private/tmp/sch-redesign-api/common/util.go:678"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common.ValidateLongPollContextTimeoutIsSet
+	/private/tmp/sch-redesign-api/common/util.go:678
+go.temporal.io/server/common.ValidateLongPollContextTimeout
+	/private/tmp/sch-redesign-api/common/util.go:650
+go.temporal.io/server/service/frontend.(*WorkflowHandler).PollWorkflowTaskQueue
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:1136
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestPollForTask_Failed_ContextTimeoutTooShort
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:615
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.374-0600	error	Context timeout not set for long poll API.	{"wf-handler-name": "PollActivityTaskQueue", "error": "Context timeout is not set.", "logging-call-at": "/private/tmp/sch-redesign-api/common/util.go:678"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common.ValidateLongPollContextTimeoutIsSet
+	/private/tmp/sch-redesign-api/common/util.go:678
+go.temporal.io/server/common.ValidateLongPollContextTimeout
+	/private/tmp/sch-redesign-api/common/util.go:650
+go.temporal.io/server/service/frontend.(*WorkflowHandler).PollActivityTaskQueue
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:1407
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestPollForTask_Failed_ContextTimeoutTooShort
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:619
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.374-0600	error	Context timeout is too short for long poll API.	{"wf-handler-name": "PollWorkflowTaskQueue", "error": "Context timeout is too short.", "wf-poll-context-timeout": 1.998996958, "logging-call-at": "/private/tmp/sch-redesign-api/common/util.go:657"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common.ValidateLongPollContextTimeout
+	/private/tmp/sch-redesign-api/common/util.go:657
+go.temporal.io/server/service/frontend.(*WorkflowHandler).PollWorkflowTaskQueue
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:1136
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestPollForTask_Failed_ContextTimeoutTooShort
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:626
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.374-0600	error	Context timeout is too short for long poll API.	{"wf-handler-name": "PollActivityTaskQueue", "error": "Context timeout is too short.", "wf-poll-context-timeout": 1.998976791, "logging-call-at": "/private/tmp/sch-redesign-api/common/util.go:657"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common.ValidateLongPollContextTimeout
+	/private/tmp/sch-redesign-api/common/util.go:657
+go.temporal.io/server/service/frontend.(*WorkflowHandler).PollActivityTaskQueue
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:1407
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestPollForTask_Failed_ContextTimeoutTooShort
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:630
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.375-0600	info	Register namespace succeeded	{"wf-namespace": "test-namespace", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:340"}
+2026-11-11T18:08:16.375-0600	info	Register namespace succeeded	{"wf-namespace": "test-namespace", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:340"}
+2026-11-11T18:08:16.375-0600	info	Register namespace succeeded	{"wf-namespace": "test-namespace", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:340"}
+2026-11-11T18:08:16.375-0600	info	Register namespace succeeded	{"wf-namespace": "test-namespace", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:340"}
+2026-11-11T18:08:16.376-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ListSchedules
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:5291
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestSelectedScheduleFrontend_NoFallback
+	/private/tmp/sch-redesign-api/service/frontend/schedule_frontend_testhook_test.go:73
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.376-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).CountSchedules
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:5498
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestSelectedScheduleFrontend_NoFallback
+	/private/tmp/sch-redesign-api/service/frontend/schedule_frontend_testhook_test.go:75
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.376-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).PatchSchedule
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:4987
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestSelectedScheduleFrontend_NoFallback
+	/private/tmp/sch-redesign-api/service/frontend/schedule_frontend_testhook_test.go:85
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.377-0600	warn	Failed to cancel outstanding polls for worker.	{"task-queue-name": "my-task-queue", "worker-instance-key": "worker-instance-123", "error": "method not implemented", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:3229"}
+2026-11-11T18:08:16.377-0600	warn	Failed to cancel outstanding polls for worker.	{"task-queue-name": "my-task-queue", "worker-instance-key": "worker-instance-123", "error": "method not implemented", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:3229"}
+2026-11-11T18:08:16.378-0600	warn	Failed to cancel outstanding polls for worker.	{"task-queue-name": "my-task-queue", "worker-instance-key": "worker-instance-123", "error": "temporary error", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:3229"}
+2026-11-11T18:08:16.390-0600	info	Update namespace succeeded	{"wf-namespace": "test-name", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:814"}
+2026-11-11T18:08:16.390-0600	info	Update namespace succeeded	{"wf-namespace": "test-name", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:814"}
+2026-11-11T18:08:16.390-0600	info	Update namespace succeeded	{"wf-namespace": "test-name", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:814"}
+2026-11-11T18:08:16.390-0600	info	Update namespace succeeded	{"wf-namespace": "test-name", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:814"}
+2026-11-11T18:08:16.390-0600	info	Update namespace succeeded	{"wf-namespace": "test-name", "wf-namespace-id": "deadbeef-c001-4567-890a-bcdef0123456", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/namespace_handler.go:814"}
+2026-11-11T18:08:16.391-0600	warn	rejecting time skipping configuration for workflow-backed schedule	{"wf-namespace": "test-namespace", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:779"}
+2026-11-11T18:08:16.391-0600	warn	Ignoring disabled schedule validation	{"wf-namespace": "test-namespace", "validation": "versioning-override", "error": "auto-upgrade override must be true", "logging-call-at": "/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:4094"}
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [10-31] but got events [10-31] of length 14: isFirstPage=false,isLastPage=false,pageSize=22", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [10-31] but got events [10-31] of length 14: isFirstPage=true,isLastPage=false,pageSize=22", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [10-31] but got events [10-31] of length 14: isFirstPage=false,isLastPage=true,pageSize=22", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [10-31] but got events [10-31] of length 14: isFirstPage=true,isLastPage=true,pageSize=1000", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [9-31] but got events [10-31] of length 22: isFirstPage=true,isLastPage=true,pageSize=1000", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [9-30] but got events [10-31] of length 22: isFirstPage=true,isLastPage=false,pageSize=22", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [11-31] but got events [10-31] of length 22: isFirstPage=true,isLastPage=true,pageSize=1000", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [11-32] but got events [10-31] of length 22: isFirstPage=true,isLastPage=false,pageSize=22", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [10-30] but got events [10-31] of length 22: isFirstPage=true,isLastPage=true,pageSize=1000", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [10-30] but got events [10-31] of length 22: isFirstPage=false,isLastPage=true,pageSize=22", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [10-32] but got events [10-31] of length 22: isFirstPage=true,isLastPage=true,pageSize=1000", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:08:16.391-0600	error	failed assertion: Incomplete history	{"failed-assertion": true, "softassert-error-details": "expected events [10-32] but got events [10-31] of length 22: isFirstPage=false,isLastPage=true,pageSize=22", "logging-call-at": "/private/tmp/sch-redesign-api/common/softassert/softassert.go:44"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/softassert.Fail
+	/private/tmp/sch-redesign-api/common/softassert/softassert.go:44
+go.temporal.io/server/common/softassert.UnexpectedDataLoss
+	/private/tmp/sch-redesign-api/common/softassert/serviceerror.go:48
+go.temporal.io/server/service/history/api.VerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/history/api/get_history_util.go:503
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestVerifyHistoryIsComplete
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler_test.go:2835
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+--- FAIL: TestWorkflowHandlerSuite (0.03s)
+    --- FAIL: TestWorkflowHandlerSuite/TestSelectedScheduleFrontend_NoFallback (0.00s)
+        mapper.go:190: Unexpected call to *searchattribute.MockMapperProvider.GetMapper([test-namespace]) at /private/tmp/sch-redesign-api/common/searchattribute/mapper.go:190 because: there are no expected calls of the method "GetMapper" for that receiver
+FAIL
+FAIL	go.temporal.io/server/service/frontend	0.823s
+FAIL

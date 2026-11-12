@@ -23,6 +23,7 @@ import (
 	sdkworker "go.temporal.io/sdk/worker"
 	"go.temporal.io/server/api/adminservice/v1"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
+	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/backoff"
 	"go.temporal.io/server/common/config"
@@ -107,6 +108,8 @@ type (
 		EnableArchival            bool
 		SpanExporter              sdktrace.SpanExporter
 		AdditionalServerOptions   []temporal.ServerOption
+		ScheduleFrontendFactory   ScheduleFrontendFactory
+		ScheduleFrontendLibraries []chasm.Library
 	}
 	TestClusterOption func(params *testClusterParams)
 )
@@ -324,6 +327,8 @@ func (s *functionalTestBase) setupCluster(options ...TestClusterOption) {
 		EnableReplicationRecorder: params.EnableReplicationRecorder,
 		EnableArchival:            params.EnableArchival,
 		AdditionalServerOptions:   params.AdditionalServerOptions,
+		ScheduleFrontendFactory:   params.ScheduleFrontendFactory,
+		ScheduleFrontendLibraries: params.ScheduleFrontendLibraries,
 		WorkerConfig:              WorkerConfig{DisableWorker: !params.EnableWorkerService},
 	}
 	if params.SpanExporter != nil {

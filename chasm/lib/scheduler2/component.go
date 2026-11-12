@@ -7,6 +7,7 @@ import (
 	"time"
 
 	enumspb "go.temporal.io/api/enums/v1"
+	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/chasm"
@@ -25,6 +26,10 @@ type Scheduler struct {
 	Generator      chasm.Field[*Generator]
 	Carryover      chasm.Field[*scheduler2pb.CarryoverState]
 	Diagnostics    chasm.Field[*scheduler2pb.Payload]
+	PublicSchedule chasm.Field[*schedulepb.Schedule]
+	PublicInfo     chasm.Field[*schedulepb.ScheduleInfo]
+	PublicList     chasm.Field[*schedulepb.ScheduleListInfo]
+	Visibility     chasm.Field[*chasm.Visibility]
 }
 
 func New(incarnation string, remaining int64) *Scheduler {

@@ -1,0 +1,105 @@
+=== RUN   TestWorkflowHandlerSuite
+=== RUN   TestWorkflowHandlerSuite/TestSelectedScheduleFrontend_NoFallback
+2026-11-11T18:11:46.684-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).ListSchedules
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:5291
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestSelectedScheduleFrontend_NoFallback
+	/private/tmp/sch-redesign-api/service/frontend/schedule_frontend_testhook_test.go:74
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:11:46.685-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).CountSchedules
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:5498
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestSelectedScheduleFrontend_NoFallback
+	/private/tmp/sch-redesign-api/service/frontend/schedule_frontend_testhook_test.go:76
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:11:46.685-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).PatchSchedule
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:4987
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestSelectedScheduleFrontend_NoFallback
+	/private/tmp/sch-redesign-api/service/frontend/schedule_frontend_testhook_test.go:86
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:11:46.685-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).UpdateSchedule
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:4814
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestSelectedScheduleFrontend_NoFallback
+	/private/tmp/sch-redesign-api/service/frontend/schedule_frontend_testhook_test.go:89
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+2026-11-11T18:11:46.685-0600	error	unable to get metrics scope	{"logging-call-at": "/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408"}
+go.temporal.io/server/common/log.(*zapLogger).Error
+	/private/tmp/sch-redesign-api/common/log/zap_logger.go:191
+go.temporal.io/server/common/rpc/interceptor.GetMetricsHandlerFromContext
+	/private/tmp/sch-redesign-api/common/rpc/interceptor/telemetry.go:408
+go.temporal.io/server/service/frontend.(*WorkflowHandler).metricsScope
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7166
+go.temporal.io/server/service/frontend.(*WorkflowHandler).validateSchedulePayloadSize
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:7214
+go.temporal.io/server/service/frontend.(*WorkflowHandler).UpdateSchedule
+	/private/tmp/sch-redesign-api/service/frontend/workflow_handler.go:4818
+go.temporal.io/server/service/frontend.(*WorkflowHandlerSuite).TestSelectedScheduleFrontend_NoFallback
+	/private/tmp/sch-redesign-api/service/frontend/schedule_frontend_testhook_test.go:89
+reflect.Value.call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586
+reflect.Value.Call
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369
+github.com/stretchr/testify/suite.Run.func1
+	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196
+testing.tRunner
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+=== RUN   TestWorkflowHandlerSuite/TestSelectedScheduleFrontend_QueryPreserved
+--- PASS: TestWorkflowHandlerSuite (0.00s)
+    --- PASS: TestWorkflowHandlerSuite/TestSelectedScheduleFrontend_NoFallback (0.00s)
+    --- PASS: TestWorkflowHandlerSuite/TestSelectedScheduleFrontend_QueryPreserved (0.00s)
+PASS
+ok  	go.temporal.io/server/service/frontend	1.045s

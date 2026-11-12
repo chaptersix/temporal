@@ -26,6 +26,7 @@ type scheduleBackend struct {
 	worker                       bool
 	preserveResultOnEmptySuccess bool
 	sdkOptions                   []testcore.TestOption
+	options                      []testcore.TestOption
 }
 
 var (
@@ -42,6 +43,7 @@ func scheduleCommonOpts(t *testing.T, backends ...scheduleBackend) []testcore.Te
 		require.NotEmpty(t, backend.name)
 		require.NotNil(t, backend.context)
 		worker = worker || backend.worker
+		opts = append(opts, backend.options...)
 	}
 	if worker {
 		opts = append(opts, testcore.WithWorkerService("V1 scheduler"))

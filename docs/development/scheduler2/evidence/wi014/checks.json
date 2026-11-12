@@ -1,0 +1,58 @@
+{
+  "base_commit": "9fba85fdd20170bd971059f6ce0fbf3fd071013b",
+  "status": "WI-014 accepted; full M3 remains open",
+  "source_sha256": {
+    "chasm/lib/scheduler2/component.go": "27413b369190ddab88449cf7c6dc129eefb96a03cf996ba16680bd6106f8f1e3",
+    "chasm/lib/scheduler2/library.go": "01f70ac28f6d159105604f5328675821eb7ae7db7cf345dc5b1088f71e0383f7",
+    "chasm/lib/scheduler2/public.go": "f99ad6663a9f8e3da406a3c7e8a6dcc35654ac6be14bd879d490c930beac30fa",
+    "chasm/lib/scheduler2/public_api_test_dep.go": "829af5bca940fb65189e72136cd3c9214f285334de6032f5015da6aa26c0a6aa",
+    "chasm/lib/scheduler2/public_test.go": "157f660062910baad96d8006f81c488f590894c4089ba25d6352c518b70dee8c",
+    "common/testing/testhooks/schedule_frontend.go": "559eab7f4bab77fd6b8a0963de58942d723f5ded83ae2ab57bc1648b34d85cf5",
+    "service/frontend/fx.go": "3727e53a1ae9841cb59edd6f4836cf343006f53dc216224ae0a2a33c7014de6e",
+    "service/frontend/schedule_frontend_testhook.go": "2ab686e42dbd80bcda61d3bb05ebea9f8fc015d3bcb9724dcdab94aa012dc3ae",
+    "service/frontend/schedule_frontend_testhook_test.go": "0a4111dc5e9e1cfe6ec1dc57e4a171099d869cc0495f009755d42f50131c9522",
+    "service/frontend/workflow_handler.go": "aa1004016d821333ceb9e2ee881bc67d9a8ac9eea51203262ae1c310592d042a",
+    "service/frontend/workflow_handler_test.go": "65c1b0f4a9b83f500801efa5690c44033df948454c2826f697dc8e3b53305dfc",
+    "service/worker/scheduler/query.go": "a6f2f6435a2277b4ac20a280364c1bf00728e0583c31bfaa7483c488b91b9d40",
+    "service/worker/scheduler/query_test.go": "185f001d2d739a9b98a4f46c8303ef67e858c00dcdb2d9330769bfd06785dbdc",
+    "tests/schedule2_public_test.go": "15b3f58901feefcca3129572452c6c1fd2070e52e82b9d63ae646593b73b99a5",
+    "tests/schedule_backend_test.go": "9d3a7fedd616735fa88e84945cabad94f8e30027d2fbd6890005c6c3cbf683b0",
+    "tests/testcore/functional_test_base.go": "4504a814625cd7b3fb5e236f4f73300a6bba271e78e1ef5847f4ab4e0eec59ef",
+    "tests/testcore/onebox.go": "d79443d1d7f72330c3be8212aecb2913e6479b5d91174c6b203acd0214b9d93a",
+    "tests/testcore/schedule_frontend.go": "879922e2cb75a10a8e7ef8ec4fbbbdf2b8ed9bafedfbd3f7627ec36b1ad0ec29",
+    "tests/testcore/test_cluster.go": "8becc6c31ce2c558c824a4d3e87fb71754cea41dd1ad031327f82031cabdab8f"
+  },
+  "checks": [
+    {
+      "command": "CGO_ENABLED=0 GOMAXPROCS=4 TEMPORAL_TEST_LOG_LEVEL=error go test -tags test_dep -p 2 -parallel 4 ./tests -run '^TestSchedule(V1|CHASM)SharedSuite$' -count=1 -timeout=6m -args -persistenceType=sql -persistenceDriver=sqlite",
+      "log": "default-shared.log",
+      "result": "pass89.315s; preceding final local-variable/import lint cleanup and test assertion additions"
+    },
+    {
+      "command": "CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast GOLANGCI_LINT_BASE_REV=9fba85fdd GOLANGCI_LINT_FIX=false",
+      "log": "lint-accepted.log",
+      "result": "pass0issues"
+    },
+    {
+      "command": "CGO_ENABLED=0 GOMAXPROCS=4 TEMPORAL_TEST_LOG_LEVEL=error go test -tags test_dep -p 2 -parallel 2 ./tests -run '^TestSchedule2PublicPausedProfile$' -count=1 -timeout=3m -v -args -persistenceType=sql -persistenceDriver=sqlite",
+      "log": "public-accepted.log",
+      "result": "pass1.537s"
+    },
+    {
+      "command": "CGO_ENABLED=1 SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk GOMAXPROCS=4 TEMPORAL_TEST_LOG_LEVEL=error go test -race -tags test_dep -p 2 -parallel 2 ./chasm/lib/scheduler2 ./service/frontend ./service/worker/scheduler ./tests -run '^(TestPublic.*|TestWorkflowHandlerSuite|TestValidateIsolatedVisibilityQuery.*|TestSchedule2PublicPausedProfile)$' -count=1 -timeout=5m",
+      "log": "race-accepted.log",
+      "result": "all4packagespass; publicSQLite3.771s"
+    }
+  ],
+  "limits": [
+    "Paused empty inclusion source, valid inert workflow action, no initial patch.",
+    "Actual public frontend gRPC to directly bound History engine; no generated SchedulerService transport.",
+    "Full public execution, callbacks, Update/Patch/MatchingTimes and scheduler2 shared suite remain M3 obligations.",
+    "Original checkout preserved; local only."
+  ],
+  "repairs": [
+    "History-only registration failed Admin independent registry; pre-start frontend offline registration fixed it.",
+    "Returned custom-SA assertion exposed internal List fields; reused existing frontend cleanup, regression retained.",
+    "Earlier compile/lint failures retained."
+  ]
+}

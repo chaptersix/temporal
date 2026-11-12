@@ -1,0 +1,9 @@
+ok  	go.temporal.io/server/chasm/lib/scheduler2	1.881s
+ok  	go.temporal.io/server/service/frontend	2.212s
+ok  	go.temporal.io/server/service/worker/scheduler	3.256s
+# go.temporal.io/server/tests [go.temporal.io/server/tests.test]
+tests/schedule2_public_test.go:281:76: not enough arguments in call to sadefs.DecodeValue
+	have (*"go.temporal.io/api/common/v1".Payload, "go.temporal.io/api/enums/v1".IndexedValueType)
+	want (*"go.temporal.io/api/common/v1".Payload, "go.temporal.io/api/enums/v1".IndexedValueType, bool)
+FAIL	go.temporal.io/server/tests [build failed]
+FAIL

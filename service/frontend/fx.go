@@ -165,6 +165,12 @@ var Module = fx.Options(
 	activity.FrontendModule,
 	fx.Provide(visibility.ChasmVisibilityManagerProvider),
 	fx.Provide(chasm.ChasmVisibilityInterceptorProvider),
+	fx.Invoke(func(registry *chasm.Registry, testHooks testhooks.TestHooks) error {
+		if hook, ok := testhooks.Get(testHooks, testhooks.FrontendChasmRegistryProvider, testhooks.GlobalScope); ok {
+			return hook(registry)
+		}
+		return nil
+	}),
 )
 
 func NewServiceProvider(
@@ -1066,6 +1072,7 @@ func HandlerProvider(
 	registry *chasm.Registry,
 	frontendServiceResolver membership.ServiceResolver,
 	chasmNsReplClient namespacereplicationpb.NamespaceReplicationServiceClient,
+	testHooks testhooks.TestHooks,
 ) Handler {
 	workerDeploymentReadRateLimiter := configs.NewGlobalNamespaceRateLimiter(
 		frontendServiceResolver,
@@ -1114,6 +1121,7 @@ func HandlerProvider(
 		),
 		chasmNsReplClient,
 		metricsHandler,
+		testHooks,
 	)
 	return wfHandler
 }
