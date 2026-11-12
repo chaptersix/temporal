@@ -130,5 +130,7 @@ func (c chasmInvocation) getHistoryRequest(
 		}
 	}
 
+	req.WorkflowFirstExecutionRunId = c.completion.WorkflowFirstExecutionRunID
+
 	return req, nil
 }

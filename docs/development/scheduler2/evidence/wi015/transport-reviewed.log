@@ -1,0 +1,10 @@
+=== RUN   TestSchedule2WorkflowCallbackTransport
+=== RUN   TestSchedule2WorkflowCallbackTransport/complete
+2026/11/11 18:56:07 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2WorkflowCallbackTransport","test":"TestSchedule2WorkflowCallbackTransport/complete","worker":false}
+=== RUN   TestSchedule2WorkflowCallbackTransport/continue-as-new
+2026/11/11 18:56:11 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2WorkflowCallbackTransport","test":"TestSchedule2WorkflowCallbackTransport/continue-as-new","worker":false}
+--- PASS: TestSchedule2WorkflowCallbackTransport (9.32s)
+    --- PASS: TestSchedule2WorkflowCallbackTransport/complete (4.15s)
+    --- PASS: TestSchedule2WorkflowCallbackTransport/continue-as-new (5.17s)
+PASS
+ok  	go.temporal.io/server/tests	10.573s

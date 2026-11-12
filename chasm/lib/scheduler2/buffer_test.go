@@ -169,7 +169,7 @@ func TestBufferIneligibleDrainAvoidsPayloads(t *testing.T) {
 					poisoned++
 				}
 			}
-			require.Equal(t, 4, poisoned)
+			require.Equal(t, 3, poisoned) // Terminal issuance payload has been reclaimed.
 			h.reload()
 			h.now += int64(time.Second)
 			fireGeneration(h, true)

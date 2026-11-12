@@ -118,6 +118,43 @@ func (this *Payload) Equal(that interface{}) bool {
 	return proto.Equal(this, that1)
 }
 
+// Marshal an object of type ActionPayloadBundle to the protobuf v3 wire format
+func (val *ActionPayloadBundle) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type ActionPayloadBundle from the protobuf v3 wire format
+func (val *ActionPayloadBundle) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *ActionPayloadBundle) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two ActionPayloadBundle values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *ActionPayloadBundle) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *ActionPayloadBundle
+	switch t := that.(type) {
+	case *ActionPayloadBundle:
+		that1 = t
+	case ActionPayloadBundle:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
 // Marshal an object of type StartTask to the protobuf v3 wire format
 func (val *StartTask) Marshal() ([]byte, error) {
 	return proto.Marshal(val)
@@ -739,6 +776,80 @@ func (this *IdleTask) Equal(that interface{}) bool {
 	case *IdleTask:
 		that1 = t
 	case IdleTask:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type PublicRuntime to the protobuf v3 wire format
+func (val *PublicRuntime) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type PublicRuntime from the protobuf v3 wire format
+func (val *PublicRuntime) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *PublicRuntime) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two PublicRuntime values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *PublicRuntime) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *PublicRuntime
+	switch t := that.(type) {
+	case *PublicRuntime:
+		that1 = t
+	case PublicRuntime:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type PublicAction to the protobuf v3 wire format
+func (val *PublicAction) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type PublicAction from the protobuf v3 wire format
+func (val *PublicAction) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *PublicAction) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two PublicAction values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *PublicAction) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *PublicAction
+	switch t := that.(type) {
+	case *PublicAction:
+		that1 = t
+	case PublicAction:
 		that1 = &t
 	default:
 		return false

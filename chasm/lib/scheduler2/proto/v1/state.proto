@@ -2,7 +2,10 @@ syntax = "proto3";
 
 package temporal.server.chasm.lib.scheduler2.proto.v1;
 
+import "temporal/api/common/v1/message.proto";
+import "temporal/api/sdk/v1/user_metadata.proto";
 import "temporal/api/enums/v1/schedule.proto";
+import "temporal/api/schedule/v1/message.proto";
 
 option go_package = "go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1;scheduler2pb";
 
@@ -56,7 +59,7 @@ message RootState {
   repeated EffectState effects = 23;
   // ManualSequence never reuses an accepted command occurrence identity.
   uint64 manual_sequence = 24;
-  // Manuals holds at most four accepted pending manual commands.
+  // Manuals holds pending manual commands: internal limit four, public combined command limit 100.
   repeated ManualCommand manuals = 25;
   // ManualToken identifies the current transfer obligation.
   uint64 manual_token = 26;
@@ -68,7 +71,7 @@ message RootState {
   CoordinationState coordination = 29;
   // BackfillSequence uniquely identifies accepted ranges in this incarnation.
   uint64 backfill_sequence = 30;
-  // Backfills contains at most four active range continuations.
+  // Backfills holds range continuations: internal limit four, public combined command limit 100.
   repeated BackfillState backfills = 31;
   // BackfillFocus pins a request while its ready candidate waits for handoff.
   uint64 backfill_focus = 32;
@@ -90,6 +93,10 @@ message RootState {
   bool idle_armed = 40;
   // IdleAt is the exact execution-clock idle deadline.
   int64 idle_at = 41;
+  // PublicRevision fences public mutations independently of definition revisions; zero denotes an internal root.
+  uint64 public_revision = 42;
+  // PublicActionRef owns the immutable payload bundle for the current public action.
+  string public_action_ref = 43;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -139,12 +146,34 @@ message OperationState {
 message Payload {
   // Data is an immutable serialized request or synthetic diagnostic payload.
   bytes data = 1;
+  // ActionRef identifies the immutable action payload bundle.
+  string action_ref = 2;
+  // ResultRef identifies the immutable last completion result.
+  string result_ref = 3;
+  // FailureRef identifies the immutable continued failure.
+  string failure_ref = 4;
+}
+
+// ActionPayloadBundle shares large action fields across public and issuance envelopes.
+message ActionPayloadBundle {
+  // Input preserves absent and allocated-empty input wrappers.
+  temporal.api.common.v1.Payloads input = 1;
+  // Header contains user workflow headers.
+  temporal.api.common.v1.Header header = 2;
+  // Memo contains user workflow memo.
+  temporal.api.common.v1.Memo memo = 3;
+  // UserSearchAttributes excludes generated per-admission attributes.
+  temporal.api.common.v1.SearchAttributes user_search_attributes = 4;
+  // UserMetadata contains workflow summary and details.
+  temporal.api.sdk.v1.UserMetadata user_metadata = 5;
 }
 
 // StartTask drives a committed operation and survives physical redelivery.
 message StartTask {
   // OperationId identifies the durable request.
   string operation_id = 1;
+  // Exact logical wake in Unix nanoseconds; physical queue timestamps may shift.
+  int64 wake_time = 2;
 }
 
 // CarryoverState retains opaque completion values separately from control metadata.
@@ -155,6 +184,10 @@ message CarryoverState {
   bytes failure = 2;
   // FailurePresent distinguishes an empty failure message from absence.
   bool failure_present = 3;
+  // ResultRef identifies the immutable successful result bytes.
+  string result_ref = 4;
+  // FailureRef identifies the immutable failure bytes.
+  string failure_ref = 5;
 }
 
 // EnumerationStatus distinguishes work stops from complete source exhaustion.
@@ -229,6 +262,8 @@ message GenerationDefinition {
   string seed = 2;
   // Request is the serialized workflow start template.
   bytes request = 3;
+  // ActionRef identifies the shared action payload bundle.
+  string action_ref = 4;
 }
 
 // GenerateTask identifies the current generation obligation.
@@ -299,6 +334,8 @@ message EffectState {
 message EffectTask {
   // EffectId identifies the immutable cancel or terminate request.
   string effect_id = 1;
+  // Exact logical wake in Unix nanoseconds; physical queue timestamps may shift.
+  int64 wake_time = 2;
 }
 
 // ManualCommand is payload-free accepted ingress awaiting execution capacity.
@@ -347,6 +384,8 @@ message CoordinationState {
 message WorkTask {
  // Token is the persisted task generation.
  uint64 token = 1;
+ // RemainingQuanta bounds an immediate pure-task chain; physical tasks use zero.
+ uint32 remaining_quanta = 2;
 }
 // BackfillState holds bounded current-definition range progress without payloads.
 message BackfillState {
@@ -360,10 +399,31 @@ message BackfillState {
  temporal.api.enums.v1.ScheduleOverlapPolicy policy = 4;
  // Continuation retains search, disposition and pending candidate separately.
  OccurrenceContinuation continuation = 5;
+ // SkipBatchRemaining preserves same-batch overlap decisions across callbacks.
+ int64 skip_batch_remaining = 6;
+ // SkipBatchRevision fences a group when the current definition is rebased.
+ int64 skip_batch_revision = 7;
 }
 
 // IdleTask checks the current idle-close token and deadline.
 message IdleTask {
   // Token identifies the published idle obligation.
   uint64 token = 1;
+}
+
+// PublicRuntime retains compact lifecycle metadata independently of payload retention.
+message PublicRuntime {
+  // Actions retains active intents and the ten most recent acknowledged starts.
+  repeated PublicAction actions = 1;
+  // MissedCatchupWindow counts eligible automatic occurrences disposed too late.
+  int64 missed_catchup_window = 2;
+  // OverlapSkipped counts occurrences disposed by SKIP while another action blocks.
+  int64 overlap_skipped = 3;
+}
+// PublicAction ties a public result to its immutable admitted operation.
+message PublicAction {
+  // OperationId is the immutable start request identity.
+  string operation_id = 1;
+  // Result carries actual response run identity, scheduled time and observation time.
+  temporal.api.schedule.v1.ScheduleActionResult result = 2;
 }

@@ -315,3 +315,52 @@ WI-011 and M2 accepted E67–E71 with [final scoped lint](wi011/acceptance-lint.
 
 WI-013 proofs and WI-015 full execution remain M3 requirements. These entries do not
 claim full scheduler2 shared-suite parity or generated SchedulerService transport.
+
+## Active WI-015/WI-016 checkpoint (not acceptance)
+
+WI-015 [runtime checkpoint](wi015/runtime-checkpoint.json) records actual workflow
+completion/CAN transport, held acknowledgment reconciliation, retained ambiguous
+start authority, runtime race and separate public mutation counter checks. Full
+public behavior remains unfinished. WI-016 boundary-biased calendar verification
+found and fixed a London fold error; 10,000 generated cases and lint pass, with
+independent review and mutation evidence being completed. Neither checkpoint closes M3.
+
+### WI-015 execution checkpoint update (not acceptance)
+
+[Archived checkpoint](wi015/execution-checkpoint/manifest.json) records full29 shared
+methods, scheduler2/callback race, checkpoint lint, and both actual payload-capacity
+profiles passing. [Visibility ports](wi015/visibility-ports/manifest.json) record
+five additional public scenarios and lifecycle unit verification, pending independent
+review. Three unchanged lifecycle/time-skipping cases still fail; physical recovery
+and remaining applicability rows are open. Checks predate subsequent source changes
+and must not be treated as final WI015 or M3 acceptance.
+
+WI-015 additional checkpoint: actual SQLite shard reload with lost start response
+and identical request/first-run retry passes3.387s (evidence/wi015/recovery-checkpoint.json;
+physical-start-recovery.md). Six metadata/index ports including idle query pass
+3.365s after context/import cleanup (visibility-idle/manifest.json). Consolidated
+port lint initially reported22 issues; owners are fixing style/deprecation findings.
+Two of three unchanged progress cases pass after bounded immediate coordination;
+weekly execution-timeout progress remains under repair. No M3 acceptance claim.
+
+## Integrated runtime verification checkpoint (M3 remains open)
+
+The bounded two-quantum coordinator pump, due Start transfer dispatch and cached
+future candidate time-skipping gate fix now pass all18 unchanged lifecycle
+contract leaves (34.673s). Three extra time-control cases pass10.268s. Independent
+reviews preserve per-quantum arbitration/logical wake fences and identify expanded
+public definition/state bounds as outside earlier finite proof profiles.
+Public combined100 ingress passes exact validation and rollback/reload tests;
+four spec ports and three catchup/buffer/result parity ports pass. Evidence is
+under wi015/coordinator-progress, timecontrol-ports, public-command-capacity,
+spec-ports and behavior-ports. Current whole scheduler2/callback core passes
+(root18.375s); consolidated lint04 passes0issues. Archive: consolidated-checkpoint.
+All-scheduler2 public combined run is in progress. Remaining coverage includes
+local-cluster physical restamping, listing/metadata parity, stale physical fences
+and full capacity/time-domain compatibility. M3 is not accepted; M4 remains pending.
+
+The combined public checkpoint completed PASS140.002s for all TestSchedule2 cases
+present at compilation. Core packages and normal/minimal lint passed. Exact
+commands, staged source hashes, logs and evidence limits are in
+wi015/consolidated-checkpoint/manifest.json. This local source checkpoint is not
+WI015/M3 acceptance; subsequent listing/XDC ports and compatibility audit remain.

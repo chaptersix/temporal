@@ -6,6 +6,7 @@ import (
 
 	"github.com/nexus-rpc/sdk-go/nexus"
 	"github.com/sony/gobreaker"
+	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/api/historyservice/v1"
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/activity"
@@ -114,6 +115,11 @@ var Module = fx.Options(
 		chasmEngine chasm.Engine,
 		chasmVisibilityManager chasm.VisibilityManager,
 		chasmRegistry *chasm.Registry,
+		frontendClient workflowservice.WorkflowServiceClient,
+		historyClient resource.HistoryClient,
+		namespaceRegistry namespace.Registry,
+		dc *dynamicconfig.Collection,
+		callbackValidator commoncallbacks.Validator,
 		testHooks testhooks.TestHooks,
 	) {
 		if hook, ok := testhooks.Get(
@@ -121,7 +127,16 @@ var Module = fx.Options(
 			testhooks.HistoryChasmRuntimeProvider,
 			testhooks.GlobalScope,
 		); ok {
-			hook(chasmEngine, chasmVisibilityManager, chasmRegistry)
+			hook(testhooks.HistoryChasmRuntime{
+				Engine:            chasmEngine,
+				Visibility:        chasmVisibilityManager,
+				Registry:          chasmRegistry,
+				FrontendClient:    frontendClient,
+				HistoryClient:     historyClient,
+				NamespaceRegistry: namespaceRegistry,
+				DynamicConfig:     dc,
+				CallbackValidator: callbackValidator,
+			})
 		}
 	}),
 

@@ -22,6 +22,10 @@ import (
 // NewPublicSchedule initializes the paused, empty-definition public test profile.
 // The frontend validates public payloads before this transaction starts.
 func NewPublicSchedule(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest) (*Scheduler, error) {
+	return newPublicSchedule(ctx, request, false)
+}
+
+func newPublicSchedule(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, execution bool) (*Scheduler, error) {
 	if request == nil || request.Schedule == nil {
 		return nil, serviceerror.NewInvalidArgument("schedule is required")
 	}
@@ -30,14 +34,17 @@ func NewPublicSchedule(ctx chasm.MutableContext, request *workflowservice.Create
 	}
 	schedule := common.CloneProto(request.Schedule)
 	spec := schedule.GetSpec()
-	if !schedule.GetState().GetPaused() || len(spec.GetInterval())+len(spec.GetStructuredCalendar())+len(spec.GetCalendar())+len(spec.GetCronString()) != 0 || proto.Size(request.InitialPatch) != 0 {
+	if !execution && (!schedule.GetState().GetPaused() || len(spec.GetInterval())+len(spec.GetStructuredCalendar())+len(spec.GetCalendar())+len(spec.GetCronString()) != 0 || proto.Size(request.InitialPatch) != 0) {
 		return nil, serviceerror.NewUnimplemented("scheduler2 public execution and initial patches are not wired")
 	}
 	if schedule.Spec == nil {
 		schedule.Spec = &schedulepb.ScheduleSpec{}
 	}
-	if _, err := occurrence.New(schedule.Spec, "", 1); err != nil {
+	if _, err := occurrence.NewPublic(schedule.Spec, "", 1); err != nil {
 		return nil, err
+	}
+	if schedule.State == nil {
+		schedule.State = &schedulepb.ScheduleState{}
 	}
 	if schedule.State.RemainingActions < 0 {
 		return nil, serviceerror.NewInvalidArgument("remaining actions must be nonnegative")
@@ -56,19 +63,24 @@ func NewPublicSchedule(ctx chasm.MutableContext, request *workflowservice.Create
 	if err != nil {
 		return nil, err
 	}
-	s.Paused, s.Limited, s.Policy = true, schedule.State.LimitedActions, policy
+	s.PublicRevision = 1
+	s.Paused, s.Limited, s.Policy = schedule.State.Paused, schedule.State.LimitedActions, policy
 	s.PauseOnFailure = schedule.Policies.PauseOnFailure
-	s.PublicSchedule = chasm.NewDataField(ctx, schedule)
+	if err := s.storePublicDefinition(ctx, schedule); err != nil {
+		return nil, err
+	}
 	s.PublicInfo = chasm.NewDataField(ctx, &schedulepb.ScheduleInfo{
 		CreateTime: timestamppb.New(ctx.Now(s)), UpdateTime: timestamppb.New(time.Time{}),
 	})
 	listSpec := common.CloneProto(schedule.Spec)
 	legacyscheduler.CleanSpec(listSpec)
 	listSpec.TimezoneData = nil
-	s.PublicList = chasm.NewDataField(ctx, &schedulepb.ScheduleListInfo{
+	list := &schedulepb.ScheduleListInfo{
 		Spec: listSpec, WorkflowType: common.CloneProto(schedule.GetAction().GetStartWorkflow().GetWorkflowType()),
-		Notes: schedule.State.Notes, Paused: true,
-	})
+		Notes: schedule.State.Notes, Paused: schedule.State.Paused,
+	}
+	s.publicListProjection(ctx, list, schedule.Spec)
+	s.PublicList = chasm.NewDataField(ctx, list)
 	visibility := chasm.NewVisibility(ctx)
 	s.Visibility = chasm.NewComponentField(ctx, visibility)
 	sa := common.CloneProto(request.SearchAttributes)
@@ -79,7 +91,7 @@ func NewPublicSchedule(ctx chasm.MutableContext, request *workflowservice.Create
 	return s, nil
 }
 
-func publicConflictToken(runID string, revision int64) []byte {
+func publicConflictToken(runID string, revision uint64) []byte {
 	return []byte(fmt.Sprintf("%s:%d", runID, revision))
 }
 
@@ -88,25 +100,34 @@ func (s *Scheduler) DescribePublic(ctx chasm.Context) (*workflowservice.Describe
 	if s.Closed {
 		return nil, serviceerror.NewNotFound("schedule is closed")
 	}
-	stored, ok := s.PublicSchedule.TryGet(ctx)
+	_, ok := s.PublicSchedule.TryGet(ctx)
 	if !ok {
 		return nil, serviceerror.NewFailedPrecondition("schedule has no public definition")
 	}
-	schedule := common.CloneProto(stored)
+	schedule, err := s.publicDefinition(ctx)
+	if err != nil {
+		return nil, err
+	}
 	schedule.State.Paused, schedule.State.LimitedActions, schedule.State.RemainingActions = s.Paused, s.Limited, s.Remaining
 	schedule.Policies.OverlapPolicy = enumspb.ScheduleOverlapPolicy(s.Policy)
 	window := schedule.Policies.GetCatchupWindow().AsDuration()
-	if window <= 0 {
-		window = 365 * 24 * time.Hour
+	if s.HasGenerator {
+		window = time.Duration(s.Generator.Get(ctx).CatchupWindow)
+	} else {
+		if window <= 0 {
+			window = 365 * 24 * time.Hour
+		}
+		window = max(window, 10*time.Second)
 	}
-	schedule.Policies.CatchupWindow = durationpb.New(max(window, 10*time.Second))
+	schedule.Policies.CatchupWindow = durationpb.New(window)
 	legacyscheduler.CleanSpec(schedule.Spec)
 	info := common.CloneProto(s.PublicInfo.Get(ctx))
+	s.publicInfoProjection(ctx, info, schedule.Spec)
 	info.StateSizeBytes = int64(ctx.ExecutionInfo().ApproximateStateSize)
 	info.TimeSkippingInfo = ctx.GetTimeSkippingInfo()
 	visibility := s.Visibility.Get(ctx)
 	return &workflowservice.DescribeScheduleResponse{
-		Schedule: schedule, Info: info, ConflictToken: publicConflictToken(s.Incarnation, s.Revision),
+		Schedule: schedule, Info: info, ConflictToken: publicConflictToken(s.Incarnation, s.PublicRevision),
 		Memo:             common.CloneProto(&commonpb.Memo{Fields: visibility.CustomMemo(ctx)}),
 		SearchAttributes: common.CloneProto(&commonpb.SearchAttributes{IndexedFields: visibility.CustomSearchAttributes(ctx)}),
 	}, nil
@@ -121,8 +142,4 @@ func (s *Scheduler) Memo(ctx chasm.Context) proto.Message {
 	info := common.CloneProto(stored)
 	info.Paused = s.Paused
 	return info
-}
-
-func (s *Scheduler) SearchAttributes(chasm.Context) []chasm.SearchAttributeKeyValue {
-	return []chasm.SearchAttributeKeyValue{chasm.SearchAttributeTemporalSchedulePaused.Value(s.Paused)}
 }

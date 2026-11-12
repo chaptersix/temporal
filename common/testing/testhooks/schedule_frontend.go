@@ -23,3 +23,11 @@ var FrontendSchedule = newKey[ScheduleFrontend, global]()
 
 // FrontendChasmRegistryProvider registers offline test libraries before frontend services start.
 var FrontendChasmRegistryProvider = newKey[func(*chasm.Registry) error, global]()
+
+// ScheduleMutationFrontend adds execution controls to an explicitly selected frontend.
+// An inert selection may omit this interface without falling back to another backend.
+type ScheduleMutationFrontend interface {
+	UpdateSchedule(context.Context, namespace.ID, *workflowservice.UpdateScheduleRequest) (*workflowservice.UpdateScheduleResponse, error)
+	PatchSchedule(context.Context, namespace.ID, *workflowservice.PatchScheduleRequest) (*workflowservice.PatchScheduleResponse, error)
+	ListScheduleMatchingTimes(context.Context, namespace.ID, *workflowservice.ListScheduleMatchingTimesRequest) (*workflowservice.ListScheduleMatchingTimesResponse, error)
+}

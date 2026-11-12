@@ -73,10 +73,10 @@ func TestLifecycleClosePublicationAndTaskFences(t *testing.T) {
 	valid, err = (&WorkHandler{}).Validate(ctx, s, workAttrs, work)
 	require.NoError(t, err)
 	require.False(t, valid)
-	valid, err = (&StartHandler{}).Validate(ctx, s, startAttrs, &scheduler2pb.StartTask{OperationId: pendingID})
+	valid, err = (&StartHandler{}).Validate(ctx, s, startAttrs, &scheduler2pb.StartTask{OperationId: pendingID, WakeTime: startAttrs.ScheduledTime.UnixNano()})
 	require.NoError(t, err)
 	require.False(t, valid)
-	valid, err = (&EffectHandler{}).Validate(ctx, s, effectAttrs, &scheduler2pb.EffectTask{EffectId: effectID})
+	valid, err = (&EffectHandler{}).Validate(ctx, s, effectAttrs, &scheduler2pb.EffectTask{EffectId: effectID, WakeTime: effectAttrs.ScheduledTime.UnixNano()})
 	require.NoError(t, err)
 	require.False(t, valid)
 	for _, task := range physical {

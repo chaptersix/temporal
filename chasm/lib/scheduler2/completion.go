@@ -18,9 +18,8 @@ func (s *Scheduler) prepareCompletion(state decision.State, event *decision.Even
 	if event.Kind != decision.Callback || event.Incarnation != s.Incarnation || op == nil || op.ID != event.OperationID || decision.Terminal(op.Phase) {
 		return nil
 	}
-	if len(event.Result) > decision.MaxCompletionBytes || len(event.Failure) > decision.MaxCompletionBytes {
-		return nil
-	} // The reducer reports the bounded-input error.
+	// Accepted callback values retain the ingress resource contract. Validate their
+	// structure here without imposing a second prototype byte ceiling.
 	if event.Outcome == decision.Success {
 		payload := &commonpb.Payload{}
 		if err := proto.Unmarshal(event.Result, payload); err != nil {
@@ -55,7 +54,10 @@ func (s *Scheduler) prepareCompletion(state decision.State, event *decision.Even
 }
 
 func (s *Scheduler) materializeCarryover(ctx chasm.Context, request *workflowservice.StartWorkflowExecutionRequest) error {
-	c := s.Carryover.Get(ctx)
+	c, err := s.carryoverValue(ctx)
+	if err != nil {
+		return err
+	}
 	request.LastCompletionResult = nil
 	request.ContinuedFailure = nil
 	if len(c.Result) > 0 {

@@ -8832,9 +8832,13 @@ type CompleteNexusOperationChasmRequest struct {
 	// completion arrives before the worker's start response.
 	OperationToken string `protobuf:"bytes,6,opt,name=operation_token,json=operationToken,proto3" json:"operation_token,omitempty"`
 	// Time when the operation was started. Used when completion is received before the started response.
-	StartTime     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	// Canonical first execution run ID of the source workflow, when known.
+	// Internal Temporal workflow callbacks only; absent for generic Nexus/activity
+	// sources. This is not the source workflow's current/latest run ID.
+	WorkflowFirstExecutionRunId string `protobuf:"bytes,8,opt,name=workflow_first_execution_run_id,json=workflowFirstExecutionRunId,proto3" json:"workflow_first_execution_run_id,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *CompleteNexusOperationChasmRequest) Reset() {
@@ -8925,6 +8929,13 @@ func (x *CompleteNexusOperationChasmRequest) GetStartTime() *timestamppb.Timesta
 		return x.StartTime
 	}
 	return nil
+}
+
+func (x *CompleteNexusOperationChasmRequest) GetWorkflowFirstExecutionRunId() string {
+	if x != nil {
+		return x.WorkflowFirstExecutionRunId
+	}
+	return ""
 }
 
 type isCompleteNexusOperationChasmRequest_Outcome interface {
@@ -11511,7 +11522,7 @@ const file_temporal_server_api_historyservice_v1_request_response_proto_rawDesc 
 	"\x10ListTasksRequest\x12V\n" +
 	"\arequest\x18\x01 \x01(\v2<.temporal.server.api.adminservice.v1.ListHistoryTasksRequestR\arequest:\x16\x92\xc4\x03\x12\x1a\x10request.shard_id\"n\n" +
 	"\x11ListTasksResponse\x12Y\n" +
-	"\bresponse\x18\x01 \x01(\v2=.temporal.server.api.adminservice.v1.ListHistoryTasksResponseR\bresponse\"\xf5\x03\n" +
+	"\bresponse\x18\x01 \x01(\v2=.temporal.server.api.adminservice.v1.ListHistoryTasksResponseR\bresponse\"\xbb\x04\n" +
 	"\"CompleteNexusOperationChasmRequest\x12V\n" +
 	"\n" +
 	"completion\x18\x01 \x01(\v26.temporal.server.api.token.v1.NexusOperationCompletionR\n" +
@@ -11523,7 +11534,8 @@ const file_temporal_server_api_historyservice_v1_request_response_proto_rawDesc 
 	"\x05links\x18\x05 \x03(\v2\x1c.temporal.api.common.v1.LinkR\x05links\x12'\n" +
 	"\x0foperation_token\x18\x06 \x01(\tR\x0eoperationToken\x129\n" +
 	"\n" +
-	"start_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime:\x1e\x92\xc4\x03\x1aB\x18completion.component_refB\t\n" +
+	"start_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x12D\n" +
+	"\x1fworkflow_first_execution_run_id\x18\b \x01(\tR\x1bworkflowFirstExecutionRunId:\x1e\x92\xc4\x03\x1aB\x18completion.component_refB\t\n" +
 	"\aoutcome\"%\n" +
 	"#CompleteNexusOperationChasmResponse\"\xe0\x03\n" +
 	"\x1dCompleteNexusOperationRequest\x12V\n" +

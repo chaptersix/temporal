@@ -35,7 +35,17 @@ func (ms *MutableStateImpl) IsTimeSkippingFeatureEnabled(archetypeID chasm.Arche
 	case chasm.SchedulerArchetypeID:
 		return ms.config.CHASMSchedulerTimeSkippingEnabled(namespace)
 	default:
-		return false
+		// scheduler2 is available only through explicit library registration. Sharing
+		// the scheduler capability flag does not register or route this archetype.
+		if archetypeID != chasm.GenerateTypeID(chasm.FullyQualifiedName("scheduler2", "scheduler")) {
+			return false
+		}
+		registry := ms.shard.ChasmRegistry()
+		if registry == nil {
+			return false
+		}
+		_, registered := registry.ComponentByID(archetypeID)
+		return registered && ms.config.CHASMSchedulerTimeSkippingEnabled(namespace)
 	}
 }
 

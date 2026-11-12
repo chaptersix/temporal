@@ -18,7 +18,14 @@ func acceptManual(next State, event Event) (State, error) {
 	if !ValidPolicy(event.Policy) {
 		return State{}, serviceerror.NewInvalidArgument("unsupported overlap policy")
 	}
-	if len(next.Manuals) >= 4 {
+	limit := 4
+	if event.PublicManualIngress {
+		limit = 100
+	}
+	if len(next.Manuals) >= limit {
+		if event.PublicManualIngress {
+			return State{}, serviceerror.NewFailedPrecondition("too many concurrent backfillers")
+		}
 		return State{}, serviceerror.NewResourceExhausted(enumspb.RESOURCE_EXHAUSTED_CAUSE_SYSTEM_OVERLOADED, "pending manual trigger capacity exhausted")
 	}
 	if next.Root.ManualSequence == math.MaxUint64 {
@@ -102,6 +109,12 @@ func dispatchBackfill(next State, event Event) (State, error) {
 	}
 	if policy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
 		policy = enumspb.SCHEDULE_OVERLAP_POLICY_SKIP
+	}
+	if event.BackfillBatchSkip {
+		if policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP {
+			return State{}, serviceerror.NewInvalidArgument("batch skip requires SKIP policy")
+		}
+		return next, nil
 	}
 	candidate := Queued{BackfillID: event.BackfillID, Nominal: event.Nominal, Actual: event.Actual, WorkflowID: event.WorkflowID, Policy: policy}
 	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || len(next.Queue) > 0) {

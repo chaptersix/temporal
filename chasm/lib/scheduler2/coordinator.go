@@ -23,6 +23,7 @@ type workDemand struct {
 	scan      bool
 	vacancy   bool
 	operation bool
+	deferred  bool
 }
 
 func resolvedPolicy(override, policy enumspb.ScheduleOverlapPolicy) enumspb.ScheduleOverlapPolicy {
@@ -63,12 +64,20 @@ func (s *Scheduler) demands(ctx chasm.Context, state decision.State) ([]workDema
 		if !scan {
 			key = fmt.Sprintf("backfill/%d/%d", b.Id, b.Continuation.Pending.Nominal)
 		}
-		demands = append(demands, workDemand{class: scheduler2pb.WORK_CLASS_BACKFILL, key: key, scan: scan, vacancy: !scan, operation: !scan && directAdmissionFor(state, resolvedPolicy(b.Policy, state.Root.Policy))})
+		deferred := !scan && s.publicSkipBatch(b) && !s.suppressBackfill(b) && s.backfillBatchCapacity(ctx) == 0
+		if deferred {
+			// Keep an existing lease identity while delaying service. A dynamic
+			// budget change is not a handoff or a candidate invalidation.
+			future = now.Add(time.Second)
+		}
+		demands = append(demands, workDemand{class: scheduler2pb.WORK_CLASS_BACKFILL, key: key, scan: scan, vacancy: !scan, deferred: deferred, operation: !scan && !s.suppressBackfill(b) && directAdmissionFor(state, resolvedPolicy(b.Policy, state.Root.Policy))})
 	}
 	if automatic, wake := automaticDemand(g, state, now); automatic != nil {
 		demands = append(demands, *automatic)
 	} else {
-		future = wake
+		if future.IsZero() || (!wake.IsZero() && wake.Before(future)) {
+			future = wake
+		}
 	}
 	return demands, future
 }
@@ -134,7 +143,7 @@ func (s *Scheduler) planWorkFor(ctx chasm.Context, state decision.State) (*sched
 		c.OwnerKey = ""
 	}
 	if c.OwnerKey == "" && len(state.Queue) < 4 {
-		if class, ok := cyclicClass(c.NextQueue, func(class scheduler2pb.WorkClass) bool { return byClass[class].vacancy }); ok {
+		if class, ok := cyclicClass(c.NextQueue, func(class scheduler2pb.WorkClass) bool { return byClass[class].vacancy && !byClass[class].deferred }); ok {
 			c.OwnerClass = class
 			c.OwnerKey = byClass[class].key
 		}
@@ -142,10 +151,13 @@ func (s *Scheduler) planWorkFor(ctx chasm.Context, state decision.State) (*sched
 	owns := func(d workDemand) bool {
 		return !d.vacancy || (c.OwnerClass == d.class && c.OwnerKey == d.key && len(state.Queue) < 4)
 	}
-	op, hasOp := cyclicClass(c.NextOperation, func(class scheduler2pb.WorkClass) bool { d, ok := byClass[class]; return ok && d.operation && owns(d) })
+	op, hasOp := cyclicClass(c.NextOperation, func(class scheduler2pb.WorkClass) bool {
+		d, ok := byClass[class]
+		return ok && !d.deferred && d.operation && owns(d)
+	})
 	selected, ready := cyclicClass(c.NextWork, func(class scheduler2pb.WorkClass) bool {
 		d, ok := byClass[class]
-		return ok && owns(d) && (!d.operation || (hasOp && op == class && state.Root.Unfinished < 4))
+		return ok && !d.deferred && owns(d) && (!d.operation || (hasOp && op == class && state.Root.Unfinished < 4))
 	})
 	if ready {
 		d := byClass[selected]
@@ -199,6 +211,11 @@ func (s *Scheduler) reconcileCoordinator(ctx chasm.MutableContext) error {
 		s.Coordination = c
 		s.ManualArmed = false
 		s.DrainArmed = false
+		// A callback can make an already-due physical obligation ready. Promote
+		// it to the bounded immediate chain without changing its logical fence.
+		if s.remainingWork(ctx) > 0 && c.At <= ctx.Now(s).UnixNano() {
+			s.addWorkTask(ctx, time.Unix(0, c.At), c.Token)
+		}
 		return nil
 	}
 	if err := checkWorkWakeToken(c, wake); err != nil {
@@ -210,25 +227,29 @@ func (s *Scheduler) reconcileCoordinator(ctx chasm.MutableContext) error {
 	s.Coordination = c
 	s.ManualArmed = false
 	s.DrainArmed = false
-	ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: wake}, &scheduler2pb.WorkTask{Token: c.Token})
+	s.addWorkTask(ctx, wake, c.Token)
 	return nil
 }
 
 // WorkHandler is the sole owner of scan and admission transactions.
 type WorkHandler struct{ chasm.PureTaskHandlerBase }
 
-func (*WorkHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.WorkTask) (bool, error) {
-	c := s.Coordination
-	return !s.Closed && c != nil && c.Armed && c.Token == task.Token && c.At == attrs.ScheduledTime.UnixNano(), nil
+func (*WorkHandler) Validate(ctx chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.WorkTask) (bool, error) {
+	return validWorkTask(ctx, s, attrs.TaskAttributes, task), nil
 }
 func (*WorkHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.TaskAttributes, task *scheduler2pb.WorkTask) error {
 	c := s.Coordination
-	if s.Closed || c == nil || !c.Armed || c.Token != task.Token || c.At != attrs.ScheduledTime.UnixNano() {
+	if !validWorkTask(ctx, s, attrs, task) {
 		return nil
 	}
 	if ctx.Now(s).Before(time.Unix(0, c.At)) {
 		return serviceerror.NewUnavailable("coordinator work is not due")
 	}
+	remaining := s.workQuanta(ctx)
+	if attrs.IsImmediate() {
+		remaining = int(task.RemainingQuanta)
+	}
+	ctx = chasm.ContextWithValue(ctx, workRemainingKey{}, max(0, remaining-1))
 	planned, d, _ := s.planWork(ctx)
 	if planned.Token == math.MaxUint64 {
 		return serviceerror.NewFailedPrecondition("coordinator token exhausted")
@@ -285,7 +306,7 @@ func (s *Scheduler) currentEnumerator(ctx chasm.Context) (*occurrence.Enumerator
 	if err := proto.Unmarshal(definition.Spec, spec); err != nil {
 		return nil, err
 	}
-	return occurrence.New(spec, definition.Seed, g.Continuation.Revision)
+	return s.newEnumerator(spec, definition.Seed, g.Continuation.Revision)
 }
 func (s *Scheduler) scanAutomatic(ctx chasm.MutableContext) error {
 	g := s.Generator.Get(ctx)
@@ -336,7 +357,11 @@ func (s *Scheduler) transferAutomatic(ctx chasm.MutableContext) error {
 	if err != nil {
 		return err
 	}
-	if err = s.admitGenerated(ctx, g.Definition.Get(ctx).Request, *pending, time.Duration(g.CatchupWindow)); err != nil {
+	template, err := s.generationRequest(ctx)
+	if err != nil {
+		return err
+	}
+	if err = s.admitGenerated(ctx, template, *pending, time.Duration(g.CatchupWindow)); err != nil {
 		return err
 	}
 	state, err := e.DisposeRange(decodeContinuation(g.Continuation))
@@ -355,9 +380,21 @@ func (s *Scheduler) transferBackfill(ctx chasm.MutableContext) error {
 	}
 	event := decision.Event{Kind: decision.DispatchBackfill, Incarnation: s.Incarnation, BackfillID: b.Id, Nominal: b.Continuation.Pending.Nominal, Actual: b.Continuation.Pending.Actual, Policy: b.Policy}
 	policy := resolvedPolicy(b.Policy, s.Policy)
-	needsPayload := s.directAdmission(policy) || (policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || len(s.Queue) == 0))
+	event.BackfillBatchSkip = s.suppressBackfill(b)
+	capacity := int64(0)
+	if s.publicSkipBatch(b) && !event.BackfillBatchSkip {
+		capacity = s.backfillBatchCapacity(ctx)
+		if capacity == 0 {
+			return serviceerror.NewUnavailable("backfill batch capacity is unavailable")
+		}
+	}
+	needsPayload := !event.BackfillBatchSkip && (s.directAdmission(policy) || (policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || len(s.Queue) == 0)))
 	if needsPayload {
-		event.Request = s.Generator.Get(ctx).Definition.Get(ctx).Request
+		var err error
+		event.Request, err = s.generationRequest(ctx)
+		if err != nil {
+			return err
+		}
 		request := &workflowservice.StartWorkflowExecutionRequest{}
 		if err := proto.Unmarshal(event.Request, request); err != nil {
 			return err
@@ -366,6 +403,17 @@ func (s *Scheduler) transferBackfill(ctx chasm.MutableContext) error {
 	}
 	if err := s.applyTransition(ctx, event); err != nil {
 		return err
+	}
+	// publishTransition replaces root metadata; update the current range record,
+	// not the stale pointer captured before the handoff.
+	current := s.selectedBackfill()
+	if event.BackfillBatchSkip {
+		current.SkipBatchRemaining--
+	} else if s.publicSkipBatch(current) {
+		current.SkipBatchRemaining = capacity - 1
+		current.SkipBatchRevision = s.Revision
+	} else {
+		current.SkipBatchRemaining = 0
 	}
 	return s.finishBackfill(ctx)
 }

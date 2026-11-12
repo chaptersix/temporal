@@ -13,6 +13,7 @@ import (
 	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/lib/scheduler2/internal/decision"
 	"go.temporal.io/server/common/testing/protorequire"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -103,6 +104,12 @@ func TestBufferSavedReplay(t *testing.T) {
 				require.Equal(t, enumspb.ScheduleOverlapPolicy(trace.Policy), s.Queue[i].Policy)
 			}
 			s, readCtx := h.root(false)
+			op := s.Operations[s.OperationId].Get(readCtx)
+			require.Equal(t, step.WorkflowID, op.WorkflowId)
+			if decision.Terminal(decision.Phase(op.Phase)) {
+				require.NotContains(t, s.Requests, op.Id)
+				continue
+			}
 			issued := &workflowservice.StartWorkflowExecutionRequest{}
 			require.NoError(t, proto.Unmarshal(s.Requests[s.OperationId].Get(readCtx).Data, issued))
 			require.Equal(t, step.WorkflowID, issued.WorkflowId, "step %d", index)

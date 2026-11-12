@@ -1,0 +1,101 @@
+package scheduler2
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	commonpb "go.temporal.io/api/common/v1"
+	failurepb "go.temporal.io/api/failure/v1"
+	schedulepb "go.temporal.io/api/schedule/v1"
+	persistencespb "go.temporal.io/server/api/persistence/v1"
+	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/lib/scheduler2/internal/decision"
+	"google.golang.org/protobuf/proto"
+)
+
+func TestPublicAdmissionFreezesCallback(t *testing.T) {
+	t.Parallel()
+	h := newTreeHarness(t)
+	s, ctx := h.root(true)
+	s.PublicInfo = chasm.NewDataField(ctx.(chasm.MutableContext), &schedulepb.ScheduleInfo{})
+	h.commit(true)
+	expected := h.admit()
+	request := h.request()
+	require.Len(t, request.CompletionCallbacks, 1)
+	callback := request.CompletionCallbacks[0].GetNexus()
+	require.Equal(t, chasm.NexusCompletionHandlerURL, callback.Url)
+	ref, id, err := chasm.UnpackNexusCallbackToken(callback.Header["temporal-callback-token"])
+	require.NoError(t, err)
+	require.Equal(t, expected.RequestId, id)
+	require.NotEmpty(t, ref)
+	frozen := proto.Clone(request)
+	h.reload()
+	require.True(t, proto.Equal(frozen, h.request()), "reload must preserve callback bytes")
+}
+
+func TestPublicCompletionBeforeAcknowledgment(t *testing.T) {
+	t.Parallel()
+	for _, failure := range []bool{false, true} {
+		name := "success"
+		if failure {
+			name = "failure"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			h := newTreeHarness(t)
+			request := h.admit()
+			completion := &persistencespb.ChasmNexusCompletion{RequestId: request.RequestId, WorkflowFirstExecutionRunId: "first-run"}
+			if failure {
+				completion.Outcome = &persistencespb.ChasmNexusCompletion_Failure{Failure: &failurepb.Failure{Message: "failed"}}
+			} else {
+				completion.Outcome = &persistencespb.ChasmNexusCompletion_Success{Success: &commonpb.Payload{Data: []byte("result")}}
+			}
+			s, ctx := h.root(true)
+			require.NoError(t, s.HandleNexusCompletion(ctx.(chasm.MutableContext), completion))
+			h.commit(true)
+			s, ctx = h.root(false)
+			require.EqualValues(t, 1, s.Started)
+			require.Zero(t, s.Unfinished)
+			operation := s.Operations[request.RequestId].Get(ctx)
+			require.Equal(t, "first-run", operation.ChainId)
+			require.EqualValues(t, decision.Completed, operation.Phase)
+			carryover := s.Carryover.Get(ctx)
+			require.Equal(t, failure, carryover.FailurePresent)
+			if failure {
+				require.NotEmpty(t, carryover.Failure)
+			} else {
+				require.NotEmpty(t, carryover.Result)
+			}
+			before := cloneNodes(h.durable)
+			s, ctx = h.root(true)
+			require.NoError(t, s.HandleNexusCompletion(ctx.(chasm.MutableContext), &persistencespb.ChasmNexusCompletion{RequestId: request.RequestId}))
+			h.commit(true)
+			requireCallbackNodesEqual(t, before, h.durable)
+		})
+	}
+}
+
+func TestPublicCompletionRejectsMissingChainWithoutMutation(t *testing.T) {
+	t.Parallel()
+	h := newTreeHarness(t)
+	request := h.admit()
+	before := cloneNodes(h.durable)
+	s, ctx := h.root(true)
+	err := s.HandleNexusCompletion(ctx.(chasm.MutableContext), &persistencespb.ChasmNexusCompletion{RequestId: request.RequestId, Outcome: &persistencespb.ChasmNexusCompletion_Success{}})
+	require.ErrorContains(t, err, "first execution run ID")
+	h.commit(true)
+	requireCallbackNodesEqual(t, before, h.durable)
+}
+
+func requireCallbackNodesEqual(t *testing.T, before, after map[string]*persistencespb.ChasmNode) {
+	t.Helper()
+	before, after = cloneNodes(before), cloneNodes(after)
+	// Mutable reads update only the CHASM node version stamp when this harness
+	// commits, including a rejected or duplicate callback. Compare all other data.
+	for _, nodes := range []map[string]*persistencespb.ChasmNode{before, after} {
+		for _, node := range nodes {
+			node.Metadata.LastUpdateVersionedTransition = nil
+		}
+	}
+	require.Equal(t, before, after)
+}

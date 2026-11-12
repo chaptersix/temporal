@@ -1,0 +1,18 @@
+--- FAIL: TestPublicBackfillSkipBatchesSurviveFastCompletion (0.00s)
+    --- FAIL: TestPublicBackfillSkipBatchesSurviveFastCompletion/two_per_group (0.01s)
+        backfill_batch_test.go:75: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/backfill_batch_test.go:75
+            	Error:      	Not equal: 
+            	            	expected: int(3)
+            	            	actual  : int64(5)
+            	Test:       	TestPublicBackfillSkipBatchesSurviveFastCompletion/two_per_group
+    --- FAIL: TestPublicBackfillSkipBatchesSurviveFastCompletion/reference_default (0.01s)
+        backfill_batch_test.go:75: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/backfill_batch_test.go:75
+            	Error:      	Not equal: 
+            	            	expected: int(1)
+            	            	actual  : int64(5)
+            	Test:       	TestPublicBackfillSkipBatchesSurviveFastCompletion/reference_default
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.674s
+FAIL

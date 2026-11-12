@@ -1,0 +1,32 @@
+--- FAIL: TestPublicBackfillZeroBatchCapacityRecovers (0.00s)
+    backfill_batch_test.go:114: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/backfill_batch_test.go:28
+        	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/backfill_batch_test.go:114
+        	Error:      	Received unexpected error:
+        	            	generation template cannot contain completion carryover
+        	Test:       	TestPublicBackfillZeroBatchCapacityRecovers
+--- FAIL: TestPublicBackfillSkipGroupCapturesExistingBlocker (0.00s)
+    backfill_batch_test.go:84: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/backfill_batch_test.go:28
+        	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/backfill_batch_test.go:84
+        	Error:      	Received unexpected error:
+        	            	generation template cannot contain completion carryover
+        	Test:       	TestPublicBackfillSkipGroupCapturesExistingBlocker
+--- FAIL: TestPublicBackfillSkipBatchesSurviveFastCompletion (0.00s)
+    --- FAIL: TestPublicBackfillSkipBatchesSurviveFastCompletion/reference_default (0.00s)
+        backfill_batch_test.go:50: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/backfill_batch_test.go:28
+            	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/backfill_batch_test.go:50
+            	Error:      	Received unexpected error:
+            	            	generation template cannot contain completion carryover
+            	Test:       	TestPublicBackfillSkipBatchesSurviveFastCompletion/reference_default
+    --- FAIL: TestPublicBackfillSkipBatchesSurviveFastCompletion/two_per_group (0.00s)
+        backfill_batch_test.go:50: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/backfill_batch_test.go:28
+            	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/backfill_batch_test.go:50
+            	Error:      	Received unexpected error:
+            	            	generation template cannot contain completion carryover
+            	Test:       	TestPublicBackfillSkipBatchesSurviveFastCompletion/two_per_group
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.728s
+FAIL

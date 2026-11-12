@@ -1,0 +1,23 @@
+--- FAIL: TestCoordinatorDueStartUsesTransferAndRetryUsesTimer (0.00s)
+    coordinator_immediate_test.go:111: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/coordinator_immediate_test.go:111
+        	Error:      	Not equal: 
+        	            	expected: tasks.Category{id:1, cType:1, name:"transfer"}
+        	            	actual  : tasks.Category{id:2, cType:2, name:"timer"}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,5 +1,5 @@
+        	            	 (tasks.Category) {
+        	            	- id: (int) 1,
+        	            	- cType: (tasks.CategoryType) 1,
+        	            	- name: (string) (len=8) "transfer"
+        	            	+ id: (int) 2,
+        	            	+ cType: (tasks.CategoryType) 2,
+        	            	+ name: (string) (len=5) "timer"
+        	            	 }
+        	Test:       	TestCoordinatorDueStartUsesTransferAndRetryUsesTimer
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.631s
+FAIL

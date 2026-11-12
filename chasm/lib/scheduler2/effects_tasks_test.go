@@ -132,6 +132,8 @@ func TestEffectsTaskPermitAndDetachedRequest(t *testing.T) {
 	}, nil)
 	e, id, physical := newEffectsEngine(t, enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER, handler)
 	expected := effectSnapshot(e.h, id).Cancel
+	initialRoot, _ := e.h.root(false)
+	initialWake := initialRoot.Effects[0].RetryAt
 	node := e.h.node
 	first := make(chan error, 1)
 	go func() { first <- e.execute(e.ctx, node, physical) }()
@@ -146,7 +148,7 @@ func TestEffectsTaskPermitAndDetachedRequest(t *testing.T) {
 	checked := &effectsPermitContext{Context: cancelled, reached: reached}
 	second := make(chan error, 1)
 	go func() {
-		second <- handler.Execute(checked, chasm.NewComponentRef[*Scheduler](e.key), chasm.TaskAttributes{}, &scheduler2pb.EffectTask{EffectId: id})
+		second <- handler.Execute(checked, chasm.NewComponentRef[*Scheduler](e.key), chasm.TaskAttributes{}, &scheduler2pb.EffectTask{EffectId: id, WakeTime: initialWake})
 	}()
 	select {
 	case <-reached: // Done() was evaluated by the occupied permit select.

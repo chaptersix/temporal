@@ -49,10 +49,10 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 // configureGeneration prepares the full successor before publishing any fields.
 // Both control entry points check terminal authority before calling it.
 func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config GenerationConfig, controls *UpdateConfig) error {
-	if !decision.ValidPolicy(config.Policy) || config.Request == nil || config.Request.WorkflowId == "" || proto.Size(config.Request) > 64*1024 || len(config.Seed) > 64*1024 || config.CatchupWindow < 0 || config.CatchupWindow > 365*24*time.Hour || config.Revision < s.Revision {
+	if !decision.ValidPolicy(config.Policy) || config.Request == nil || config.Request.WorkflowId == "" || config.CatchupWindow < 0 || config.Revision < s.Revision {
 		return serviceerror.NewInvalidArgument("invalid local generation configuration")
 	}
-	e, err := occurrence.New(config.Spec, config.Seed, config.Revision)
+	e, err := s.newEnumerator(config.Spec, config.Seed, config.Revision)
 	if err != nil {
 		return err
 	}
@@ -85,6 +85,13 @@ func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config Generat
 	if err != nil {
 		return err
 	}
+	requestRecord, blobs, err := s.splitRequest(ctx, request)
+	if err != nil {
+		return err
+	}
+	if requestRecord.ResultRef != "" || requestRecord.FailureRef != "" {
+		return serviceerror.NewInvalidArgument("generation template cannot contain completion carryover")
+	}
 	if g != nil && g.Token == math.MaxUint64 {
 		return serviceerror.NewFailedPrecondition("generation token exhausted")
 	}
@@ -115,7 +122,8 @@ func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config Generat
 		g = &Generator{GeneratorState: &scheduler2pb.GeneratorState{}}
 		s.Generator = chasm.NewComponentField(ctx, g)
 	}
-	g.Definition = chasm.NewDataField(ctx, &scheduler2pb.GenerationDefinition{Spec: spec, Seed: config.Seed, Request: request})
+	s.publishBlobs(ctx, blobs)
+	g.Definition = chasm.NewDataField(ctx, &scheduler2pb.GenerationDefinition{Spec: spec, Seed: config.Seed, Request: requestRecord.Data, ActionRef: requestRecord.ActionRef})
 	g.Continuation = encodeContinuation(state)
 	g.CatchupWindow = int64(config.CatchupWindow)
 	g.Superseded = encodeCandidate(superseded)
@@ -130,7 +138,11 @@ func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config Generat
 	s.Policy = config.Policy
 	s.Cursor = max(s.Cursor, state.DisposedThrough.UnixNano())
 	g.arm(ctx, now)
-	return s.reconcileWork(ctx)
+	if err := s.reconcileWork(ctx); err != nil {
+		return err
+	}
+	s.collectPayloadBlobs(ctx)
+	return nil
 }
 
 func (g *Generator) arm(ctx chasm.MutableContext, at time.Time) {
@@ -161,7 +173,7 @@ func (s *Scheduler) admitGenerated(ctx chasm.MutableContext, template []byte, ca
 	if err != nil {
 		return err
 	}
-	return s.applyTransition(ctx, decision.Event{Kind: decision.Due, Incarnation: s.Incarnation, Nominal: candidate.Nominal.UnixNano(), Actual: candidate.Actual.UnixNano(), WorkflowID: request.WorkflowId, CatchupDeadline: candidate.Actual.Add(catchup).UnixNano(), Request: encoded})
+	return s.applyTransition(ctx, decision.Event{Kind: decision.Due, Incarnation: s.Incarnation, Nominal: candidate.Nominal.UnixNano(), Actual: candidate.Actual.UnixNano(), WorkflowID: request.WorkflowId, CatchupDeadline: catchupDeadline(candidate.Actual.UnixNano(), catchup), Request: encoded})
 }
 
 func encodeCandidate(c *occurrence.Candidate) *scheduler2pb.OccurrenceCandidate {
@@ -179,4 +191,23 @@ func decodeContinuation(s *scheduler2pb.OccurrenceContinuation) occurrence.State
 		state.Pending = &occurrence.Candidate{Nominal: time.Unix(0, c.Nominal).UTC(), Actual: time.Unix(0, c.Actual).UTC(), Revision: c.Revision, Excluded: c.Excluded}
 	}
 	return state
+}
+
+// catchupDeadline saturates only the stored timestamp representation. Every
+// representable execution time remains eligible when the mathematical deadline
+// lies beyond it.
+func catchupDeadline(actual int64, window time.Duration) int64 {
+	if actual > math.MaxInt64-int64(window) {
+		return math.MaxInt64
+	}
+	return actual + int64(window)
+}
+
+// newEnumerator preserves the internal verification profile while public
+// definitions retain the frontend's accepted size limits across reconstruction.
+func (s *Scheduler) newEnumerator(spec *schedulepb.ScheduleSpec, seed string, revision int64) (*occurrence.Enumerator, error) {
+	if s.PublicRevision != 0 {
+		return occurrence.NewPublic(spec, seed, revision)
+	}
+	return occurrence.New(spec, seed, revision)
 }

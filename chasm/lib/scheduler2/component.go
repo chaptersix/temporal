@@ -2,10 +2,11 @@
 package scheduler2
 
 import (
-	"bytes"
 	"maps"
+	"math"
 	"time"
 
+	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/api/serviceerror"
@@ -22,12 +23,14 @@ type Scheduler struct {
 	*scheduler2pb.RootState
 	Operations     chasm.Map[string, *scheduler2pb.OperationState]
 	Requests       chasm.Map[string, *scheduler2pb.Payload]
+	PayloadBlobs   chasm.Map[string, *scheduler2pb.Payload]
 	EffectRequests chasm.Map[string, *scheduler2pb.Payload]
 	Generator      chasm.Field[*Generator]
 	Carryover      chasm.Field[*scheduler2pb.CarryoverState]
 	Diagnostics    chasm.Field[*scheduler2pb.Payload]
 	PublicSchedule chasm.Field[*schedulepb.Schedule]
 	PublicInfo     chasm.Field[*schedulepb.ScheduleInfo]
+	PublicRuntime  chasm.Field[*scheduler2pb.PublicRuntime]
 	PublicList     chasm.Field[*schedulepb.ScheduleListInfo]
 	Visibility     chasm.Field[*chasm.Visibility]
 }
@@ -96,11 +99,15 @@ func admissionEvent(kind decision.Kind) bool {
 	return kind == decision.Due || kind == decision.Drain || kind == decision.DispatchManual || kind == decision.DispatchBackfill
 }
 
-func (s *Scheduler) prepareFailureCarryover(ctx chasm.Context, before *decision.State, event decision.Event) {
+func (s *Scheduler) prepareFailureCarryover(ctx chasm.Context, before *decision.State, event decision.Event) error {
 	if event.Kind == decision.Callback && event.Outcome == decision.Failure && event.Incarnation == s.Incarnation && before.Operation != nil && before.Operation.ID == event.OperationID && !decision.Terminal(before.Operation.Phase) && before.Operation.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && s.CarryoverSet {
-		c := s.Carryover.Get(ctx)
+		c, err := s.carryoverValue(ctx)
+		if err != nil {
+			return err
+		}
 		before.Carryover = &decision.Carryover{Result: c.Result, Failure: c.Failure, FailurePresent: c.FailurePresent}
 	}
+	return nil
 }
 
 // applyTransition is called only by a coordinator grant or a non-admission event.
@@ -130,11 +137,17 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 	if err := s.prepareCompletion(before, &event); err != nil {
 		return err
 	}
-	s.prepareFailureCarryover(ctx, &before, event)
+	if err := s.prepareFailureCarryover(ctx, &before, event); err != nil {
+		return err
+	}
 
 	next, err := decision.Step(before, event)
 	if err != nil {
 		return err
+	}
+	publicMutation := s.PublicRevision != 0 && ((admissionEvent(event.Kind) && next.Root.Remaining < before.Root.Remaining) || (event.Kind == decision.Callback && !before.Root.Paused && next.Root.Paused))
+	if publicMutation && s.PublicRevision == math.MaxUint64 {
+		return serviceerror.NewFailedPrecondition("public mutation counter exhausted")
 	}
 	next, effectRequests, err := s.prepareEffects(ctx, next)
 	if err != nil {
@@ -159,13 +172,41 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 	if err != nil {
 		return err
 	}
-	s.publishTransition(ctx, before, next, event.Kind, newAdmission, eviction, effectRequests)
+	prepared := payloadPreparation{}
+	var requestRecord *scheduler2pb.Payload
+	var carryoverRecord *scheduler2pb.CarryoverState
+	if newAdmission {
+		var blobs payloadPreparation
+		requestRecord, blobs, err = s.splitRequest(ctx, next.Operation.Request)
+		if err != nil {
+			return err
+		}
+		maps.Copy(prepared, blobs)
+	}
+	if next.Carryover != nil {
+		var blobs payloadPreparation
+		carryoverRecord, blobs, err = s.prepareCarryover(ctx, &scheduler2pb.CarryoverState{Result: next.Carryover.Result, Failure: next.Carryover.Failure, FailurePresent: next.Carryover.FailurePresent})
+		if err != nil {
+			return err
+		}
+		maps.Copy(prepared, blobs)
+	}
+	s.publishBlobs(ctx, prepared)
+	s.publishTransition(ctx, before, next, event.Kind, newAdmission, eviction, effectRequests, requestRecord, carryoverRecord)
+	s.publishPublicTransition(ctx, before, next, event, newAdmission)
+	if publicMutation {
+		s.PublicRevision++
+		if event.Kind == decision.Callback && !before.Root.Paused && next.Root.Paused {
+			s.projectPublicPause(ctx, event.Status, next.Operation.WorkflowID)
+		}
+	}
+	s.collectPayloadBlobs(ctx)
 	return nil
 }
 
 // publishTransition cannot reject: validation and successor-token checks precede
 // every DATA, control-state and task write in this publication phase.
-func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next decision.State, kind decision.Kind, newAdmission bool, eviction string, effectRequests map[string][]byte) {
+func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next decision.State, kind decision.Kind, newAdmission bool, eviction string, effectRequests map[string][]byte, requestRecord *scheduler2pb.Payload, carryoverRecord *scheduler2pb.CarryoverState) {
 	if eviction != "" {
 		delete(s.Operations, eviction)
 		delete(s.Requests, eviction)
@@ -190,6 +231,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 	}
 	previousRoot := s.RootState
 	s.RootState = &scheduler2pb.RootState{
+		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef,
 		ActivitySet: next.Root.ActivitySet, ActivityAt: next.Root.ActivityAt, UnconfirmedStarts: next.Root.UnconfirmedStarts,
 		IdleDuration: previousRoot.IdleDuration, IdleToken: previousRoot.IdleToken, IdleArmed: previousRoot.IdleArmed, IdleAt: previousRoot.IdleAt,
 		Closed: previousRoot.Closed, Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
@@ -207,7 +249,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy, ManualId: q.ManualID, BackfillId: q.BackfillID})
 	}
 	if next.Carryover != nil {
-		s.Carryover = chasm.NewDataField(ctx, &scheduler2pb.CarryoverState{Result: bytes.Clone(next.Carryover.Result), Failure: bytes.Clone(next.Carryover.Failure), FailurePresent: next.Carryover.FailurePresent})
+		s.Carryover = chasm.NewDataField(ctx, carryoverRecord)
 	}
 	if op := next.Operation; op != nil {
 		if newAdmission {
@@ -220,14 +262,24 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 		}
 		s.Operations[op.ID] = chasm.NewDataField(ctx, metadata)
 		if newAdmission {
-			s.Requests[op.ID] = chasm.NewDataField(ctx, &scheduler2pb.Payload{Data: bytes.Clone(op.Request)})
+			s.Requests[op.ID] = chasm.NewDataField(ctx, requestRecord)
+		}
+		if decision.Terminal(op.Phase) {
+			// Terminal metadata fences late deliveries without retaining issuance payloads.
+			delete(s.Requests, op.ID)
 		}
 	}
 	oldWake, hadWake := decision.Wake(before)
 	wake, hasWake := decision.Wake(next)
 	if hasWake && (!hadWake || before.Operation.ID != next.Operation.ID || oldWake != wake) {
-		ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, wake)},
-			&scheduler2pb.StartTask{OperationId: next.Operation.ID})
+		scheduled := time.Unix(0, wake)
+		if s.workQuanta(ctx) > 0 && !scheduled.After(ctx.Now(s)) {
+			// Due side effects use the transfer queue, as in the legacy invoker.
+			// The payload retains the logical wake/deadline fencing; future retries remain timers.
+			scheduled = chasm.TaskScheduledTimeImmediate
+		}
+		ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: scheduled},
+			&scheduler2pb.StartTask{OperationId: next.Operation.ID, WakeTime: wake})
 	}
 	s.publishEffects(ctx, before, next, effectRequests)
 
@@ -249,11 +301,7 @@ func (s *Scheduler) request(ctx chasm.Context, operationID string) (*workflowser
 	if _, ok := decision.Issue(state, now); !ok {
 		return nil, nil
 	}
-	request := &workflowservice.StartWorkflowExecutionRequest{}
-	if err := proto.Unmarshal(s.Requests[operationID].Get(ctx).Data, request); err != nil {
-		return nil, err
-	}
-	return request, nil
+	return s.assembleRequest(ctx, s.Requests[operationID].Get(ctx))
 }
 
 // retentionEviction chooses at most one completed record; active work is never reclaimed.
@@ -294,6 +342,26 @@ func (s *Scheduler) freezeAdmission(ctx chasm.Context, op *decision.Operation) e
 		request.WorkflowIdReusePolicy = enumspb.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
 	}
 	request.RequestId = op.ID
+	if _, public := s.PublicInfo.TryGet(ctx); public {
+		ref, err := ctx.Ref(s)
+		if err != nil {
+			return err
+		}
+		callback, err := chasm.GenerateNexusCallback(ref, op.ID, true)
+		if err != nil {
+			return err
+		}
+		request.CompletionCallbacks = []*commonpb.Callback{callback}
+		fields := request.GetSearchAttributes().GetIndexedFields()
+		if fields == nil {
+			fields = make(map[string]*commonpb.Payload)
+		}
+		scheduledBy := chasm.SearchAttributeTemporalScheduledByID.Value(ctx.ExecutionKey().BusinessID)
+		scheduledAt := chasm.SearchAttributeTemporalScheduledStartTime.Value(time.Unix(0, op.Nominal).UTC())
+		fields[scheduledBy.Field] = scheduledBy.Value.MustEncode()
+		fields[scheduledAt.Field] = scheduledAt.Value.MustEncode()
+		request.SearchAttributes = &commonpb.SearchAttributes{IndexedFields: fields}
+	}
 	frozen, err := proto.MarshalOptions{Deterministic: true}.Marshal(request)
 	if err != nil {
 		return err

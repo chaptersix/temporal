@@ -143,14 +143,18 @@ func TestIsActivityTaskValidStandaloneActivity(t *testing.T) {
 // handler ran and returns a canned error, used to drive the handler's run-fallback logic.
 type fakeNexusCompletionHandler struct {
 	chasm.UnimplementedComponent
-	err error
+	err      error
+	received *string
 }
 
 func (fakeNexusCompletionHandler) LifecycleState(chasm.Context) chasm.LifecycleState {
 	return chasm.LifecycleStateRunning
 }
 
-func (f fakeNexusCompletionHandler) HandleNexusCompletion(chasm.MutableContext, *persistencespb.ChasmNexusCompletion) error {
+func (f fakeNexusCompletionHandler) HandleNexusCompletion(_ chasm.MutableContext, completion *persistencespb.ChasmNexusCompletion) error {
+	if f.received != nil {
+		*f.received = completion.WorkflowFirstExecutionRunId
+	}
 	return f.err
 }
 
@@ -533,4 +537,19 @@ func TestStartNexusOperation_SystemNexusEndpointRejectsNonProtoResponse(t *testi
 	var failedPrecondition *serviceerror.FailedPrecondition
 	require.ErrorAs(t, err, &failedPrecondition)
 	require.ErrorContains(t, err, "system payload must be encoded as binary/protobuf but got json/plain")
+}
+
+func TestCompleteNexusOperationChasm_PreservesWorkflowChain(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	engine := chasm.NewMockEngine(ctrl)
+	var received string
+	engine.EXPECT().UpdateComponent(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ chasm.ComponentRef, fn func(chasm.MutableContext, chasm.Component) error, _ ...chasm.TransitionOption) ([]byte, error) {
+		return nil, fn(&chasm.MockMutableContext{}, fakeNexusCompletionHandler{received: &received})
+	})
+	handler := &Handler{logger: log.NewNoopLogger(), metricsHandler: metrics.NoopMetricsHandler}
+	request := newCompleteNexusOperationChasmRequest(t, chasm.SchedulerArchetypeID, "scheduler-run", "operation-id")
+	request.WorkflowFirstExecutionRunId = "source-first-run"
+	_, err := handler.CompleteNexusOperationChasm(chasm.NewEngineContext(t.Context(), engine), request)
+	require.NoError(t, err)
+	require.Equal(t, "source-first-run", received)
 }

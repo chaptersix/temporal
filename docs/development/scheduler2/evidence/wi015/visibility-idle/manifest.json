@@ -1,0 +1,32 @@
+{
+  "status": "increment verified, not M3 acceptance",
+  "review": "api_seam independently confirmed armed/open projection: IdleAt alone remains stale when disarmed; registration present.",
+  "commands": {
+    "unit": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2 -run ^TestPublicVisibility -count=1",
+    "functional": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 -parallel 4 ./tests -run ^TestSchedule2IdleCloseTimeVisibility$ -count=1 -timeout=2m"
+  },
+  "results": {
+    "unit": {
+      "output": "ok  \tgo.temporal.io/server/chasm/lib/scheduler2\t0.623s",
+      "sha256": "ad7f44241afec06e5d9b8c3c990d67738fefe90f372be9bbbae50351dd9f44e5"
+    },
+    "functional": {
+      "output": "ok  \tgo.temporal.io/server/tests\t1.705s",
+      "sha256": "7326dead587a157feb8a83e3e5e96f28e2adc952677ca88bce92e131d5698610"
+    }
+  },
+  "source_sha256": {
+    "chasm/lib/scheduler2/public_visibility.go": "318b7a13e018097fb824aacf45c43b53cf9778b9bf8f972ec5acba1866ce8652",
+    "chasm/lib/scheduler2/public_visibility_test.go": "c01be36099ab2f3498e08709ec6019b24486ff7bd79c23c6c75d7bbe760a5d96",
+    "chasm/lib/scheduler2/library.go": "50d314c98dd741a4537cd9337190191157f5261747722edfbfbf6daf67f1ab4f",
+    "chasm/lib/scheduler2/idle.go": "10b2dbc25147015f9f2a5e6539ccfbc548eeaa781b09cdbea7650ffa5acb2815",
+    "tests/schedule2_visibility_test.go": "bb8f8405ed87a480d1d46b3530332351584ca69467b33613a090f9d4d8a787a8"
+  },
+  "scope": "Unit armed/unarmed/closed projection; actual SQLite query returns manual-only empty schedule then excludes after pause. Full lifecycle recovery remains separate. Import-only grouping followed unit run; consolidated lint pending.",
+  "six_scenario_rerun": {
+    "result": "ok  \tgo.temporal.io/server/tests\t3.365s",
+    "sha256": "909a826bda29b650304c020db8d2cbf9fa9a1619f982ecb1f7e9a011c39014d8",
+    "scope": "All five original metadata/index ports plus idle query; after t.Context/import fixes"
+  },
+  "six_scenario_source_sha256": "2a5b026787d49de582f95acb875843719b54fc928858cab3f2a2ddda1b813a91"
+}

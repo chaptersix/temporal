@@ -1262,6 +1262,10 @@ message CompleteNexusOperationChasmRequest {
   string operation_token = 6;
   // Time when the operation was started. Used when completion is received before the started response.
   google.protobuf.Timestamp start_time = 7;
+  // Canonical first execution run ID of the source workflow, when known.
+  // Internal Temporal workflow callbacks only; absent for generic Nexus/activity
+  // sources. This is not the source workflow's current/latest run ID.
+  string workflow_first_execution_run_id = 8;
 }
 
 message CompleteNexusOperationChasmResponse {}

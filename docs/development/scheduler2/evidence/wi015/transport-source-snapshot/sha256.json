@@ -1,0 +1,8 @@
+{
+  "chasm/lib/scheduler2/public.go": "f99ad6663a9f8e3da406a3c7e8a6dcc35654ac6be14bd879d490c930beac30fa",
+  "chasm/lib/scheduler2/public_api_test_dep.go": "535039a425338848ac8601408eb478b3894985beb6b56cbb64e1506161d01311",
+  "chasm/lib/scheduler2/public_completion.go": "3b43110e4d33f198ebd1ff0ffb4dbe5906899fd20f2080be008b6659e837872e",
+  "chasm/lib/scheduler2/public_completion_test.go": "6316427288f29805be3a11e37fe6fdd05fea903b1d107da969921509f9b399f4",
+  "tests/schedule2_execution_test.go": "0fdafcae7bd96c36ed39773935a903408d2e26017fa027ffc8eb8745892e638f",
+  "common/testing/testhooks/schedule_frontend.go": "559eab7f4bab77fd6b8a0963de58942d723f5ded83ae2ab57bc1648b34d85cf5"
+}

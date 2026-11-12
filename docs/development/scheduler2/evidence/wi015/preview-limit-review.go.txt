@@ -1,0 +1,6 @@
+package main
+import("fmt";"time";schedulepb "go.temporal.io/api/schedule/v1";"go.temporal.io/server/service/worker/scheduler";"google.golang.org/protobuf/types/known/durationpb")
+func main(){
+ spec:=&schedulepb.ScheduleSpec{Interval:[]*schedulepb.IntervalSpec{{Interval:durationpb.New(time.Second)}},ExcludeStructuredCalendar:[]*schedulepb.StructuredCalendarSpec{{Second:[]*schedulepb.Range{{Start:0,End:59}},Minute:[]*schedulepb.Range{{Start:0,End:59}},Hour:[]*schedulepb.Range{{Start:0,End:23}},DayOfMonth:[]*schedulepb.Range{{Start:12}},Month:[]*schedulepb.Range{{Start:11}},DayOfWeek:[]*schedulepb.Range{{Start:0,End:6}},Year:[]*schedulepb.Range{{Start:2026}}}}}
+ for _,limit:=range []int{10000,100000}{cs,err:=scheduler.NewSpecBuilder(func()int{return limit},func()int{return limit}).NewCompiledSpec(spec);if err!=nil{panic(err)};next,err:=cs.GetNextTime("seed",time.Date(2026,11,12,0,0,0,0,time.UTC));fmt.Printf("limit=%d next=%s err=%v\n",limit,next.Next,err)}
+}

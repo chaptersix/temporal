@@ -162,8 +162,8 @@ func TestMalformedCallbackLeavesTreeUnchanged(t *testing.T) {
 		{"result_wire", decision.Success, enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED, []byte{0xff}, nil},
 		{"failure_wire", decision.Failure, enumspb.WORKFLOW_EXECUTION_STATUS_FAILED, nil, []byte{0xff}},
 		{"failure_status_mismatch", decision.Failure, enumspb.WORKFLOW_EXECUTION_STATUS_FAILED, nil, canceled},
-		{"result_limit", decision.Success, enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED, make([]byte, decision.MaxCompletionBytes+1), nil},
-		{"failure_limit", decision.Failure, enumspb.WORKFLOW_EXECUTION_STATUS_FAILED, nil, make([]byte, decision.MaxCompletionBytes+1)},
+		{"large_invalid_result_wire", decision.Success, enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED, bytes.Repeat([]byte{0xff}, 65537), nil},
+		{"large_invalid_failure_wire", decision.Failure, enumspb.WORKFLOW_EXECUTION_STATUS_FAILED, nil, bytes.Repeat([]byte{0xff}, 65537)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -211,10 +211,10 @@ func TestCallbackStaleDoesNotPrepareCarryover(t *testing.T) {
 	}
 }
 
-func TestCompletionResourceBoundariesAndRecovery(t *testing.T) {
+func TestCompletionFormerByteCeilingAndLargeRetention(t *testing.T) {
 	t.Parallel()
 	for _, outcome := range []decision.Outcome{decision.Success, decision.Failure} {
-		for _, size := range []int{decision.MaxCompletionBytes - 1, decision.MaxCompletionBytes, decision.MaxCompletionBytes + 1} {
+		for _, size := range []int{65535, 65536, 65537, 256 * 1024, 2*1024*1024 - 16*1024} {
 			name := fmt.Sprintf("outcome_%d_bytes_%d", outcome, size)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
@@ -236,22 +236,11 @@ func TestCompletionResourceBoundariesAndRecovery(t *testing.T) {
 					event.Status = enumspb.WORKFLOW_EXECUTION_STATUS_FAILED
 					event.Failure = encoded
 				}
-				if size > decision.MaxCompletionBytes {
-					s, ctx := h.root(true)
-					err := s.Apply(ctx.(chasm.MutableContext), event)
-					require.ErrorContains(t, err, "prototype limit")
-					h.commit(true)
-					s, _ = h.root(false)
-					require.Zero(t, s.Started)
-					require.False(t, s.CarryoverSet)
-					require.Equal(t, 1, logicalCount(h.durable))
-					encoded = wire(decision.MaxCompletionBytes)
-					if outcome == decision.Success {
-						event.Result = encoded
-					} else {
-						event.Failure = encoded
-					}
-				}
+				// A failed publication must leave the accepted value retryable.
+				before := cloneNodes(h.durable)
+				h.apply(event, false)
+				require.Equal(t, before, h.durable)
+
 				h.apply(event, true)
 				s, ctx := h.root(false)
 				expected := &scheduler2pb.CarryoverState{}
@@ -267,4 +256,29 @@ func TestCompletionResourceBoundariesAndRecovery(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestCompletionLargeFailureRetainsPriorResultForNextAdmission(t *testing.T) {
+	t.Parallel()
+	h := newTreeHarness(t)
+	payload := &commonpb.Payload{Data: bytes.Repeat([]byte("r"), 2*1024*1024-16*1024)}
+	failure := &failurepb.Failure{Message: strings.Repeat("f", 2*1024*1024-16*1024)}
+	prior := completionWire(t, payload)
+	failed := completionWire(t, failure)
+	seedCarryover(h, &scheduler2pb.CarryoverState{Result: prior})
+	request := h.admit()
+	h.apply(decision.Event{Kind: decision.Callback, Incarnation: "incarnation", OperationID: request.RequestId, ChainID: "chain", Outcome: decision.Failure, Status: enumspb.WORKFLOW_EXECUTION_STATUS_FAILED, Failure: failed}, true)
+	s, ctx := h.root(false)
+	protorequire.ProtoEqual(t, &scheduler2pb.CarryoverState{Result: prior, Failure: failed, FailurePresent: true}, s.Carryover.Get(ctx))
+	// Explicitly re-enable this local harness after pause-on-failure. The next
+	// admission must freeze both large carryover values into its durable request.
+	s, _ = h.root(true)
+	s.Paused = false
+	s.Remaining = 1
+	h.commit(true)
+	h.now++
+	h.admit()
+	actual := h.request()
+	protorequire.ProtoEqual(t, &commonpb.Payloads{Payloads: []*commonpb.Payload{payload}}, actual.LastCompletionResult)
+	protorequire.ProtoEqual(t, failure, actual.ContinuedFailure)
 }

@@ -133,3 +133,44 @@ func (s *WorkflowHandlerSuite) TestSelectedScheduleFrontend_ListCleansSystemAttr
 	s.Equal([]byte("opaque"), response.NextPageToken)
 	s.Equal(1, frontend.calls)
 }
+
+// Mutation selection preserves the same direct-error boundary as reads.
+type selectedMutationFrontend struct{ *selectedScheduleFrontend }
+
+func (f *selectedMutationFrontend) UpdateSchedule(context.Context, namespace.ID, *workflowservice.UpdateScheduleRequest) (*workflowservice.UpdateScheduleResponse, error) {
+	f.calls++
+	return nil, f.err
+}
+func (f *selectedMutationFrontend) PatchSchedule(context.Context, namespace.ID, *workflowservice.PatchScheduleRequest) (*workflowservice.PatchScheduleResponse, error) {
+	f.calls++
+	return nil, f.err
+}
+func (f *selectedMutationFrontend) ListScheduleMatchingTimes(context.Context, namespace.ID, *workflowservice.ListScheduleMatchingTimesRequest) (*workflowservice.ListScheduleMatchingTimesResponse, error) {
+	f.calls++
+	return nil, f.err
+}
+
+func (s *WorkflowHandlerSuite) TestSelectedScheduleMutation_NoFallback() {
+	cfg := s.newConfig()
+	cfg.EnableSchedules = dynamicconfig.GetBoolPropertyFnFilteredByNamespace(true)
+	wh := s.getWorkflowHandler(cfg)
+	wh.testHooks = testhooks.NewTestHooks()
+	selected := &selectedMutationFrontend{&selectedScheduleFrontend{err: serviceerror.NewNotFound("selected schedule missing")}}
+	s.T().Cleanup(testhooks.Set(wh.testHooks, testhooks.FrontendSchedule, testhooks.ScheduleFrontend(selected), testhooks.GlobalScope))
+	s.mockNamespaceCache.EXPECT().GetNamespaceID(gomock.Eq(s.testNamespace)).Return(s.testNamespaceID, nil).AnyTimes()
+	s.mockSearchAttributesMapperProvider.EXPECT().GetMapper(s.testNamespace).Return(&searchattribute.TestMapper{}, nil).AnyTimes()
+	ctx := s.T().Context()
+	ns := s.testNamespace.String()
+	_, err := wh.UpdateSchedule(ctx, &workflowservice.UpdateScheduleRequest{Namespace: ns, ScheduleId: "id", Schedule: &schedulepb.Schedule{Action: &schedulepb.ScheduleAction{Action: &schedulepb.ScheduleAction_StartWorkflow{StartWorkflow: &workflowpb.NewWorkflowExecutionInfo{WorkflowId: "action", WorkflowType: &commonpb.WorkflowType{Name: "type"}, TaskQueue: &taskqueuepb.TaskQueue{Name: "queue"}}}}}})
+	s.ErrorIs(err, selected.err)
+	_, err = wh.PatchSchedule(ctx, &workflowservice.PatchScheduleRequest{Namespace: ns, ScheduleId: "id", Patch: &schedulepb.SchedulePatch{Pause: "pause"}})
+	s.ErrorIs(err, selected.err)
+	_, err = wh.ListScheduleMatchingTimes(ctx, &workflowservice.ListScheduleMatchingTimesRequest{Namespace: ns, ScheduleId: "id"})
+	s.ErrorIs(err, selected.err)
+	s.Equal(3, selected.calls)
+	_, err = wh.UpdateSchedule(ctx, &workflowservice.UpdateScheduleRequest{Namespace: ns, ScheduleId: "id"})
+	s.Error(err)
+	_, err = wh.PatchSchedule(ctx, &workflowservice.PatchScheduleRequest{Namespace: ns, ScheduleId: "id"})
+	s.Error(err)
+	s.Equal(3, selected.calls)
+}

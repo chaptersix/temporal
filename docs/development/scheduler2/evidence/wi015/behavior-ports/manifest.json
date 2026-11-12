@@ -1,0 +1,7 @@
+{
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 -parallel 4 ./tests -run ^TestSchedule2(DescribeCatchupWindowAfterCreateAndUpdate|BufferOverrunDropsActions|ScheduleLastCompletionResultMatchesV1)$ -count=1 -timeout=4m",
+  "result": "ok  \tgo.temporal.io/server/tests\t27.575s",
+  "log_sha256": "34bb443277597f3e9a472f2a7ef823e9091b60e15a91e145615ba60a40dbd818",
+  "source_sha256": "d2712a836afbcd7d6869762c9d205ccafe1aa5534911043106d626d61f43199d",
+  "scope": "Original assertions copied with explicit scheduler2 descriptor/context. Full10-step actual V1 vs scheduler2 workflow history comparison preserves original no-result/null/failure normalization. Original cancellation/timeout exclusion retained; no new coverage claimed. BufferOverrun original positive-drop assertion does not prove exact configured queue capacity."
+}

@@ -464,10 +464,21 @@ func TestGetNexusCompletion(t *testing.T) {
 			require.NoError(t, err)
 			sealMutableState(t, ms, event)
 
-			events.EXPECT().GetEvent(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(event, nil).Times(1)
+			events.EXPECT().GetEvent(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(event, nil).Times(3)
+			ms.GetExecutionState().FirstExecutionRunId = "canonical-first-run"
+			ms.GetExecutionInfo().FirstExecutionRunId = "legacy-first-run"
 			completion, err := ms.GetNexusCompletion(context.Background(), "")
 			require.NoError(t, err)
 			tc.verifyCompletion(t, event, completion)
+			require.Equal(t, "canonical-first-run", completion.WorkflowFirstExecutionRunID)
+			ms.GetExecutionState().FirstExecutionRunId = ""
+			completion, err = ms.GetNexusCompletion(t.Context(), "")
+			require.NoError(t, err)
+			require.Equal(t, "legacy-first-run", completion.WorkflowFirstExecutionRunID)
+			ms.GetExecutionInfo().FirstExecutionRunId = ""
+			completion, err = ms.GetNexusCompletion(t.Context(), "")
+			require.NoError(t, err)
+			require.Empty(t, completion.WorkflowFirstExecutionRunID)
 		})
 	}
 }

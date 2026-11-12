@@ -1,0 +1,191 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 13.620541ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (compiled_files|exports_file|name|types_sizes|deps|files|imports) took 432.6685ms"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 95.481542ms"
+level=info msg="[linters_context/goanalysis] analyzers took 0s with no stages"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 114 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 10 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 2 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 85 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 101 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 125 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 33 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 30 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1027 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 29 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 23 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner] Issues before processing: 4749, after processing: 5"
+level=info msg="[runner] Processors filtering stat (in/out): cgo: 4749/4749, exclusion_rules: 4674/3089, uniq_by_line: 5/5, max_per_file_from_linter: 5/5, sort_results: 5/5, filename_unadjuster: 4749/4749, generated_file_filter: 4749/4674, path_absoluter: 4749/4749, fixer: 5/5, max_same_issues: 5/5, max_from_linter: 5/5, source_code: 5/5, path_shortener: 5/5, path_prettifier: 5/5, invalid_issue: 4749/4749, path_relativity: 4749/4749, exclusion_paths: 4749/4749, nolint_filter: 3089/2522, diff: 2522/5, severity-rules: 5/5"
+level=info msg="[runner] processing took 298.640542ms with stages: nolint_filter: 183.0495ms, diff: 92.827ms, exclusion_rules: 14.14975ms, generated_file_filter: 5.8505ms, path_relativity: 2.025208ms, exclusion_paths: 396.333µs, source_code: 111.833µs, invalid_issue: 102.457µs, cgo: 91.5µs, path_absoluter: 16.542µs, filename_unadjuster: 13.208µs, uniq_by_line: 1.959µs, sort_results: 1.375µs, max_same_issues: 1.334µs, path_shortener: 959ns, max_per_file_from_linter: 376ns, fixer: 333ns, path_prettifier: 208ns, severity-rules: 84ns, max_from_linter: 83ns"
+level=info msg="[runner] linters took 671.433625ms with stages: goanalysis_metalinter: 372.742042ms"
+../chasm/lib/scheduler2/backfill_batch_test.go:100:2: negative-positive: use require.Positive (testifylint)
+	require.Greater(t, s.Backfills[0].SkipBatchRemaining, int64(0))
+	^
+../chasm/lib/scheduler2/backfill_batch_test.go:150:4: negative-positive: use require.Positive (testifylint)
+			require.Greater(t, s.Backfills[0].SkipBatchRemaining, int64(0))
+			^
+../chasm/lib/scheduler2/payload_storage.go:112:1: cognitive-complexity: function (*Scheduler).splitRequest has cognitive complexity 48 (> max enabled 25) (revive)
+func (s *Scheduler) splitRequest(ctx chasm.Context, wire []byte) (*scheduler2pb.Payload, payloadPreparation, error) {
+	record := &scheduler2pb.Payload{Data: bytes.Clone(wire)}
+	prepared := payloadPreparation{}
+	if s.PublicRevision == 0 {
+		return record, prepared, nil
+	}
+	request := &workflowservice.StartWorkflowExecutionRequest{}
+	if err := proto.Unmarshal(wire, request); err != nil {
+		return nil, nil, err
+	}
+	userSA := common.CloneProto(request.SearchAttributes)
+	var generated *commonpb.SearchAttributes
+	if userSA != nil {
+		for _, name := range []string{"TemporalScheduledById", "TemporalScheduledStartTime"} {
+			if value, ok := userSA.IndexedFields[name]; ok {
+				if generated == nil {
+					generated = &commonpb.SearchAttributes{IndexedFields: map[string]*commonpb.Payload{}}
+				}
+				generated.IndexedFields[name] = value
+				delete(userSA.IndexedFields, name)
+			}
+		}
+		if len(userSA.IndexedFields) == 0 && generated != nil {
+			userSA = nil
+		}
+	}
+	bundle := &scheduler2pb.ActionPayloadBundle{Input: request.Input, Header: request.Header, Memo: request.Memo, UserSearchAttributes: userSA, UserMetadata: request.UserMetadata}
+	data, err := payloadWire(bundle)
+	if err != nil {
+		return nil, nil, err
+	}
+	record.ActionRef, err = s.prepareBlob(ctx, "action", data, prepared)
+	if err != nil {
+		return nil, nil, err
+	}
+	// Generated attributes override user fields, so reuse an existing bundle even
+	// when its user map contains overridden keys or an allocated-empty map.
+	if generated != nil {
+		candidates := []string{s.PublicActionRef}
+		if s.HasGenerator {
+			candidates = append(candidates, s.Generator.Get(ctx).Definition.Get(ctx).ActionRef)
+		}
+		for _, id := range candidates {
+			if id == "" {
+				continue
+			}
+			existing, err := s.actionBundle(ctx, id)
+			if err != nil {
+				return nil, nil, err
+			}
+			if existing.UserSearchAttributes != nil {
+				delete(existing.UserSearchAttributes.IndexedFields, "TemporalScheduledById")
+				delete(existing.UserSearchAttributes.IndexedFields, "TemporalScheduledStartTime")
+				if len(existing.UserSearchAttributes.IndexedFields) == 0 {
+					existing.UserSearchAttributes = nil
+				}
+			}
+			if proto.Equal(existing, bundle) {
+				delete(prepared, record.ActionRef)
+				record.ActionRef = id
+				break
+			}
+		}
+	}
+	request.Input, request.Header, request.Memo, request.UserMetadata = nil, nil, nil, nil
+	request.SearchAttributes = generated
+	if request.LastCompletionResult != nil {
+		data, err = payloadWire(request.LastCompletionResult)
+		if err != nil {
+			return nil, nil, err
+		}
+		record.ResultRef, err = s.prepareBlob(ctx, "result", data, prepared)
+		if err != nil {
+			return nil, nil, err
+		}
+		request.LastCompletionResult = nil
+	}
+	if request.ContinuedFailure != nil {
+		data, err = payloadWire(request.ContinuedFailure)
+		if err != nil {
+			return nil, nil, err
+		}
+		record.FailureRef, err = s.prepareBlob(ctx, "failure", data, prepared)
+		if err != nil {
+			return nil, nil, err
+		}
+		request.ContinuedFailure = nil
+	}
+	record.Data, err = payloadWire(request)
+	return record, prepared, err
+}
+../chasm/lib/scheduler2/public_projection.go:199:1: cognitive-complexity: function publicDispositionCounts has cognitive complexity 27 (> max enabled 25) (revive)
+func publicDispositionCounts(before, next decision.State, event decision.Event) (skipped, missed, dropped int64) {
+	policy := before.Root.Policy
+	occupied := before.Root.BlockingOperationID != "" || len(before.Queue) > 0
+	eligible := !before.Root.Paused && (!before.Root.Limited || before.Root.Remaining > 0)
+	switch event.Kind {
+	case decision.Due:
+		if next.Root.Cursor <= before.Root.Cursor || !eligible {
+			return
+		}
+		if event.Now > event.CatchupDeadline {
+			return 0, 1, 0
+		}
+	case decision.DispatchManual:
+		if len(next.Manuals) >= len(before.Manuals) {
+			return
+		}
+		if override := before.Manuals[0].Policy; override != enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
+			policy = override
+		}
+	case decision.DispatchBackfill:
+		if event.BackfillBatchSkip {
+			return 1, 0, 0
+		}
+		if len(before.Queue) >= 4 {
+			return
+		}
+		if event.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
+			policy = event.Policy
+		}
+	case decision.Drain:
+		if eligible {
+			missed = publicExpiredWaiters(before.Queue, next.Queue, event.Now, event.CatchupWindow)
+		}
+		return
+	default:
+		return
+	}
+	policySkip := policy == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || policy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(before.Queue) > 0)
+	if occupied && policySkip {
+		skipped = 1
+	}
+	if next.Root.BufferDropped > before.Root.BufferDropped && skipped == 0 {
+		dropped = next.Root.BufferDropped - before.Root.BufferDropped
+	}
+	return
+}
+../tests/schedule2_payload_test.go:95:15: QF1008: could remove embedded field "RootState" from selector (staticcheck)
+					return s.RootState.String(), nil
+					         ^
+5 issues:
+* revive: 2
+* staticcheck: 1
+* testifylint: 2
+level=info msg="File cache stats: 4 entries of total size 32.5KiB"
+level=info msg="Memory: 14 samples, avg is 84.2MB, max is 109.2MB"
+level=info msg="Execution took 1.242782083s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

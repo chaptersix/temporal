@@ -41,7 +41,9 @@ func TestActivityStartObservationUsesSnapshotOffset(t *testing.T) {
 	id := s.OperationId
 	wall := time.Unix(0, 100)
 	skipped := time.Duration(17)
-	handler := NewStartHandler(func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error) {
+	handler := NewStartHandler(func(_ context.Context, request *workflowservice.StartWorkflowExecutionRequest) (string, error) {
+		require.True(t, request.GetTimeSkippingConfig().GetEnabled())
+		require.Equal(t, 17*time.Nanosecond, request.GetTimeSkippingStatePropagation().GetInitialSkippedDuration().AsDuration())
 		// Distinguish issuance offset, returned wall observation and merge execution time.
 		skipped = 99
 		wall = time.Unix(0, 200)
@@ -52,7 +54,7 @@ func TestActivityStartObservationUsesSnapshotOffset(t *testing.T) {
 	mock.EXPECT().ReadComponent(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ chasm.ComponentRef, read func(chasm.Context, chasm.Component) error, _ ...chasm.TransitionOption) error {
 		snapshotContext := &commonpb.TimeSkippingStatePropagation{InitialSkippedDuration: durationpb.New(skipped)}
 		// The real tree context owns DATA loading; wrap only clock propagation.
-		return read(&activityContext{Context: cc, propagation: snapshotContext}, s)
+		return read(&activityContext{Context: cc, config: &commonpb.TimeSkippingConfig{Enabled: true}, propagation: snapshotContext}, s)
 	})
 	mock.EXPECT().UpdateComponent(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, ref chasm.ComponentRef, update func(chasm.MutableContext, chasm.Component) error, _ ...chasm.TransitionOption) ([]byte, error) {
 		require.Equal(t, "incarnation", ref.RunID)
@@ -64,7 +66,7 @@ func TestActivityStartObservationUsesSnapshotOffset(t *testing.T) {
 		h.commit(true)
 		return nil, nil
 	})
-	require.NoError(t, handler.Execute(chasm.NewEngineContext(t.Context(), mock), chasm.NewComponentRef[*Scheduler](chasm.ExecutionKey{RunID: "incarnation"}), chasm.TaskAttributes{}, &scheduler2pb.StartTask{OperationId: id}))
+	require.NoError(t, handler.Execute(chasm.NewEngineContext(t.Context(), mock), chasm.NewComponentRef[*Scheduler](chasm.ExecutionKey{RunID: "incarnation"}), chasm.TaskAttributes{}, &scheduler2pb.StartTask{OperationId: id, WakeTime: s.PendingStarts[id]}))
 	s, cc = h.root(false)
 	require.Equal(t, int64(217), s.ActivityAt)
 	require.Equal(t, int64(217), s.Operations[id].Get(cc).StartObservedAt)
@@ -74,10 +76,11 @@ func TestActivityStartObservationUsesSnapshotOffset(t *testing.T) {
 type activityContext struct {
 	chasm.Context
 	propagation *commonpb.TimeSkippingStatePropagation
+	config      *commonpb.TimeSkippingConfig
 }
 
 func (c *activityContext) GetTimeSkippingPropagateState() (*commonpb.TimeSkippingConfig, *commonpb.TimeSkippingStatePropagation) {
-	return nil, c.propagation
+	return c.config, c.propagation
 }
 
 func TestActivityTimestampRange(t *testing.T) {
@@ -108,7 +111,7 @@ func TestActivityObservationOverflowRetainsUnconfirmedIntent(t *testing.T) {
 	handler := NewStartHandler(start)
 	handler.wallNow = func() time.Time { return time.Date(2500, 1, 1, 0, 0, 0, 0, time.UTC) }
 	ref := chasm.NewComponentRef[*Scheduler](e.key)
-	task := &scheduler2pb.StartTask{OperationId: id}
+	task := &scheduler2pb.StartTask{OperationId: id, WakeTime: root.PendingStarts[id]}
 	require.Error(t, handler.Execute(e.ctx, ref, chasm.TaskAttributes{}, task))
 	root, cc = e.h.root(false)
 	protorequire.ProtoEqual(t, before, root.RootState)
@@ -122,4 +125,43 @@ func TestActivityObservationOverflowRetainsUnconfirmedIntent(t *testing.T) {
 	root, cc = e.h.root(false)
 	require.Zero(t, root.UnconfirmedStarts)
 	require.Equal(t, int64(500), root.Operations[id].Get(cc).StartObservedAt)
+}
+
+func TestActivityStartSnapshotPropagatesExecutionClock(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		config      *commonpb.TimeSkippingConfig
+		propagation *commonpb.TimeSkippingStatePropagation
+	}{
+		{name: "disabled"},
+		{name: "enabled", config: &commonpb.TimeSkippingConfig{Enabled: true}, propagation: &commonpb.TimeSkippingStatePropagation{InitialSkippedDuration: durationpb.New(17 * time.Second)}},
+		{name: "offset without config", propagation: &commonpb.TimeSkippingStatePropagation{InitialSkippedDuration: durationpb.New(23 * time.Second)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTreeHarness(t)
+			h.admit()
+			s, cc := h.root(false)
+			original, err := s.request(cc, s.OperationId)
+			require.NoError(t, err)
+			snapshot, err := s.startSnapshot(&activityContext{Context: cc, config: tc.config, propagation: tc.propagation}, s.OperationId)
+			require.NoError(t, err)
+			protorequire.ProtoEqual(t, tc.config, snapshot.request.TimeSkippingConfig)
+			protorequire.ProtoEqual(t, tc.propagation, snapshot.request.TimeSkippingStatePropagation)
+			require.Equal(t, tc.propagation.GetInitialSkippedDuration().AsDuration(), snapshot.skipped)
+			// Issuance must not mutate the stored admitted request, even if the RPC
+			// client mutates its request or execution clock state changes afterwards.
+			if snapshot.request.TimeSkippingConfig != nil {
+				snapshot.request.TimeSkippingConfig.Enabled = false
+				require.True(t, tc.config.Enabled)
+			}
+			if snapshot.request.TimeSkippingStatePropagation != nil {
+				snapshot.request.TimeSkippingStatePropagation.InitialSkippedDuration = durationpb.New(time.Hour)
+				require.NotEqual(t, time.Hour, tc.propagation.GetInitialSkippedDuration().AsDuration())
+			}
+			restored, err := s.request(cc, s.OperationId)
+			require.NoError(t, err)
+			protorequire.ProtoEqual(t, original, restored)
+		})
+	}
 }

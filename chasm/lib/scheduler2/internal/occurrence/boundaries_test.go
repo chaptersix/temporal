@@ -135,14 +135,17 @@ func TestPrototypeBounds(t *testing.T) {
 	t.Parallel()
 	lower := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	upper := time.Date(2101, 1, 1, 0, 0, 0, 0, time.UTC)
-	for _, outside := range []time.Time{lower.Add(-time.Nanosecond), upper} {
-		t.Run(outside.String(), func(t *testing.T) {
-			t.Parallel()
-			for _, spec := range []*schedulepb.ScheduleSpec{{StartTime: timestamppb.New(outside)}, {EndTime: timestamppb.New(outside)}} {
-				_, err := occurrence.New(spec, "", 1)
-				require.Error(t, err)
-			}
-		})
+	// Definition timestamps can extend beyond the bounded execution domain.
+	// Cursors/windows still enforce that separate representation boundary.
+	for _, outside := range []time.Time{time.Unix(0, 0), lower.Add(-time.Nanosecond), upper, time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)} {
+		for _, spec := range []*schedulepb.ScheduleSpec{{StartTime: timestamppb.New(outside)}, {EndTime: timestamppb.New(outside)}} {
+			_, err := occurrence.New(spec, "", 1)
+			require.NoError(t, err)
+		}
+	}
+	for _, spec := range []*schedulepb.ScheduleSpec{{StartTime: &timestamppb.Timestamp{Nanos: 1000000000}}, {EndTime: &timestamppb.Timestamp{Seconds: 253402300800}}} {
+		_, err := occurrence.New(spec, "", 1)
+		require.Error(t, err)
 	}
 	e, err := occurrence.New(intervalSpec(instant(), 1), "", 1)
 	require.NoError(t, err)
@@ -327,4 +330,22 @@ func TestForgedContinuationsRejected(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
+}
+
+func TestEpochDefinitionPreservesBoundedEnumeration(t *testing.T) {
+	t.Parallel()
+	spec := intervalSpec(instant(), 1)
+	spec.StartTime = &timestamppb.Timestamp{}
+	spec.EndTime = timestamppb.New(time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC))
+	before := proto.Clone(spec)
+	e, err := occurrence.New(spec, "", 1)
+	require.NoError(t, err)
+	state, err := e.Begin(instant())
+	require.NoError(t, err)
+	require.False(t, state.FullRange)
+	result, err := e.Run(state, instant().Add(time.Second), occurrence.Limits{Probes: 2, Outputs: 1})
+	require.NoError(t, err)
+	require.Len(t, result.Occurrences, 1)
+	require.Equal(t, instant().Add(time.Second), result.Occurrences[0].Nominal)
+	require.True(t, proto.Equal(before, spec))
 }

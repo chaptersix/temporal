@@ -1,0 +1,26 @@
+{
+  "status": "checkpoint, not WI015 or M3 acceptance",
+  "scope_limit": "Results apply to the binaries/checkpoints run before current visibility and forthcoming coordinator changes. Archive-time hashes are not asserted to be build-time source hashes.",
+  "logs": {
+    "shared-full02": {
+      "path": "shared-full02.log",
+      "sha256": "feae9924b3357283e547b38897f9136909f667458ad88a9876637f1f234bb359",
+      "result": "PASS all29 shared methods; 66.600s"
+    },
+    "race-checkpoint": {
+      "path": "race-checkpoint.log",
+      "sha256": "3f51f810b2af00afd5a7668d58028394aeb44c9ff11aab604018bd43bf7d834f",
+      "result": "PASS scheduler2 and callback packages; scheduler2 192.526s"
+    },
+    "lint-checkpoint": {
+      "path": "lint-checkpoint.log",
+      "sha256": "6a7a124c8b2a2891a9d464b5dab4c2ec47a0e1a51905f857903d58c5d8d214ab",
+      "result": "PASS 0 issues; predates latest standalone ports and visibility changes"
+    },
+    "payload-physical06": {
+      "path": "payload-physical06.log",
+      "sha256": "8063e678f537e9d2e97f431239a3754a175adf344ad1035635f1b9d83f1a025e",
+      "result": "PASS positive1280KiB and aggregate transport rejection near2MiB; 13.684s"
+    }
+  }
+}

@@ -782,9 +782,13 @@ type ChasmNexusCompletion struct {
 	// Async operation token from the callback request, used for completion-before-start.
 	OperationToken string `protobuf:"bytes,6,opt,name=operation_token,json=operationToken,proto3" json:"operation_token,omitempty"`
 	// Start time from the callback request, used for completion-before-start.
-	StartTime     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	// Canonical first execution run ID of the source workflow, when known.
+	// Internal Temporal workflow callbacks only; absent for generic Nexus/activity
+	// sources. This is not the source workflow's current/latest run ID.
+	WorkflowFirstExecutionRunId string `protobuf:"bytes,8,opt,name=workflow_first_execution_run_id,json=workflowFirstExecutionRunId,proto3" json:"workflow_first_execution_run_id,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *ChasmNexusCompletion) Reset() {
@@ -875,6 +879,13 @@ func (x *ChasmNexusCompletion) GetStartTime() *timestamppb.Timestamp {
 		return x.StartTime
 	}
 	return nil
+}
+
+func (x *ChasmNexusCompletion) GetWorkflowFirstExecutionRunId() string {
+	if x != nil {
+		return x.WorkflowFirstExecutionRunId
+	}
+	return ""
 }
 
 type isChasmNexusCompletion_Outcome interface {
@@ -1169,7 +1180,7 @@ const file_temporal_server_api_persistence_v1_chasm_proto_rawDesc = "" +
 	"\farchetype_id\x18\x04 \x01(\rR\varchetypeId\x12}\n" +
 	"\x1eexecution_versioned_transition\x18\x05 \x01(\v27.temporal.server.api.persistence.v1.VersionedTransitionR\x1cexecutionVersionedTransition\x12%\n" +
 	"\x0ecomponent_path\x18\x06 \x03(\tR\rcomponentPath\x12\x8c\x01\n" +
-	"&component_initial_versioned_transition\x18\a \x01(\v27.temporal.server.api.persistence.v1.VersionedTransitionR#componentInitialVersionedTransition\"\x8e\x03\n" +
+	"&component_initial_versioned_transition\x18\a \x01(\v27.temporal.server.api.persistence.v1.VersionedTransitionR#componentInitialVersionedTransition\"\xd4\x03\n" +
 	"\x14ChasmNexusCompletion\x12;\n" +
 	"\asuccess\x18\x01 \x01(\v2\x1f.temporal.api.common.v1.PayloadH\x00R\asuccess\x12<\n" +
 	"\afailure\x18\x02 \x01(\v2 .temporal.api.failure.v1.FailureH\x00R\afailure\x129\n" +
@@ -1180,7 +1191,8 @@ const file_temporal_server_api_persistence_v1_chasm_proto_rawDesc = "" +
 	"\x05links\x18\x05 \x03(\v2\x1c.temporal.api.common.v1.LinkR\x05links\x12'\n" +
 	"\x0foperation_token\x18\x06 \x01(\tR\x0eoperationToken\x129\n" +
 	"\n" +
-	"start_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tstartTimeB\t\n" +
+	"start_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x12D\n" +
+	"\x1fworkflow_first_execution_run_id\x18\b \x01(\tR\x1bworkflowFirstExecutionRunIdB\t\n" +
 	"\aoutcome\"\xd2\x01\n" +
 	"\x0fChasmRequestIDs\x12d\n" +
 	"\vrequest_ids\x18\x01 \x03(\v2C.temporal.server.api.persistence.v1.ChasmRequestIDs.RequestIdsEntryR\n" +

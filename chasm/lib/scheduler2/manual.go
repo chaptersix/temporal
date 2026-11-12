@@ -33,6 +33,9 @@ func (s *Scheduler) AcceptManual(ctx chasm.MutableContext, request *schedulepb.T
 	if request == nil || !s.HasGenerator {
 		return serviceerror.NewInvalidArgument("manual trigger requires request and configured template")
 	}
+	if err := s.checkPublicCommandCapacity(1); err != nil {
+		return err
+	}
 	nominal := ctx.Now(s)
 	if request.ScheduledTime != nil {
 		if err := request.ScheduledTime.CheckValid(); err != nil {
@@ -44,7 +47,7 @@ func (s *Scheduler) AcceptManual(ctx chasm.MutableContext, request *schedulepb.T
 	if !time.Unix(0, nominal.UnixNano()).Equal(nominal) {
 		return serviceerror.NewInvalidArgument("manual scheduled time exceeds nanosecond range")
 	}
-	return s.Apply(ctx, decision.Event{Kind: decision.AcceptManual, Incarnation: s.Incarnation, Nominal: nominal.UnixNano(), Policy: request.OverlapPolicy})
+	return s.Apply(ctx, decision.Event{Kind: decision.AcceptManual, PublicManualIngress: s.PublicRevision != 0, Incarnation: s.Incarnation, Nominal: nominal.UnixNano(), Policy: request.OverlapPolicy})
 }
 
 func (s *Scheduler) prepareManual(ctx chasm.Context, state decision.State, event *decision.Event) error {
@@ -54,7 +57,10 @@ func (s *Scheduler) prepareManual(ctx chasm.Context, state decision.State, event
 	if !s.HasGenerator {
 		return serviceerror.NewFailedPrecondition("manual trigger requires configured template")
 	}
-	template := s.Generator.Get(ctx).Definition.Get(ctx).Request
+	template, err := s.generationRequest(ctx)
+	if err != nil {
+		return err
+	}
 	request := &workflowservice.StartWorkflowExecutionRequest{}
 	if err := proto.Unmarshal(template, request); err != nil {
 		return err

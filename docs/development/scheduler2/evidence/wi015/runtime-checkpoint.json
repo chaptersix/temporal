@@ -1,0 +1,16 @@
+{
+  "status": "increment verified; WI015 remains open",
+  "logs": {
+    "transport-reviewed.log": "dc3d6b84faff90facc43e73f92629b4264e0585b25b31e5c259a0d95896e3b9d",
+    "ambiguity-final.log": "37e40bb180a43349f3745eafb2cd26aa1492f552e57d0c7faaa257c222fdc5ce",
+    "runtime-race.log": "70b577ec658f250c6a8c4d547e9091a18ff59def667d8c665d7f5838b5c19717",
+    "public-revision.log": "8db37c10a84b4c4932e140e13bdbd49259e91081b570ff1a4e8ea06bfd6bfc1d",
+    "public-counter-proto.log": "f866f4074ce6b2ec8e2049e8bad058c29c089b78c5f7992408d203c42b29ffa8"
+  },
+  "limits": [
+    "runtime race compiled before public mutation implementation and public counter addition",
+    "public revision targeted run includes new counter",
+    "transport run uses typed controls after paused public Create; not full public Patch parity",
+    "full current source needs final tests/lint after ongoing mutations"
+  ]
+}

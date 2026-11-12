@@ -1,0 +1,9 @@
+--- FAIL: TestCoordinatorImmediateBudgetFallbackRollbackAndFence (0.00s)
+    coordinator_immediate_test.go:49: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/coordinator_immediate_test.go:49
+        	Error:      	"[]" should have 1 item(s), but has 0
+        	Test:       	TestCoordinatorImmediateBudgetFallbackRollbackAndFence
+        	Messages:   	two quanta cannot scan and dispose the entire range
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.636s
+FAIL

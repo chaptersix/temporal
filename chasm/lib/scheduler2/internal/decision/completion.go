@@ -7,8 +7,6 @@ import (
 	"go.temporal.io/api/serviceerror"
 )
 
-const MaxCompletionBytes = 64 * 1024
-
 type Outcome int
 
 const (
@@ -52,9 +50,6 @@ func complete(next *State, event Event) error {
 }
 
 func validateCompletion(event Event) error {
-	if len(event.Result) > MaxCompletionBytes || len(event.Failure) > MaxCompletionBytes {
-		return serviceerror.NewResourceExhausted(enumspb.RESOURCE_EXHAUSTED_CAUSE_SYSTEM_OVERLOADED, "completion value exceeds prototype limit")
-	}
 	status := event.Status
 	if event.Kind == Complete && event.Outcome == NoOutcome && len(event.Result)+len(event.Failure) == 0 && status == enumspb.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED {
 		return nil

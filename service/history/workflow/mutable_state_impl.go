@@ -916,7 +916,17 @@ func nexusCompleteOperationFailure(
 func (ms *MutableStateImpl) GetNexusCompletion(
 	ctx context.Context,
 	requestID string,
-) (nexusrpc.CompleteOperationOptions, error) {
+) (completion nexusrpc.CompleteOperationOptions, retErr error) {
+	// Use persisted canonical identity without adding history reads or errors to
+	// external callbacks. Old records lacking both fields leave it unspecified.
+	defer func() {
+		if retErr == nil {
+			completion.WorkflowFirstExecutionRunID = ms.executionState.GetFirstExecutionRunId()
+			if completion.WorkflowFirstExecutionRunID == "" {
+				completion.WorkflowFirstExecutionRunID = ms.executionInfo.GetFirstExecutionRunId()
+			}
+		}
+	}()
 	ce, err := ms.GetCompletionEvent(ctx)
 	if err != nil {
 		return nexusrpc.CompleteOperationOptions{}, err

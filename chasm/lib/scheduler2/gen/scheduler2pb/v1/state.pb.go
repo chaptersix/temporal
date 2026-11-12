@@ -12,7 +12,10 @@ import (
 	sync "sync"
 	unsafe "unsafe"
 
+	v11 "go.temporal.io/api/common/v1"
 	v1 "go.temporal.io/api/enums/v1"
+	v13 "go.temporal.io/api/schedule/v1"
+	v12 "go.temporal.io/api/sdk/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
@@ -446,7 +449,7 @@ type RootState struct {
 	Effects []*EffectState `protobuf:"bytes,23,rep,name=effects,proto3" json:"effects,omitempty"`
 	// ManualSequence never reuses an accepted command occurrence identity.
 	ManualSequence uint64 `protobuf:"varint,24,opt,name=manual_sequence,json=manualSequence,proto3" json:"manual_sequence,omitempty"`
-	// Manuals holds at most four accepted pending manual commands.
+	// Manuals holds pending manual commands: internal limit four, public combined command limit 100.
 	Manuals []*ManualCommand `protobuf:"bytes,25,rep,name=manuals,proto3" json:"manuals,omitempty"`
 	// ManualToken identifies the current transfer obligation.
 	ManualToken uint64 `protobuf:"varint,26,opt,name=manual_token,json=manualToken,proto3" json:"manual_token,omitempty"`
@@ -458,7 +461,7 @@ type RootState struct {
 	Coordination *CoordinationState `protobuf:"bytes,29,opt,name=coordination,proto3" json:"coordination,omitempty"`
 	// BackfillSequence uniquely identifies accepted ranges in this incarnation.
 	BackfillSequence uint64 `protobuf:"varint,30,opt,name=backfill_sequence,json=backfillSequence,proto3" json:"backfill_sequence,omitempty"`
-	// Backfills contains at most four active range continuations.
+	// Backfills holds range continuations: internal limit four, public combined command limit 100.
 	Backfills []*BackfillState `protobuf:"bytes,31,rep,name=backfills,proto3" json:"backfills,omitempty"`
 	// BackfillFocus pins a request while its ready candidate waits for handoff.
 	BackfillFocus uint64 `protobuf:"varint,32,opt,name=backfill_focus,json=backfillFocus,proto3" json:"backfill_focus,omitempty"`
@@ -479,9 +482,13 @@ type RootState struct {
 	// IdleArmed indicates a published idle-close obligation.
 	IdleArmed bool `protobuf:"varint,40,opt,name=idle_armed,json=idleArmed,proto3" json:"idle_armed,omitempty"`
 	// IdleAt is the exact execution-clock idle deadline.
-	IdleAt        int64 `protobuf:"varint,41,opt,name=idle_at,json=idleAt,proto3" json:"idle_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	IdleAt int64 `protobuf:"varint,41,opt,name=idle_at,json=idleAt,proto3" json:"idle_at,omitempty"`
+	// PublicRevision fences public mutations independently of definition revisions; zero denotes an internal root.
+	PublicRevision uint64 `protobuf:"varint,42,opt,name=public_revision,json=publicRevision,proto3" json:"public_revision,omitempty"`
+	// PublicActionRef owns the immutable payload bundle for the current public action.
+	PublicActionRef string `protobuf:"bytes,43,opt,name=public_action_ref,json=publicActionRef,proto3" json:"public_action_ref,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RootState) Reset() {
@@ -801,6 +808,20 @@ func (x *RootState) GetIdleAt() int64 {
 	return 0
 }
 
+func (x *RootState) GetPublicRevision() uint64 {
+	if x != nil {
+		return x.PublicRevision
+	}
+	return 0
+}
+
+func (x *RootState) GetPublicActionRef() string {
+	if x != nil {
+		return x.PublicActionRef
+	}
+	return ""
+}
+
 // OperationState holds metadata without decoding request payloads.
 type OperationState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -968,7 +989,13 @@ func (x *OperationState) GetStartObservedAt() int64 {
 type Payload struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Data is an immutable serialized request or synthetic diagnostic payload.
-	Data          []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	// ActionRef identifies the immutable action payload bundle.
+	ActionRef string `protobuf:"bytes,2,opt,name=action_ref,json=actionRef,proto3" json:"action_ref,omitempty"`
+	// ResultRef identifies the immutable last completion result.
+	ResultRef string `protobuf:"bytes,3,opt,name=result_ref,json=resultRef,proto3" json:"result_ref,omitempty"`
+	// FailureRef identifies the immutable continued failure.
+	FailureRef    string `protobuf:"bytes,4,opt,name=failure_ref,json=failureRef,proto3" json:"failure_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1010,18 +1037,123 @@ func (x *Payload) GetData() []byte {
 	return nil
 }
 
+func (x *Payload) GetActionRef() string {
+	if x != nil {
+		return x.ActionRef
+	}
+	return ""
+}
+
+func (x *Payload) GetResultRef() string {
+	if x != nil {
+		return x.ResultRef
+	}
+	return ""
+}
+
+func (x *Payload) GetFailureRef() string {
+	if x != nil {
+		return x.FailureRef
+	}
+	return ""
+}
+
+// ActionPayloadBundle shares large action fields across public and issuance envelopes.
+type ActionPayloadBundle struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Input preserves absent and allocated-empty input wrappers.
+	Input *v11.Payloads `protobuf:"bytes,1,opt,name=input,proto3" json:"input,omitempty"`
+	// Header contains user workflow headers.
+	Header *v11.Header `protobuf:"bytes,2,opt,name=header,proto3" json:"header,omitempty"`
+	// Memo contains user workflow memo.
+	Memo *v11.Memo `protobuf:"bytes,3,opt,name=memo,proto3" json:"memo,omitempty"`
+	// UserSearchAttributes excludes generated per-admission attributes.
+	UserSearchAttributes *v11.SearchAttributes `protobuf:"bytes,4,opt,name=user_search_attributes,json=userSearchAttributes,proto3" json:"user_search_attributes,omitempty"`
+	// UserMetadata contains workflow summary and details.
+	UserMetadata  *v12.UserMetadata `protobuf:"bytes,5,opt,name=user_metadata,json=userMetadata,proto3" json:"user_metadata,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActionPayloadBundle) Reset() {
+	*x = ActionPayloadBundle{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActionPayloadBundle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActionPayloadBundle) ProtoMessage() {}
+
+func (x *ActionPayloadBundle) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActionPayloadBundle.ProtoReflect.Descriptor instead.
+func (*ActionPayloadBundle) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ActionPayloadBundle) GetInput() *v11.Payloads {
+	if x != nil {
+		return x.Input
+	}
+	return nil
+}
+
+func (x *ActionPayloadBundle) GetHeader() *v11.Header {
+	if x != nil {
+		return x.Header
+	}
+	return nil
+}
+
+func (x *ActionPayloadBundle) GetMemo() *v11.Memo {
+	if x != nil {
+		return x.Memo
+	}
+	return nil
+}
+
+func (x *ActionPayloadBundle) GetUserSearchAttributes() *v11.SearchAttributes {
+	if x != nil {
+		return x.UserSearchAttributes
+	}
+	return nil
+}
+
+func (x *ActionPayloadBundle) GetUserMetadata() *v12.UserMetadata {
+	if x != nil {
+		return x.UserMetadata
+	}
+	return nil
+}
+
 // StartTask drives a committed operation and survives physical redelivery.
 type StartTask struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// OperationId identifies the durable request.
-	OperationId   string `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	OperationId string `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	// Exact logical wake in Unix nanoseconds; physical queue timestamps may shift.
+	WakeTime      int64 `protobuf:"varint,2,opt,name=wake_time,json=wakeTime,proto3" json:"wake_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartTask) Reset() {
 	*x = StartTask{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[3]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1033,7 +1165,7 @@ func (x *StartTask) String() string {
 func (*StartTask) ProtoMessage() {}
 
 func (x *StartTask) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[3]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1046,7 +1178,7 @@ func (x *StartTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartTask.ProtoReflect.Descriptor instead.
 func (*StartTask) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{3}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *StartTask) GetOperationId() string {
@@ -1054,6 +1186,13 @@ func (x *StartTask) GetOperationId() string {
 		return x.OperationId
 	}
 	return ""
+}
+
+func (x *StartTask) GetWakeTime() int64 {
+	if x != nil {
+		return x.WakeTime
+	}
+	return 0
 }
 
 // CarryoverState retains opaque completion values separately from control metadata.
@@ -1065,13 +1204,17 @@ type CarryoverState struct {
 	Failure []byte `protobuf:"bytes,2,opt,name=failure,proto3" json:"failure,omitempty"`
 	// FailurePresent distinguishes an empty failure message from absence.
 	FailurePresent bool `protobuf:"varint,3,opt,name=failure_present,json=failurePresent,proto3" json:"failure_present,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// ResultRef identifies the immutable successful result bytes.
+	ResultRef string `protobuf:"bytes,4,opt,name=result_ref,json=resultRef,proto3" json:"result_ref,omitempty"`
+	// FailureRef identifies the immutable failure bytes.
+	FailureRef    string `protobuf:"bytes,5,opt,name=failure_ref,json=failureRef,proto3" json:"failure_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CarryoverState) Reset() {
 	*x = CarryoverState{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[4]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1083,7 +1226,7 @@ func (x *CarryoverState) String() string {
 func (*CarryoverState) ProtoMessage() {}
 
 func (x *CarryoverState) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[4]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1096,7 +1239,7 @@ func (x *CarryoverState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CarryoverState.ProtoReflect.Descriptor instead.
 func (*CarryoverState) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{4}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CarryoverState) GetResult() []byte {
@@ -1120,6 +1263,20 @@ func (x *CarryoverState) GetFailurePresent() bool {
 	return false
 }
 
+func (x *CarryoverState) GetResultRef() string {
+	if x != nil {
+		return x.ResultRef
+	}
+	return ""
+}
+
+func (x *CarryoverState) GetFailureRef() string {
+	if x != nil {
+		return x.FailureRef
+	}
+	return ""
+}
+
 // OccurrenceCandidate retains a discovered value across time and work boundaries.
 type OccurrenceCandidate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1137,7 +1294,7 @@ type OccurrenceCandidate struct {
 
 func (x *OccurrenceCandidate) Reset() {
 	*x = OccurrenceCandidate{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[5]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1149,7 +1306,7 @@ func (x *OccurrenceCandidate) String() string {
 func (*OccurrenceCandidate) ProtoMessage() {}
 
 func (x *OccurrenceCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[5]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1162,7 +1319,7 @@ func (x *OccurrenceCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OccurrenceCandidate.ProtoReflect.Descriptor instead.
 func (*OccurrenceCandidate) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{5}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *OccurrenceCandidate) GetNominal() int64 {
@@ -1220,7 +1377,7 @@ type OccurrenceContinuation struct {
 
 func (x *OccurrenceContinuation) Reset() {
 	*x = OccurrenceContinuation{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[6]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1232,7 +1389,7 @@ func (x *OccurrenceContinuation) String() string {
 func (*OccurrenceContinuation) ProtoMessage() {}
 
 func (x *OccurrenceContinuation) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[6]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1245,7 +1402,7 @@ func (x *OccurrenceContinuation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OccurrenceContinuation.ProtoReflect.Descriptor instead.
 func (*OccurrenceContinuation) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{6}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *OccurrenceContinuation) GetOrigin() int64 {
@@ -1334,7 +1491,7 @@ type GeneratorState struct {
 
 func (x *GeneratorState) Reset() {
 	*x = GeneratorState{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[7]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1346,7 +1503,7 @@ func (x *GeneratorState) String() string {
 func (*GeneratorState) ProtoMessage() {}
 
 func (x *GeneratorState) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[7]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1359,7 +1516,7 @@ func (x *GeneratorState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GeneratorState.ProtoReflect.Descriptor instead.
 func (*GeneratorState) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{7}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GeneratorState) GetContinuation() *OccurrenceContinuation {
@@ -1419,14 +1576,16 @@ type GenerationDefinition struct {
 	// Seed fixes jitter choices for this revision.
 	Seed string `protobuf:"bytes,2,opt,name=seed,proto3" json:"seed,omitempty"`
 	// Request is the serialized workflow start template.
-	Request       []byte `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	Request []byte `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	// ActionRef identifies the shared action payload bundle.
+	ActionRef     string `protobuf:"bytes,4,opt,name=action_ref,json=actionRef,proto3" json:"action_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GenerationDefinition) Reset() {
 	*x = GenerationDefinition{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[8]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1438,7 +1597,7 @@ func (x *GenerationDefinition) String() string {
 func (*GenerationDefinition) ProtoMessage() {}
 
 func (x *GenerationDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[8]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1451,7 +1610,7 @@ func (x *GenerationDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerationDefinition.ProtoReflect.Descriptor instead.
 func (*GenerationDefinition) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{8}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GenerationDefinition) GetSpec() []byte {
@@ -1475,6 +1634,13 @@ func (x *GenerationDefinition) GetRequest() []byte {
 	return nil
 }
 
+func (x *GenerationDefinition) GetActionRef() string {
+	if x != nil {
+		return x.ActionRef
+	}
+	return ""
+}
+
 // GenerateTask identifies the current generation obligation.
 type GenerateTask struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1486,7 +1652,7 @@ type GenerateTask struct {
 
 func (x *GenerateTask) Reset() {
 	*x = GenerateTask{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[9]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1498,7 +1664,7 @@ func (x *GenerateTask) String() string {
 func (*GenerateTask) ProtoMessage() {}
 
 func (x *GenerateTask) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[9]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1511,7 +1677,7 @@ func (x *GenerateTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateTask.ProtoReflect.Descriptor instead.
 func (*GenerateTask) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{9}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GenerateTask) GetToken() uint64 {
@@ -1542,7 +1708,7 @@ type QueuedOccurrence struct {
 
 func (x *QueuedOccurrence) Reset() {
 	*x = QueuedOccurrence{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[10]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1554,7 +1720,7 @@ func (x *QueuedOccurrence) String() string {
 func (*QueuedOccurrence) ProtoMessage() {}
 
 func (x *QueuedOccurrence) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[10]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1567,7 +1733,7 @@ func (x *QueuedOccurrence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueuedOccurrence.ProtoReflect.Descriptor instead.
 func (*QueuedOccurrence) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{10}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *QueuedOccurrence) GetNominal() int64 {
@@ -1623,7 +1789,7 @@ type DrainTask struct {
 
 func (x *DrainTask) Reset() {
 	*x = DrainTask{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[11]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1635,7 +1801,7 @@ func (x *DrainTask) String() string {
 func (*DrainTask) ProtoMessage() {}
 
 func (x *DrainTask) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[11]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1648,7 +1814,7 @@ func (x *DrainTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DrainTask.ProtoReflect.Descriptor instead.
 func (*DrainTask) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{11}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DrainTask) GetToken() uint64 {
@@ -1681,7 +1847,7 @@ type EffectState struct {
 
 func (x *EffectState) Reset() {
 	*x = EffectState{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[12]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1693,7 +1859,7 @@ func (x *EffectState) String() string {
 func (*EffectState) ProtoMessage() {}
 
 func (x *EffectState) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[12]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1706,7 +1872,7 @@ func (x *EffectState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffectState.ProtoReflect.Descriptor instead.
 func (*EffectState) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{12}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *EffectState) GetId() string {
@@ -1762,14 +1928,16 @@ func (x *EffectState) GetRetryAt() int64 {
 type EffectTask struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// EffectId identifies the immutable cancel or terminate request.
-	EffectId      string `protobuf:"bytes,1,opt,name=effect_id,json=effectId,proto3" json:"effect_id,omitempty"`
+	EffectId string `protobuf:"bytes,1,opt,name=effect_id,json=effectId,proto3" json:"effect_id,omitempty"`
+	// Exact logical wake in Unix nanoseconds; physical queue timestamps may shift.
+	WakeTime      int64 `protobuf:"varint,2,opt,name=wake_time,json=wakeTime,proto3" json:"wake_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *EffectTask) Reset() {
 	*x = EffectTask{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[13]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1781,7 +1949,7 @@ func (x *EffectTask) String() string {
 func (*EffectTask) ProtoMessage() {}
 
 func (x *EffectTask) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[13]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1794,7 +1962,7 @@ func (x *EffectTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffectTask.ProtoReflect.Descriptor instead.
 func (*EffectTask) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{13}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *EffectTask) GetEffectId() string {
@@ -1802,6 +1970,13 @@ func (x *EffectTask) GetEffectId() string {
 		return x.EffectId
 	}
 	return ""
+}
+
+func (x *EffectTask) GetWakeTime() int64 {
+	if x != nil {
+		return x.WakeTime
+	}
+	return 0
 }
 
 // ManualCommand is payload-free accepted ingress awaiting execution capacity.
@@ -1819,7 +1994,7 @@ type ManualCommand struct {
 
 func (x *ManualCommand) Reset() {
 	*x = ManualCommand{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[14]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1831,7 +2006,7 @@ func (x *ManualCommand) String() string {
 func (*ManualCommand) ProtoMessage() {}
 
 func (x *ManualCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[14]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1844,7 +2019,7 @@ func (x *ManualCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManualCommand.ProtoReflect.Descriptor instead.
 func (*ManualCommand) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{14}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ManualCommand) GetId() uint64 {
@@ -1879,7 +2054,7 @@ type ManualTask struct {
 
 func (x *ManualTask) Reset() {
 	*x = ManualTask{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[15]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1891,7 +2066,7 @@ func (x *ManualTask) String() string {
 func (*ManualTask) ProtoMessage() {}
 
 func (x *ManualTask) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[15]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1904,7 +2079,7 @@ func (x *ManualTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManualTask.ProtoReflect.Descriptor instead.
 func (*ManualTask) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{15}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ManualTask) GetToken() uint64 {
@@ -1939,7 +2114,7 @@ type CoordinationState struct {
 
 func (x *CoordinationState) Reset() {
 	*x = CoordinationState{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[16]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1951,7 +2126,7 @@ func (x *CoordinationState) String() string {
 func (*CoordinationState) ProtoMessage() {}
 
 func (x *CoordinationState) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[16]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1964,7 +2139,7 @@ func (x *CoordinationState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoordinationState.ProtoReflect.Descriptor instead.
 func (*CoordinationState) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{16}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CoordinationState) GetToken() uint64 {
@@ -2027,14 +2202,16 @@ func (x *CoordinationState) GetOwnerKey() string {
 type WorkTask struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Token is the persisted task generation.
-	Token         uint64 `protobuf:"varint,1,opt,name=token,proto3" json:"token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Token uint64 `protobuf:"varint,1,opt,name=token,proto3" json:"token,omitempty"`
+	// RemainingQuanta bounds an immediate pure-task chain; physical tasks use zero.
+	RemainingQuanta uint32 `protobuf:"varint,2,opt,name=remaining_quanta,json=remainingQuanta,proto3" json:"remaining_quanta,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *WorkTask) Reset() {
 	*x = WorkTask{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[17]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2046,7 +2223,7 @@ func (x *WorkTask) String() string {
 func (*WorkTask) ProtoMessage() {}
 
 func (x *WorkTask) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[17]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2059,12 +2236,19 @@ func (x *WorkTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkTask.ProtoReflect.Descriptor instead.
 func (*WorkTask) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{17}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *WorkTask) GetToken() uint64 {
 	if x != nil {
 		return x.Token
+	}
+	return 0
+}
+
+func (x *WorkTask) GetRemainingQuanta() uint32 {
+	if x != nil {
+		return x.RemainingQuanta
 	}
 	return 0
 }
@@ -2081,14 +2265,18 @@ type BackfillState struct {
 	// Policy is an override resolved at candidate transfer.
 	Policy v1.ScheduleOverlapPolicy `protobuf:"varint,4,opt,name=policy,proto3,enum=temporal.api.enums.v1.ScheduleOverlapPolicy" json:"policy,omitempty"`
 	// Continuation retains search, disposition and pending candidate separately.
-	Continuation  *OccurrenceContinuation `protobuf:"bytes,5,opt,name=continuation,proto3" json:"continuation,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Continuation *OccurrenceContinuation `protobuf:"bytes,5,opt,name=continuation,proto3" json:"continuation,omitempty"`
+	// SkipBatchRemaining preserves same-batch overlap decisions across callbacks.
+	SkipBatchRemaining int64 `protobuf:"varint,6,opt,name=skip_batch_remaining,json=skipBatchRemaining,proto3" json:"skip_batch_remaining,omitempty"`
+	// SkipBatchRevision fences a group when the current definition is rebased.
+	SkipBatchRevision int64 `protobuf:"varint,7,opt,name=skip_batch_revision,json=skipBatchRevision,proto3" json:"skip_batch_revision,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *BackfillState) Reset() {
 	*x = BackfillState{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[18]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2100,7 +2288,7 @@ func (x *BackfillState) String() string {
 func (*BackfillState) ProtoMessage() {}
 
 func (x *BackfillState) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[18]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2113,7 +2301,7 @@ func (x *BackfillState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BackfillState.ProtoReflect.Descriptor instead.
 func (*BackfillState) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{18}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *BackfillState) GetId() uint64 {
@@ -2151,6 +2339,20 @@ func (x *BackfillState) GetContinuation() *OccurrenceContinuation {
 	return nil
 }
 
+func (x *BackfillState) GetSkipBatchRemaining() int64 {
+	if x != nil {
+		return x.SkipBatchRemaining
+	}
+	return 0
+}
+
+func (x *BackfillState) GetSkipBatchRevision() int64 {
+	if x != nil {
+		return x.SkipBatchRevision
+	}
+	return 0
+}
+
 // IdleTask checks the current idle-close token and deadline.
 type IdleTask struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2162,7 +2364,7 @@ type IdleTask struct {
 
 func (x *IdleTask) Reset() {
 	*x = IdleTask{}
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[19]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2174,7 +2376,7 @@ func (x *IdleTask) String() string {
 func (*IdleTask) ProtoMessage() {}
 
 func (x *IdleTask) ProtoReflect() protoreflect.Message {
-	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[19]
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2187,7 +2389,7 @@ func (x *IdleTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IdleTask.ProtoReflect.Descriptor instead.
 func (*IdleTask) Descriptor() ([]byte, []int) {
-	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{19}
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *IdleTask) GetToken() uint64 {
@@ -2197,11 +2399,130 @@ func (x *IdleTask) GetToken() uint64 {
 	return 0
 }
 
+// PublicRuntime retains compact lifecycle metadata independently of payload retention.
+type PublicRuntime struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Actions retains active intents and the ten most recent acknowledged starts.
+	Actions []*PublicAction `protobuf:"bytes,1,rep,name=actions,proto3" json:"actions,omitempty"`
+	// MissedCatchupWindow counts eligible automatic occurrences disposed too late.
+	MissedCatchupWindow int64 `protobuf:"varint,2,opt,name=missed_catchup_window,json=missedCatchupWindow,proto3" json:"missed_catchup_window,omitempty"`
+	// OverlapSkipped counts occurrences disposed by SKIP while another action blocks.
+	OverlapSkipped int64 `protobuf:"varint,3,opt,name=overlap_skipped,json=overlapSkipped,proto3" json:"overlap_skipped,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PublicRuntime) Reset() {
+	*x = PublicRuntime{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicRuntime) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicRuntime) ProtoMessage() {}
+
+func (x *PublicRuntime) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicRuntime.ProtoReflect.Descriptor instead.
+func (*PublicRuntime) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *PublicRuntime) GetActions() []*PublicAction {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *PublicRuntime) GetMissedCatchupWindow() int64 {
+	if x != nil {
+		return x.MissedCatchupWindow
+	}
+	return 0
+}
+
+func (x *PublicRuntime) GetOverlapSkipped() int64 {
+	if x != nil {
+		return x.OverlapSkipped
+	}
+	return 0
+}
+
+// PublicAction ties a public result to its immutable admitted operation.
+type PublicAction struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// OperationId is the immutable start request identity.
+	OperationId string `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	// Result carries actual response run identity, scheduled time and observation time.
+	Result        *v13.ScheduleActionResult `protobuf:"bytes,2,opt,name=result,proto3" json:"result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PublicAction) Reset() {
+	*x = PublicAction{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicAction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicAction) ProtoMessage() {}
+
+func (x *PublicAction) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicAction.ProtoReflect.Descriptor instead.
+func (*PublicAction) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *PublicAction) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *PublicAction) GetResult() *v13.ScheduleActionResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
 var File_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto protoreflect.FileDescriptor
 
 const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "" +
 	"\n" +
-	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/enums/v1/schedule.proto\"\xe3\x0e\n" +
+	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a$temporal/api/common/v1/message.proto\x1a'temporal/api/sdk/v1/user_metadata.proto\x1a$temporal/api/enums/v1/schedule.proto\x1a&temporal/api/schedule/v1/message.proto\"\xb8\x0f\n" +
 	"\tRootState\x12 \n" +
 	"\vincarnation\x18\x01 \x01(\tR\vincarnation\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x16\n" +
@@ -2251,7 +2572,9 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"idle_token\x18' \x01(\x04R\tidleToken\x12\x1d\n" +
 	"\n" +
 	"idle_armed\x18( \x01(\bR\tidleArmed\x12\x17\n" +
-	"\aidle_at\x18) \x01(\x03R\x06idleAt\x1a@\n" +
+	"\aidle_at\x18) \x01(\x03R\x06idleAt\x12'\n" +
+	"\x0fpublic_revision\x18* \x01(\x04R\x0epublicRevision\x12*\n" +
+	"\x11public_action_ref\x18+ \x01(\tR\x0fpublicActionRef\x1a@\n" +
 	"\x12PendingStartsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\x92\x04\n" +
@@ -2272,15 +2595,32 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\vbackfill_id\x18\f \x01(\x04R\n" +
 	"backfillId\x12%\n" +
 	"\x0estart_observed\x18\r \x01(\bR\rstartObserved\x12*\n" +
-	"\x11start_observed_at\x18\x0e \x01(\x03R\x0fstartObservedAt\"\x1d\n" +
+	"\x11start_observed_at\x18\x0e \x01(\x03R\x0fstartObservedAt\"|\n" +
 	"\aPayload\x12\x12\n" +
-	"\x04data\x18\x01 \x01(\fR\x04data\".\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\x12\x1d\n" +
+	"\n" +
+	"action_ref\x18\x02 \x01(\tR\tactionRef\x12\x1d\n" +
+	"\n" +
+	"result_ref\x18\x03 \x01(\tR\tresultRef\x12\x1f\n" +
+	"\vfailure_ref\x18\x04 \x01(\tR\n" +
+	"failureRef\"\xdf\x02\n" +
+	"\x13ActionPayloadBundle\x126\n" +
+	"\x05input\x18\x01 \x01(\v2 .temporal.api.common.v1.PayloadsR\x05input\x126\n" +
+	"\x06header\x18\x02 \x01(\v2\x1e.temporal.api.common.v1.HeaderR\x06header\x120\n" +
+	"\x04memo\x18\x03 \x01(\v2\x1c.temporal.api.common.v1.MemoR\x04memo\x12^\n" +
+	"\x16user_search_attributes\x18\x04 \x01(\v2(.temporal.api.common.v1.SearchAttributesR\x14userSearchAttributes\x12F\n" +
+	"\ruser_metadata\x18\x05 \x01(\v2!.temporal.api.sdk.v1.UserMetadataR\fuserMetadata\"K\n" +
 	"\tStartTask\x12!\n" +
-	"\foperation_id\x18\x01 \x01(\tR\voperationId\"k\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x1b\n" +
+	"\twake_time\x18\x02 \x01(\x03R\bwakeTime\"\xab\x01\n" +
 	"\x0eCarryoverState\x12\x16\n" +
 	"\x06result\x18\x01 \x01(\fR\x06result\x12\x18\n" +
 	"\afailure\x18\x02 \x01(\fR\afailure\x12'\n" +
-	"\x0ffailure_present\x18\x03 \x01(\bR\x0efailurePresent\"\x7f\n" +
+	"\x0ffailure_present\x18\x03 \x01(\bR\x0efailurePresent\x12\x1d\n" +
+	"\n" +
+	"result_ref\x18\x04 \x01(\tR\tresultRef\x12\x1f\n" +
+	"\vfailure_ref\x18\x05 \x01(\tR\n" +
+	"failureRef\"\x7f\n" +
 	"\x13OccurrenceCandidate\x12\x18\n" +
 	"\anominal\x18\x01 \x01(\x03R\anominal\x12\x16\n" +
 	"\x06actual\x18\x02 \x01(\x03R\x06actual\x12\x1a\n" +
@@ -2307,11 +2647,13 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"lastStatus\x12b\n" +
 	"\n" +
 	"superseded\x18\a \x01(\v2B.temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidateR\n" +
-	"superseded\"X\n" +
+	"superseded\"w\n" +
 	"\x14GenerationDefinition\x12\x12\n" +
 	"\x04spec\x18\x01 \x01(\fR\x04spec\x12\x12\n" +
 	"\x04seed\x18\x02 \x01(\tR\x04seed\x12\x18\n" +
-	"\arequest\x18\x03 \x01(\fR\arequest\"$\n" +
+	"\arequest\x18\x03 \x01(\fR\arequest\x12\x1d\n" +
+	"\n" +
+	"action_ref\x18\x04 \x01(\tR\tactionRef\"$\n" +
 	"\fGenerateTask\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\x04R\x05token\"\xe9\x01\n" +
 	"\x10QueuedOccurrence\x12\x18\n" +
@@ -2332,10 +2674,11 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\x05phase\x18\x04 \x01(\x0e2:.temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhaseR\x05phase\x12\x19\n" +
 	"\bchain_id\x18\x05 \x01(\tR\achainId\x12\x1a\n" +
 	"\bdeadline\x18\x06 \x01(\x03R\bdeadline\x12\x19\n" +
-	"\bretry_at\x18\a \x01(\x03R\aretryAt\")\n" +
+	"\bretry_at\x18\a \x01(\x03R\aretryAt\"F\n" +
 	"\n" +
 	"EffectTask\x12\x1b\n" +
-	"\teffect_id\x18\x01 \x01(\tR\beffectId\"\x7f\n" +
+	"\teffect_id\x18\x01 \x01(\tR\beffectId\x12\x1b\n" +
+	"\twake_time\x18\x02 \x01(\x03R\bwakeTime\"\x7f\n" +
 	"\rManualCommand\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x18\n" +
 	"\anominal\x18\x02 \x01(\x03R\anominal\x12D\n" +
@@ -2353,17 +2696,27 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\x0enext_operation\x18\x06 \x01(\x0e28.temporal.server.chasm.lib.scheduler2.proto.v1.WorkClassR\rnextOperation\x12Y\n" +
 	"\vowner_class\x18\a \x01(\x0e28.temporal.server.chasm.lib.scheduler2.proto.v1.WorkClassR\n" +
 	"ownerClass\x12\x1b\n" +
-	"\towner_key\x18\b \x01(\tR\bownerKey\" \n" +
+	"\towner_key\x18\b \x01(\tR\bownerKey\"K\n" +
 	"\bWorkTask\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\x04R\x05token\"\xf8\x01\n" +
+	"\x05token\x18\x01 \x01(\x04R\x05token\x12)\n" +
+	"\x10remaining_quanta\x18\x02 \x01(\rR\x0fremainingQuanta\"\xda\x02\n" +
 	"\rBackfillState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x14\n" +
 	"\x05start\x18\x02 \x01(\x03R\x05start\x12\x10\n" +
 	"\x03end\x18\x03 \x01(\x03R\x03end\x12D\n" +
 	"\x06policy\x18\x04 \x01(\x0e2,.temporal.api.enums.v1.ScheduleOverlapPolicyR\x06policy\x12i\n" +
-	"\fcontinuation\x18\x05 \x01(\v2E.temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuationR\fcontinuation\" \n" +
+	"\fcontinuation\x18\x05 \x01(\v2E.temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuationR\fcontinuation\x120\n" +
+	"\x14skip_batch_remaining\x18\x06 \x01(\x03R\x12skipBatchRemaining\x12.\n" +
+	"\x13skip_batch_revision\x18\a \x01(\x03R\x11skipBatchRevision\" \n" +
 	"\bIdleTask\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\x04R\x05token*\x84\x01\n" +
+	"\x05token\x18\x01 \x01(\x04R\x05token\"\xc3\x01\n" +
+	"\rPublicRuntime\x12U\n" +
+	"\aactions\x18\x01 \x03(\v2;.temporal.server.chasm.lib.scheduler2.proto.v1.PublicActionR\aactions\x122\n" +
+	"\x15missed_catchup_window\x18\x02 \x01(\x03R\x13missedCatchupWindow\x12'\n" +
+	"\x0foverlap_skipped\x18\x03 \x01(\x03R\x0eoverlapSkipped\"y\n" +
+	"\fPublicAction\x12!\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12F\n" +
+	"\x06result\x18\x02 \x01(\v2..temporal.api.schedule.v1.ScheduleActionResultR\x06result*\x84\x01\n" +
 	"\x05Phase\x12\x15\n" +
 	"\x11PHASE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rPHASE_PENDING\x10\x01\x12\x11\n" +
@@ -2413,66 +2766,82 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(
 }
 
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []any{
-	(Phase)(0),                     // 0: temporal.server.chasm.lib.scheduler2.proto.v1.Phase
-	(EnumerationStatus)(0),         // 1: temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	(EffectKind)(0),                // 2: temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
-	(EffectPhase)(0),               // 3: temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
-	(WorkClass)(0),                 // 4: temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
-	(*RootState)(nil),              // 5: temporal.server.chasm.lib.scheduler2.proto.v1.RootState
-	(*OperationState)(nil),         // 6: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState
-	(*Payload)(nil),                // 7: temporal.server.chasm.lib.scheduler2.proto.v1.Payload
-	(*StartTask)(nil),              // 8: temporal.server.chasm.lib.scheduler2.proto.v1.StartTask
-	(*CarryoverState)(nil),         // 9: temporal.server.chasm.lib.scheduler2.proto.v1.CarryoverState
-	(*OccurrenceCandidate)(nil),    // 10: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	(*OccurrenceContinuation)(nil), // 11: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
-	(*GeneratorState)(nil),         // 12: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState
-	(*GenerationDefinition)(nil),   // 13: temporal.server.chasm.lib.scheduler2.proto.v1.GenerationDefinition
-	(*GenerateTask)(nil),           // 14: temporal.server.chasm.lib.scheduler2.proto.v1.GenerateTask
-	(*QueuedOccurrence)(nil),       // 15: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
-	(*DrainTask)(nil),              // 16: temporal.server.chasm.lib.scheduler2.proto.v1.DrainTask
-	(*EffectState)(nil),            // 17: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
-	(*EffectTask)(nil),             // 18: temporal.server.chasm.lib.scheduler2.proto.v1.EffectTask
-	(*ManualCommand)(nil),          // 19: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand
-	(*ManualTask)(nil),             // 20: temporal.server.chasm.lib.scheduler2.proto.v1.ManualTask
-	(*CoordinationState)(nil),      // 21: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState
-	(*WorkTask)(nil),               // 22: temporal.server.chasm.lib.scheduler2.proto.v1.WorkTask
-	(*BackfillState)(nil),          // 23: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState
-	(*IdleTask)(nil),               // 24: temporal.server.chasm.lib.scheduler2.proto.v1.IdleTask
-	nil,                            // 25: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
-	(v1.ScheduleOverlapPolicy)(0),  // 26: temporal.api.enums.v1.ScheduleOverlapPolicy
+	(Phase)(0),                       // 0: temporal.server.chasm.lib.scheduler2.proto.v1.Phase
+	(EnumerationStatus)(0),           // 1: temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	(EffectKind)(0),                  // 2: temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
+	(EffectPhase)(0),                 // 3: temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
+	(WorkClass)(0),                   // 4: temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+	(*RootState)(nil),                // 5: temporal.server.chasm.lib.scheduler2.proto.v1.RootState
+	(*OperationState)(nil),           // 6: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState
+	(*Payload)(nil),                  // 7: temporal.server.chasm.lib.scheduler2.proto.v1.Payload
+	(*ActionPayloadBundle)(nil),      // 8: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle
+	(*StartTask)(nil),                // 9: temporal.server.chasm.lib.scheduler2.proto.v1.StartTask
+	(*CarryoverState)(nil),           // 10: temporal.server.chasm.lib.scheduler2.proto.v1.CarryoverState
+	(*OccurrenceCandidate)(nil),      // 11: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	(*OccurrenceContinuation)(nil),   // 12: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+	(*GeneratorState)(nil),           // 13: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState
+	(*GenerationDefinition)(nil),     // 14: temporal.server.chasm.lib.scheduler2.proto.v1.GenerationDefinition
+	(*GenerateTask)(nil),             // 15: temporal.server.chasm.lib.scheduler2.proto.v1.GenerateTask
+	(*QueuedOccurrence)(nil),         // 16: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
+	(*DrainTask)(nil),                // 17: temporal.server.chasm.lib.scheduler2.proto.v1.DrainTask
+	(*EffectState)(nil),              // 18: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
+	(*EffectTask)(nil),               // 19: temporal.server.chasm.lib.scheduler2.proto.v1.EffectTask
+	(*ManualCommand)(nil),            // 20: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand
+	(*ManualTask)(nil),               // 21: temporal.server.chasm.lib.scheduler2.proto.v1.ManualTask
+	(*CoordinationState)(nil),        // 22: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState
+	(*WorkTask)(nil),                 // 23: temporal.server.chasm.lib.scheduler2.proto.v1.WorkTask
+	(*BackfillState)(nil),            // 24: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState
+	(*IdleTask)(nil),                 // 25: temporal.server.chasm.lib.scheduler2.proto.v1.IdleTask
+	(*PublicRuntime)(nil),            // 26: temporal.server.chasm.lib.scheduler2.proto.v1.PublicRuntime
+	(*PublicAction)(nil),             // 27: temporal.server.chasm.lib.scheduler2.proto.v1.PublicAction
+	nil,                              // 28: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+	(v1.ScheduleOverlapPolicy)(0),    // 29: temporal.api.enums.v1.ScheduleOverlapPolicy
+	(*v11.Payloads)(nil),             // 30: temporal.api.common.v1.Payloads
+	(*v11.Header)(nil),               // 31: temporal.api.common.v1.Header
+	(*v11.Memo)(nil),                 // 32: temporal.api.common.v1.Memo
+	(*v11.SearchAttributes)(nil),     // 33: temporal.api.common.v1.SearchAttributes
+	(*v12.UserMetadata)(nil),         // 34: temporal.api.sdk.v1.UserMetadata
+	(*v13.ScheduleActionResult)(nil), // 35: temporal.api.schedule.v1.ScheduleActionResult
 }
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_depIdxs = []int32{
-	26, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	15, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
-	25, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.pending_starts:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
-	17, // 3: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.effects:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
-	19, // 4: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.manuals:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand
-	21, // 5: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.coordination:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState
-	23, // 6: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.backfills:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState
+	29, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	16, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
+	28, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.pending_starts:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+	18, // 3: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.effects:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
+	20, // 4: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.manuals:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand
+	22, // 5: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.coordination:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState
+	24, // 6: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.backfills:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState
 	0,  // 7: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
-	26, // 8: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	10, // 9: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	1,  // 10: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	11, // 11: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
-	1,  // 12: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	10, // 13: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	26, // 14: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	2,  // 15: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.kind:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
-	3,  // 16: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
-	26, // 17: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	4,  // 18: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_work:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
-	4,  // 19: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
-	4,  // 20: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_operation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
-	4,  // 21: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.owner_class:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
-	26, // 22: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	11, // 23: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
-	24, // [24:24] is the sub-list for method output_type
-	24, // [24:24] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	29, // 8: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	30, // 9: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.input:type_name -> temporal.api.common.v1.Payloads
+	31, // 10: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.header:type_name -> temporal.api.common.v1.Header
+	32, // 11: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.memo:type_name -> temporal.api.common.v1.Memo
+	33, // 12: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.user_search_attributes:type_name -> temporal.api.common.v1.SearchAttributes
+	34, // 13: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.user_metadata:type_name -> temporal.api.sdk.v1.UserMetadata
+	11, // 14: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	1,  // 15: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	12, // 16: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+	1,  // 17: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	11, // 18: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	29, // 19: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	2,  // 20: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.kind:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
+	3,  // 21: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
+	29, // 22: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	4,  // 23: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_work:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+	4,  // 24: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+	4,  // 25: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_operation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+	4,  // 26: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.owner_class:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+	29, // 27: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	12, // 28: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+	27, // 29: temporal.server.chasm.lib.scheduler2.proto.v1.PublicRuntime.actions:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.PublicAction
+	35, // 30: temporal.server.chasm.lib.scheduler2.proto.v1.PublicAction.result:type_name -> temporal.api.schedule.v1.ScheduleActionResult
+	31, // [31:31] is the sub-list for method output_type
+	31, // [31:31] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() }
@@ -2486,7 +2855,7 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc), len(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   21,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

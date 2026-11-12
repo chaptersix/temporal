@@ -7,7 +7,6 @@ import (
 	"go.temporal.io/server/api/historyservice/v1"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
 	replicationspb "go.temporal.io/server/api/replication/v1"
-	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/common/namespace"
 	"go.temporal.io/server/common/rpc/grpcfaults"
 	"go.temporal.io/server/common/rpc/httpfaults"
@@ -39,7 +38,7 @@ var (
 	HistoryReplicationTaskInterceptor           = newKey[func(*replicationspb.ReplicationTask, func() error) error, global]()
 	HistoryReplicationTaskConversionInterceptor = newKey[func(historytasks.Task, func() (*replicationspb.ReplicationTask, error)) (*replicationspb.ReplicationTask, error), namespace.ID]()
 	HistoryReplicationDLQWriteInterceptor       = newKey[func(*persistencespb.ReplicationTaskInfo, func() error) error, global]()
-	HistoryChasmRuntimeProvider                 = newKey[func(chasm.Engine, chasm.VisibilityManager, *chasm.Registry), global]()
+	HistoryChasmRuntimeProvider                 = newKey[func(HistoryChasmRuntime), global]()
 	HistoryTransferTaskInterceptor              = newKey[func(historytasks.Task, func()), namespace.ID]()
 	NexusRetainTimedOutOperation                = newKey[bool, namespace.Name]()
 	// HistoryPassiveReplicationTest enables the single-cluster passive replication

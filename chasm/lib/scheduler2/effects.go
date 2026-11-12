@@ -4,7 +4,6 @@ import (
 	"time"
 
 	commonpb "go.temporal.io/api/common/v1"
-	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/chasm"
@@ -44,6 +43,7 @@ func (s *Scheduler) prepareEffects(ctx chasm.Context, next decision.State) (deci
 		if _, exists := s.EffectRequests[effect.ID]; exists {
 			continue
 		}
+		// Effect identity lives in the small skeleton; large fields are irrelevant.
 		start := &workflowservice.StartWorkflowExecutionRequest{}
 		if err := proto.Unmarshal(s.Requests[effect.TargetID].Get(ctx).Data, start); err != nil {
 			return decision.State{}, nil, err
@@ -75,9 +75,6 @@ func freezeEffect(effect decision.Effect, start *workflowservice.StartWorkflowEx
 	if err != nil {
 		return nil, err
 	}
-	if len(wire) > 128*1024 {
-		return nil, serviceerror.NewResourceExhausted(enumspb.RESOURCE_EXHAUSTED_CAUSE_SYSTEM_OVERLOADED, "effect request exceeds prototype limit")
-	}
 	return wire, nil
 }
 
@@ -98,7 +95,7 @@ func (s *Scheduler) publishEffects(ctx chasm.MutableContext, before, next decisi
 		if wake, pending := decision.EffectWake(effect); pending {
 			previous, existed := oldWakes[effect.ID]
 			if !existed || previous != wake {
-				ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, wake)}, &scheduler2pb.EffectTask{EffectId: effect.ID})
+				ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, wake)}, &scheduler2pb.EffectTask{EffectId: effect.ID, WakeTime: wake})
 			}
 		}
 	}

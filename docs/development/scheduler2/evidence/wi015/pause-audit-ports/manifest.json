@@ -1,0 +1,15 @@
+{
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 ./tests -run '^TestSchedule2(WorkflowPauseInteraction|AuditVisibility)$' -count=1 -timeout=6m",
+  "exit_code": 0,
+  "result": "PASS",
+  "duration_seconds": 86.504,
+  "source_sha256": {
+    "tests/schedule2_pause_interaction_test.go": "d0e2b09618b1a7ab868deddd73aeb98b1da89df1dcce5d43d8cb3f5c43273d4e",
+    "tests/schedule2_audit_test.go": "1e6bf001f56f0c3e5af88a66293b74537a63e8b717a9e4b5d5c28debded427ec",
+    "tests/schedule2_shared_test.go": "d385d5692af03e51be693e6a5fe81a6dfbf8283a1a6797b29e306be8dbf8e46d",
+    "tests/schedule_workflow_pause_interaction_test.go": "12119056dc5adadfe986da0cfd96762cca5ef3e1e701c4a9031f891454564a7c",
+    "tests/schedule_audit_test.go": "eadf884b797e80f7f2a1212970437e6d1789527e642bd9b1edb5719fa07c19b9"
+  },
+  "scope": "actual dedicated scheduler2 backend; original helper assertions unchanged;12pause leaves plus audit workflow visibility; no skips",
+  "note": "Post-run only comment added explaining intentionally serial helper subgroup ordering. Parent owns consolidated production source/test manifest and lint."
+}

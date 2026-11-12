@@ -925,3 +925,45 @@ integration. Runtime workflow start must use actual FirstExecutionRunId; interna
 callback envelope/History transport and source-backed validation replace prototype
 assumptions. Full public execution/controls/projections/shared suite remains its goal.
 Worktree /private/tmp/sch-redesign-execution starts at faa449156; no production routing.
+
+### Active execution checkpoint: WI-015 and WI-016
+
+WI-015 actual workflow/callback transport passes completion-before-ack and
+continue-as-new; public mutation implementation and payload compatibility remain
+active. WI-016 adds boundary-biased spec verification and a source-reproduced London
+fold correction; 10,000 cases pass, mutation sensitivity and acceptance remain open.
+See work-item records and evidence README. M3 remains active; M4 remains pending.
+
+### WI-015 full shared and race checkpoint
+
+All29 shared-suite methods pass, as do the scheduler2/callback race checkpoint and
+checkpoint lint. Actual payload profiles establish a1280KiB-per-owner positive
+trace and near2MiB aggregate RPC rejection retaining start authority. Additional
+reset and visibility ports pass; visibility independent review is pending. Three
+unchanged lifecycle/time-skipping cases expose physical-timer progress delays.
+Bounded immediate coordination, actual shard recovery, and remaining spec/API
+coverage are in progress. Evidence: docs/development/scheduler2/evidence/wi015/
+execution-checkpoint/manifest.json. M3 remains open and M4 pending; local-only
+authorization and all remaining milestone requirements are unchanged.
+
+## Integrated runtime verification checkpoint (M3 remains open)
+
+The bounded two-quantum coordinator pump, due Start transfer dispatch and cached
+future candidate time-skipping gate fix now pass all18 unchanged lifecycle
+contract leaves (34.673s). Three extra time-control cases pass10.268s. Independent
+reviews preserve per-quantum arbitration/logical wake fences and identify expanded
+public definition/state bounds as outside earlier finite proof profiles.
+Public combined100 ingress passes exact validation and rollback/reload tests;
+four spec ports and three catchup/buffer/result parity ports pass. Evidence is
+under wi015/coordinator-progress, timecontrol-ports, public-command-capacity,
+spec-ports and behavior-ports. Current whole scheduler2/callback core passes
+(root18.375s); consolidated lint04 passes0issues. Archive: consolidated-checkpoint.
+All-scheduler2 public combined run is in progress. Remaining coverage includes
+local-cluster physical restamping, listing/metadata parity, stale physical fences
+and full capacity/time-domain compatibility. M3 is not accepted; M4 remains pending.
+
+The combined public checkpoint completed PASS140.002s for all TestSchedule2 cases
+present at compilation. Core packages and normal/minimal lint passed. Exact
+commands, staged source hashes, logs and evidence limits are in
+wi015/consolidated-checkpoint/manifest.json. This local source checkpoint is not
+WI015/M3 acceptance; subsequent listing/XDC ports and compatibility audit remain.

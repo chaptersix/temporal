@@ -419,11 +419,15 @@ func (suite *ScheduleCHASMSuite) TestTimeSkippingWeeklyWithWorkflowExecutionTime
 }
 
 func (suite *ScheduleCHASMSuite) TestMaxSkipCapsScheduleTimeSkipping() {
-	t := suite.T()
-	s := newScheduleEnv(t, []scheduleBackend{scheduleCHASMBackend}, []testcore.TestOption{testcore.WithDynamicConfig(dynamicconfig.WorkflowTimeSkippingEnabled, true),
+	testMaxSkipCapsScheduleTimeSkippingForBackend(suite.T(), scheduleCHASMBackend)
+}
+
+func testMaxSkipCapsScheduleTimeSkippingForBackend(t *testing.T, backend scheduleBackend) {
+	t.Helper()
+	s := newScheduleEnv(t, []scheduleBackend{backend}, []testcore.TestOption{testcore.WithDynamicConfig(dynamicconfig.WorkflowTimeSkippingEnabled, true),
 		testcore.WithDynamicConfig(dynamicconfig.CHASMSchedulerTimeSkippingEnabled, true),
 		testcore.WithDynamicConfig(dynamicconfig.TimeSkippingMaxSkipPerSession, 10)}...)
-	ctx := chasmContextFactory(testcontext.For(t))
+	ctx := backend.context(testcontext.For(t))
 	sid := testcore.RandomizeStr("sched-time-skipping-max-count")
 	week := 7 * 24 * time.Hour
 	firstTick := time.Now().UTC().Add(12 * time.Hour)
@@ -472,10 +476,14 @@ func testScheduleTimeSkippingWeekly(
 	createWithPatch bool,
 	executionTimeout time.Duration,
 ) {
+	testScheduleTimeSkippingWeeklyForBackend(t, scheduleCHASMBackend, overlapPolicy, createWithPatch, executionTimeout)
+}
+
+func testScheduleTimeSkippingWeeklyForBackend(t *testing.T, backend scheduleBackend, overlapPolicy enumspb.ScheduleOverlapPolicy, createWithPatch bool, executionTimeout time.Duration) {
 	opts := []testcore.TestOption{testcore.WithDynamicConfig(dynamicconfig.WorkflowTimeSkippingEnabled, true),
 		testcore.WithDynamicConfig(dynamicconfig.CHASMSchedulerTimeSkippingEnabled, true)}
-	s := newScheduleEnv(t, []scheduleBackend{scheduleCHASMBackend}, opts...)
-	ctx := chasmContextFactory(testcontext.For(t))
+	s := newScheduleEnv(t, []scheduleBackend{backend}, opts...)
+	ctx := backend.context(testcontext.For(t))
 
 	sid := testcore.RandomizeStr("sched-time-skipping-weekly")
 	wid := testcore.RandomizeStr("sched-time-skipping-weekly-wf")
@@ -603,9 +611,13 @@ func testScheduleTimeSkippingWeekly(
 }
 
 func (suite *ScheduleCHASMSuite) TestTimeSkippingDynamicConfigGate() {
-	t := suite.T()
-	s := newScheduleEnv(t, []scheduleBackend{scheduleCHASMBackend}, []testcore.TestOption{testcore.WithDynamicConfig(dynamicconfig.CHASMSchedulerTimeSkippingEnabled, false)}...)
-	ctx := chasmContextFactory(testcontext.For(t))
+	testTimeSkippingDynamicConfigGateForBackend(suite.T(), scheduleCHASMBackend)
+}
+
+func testTimeSkippingDynamicConfigGateForBackend(t *testing.T, backend scheduleBackend) {
+	t.Helper()
+	s := newScheduleEnv(t, []scheduleBackend{backend}, []testcore.TestOption{testcore.WithDynamicConfig(dynamicconfig.CHASMSchedulerTimeSkippingEnabled, false)}...)
+	ctx := backend.context(testcontext.For(t))
 
 	sid := testcore.RandomizeStr("sched-time-skipping-gate")
 	schedule := &schedulepb.Schedule{
@@ -645,9 +657,13 @@ func (suite *ScheduleCHASMSuite) TestTimeSkippingDynamicConfigGate() {
 }
 
 func (suite *ScheduleCHASMSuite) TestTimeSkippingFeatureDisabledWhileWorkflowRuns() {
-	t := suite.T()
-	s := newScheduleEnv(t, []scheduleBackend{scheduleCHASMBackend}, []testcore.TestOption{testcore.WithDynamicConfig(dynamicconfig.CHASMSchedulerTimeSkippingEnabled, true)}...)
-	ctx := chasmContextFactory(testcontext.For(t))
+	testTimeSkippingFeatureDisabledWhileWorkflowRunsForBackend(suite.T(), scheduleCHASMBackend)
+}
+
+func testTimeSkippingFeatureDisabledWhileWorkflowRunsForBackend(t *testing.T, backend scheduleBackend) {
+	t.Helper()
+	s := newScheduleEnv(t, []scheduleBackend{backend}, []testcore.TestOption{testcore.WithDynamicConfig(dynamicconfig.CHASMSchedulerTimeSkippingEnabled, true)}...)
+	ctx := backend.context(testcontext.For(t))
 	sid := testcore.RandomizeStr("sched-time-skipping-flag-off")
 	wt := testcore.RandomizeStr("sched-time-skipping-flag-off-wt")
 	var started atomic.Int32
@@ -2399,13 +2415,16 @@ func (suite *ScheduleSuite) TestScheduleContinuesAfterWorkflowRetryFailure(backe
 // are observed) and that the completion callback is written intact into both the original and the
 // continued-as-new run. CHASM-only: V1 uses no Nexus completion callbacks.
 func (suite *ScheduleCHASMSuite) TestScheduledWorkflowContinueAsNewCompletion() {
-	t := suite.T()
-	newContext := chasmContextFactory
+	testScheduledWorkflowContinueAsNewCompletion(suite.T(), scheduleCHASMBackend)
+}
+
+func testScheduledWorkflowContinueAsNewCompletion(t *testing.T, backend scheduleBackend) {
+	newContext := backend.context
 	// The scheduler matches the continued-as-new run's completion by the request ID carried in the
 	// completion callback token, which only survives continue-as-new in the envelope token format.
 	// That format is gated off by default for safe rollout, so enable it explicitly here.
 	opts := []testcore.TestOption{testcore.WithDynamicConfig(callback.EncodeInternalTokenWithEnvelope, true)}
-	s := newScheduleEnv(t, []scheduleBackend{scheduleCHASMBackend}, opts...)
+	s := newScheduleEnv(t, []scheduleBackend{backend}, opts...)
 
 	sid := testcore.RandomizeStr("sched-can-completion")
 	wid := testcore.RandomizeStr("sched-can-completion-wf")
@@ -3357,10 +3376,9 @@ func (suite *ScheduleSuite) TestSchedule_InternalTaskQueue(backend scheduleBacke
 	})
 }
 
-func testScheduledWorkflowDoubleReset(suite *ScheduleCHASMSuite, enableCHASMCallbacks bool, resetRequestIDDeduplication bool) {
-	t := suite.T()
-	newContext := chasmContextFactory
-	s := newScheduleEnv(t, []scheduleBackend{scheduleCHASMBackend})
+func testScheduledWorkflowDoubleReset(t *testing.T, backend scheduleBackend, enableCHASMCallbacks bool, resetRequestIDDeduplication bool) {
+	newContext := backend.context
+	s := newScheduleEnv(t, []scheduleBackend{backend})
 	s.OverrideDynamicConfig(dynamicconfig.EnableCHASMCallbacks, enableCHASMCallbacks)
 	s.OverrideDynamicConfig(dynamicconfig.EnableResetWorkflowRequestIDDeduplication, resetRequestIDDeduplication)
 
@@ -3402,6 +3420,7 @@ func testScheduledWorkflowDoubleReset(suite *ScheduleCHASMSuite, enableCHASMCall
 		RequestId: uuid.NewString(),
 	})
 	require.NoError(t, err)
+	assertScheduleCallbackBackend(t, s, backend, sid)
 
 	// Wait for scheduler to start the workflow and show it as RUNNING.
 	listEntry := getScheduleEntryFromVisibility(t, s, sid, newContext, func(ent *schedulepb.ScheduleListEntry) bool {
@@ -3460,12 +3479,12 @@ func testScheduledWorkflowDoubleReset(suite *ScheduleCHASMSuite, enableCHASMCall
 		RunId:      resp1.RunId,
 	}
 
-	suite.Await(func(suite *ScheduleCHASMSuite) {
+	await.Require(ctx, t, func(at *await.T) {
 		resetDesc, err := s.FrontendClient().DescribeWorkflowExecution(ctx, &workflowservice.DescribeWorkflowExecutionRequest{
 			Namespace: s.Namespace().String(),
 			Execution: resetRun1,
 		})
-		suite.NoError(err)
+		require.NoError(at, err)
 		var resetStartReqID string
 		for reqID, info := range resetDesc.GetWorkflowExtendedInfo().GetRequestIdInfos() {
 			if info.GetEventType() == enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED {
@@ -3473,7 +3492,7 @@ func testScheduledWorkflowDoubleReset(suite *ScheduleCHASMSuite, enableCHASMCall
 				break
 			}
 		}
-		suite.Equal(expectedStartReqID(resetRequestID1), resetStartReqID)
+		require.Equal(at, expectedStartReqID(resetRequestID1), resetStartReqID)
 	}, 10*time.Second, 100*time.Millisecond)
 
 	resetRequestID2 := uuid.NewString()
@@ -3490,12 +3509,12 @@ func testScheduledWorkflowDoubleReset(suite *ScheduleCHASMSuite, enableCHASMCall
 		RunId:      resp2.RunId,
 	}
 
-	suite.Await(func(suite *ScheduleCHASMSuite) {
+	await.Require(ctx, t, func(at *await.T) {
 		resetDesc, err := s.FrontendClient().DescribeWorkflowExecution(ctx, &workflowservice.DescribeWorkflowExecutionRequest{
 			Namespace: s.Namespace().String(),
 			Execution: resetRun2,
 		})
-		suite.NoError(err)
+		require.NoError(at, err)
 		var resetStartReqID string
 		for reqID, info := range resetDesc.GetWorkflowExtendedInfo().GetRequestIdInfos() {
 			if info.GetEventType() == enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED {
@@ -3503,7 +3522,7 @@ func testScheduledWorkflowDoubleReset(suite *ScheduleCHASMSuite, enableCHASMCall
 				break
 			}
 		}
-		suite.Equal(expectedStartReqID(resetRequestID2), resetStartReqID)
+		require.Equal(at, expectedStartReqID(resetRequestID2), resetStartReqID)
 	}, 10*time.Second, 100*time.Millisecond)
 
 	_, err = s.FrontendClient().SignalWorkflowExecution(ctx, &workflowservice.SignalWorkflowExecutionRequest{
@@ -3526,23 +3545,22 @@ func testScheduledWorkflowDoubleReset(suite *ScheduleCHASMSuite, enableCHASMCall
 }
 
 func (suite *ScheduleCHASMSuite) TestDoubleReset_HSMCallbacks() {
-	testScheduledWorkflowDoubleReset(suite, false, true)
+	testScheduledWorkflowDoubleReset(suite.T(), scheduleCHASMBackend, false, true)
 }
 
 func (suite *ScheduleCHASMSuite) TestDoubleReset_ChasmCallbacks() {
-	testScheduledWorkflowDoubleReset(suite, true, true)
+	testScheduledWorkflowDoubleReset(suite.T(), scheduleCHASMBackend, true, true)
 }
 
 func (suite *ScheduleCHASMSuite) TestDoubleReset_ResetRequestIDDeduplicationDisabled() {
-	testScheduledWorkflowDoubleReset(suite, true, false)
+	testScheduledWorkflowDoubleReset(suite.T(), scheduleCHASMBackend, true, false)
 }
 
 // testScheduledWorkflowResetAndContinueAsNew validates that the scheduler observes the completion of a
 // scheduled workflow whose chain contains both a reset and a continue-as-new, in either order.
-func testScheduledWorkflowResetAndContinueAsNew(suite *ScheduleCHASMSuite, resetFirst bool) {
-	t := suite.T()
-	newContext := chasmContextFactory
-	s := newScheduleEnv(t, []scheduleBackend{scheduleCHASMBackend})
+func testScheduledWorkflowResetAndContinueAsNew(t *testing.T, backend scheduleBackend, resetFirst bool) {
+	newContext := backend.context
+	s := newScheduleEnv(t, []scheduleBackend{backend})
 
 	sid := testcore.RandomizeStr("sched-test-reset-can")
 	wid := testcore.RandomizeStr("sched-test-reset-can-wf")
@@ -3584,6 +3602,7 @@ func testScheduledWorkflowResetAndContinueAsNew(suite *ScheduleCHASMSuite, reset
 		RequestId: uuid.NewString(),
 	})
 	require.NoError(t, err)
+	assertScheduleCallbackBackend(t, s, backend, sid)
 
 	listEntry := getScheduleEntryFromVisibility(t, s, sid, newContext, func(ent *schedulepb.ScheduleListEntry) bool {
 		return len(ent.Info.RecentActions) >= 1 &&
@@ -3627,14 +3646,14 @@ func testScheduledWorkflowResetAndContinueAsNew(suite *ScheduleCHASMSuite, reset
 	continueAsNew := func(runID string) string {
 		signal("continue")
 		var newRunID string
-		suite.Await(func(suite *ScheduleCHASMSuite) {
+		await.Require(ctx, t, func(at *await.T) {
 			desc, err := s.FrontendClient().DescribeWorkflowExecution(ctx, &workflowservice.DescribeWorkflowExecutionRequest{
 				Namespace: s.Namespace().String(),
 				Execution: &commonpb.WorkflowExecution{WorkflowId: workflowID},
 			})
-			suite.NoError(err)
+			require.NoError(at, err)
 			newRunID = desc.GetWorkflowExecutionInfo().GetExecution().GetRunId()
-			suite.NotEqual(runID, newRunID)
+			require.NotEqual(at, runID, newRunID)
 		}, 10*time.Second, 100*time.Millisecond)
 		return newRunID
 	}
@@ -3657,17 +3676,16 @@ func testScheduledWorkflowResetAndContinueAsNew(suite *ScheduleCHASMSuite, reset
 }
 
 func (suite *ScheduleCHASMSuite) TestResetThenContinueAsNew() {
-	testScheduledWorkflowResetAndContinueAsNew(suite, true)
+	testScheduledWorkflowResetAndContinueAsNew(suite.T(), scheduleCHASMBackend, true)
 }
 
 func (suite *ScheduleCHASMSuite) TestContinueAsNewThenReset() {
-	testScheduledWorkflowResetAndContinueAsNew(suite, false)
+	testScheduledWorkflowResetAndContinueAsNew(suite.T(), scheduleCHASMBackend, false)
 }
 
-func testResetWithAdditionalCallback(suite *ScheduleCHASMSuite, enableCHASMCallbacks bool) {
-	t := suite.T()
-	newContext := chasmContextFactory
-	s := newScheduleEnv(t, []scheduleBackend{scheduleCHASMBackend})
+func testResetWithAdditionalCallback(t *testing.T, backend scheduleBackend, enableCHASMCallbacks bool) {
+	newContext := backend.context
+	s := newScheduleEnv(t, []scheduleBackend{backend})
 	s.OverrideDynamicConfig(dynamicconfig.EnableCHASMCallbacks, enableCHASMCallbacks)
 	s.OverrideDynamicConfig(
 		callback.AllowedAddresses,
@@ -3714,6 +3732,7 @@ func testResetWithAdditionalCallback(suite *ScheduleCHASMSuite, enableCHASMCallb
 		RequestId: uuid.NewString(),
 	})
 	require.NoError(t, err)
+	assertScheduleCallbackBackend(t, s, backend, sid)
 
 	listEntry := getScheduleEntryFromVisibility(t, s, sid, newContext, func(ent *schedulepb.ScheduleListEntry) bool {
 		return len(ent.Info.RecentActions) >= 1 &&
@@ -3785,25 +3804,25 @@ func testResetWithAdditionalCallback(suite *ScheduleCHASMSuite, enableCHASMCallb
 	}
 
 	var startRequestID string
-	suite.Await(func(suite *ScheduleCHASMSuite) {
+	await.Require(ctx, t, func(at *await.T) {
 		descResp, err := s.FrontendClient().DescribeWorkflowExecution(ctx, &workflowservice.DescribeWorkflowExecutionRequest{
 			Namespace: s.Namespace().String(),
 			Execution: resetRun,
 		})
-		suite.NoError(err)
-		suite.Len(descResp.Callbacks, 2)
+		require.NoError(at, err)
+		require.Len(at, descResp.Callbacks, 2)
 		reqIDs := descResp.GetWorkflowExtendedInfo().GetRequestIdInfos()
 		attachInfo, ok := reqIDs[attachRequestID]
-		suite.True(ok, "attachRequestId not found in RequestIdInfos")
-		suite.Equal(enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED, attachInfo.GetEventType())
+		require.True(at, ok, "attachRequestId not found in RequestIdInfos")
+		require.Equal(at, enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED, attachInfo.GetEventType())
 		for reqID, info := range reqIDs {
 			if info.GetEventType() == enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED {
 				startRequestID = reqID
 				break
 			}
 		}
-		suite.NotEmpty(startRequestID, "no request ID found for WorkflowExecutionStarted")
-		suite.NotEqual(startRequestID, attachRequestID,
+		require.NotEmpty(at, startRequestID, "no request ID found for WorkflowExecutionStarted")
+		require.NotEqual(at, startRequestID, attachRequestID,
 			"schedule callback and manually-attached callback must have different request IDs")
 	}, 10*time.Second, 100*time.Millisecond)
 
@@ -3835,11 +3854,11 @@ func testResetWithAdditionalCallback(suite *ScheduleCHASMSuite, enableCHASMCallb
 }
 
 func (suite *ScheduleCHASMSuite) TestResetWithAdditionalCallback_HSMCallbacks() {
-	testResetWithAdditionalCallback(suite, false)
+	testResetWithAdditionalCallback(suite.T(), scheduleCHASMBackend, false)
 }
 
 func (suite *ScheduleCHASMSuite) TestResetWithAdditionalCallback_ChasmCallbacks() {
-	testResetWithAdditionalCallback(suite, true)
+	testResetWithAdditionalCallback(suite.T(), scheduleCHASMBackend, true)
 }
 
 // testCreatesWorkflowSentinel tests that creating a CHASM schedule also starts a

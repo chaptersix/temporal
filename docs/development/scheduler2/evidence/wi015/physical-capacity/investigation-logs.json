@@ -1,0 +1,22 @@
+{
+  "scheduler2-wi015-payload-physical01.log.gz": {
+    "uncompressed_sha256": "8a1aad22e47be0460ce1723a959f33fd7db28a5efa2d409bfe913bd9fe3665a1",
+    "bytes": 454923
+  },
+  "scheduler2-wi015-payload-physical02.log.gz": {
+    "uncompressed_sha256": "3701d8bf5e8c1e84d2ef17b80d44289d6bb008f6d727c22ae68d6ff0ecf56ab4",
+    "bytes": 7607
+  },
+  "scheduler2-wi015-payload-physical03.log.gz": {
+    "uncompressed_sha256": "53900ada80fc97125e47ece99be9be17a6d2d17d6ce12cabe1b48d0d10fd59f7",
+    "bytes": 240901
+  },
+  "scheduler2-wi015-payload-physical04.log.gz": {
+    "uncompressed_sha256": "74f0dbee0f98acd6b029a38e0571eacba55bdd6034ce0c5dc78e6e88004b4d24",
+    "bytes": 239164
+  },
+  "scheduler2-wi015-shared-full01.log.gz": {
+    "uncompressed_sha256": "aa024e3f636dae9c62ab3350e20fe309376d12127acc26dfa6104e6ab9ce4503",
+    "bytes": 3974961
+  }
+}

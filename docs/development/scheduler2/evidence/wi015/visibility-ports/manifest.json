@@ -1,0 +1,26 @@
+{
+  "source_sha256": {
+    "tests/schedule2_visibility_test.go": "6ee0411eab1d7c5263af9caa19a647970b54495330c261bf682b8a890a0c8c18",
+    "chasm/lib/scheduler2/public_visibility.go": "fcc690c67717147a3d945ae47233c6981c6ba9f4487adaf75a60bc6d83b249de",
+    "chasm/lib/scheduler2/public_visibility_test.go": "cb313a33e470b6a562de58922cc35d2f5c29e209556cfbe8ea625739dec29e0b",
+    "chasm/lib/scheduler2/public.go": "40a131719708d2883d34aa6ff31fd3fc8ffd10dc0c0db492c58be9c4acfb1626",
+    "chasm/lib/scheduler2/library.go": "1116be977454440ca2642283c4a599d83dfc7693833bff5893f1cd7b57c7e5d1",
+    "tests/schedule_test.go": "c84e874e37b301905dcf338d35a2827843116ffd775ecb4c7bb4400da13880ea",
+    "chasm/lib/scheduler/scheduler.go": "d1b06bd1a5c38225831921a3ef8a66bb5edab8986ff8bc1525a9a6cb53d6e7cc",
+    "chasm/lib/scheduler/invoker.go": "d20c5a4cae014eb7c5331938ad9d5dbf7ba8d2536655ff60007a7aca77ca297b"
+  },
+  "functional_command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 ./tests -run '^TestSchedule2(UpdateScheduleMemo|LargeScheduleID|ListSchedulesPreservesV2ScheduleIDWithV1Prefix|ScheduleNextActionTimeVisibility|ScheduleCountsVisibility)$' -count=1 -timeout=4m",
+  "unit_command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep ./chasm/lib/scheduler2 -run '^TestPublicVisibility' -count=1",
+  "results": {
+    "initial": "FAIL31.280s: next-action invalid search attribute; running count no match; other 3 cases pass",
+    "fixed": "PASS5.315s: all5",
+    "unit": "PASS0.649s"
+  },
+  "scenario_mapping": {
+    "UpdateScheduleMemo": "TestSchedule2UpdateScheduleMemo",
+    "LargeScheduleID": "TestSchedule2LargeScheduleID",
+    "ListSchedulesPreservesV2ScheduleIDWithV1Prefix": "TestSchedule2ListSchedulesPreservesV2ScheduleIDWithV1Prefix",
+    "ScheduleNextActionTimeVisibility": "TestSchedule2ScheduleNextActionTimeVisibility",
+    "ScheduleCountsVisibility": "TestSchedule2ScheduleCountsVisibility"
+  }
+}

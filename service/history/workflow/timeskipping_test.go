@@ -16,9 +16,11 @@ import (
 	"go.temporal.io/server/chasm/lib/activity"
 	chasmnexus "go.temporal.io/server/chasm/lib/nexusoperation"
 	nexusoperationpb "go.temporal.io/server/chasm/lib/nexusoperation/gen/nexusoperationpb/v1"
+	"go.temporal.io/server/chasm/lib/scheduler2"
 	chasmworkflow "go.temporal.io/server/chasm/lib/workflow"
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/clock"
+	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/metrics/metricstest"
 	"go.temporal.io/server/common/testing/testlogger"
@@ -73,20 +75,34 @@ func TestTimeSkippingInfoUtilTimeConversions(t *testing.T) {
 
 func (s *mutableStateSuite) TestIsTimeSkippingFeatureEnabled() {
 	cases := []struct {
-		name             string
-		archetypeID      chasm.ArchetypeID
-		workflowEnabled  bool
-		schedulerEnabled bool
-		want             bool
+		name               string
+		archetypeID        chasm.ArchetypeID
+		workflowEnabled    bool
+		schedulerEnabled   bool
+		registerScheduler2 bool
+		nilRegistry        bool
+		want               bool
 	}{
 		{name: "workflow enabled", archetypeID: chasm.WorkflowArchetypeID, workflowEnabled: true, want: true},
 		{name: "workflow disabled", archetypeID: chasm.WorkflowArchetypeID, schedulerEnabled: true},
 		{name: "schedule enabled", archetypeID: chasm.SchedulerArchetypeID, schedulerEnabled: true, want: true},
 		{name: "schedule disabled", archetypeID: chasm.SchedulerArchetypeID, workflowEnabled: true},
+		{name: "scheduler2 unregistered", archetypeID: chasm.GenerateTypeID(chasm.FullyQualifiedName("scheduler2", "scheduler")), schedulerEnabled: true},
+		{name: "scheduler2 nil registry", archetypeID: chasm.GenerateTypeID(chasm.FullyQualifiedName("scheduler2", "scheduler")), schedulerEnabled: true, nilRegistry: true},
+		{name: "scheduler2 registered enabled", archetypeID: chasm.GenerateTypeID(chasm.FullyQualifiedName("scheduler2", "scheduler")), schedulerEnabled: true, registerScheduler2: true, want: true},
+		{name: "scheduler2 registered default disabled", archetypeID: chasm.GenerateTypeID(chasm.FullyQualifiedName("scheduler2", "scheduler")), workflowEnabled: true, registerScheduler2: true},
 		{name: "unknown archetype", archetypeID: 0, workflowEnabled: true, schedulerEnabled: true},
 	}
 	for _, test := range cases {
 		s.Run(test.name, func() {
+			registry := chasm.NewRegistry(log.NewTestLogger())
+			if test.registerScheduler2 {
+				s.Require().NoError(registry.Register(scheduler2.NewNilLibrary()))
+			}
+			if test.nilRegistry {
+				registry = nil
+			}
+			s.mockShard.SetChasmRegistry(registry)
 			namespace := s.mutableState.GetNamespaceEntry().Name().String()
 			s.mockConfig.WorkflowTimeSkippingEnabled = func(name string) bool {
 				s.Equal(namespace, name)

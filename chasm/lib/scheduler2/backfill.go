@@ -46,7 +46,10 @@ func (s *Scheduler) AcceptBackfill(ctx chasm.MutableContext, request *schedulepb
 	if start.Before(minimum) || !start.Before(maximum) || end.Before(start) || !end.Before(maximum) {
 		return serviceerror.NewInvalidArgument("backfill range is outside [2000, 2101) or reversed")
 	}
-	if len(s.Backfills) >= 4 {
+	if err := s.checkPublicCommandCapacity(1); err != nil {
+		return err
+	}
+	if s.PublicRevision == 0 && len(s.Backfills) >= 4 {
 		return serviceerror.NewResourceExhausted(enumspb.RESOURCE_EXHAUSTED_CAUSE_SYSTEM_OVERLOADED, "active backfill capacity exhausted")
 	}
 	if s.BackfillSequence == math.MaxUint64 {
@@ -105,7 +108,7 @@ func backfillEnumerator(ctx chasm.Context, g *Generator) (*occurrence.Enumerator
 	if err := proto.Unmarshal(definition.Spec, spec); err != nil {
 		return nil, err
 	}
-	return occurrence.New(spec, definition.Seed, g.Continuation.Revision)
+	return g.Scheduler.Get(ctx).newEnumerator(spec, definition.Seed, g.Continuation.Revision)
 }
 
 // scanBackfill performs one bounded search quantum. An eligible candidate pins
@@ -127,6 +130,7 @@ func (s *Scheduler) scanBackfill(ctx chasm.MutableContext) error {
 		state = decodeContinuation(b.Continuation)
 		if b.Continuation.Revision != g.Continuation.Revision {
 			state, _, err = enumerator.RebaseRange(state)
+			b.SkipBatchRemaining = 0
 		}
 	}
 	if err != nil {

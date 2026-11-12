@@ -1,0 +1,31 @@
+{
+  "source_sha256": {
+    "tests/schedule2_spec_test.go": "c9cda87fd24c434039ffd086865f0acc0cbb677f0162f1e1c1199cfe768c8ce4",
+    "tests/schedule_test.go": "c84e874e37b301905dcf338d35a2827843116ffd775ecb4c7bb4400da13880ea",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence.go": "83ac9d0a074cb11a67e8a07305d72a9543f4c9a2dc7f8f2772234e29c072f2bc",
+    "chasm/lib/scheduler2/internal/occurrence/public_limits_test.go": "e8acdef2d687448dc297d8c661c5aa2c3aecbe8f8e3cb76d34f8fc4e9d0108d4",
+    "chasm/lib/scheduler2/internal/occurrence/limits_test.go": "5e6d77be94b301f874217da3ed86177ed40c4e09c2af1c680aab13865453eef4",
+    "chasm/lib/scheduler2/public.go": "ff15291a02f9a05ffaa133f6828185b2c824a576f3609c274883734804bbf235",
+    "chasm/lib/scheduler2/generator.go": "dc51c97efab3e28719eac78624485372b8e44036e21e1b91bb02e753dd79572b",
+    "chasm/lib/scheduler2/backfill.go": "e4cf8f8ec17ff1d108184cc40ac0f0be845f9e9be021f058d65270ef22da37cc",
+    "chasm/lib/scheduler2/coordinator.go": "5db92dd6c9882bdc8fa3332d29a7c10930aa5a3dc32093f5e6693d24b15a3cf3",
+    "service/worker/scheduler/candidate.go": "794011c72c2705bc4a4d4bb76d603c794ae9d180bb2ec379edc3708722ccef09",
+    "service/frontend/workflow_handler.go": "a1162b0cc6bd9860948e90153fecde9686d923334b242f17d01417de8f3c4571"
+  },
+  "functional_command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 ./tests -run '^TestSchedule2(MirroredIncludeExcludeSpec|MirroredIncludeExcludeSpecOnUpdate|ScheduleFarFutureActionTimes|ScheduleManyCalendars)$' -count=1 -timeout=4m",
+  "regression_command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep ./chasm/lib/scheduler2 ./chasm/lib/scheduler2/internal/occurrence -run '^Test(Public|Executing|Generation|Backfill|LimitsDefinition|PrototypeBounds)' -count=1",
+  "results": {
+    "initial": "FAIL1.318s: ManyCalendars rejected specification exceeds term limit; other3pass",
+    "fixed": "PASS9.358s all4",
+    "regression": "PASS root1.772s occurrence1.079s",
+    "final_functional": "PASS9.374s after test-context/lint fixes",
+    "final_limits": "PASS0.628s"
+  },
+  "scenario_mapping": {
+    "MirroredIncludeExcludeSpec": "TestSchedule2MirroredIncludeExcludeSpec",
+    "MirroredIncludeExcludeSpecOnUpdate": "TestSchedule2MirroredIncludeExcludeSpecOnUpdate",
+    "ScheduleFarFutureActionTimes": "TestSchedule2ScheduleFarFutureActionTimes",
+    "ScheduleManyCalendars": "TestSchedule2ScheduleManyCalendars"
+  },
+  "post_test_changes": "None after final functional/limits runs; source hashes reflect final shared snapshot."
+}

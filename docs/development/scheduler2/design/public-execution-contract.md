@@ -89,8 +89,8 @@ the old source classification while retaining the new bounded issuance horizon:
 | --- | --- |
 | Successful Start response | Acknowledge with actual first-run/chain identity and execution-time start observation; count one successful action. |
 | Transient service error, context deadline or explicit rate-limit delay | Retry the same frozen request/ID with existing bounded backoff/deadline; no invented success and no second admission. |
-| WorkflowExecutionAlreadyStarted for an unrelated duplicate | Terminal failed/dropped admission, no retry, matching existing special-case error accounting; never infer ownership from an arbitrary error RunID. |
-| Permanent validation/permission/nontransient error | Terminal failed admission with source-compatible error observation; no retry loop. |
+| WorkflowExecutionAlreadyStarted without an ownership certificate | Retain ambiguity: do not infer ownership or nonacceptance from an arbitrary error RunID. |
+| Permanent status after an actual possibly retried RPC | Retain unresolved authority, bounded retries then Ambiguous; final status cannot certify no prior acceptance. Common pre-issuance validation rejects before mutation/issuance. |
 | Issuance/retry horizon exhausted | Terminal expiry according to the accepted decision contract; do not release overlapping authority early when remote acceptance is ambiguous. |
 | Cancel/terminate NotFound | Existing EffectNotFound resolution, preserving chain fence and reconciliation semantics. |
 | Cancel/terminate other failure | Existing bounded effect retry/ambiguity contract; do not change target to a newer chain. |
@@ -247,3 +247,48 @@ Removing prototype ceilings requires updating rejection tests/decision mappings 
 recording the actual configured limits. Aggregate state capacity remains a measured
 M3/M4 concern, including duplicated definition/templates and retained snapshots; do
 not claim that raising byte limits alone preserves the public input domain under load.
+
+## D59-E1 — Start errors after hidden retries
+
+The source investigation in evidence/wi015/start-error-investigation.md supersedes
+the draft's unsafe permanent-error terminal disposition. Frontend and History client
+wrappers may retry within one apparent scheduler call. No examined existing API
+provides a no-acceptance certificate covering prior/in-flight attempts. Accepted M2
+no-loss authority therefore governs: ordinary post-issuance errors preserve the
+immutable intent, bounded retry deadline and eventual Ambiguous state until positive
+acknowledgment/callback reconciles it. This is an explained safety difference from
+old scheduler drop behavior, not an unbounded retry guarantee. The named actual
+StartHandler regression simulates hidden acceptance then final PermissionDenied and
+checks retained authority through expiry and eventual callback reconciliation.
+
+## Definition bounds and terminal payload retention checkpoint
+
+Valid public StartTime/EndTime values are preserved even outside the prototype's
+execution cursor domain; protobuf validity is the ingress check. An epoch lower
+bound does not mean a current cursor has traversed the full definition. Effective
+enumeration still stops at its existing supported horizon; wider timestamp execution
+and backfill remain a separate unfinished compatibility boundary. Domain exhaustion
+must not be presented as proof of global absence of later public occurrences.
+
+The prototype365d catchup maximum is removed. A nonnegative duration remains intact;
+adding it to an occurrence saturates only the stored int64 deadline when the true
+value exceeds representable time. This preserves eligibility for every representable
+execution instant without wrapping a far-future deadline into the past.
+
+Completed and StartOnly operation metadata continues to fence late callbacks, start
+results and physical tasks. Their issuance payload is now reclaimable immediately:
+Issue never returns a terminal request, and effect publication freezes its own
+request while its target is active. Pending, Started and Ambiguous records retain
+their immutable issuance bytes. This implements the existing D59 reclamation
+requirement; it does not resolve duplicate large payloads among live definitions,
+active admissions and carryover. Aggregate capacity remains open.
+
+### Measured aggregate transport boundary
+
+Actual WI015 physical capacity tests retained near2MiB input/result/failure in
+about6.25MB of scheduler state, but the next assembled6243479-byte Start RPC was
+rejected by the existing4194304-byte transport limit. Preserve this inherited
+boundary without changing globals, truncating accepted carryover or falsely marking
+the pending intent successful. Separate positive within-transport and negative
+aggregate-overflow tests are required; individual blob limits do not promise
+unbounded combined RPC size. See evidence/wi015/physical-capacity/investigation.md.

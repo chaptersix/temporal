@@ -189,7 +189,7 @@ func TestAllowAllPayloadIsolationAndNoPause(t *testing.T) {
 			poisoned++
 		}
 	}
-	require.Equal(t, 4, poisoned)
+	require.Equal(t, 3, poisoned) // Terminal issuance payload has been reclaimed.
 	h.reload()
 	allowDue(h, true)
 	s, ctx := h.root(false)

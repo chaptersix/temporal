@@ -209,6 +209,10 @@ func runLifecycleTrace(t *testing.T, path string) {
 				} else {
 					require.Zero(t, op.StartObservedAt)
 				}
+				if decision.Terminal(phase) {
+					require.NotContains(t, s.Requests, expected.RequestId)
+					continue
+				}
 				actual := &workflowservice.StartWorkflowExecutionRequest{}
 				require.NoError(t, proto.Unmarshal(s.Requests[expected.RequestId].Get(ctx).Data, actual))
 				require.True(t, proto.Equal(expected, actual), "frozen manual request differs")

@@ -1,12 +1,15 @@
 package scheduler2
 
 import (
+	"bytes"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/chasm"
@@ -25,7 +28,7 @@ func configurationSizedRequest(t *testing.T, size int) *workflowservice.StartWor
 	return request
 }
 
-func TestConfigurationResourceLimitNeighborsAndRecovery(t *testing.T) {
+func TestConfigurationPrototypeCeilingsRemoved(t *testing.T) {
 	t.Parallel()
 	for _, resource := range []string{"template bytes", "seed bytes", "catchup nanoseconds"} {
 		t.Run(resource, func(t *testing.T) {
@@ -45,20 +48,8 @@ func TestConfigurationResourceLimitNeighborsAndRecovery(t *testing.T) {
 					default:
 						t.Fatal("unknown resource")
 					}
-					before, physical := cloneNodes(h.durable), len(h.physical)
 					s, ctx := h.root(true)
-					err := s.UpdateConfiguration(ctx.(chasm.MutableContext), config)
-					if delta > 0 {
-						require.ErrorAs(t, err, new(*serviceerror.InvalidArgument))
-						requireRejectedCoordinatorUnchanged(h, before, physical)
-						// Retrying the same revision with valid input must succeed: rejection did
-						// not consume a revision, damage the source, or strand task publication.
-						config = localUpdateConfig(t, 2)
-						s, ctx = h.root(true)
-						require.NoError(t, s.UpdateConfiguration(ctx.(chasm.MutableContext), config))
-					} else {
-						require.NoError(t, err)
-					}
+					require.NoError(t, s.UpdateConfiguration(ctx.(chasm.MutableContext), config))
 					commitGeneration(h, true)
 					s, ctx = h.root(false)
 					require.Equal(t, int64(2), s.Revision)
@@ -112,4 +103,46 @@ func TestConfigurationIdleLimitNeighborsAndRecovery(t *testing.T) {
 			require.True(t, s.Closed)
 		})
 	}
+}
+
+func TestConfigurationLargeInputRetained(t *testing.T) {
+	t.Parallel()
+	h := manualHarness(t)
+	config := localUpdateConfig(t, 2)
+	config.Generation.Request.Input = &commonpb.Payloads{Payloads: []*commonpb.Payload{{Data: bytes.Repeat([]byte("i"), 2*1024*1024-16*1024)}}}
+	expected := proto.Clone(config.Generation.Request)
+	require.Greater(t, proto.Size(expected), 64*1024)
+	s, ctx := h.root(true)
+	require.NoError(t, s.UpdateConfiguration(ctx.(chasm.MutableContext), config))
+	commitGeneration(h, true)
+	config.Generation.Request.Input.Payloads[0].Data[0] ^= 0xff
+	s, ctx = h.root(false)
+	var actual workflowservice.StartWorkflowExecutionRequest
+	require.NoError(t, proto.Unmarshal(s.Generator.Get(ctx).Definition.Get(ctx).Request, &actual))
+	protorequire.ProtoEqual(t, expected, &actual)
+}
+
+func TestCatchupDeadlineSaturatesWithoutWrapping(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		actual int64
+		window time.Duration
+		want   int64
+	}{
+		{"exact", 10, 20, 30},
+		{"maximum", 10, time.Duration(math.MaxInt64 - 10), math.MaxInt64},
+		{"beyond", 10, time.Duration(math.MaxInt64), math.MaxInt64},
+		{"negative_epoch", -10, time.Duration(math.MaxInt64), math.MaxInt64 - 10},
+	} {
+		t.Run(tc.name, func(t *testing.T) { t.Parallel(); require.Equal(t, tc.want, catchupDeadline(tc.actual, tc.window)) })
+	}
+	h := manualHarness(t)
+	config := localUpdateConfig(t, 2)
+	config.Generation.CatchupWindow = time.Duration(math.MaxInt64)
+	s, ctx := h.root(true)
+	require.NoError(t, s.UpdateConfiguration(ctx.(chasm.MutableContext), config))
+	commitGeneration(h, true)
+	s, ctx = h.root(false)
+	require.Equal(t, int64(math.MaxInt64), s.Generator.Get(ctx).CatchupWindow)
 }

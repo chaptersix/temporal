@@ -97,6 +97,13 @@ const (
 )
 
 type Event struct {
+	// PublicManualIngress selects the public pending-command profile; execution capacities are unchanged.
+	PublicManualIngress bool
+	// PublicRunID is response metadata, independent of the chain fence and reducer state.
+	PublicRunID string
+	// BackfillBatchSkip is a persisted public batch overlap disposition.
+	BackfillBatchSkip bool
+
 	StartObserved   bool
 	StartObservedAt int64
 	BackfillID      uint64

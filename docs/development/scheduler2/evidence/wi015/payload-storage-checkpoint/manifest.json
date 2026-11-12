@@ -1,0 +1,29 @@
+{
+  "logs": {
+    "scheduler2-wi015-payload-proto.log": "bf3dc6d439f392b9d3120d281048d30604cb336fa05e884a46cb093d56db48db",
+    "scheduler2-wi015-payload-root.log": "cd4ea19fc9cc87602b783c89c1c94c404492fa97c88bbf0cf01318eaadb8fd7e",
+    "scheduler2-wi015-payload-final-focused2.log": "3b83ff2f774f036bb431cd644ccbe657c025736b218b7cf3bc7172fbe5bd601f",
+    "scheduler2-wi015-payload-three-stage.log": "d608d74ec19b33e4db216a03567244f63a7af4dfae0657e41b2cf8ece14187cd",
+    "scheduler2-wi015-payload-refactor.log": "3b83ff2f774f036bb431cd644ccbe657c025736b218b7cf3bc7172fbe5bd601f"
+  },
+  "source_sha256": {
+    "payload_storage.go": "043b6fe91d5d6d87e76454daef31c2ce4db7383e67ab4bb4f596581daac50e1f",
+    "payload_storage_test.go": "2c1cec13fd2ff4eb9dee7257cb458a867428f8681748d18f37da9f1cd1c9c863",
+    "component.go": "2b85286d7164890f82dd1f6bf0c0b6d612eb73f5f477e517ee32425084ded9c7",
+    "completion.go": "14987399aa4bc786f5f029e84f1a202f3a6473b8bbdfe5f6e8ff70757d12654b",
+    "generator.go": "58c0b9572da6758157431f11989b6ab45e46f91e4ddcd9ed1951f51108f3c316",
+    "manual.go": "fe461ca60a48a6ed233dabac493e4bc6b08b17fc9e4279fdab92e8a5699ae1c8",
+    "buffer.go": "d7999e49797297a80c8f285d9a2f9e987e732ddf756ebf44affddece01dd599d",
+    "coordinator.go": "8fdd38537b7f8a9263f05b13027f21749704217dca05937a1bf92c9632f4bffb",
+    "effects.go": "99cb5050c85d6ce999d7ec25f6890070a562516c6fc0675b5f552c263273c57c",
+    "public.go": "75f0f8a0b8e3cb4ea88f83fca8610646630d346b630f5eb9c45516cee1f05c36",
+    "public_mutation.go": "9d6ea8882dc6abe0794a8178ec200dfb1c1bbf7a32d06ae5e26bf90cc26be7a6",
+    "proto/v1/state.proto": "6d5a7fd647d17969b59871f6590eb7a4eee34d4bd830ce9596ca32f959d3e54a",
+    "gen/scheduler2pb/v1/state.pb.go": "21eb8869fdaf3329e2b023ad2a376a9bd8d5cd51d94a21cfb3d6657373edf67e"
+  },
+  "final_owned_source_sha256": {
+    "payload_storage.go": "5c7da7fd00e7381e64882741261407e783f5c5dfbccb0ed55cc6a03fb22e8919",
+    "payload_storage_test.go": "2c1cec13fd2ff4eb9dee7257cb458a867428f8681748d18f37da9f1cd1c9c863"
+  },
+  "note": "Original source_sha256 preserves the prior tested snapshot. final_owned_source_sha256 records the typed-helper and named-results lint refactors; integrator owns final combined validation."
+}

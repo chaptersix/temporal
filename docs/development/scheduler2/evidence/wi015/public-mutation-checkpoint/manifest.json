@@ -1,0 +1,18 @@
+{
+  "logs": {
+    "/private/tmp/scheduler2-wi015-public-mutation-atomic.log": "99ae7d261cf45200693bc3e0e3a11b50558a60e692e02703ba766de7ee464955",
+    "/private/tmp/scheduler2-wi015-public-mutation-frontend.log": "f07e7ff6f723d10ce518c02a1ec1eb610d4a8a8a68403e1085b65a02114947ae",
+    "/private/tmp/scheduler2-wi015-public-mutation-final.log": "639aacd764472b20db3c172c421cd9003b27ee8d01bea28aa1f08d0be759559c"
+  },
+  "source_sha256": {
+    "chasm/lib/scheduler2/public.go": "4a2220589d3be50a73dad910f8266966d3504dd73ecebe05bc4af910fbd3e718",
+    "chasm/lib/scheduler2/public_mutation.go": "36f39a7dcdb8eb63ed65dd89398f2763f8a33d93dc805b7201b7120dd837c7b1",
+    "chasm/lib/scheduler2/public_mutation_test.go": "bb4caf4d6e42ee27192e5472950e3b2a2b0c4de482f190e4e1eeb86fa2ed89cf",
+    "chasm/lib/scheduler2/public_api_test_dep.go": "ea7e2a5dbabeeb3ff469c7c396d35360342b90f5a9a0d27f71d84fdcecf515f5",
+    "common/testing/testhooks/schedule_frontend.go": "ebee45c6552bc6f138511c2160ffead7722ac659433279c365baf65dbfe4a405",
+    "service/frontend/workflow_handler.go": "a1162b0cc6bd9860948e90153fecde9686d923334b242f17d01417de8f3c4571",
+    "service/frontend/schedule_frontend_testhook_test.go": "9abbbb5080d78a6afb861cb494476c441b287818d54368033a0c7a3c36099290",
+    "chasm/lib/scheduler2/component.go": "9203b372cc90baa21a3582da61b10a8d41c023da2c3d40817545ddffed7ac609",
+    "chasm/lib/scheduler2/public_revision_test.go": "c44ba941f5926a3602dd4ab53877c5313b1fa639dc9fd075d9406e2277db8417"
+  }
+}

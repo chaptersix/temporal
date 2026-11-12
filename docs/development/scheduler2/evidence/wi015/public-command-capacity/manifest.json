@@ -1,0 +1,17 @@
+{
+  "source_sha256": {
+    "chasm/lib/scheduler2/backfill.go": "1a062dac0ba248ccd9037c6bd253833642976cc48577d906bc69d63f1e4f7383",
+    "chasm/lib/scheduler2/manual.go": "b281277f6ce7e5cf33f9db5387e4125e682600af78706439e2ba28529021c6a3",
+    "chasm/lib/scheduler2/public_mutation.go": "23f66e7f17fd6fbefabaf0b5dcafdc807299fe253a3db96e70394189eba48dec",
+    "chasm/lib/scheduler2/internal/decision/manual.go": "4902e9f259117a2d424f514062b2aef5fddad9eea1d7a2c3b7a3508255929b2e",
+    "chasm/lib/scheduler2/internal/decision/decision.go": "e0268afc3dc35a0cfd711d916f79268c43acae35963944d0422b1bc49f3cdecb",
+    "chasm/lib/scheduler2/public_command_capacity_test.go": "24f352a0b0f2505b7f7874dc901bacf84ae7dbd93d52e04aad1206400d36cea1",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "a49de52d22723bce2932b59f57eccd457eed5ccda6fb4e6caf2e0529bea976b5",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "7226b7fc76340caacbb7bb548d1bd8830fd0518fdbd7f663cd40c67891179744"
+  },
+  "logs": {
+    "scheduler2-wi015-public-command-ports01.log": "36e0487f9a46a03390d61a4188b613ec026ef2c1ef6a9a73cde3d247bf60fa36",
+    "scheduler2-wi015-public-command-boundary01.log": "bed67542080c13e38b675a100dc7a54d87d65582e436e0a1ab5c1ec4cb3f19e5",
+    "scheduler2-wi015-public-command-proto.log": "e54acb1778eb121d0f1d8993208bd141dfbf6474074491a9ad0f19e61799b6f7"
+  }
+}

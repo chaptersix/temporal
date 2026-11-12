@@ -23,7 +23,7 @@ func NewEffectHandler(cancel func(context.Context, *workflowservice.RequestCance
 	return &EffectHandler{cancel: cancel, terminate: terminate, permit: make(chan struct{}, 1)}
 }
 
-func (*EffectHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.EffectTask) (bool, error) {
+func (*EffectHandler) Validate(_ chasm.Context, s *Scheduler, _ chasm.TaskInvocation, task *scheduler2pb.EffectTask) (bool, error) {
 	if s.Closed {
 		return false, nil
 	}
@@ -33,7 +33,7 @@ func (*EffectHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskIn
 			continue
 		}
 		wake, pending := decision.EffectWake(effect)
-		return pending && attrs.ScheduledTime.UnixNano() == wake, nil
+		return pending && task.WakeTime == wake, nil
 	}
 	return false, nil
 }

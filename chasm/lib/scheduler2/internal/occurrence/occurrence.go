@@ -4,6 +4,7 @@ package occurrence
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"math"
 	"time"
 
 	schedulepb "go.temporal.io/api/schedule/v1"
@@ -74,17 +75,28 @@ func supported(t time.Time) bool {
 
 // New compiles a bounded definition without modifying the caller's protobuf.
 func New(spec *schedulepb.ScheduleSpec, seed string, revision int64) (*Enumerator, error) {
+	return newEnumerator(spec, seed, revision, 64*1024, 64, 1024)
+}
+
+// NewPublic compiles an ingress-validated public definition without an additional
+// definition-size ceiling. Scan work still yields at the same probe and output
+// budgets. Work per raw lookup scales with the accepted spec.
+func NewPublic(spec *schedulepb.ScheduleSpec, seed string, revision int64) (*Enumerator, error) {
+	return newEnumerator(spec, seed, revision, math.MaxInt, math.MaxInt, math.MaxInt)
+}
+
+func newEnumerator(spec *schedulepb.ScheduleSpec, seed string, revision int64, maxBytes, maxTerms, maxRanges int) (*Enumerator, error) {
 	if spec == nil || revision <= 0 {
 		return nil, serviceerror.NewInvalidArgument("definition and positive revision are required")
 	}
-	if proto.Size(spec) > 64*1024 {
+	if proto.Size(spec) > maxBytes {
 		return nil, serviceerror.NewInvalidArgument("prototype definition exceeds 64 KiB")
 	}
 	if err := validateBounds(spec); err != nil {
 		return nil, err
 	}
 	builder := legacyscheduler.NewSpecBuilder(func() int { return 0 }, func() int { return 0 })
-	compiled, err := builder.NewBoundedCompiledSpec(spec, 64, 1024)
+	compiled, err := builder.NewBoundedCompiledSpec(spec, maxTerms, maxRanges)
 	if err != nil {
 		return nil, serviceerror.NewInvalidArgument(err.Error())
 	}
@@ -103,17 +115,19 @@ func New(spec *schedulepb.ScheduleSpec, seed string, revision int64) (*Enumerato
 		e.start = canonical.StartTime.AsTime()
 	}
 	if canonical.EndTime != nil {
-		e.end = canonical.EndTime.AsTime()
+		if end := canonical.EndTime.AsTime(); end.Before(e.end) {
+			e.end = end
+		}
 	}
 	return e, nil
 }
 
 func validateBounds(spec *schedulepb.ScheduleSpec) error {
-	if spec.StartTime != nil && (spec.StartTime.CheckValid() != nil || !supported(spec.StartTime.AsTime())) {
-		return serviceerror.NewInvalidArgument("start time is outside the prototype range [2000, 2101)")
+	if spec.StartTime != nil && (spec.StartTime.CheckValid() != nil) {
+		return serviceerror.NewInvalidArgument("invalid start timestamp")
 	}
-	if spec.EndTime != nil && (spec.EndTime.CheckValid() != nil || !supported(spec.EndTime.AsTime())) {
-		return serviceerror.NewInvalidArgument("end time is outside the prototype range [2000, 2101)")
+	if spec.EndTime != nil && (spec.EndTime.CheckValid() != nil) {
+		return serviceerror.NewInvalidArgument("invalid end timestamp")
 	}
 	if spec.Jitter != nil && (spec.Jitter.CheckValid() != nil || spec.Jitter.AsDuration() < 0) {
 		return serviceerror.NewInvalidArgument("jitter must be a nonnegative valid duration")

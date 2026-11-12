@@ -14,9 +14,10 @@ import (
 // StartHandler issues the cloned request outside the execution lock.
 type StartHandler struct {
 	chasm.SideEffectTaskHandlerBase[*scheduler2pb.StartTask]
-	start   func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)
-	permit  chan struct{}
-	wallNow func() time.Time
+	start         func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (string, error)
+	startWorkflow func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error)
+	permit        chan struct{}
+	wallNow       func() time.Time
 }
 
 // NewStartHandler bounds concurrent local issuance to one RPC.
@@ -26,13 +27,13 @@ func NewStartHandler(start func(context.Context, *workflowservice.StartWorkflowE
 	return &StartHandler{start: start, permit: make(chan struct{}, 1), wallNow: time.Now} //nolint:forbidigo // Post-RPC wall observation plus captured skipped duration reconstructs execution time.
 }
 
-func (*StartHandler) Validate(_ chasm.Context, s *Scheduler, attrs chasm.TaskInvocation, task *scheduler2pb.StartTask) (bool, error) {
+func (*StartHandler) Validate(_ chasm.Context, s *Scheduler, _ chasm.TaskInvocation, task *scheduler2pb.StartTask) (bool, error) {
 	wake, pending := s.PendingStarts[task.OperationId]
-	return !s.Closed && pending && attrs.ScheduledTime.UnixNano() == wake, nil
+	return !s.Closed && pending && task.WakeTime == wake, nil
 }
 
 func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ chasm.TaskAttributes, task *scheduler2pb.StartTask) error {
-	if h == nil || h.start == nil {
+	if h == nil || (h.start == nil && h.startWorkflow == nil) {
 		return serviceerror.NewUnavailable("local workflow starter is not configured")
 	}
 	select {
@@ -53,8 +54,18 @@ func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ ch
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		chain, startErr := h.start(ctx, snapshot.request)
+		var chain string
+		var startErr error
+		if h.startWorkflow != nil {
+			var response *workflowservice.StartWorkflowExecutionResponse
+			response, startErr = h.startWorkflow(ctx, snapshot.request)
+			chain, event.PublicRunID = response.GetFirstExecutionRunId(), response.GetRunId()
+		} else {
+			chain, startErr = h.start(ctx, snapshot.request)
+		}
 		if startErr != nil {
+			// Client retries can hide acceptance before the final error, including
+			// a permanent status. Preserve authority until positive reconciliation.
 			event.Kind = decision.RetryableFailure
 		} else {
 			event.Kind = decision.Acknowledged

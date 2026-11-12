@@ -4822,8 +4822,16 @@ func (wh *WorkflowHandler) UpdateSchedule(
 		return nil, err
 	}
 
-	if _, selected := wh.scheduleFrontend(); selected {
-		return nil, wh.unsupportedSelectedScheduleOperation(request.Namespace, "UpdateSchedule")
+	if selectedFrontend, selected := wh.scheduleFrontend(); selected {
+		mutation, ok := selectedFrontend.(testhooks.ScheduleMutationFrontend)
+		if !ok {
+			return nil, wh.unsupportedSelectedScheduleOperation(request.Namespace, "UpdateSchedule")
+		}
+		namespaceID, err := wh.namespaceRegistry.GetNamespaceID(namespace.Name(request.Namespace))
+		if err != nil {
+			return nil, err
+		}
+		return mutation.UpdateSchedule(ctx, namespaceID, request)
 	}
 	if wh.chasmSchedulerEnabled(ctx, request.Namespace) {
 		res, err := wh.updateScheduleCHASM(ctx, request)
@@ -4992,7 +5000,12 @@ func (wh *WorkflowHandler) PatchSchedule(
 	}
 
 	if selected {
-		return nil, wh.unsupportedSelectedScheduleOperation(request.Namespace, "PatchSchedule")
+		selectedFrontend, _ := wh.scheduleFrontend()
+		mutation, ok := selectedFrontend.(testhooks.ScheduleMutationFrontend)
+		if !ok {
+			return nil, wh.unsupportedSelectedScheduleOperation(request.Namespace, "PatchSchedule")
+		}
+		return mutation.PatchSchedule(ctx, namespaceID, request)
 	}
 	if useChasmScheduler {
 		res, err := wh.patchScheduleCHASM(ctx, request)
@@ -5074,8 +5087,16 @@ func (wh *WorkflowHandler) ListScheduleMatchingTimes(ctx context.Context, reques
 		return nil, err
 	}
 
-	if _, selected := wh.scheduleFrontend(); selected {
-		return nil, wh.unsupportedSelectedScheduleOperation(request.Namespace, "ListScheduleMatchingTimes")
+	if selectedFrontend, selected := wh.scheduleFrontend(); selected {
+		mutation, ok := selectedFrontend.(testhooks.ScheduleMutationFrontend)
+		if !ok {
+			return nil, wh.unsupportedSelectedScheduleOperation(request.Namespace, "ListScheduleMatchingTimes")
+		}
+		namespaceID, err := wh.namespaceRegistry.GetNamespaceID(namespace.Name(request.Namespace))
+		if err != nil {
+			return nil, err
+		}
+		return mutation.ListScheduleMatchingTimes(ctx, namespaceID, request)
 	}
 	// Prefer CHASM scheduler if enabled.
 	if wh.chasmSchedulerEnabled(ctx, request.Namespace) {

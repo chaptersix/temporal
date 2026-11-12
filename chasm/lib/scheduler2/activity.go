@@ -6,6 +6,7 @@ import (
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/common"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -41,7 +42,7 @@ func (s *Scheduler) startSnapshot(ctx chasm.Context, id string) (startSnapshot, 
 	if err != nil || request == nil {
 		return startSnapshot{}, err
 	}
-	_, propagated := ctx.GetTimeSkippingPropagateState()
+	config, propagated := ctx.GetTimeSkippingPropagateState()
 	skipped := propagated.GetInitialSkippedDuration()
 	if skipped != nil {
 		if err := skipped.CheckValid(); err != nil {
@@ -52,5 +53,9 @@ func (s *Scheduler) startSnapshot(ctx chasm.Context, id string) (startSnapshot, 
 			return startSnapshot{}, serviceerror.NewInvalidArgument("skipped duration exceeds nanosecond range")
 		}
 	}
+	// Execution clock state is captured at issuance, as in the legacy invoker.
+	// The admitted request and callback bytes remain unchanged in persisted DATA.
+	request.TimeSkippingConfig = common.CloneProto(config)
+	request.TimeSkippingStatePropagation = common.CloneProto(propagated)
 	return startSnapshot{request: request, skipped: skipped.AsDuration()}, nil
 }

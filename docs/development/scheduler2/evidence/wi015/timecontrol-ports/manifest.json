@@ -1,0 +1,23 @@
+{
+  "source_sha256": {
+    "tests/schedule_test.go": "d2961c0a67cf57762d7e0c590b1ef8b9ccecbb26a84ebd70f19ff6a48fdb523b",
+    "tests/schedule2_timecontrol_test.go": "6d393f37c2e028f3d57330f39eb3e7d278d433572d75b54451623fd01adf7cc3",
+    "chasm/lib/scheduler2/timeskipping.go": "ec6380683017f1886f1c76ebf6e8eb6ed093d7bd6f07cfcbb255717b45311d30",
+    "chasm/lib/scheduler2/timeskipping_test.go": "fd693ad331613f867c1e111f484d624e7c834d9f51258f5e5930f53037810425",
+    "chasm/lib/scheduler2/coordinator.go": "5db92dd6c9882bdc8fa3332d29a7c10930aa5a3dc32093f5e6693d24b15a3cf3",
+    "chasm/lib/scheduler2/public_mutation.go": "23f66e7f17fd6fbefabaf0b5dcafdc807299fe253a3db96e70394189eba48dec",
+    "chasm/tree.go": "a192a526bc98b401a271df958fbb941285a773aa41310d8e2698d3d9a36b99c3"
+  },
+  "functional_command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 ./tests -run '^TestSchedule2(TimeSkippingDynamicConfigGate|MaxSkipCapsScheduleTimeSkipping|TimeSkippingFeatureDisabledWhileWorkflowRuns)$' -count=1 -timeout=4m",
+  "unit_command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep ./chasm/lib/scheduler2 -run '^TestTimeSkippingRuntimeGate$' -count=1",
+  "results": {
+    "initial": "FAIL31.716s final fast-forward completion after runtime flag reenable; other2pass",
+    "final": "PASS10.268s all3",
+    "unit": "PASS0.697s"
+  },
+  "scenario_mapping": {
+    "TimeSkippingDynamicConfigGate": "TestSchedule2TimeSkippingDynamicConfigGate",
+    "MaxSkipCapsScheduleTimeSkipping": "TestSchedule2MaxSkipCapsScheduleTimeSkipping",
+    "TimeSkippingFeatureDisabledWhileWorkflowRuns": "TestSchedule2TimeSkippingFeatureDisabledWhileWorkflowRuns"
+  }
+}

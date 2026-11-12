@@ -1,0 +1,4 @@
+# go.temporal.io/server/tests
+tests/schedule_test.go:667:63: expected ';', found wt
+FAIL	go.temporal.io/server/tests [setup failed]
+FAIL

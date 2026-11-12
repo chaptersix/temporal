@@ -7,7 +7,7 @@ import (
 
 // ScheduleFrontendFactory registers a test library and binds it to the actual History runtime.
 // It runs during construction, before any service starts.
-type ScheduleFrontendFactory func(chasm.Engine, chasm.VisibilityManager, *chasm.Registry) (testhooks.ScheduleFrontend, error)
+type ScheduleFrontendFactory func(testhooks.HistoryChasmRuntime) (testhooks.ScheduleFrontend, error)
 
 // WithScheduleFrontend selects an isolated schedule backend for a dedicated cluster.
 // frontendLibraries register offline identities in the separate frontend registry,

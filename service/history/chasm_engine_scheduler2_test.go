@@ -225,7 +225,7 @@ func (s *chasmEngineSuite) scheduler2DeleteRecreateFences(kind string) {
 	var effectAt int64
 	if kind == "effect" {
 		// Bind the tracked chain with the real starter, then accept CANCEL_OTHER.
-		s.Require().NoError(starter.Execute(engineCtx, aRef, chasm.TaskAttributes{}, &scheduler2pb.StartTask{OperationId: opID}))
+		s.Require().NoError(starter.Execute(engineCtx, aRef, chasm.TaskAttributes{}, &scheduler2pb.StartTask{OperationId: opID, WakeTime: startAt}))
 		_, err = s.engine.UpdateComponent(ctx, aRef, func(cc chasm.MutableContext, c chasm.Component) error {
 			return c.(*scheduler2.Scheduler).AcceptManual(cc, &schedulepb.TriggerImmediatelyRequest{OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER})
 		})
@@ -242,7 +242,7 @@ func (s *chasmEngineSuite) scheduler2DeleteRecreateFences(kind string) {
 		})
 		s.Require().NoError(err)
 		go func() {
-			result <- effects.Execute(engineCtx, aRef, chasm.TaskAttributes{}, &scheduler2pb.EffectTask{EffectId: effectID})
+			result <- effects.Execute(engineCtx, aRef, chasm.TaskAttributes{}, &scheduler2pb.EffectTask{EffectId: effectID, WakeTime: effectAt})
 		}()
 		select {
 		case request := <-effectEntered:
@@ -253,7 +253,7 @@ func (s *chasmEngineSuite) scheduler2DeleteRecreateFences(kind string) {
 		}
 	} else {
 		go func() {
-			result <- starter.Execute(engineCtx, aRef, chasm.TaskAttributes{}, &scheduler2pb.StartTask{OperationId: opID})
+			result <- starter.Execute(engineCtx, aRef, chasm.TaskAttributes{}, &scheduler2pb.StartTask{OperationId: opID, WakeTime: startAt})
 		}()
 		select {
 		case request := <-entered:
@@ -278,11 +278,11 @@ func (s *chasmEngineSuite) scheduler2DeleteRecreateFences(kind string) {
 		s.Require().False(root.Closed)
 		s.Require().Equal(chasm.LifecycleStateRunning, root.LifecycleState(cc))
 		if kind == "effect" {
-			valid, err := effects.Validate(cc, root, chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: time.Unix(0, effectAt)}}, &scheduler2pb.EffectTask{EffectId: effectID})
+			valid, err := effects.Validate(cc, root, chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: time.Unix(0, effectAt)}}, &scheduler2pb.EffectTask{EffectId: effectID, WakeTime: effectAt})
 			s.Require().NoError(err)
 			s.Require().True(valid)
 		} else {
-			valid, err := starter.Validate(cc, root, chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: time.Unix(0, startAt)}}, &scheduler2pb.StartTask{OperationId: opID})
+			valid, err := starter.Validate(cc, root, chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: time.Unix(0, startAt)}}, &scheduler2pb.StartTask{OperationId: opID, WakeTime: startAt})
 			s.Require().NoError(err)
 			s.Require().True(valid)
 		}
@@ -349,21 +349,21 @@ func (s *chasmEngineSuite) scheduler2DeleteRecreateFences(kind string) {
 		root := c.(*scheduler2.Scheduler)
 		s.Equal(a.ExecutionKey.RunID, root.Incarnation)
 		s.Equal(chasm.LifecycleStateCompleted, root.LifecycleState(cc))
-		valid, err := starter.Validate(cc, root, chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: time.Unix(0, startAt)}}, &scheduler2pb.StartTask{OperationId: opID})
+		valid, err := starter.Validate(cc, root, chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: time.Unix(0, startAt)}}, &scheduler2pb.StartTask{OperationId: opID, WakeTime: startAt})
 		s.NoError(err)
 		s.False(valid)
 		return nil
 	}))
-	s.Require().NoError(starter.Execute(engineCtx, aRef, chasm.TaskAttributes{}, &scheduler2pb.StartTask{OperationId: opID}))
+	s.Require().NoError(starter.Execute(engineCtx, aRef, chasm.TaskAttributes{}, &scheduler2pb.StartTask{OperationId: opID, WakeTime: startAt}))
 	s.Empty(entered, "closed request snapshot must not issue another RPC")
 	if kind == "effect" {
 		s.Require().NoError(s.engine.ReadComponent(ctx, aRef, func(cc chasm.Context, c chasm.Component) error {
-			valid, err := effects.Validate(cc, c.(*scheduler2.Scheduler), chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: time.Unix(0, effectAt)}}, &scheduler2pb.EffectTask{EffectId: effectID})
+			valid, err := effects.Validate(cc, c.(*scheduler2.Scheduler), chasm.TaskInvocation{TaskAttributes: chasm.TaskAttributes{ScheduledTime: time.Unix(0, effectAt)}}, &scheduler2pb.EffectTask{EffectId: effectID, WakeTime: effectAt})
 			s.NoError(err)
 			s.False(valid)
 			return nil
 		}))
-		s.Require().NoError(effects.Execute(engineCtx, aRef, chasm.TaskAttributes{}, &scheduler2pb.EffectTask{EffectId: effectID}))
+		s.Require().NoError(effects.Execute(engineCtx, aRef, chasm.TaskAttributes{}, &scheduler2pb.EffectTask{EffectId: effectID, WakeTime: effectAt}))
 		s.Empty(effectEntered, "closed effect snapshot must not issue another RPC")
 	}
 	// Existing internal result events are routed through the real engine to A.

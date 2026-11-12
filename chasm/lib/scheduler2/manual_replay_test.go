@@ -119,6 +119,10 @@ func TestManualSavedReplay(t *testing.T) {
 				}
 				require.Equal(t, expected, decision.Phase(op.Phase))
 				require.Equal(t, sequence, op.ManualId)
+				if decision.Terminal(expected) {
+					require.NotContains(t, s.Requests, id)
+					continue
+				}
 				frozen := &workflowservice.StartWorkflowExecutionRequest{}
 				require.NoError(t, proto.Unmarshal(s.Requests[id].Get(ctx).Data, frozen))
 				require.Equal(t, request.WorkflowId+"-"+time.Unix(0, op.Nominal).UTC().Format(time.RFC3339), frozen.WorkflowId)

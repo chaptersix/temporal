@@ -48,12 +48,12 @@ func TestSchedule2PublicPausedProfile(t *testing.T) {
 	var adapter *observedScheduleFrontend
 	var archetypeID uint32
 	backend := scheduleBackend{name: "scheduler2", context: func(ctx context.Context) context.Context { return ctx }, options: []testcore.TestOption{
-		testcore.WithScheduleFrontend(func(engine chasm.Engine, visibility chasm.VisibilityManager, registry *chasm.Registry) (testhooks.ScheduleFrontend, error) {
-			frontend, err := scheduler2.NewPublicTestFrontend(engine, visibility, registry)
+		testcore.WithScheduleFrontend(func(runtime testhooks.HistoryChasmRuntime) (testhooks.ScheduleFrontend, error) {
+			frontend, err := scheduler2.NewPublicTestFrontend(runtime.Engine, runtime.Visibility, runtime.Registry)
 			if err != nil {
 				return nil, err
 			}
-			archetypeID, _ = registry.ComponentIDFor(&scheduler2.Scheduler{})
+			archetypeID, _ = runtime.Registry.ComponentIDFor(&scheduler2.Scheduler{})
 			adapter = &observedScheduleFrontend{ScheduleFrontend: frontend}
 			return adapter, nil
 		}, scheduler2.NewNilLibrary()),

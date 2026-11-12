@@ -40,7 +40,6 @@ func TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover(t *testi
 			transferManual(h, true)
 			s, ctx = h.root(false)
 			firstID := s.OperationId
-			frozenFirst := append([]byte(nil), s.Requests[firstID].Get(ctx).Data...)
 			require.Empty(t, s.Operations[firstID].Get(ctx).ChainId, "failure must precede acknowledgment")
 			acceptManual(h, &schedulepb.TriggerImmediatelyRequest{OverlapPolicy: enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL}, true)
 			transferManual(h, true)
@@ -111,7 +110,7 @@ func TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover(t *testi
 			expected.LastCompletionResult = &commonpb.Payloads{Payloads: []*commonpb.Payload{prior}}
 			expected.ContinuedFailure = failure
 			protorequire.ProtoEqual(t, expected, allowRequest(h, successorID))
-			require.Equal(t, frozenFirst, s.Requests[firstID].Get(ctx).Data)
+			require.NotContains(t, s.Requests, firstID, "terminal metadata retains the fence without the issuance payload")
 			// A late first acknowledgment may add observation metadata, but cannot
 			// recount completion or replace failure carryover used by the successor.
 			h.apply(decision.Event{Kind: decision.Acknowledged, Incarnation: "incarnation", OperationID: firstID, ChainID: "first-chain", StartObserved: true, StartObservedAt: h.now + int64(time.Second)}, true)

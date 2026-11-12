@@ -139,7 +139,6 @@ func TestCallbackIdentityAndValidation(t *testing.T) {
 		{"failure_completed_status", Event{Incarnation: "inc", OperationID: state.Operation.ID, Outcome: Failure, Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED}, true},
 		{"missing_outcome", Event{Incarnation: "inc", OperationID: state.Operation.ID, Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED}, true},
 		{"running_status", Event{Incarnation: "inc", OperationID: state.Operation.ID, Outcome: Success, Status: enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING}, true},
-		{"oversized", Event{Incarnation: "inc", OperationID: state.Operation.ID, Outcome: Success, Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED, Result: make([]byte, MaxCompletionBytes+1)}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -233,4 +232,39 @@ func TestCallbackConcurrentBufferOwnership(t *testing.T) {
 	}
 	require.Equal(t, before, input)
 	require.Equal(t, []byte("immutable"), event.Result)
+}
+
+func TestCompletionLargeAcceptedValuesRetainCarryover(t *testing.T) {
+	t.Parallel()
+	for _, outcome := range []Outcome{Success, Failure} {
+		t.Run(map[Outcome]string{Success: "result", Failure: "failure"}[outcome], func(t *testing.T) {
+			t.Parallel()
+			state := completionInput(t)
+			prior := bytes.Repeat([]byte("p"), 256*1024)
+			state.Carryover.Result = bytes.Clone(prior)
+			value := bytes.Repeat([]byte("v"), 256*1024)
+			event := Event{Kind: Callback, Incarnation: "inc", OperationID: state.Operation.ID, ChainID: "chain", Outcome: outcome}
+			if outcome == Success {
+				event.Status, event.Result = enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED, value
+			} else {
+				event.Status, event.Failure = enumspb.WORKFLOW_EXECUTION_STATUS_FAILED, value
+			}
+			before := detachedCompletionState(t, state)
+			next, err := Step(state, event)
+			require.NoError(t, err)
+			require.Equal(t, before, state)
+			if outcome == Success {
+				require.Equal(t, value, next.Carryover.Result)
+				require.Empty(t, next.Carryover.Failure)
+			} else {
+				require.Equal(t, prior, next.Carryover.Result)
+				require.Equal(t, value, next.Carryover.Failure)
+				require.True(t, next.Carryover.FailurePresent)
+			}
+			expected := detachedCompletionState(t, next)
+			value[0] ^= 0xff
+			state.Carryover.Result[0] ^= 0xff
+			require.Equal(t, expected, next, "accepted carryover must remain detached")
+		})
+	}
 }

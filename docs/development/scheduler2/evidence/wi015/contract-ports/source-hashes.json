@@ -1,0 +1,5 @@
+{
+  "tests/schedule2_contract_test.go": "9974f42edbaaf478b2576e0381f13dc633e59dfb7fb9d2ab423c37da0c9b598a",
+  "tests/schedule_test.go:testScheduleTimeSkippingWeeklyForBackend": "17c14dce16d3282df44f5d9195d7a2f06193b4a878d206049a421ff8ee449bd7",
+  "tests/schedule_test.go:testScheduledWorkflowContinueAsNewCompletion": "12a030100800f278076d740e9868184e2b7a5007b36824664f223981a06968d7"
+}

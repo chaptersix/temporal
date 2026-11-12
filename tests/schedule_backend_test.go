@@ -19,9 +19,10 @@ import (
 )
 
 // scheduleBackend describes functional-test setup, not production rollout.
-// Scheduler2 will get a descriptor only when its actual frontend wiring exists.
+// Each descriptor supplies its own actual frontend wiring and cleanup context.
 type scheduleBackend struct {
 	name                         string
+	assertPersisted              func(*testing.T, *testcore.TestEnv, string)
 	context                      contextFactory
 	worker                       bool
 	preserveResultOnEmptySuccess bool
@@ -118,7 +119,7 @@ func (c scheduleCleanupClient) DeleteSchedule(ctx context.Context, r *workflowse
 
 func TestScheduleBackendDescriptorAndCleanup(t *testing.T) {
 	t.Parallel()
-	for _, backend := range []scheduleBackend{scheduleV1Backend, scheduleCHASMBackend} {
+	for _, backend := range []scheduleBackend{scheduleV1Backend, scheduleCHASMBackend, schedule2Backend} {
 		t.Run("arbitrary_name_"+backend.name, func(t *testing.T) {
 			require.Equal(t, backend.name == "v1", backend.worker)
 			expectedHeader := ""

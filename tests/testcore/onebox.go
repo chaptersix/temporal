@@ -305,12 +305,12 @@ func (c *temporalImpl) Start() error {
 	cleanupHooks := testhooks.Set(
 		c.testHooks,
 		testhooks.HistoryChasmRuntimeProvider,
-		func(chasmEngine chasm.Engine, chasmVisibilityManager chasm.VisibilityManager, registry *chasm.Registry) {
-			c.chasmEngine = chasmEngine
-			c.chasmVisibilityMgr = chasmVisibilityManager
+		func(runtime testhooks.HistoryChasmRuntime) {
+			c.chasmEngine = runtime.Engine
+			c.chasmVisibilityMgr = runtime.Visibility
 			if c.scheduleFrontendFactory != nil {
 				var frontend testhooks.ScheduleFrontend
-				frontend, factoryErr = c.scheduleFrontendFactory(chasmEngine, chasmVisibilityManager, registry)
+				frontend, factoryErr = c.scheduleFrontendFactory(runtime)
 				if factoryErr == nil {
 					if frontend == nil {
 						factoryErr = errors.New("schedule frontend factory returned nil")

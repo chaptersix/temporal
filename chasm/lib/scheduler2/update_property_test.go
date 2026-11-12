@@ -67,9 +67,13 @@ func TestUpdateComposedProperties(t *testing.T) {
 			expectedPending := map[string]int64{}
 			require.Equal(rt, blocker, s.BlockingOperationId)
 			for id, request := range frozen {
-				actual := &workflowservice.StartWorkflowExecutionRequest{}
-				require.NoError(rt, proto.Unmarshal(s.Requests[id].Get(cc).Data, actual))
-				protorequire.ProtoEqual(rt, request, actual)
+				if decision.Terminal(phase[id]) {
+					require.NotContains(rt, s.Requests, id)
+				} else {
+					actual := &workflowservice.StartWorkflowExecutionRequest{}
+					require.NoError(rt, proto.Unmarshal(s.Requests[id].Get(cc).Data, actual))
+					protorequire.ProtoEqual(rt, request, actual)
+				}
 				op := s.Operations[id].Get(cc)
 				require.Equal(rt, scheduler2pb.Phase(phase[id]), op.Phase)
 				require.Equal(rt, chain[id], op.ChainId)

@@ -112,6 +112,10 @@ func TestAllowAllSavedReplay(t *testing.T) {
 				}
 				require.Equal(t, expected, decision.Phase(op.Phase))
 				require.Equal(t, enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL, op.Policy)
+				if decision.Terminal(expected) {
+					require.NotContains(t, s.Requests, id(second))
+					continue
+				}
 				frozen := &workflowservice.StartWorkflowExecutionRequest{}
 				require.NoError(t, proto.Unmarshal(s.Requests[id(second)].Get(ctx).Data, frozen))
 				require.Equal(t, id(second), frozen.RequestId)

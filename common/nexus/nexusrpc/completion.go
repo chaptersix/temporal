@@ -89,6 +89,10 @@ func (c *CompletionHTTPClient) CompleteOperation(ctx context.Context, url string
 // CompleteOperationOptions is input for CompleteOperation.
 // If Error is set, the completion is unsuccessful. Otherwise, it is successful.
 type CompleteOperationOptions struct {
+	// WorkflowFirstExecutionRunID is canonical source workflow chain identity for
+	// internal Temporal callbacks. Non-workflow sources leave it empty. It is not
+	// serialized by external Nexus HTTP completion delivery.
+	WorkflowFirstExecutionRunID string
 	// Header to send in the completion request.
 	// Note that this is a Nexus header, not an HTTP header.
 	Header nexus.Header
