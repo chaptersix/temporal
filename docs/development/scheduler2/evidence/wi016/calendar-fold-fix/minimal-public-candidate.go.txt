@@ -1,0 +1,27 @@
+package main
+import (
+ "fmt"
+ "os"
+ "time"
+ schedulepb "go.temporal.io/api/schedule/v1"
+ "go.temporal.io/server/service/worker/scheduler"
+)
+func one(n int32) []*schedulepb.Range { return []*schedulepb.Range{{Start:n,End:n,Step:1}} }
+func main() {
+ data,err:=os.ReadFile("chasm/lib/scheduler2/internal/occurrence/testdata/Europe_London.tzif");if err!=nil { panic(err) }
+ loc,err:=time.LoadLocationFromTZData("Europe/London",data);if err!=nil {panic(err)}
+ for _,raw:=range []string{"2024-10-27T00:00:00Z","2024-10-27T00:00:30Z","2024-10-27T01:00:00Z","2024-10-27T01:00:30Z","2024-10-27T02:00:30Z"} {
+  t,err:=time.Parse(time.RFC3339,raw);if err!=nil {panic(err)}; fmt.Printf("literal %s -> %s\n",raw,t.In(loc).Format("2006-01-02T15:04:05-07:00 MST"))
+ }
+ fmt.Println("time.Date ambiguous 01:00:30 chooses",time.Date(2024,10,27,1,0,30,0,loc).UTC().Format(time.RFC3339))
+ cal:=&schedulepb.StructuredCalendarSpec{Year:one(2024),Month:one(10),DayOfMonth:one(27),DayOfWeek:one(0),Hour:one(1),Minute:one(0),Second:one(30)}
+ builder:=scheduler.NewSpecBuilder(func()int{return 86400},func()int{return 0})
+ spec:=&schedulepb.ScheduleSpec{StructuredCalendar:[]*schedulepb.StructuredCalendarSpec{cal},TimezoneName:"Europe/London",TimezoneData:data}
+ compiled,err:=builder.NewBoundedCompiledSpec(spec,64,1024);if err!=nil {panic(err)}
+ after:=time.Date(2024,10,27,0,0,0,0,time.UTC)
+ for i:=0;i<3;i++ {candidate,excluded:=compiled.NextTimeCandidate("",after);fmt.Printf("production after=%s nominal=%s local=%s excluded=%v\n",after.Format(time.RFC3339),candidate.Nominal.Format(time.RFC3339),candidate.Nominal.In(loc).Format("2006-01-02T15:04:05-07:00 MST"),excluded);if candidate.Nominal.IsZero(){break};after=candidate.Nominal}
+ secondCursor:=time.Date(2024,10,27,1,0,0,0,time.UTC)
+ candidate,excluded:=compiled.NextTimeCandidate("",secondCursor)
+ fmt.Printf("second-fold cursor=%s nominal=%s local=%s excluded=%v\n",secondCursor.Format(time.RFC3339),candidate.Nominal.Format(time.RFC3339),candidate.Nominal.In(loc).Format("2006-01-02T15:04:05-07:00 MST"),excluded)
+
+}

@@ -1,0 +1,3 @@
+fold-late-base: detected, shrunk, standalone replay failed; baseline replay passed
+jitter-ignore-lookahead: detected, shrunk, standalone replay failed; baseline replay passed
+ignore-exclusions: detected, shrunk, standalone replay failed; baseline replay passed

@@ -1,0 +1,5 @@
+=== RUN   TestSpecBoundarySavedReplay
+=== PAUSE TestSpecBoundarySavedReplay
+=== CONT  TestSpecBoundarySavedReplay
+--- PASS: TestSpecBoundarySavedReplay (0.00s)
+PASS

@@ -1,0 +1,6 @@
+=== RUN   TestSpecBoundaryProperties
+=== PAUSE TestSpecBoundaryProperties
+=== CONT  TestSpecBoundaryProperties
+    spec_boundaries_test.go:344: [rapid] OK, passed 100 tests (408.387875ms)
+--- PASS: TestSpecBoundaryProperties (0.41s)
+PASS

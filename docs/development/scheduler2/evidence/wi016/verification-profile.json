@@ -1,0 +1,169 @@
+{
+  "final_sources": {
+    "service/worker/scheduler/calendar.go": "479689bac6ee9d23ddf4e721d174a6578781fd1008cb56b4040981dc04dbd97d",
+    "service/worker/scheduler/candidate.go": "794011c72c2705bc4a4d4bb76d603c794ae9d180bb2ec379edc3708722ccef09",
+    "service/worker/scheduler/spec.go": "c34ce2e2aee0bb05fe7bf2fdc8017638b36127c69e671fbe3c6bf69d48c9da84",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence.go": "a2bd64980ffa6e105f380c03ecc36fee9c57e09dd800787b29a7813fb94f942b",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence_test.go": "ed11486cbb44f6a29222bd1dbf769cf72eaa07aa942aa0b273807895f2dcee81",
+    "chasm/lib/scheduler2/internal/occurrence/spec_boundaries_test.go": "180f13ed52011fce83e4a5cbba0e13a71e9e883fe84e34adf288b2771501bf02",
+    "go.mod": "e6e484565f5051837f9300ae1a639ca62bd3d26c53dd037e978f3e71e10eb410",
+    "go.sum": "71d8480e2b1dc47b66e27f468b547df00e4a46a4c92363fe34df7582cbcc4fba",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/America_New_York.tzif": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/Europe_London.tzif": "c85495070dca42687df6a1c3ee780a27cbcb82f1844750ea6f642833a44d29b4"
+  },
+  "mutation_manifest": "spec-mutations/campaign02/manifest.json",
+  "runner_sha256": "d1f48f481b61eed3ba8432fc8210a12608df762b3a6c48d92b84fd56ff745ac7",
+  "python_version": "3.15.2 (main, Oct 25 2026, 16:57:51) [Clang 21.0.0 (clang-2100.3.34.2)]",
+  "go_version": "go version go1.27.3 darwin/arm64",
+  "rapid_version": "v1.2.0",
+  "profile_commands": [
+    {
+      "name": "routine-post-fix",
+      "argv": [
+        "go",
+        "test",
+        "-tags",
+        "test_dep",
+        "./chasm/lib/scheduler2/internal/occurrence",
+        "-run",
+        "^TestSpecBoundary",
+        "-rapid.checks=100",
+        "-rapid.seed=1",
+        "-count=1"
+      ],
+      "log": "scheduler2-wi016-routine03.log",
+      "seconds_reported": 1.915,
+      "exit_code": 0
+    },
+    {
+      "name": "exploration1000",
+      "argv": [
+        "go",
+        "test",
+        "-tags",
+        "test_dep",
+        "./chasm/lib/scheduler2/internal/occurrence",
+        "-run",
+        "^TestSpecBoundary",
+        "-rapid.checks=1000",
+        "-rapid.seed=17",
+        "-count=1"
+      ],
+      "log": "scheduler2-wi016-exploration1000.log",
+      "seconds_reported": 9.09,
+      "exit_code": 0
+    },
+    {
+      "name": "exploration10000",
+      "argv": [
+        "go",
+        "test",
+        "-tags",
+        "test_dep",
+        "./chasm/lib/scheduler2/internal/occurrence",
+        "-run",
+        "^TestSpecBoundary",
+        "-rapid.checks=10000",
+        "-rapid.seed=29",
+        "-count=1"
+      ],
+      "log": "scheduler2-wi016-exploration10000.log",
+      "seconds_reported": 57.09,
+      "exit_code": 0
+    },
+    {
+      "name": "final-eof-package",
+      "argv": [
+        "go",
+        "test",
+        "-tags",
+        "test_dep",
+        "./chasm/lib/scheduler2/internal/occurrence",
+        "-rapid.checks=100",
+        "-rapid.seed=1",
+        "-count=1"
+      ],
+      "log": "scheduler2-wi016-package-eof-final.log",
+      "seconds_reported": 1.038,
+      "exit_code": 0
+    },
+    {
+      "name": "final-eof-lint",
+      "argv": [
+        "make",
+        "lint-code-fast",
+        "GOLANGCI_LINT_FIX=false",
+        "GOLANGCI_LINT_BASE_REV=HEAD"
+      ],
+      "log": "scheduler2-wi016-lint-eof-final.log",
+      "exit_code": 2,
+      "result": "two unused ctx findings in other-owner code; own occurrence source had no finding; scoped follow-up and parent global rerun recorded separately"
+    }
+  ],
+  "profile_environment": {
+    "CGO_ENABLED": "0"
+  },
+  "profile_cwd": "/private/tmp/sch-redesign-execution",
+  "historical_profile_delta": "Exploration predates constant-error/local-variable/import lint corrections and replay-reader EOF guard; property/oracle semantics and literal expectations unchanged. Full final source hashes captured by campaign02; historical counts are not claimed as rerun on final reader.",
+  "race_evidence": {
+    "source_relation": "Parent ran before replay-reader-only EOF delta. Occurrence subcommand passed; initial combined command failed because legacy package does not register Rapid flags. Corrected legacy invocation passed.",
+    "commands": [
+      {
+        "argv": [
+          "go",
+          "test",
+          "-race",
+          "-tags",
+          "test_dep",
+          "-p",
+          "2",
+          "-parallel",
+          "4",
+          "./chasm/lib/scheduler2/internal/occurrence",
+          "./service/worker/scheduler",
+          "-run",
+          "Test(Spec|Calendar)",
+          "-rapid.checks=100",
+          "-rapid.seed=1",
+          "-count=1"
+        ],
+        "environment": {
+          "CGO_ENABLED": "1",
+          "SDKROOT": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+          "GOMAXPROCS": "4"
+        },
+        "cwd": "/private/tmp/sch-redesign-execution",
+        "log": "scheduler2-wi016-race.log",
+        "exit_code": 1,
+        "occurrence_seconds_reported": 7.924,
+        "result": "occurrence passed; legacy rejected unsupported Rapid flag"
+      },
+      {
+        "argv": [
+          "go",
+          "test",
+          "-race",
+          "-tags",
+          "test_dep",
+          "-p",
+          "2",
+          "-parallel",
+          "4",
+          "./service/worker/scheduler",
+          "-run",
+          "Test(Spec|Calendar)",
+          "-count=1"
+        ],
+        "environment": {
+          "CGO_ENABLED": "1",
+          "SDKROOT": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+          "GOMAXPROCS": "4"
+        },
+        "cwd": "/private/tmp/sch-redesign-execution",
+        "log": "scheduler2-wi016-calendar-race02.log",
+        "exit_code": 0,
+        "seconds_reported": 3.75
+      }
+    ]
+  }
+}

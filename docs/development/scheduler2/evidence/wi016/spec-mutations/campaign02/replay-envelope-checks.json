@@ -1,0 +1,59 @@
+{
+  "binary_sha256": "9724f5d5cdddb920808843255613a599e12e9122c156b1580f6b15642e4c68f4",
+  "checks": [
+    {
+      "name": "whitespace",
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations02/baseline.test",
+        "-test.run=^TestSpecBoundarySavedReplay$",
+        "-test.v",
+        "-test.count=1"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations02/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4",
+        "SCHEDULER2_SPEC_REPLAY": "/private/tmp/scheduler2-wi016-mutations02/replay-envelope-whitespace.json"
+      },
+      "input_sha256": "75e70f252e00bdd054cd97b7e5c3d1f8a11a1be1c35a5e7d742cb5dca4cce9a1",
+      "exit_code": 0,
+      "expected_exit_code": 0
+    },
+    {
+      "name": "extra-object",
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations02/baseline.test",
+        "-test.run=^TestSpecBoundarySavedReplay$",
+        "-test.v",
+        "-test.count=1"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations02/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4",
+        "SCHEDULER2_SPEC_REPLAY": "/private/tmp/scheduler2-wi016-mutations02/replay-envelope-extra-object.json"
+      },
+      "input_sha256": "de0943cb5a6ac5d0dbc93cc366dd8e0005667c806e5be57b54495e5eab85e705",
+      "exit_code": 1,
+      "expected_exit_code": 1
+    },
+    {
+      "name": "trailing-junk",
+      "argv": [
+        "/private/tmp/scheduler2-wi016-mutations02/baseline.test",
+        "-test.run=^TestSpecBoundarySavedReplay$",
+        "-test.v",
+        "-test.count=1"
+      ],
+      "cwd": "/private/tmp/scheduler2-wi016-mutations02/isolated-cwd",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "4",
+        "SCHEDULER2_SPEC_REPLAY": "/private/tmp/scheduler2-wi016-mutations02/replay-envelope-trailing-junk.json"
+      },
+      "input_sha256": "1c634ef2616f4e5c2d2c5cd5a94b3cc4347ca66859046fb3373ad4634a19b6fd",
+      "exit_code": 1,
+      "expected_exit_code": 1
+    }
+  ]
+}

@@ -135,9 +135,9 @@ Outer:
 			m, s = m+1, 0
 		}
 		if m >= 60 {
-			prev := time.Date(y, mo, d, h, 0, 0, 0, cc.tz)
+			prev := calendarDate(y, mo, d, h, 0, 0, cc.tz)
 			h, m = h+1, 0
-			next := time.Date(y, mo, d, h, 0, 0, 0, cc.tz)
+			next := calendarDate(y, mo, d, h, 0, 0, cc.tz)
 			// if we moved to the next hour but it's two hours later, then we skipped over
 			// a dst repeated hour. try it again with an offset.
 			if dstoffset == 0 && next.Sub(prev) > time.Hour {
@@ -199,18 +199,32 @@ Outer:
 			}
 		}
 		// everything matches
-		nextTs := time.Date(y, mo, d, h, m, s, 0, cc.tz)
+		nextTS := calendarDate(y, mo, d, h, m, s, cc.tz)
 		// we might have reached a nonexistent time that got jumped over by a dst transition.
 		// we can tell if the hour is different from what we think it should be.
-		if nextTs.Hour() != h {
+		if nextTS.Hour() != h {
 			h, m, s = h+1, 0, 0
 			continue Outer
 		}
-		return nextTs.Add(dstoffset)
+		return nextTS.Add(dstoffset)
 	}
 
 	// no more matching times (up to max we checked)
 	return time.Time{}
+}
+
+// calendarDate consistently selects the first copy of a one-hour repeated wall
+// time. time.Date may choose either copy depending on the zone; next's dstoffset
+// traversal must start from the first before adding the second-copy offset.
+// Nonexistent times retain time.Date's normalization so next can skip their hour.
+func calendarDate(year int, month time.Month, day, hour, minute, second int, zone *time.Location) time.Time {
+	result := time.Date(year, month, day, hour, minute, second, 0, zone)
+	earlier := result.Add(-time.Hour)
+	if earlier.Year() == result.Year() && earlier.YearDay() == result.YearDay() &&
+		earlier.Hour() == result.Hour() && earlier.Minute() == result.Minute() && earlier.Second() == result.Second() {
+		return earlier
+	}
+	return result
 }
 
 func parseCalendarToStructured(cal *schedulepb.CalendarSpec) (*schedulepb.StructuredCalendarSpec, error) {

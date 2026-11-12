@@ -1,0 +1,179 @@
+{
+  "version": "spec-boundaries-v1",
+  "name": "family-0",
+  "spec": {
+    "structuredCalendar": [
+      {
+        "second": [
+          {
+            "end": 59,
+            "step": 30
+          }
+        ],
+        "minute": [
+          {
+            "end": 59,
+            "step": 30
+          }
+        ],
+        "hour": [
+          {
+            "end": 23,
+            "step": 1
+          }
+        ],
+        "dayOfMonth": [
+          {
+            "start": 1,
+            "end": 31,
+            "step": 1
+          }
+        ],
+        "month": [
+          {
+            "start": 1,
+            "end": 12,
+            "step": 1
+          }
+        ],
+        "year": [
+          {
+            "start": 2024,
+            "end": 2024,
+            "step": 1
+          }
+        ],
+        "dayOfWeek": [
+          {
+            "end": 6,
+            "step": 1
+          }
+        ]
+      }
+    ],
+    "startTime": "2024-03-10T05:00:00Z",
+    "endTime": "2024-03-10T08:59:59.999999999Z",
+    "jitter": "61s",
+    "timezoneName": "America/New_York",
+    "timezoneData": "VFppZjIAAAAAAAAAAAAAAAAAAAAAAAAGAAAABgAAAAAAAADsAAAABgAAABSAAAAAnqYecJ+662CghgBwoZrNYKJl4nCjg+ngpGqucKU1p2CmU8rwpxWJYKgzrPCo/qXgqhOO8Kreh+Cr83DwrL5p4K3TUvCunkvgr7M08LB+LeCxnFFwsmdKYLN8M3C0RyxgtVwVcLYnDmC3O/dwuAbwYLkb2XC55tJguwT18LvGtGC85Nfwva/Q4L7EufC/j7LgwKSb8MFvlODChH3ww0924MRkX/DFL1jgxk18cMcPOuDILV5wyPhXYMoNQHDK2Dlgy4jwcNIj9HDSYPvg03Xk8NRA3eDVVcbw1iC/4Nc1qPDYAKHg2RWK8Nngg+Da/qdw28Bl4NzeiXDdqYJg3r5rcN+JZGDgnk1w4WlGYOJ+L3DjSShg5F4RcOVXLuDmRy3w5zcQ4OgnD/DpFvLg6gbx8Or21ODr5tPw7Na24O3GtfDuv9Ng76/ScPCftWDxj7Rw8n+XYPNvlnD0X3lg9U94cPY/W2D3L1pw+Ch34PkPPHD6CFng+vhY8PvoO+D82Drw/cgd4P64HPD/p//gAJf+8AGH4eACd+DwA3D+YARg/XAFUOBgBkDfcAcwwmAHjRlwCRCkYAmtlPAK8IZgC+CFcAzZouANwGdwDrmE4A+pg/AQmWbgEYll8BJ5SOATaUfwFFkq4BVJKfAWOQzgFykL8BgiKWAZCO3wGgILYBryCnAb4e1gHNHscB3Bz2Aesc5wH6GxYCB2APAhgZNgIlXi8CNqr+AkNcTwJUqR4CYVpvAnKnPgJ/7DcCkKVeAp3qVwKuo34Cu+h3As01RgLZ5pcC6zNmAvfktwMJMYYDFnZ/AycvpgM0dJ8DRS3GA1JyvwNjK+YDcHDfA4G9rgOObv8Dn7vOA6xtHwO9ue4Dyv7nA9u4DgPo/QcD+bYuBAb7JwQYR/YEJPlHBDZGFgRC92cEVEQ2BF86jwRy1f4EfTivBJDUHgSbNs8ErtI+BLnIlwTNZAYE18a3BOtiJgT1xNcFCWBGBRPC9wUnXmYFMcEXBUVchgVPvzcFY1qmBW5Q/wWB7G4FjE8fBZ/qjgWqTT8FveiuBchLXwXb5s4F5kl/Bfnk7gYE20cGGHa2BiLZZwY2dNYGQNeHBlRy9gZe1acGcnEWBnzTxwaQbzYGmtHnBq5tVga5Y68GzP8eBtdhzwbq/T4G9V/vBwj7XgcTXg8HJvl+BzFcLwdE954HT+33B2OJZgdt7BcHgYeGB4vqNwefhaYHqehXB72DxgfH5ncH24HmB+Xklwf5gAYAMBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIEBQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgEC//+6ngAA///HwAEE//+5sAAI//+5sAAI///HwAEM///HwAEQTE1UAEVEVABFU1QARVdUAEVQVAAAAAABAAEAAAABAAFUWmlmMgAAAAAAAAAAAAAAAAAAAAAAAAYAAAAGAAAAAAAAAOwAAAAGAAAAFP////9eA/CQ/////56mHnD/////n7rrYP////+ghgBw/////6GazWD/////omXicP////+jg+ng/////6RqrnD/////pTWnYP////+mU8rw/////6cViWD/////qDOs8P////+o/qXg/////6oTjvD/////qt6H4P////+r83Dw/////6y+aeD/////rdNS8P////+unkvg/////6+zNPD/////sH4t4P////+xnFFw/////7JnSmD/////s3wzcP////+0Ryxg/////7VcFXD/////ticOYP////+3O/dw/////7gG8GD/////uRvZcP////+55tJg/////7sE9fD/////u8a0YP////+85Nfw/////72v0OD/////vsS58P////+/j7Lg/////8Ckm/D/////wW+U4P/////ChH3w/////8NPduD/////xGRf8P/////FL1jg/////8ZNfHD/////xw864P/////ILV5w/////8j4V2D/////yg1AcP/////K2Dlg/////8uI8HD/////0iP0cP/////SYPvg/////9N15PD/////1EDd4P/////VVcbw/////9Ygv+D/////1zWo8P/////YAKHg/////9kVivD/////2eCD4P/////a/qdw/////9vAZeD/////3N6JcP/////dqYJg/////96+a3D/////34lkYP/////gnk1w/////+FpRmD/////4n4vcP/////jSShg/////+ReEXD/////5Vcu4P/////mRy3w/////+c3EOD/////6CcP8P/////pFvLg/////+oG8fD/////6vbU4P/////r5tPw/////+zWtuD/////7ca18P/////uv9Ng/////++v0nD/////8J+1YP/////xj7Rw//////J/l2D/////82+WcP/////0X3lg//////VPeHD/////9j9bYP/////3L1pw//////god+D/////+Q88cP/////6CFng//////r4WPD/////++g74P/////82Drw//////3IHeD//////rgc8P//////p//gAAAAAACX/vAAAAAAAYfh4AAAAAACd+DwAAAAAANw/mAAAAAABGD9cAAAAAAFUOBgAAAAAAZA33AAAAAABzDCYAAAAAAHjRlwAAAAAAkQpGAAAAAACa2U8AAAAAAK8IZgAAAAAAvghXAAAAAADNmi4AAAAAANwGdwAAAAAA65hOAAAAAAD6mD8AAAAAAQmWbgAAAAABGJZfAAAAAAEnlI4AAAAAATaUfwAAAAABRZKuAAAAAAFUkp8AAAAAAWOQzgAAAAABcpC/AAAAAAGCIpYAAAAAAZCO3wAAAAABoCC2AAAAAAGvIKcAAAAAAb4e1gAAAAABzR7HAAAAAAHcHPYAAAAAAesc5wAAAAAB+hsWAAAAAAIHYA8AAAAAAhgZNgAAAAACJV4vAAAAAAI2qv4AAAAAAkNcTwAAAAACVKkeAAAAAAJhWm8AAAAAAnKnPgAAAAACf+w3AAAAAAKQpV4AAAAAAp3qVwAAAAACrqN+AAAAAAK76HcAAAAAAs01RgAAAAAC2eaXAAAAAALrM2YAAAAAAvfktwAAAAADCTGGAAAAAAMWdn8AAAAAAycvpgAAAAADNHSfAAAAAANFLcYAAAAAA1JyvwAAAAADYyvmAAAAAANwcN8AAAAAA4G9rgAAAAADjm7/AAAAAAOfu84AAAAAA6xtHwAAAAADvbnuAAAAAAPK/ucAAAAAA9u4DgAAAAAD6P0HAAAAAAP5ti4AAAAABAb7JwAAAAAEGEf2AAAAAAQk+UcAAAAABDZGFgAAAAAEQvdnAAAAAARURDYAAAAABF86jwAAAAAEctX+AAAAAAR9OK8AAAAABJDUHgAAAAAEmzbPAAAAAASu0j4AAAAABLnIlwAAAAAEzWQGAAAAAATXxrcAAAAABOtiJgAAAAAE9cTXAAAAAAUJYEYAAAAABRPC9wAAAAAFJ15mAAAAAAUxwRcAAAAABUVchgAAAAAFT783AAAAAAVjWqYAAAAABW5Q/wAAAAAFgexuAAAAAAWMTx8AAAAABZ/qjgAAAAAFqk0/AAAAAAW96K4AAAAABchLXwAAAAAF2+bOAAAAAAXmSX8AAAAABfnk7gAAAAAGBNtHAAAAAAYYdrYAAAAABiLZZwAAAAAGNnTWAAAAAAZA14cAAAAABlRy9gAAAAAGXtWnAAAAAAZycRYAAAAABnzTxwAAAAAGkG82AAAAAAaa0ecAAAAABq5tVgAAAAAGuWOvAAAAAAbM/x4AAAAABtdhzwAAAAAG6v0+AAAAAAb1X+8AAAAABwj7XgAAAAAHE14PAAAAAAcm+X4AAAAABzFcLwAAAAAHRPeeAAAAAAdP7fcAAAAAB2OJZgAAAAAHbewXAAAAAAeBh4YAAAAAB4vqNwAAAAAHn4WmAAAAAAep6FcAAAAAB72DxgAAAAAHx+Z3AAAAAAfbgeYAAAAAB+XklwAAAAAH+YAGADAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECBAUCAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAgECAQIBAv//up4AAP//x8ABBP//ubAACP//ubAACP//x8ABDP//x8ABEExNVABFRFQARVNUAEVXVABFUFQAAAAAAQABAAAAAQABCkVTVDVFRFQsTTMuMi4wLE0xMS4xLjAK"
+  },
+  "seed": "a",
+  "revision": 7,
+  "after": "2024-03-10T04:59:59.999999999Z",
+  "timezone_sha256": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+  "windows": [
+    {
+      "through": "2024-03-10T06:59:59.999999999Z",
+      "probes": 1,
+      "outputs": 1
+    },
+    {
+      "through": "2024-03-10T06:59:59.999999999Z",
+      "probes": 1,
+      "outputs": 1
+    },
+    {
+      "through": "2024-03-10T09:01:02Z",
+      "probes": 8,
+      "outputs": 4
+    }
+  ],
+  "expected": [
+    {
+      "Nominal": "2024-03-10T05:00:00Z",
+      "Actual": "2024-03-10T05:00:28.571Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T05:00:30Z",
+      "Actual": "2024-03-10T05:01:27.527Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T05:30:00Z",
+      "Actual": "2024-03-10T05:30:16.552Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T05:30:30Z",
+      "Actual": "2024-03-10T05:30:51.813Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T06:00:00Z",
+      "Actual": "2024-03-10T06:00:18.174Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T06:00:30Z",
+      "Actual": "2024-03-10T06:01:28.204Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T06:30:00Z",
+      "Actual": "2024-03-10T06:30:11.304Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T06:30:30Z",
+      "Actual": "2024-03-10T06:30:51.386Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T07:00:00Z",
+      "Actual": "2024-03-10T07:00:27.155Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T07:00:30Z",
+      "Actual": "2024-03-10T07:00:43.386Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T07:30:00Z",
+      "Actual": "2024-03-10T07:30:29.009Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T07:30:30Z",
+      "Actual": "2024-03-10T07:30:46.016Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T08:00:00Z",
+      "Actual": "2024-03-10T08:00:25.61Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T08:00:30Z",
+      "Actual": "2024-03-10T08:01:05.295Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T08:30:00Z",
+      "Actual": "2024-03-10T08:30:12.731Z",
+      "Revision": 7,
+      "Excluded": false
+    },
+    {
+      "Nominal": "2024-03-10T08:30:30Z",
+      "Actual": "2024-03-10T08:30:37.197Z",
+      "Revision": 7,
+      "Excluded": false
+    }
+  ]
+}

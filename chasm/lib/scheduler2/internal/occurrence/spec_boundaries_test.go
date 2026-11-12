@@ -1,0 +1,576 @@
+package occurrence_test
+
+import (
+	"bytes"
+	"crypto/sha256"
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"math"
+	"os"
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/dgryski/go-farm"
+	"github.com/stretchr/testify/require"
+	schedulepb "go.temporal.io/api/schedule/v1"
+	"go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"pgregory.net/rapid"
+)
+
+//go:embed testdata/Europe_London.tzif
+var specLondonTZ []byte
+
+const specLondonDigest = "c85495070dca42687df6a1c3ee780a27cbcb82f1844750ea6f642833a44d29b4"
+
+const specBoundaryVersion = "spec-boundaries-v1"
+const specNewYorkDigest = "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95"
+
+type specBoundaryWindow struct {
+	Through time.Time `json:"through"`
+	Probes  int       `json:"probes"`
+	Outputs int       `json:"outputs"`
+}
+type specBoundaryScenario struct {
+	Version        string                 `json:"version"`
+	Name           string                 `json:"name"`
+	Spec           json.RawMessage        `json:"spec"`
+	Seed           string                 `json:"seed"`
+	Revision       int64                  `json:"revision"`
+	After          time.Time              `json:"after"`
+	TimezoneSHA256 string                 `json:"timezone_sha256"`
+	Windows        []specBoundaryWindow   `json:"windows"`
+	Expected       []occurrence.Candidate `json:"expected"`
+}
+
+// This oracle supports only explicitly populated structured predicates and whole
+// second intervals in short, finite windows. It does not normalize production
+// calendar syntax or invoke the production next-time search. Go TZif conversion,
+// nominal binary encoding and Farm32 are trusted shared primitives.
+func specBoundaryReference(spec *schedulepb.ScheduleSpec, seed string, revision int64, after time.Time) ([]occurrence.Candidate, error) {
+	//nolint:staticcheck // Legacy syntax is deliberately outside this independent oracle domain.
+	if spec.StartTime == nil || spec.EndTime == nil || len(spec.Calendar)+len(spec.ExcludeCalendar)+len(spec.CronString) != 0 {
+		return nil, errors.New("reference requires explicit finite bounds and structured syntax")
+	}
+	location := time.UTC
+	if spec.TimezoneName != "" || len(spec.TimezoneData) != 0 {
+		expectedDigest := map[string]string{"America/New_York": specNewYorkDigest, "Europe/London": specLondonDigest}[spec.TimezoneName]
+		if expectedDigest == "" || fmt.Sprintf("%x", sha256.Sum256(spec.TimezoneData)) != expectedDigest {
+			return nil, errors.New("reference requires pinned timezone bytes")
+		}
+		var err error
+		location, err = time.LoadLocationFromTZData(spec.TimezoneName, spec.TimezoneData)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, calendars := range [][]*schedulepb.StructuredCalendarSpec{spec.StructuredCalendar, spec.ExcludeStructuredCalendar} {
+		for _, cal := range calendars {
+			if cal == nil {
+				return nil, errors.New("reference requires nonnil calendars")
+			}
+			for _, ranges := range [][]*schedulepb.Range{cal.Year, cal.Month, cal.DayOfMonth, cal.DayOfWeek, cal.Hour, cal.Minute, cal.Second} {
+				if len(ranges) == 0 {
+					return nil, errors.New("reference requires explicit calendar fields")
+				}
+				for _, r := range ranges {
+					if r == nil || r.Step < 1 || r.End < r.Start {
+						return nil, errors.New("reference requires normalized valid ranges")
+					}
+				}
+			}
+		}
+	}
+	for _, iv := range spec.Interval {
+		if iv == nil || iv.Interval.AsDuration() < time.Second || iv.Interval.AsDuration()%time.Second != 0 || iv.Phase.AsDuration()%time.Second != 0 || iv.Phase.AsDuration() < 0 || iv.Phase.AsDuration() >= iv.Interval.AsDuration() {
+			return nil, errors.New("reference requires valid whole-second intervals")
+		}
+	}
+	jitter := spec.Jitter.AsDuration()
+	if jitter < 0 {
+		return nil, errors.New("negative reference jitter")
+	}
+	capMS := min(uint64(jitter/time.Millisecond), uint64(math.MaxUint32))
+	// Every eligible nominal is <= EndTime. A raw match beyond EndTime+cap
+	// cannot reduce its effective jitter cap. Excluded and out-of-definition-end
+	// raw matches inside that horizon MUST still participate in lookahead.
+	horizon := spec.EndTime.AsTime().Add(time.Duration(capMS) * time.Millisecond)
+	first := after.Truncate(time.Second).Add(time.Second)
+	if horizon.Sub(first) > 12*time.Hour {
+		return nil, errors.New("reference scan exceeds explicit 12-hour domain")
+	}
+	var raw []time.Time
+	for at := first; !at.After(horizon); at = at.Add(time.Second) {
+		included := false
+		for _, iv := range spec.Interval {
+			period, phase := int64(iv.Interval.AsDuration()/time.Second), int64(iv.Phase.AsDuration()/time.Second)
+			if (at.Unix()-phase)%period == 0 {
+				included = true
+			}
+		}
+		for _, cal := range spec.StructuredCalendar {
+			if specBoundaryMatches(cal, at.In(location)) {
+				included = true
+			}
+		}
+		if included {
+			raw = append(raw, at)
+		}
+	}
+	var result []occurrence.Candidate
+	for i, nominal := range raw {
+		if nominal.Before(spec.StartTime.AsTime()) || nominal.After(spec.EndTime.AsTime()) {
+			continue
+		}
+		excluded := false
+		for _, cal := range spec.ExcludeStructuredCalendar {
+			if specBoundaryMatches(cal, nominal.In(location)) {
+				excluded = true
+			}
+		}
+		if excluded {
+			continue
+		}
+		bound := capMS
+		if i+1 < len(raw) {
+			bound = min(bound, uint64(raw[i+1].Sub(nominal)/time.Millisecond))
+		}
+		encoded, err := nominal.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		hash := uint64(farm.Fingerprint32(append(encoded, []byte(seed)...)))
+		actual := nominal.Add(time.Duration(hash*bound>>32) * time.Millisecond)
+		result = append(result, occurrence.Candidate{Nominal: nominal, Actual: actual, Revision: revision})
+	}
+	return result, nil
+}
+
+func specBoundaryMatches(cal *schedulepb.StructuredCalendarSpec, at time.Time) bool {
+	fields := []struct {
+		ranges []*schedulepb.Range
+		value  int
+	}{
+		{cal.Year, at.Year()}, {cal.Month, int(at.Month())}, {cal.DayOfMonth, at.Day()},
+		{cal.DayOfWeek, int(at.Weekday())}, {cal.Hour, at.Hour()}, {cal.Minute, at.Minute()}, {cal.Second, at.Second()},
+	}
+	for _, field := range fields {
+		matched := false
+		for _, r := range field.ranges {
+			v := int32(field.value)
+			if r.Start <= v && v <= r.End && (v-r.Start)%r.Step == 0 {
+				matched = true
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+	return true
+}
+
+func specBoundaryCheck(scenario specBoundaryScenario) error {
+	if scenario.Version != specBoundaryVersion || len(scenario.Windows) == 0 {
+		return errors.New("unsupported or empty boundary scenario")
+	}
+	var spec schedulepb.ScheduleSpec
+	if err := protojson.Unmarshal(scenario.Spec, &spec); err != nil {
+		return err
+	}
+	if scenario.TimezoneSHA256 != "" && fmt.Sprintf("%x", sha256.Sum256(spec.TimezoneData)) != scenario.TimezoneSHA256 {
+		return errors.New("timezone digest mismatch")
+	}
+	expected, err := specBoundaryReference(&spec, scenario.Seed, scenario.Revision, scenario.After)
+	if err != nil {
+		return err
+	}
+	if !slices.Equal(expected, scenario.Expected) {
+		return fmt.Errorf("saved/reference expectations differ: got %+v expected %+v", expected, scenario.Expected)
+	}
+	e, err := occurrence.New(&spec, scenario.Seed, scenario.Revision)
+	if err != nil {
+		return err
+	}
+	initial, err := e.Begin(scenario.After)
+	if err != nil {
+		return err
+	}
+	state := initial
+	var got []occurrence.Candidate
+	var status occurrence.Status
+	for index, window := range scenario.Windows {
+		if index > 0 && window.Through.Before(scenario.Windows[index-1].Through) {
+			return errors.New("windows must be nondecreasing")
+		}
+		output, next, nextStatus, err := collect(e, state, window.Through, occurrence.Limits{Probes: window.Probes, Outputs: window.Outputs})
+		if err != nil {
+			return err
+		}
+		got = append(got, output...)
+		var due []occurrence.Candidate
+		for _, c := range expected {
+			if !c.Actual.After(window.Through) {
+				due = append(due, c)
+			}
+		}
+		if !slices.Equal(got, due) {
+			return fmt.Errorf("window %d sequence: got %+v expected %+v", index, got, due)
+		}
+		for i, c := range got {
+			if !c.Nominal.After(scenario.After) || (i > 0 && !c.Nominal.After(got[i-1].Nominal)) {
+				return errors.New("nominal identity did not strictly advance")
+			}
+		}
+		state, status = next, nextStatus
+		if state.Pending != nil && state.Pending.Actual.After(window.Through) {
+			again, err := e.Run(state, window.Through, occurrence.Limits{Probes: 1, Outputs: 1})
+			if err != nil {
+				return err
+			}
+			before, _ := json.Marshal(state)
+			after, _ := json.Marshal(again.State)
+			if !bytes.Equal(before, after) || again.Probes != 0 || len(again.Occurrences) != 0 || again.Status != occurrence.Waiting {
+				return errors.New("future pending was not an exact waiting stutter")
+			}
+		}
+	}
+	last := scenario.Windows[len(scenario.Windows)-1].Through
+	whole, wholeState, wholeStatus, err := collect(e, initial, last, occurrence.Limits{Probes: 8, Outputs: 4})
+	if err != nil {
+		return err
+	}
+	before, _ := json.Marshal(state)
+	after, _ := json.Marshal(wholeState)
+	if !slices.Equal(got, whole) || !bytes.Equal(before, after) || status != wholeStatus {
+		return errors.New("settled partition/full-state equivalence failed")
+	}
+	return nil
+}
+
+func specBoundaryScenarioFor(spec *schedulepb.ScheduleSpec, name, seed string, after time.Time, windows []specBoundaryWindow) (specBoundaryScenario, error) {
+	encoded, err := protojson.Marshal(spec)
+	if err != nil {
+		return specBoundaryScenario{}, err
+	}
+	expected, err := specBoundaryReference(spec, seed, 7, after)
+	if err != nil {
+		return specBoundaryScenario{}, err
+	}
+	scenario := specBoundaryScenario{Version: specBoundaryVersion, Name: name, Spec: encoded, Seed: seed, Revision: 7, After: after, Windows: windows, Expected: expected}
+	if len(spec.TimezoneData) > 0 {
+		scenario.TimezoneSHA256 = fmt.Sprintf("%x", sha256.Sum256(spec.TimezoneData))
+	}
+	return scenario, nil
+}
+
+func TestSpecBoundaryOracleHorizon(t *testing.T) {
+	t.Parallel()
+	base := instant()
+	cal := calendar()
+	cal.Minute, cal.Second = span(0, 0), span(0, 0)
+	excluded := calendar()
+	excluded.Hour, excluded.Minute, excluded.Second = span(1, 1), span(0, 0), span(0, 0)
+	spec := &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{cal}, ExcludeStructuredCalendar: []*schedulepb.StructuredCalendarSpec{excluded}, StartTime: timestamppb.New(base), EndTime: timestamppb.New(base), Jitter: durationpb.New(2 * time.Hour)}
+	got, err := specBoundaryReference(spec, "horizon", 7, base.Add(-time.Nanosecond))
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	// The next raw hourly match is excluded and beyond EndTime+2min, but still
+	// caps jitter at one hour. The old fixed-lookahead oracle misses that cap.
+	encoded, err := base.MarshalBinary()
+	require.NoError(t, err)
+	hash := uint64(farm.Fingerprint32(append(encoded, []byte("horizon")...)))
+	expected := base.Add(time.Duration(hash*uint64(time.Hour/time.Millisecond)>>32) * time.Millisecond)
+	require.Equal(t, occurrence.Candidate{Nominal: base, Actual: expected, Revision: 7}, got[0])
+	require.Less(t, got[0].Actual.Sub(base), time.Hour)
+	scenario, err := specBoundaryScenarioFor(spec, "excluded-hourly-lookahead", "horizon", base.Add(-time.Nanosecond), []specBoundaryWindow{{base.Add(2 * time.Hour), 1, 1}})
+	require.NoError(t, err)
+	require.NoError(t, specBoundaryCheck(scenario))
+	invalid := proto.Clone(spec).(*schedulepb.ScheduleSpec)
+	invalid.StructuredCalendar[0].Month = nil
+	_, err = specBoundaryReference(invalid, "", 7, base)
+	require.ErrorContains(t, err, "explicit calendar fields")
+	invalid = proto.Clone(spec).(*schedulepb.ScheduleSpec)
+	invalid.Jitter = durationpb.New(13 * time.Hour)
+	_, err = specBoundaryReference(invalid, "", 7, base)
+	require.ErrorContains(t, err, "12-hour domain")
+}
+
+func TestSpecBoundaryPinnedLiterals(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, specNewYorkDigest, fmt.Sprintf("%x", sha256.Sum256(newYorkTZ)))
+	for _, tc := range []struct {
+		name                            string
+		month, day, firstHour, lastHour int32
+		start                           time.Time
+		after                           time.Time
+		exclude                         bool
+		expected                        []time.Time
+	}{
+		{"gap-neighbors", 3, 10, 1, 3, time.Date(2024, 3, 10, 5, 0, 0, 0, time.UTC), time.Date(2024, 3, 10, 5, 0, 0, -1, time.UTC), false, []time.Time{time.Date(2024, 3, 10, 6, 30, 0, 0, time.UTC), time.Date(2024, 3, 10, 7, 30, 0, 0, time.UTC)}},
+		{"both-fold-instants", 11, 3, 1, 1, time.Date(2024, 11, 3, 4, 0, 0, 0, time.UTC), time.Date(2024, 11, 3, 4, 0, 0, -1, time.UTC), false, []time.Time{time.Date(2024, 11, 3, 5, 30, 0, 0, time.UTC), time.Date(2024, 11, 3, 6, 30, 0, 0, time.UTC)}},
+		{"cursor-at-first-fold", 11, 3, 1, 1, time.Date(2024, 11, 3, 4, 0, 0, 0, time.UTC), time.Date(2024, 11, 3, 5, 30, 0, 0, time.UTC), false, []time.Time{time.Date(2024, 11, 3, 6, 30, 0, 0, time.UTC)}},
+		{"exclude-both-fold-instants", 11, 3, 1, 1, time.Date(2024, 11, 3, 4, 0, 0, 0, time.UTC), time.Date(2024, 11, 3, 4, 0, 0, -1, time.UTC), true, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cal := calendar()
+			cal.Year, cal.Month, cal.DayOfMonth = span(2024, 2024), span(tc.month, tc.month), span(tc.day, tc.day)
+			cal.Hour, cal.Minute, cal.Second = span(tc.firstHour, tc.lastHour), span(30, 30), span(0, 0)
+			spec := &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{cal, proto.Clone(cal).(*schedulepb.StructuredCalendarSpec)}, TimezoneName: "America/New_York", TimezoneData: bytes.Clone(newYorkTZ), StartTime: timestamppb.New(tc.start), EndTime: timestamppb.New(tc.start.Add(4 * time.Hour))}
+			if tc.exclude {
+				spec.ExcludeStructuredCalendar = []*schedulepb.StructuredCalendarSpec{proto.Clone(cal).(*schedulepb.StructuredCalendarSpec)}
+			}
+			scenario, err := specBoundaryScenarioFor(spec, tc.name, "", tc.after, []specBoundaryWindow{{tc.start.Add(90*time.Minute - time.Nanosecond), 1, 1}, {tc.start.Add(90 * time.Minute), 2, 1}, {tc.start.Add(150 * time.Minute), 1, 1}, {tc.start.Add(4 * time.Hour), 8, 4}})
+			require.NoError(t, err)
+			var nominal []time.Time
+			for _, c := range scenario.Expected {
+				nominal = append(nominal, c.Nominal)
+			}
+			require.Equal(t, tc.expected, nominal)
+			require.NoError(t, specBoundaryCheck(scenario))
+		})
+	}
+}
+
+func TestSpecBoundaryProperties(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		family := rapid.IntRange(0, 4).Draw(rt, "family")
+		anchors := []time.Time{time.Date(2024, 3, 10, 7, 0, 0, 0, time.UTC), time.Date(2024, 11, 3, 6, 0, 0, 0, time.UTC), time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC), time.Date(2025, 1, 1, 5, 0, 0, 0, time.UTC), time.Date(2024, 10, 27, 1, 0, 0, 0, time.UTC)}
+		anchor := anchors[family]
+		start, end := anchor.Add(-2*time.Hour), anchor.Add(2*time.Hour)
+		cal := calendar()
+		cal.Second = span(int32(rapid.SampledFrom([]int{0, 30, 59}).Draw(rt, "second")), 59)
+		cal.Second[0].Step = 30
+		cal.Minute = span(int32(rapid.SampledFrom([]int{0, 29, 30, 59}).Draw(rt, "minute")), 59)
+		cal.Minute[0].Step = 30
+		cal.Year = span(int32(start.Year()), int32(end.Year()))
+		if family == 3 {
+			cal.Year = span(2024, 2025)
+		}
+		spec := &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{cal}, StartTime: timestamppb.New(start.Add(rapid.SampledFrom([]time.Duration{0, time.Nanosecond, 999999999 * time.Nanosecond}).Draw(rt, "start_fraction"))), EndTime: timestamppb.New(end.Add(rapid.SampledFrom([]time.Duration{-time.Nanosecond, 0, time.Nanosecond}).Draw(rt, "end_fraction")))}
+		if family != 2 {
+			spec.TimezoneName = "America/New_York"
+			spec.TimezoneData = bytes.Clone(newYorkTZ)
+		}
+		if family == 4 {
+			spec.TimezoneName = "Europe/London"
+			spec.TimezoneData = bytes.Clone(specLondonTZ)
+		}
+		if rapid.Bool().Draw(rt, "restrict_date") {
+			cal.Month = span(int32(anchor.Month()), int32(anchor.Month()))
+			cal.DayOfMonth = span(int32(anchor.Day()), int32(anchor.Day()))
+			weekday := (int(anchor.Weekday()) + rapid.IntRange(0, 1).Draw(rt, "weekday_offset")) % 7
+			cal.DayOfWeek = span(int32(weekday), int32(weekday))
+		}
+		if rapid.Bool().Draw(rt, "restrict_hour") {
+			hour := []int32{2, 1, 0, 0, 1}[family]
+			cal.Hour = span(hour, hour)
+		}
+		if rapid.Bool().Draw(rt, "duplicate") {
+			spec.StructuredCalendar = append(spec.StructuredCalendar, proto.Clone(cal).(*schedulepb.StructuredCalendarSpec))
+		}
+		if rapid.Bool().Draw(rt, "interval") {
+			spec.Interval = []*schedulepb.IntervalSpec{{Interval: durationpb.New(5 * time.Minute)}}
+		}
+		if rapid.Bool().Draw(rt, "exclude") {
+			ex := calendar()
+			ex.Minute = span(30, 30)
+			spec.ExcludeStructuredCalendar = []*schedulepb.StructuredCalendarSpec{ex}
+		}
+		jitter := rapid.SampledFrom([]time.Duration{0, 999999 * time.Nanosecond, time.Millisecond, 999 * time.Millisecond, time.Second, 2 * time.Second, 61 * time.Second}).Draw(rt, "jitter")
+		spec.Jitter = durationpb.New(jitter)
+		seed := rapid.StringMatching("[a-z]{1,6}").Draw(rt, "seed")
+		after := rapid.SampledFrom([]time.Time{start.Add(-time.Nanosecond), start, anchor.Add(-time.Nanosecond), anchor, anchor.Add(time.Nanosecond)}).Draw(rt, "after")
+		expected, err := specBoundaryReference(spec, seed, 7, after)
+		if err != nil {
+			rt.Fatal(err)
+		}
+		cuts := []time.Time{anchor.Add(-time.Nanosecond), anchor, anchor.Add(time.Nanosecond), spec.StartTime.AsTime().Add(-time.Nanosecond), spec.StartTime.AsTime(), spec.EndTime.AsTime().Add(-time.Nanosecond), spec.EndTime.AsTime(), spec.EndTime.AsTime().Add(time.Nanosecond)}
+		for _, c := range expected {
+			cuts = append(cuts, c.Nominal.Add(-time.Nanosecond), c.Nominal, c.Actual.Add(-time.Nanosecond), c.Actual, c.Actual.Add(time.Nanosecond))
+		}
+		var windows []specBoundaryWindow
+		count := rapid.IntRange(2, 8).Draw(rt, "partitions")
+		for n := 0; n < count; n++ {
+			through := rapid.SampledFrom(cuts).Draw(rt, fmt.Sprintf("cut%d", n))
+			windows = append(windows, specBoundaryWindow{through, rapid.SampledFrom([]int{1, 2, 8}).Draw(rt, fmt.Sprintf("probes%d", n)), rapid.SampledFrom([]int{1, 2, 4}).Draw(rt, fmt.Sprintf("outputs%d", n))})
+		}
+		slices.SortFunc(windows, func(a, b specBoundaryWindow) int { return a.Through.Compare(b.Through) })
+		windows = append(windows, specBoundaryWindow{end.Add(jitter + time.Second), 8, 4})
+		scenario, err := specBoundaryScenarioFor(spec, fmt.Sprintf("family-%d", family), seed, after, windows)
+		if err != nil {
+			rt.Fatal(err)
+		}
+		if err = specBoundaryCheck(scenario); err != nil {
+			encoded, _ := json.MarshalIndent(scenario, "", "  ")
+			rt.Fatalf("%v\nSPEC_BOUNDARY_REPLAY=%s", err, encoded)
+		}
+	})
+}
+
+func TestSpecBoundarySavedReplay(t *testing.T) {
+	t.Parallel()
+	path := os.Getenv("SCHEDULER2_SPEC_REPLAY")
+	if path == "" {
+		path = "testdata/spec_boundaries_v1.json"
+	}
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var scenario specBoundaryScenario
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	require.NoError(t, decoder.Decode(&scenario))
+	var trailing any
+	require.ErrorIs(t, decoder.Decode(&trailing), io.EOF)
+	for range 2 {
+		require.NoError(t, specBoundaryCheck(scenario))
+	}
+}
+
+func TestSpecBoundaryDateLiterals(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                  string
+		start, time           time.Time
+		year, month, day, dow int32
+		ny                    bool
+		expected              bool
+	}{
+		{"leap-day-thursday", time.Date(2024, 2, 28, 23, 0, 0, 0, time.UTC), time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC), 2024, 2, 29, 4, false, true},
+		{"day-and-weekday-conjunction", time.Date(2024, 2, 28, 23, 0, 0, 0, time.UTC), time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC), 2024, 2, 29, 5, false, false},
+		{"local-year-midnight", time.Date(2025, 1, 1, 4, 0, 0, 0, time.UTC), time.Date(2025, 1, 1, 5, 0, 0, 0, time.UTC), 2025, 1, 1, 3, true, true},
+		{"april-has-no-31st", time.Date(2024, 4, 30, 23, 0, 0, 0, time.UTC), time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC), 2024, 4, 31, 2, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cal := calendar()
+			cal.Year = span(tc.year, tc.year)
+			cal.Month = span(tc.month, tc.month)
+			cal.DayOfMonth = span(tc.day, tc.day)
+			cal.DayOfWeek = span(tc.dow, tc.dow)
+			cal.Hour = span(0, 0)
+			cal.Minute = span(0, 0)
+			cal.Second = span(0, 0)
+			spec := &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{cal}, StartTime: timestamppb.New(tc.start), EndTime: timestamppb.New(tc.start.Add(2 * time.Hour))}
+			if tc.ny {
+				spec.TimezoneName = "America/New_York"
+				spec.TimezoneData = bytes.Clone(newYorkTZ)
+			}
+			scenario, err := specBoundaryScenarioFor(spec, tc.name, "", tc.start.Add(-time.Nanosecond), []specBoundaryWindow{{tc.time.Add(-time.Nanosecond), 1, 1}, {tc.time, 1, 1}, {tc.start.Add(2 * time.Hour), 2, 1}})
+			require.NoError(t, err)
+			var expected []occurrence.Candidate
+			if tc.expected {
+				expected = []occurrence.Candidate{{Nominal: tc.time, Actual: tc.time, Revision: 7}}
+			}
+			require.Equal(t, expected, scenario.Expected)
+			require.NoError(t, specBoundaryCheck(scenario))
+		})
+	}
+}
+
+func TestSpecBoundarySparseLondon(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, specLondonDigest, fmt.Sprintf("%x", sha256.Sum256(specLondonTZ)))
+	// Literal regression: next January2 Sunday after the 2004 repeated-hour cursor.
+	// This sparse multi-month case intentionally uses a literal, not a second scan.
+	cal := calendar()
+	cal.Second = span(0, 0)
+	cal.Minute = span(1, 1)
+	cal.Hour = span(0, 0)
+	cal.DayOfMonth = span(2, 2)
+	cal.Month = span(1, 1)
+	cal.DayOfWeek = span(0, 0)
+	after := time.Date(2004, 10, 31, 0, 7, 3, 0, time.UTC)
+	nominal := time.Date(2005, 1, 2, 0, 1, 0, 0, time.UTC)
+	spec := &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{cal}, TimezoneName: "Europe/London", TimezoneData: bytes.Clone(specLondonTZ), StartTime: timestamppb.New(after), EndTime: timestamppb.New(nominal)}
+	e, err := occurrence.New(spec, "", 7)
+	require.NoError(t, err)
+	state, err := e.Begin(after)
+	require.NoError(t, err)
+	waiting, err := e.Run(state, after, occurrence.Limits{Probes: 1, Outputs: 1})
+	require.NoError(t, err)
+	require.Equal(t, occurrence.Waiting, waiting.Status)
+	expected := occurrence.Candidate{Nominal: nominal, Actual: nominal, Revision: 7}
+	require.Equal(t, &expected, waiting.State.Pending)
+	got, _, status, err := collect(e, waiting.State, nominal, occurrence.Limits{Probes: 1, Outputs: 1})
+	require.NoError(t, err)
+	require.Equal(t, []occurrence.Candidate{expected}, got)
+	require.Equal(t, occurrence.Exhausted, status)
+}
+
+func TestSpecBoundaryLondonFoldGolden(t *testing.T) {
+	t.Parallel()
+	location, err := time.LoadLocationFromTZData("Europe/London", specLondonTZ)
+	require.NoError(t, err)
+	first, second := time.Date(2024, 10, 27, 0, 0, 30, 0, time.UTC), time.Date(2024, 10, 27, 1, 0, 30, 0, time.UTC)
+	// These literal UTC instants both represent local 01:00:30. The first is
+	// strictly after the cursor; choosing time.Date's second branch skips it.
+	require.Equal(t, "2024-10-27 01:00:30 +0100 BST", first.In(location).String())
+	require.Equal(t, "2024-10-27 01:00:30 +0000 GMT", second.In(location).String())
+	cal := calendar()
+	cal.Year = span(2024, 2024)
+	cal.Month = span(10, 10)
+	cal.DayOfMonth = span(27, 27)
+	cal.Hour = span(1, 1)
+	cal.Minute = span(0, 0)
+	cal.Second = span(30, 30)
+	start := time.Date(2024, 10, 27, 0, 0, 0, 0, time.UTC)
+	spec := &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{cal}, TimezoneName: "Europe/London", TimezoneData: bytes.Clone(specLondonTZ), StartTime: timestamppb.New(start), EndTime: timestamppb.New(start.Add(2 * time.Hour))}
+	scenario, err := specBoundaryScenarioFor(spec, "london-first-fold-branch", "", start, []specBoundaryWindow{{first, 1, 1}, {second, 1, 1}, {start.Add(2 * time.Hour), 2, 1}})
+	require.NoError(t, err)
+	require.Equal(t, []occurrence.Candidate{{Nominal: first, Actual: first, Revision: 7}, {Nominal: second, Actual: second, Revision: 7}}, scenario.Expected)
+	require.NoError(t, specBoundaryCheck(scenario))
+}
+
+func TestSpecBoundaryJitterQuantizationAndCap(t *testing.T) {
+	t.Parallel()
+	nominal := instant()
+	for _, tc := range []struct {
+		name   string
+		jitter time.Duration
+		actual time.Time
+	}{
+		{"zero", 0, nominal}, {"sub-millisecond", 999999 * time.Nanosecond, nominal}, {"one-millisecond", time.Millisecond, nominal},
+		{"999-milliseconds", 999 * time.Millisecond, nominal.Add(114 * time.Millisecond)},
+		{"one-second", time.Second, nominal.Add(114 * time.Millisecond)},
+		{"cap-minus-one", time.Duration(math.MaxUint32-1) * time.Millisecond, time.Date(2024, 1, 6, 16, 40, 42, 836000000, time.UTC)},
+		{"cap", time.Duration(math.MaxUint32) * time.Millisecond, time.Date(2024, 1, 6, 16, 40, 42, 836000000, time.UTC)},
+		{"cap-plus-one", time.Duration(uint64(math.MaxUint32)+1) * time.Millisecond, time.Date(2024, 1, 6, 16, 40, 42, 836000000, time.UTC)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cal := calendar()
+			cal.Year = span(2024, 2024)
+			cal.Month = span(1, 1)
+			cal.DayOfMonth = span(1, 1)
+			cal.Hour = span(0, 0)
+			cal.Minute = span(0, 0)
+			cal.Second = span(0, 0)
+			spec := &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{cal}, StartTime: timestamppb.New(nominal), EndTime: timestamppb.New(nominal), Jitter: durationpb.New(tc.jitter)}
+			// Literal arithmetic golden from nominal binary encoding + seed cap-golden:
+			// Farm32=492042837; floor(hash*min(jitter_ms,2^32-1)/2^32).
+			// This is independent of calendar next-search; the Farm32 primitive is shared.
+			e, err := occurrence.New(spec, "cap-golden", 7)
+			require.NoError(t, err)
+			state, err := e.Begin(nominal.Add(-time.Nanosecond))
+			require.NoError(t, err)
+			waiting, err := e.Run(state, tc.actual.Add(-time.Nanosecond), occurrence.Limits{Probes: 1, Outputs: 1})
+			require.NoError(t, err)
+			expected := occurrence.Candidate{Nominal: nominal, Actual: tc.actual, Revision: 7}
+			require.Equal(t, &expected, waiting.State.Pending)
+			require.Equal(t, occurrence.Waiting, waiting.Status)
+			got, _, status, err := collect(e, waiting.State, tc.actual, occurrence.Limits{Probes: 1, Outputs: 1})
+			require.NoError(t, err)
+			require.Equal(t, []occurrence.Candidate{expected}, got)
+			require.Equal(t, occurrence.Exhausted, status)
+		})
+	}
+}
