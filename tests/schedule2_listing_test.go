@@ -15,6 +15,7 @@ import (
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/chasm/lib/scheduler2"
+	"go.temporal.io/server/common/dynamicconfig"
 	"go.temporal.io/server/common/searchattribute/sadefs"
 	"go.temporal.io/server/common/testing/await"
 	"go.temporal.io/server/common/testing/testhooks"
@@ -110,4 +111,20 @@ func TestSchedule2ListingWithSearchAttributes(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, response.Schedules, 1)
 	require.Equal(t, customID, response.Schedules[0].ScheduleId)
+}
+
+func TestSchedule2ReadsWithLegacyCreationDisabled(t *testing.T) {
+	t.Parallel()
+	env := newScheduleEnv(t, []scheduleBackend{schedule2Backend},
+		testcore.WithDynamicConfig(dynamicconfig.EnableCHASMSchedulerCreation, false),
+		testcore.WithDynamicConfig(dynamicconfig.EnableCHASMSchedulerMigration, false))
+	id := testcore.RandomizeStr("read-disabled-legacy")
+	createSchedule(t.Context(), t, env, id, &schedulepb.Schedule{Spec: &schedulepb.ScheduleSpec{}, Action: startWorkflowAction(env, id+"-workflow", "unused"), State: &schedulepb.ScheduleState{Paused: true}})
+	assertScheduleCallbackBackend(t, env, schedule2Backend, id)
+	response, err := env.FrontendClient().DescribeSchedule(t.Context(), &workflowservice.DescribeScheduleRequest{Namespace: env.Namespace().String(), ScheduleId: id})
+	require.NoError(t, err)
+	require.NotNil(t, response.Schedule)
+	require.True(t, response.Schedule.State.Paused)
+	entry := getScheduleEntryFromVisibility(t, env, id, schedule2Backend.context, nil)
+	require.Equal(t, id, entry.ScheduleId)
 }

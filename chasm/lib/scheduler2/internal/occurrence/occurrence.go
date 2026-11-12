@@ -67,6 +67,7 @@ type Enumerator struct {
 	start    time.Time
 	end      time.Time
 	empty    bool
+	public   bool
 }
 
 func supported(t time.Time) bool {
@@ -82,7 +83,15 @@ func New(spec *schedulepb.ScheduleSpec, seed string, revision int64) (*Enumerato
 // definition-size ceiling. Scan work still yields at the same probe and output
 // budgets. Work per raw lookup scales with the accepted spec.
 func NewPublic(spec *schedulepb.ScheduleSpec, seed string, revision int64) (*Enumerator, error) {
-	return newEnumerator(spec, seed, revision, math.MaxInt, math.MaxInt, math.MaxInt)
+	e, err := newEnumerator(spec, seed, revision, math.MaxInt, math.MaxInt, math.MaxInt)
+	if err != nil {
+		return nil, err
+	}
+	e.public = true
+	if spec.StartTime == nil {
+		e.start = time.Unix(0, 0).UTC()
+	}
+	return e, nil
 }
 
 func newEnumerator(spec *schedulepb.ScheduleSpec, seed string, revision int64, maxBytes, maxTerms, maxRanges int) (*Enumerator, error) {
@@ -137,7 +146,7 @@ func validateBounds(spec *schedulepb.ScheduleSpec) error {
 
 // Begin binds a fresh continuation to this definition revision.
 func (e *Enumerator) Begin(after time.Time) (State, error) {
-	if !validCursor(after) {
+	if !e.validCursor(after) {
 		return State{}, serviceerror.NewInvalidArgument("cursor is outside the prototype range")
 	}
 	return State{Origin: after, DefinitionID: e.identity, Revision: e.revision, SearchAfter: after, DisposedThrough: after, FullRange: after.Before(e.start)}, nil
@@ -154,10 +163,10 @@ func clone(state State) State {
 // Update explicitly supersedes unadmitted work and resets search at its boundary.
 // The returned candidate records the superseded disposition, if any.
 func (e *Enumerator) Update(state State, at time.Time) (State, *Candidate, error) {
-	if err := validateState(state); err != nil {
+	if err := e.validateState(state); err != nil {
 		return state, nil, err
 	}
-	if e.revision <= state.Revision || !supported(at) {
+	if e.revision <= state.Revision || !e.supported(at) {
 		return state, nil, serviceerror.NewInvalidArgument("update requires a newer revision and supported time")
 	}
 	boundary := at
@@ -178,10 +187,10 @@ func (e *Enumerator) Run(state State, through time.Time, limits Limits) (Result,
 	if state.Revision != e.revision || state.DefinitionID != e.identity {
 		return Result{}, serviceerror.NewFailedPrecondition("continuation belongs to another definition revision")
 	}
-	if !supported(through) || limits.Probes < 1 || limits.Probes > 1024 || limits.Outputs < 1 || limits.Outputs > 128 {
+	if !e.supported(through) || limits.Probes < 1 || limits.Probes > 1024 || limits.Outputs < 1 || limits.Outputs > 128 {
 		return Result{}, serviceerror.NewInvalidArgument("unsupported window or enumeration limits")
 	}
-	if err := validateState(state); err != nil {
+	if err := e.validateState(state); err != nil {
 		return Result{}, err
 	}
 	if state.FullRange != state.Origin.Before(e.start) || (state.Terminal == Empty && !e.empty) {
@@ -252,7 +261,7 @@ func (e *Enumerator) probe(result *Result) error {
 		result.State.Pending = &Candidate{Nominal: candidate.Nominal, Actual: candidate.Nominal, Revision: e.revision, Excluded: true}
 		return nil
 	}
-	if !supported(candidate.Next) {
+	if !e.supported(candidate.Next) {
 		return serviceerror.NewInvalidArgument("jittered time is outside the prototype range")
 	}
 	result.State.EligibleSeen = true
@@ -260,13 +269,17 @@ func (e *Enumerator) probe(result *Result) error {
 	return nil
 }
 
-func validCursor(t time.Time) bool {
-	return supported(t) || t.Equal(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond))
+func (e *Enumerator) validCursor(t time.Time) bool {
+	lower := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	if e.public {
+		lower = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
+	return e.supported(t) || t.Equal(lower.Add(-time.Nanosecond))
 }
 
-func validateState(state State) error {
+func (e *Enumerator) validateState(state State) error {
 	invalid := func() error { return serviceerror.NewFailedPrecondition("invalid enumeration continuation") }
-	if state.Revision <= 0 || state.DefinitionID == "" || !validCursor(state.Origin) || !validCursor(state.SearchAfter) || !validCursor(state.DisposedThrough) || state.Origin.After(state.DisposedThrough) || state.DisposedThrough.After(state.SearchAfter) {
+	if state.Revision <= 0 || state.DefinitionID == "" || !e.validCursor(state.Origin) || !e.validCursor(state.SearchAfter) || !e.validCursor(state.DisposedThrough) || state.Origin.After(state.DisposedThrough) || state.DisposedThrough.After(state.SearchAfter) {
 		return invalid()
 	}
 	switch state.Terminal {
@@ -278,7 +291,7 @@ func validateState(state State) error {
 		return invalid()
 	}
 	if pending := state.Pending; pending != nil {
-		if !validPending(state, pending) {
+		if !e.validPending(state, pending) {
 			return invalid()
 		}
 	} else if !state.SearchAfter.Equal(state.DisposedThrough) {
@@ -287,6 +300,13 @@ func validateState(state State) error {
 	return nil
 }
 
-func validPending(state State, pending *Candidate) bool {
-	return state.Terminal == Active && pending.Revision == state.Revision && supported(pending.Nominal) && supported(pending.Actual) && pending.Nominal.Nanosecond() == 0 && !pending.Actual.Before(pending.Nominal) && pending.Nominal.Equal(state.SearchAfter) && state.DisposedThrough.Before(pending.Nominal) && (!pending.Excluded || pending.Actual.Equal(pending.Nominal)) && (pending.Excluded || state.EligibleSeen)
+func (e *Enumerator) validPending(state State, pending *Candidate) bool {
+	return state.Terminal == Active && pending.Revision == state.Revision && e.supported(pending.Nominal) && e.supported(pending.Actual) && pending.Nominal.Nanosecond() == 0 && !pending.Actual.Before(pending.Nominal) && pending.Nominal.Equal(state.SearchAfter) && state.DisposedThrough.Before(pending.Nominal) && (!pending.Excluded || pending.Actual.Equal(pending.Nominal)) && (pending.Excluded || state.EligibleSeen)
+}
+
+func (e *Enumerator) supported(t time.Time) bool {
+	if !e.public {
+		return supported(t)
+	}
+	return t.Year() >= 1 && t.Year() <= 9999
 }

@@ -62,7 +62,7 @@ func (s *Scheduler) demands(ctx chasm.Context, state decision.State) ([]workDema
 		scan := backfillNeedsScan(g, b)
 		key := fmt.Sprintf("backfill/%d", b.Id)
 		if !scan {
-			key = fmt.Sprintf("backfill/%d/%d", b.Id, b.Continuation.Pending.Nominal)
+			key = fmt.Sprintf("backfill/%d/%s", b.Id, decodeDecisionTime(b.Continuation.Pending.NominalTime).Key(b.Continuation.Pending.Nominal))
 		}
 		deferred := !scan && s.publicSkipBatch(b) && !s.suppressBackfill(b) && s.backfillBatchCapacity(ctx) == 0
 		if deferred {
@@ -102,9 +102,9 @@ func automaticDemand(g *Generator, state decision.State, now time.Time) (*workDe
 	if eligible {
 		policy := resolvedPolicy(state.Root.Policy, state.Root.Policy)
 		if directAdmissionFor(state, policy) {
-			d.operation = state.Root.Unfinished < 4
+			d.operation = decision.OperationAvailable(state)
 		} else {
-			d.vacancy = len(state.Queue) < 4 && policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || len(state.Queue) == 0)
+			d.vacancy = decision.QueueAvailable(state) && policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || len(state.Queue) == 0)
 		}
 	}
 	return &d, time.Time{}
@@ -137,19 +137,27 @@ func (s *Scheduler) planWorkFor(ctx chasm.Context, state decision.State) (*sched
 	byClass := make(map[scheduler2pb.WorkClass]workDemand, len(demands))
 	for _, d := range demands {
 		byClass[d.class] = d
+		if state.Capacity.Public && d.vacancy && !decision.QueueAvailable(state) {
+			// Live configuration can restore capacity without an operation result.
+			// Keep accepted intent and its lease, with a physical retry rather than an immediate loop.
+			retry := ctx.Now(s).Add(time.Second)
+			if future.IsZero() || retry.Before(future) {
+				future = retry
+			}
+		}
 	}
 	owner, exists := byClass[c.OwnerClass]
 	if c.OwnerKey != "" && (!exists || !owner.vacancy || owner.key != c.OwnerKey) {
 		c.OwnerKey = ""
 	}
-	if c.OwnerKey == "" && len(state.Queue) < 4 {
+	if c.OwnerKey == "" && decision.QueueAvailable(state) {
 		if class, ok := cyclicClass(c.NextQueue, func(class scheduler2pb.WorkClass) bool { return byClass[class].vacancy && !byClass[class].deferred }); ok {
 			c.OwnerClass = class
 			c.OwnerKey = byClass[class].key
 		}
 	}
 	owns := func(d workDemand) bool {
-		return !d.vacancy || (c.OwnerClass == d.class && c.OwnerKey == d.key && len(state.Queue) < 4)
+		return !d.vacancy || (c.OwnerClass == d.class && c.OwnerKey == d.key && decision.QueueAvailable(state))
 	}
 	op, hasOp := cyclicClass(c.NextOperation, func(class scheduler2pb.WorkClass) bool {
 		d, ok := byClass[class]
@@ -157,7 +165,7 @@ func (s *Scheduler) planWorkFor(ctx chasm.Context, state decision.State) (*sched
 	})
 	selected, ready := cyclicClass(c.NextWork, func(class scheduler2pb.WorkClass) bool {
 		d, ok := byClass[class]
-		return ok && !d.deferred && owns(d) && (!d.operation || (hasOp && op == class && state.Root.Unfinished < 4))
+		return ok && !d.deferred && owns(d) && (!d.operation || (hasOp && op == class && decision.OperationAvailable(state)))
 	})
 	if ready {
 		d := byClass[selected]
@@ -378,7 +386,7 @@ func (s *Scheduler) transferBackfill(ctx chasm.MutableContext) error {
 	if b == nil || b.Continuation == nil || b.Continuation.Pending == nil {
 		return serviceerror.NewFailedPrecondition("backfill candidate is missing")
 	}
-	event := decision.Event{Kind: decision.DispatchBackfill, Incarnation: s.Incarnation, BackfillID: b.Id, Nominal: b.Continuation.Pending.Nominal, Actual: b.Continuation.Pending.Actual, Policy: b.Policy}
+	event := decision.Event{Kind: decision.DispatchBackfill, Incarnation: s.Incarnation, BackfillID: b.Id, Nominal: b.Continuation.Pending.Nominal, Actual: b.Continuation.Pending.Actual, NominalTime: decodeDecisionTime(b.Continuation.Pending.NominalTime), ActualTime: decodeDecisionTime(b.Continuation.Pending.ActualTime), Policy: b.Policy}
 	policy := resolvedPolicy(b.Policy, s.Policy)
 	event.BackfillBatchSkip = s.suppressBackfill(b)
 	capacity := int64(0)
@@ -399,7 +407,7 @@ func (s *Scheduler) transferBackfill(ctx chasm.MutableContext) error {
 		if err := proto.Unmarshal(event.Request, request); err != nil {
 			return err
 		}
-		event.WorkflowID = request.WorkflowId + "-" + time.Unix(0, event.Nominal).UTC().Format(time.RFC3339)
+		event.WorkflowID = request.WorkflowId + "-" + event.NominalTime.Time(event.Nominal).Format(time.RFC3339)
 	}
 	if err := s.applyTransition(ctx, event); err != nil {
 		return err

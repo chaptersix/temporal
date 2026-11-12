@@ -11,7 +11,7 @@ import (
 // Subtracting exactly one nanosecond preserves fractional lower bounds and also
 // supports the first instant of the prototype range via Begin's sentinel cursor.
 func (e *Enumerator) BeginRange(start, end time.Time) (State, error) {
-	if !supported(start) || !supported(end) || end.Before(start) {
+	if !e.supported(start) || !e.supported(end) || end.Before(start) {
 		return State{}, serviceerror.NewInvalidArgument("invalid inclusive backfill range")
 	}
 	return e.Begin(start.Add(-time.Nanosecond))
@@ -43,10 +43,10 @@ func (e *Enumerator) Peek(state State, end time.Time, probes int) (Result, error
 	if state.Revision != e.revision || state.DefinitionID != e.identity {
 		return Result{}, serviceerror.NewFailedPrecondition("continuation belongs to another definition revision")
 	}
-	if !supported(end) || probes < 1 || probes > 1024 {
+	if !e.supported(end) || probes < 1 || probes > 1024 {
 		return Result{}, serviceerror.NewInvalidArgument("unsupported backfill range or probe limit")
 	}
-	if err := validateState(state); err != nil {
+	if err := e.validateState(state); err != nil {
 		return Result{}, err
 	}
 	if state.FullRange != state.Origin.Before(e.start) || (state.Terminal == Empty && !e.empty) {
@@ -94,7 +94,7 @@ func (e *Enumerator) DisposeRange(state State) (State, error) {
 	if state.Revision != e.revision || state.DefinitionID != e.identity {
 		return State{}, serviceerror.NewFailedPrecondition("continuation belongs to another definition revision")
 	}
-	if err := validateState(state); err != nil {
+	if err := e.validateState(state); err != nil {
 		return State{}, err
 	}
 	if state.Pending == nil || state.Pending.Excluded {
@@ -110,7 +110,7 @@ func (e *Enumerator) DisposeRange(state State) (State, error) {
 // the last disposed NOMINAL rather than execution time. The caller retains its
 // original range end and atomically records the superseded pending candidate.
 func (e *Enumerator) RebaseRange(state State) (State, *Candidate, error) {
-	if err := validateState(state); err != nil {
+	if err := e.validateState(state); err != nil {
 		return state, nil, err
 	}
 	if e.revision <= state.Revision {

@@ -7,12 +7,14 @@ import (
 
 // Queued contains identity metadata, never an admitted request snapshot.
 type Queued struct {
-	BackfillID uint64
-	ManualID   uint64
-	Nominal    int64
-	Actual     int64
-	WorkflowID string
-	Policy     enumspb.ScheduleOverlapPolicy
+	NominalTime Timestamp
+	ActualTime  Timestamp
+	BackfillID  uint64
+	ManualID    uint64
+	Nominal     int64
+	Actual      int64
+	WorkflowID  string
+	Policy      enumspb.ScheduleOverlapPolicy
 }
 
 func ValidPolicy(p enumspb.ScheduleOverlapPolicy) bool {
@@ -29,7 +31,7 @@ func enqueue(next State, event Event) (State, error) {
 	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL && effectPolicy(policy) == NoEffect {
 		return next, nil
 	}
-	if len(next.Queue) >= 4 || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(next.Queue) > 0) {
+	if !QueueAvailable(next) || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(next.Queue) > 0) {
 		next.Root.BufferDropped++
 		return next, nil
 	}
@@ -56,7 +58,7 @@ func DrainIndex(state State, now, catchup int64) int {
 
 // CanDrain excludes external capacity waits while permitting ineligible disposition.
 func CanDrain(state State, now, catchup int64) bool {
-	return NeedsDrain(state) && (DrainIndex(state, now, catchup) < 0 || state.Root.Unfinished < 4)
+	return NeedsDrain(state) && (DrainIndex(state, now, catchup) < 0 || OperationAvailable(state))
 }
 
 // NeedsDrain distinguishes internal pending work from waiting on an active operation.
@@ -74,7 +76,7 @@ func drain(next State, event Event) (State, error) {
 		next.Queue = nil
 		return next, nil
 	}
-	if next.Root.Unfinished >= 4 {
+	if !OperationAvailable(next) {
 		return next, nil
 	}
 	if len(event.Request) == 0 {

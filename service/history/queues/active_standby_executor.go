@@ -11,6 +11,7 @@ import (
 	"go.temporal.io/server/common/namespace"
 	"go.temporal.io/server/common/testing/testhooks"
 	"go.temporal.io/server/service/history/consts"
+	"go.temporal.io/server/service/history/tasks"
 )
 
 type (
@@ -50,11 +51,16 @@ func (e *activeStandbyExecutor) Execute(
 	executable Executable,
 ) ExecuteResponse {
 	namespaceID := namespace.ID(executable.GetNamespaceID())
-	if testHook, ok := testhooks.Get(
-		e.testHooks,
-		testhooks.HistoryPassiveReplicationTest,
-		namespaceID,
-	); ok && testHook.ShouldExecuteTaskAsPassive(executable.GetTask()) {
+	if hook, ok := testhooks.Get(e.testHooks, testhooks.HistoryTimerTaskInterceptor, namespaceID); ok && executable.GetTask().GetCategory() == tasks.CategoryTimer {
+		var response ExecuteResponse
+		hook(executable.GetTask(), func() { response = e.execute(ctx, executable, namespaceID) })
+		return response
+	}
+	return e.execute(ctx, executable, namespaceID)
+}
+
+func (e *activeStandbyExecutor) execute(ctx context.Context, executable Executable, namespaceID namespace.ID) ExecuteResponse {
+	if testHook, ok := testhooks.Get(e.testHooks, testhooks.HistoryPassiveReplicationTest, namespaceID); ok && testHook.ShouldExecuteTaskAsPassive(executable.GetTask()) {
 		metrics.HistoryPassiveReplicationTestHookCounter.With(e.metricsHandler).Record(
 			1,
 			metrics.OperationTag("ActiveStandbyExecutor"),

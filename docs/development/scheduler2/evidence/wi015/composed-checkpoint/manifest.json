@@ -1,0 +1,26 @@
+{
+  "status": "verification checkpoint, acceptance pending independent timestamp review and final audit",
+  "commands": {
+    "core": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 -parallel 4 ./chasm/lib/scheduler2/... ./chasm/lib/callback ./common/nexus/nexusrpc ./service/history/hsm/callbacks ./service/history/queues -count=1",
+    "public": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 -parallel 4 ./tests -run ^TestSchedule2 -count=1 -timeout=10m",
+    "lint": "CGO_ENABLED=0 GOMAXPROCS=4 make lint-code-fast GOLANGCI_LINT_BASE_REV=2c69d8ad7 GOLANGCI_LINT_FIX=false"
+  },
+  "results": {
+    "core": "PASS19.576s root and all selected packages",
+    "public": "PASS146.941s",
+    "lint": "PASS0issues normal/minimal",
+    "disabled-reads": "PASS1.174s"
+  },
+  "logs_sha256": {
+    "lint-composed-final01.log": "bfbd129e90b5c178427f634095b2460bccf0cbf785e6867e1274996feafd2ebb",
+    "public-composed01.log": "5ed6d08248647230b5dd3422b549bd794b358898023c13d88687bc982a67286a",
+    "core-composed01.log": "ce1f3e388803a7ccb17c02fa1f41d1b5bd9c3a2295b94ab891631a0f1e4fd81d",
+    "disabled-reads01.log": "41748b4bcec693268bfc62aba1a96511cb237b5f77e237e0498412d591cf81a2"
+  },
+  "limits": "Default backend shared and composed race runs still pending. Public binary predates added disabled-legacy read test (separate run recorded). Timer executor condition style cleanup follows composed binary; owner scoped queue rerun passed.",
+  "default_shared": {
+    "result": "PASS88.049s unchanged V1 and CHASM shared suites",
+    "sha256": "f9c2d6a91143a07c9b780486567c4769147070d6d83465b923e82042c88fafa8",
+    "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 -parallel 4 ./tests -run ^TestSchedule(V1|CHASM)SharedSuite$ -count=1 -timeout=8m"
+  }
+}

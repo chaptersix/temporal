@@ -29,7 +29,10 @@ func (s *Scheduler) HandleNexusCompletion(ctx chasm.MutableContext, completion *
 	if chain == "" {
 		return serviceerror.NewInvalidArgument("workflow completion requires first execution run ID")
 	}
-	event := decision.Event{Kind: decision.Callback, Incarnation: s.Incarnation, OperationID: completion.RequestId, ChainID: chain}
+	if completion.CloseTime == nil || completion.CloseTime.CheckValid() != nil {
+		return serviceerror.NewInvalidArgument("workflow completion requires valid close time")
+	}
+	event := decision.Event{Kind: decision.Callback, Incarnation: s.Incarnation, OperationID: completion.RequestId, ChainID: chain, PublicCloseTime: completion.GetCloseTime().AsTime()}
 	var err error
 	switch outcome := completion.GetOutcome().(type) {
 	case *persistencespb.ChasmNexusCompletion_Success:

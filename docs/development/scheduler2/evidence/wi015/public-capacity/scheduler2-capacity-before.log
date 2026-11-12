@@ -1,0 +1,76 @@
+--- FAIL: TestPublicConfiguredAutomaticCapacity (0.00s)
+    --- FAIL: TestPublicConfiguredAutomaticCapacity/limit2/BufferAll (0.00s)
+        public_capacity_test.go:36: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_capacity_test.go:36
+            	Error:      	Not equal: 
+            	            	expected: int(2)
+            	            	actual  : int64(5)
+            	Test:       	TestPublicConfiguredAutomaticCapacity/limit2/BufferAll
+            	Messages:   	retained intent follows configured capacity
+    --- FAIL: TestPublicConfiguredAutomaticCapacity/limit5/AllowAll (0.00s)
+        public_capacity_test.go:36: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_capacity_test.go:36
+            	Error:      	Not equal: 
+            	            	expected: int(5)
+            	            	actual  : int64(4)
+            	Test:       	TestPublicConfiguredAutomaticCapacity/limit5/AllowAll
+            	Messages:   	retained intent follows configured capacity
+    --- FAIL: TestPublicConfiguredAutomaticCapacity/limit1000/AllowAll (0.01s)
+        public_capacity_test.go:36: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_capacity_test.go:36
+            	Error:      	Not equal: 
+            	            	expected: int(7)
+            	            	actual  : int64(4)
+            	Test:       	TestPublicConfiguredAutomaticCapacity/limit1000/AllowAll
+            	Messages:   	retained intent follows configured capacity
+    --- FAIL: TestPublicConfiguredAutomaticCapacity/limit1000/BufferAll (0.00s)
+        public_capacity_test.go:36: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_capacity_test.go:36
+            	Error:      	Not equal: 
+            	            	expected: int(7)
+            	            	actual  : int64(5)
+            	Test:       	TestPublicConfiguredAutomaticCapacity/limit1000/BufferAll
+            	Messages:   	retained intent follows configured capacity
+    --- FAIL: TestPublicConfiguredAutomaticCapacity/limit-1/BufferAll (0.00s)
+        public_capacity_test.go:36: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_capacity_test.go:36
+            	Error:      	Not equal: 
+            	            	expected: int(7)
+            	            	actual  : int64(5)
+            	Test:       	TestPublicConfiguredAutomaticCapacity/limit-1/BufferAll
+            	Messages:   	retained intent follows configured capacity
+    --- FAIL: TestPublicConfiguredAutomaticCapacity/limit2/AllowAll (0.00s)
+        public_capacity_test.go:36: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_capacity_test.go:36
+            	Error:      	Not equal: 
+            	            	expected: int(2)
+            	            	actual  : int64(4)
+            	Test:       	TestPublicConfiguredAutomaticCapacity/limit2/AllowAll
+            	Messages:   	retained intent follows configured capacity
+    --- FAIL: TestPublicConfiguredAutomaticCapacity/limit-1/AllowAll (0.00s)
+        public_capacity_test.go:36: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_capacity_test.go:36
+            	Error:      	Not equal: 
+            	            	expected: int(7)
+            	            	actual  : int64(4)
+            	Test:       	TestPublicConfiguredAutomaticCapacity/limit-1/AllowAll
+            	Messages:   	retained intent follows configured capacity
+    --- FAIL: TestPublicConfiguredAutomaticCapacity/limit0/AllowAll (0.00s)
+        public_capacity_test.go:36: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_capacity_test.go:36
+            	Error:      	Not equal: 
+            	            	expected: int(7)
+            	            	actual  : int64(4)
+            	Test:       	TestPublicConfiguredAutomaticCapacity/limit0/AllowAll
+            	Messages:   	retained intent follows configured capacity
+    --- FAIL: TestPublicConfiguredAutomaticCapacity/limit0/BufferAll (0.00s)
+        public_capacity_test.go:36: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_capacity_test.go:36
+            	Error:      	Not equal: 
+            	            	expected: int(7)
+            	            	actual  : int64(5)
+            	Test:       	TestPublicConfiguredAutomaticCapacity/limit0/BufferAll
+            	Messages:   	retained intent follows configured capacity
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.720s
+FAIL

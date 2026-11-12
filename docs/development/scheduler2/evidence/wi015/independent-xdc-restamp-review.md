@@ -49,3 +49,7 @@ an unrelated concurrently introduced duplicate ContextMetadata method blocked co
 This is not marked a final test pass; author owns its pending rerun and final manifest.
 This reviewer ran no additional tests. Hashes below are independent final-source review
 snapshots, preserving the author's original passing-source hashes.
+
+Author follow-up: strengthened run06 PASS11.794s after the unrelated compile issue
+was resolved; final source/log hashes are in xdc-restamp/manifest.json. The reviewer
+inspected the strengthened source but did not execute this physical rerun.

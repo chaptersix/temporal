@@ -27,7 +27,7 @@ func (s *Scheduler) prepareDrain(ctx chasm.Context, state decision.State, event 
 	}
 	g := s.Generator.Get(ctx)
 	event.CatchupWindow = g.CatchupWindow
-	if state.Root.Unfinished < 4 && decision.DrainIndex(state, event.Now, event.CatchupWindow) >= 0 {
+	if decision.OperationAvailable(state) && decision.DrainIndex(state, event.Now, event.CatchupWindow) >= 0 {
 		var err error
 		event.Request, err = s.generationRequest(ctx)
 		if err != nil {

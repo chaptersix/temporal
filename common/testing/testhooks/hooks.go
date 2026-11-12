@@ -39,6 +39,7 @@ var (
 	HistoryReplicationTaskConversionInterceptor = newKey[func(historytasks.Task, func() (*replicationspb.ReplicationTask, error)) (*replicationspb.ReplicationTask, error), namespace.ID]()
 	HistoryReplicationDLQWriteInterceptor       = newKey[func(*persistencespb.ReplicationTaskInfo, func() error) error, global]()
 	HistoryChasmRuntimeProvider                 = newKey[func(HistoryChasmRuntime), global]()
+	HistoryTimerTaskInterceptor                 = newKey[func(historytasks.Task, func()), namespace.ID]()
 	HistoryTransferTaskInterceptor              = newKey[func(historytasks.Task, func()), namespace.ID]()
 	NexusRetainTimedOutOperation                = newKey[bool, namespace.Name]()
 	// HistoryPassiveReplicationTest enables the single-cluster passive replication

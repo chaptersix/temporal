@@ -5,8 +5,14 @@ package decision
 // intent; it does not remove the previously selected intent.
 func reconcileActivity(before, next State, event Event) State {
 	if next.Operation != nil && (before.Operation == nil || before.Operation.ID != next.Operation.ID) {
+		if next.Capacity.Public {
+			next.Capacity.BufferedOperations += bufferedOperation(next.Operation)
+		}
 		next.Root.UnconfirmedStarts += unconfirmed(next.Operation)
 	} else {
+		if next.Capacity.Public {
+			next.Capacity.BufferedOperations += bufferedOperation(next.Operation) - bufferedOperation(before.Operation)
+		}
 		next.Root.UnconfirmedStarts += unconfirmed(next.Operation) - unconfirmed(before.Operation)
 	}
 	if next.Root.Revision > before.Root.Revision || next.Root.ManualSequence > before.Root.ManualSequence {

@@ -34,20 +34,21 @@ func (s *Scheduler) publishPublicTransition(ctx chasm.MutableContext, before, ne
 		s.PublicInfo = chasm.NewDataField(ctx, info)
 	}
 	if admitted {
-		at := event.Actual
+		at := event.ActualTime.Time(event.Actual)
 		switch event.Kind {
 		case decision.DispatchManual:
-			at = next.Operation.Nominal
+			at = next.Operation.NominalTime.Time(next.Operation.Nominal)
 		case decision.Drain:
 			index := decision.DrainIndex(before, event.Now, event.CatchupWindow)
 			if index >= 0 {
-				at = before.Queue[index].Actual
+				at = before.Queue[index].ActualTime.Time(before.Queue[index].Actual)
 			}
 		default:
 			// Automatic and backfill events carry their jittered time.
 		}
-		runtime.Actions = append(runtime.Actions, &scheduler2pb.PublicAction{OperationId: next.Operation.ID, Result: &schedulepb.ScheduleActionResult{ScheduleTime: timestamppb.New(time.Unix(0, at).UTC()), StartWorkflowResult: &commonpb.WorkflowExecution{WorkflowId: next.Operation.WorkflowID}}})
+		runtime.Actions = append(runtime.Actions, &scheduler2pb.PublicAction{OperationId: next.Operation.ID, Result: &schedulepb.ScheduleActionResult{ScheduleTime: timestamppb.New(at), StartWorkflowResult: &commonpb.WorkflowExecution{WorkflowId: next.Operation.WorkflowID}}})
 	}
+	s.retainPublicCompletions(runtime, before, next, event)
 	updatePublicResult(runtime, before, next, event)
 	s.retainPublicActions(runtime)
 	s.PublicRuntime = chasm.NewDataField(ctx, runtime)
@@ -218,7 +219,7 @@ func publicDispositionCounts(before, next decision.State, event decision.Event) 
 		if event.BackfillBatchSkip {
 			return 1, 0, 0
 		}
-		if len(before.Queue) >= 4 {
+		if !decision.QueueAvailable(before) {
 			return
 		}
 		if event.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
@@ -239,6 +240,9 @@ func publicDispositionCounts(before, next decision.State, event decision.Event) 
 func publicOverlapCounts(before, next decision.State, policy enumspb.ScheduleOverlapPolicy) (skipped, dropped int64) {
 	occupied := before.Root.BlockingOperationID != "" || len(before.Queue) > 0
 	policySkip := policy == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || policy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(before.Queue) > 0)
+	if before.Capacity.Public && !decision.QueueAvailable(before) && next.Root.BufferDropped > before.Root.BufferDropped {
+		return 0, next.Root.BufferDropped - before.Root.BufferDropped
+	}
 	if occupied && policySkip {
 		skipped = 1
 	}

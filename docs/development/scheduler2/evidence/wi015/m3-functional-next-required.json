@@ -647,7 +647,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestAllowAllDescribeContract",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -667,14 +667,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "527a6d96fc18890472f827b88af7de57b3303d5078dd6d09749000083f6708e6",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestAllowAllDescribeContract"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestAllowAllDescribeContract",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 26,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestBufferSizeReportedWhenBuffered",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "capacity-and-buffer-accounting",
       "contracts": [
@@ -696,14 +697,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "47f9cc5770f60f4f7a0262820d8a24cf0cca934726358d2fe7a342c69f6cbbc3",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBufferSizeReportedWhenBuffered"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBufferSizeReportedWhenBuffered",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 27,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestPatchTriggerRetryDedupsRequestID",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -725,7 +727,8 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "c166deff40cd144231ff9b7f6bd9458aa4ed3bff7fd3263c7fe5ecf002daea12",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestPatchTriggerRetryDedupsRequestID"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestPatchTriggerRetryDedupsRequestID",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 28,
@@ -759,7 +762,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestBufferOneDeferredFiresAfterCompletion",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "capacity-and-buffer-accounting",
       "contracts": [
@@ -781,14 +784,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "849df5d9ba5bfa09f9f5638c7a4f1abac7acf608cd3295bb8fce624ac415afc8",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBufferOneDeferredFiresAfterCompletion"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBufferOneDeferredFiresAfterCompletion",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 30,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestDeletedScheduleOperations",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -808,14 +812,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "80a0e149326c4b5fbb4c2922b2a36211fd64dca0075607a3f95ce96a915bb422",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestDeletedScheduleOperations"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestDeletedScheduleOperations",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 31,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestBasics",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -834,14 +839,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7c7ec32dede5f2b150cbf6367f327117f02e51d01b3b9bafb42bc7f89632cb5e",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBasics"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBasics",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 32,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestInput",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -861,14 +867,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "245ef8a879c0e106d4899290d79e673b9a4829e04ac17ce7525c8c62c661b47a",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestInput"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestInput",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 33,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestLastCompletionResultAfterNoResultWorkflow",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -888,7 +895,8 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "81075aed938e7c0c93fb7089f51fb31a83889f2cfb28f131b8ea0845e02c05a3",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestLastCompletionResultAfterNoResultWorkflow"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestLastCompletionResultAfterNoResultWorkflow",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 34,
@@ -920,7 +928,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestLastCompletionAndError",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -940,14 +948,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "adb7ef6f4f8fdd0ac1635869b36597f0673d2c67796662e7bc659c24b95b5b54",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestLastCompletionAndError"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestLastCompletionAndError",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 36,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestScheduleContinuesAfterWorkflowRetryFailure",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -969,7 +978,8 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "6c6ca0f24b456fb5a35b0a4566fbb3febbb5cef0e9d1b808d22832832f1d0779",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestScheduleContinuesAfterWorkflowRetryFailure"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestScheduleContinuesAfterWorkflowRetryFailure",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 37,
@@ -1002,7 +1012,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesReturnsWorkflowStatus",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1023,14 +1033,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "ed11f5a579106ac389c8a0571e1f2609976ae4a2ffcfc08a22ae7f19a1be3d9c",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesReturnsWorkflowStatus"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesReturnsWorkflowStatus",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 39,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesRecentActionsCapped",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1051,14 +1062,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "0e87dc06f2bfdbf9f5324ac06a32e91da8b4add8fc38caf325eb03c33287837a",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesRecentActionsCapped"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesRecentActionsCapped",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 40,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestUpdateIntervalTakesEffect",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -1080,14 +1092,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "ddd0a20d4f810991fcf50e1e801036b32b6774005919a09501ff41128d288e86",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestUpdateIntervalTakesEffect"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestUpdateIntervalTakesEffect",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 41,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListScheduleMatchingTimes",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -1107,14 +1120,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "4fcc45b8e750cd95ef2dd1fa7b4e2ab99966231ed77695d2e611f406e210c088",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListScheduleMatchingTimes"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListScheduleMatchingTimes",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 42,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListScheduleMatchingTimes/action",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -1134,14 +1148,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "4fcc45b8e750cd95ef2dd1fa7b4e2ab99966231ed77695d2e611f406e210c088",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListScheduleMatchingTimes/action"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListScheduleMatchingTimes/action",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 43,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListScheduleMatchingTimes/valid range",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -1161,14 +1176,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "4fcc45b8e750cd95ef2dd1fa7b4e2ab99966231ed77695d2e611f406e210c088",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListScheduleMatchingTimes/valid range"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListScheduleMatchingTimes/valid range",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 44,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListScheduleMatchingTimes/epoch range",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -1188,14 +1204,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "4fcc45b8e750cd95ef2dd1fa7b4e2ab99966231ed77695d2e611f406e210c088",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListScheduleMatchingTimes/epoch range"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListScheduleMatchingTimes/epoch range",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 45,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListScheduleMatchingTimes/invalid start time",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -1215,14 +1232,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "4fcc45b8e750cd95ef2dd1fa7b4e2ab99966231ed77695d2e611f406e210c088",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListScheduleMatchingTimes/invalid start time"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListScheduleMatchingTimes/invalid start time",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 46,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestLimitMemoSpecSize",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1245,14 +1263,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "872788aad132e26e97cf28d0b5fb94b70448967f04897db599637be7a138c0f7",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestLimitMemoSpecSize"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestLimitMemoSpecSize",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 47,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestCountSchedules",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1271,14 +1290,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "e91ddef831f0d359d95307ecd65328c11ffa1802855b67eab312f9e063e8e76b",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestCountSchedules"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestCountSchedules",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 48,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesPagination",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1297,14 +1317,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "2b2d620536c2b06a98fe81ef371724a4e383a53f979b1e6f0bb6da4c3339d7d8",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesPagination"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesPagination",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 49,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesPagination/action",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1323,14 +1344,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "2b2d620536c2b06a98fe81ef371724a4e383a53f979b1e6f0bb6da4c3339d7d8",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesPagination/action"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesPagination/action",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 50,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterAndEntryFields",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1349,14 +1371,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "fe7d838eb75d24aa60715a5c6b3d46a4779e571a68cb86104356975c0bf069e0",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterAndEntryFields"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterAndEntryFields",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 51,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterByScheduleId",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1375,14 +1398,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7dc7c490766c5d331859050006ff0f72b6848ff99100d722dbf700dcc6179265",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 52,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterByScheduleId/action",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1401,14 +1425,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7dc7c490766c5d331859050006ff0f72b6848ff99100d722dbf700dcc6179265",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/action"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/action",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 53,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterByScheduleId/Equal",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1427,14 +1452,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7dc7c490766c5d331859050006ff0f72b6848ff99100d722dbf700dcc6179265",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/Equal"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/Equal",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 54,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterByScheduleId/NotEqual",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1453,14 +1479,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7dc7c490766c5d331859050006ff0f72b6848ff99100d722dbf700dcc6179265",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/NotEqual"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/NotEqual",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 55,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterByScheduleId/StartsWith",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1479,14 +1506,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7dc7c490766c5d331859050006ff0f72b6848ff99100d722dbf700dcc6179265",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/StartsWith"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/StartsWith",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 56,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterByScheduleId/StartsWithSpecific",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1505,14 +1533,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7dc7c490766c5d331859050006ff0f72b6848ff99100d722dbf700dcc6179265",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/StartsWithSpecific"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/StartsWithSpecific",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 57,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterByScheduleId/NotStartsWith",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1531,14 +1560,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7dc7c490766c5d331859050006ff0f72b6848ff99100d722dbf700dcc6179265",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/NotStartsWith"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/NotStartsWith",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 58,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterByScheduleId/In",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1557,14 +1587,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7dc7c490766c5d331859050006ff0f72b6848ff99100d722dbf700dcc6179265",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/In"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/In",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 59,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterByScheduleId/InSingle",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1583,14 +1614,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7dc7c490766c5d331859050006ff0f72b6848ff99100d722dbf700dcc6179265",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/InSingle"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/InSingle",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 60,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterByScheduleId/NotIn",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1609,14 +1641,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7dc7c490766c5d331859050006ff0f72b6848ff99100d722dbf700dcc6179265",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/NotIn"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/NotIn",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 61,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestListSchedulesFilterByScheduleId/IsNotNull",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -1635,14 +1668,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "7dc7c490766c5d331859050006ff0f72b6848ff99100d722dbf700dcc6179265",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/IsNotNull"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestListSchedulesFilterByScheduleId/IsNotNull",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 62,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestSchedule_InternalTaskQueue",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -1660,14 +1694,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "f660a91aae9a5d2290a738e19a9feca6e2c970cd99d3fb7253e4d0fb5fae7a2c",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestSchedule_InternalTaskQueue"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestSchedule_InternalTaskQueue",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 63,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestSchedule_InternalTaskQueue/CreateSchedule_PerNSWorkerTaskQueue",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -1685,14 +1720,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "f660a91aae9a5d2290a738e19a9feca6e2c970cd99d3fb7253e4d0fb5fae7a2c",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestSchedule_InternalTaskQueue/CreateSchedule_PerNSWorkerTaskQueue"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestSchedule_InternalTaskQueue/CreateSchedule_PerNSWorkerTaskQueue",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 64,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestSchedule_InternalTaskQueue/UpdateSchedule_PerNSWorkerTaskQueue",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -1710,14 +1746,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "f660a91aae9a5d2290a738e19a9feca6e2c970cd99d3fb7253e4d0fb5fae7a2c",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestSchedule_InternalTaskQueue/UpdateSchedule_PerNSWorkerTaskQueue"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestSchedule_InternalTaskQueue/UpdateSchedule_PerNSWorkerTaskQueue",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 65,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestSchedule_InternalTaskQueue/action",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -1735,7 +1772,8 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "f660a91aae9a5d2290a738e19a9feca6e2c970cd99d3fb7253e4d0fb5fae7a2c",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestSchedule_InternalTaskQueue/action"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestSchedule_InternalTaskQueue/action",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 66,
@@ -1930,7 +1968,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleCHASMSuite.TestStateSizeBytesReported",
       "baseline_classification": "implementation-specific",
-      "current_audit_status": "promoted-public-observation-pending",
+      "current_audit_status": "ported-public-obligation-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -1948,7 +1986,9 @@
       "evidence_ids": [
         "large-payload-test-source-pending"
       ],
-      "baseline_body_sha256": "d1a619159f694b2a07a6666385c526867ad128cec113530d652ac2fd5d7a5ddc"
+      "baseline_body_sha256": "d1a619159f694b2a07a6666385c526867ad128cec113530d652ac2fd5d7a5ddc",
+      "execution_evidence": "execution-checkpoint/payload-physical06.log",
+      "scope_note": "Positive public StateSizeBytes asserted in actual payload test, not universal capacity proof."
     },
     {
       "baseline_row": 75,
@@ -2070,7 +2110,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestCreateScheduleDuplicateSdkError",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2091,7 +2131,8 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "6b1eaf00710b6f80301a0d5203a0837238400dcb3e01082bcb532f3002519fda",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestCreateScheduleDuplicateSdkError"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestCreateScheduleDuplicateSdkError",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 81,
@@ -2326,7 +2367,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleV1Suite.TestRateLimit",
       "baseline_classification": "implementation-specific",
-      "current_audit_status": "public-policy-applicability-decision-required",
+      "current_audit_status": "explained-backend-divergence",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2342,7 +2383,9 @@
         "TestScheduleV1Suite/TestRateLimit"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "fbd942b0afa3e6cc19951ea61e1066b6b3c843733eb89b5b311673d7503b7ef2"
+      "baseline_body_sha256": "fbd942b0afa3e6cc19951ea61e1066b6b3c843733eb89b5b311673d7503b7ef2",
+      "execution_evidence": "rate-policy-investigation.md",
+      "scope_note": "Source-backed CHASM APS-only behavior independently reviewed; V1 namespace reservation test not claimed passing."
     },
     {
       "baseline_row": 92,
@@ -2422,7 +2465,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestUnpauseResumesProcessing",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2442,14 +2485,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "ee066dbda669bd45557608625c2e8f1323b6901bc6dcdf850e21a859f7439005",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestUnpauseResumesProcessing"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestUnpauseResumesProcessing",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 96,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestPausedScheduleNeverIdles",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "idle-close-lifecycle",
       "contracts": [
@@ -2471,14 +2515,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "77ee5575fcaa42178da977185e09f421fa63d255529e76901962ce2b1bc5a8f7",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestPausedScheduleNeverIdles"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestPausedScheduleNeverIdles",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 97,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestPausedEmptySpecStaysOpen",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2500,14 +2545,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "acf9ab40202e0dc4837cb0bfbaccd4466d2cfd6d7caad099b45307be18b8c234",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestPausedEmptySpecStaysOpen"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestPausedEmptySpecStaysOpen",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 98,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestUpdateScheduleRequestIDTooLong",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2529,7 +2575,8 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "3781feb1a8ef939fd6dea3fdad52c28e6b5d818e0c43f18ce61fb606384e045a",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestUpdateScheduleRequestIDTooLong"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestUpdateScheduleRequestIDTooLong",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 99,
@@ -2560,7 +2607,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestUpdateScheduleBlobSizeLimit",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2583,7 +2630,8 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "12352e6f15259cc8031b22cae578d8a1b50567314e90d5fb9495a1498ad59315",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestUpdateScheduleBlobSizeLimit"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestUpdateScheduleBlobSizeLimit",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 101,
@@ -2651,7 +2699,7 @@
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestJitteredWakeupSurvivesCompletion",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2671,14 +2719,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "224dc60091dc5001a8038de8fc4adc678588e130f3a22cc85f5cb78dcdb31d7b",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestJitteredWakeupSurvivesCompletion"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestJitteredWakeupSurvivesCompletion",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 105,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestTriggerImmediately",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2699,14 +2748,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "5875e5ccae1285634c433964216778d29c8a1d4e338822b2d9ab528f335c3b1e",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestTriggerImmediately"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestTriggerImmediately",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 106,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestTriggerImmediately/OnActiveSchedule",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2727,14 +2777,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "5875e5ccae1285634c433964216778d29c8a1d4e338822b2d9ab528f335c3b1e",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestTriggerImmediately/OnActiveSchedule"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestTriggerImmediately/OnActiveSchedule",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 107,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestTriggerImmediately/OnPausedSchedule",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2755,14 +2806,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "5875e5ccae1285634c433964216778d29c8a1d4e338822b2d9ab528f335c3b1e",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestTriggerImmediately/OnPausedSchedule"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestTriggerImmediately/OnPausedSchedule",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 108,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestTriggerImmediately/AfterActionsExhausted",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2783,14 +2835,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "5875e5ccae1285634c433964216778d29c8a1d4e338822b2d9ab528f335c3b1e",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestTriggerImmediately/AfterActionsExhausted"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestTriggerImmediately/AfterActionsExhausted",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 109,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestBackfill",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2809,14 +2862,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "ef56ccdf499bec6551e16bd514bf89f7055692029943e5d457abd1f74c12eb33",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 110,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestBackfill/ReprocessCompletedActionExactTimePaused",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2835,14 +2889,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "ef56ccdf499bec6551e16bd514bf89f7055692029943e5d457abd1f74c12eb33",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/ReprocessCompletedActionExactTimePaused"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/ReprocessCompletedActionExactTimePaused",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 111,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestBackfill/ReprocessCompletedActionExactTimeActive",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2861,14 +2916,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "ef56ccdf499bec6551e16bd514bf89f7055692029943e5d457abd1f74c12eb33",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/ReprocessCompletedActionExactTimeActive"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/ReprocessCompletedActionExactTimeActive",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 112,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestBackfill/ReprocessCompletedActionInRange",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2887,14 +2943,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "ef56ccdf499bec6551e16bd514bf89f7055692029943e5d457abd1f74c12eb33",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/ReprocessCompletedActionInRange"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/ReprocessCompletedActionInRange",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 113,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestBackfill/SkipOverlap",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2913,14 +2970,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "ef56ccdf499bec6551e16bd514bf89f7055692029943e5d457abd1f74c12eb33",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/SkipOverlap"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/SkipOverlap",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 114,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestBackfill/BufferOneOverlap",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "capacity-and-buffer-accounting",
       "contracts": [
@@ -2939,14 +2997,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "ef56ccdf499bec6551e16bd514bf89f7055692029943e5d457abd1f74c12eb33",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/BufferOneOverlap"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/BufferOneOverlap",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 115,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestBackfill/MultiRangeCountedExactlyOnce",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -2965,14 +3024,15 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "ef56ccdf499bec6551e16bd514bf89f7055692029943e5d457abd1f74c12eb33",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/MultiRangeCountedExactlyOnce"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/MultiRangeCountedExactlyOnce",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 116,
       "source": "tests/schedule_test.go",
       "symbol": "ScheduleSuite.TestBackfill/RangeSmallerThanInterval",
       "baseline_classification": "required-shared-pending",
-      "current_audit_status": "wired-full-batch-requires-clean-rerun",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -2991,7 +3051,8 @@
         "shared-full01"
       ],
       "baseline_body_sha256": "ef56ccdf499bec6551e16bd514bf89f7055692029943e5d457abd1f74c12eb33",
-      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/RangeSmallerThanInterval"
+      "scheduler2_selector": "^TestSchedule2SharedSuite$/TestBackfill/RangeSmallerThanInterval",
+      "execution_evidence": "composed-checkpoint/public-composed01.log"
     },
     {
       "baseline_row": 117,
@@ -3742,7 +3803,7 @@
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestCHASMScheduleDescribeAfterDisablingCreationAndMigration",
       "baseline_classification": "implementation-specific",
-      "current_audit_status": "extract-public-read-after-config-disable-contract",
+      "current_audit_status": "ported-public-obligation-pass",
       "required_before_closing_applicable_gate": true,
       "family": "other-public-contract",
       "contracts": [
@@ -3756,7 +3817,9 @@
         "TestScheduleMigrationTestSuite/TestCHASMScheduleDescribeAfterDisablingCreationAndMigration"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "4c1e2604f8b9c34acde6722e98568e5772cc0b91b8f27106664d45dbd1f65d44"
+      "baseline_body_sha256": "4c1e2604f8b9c34acde6722e98568e5772cc0b91b8f27106664d45dbd1f65d44",
+      "execution_evidence": "composed-checkpoint/disabled-reads01.log",
+      "scope_note": "Explicit selected backend reads with legacy controls false; no migration/routing transition claim."
     },
     {
       "baseline_row": 152,
@@ -3899,7 +3962,7 @@
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestDeleteScheduleContextMetadata/BothStacks",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "explained-legacy-ownership-boundary",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -3913,14 +3976,16 @@
         "TestScheduleMigrationTestSuite/TestDeleteScheduleContextMetadata/BothStacks"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9"
+      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9",
+      "execution_evidence": "migration-and-policy-boundaries.md",
+      "scope_note": "Applicable single-owner public attribution separately verified; legacy sentinel/V1 arbitration excluded, not a pass."
     },
     {
       "baseline_row": 159,
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestDeleteScheduleContextMetadata/CHASMOnly_V1Sentinel",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "explained-legacy-ownership-boundary",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -3934,14 +3999,16 @@
         "TestScheduleMigrationTestSuite/TestDeleteScheduleContextMetadata/CHASMOnly_V1Sentinel"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9"
+      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9",
+      "execution_evidence": "migration-and-policy-boundaries.md",
+      "scope_note": "Applicable single-owner public attribution separately verified; legacy sentinel/V1 arbitration excluded, not a pass."
     },
     {
       "baseline_row": 160,
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestDeleteScheduleContextMetadata/CHASMSentinel_V1Real",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "explained-legacy-ownership-boundary",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -3955,14 +4022,16 @@
         "TestScheduleMigrationTestSuite/TestDeleteScheduleContextMetadata/CHASMSentinel_V1Real"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9"
+      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9",
+      "execution_evidence": "migration-and-policy-boundaries.md",
+      "scope_note": "Applicable single-owner public attribution separately verified; legacy sentinel/V1 arbitration excluded, not a pass."
     },
     {
       "baseline_row": 161,
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestDeleteScheduleContextMetadata/V1Only_NoCHASM",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "explained-legacy-ownership-boundary",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -3976,14 +4045,16 @@
         "TestScheduleMigrationTestSuite/TestDeleteScheduleContextMetadata/V1Only_NoCHASM"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9"
+      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9",
+      "execution_evidence": "migration-and-policy-boundaries.md",
+      "scope_note": "Applicable single-owner public attribution separately verified; legacy sentinel/V1 arbitration excluded, not a pass."
     },
     {
       "baseline_row": 162,
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestDeleteScheduleContextMetadata/CHASMSentinel_V1Gone",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "explained-legacy-ownership-boundary",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -3997,14 +4068,16 @@
         "TestScheduleMigrationTestSuite/TestDeleteScheduleContextMetadata/CHASMSentinel_V1Gone"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9"
+      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9",
+      "execution_evidence": "migration-and-policy-boundaries.md",
+      "scope_note": "Applicable single-owner public attribution separately verified; legacy sentinel/V1 arbitration excluded, not a pass."
     },
     {
       "baseline_row": 163,
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestDeleteScheduleContextMetadata/NeitherStack",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "explained-legacy-ownership-boundary",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -4018,7 +4091,9 @@
         "TestScheduleMigrationTestSuite/TestDeleteScheduleContextMetadata/NeitherStack"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9"
+      "baseline_body_sha256": "543ad740563241d90dc04da4c2c68eb8f6b3830f42e9a6fe3a52a9350353aaa9",
+      "execution_evidence": "migration-and-policy-boundaries.md",
+      "scope_note": "Applicable single-owner public attribution separately verified; legacy sentinel/V1 arbitration excluded, not a pass."
     },
     {
       "baseline_row": 164,
@@ -4048,7 +4123,7 @@
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestPatchScheduleContextMetadata/CHASMSchedule",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "explained-legacy-ownership-boundary",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -4062,14 +4137,16 @@
         "TestScheduleMigrationTestSuite/TestPatchScheduleContextMetadata/CHASMSchedule"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "00c2a3b9289a99a1c0ce174cd25bd01fcae054f501d9b48e0f4c70b2da20ac9b"
+      "baseline_body_sha256": "00c2a3b9289a99a1c0ce174cd25bd01fcae054f501d9b48e0f4c70b2da20ac9b",
+      "execution_evidence": "migration-and-policy-boundaries.md",
+      "scope_note": "Applicable single-owner public attribution separately verified; legacy sentinel/V1 arbitration excluded, not a pass."
     },
     {
       "baseline_row": 166,
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestPatchScheduleContextMetadata/V1Schedule",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "explained-legacy-ownership-boundary",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -4083,14 +4160,16 @@
         "TestScheduleMigrationTestSuite/TestPatchScheduleContextMetadata/V1Schedule"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "00c2a3b9289a99a1c0ce174cd25bd01fcae054f501d9b48e0f4c70b2da20ac9b"
+      "baseline_body_sha256": "00c2a3b9289a99a1c0ce174cd25bd01fcae054f501d9b48e0f4c70b2da20ac9b",
+      "execution_evidence": "migration-and-policy-boundaries.md",
+      "scope_note": "Applicable single-owner public attribution separately verified; legacy sentinel/V1 arbitration excluded, not a pass."
     },
     {
       "baseline_row": 167,
       "source": "tests/schedule_migration_test.go",
       "symbol": "ScheduleMigrationTestSuite.TestPatchScheduleContextMetadata/CHASMSentinel_V1Gone",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "explained-legacy-ownership-boundary",
       "required_before_closing_applicable_gate": true,
       "family": "validation-and-lifecycle",
       "contracts": [
@@ -4104,7 +4183,9 @@
         "TestScheduleMigrationTestSuite/TestPatchScheduleContextMetadata/CHASMSentinel_V1Gone"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "00c2a3b9289a99a1c0ce174cd25bd01fcae054f501d9b48e0f4c70b2da20ac9b"
+      "baseline_body_sha256": "00c2a3b9289a99a1c0ce174cd25bd01fcae054f501d9b48e0f4c70b2da20ac9b",
+      "execution_evidence": "migration-and-policy-boundaries.md",
+      "scope_note": "Applicable single-owner public attribution separately verified; legacy sentinel/V1 arbitration excluded, not a pass."
     },
     {
       "baseline_row": 168,
@@ -4491,7 +4572,7 @@
       "source": "tests/advanced_visibility_test.go",
       "symbol": "AdvancedVisibilitySuite.TestScheduleListingWithSearchAttributes/default",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "typed-visibility-and-metadata",
       "contracts": [
@@ -4506,14 +4587,15 @@
         "TestAdvancedVisibilitySuite/TestScheduleListingWithSearchAttributes/default"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "e88743a652cd5688bc7c094cf4ca11a9eb18dc907317c0d963977b491ca1030c"
+      "baseline_body_sha256": "e88743a652cd5688bc7c094cf4ca11a9eb18dc907317c0d963977b491ca1030c",
+      "execution_evidence": "listing-ports/manifest.json"
     },
     {
       "baseline_row": 185,
       "source": "tests/callbacks_test.go",
       "symbol": "CallbacksSuite.TestScheduledCallbackTokenMigration_LegacyWriteEnvelopeRead",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "explained-unsupported-migration",
       "required_before_closing_applicable_gate": true,
       "family": "callback-chain-reset",
       "contracts": [
@@ -4532,7 +4614,9 @@
         "TestCallbacksSuiteCHASM/TestScheduledCallbackTokenMigration_LegacyWriteEnvelopeRead"
       ],
       "evidence_ids": [],
-      "baseline_body_sha256": "1835dfc725b91a0817bdb7e7130d0e969af835cac4da645cfefb8567eeecfb0f"
+      "baseline_body_sha256": "1835dfc725b91a0817bdb7e7130d0e969af835cac4da645cfefb8567eeecfb0f",
+      "execution_evidence": "migration-and-policy-boundaries.md",
+      "scope_note": "Scheduler2 always writes request-ID envelopes; bare-token writer migration unsupported and not claimed passing."
     },
     {
       "baseline_row": 186,
@@ -4564,7 +4648,7 @@
       "source": "tests/xdc/chasm_timeskipping_replication_test.go",
       "symbol": "chasmTimeSkippingReplicationSuite.TestStandbyRestampsCHASMTimerAfterSkip/unused",
       "baseline_classification": "promotion-or-related-pending",
-      "current_audit_status": "required-port-pending",
+      "current_audit_status": "ported-functional-pass",
       "required_before_closing_applicable_gate": true,
       "family": "physical-recovery-replication",
       "contracts": [
@@ -4581,7 +4665,8 @@
       "evidence_ids": [
         "timeskipping-functional03-partial"
       ],
-      "baseline_body_sha256": "987195cf05a72e44b76cd02783a1ca3607dab2753e01fcc9d46710aeab296943"
+      "baseline_body_sha256": "987195cf05a72e44b76cd02783a1ca3607dab2753e01fcc9d46710aeab296943",
+      "execution_evidence": "xdc-restamp/manifest.json"
     },
     {
       "baseline_row": 188,

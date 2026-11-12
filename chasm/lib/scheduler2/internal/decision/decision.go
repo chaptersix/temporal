@@ -49,6 +49,7 @@ type Root struct {
 }
 
 type Operation struct {
+	NominalTime     Timestamp
 	StartObserved   bool
 	StartObservedAt int64
 	BackfillID      uint64
@@ -67,7 +68,8 @@ type Operation struct {
 }
 
 type State struct {
-	Root Root
+	Capacity Capacity
+	Root     Root
 	// Operation is the event-addressed record; admission callers supply the latest record.
 	Operation *Operation
 	Carryover *Carryover
@@ -97,7 +99,11 @@ const (
 )
 
 type Event struct {
-	// PublicManualIngress selects the public pending-command profile; execution capacities are unchanged.
+	NominalTime Timestamp
+	ActualTime  Timestamp
+	// PublicCloseTime is canonical workflow close time, independent of callback arrival.
+	PublicCloseTime time.Time
+	// PublicManualIngress selects the public pending-command profile.
 	PublicManualIngress bool
 	// PublicRunID is response metadata, independent of the chain fence and reducer state.
 	PublicRunID string
@@ -177,10 +183,14 @@ func admit(next State, event Event) (State, error) {
 	if next.Root.Paused || (next.Root.Limited && next.Root.Remaining <= 0) || event.Now > event.CatchupDeadline {
 		return next, nil
 	}
+	if next.Capacity.Public && !QueueAvailable(next) {
+		next.Root.BufferDropped++
+		return next, nil
+	}
 	if next.Root.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || len(next.Queue) > 0) {
 		return enqueue(next, event)
 	}
-	if next.Root.Unfinished >= 4 {
+	if !OperationAvailable(next) {
 		next.Root.CapacityDropped++
 		return next, nil
 	}
@@ -205,11 +215,14 @@ func startOperation(next State, event Event, candidate Queued) (State, error) {
 	}
 	if candidate.BackfillID != 0 {
 		occurrenceID = fmt.Sprintf("backfill/%d/%d", candidate.BackfillID, nominal)
+		if candidate.NominalTime.Present {
+			occurrenceID = fmt.Sprintf("backfill/%d/%s", candidate.BackfillID, candidate.NominalTime.Key(nominal))
+		}
 	}
 	actionID := next.Root.Incarnation + "/" + occurrenceID + "/action"
 	next.Operation = &Operation{
 		OccurrenceID: occurrenceID, ActionID: actionID, ID: actionID + "/start",
-		BackfillID: candidate.BackfillID, ManualID: manualID, Nominal: nominal, WorkflowID: workflowID, Policy: policy, Deadline: event.Now + RetryHorizon,
+		BackfillID: candidate.BackfillID, ManualID: manualID, Nominal: nominal, NominalTime: candidate.NominalTime, WorkflowID: workflowID, Policy: policy, Deadline: event.Now + RetryHorizon,
 		RetryAt: event.Now, Phase: Pending, Request: bytes.Clone(event.Request),
 	}
 	next.Root.Unfinished++

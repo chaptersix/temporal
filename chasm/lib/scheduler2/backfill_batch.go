@@ -18,20 +18,15 @@ func (s *Scheduler) suppressBackfill(b *scheduler2pb.BackfillState) bool {
 }
 
 // backfillBatchCapacity preserves the reference batch cardinality independently
-// of per-transaction work. Retained tracked records stand in for BufferedStarts;
-// prototype caps bound this metadata scan to four records and four queue entries.
+// of per-transaction work. Queue entries, unfinished starts and the ten retained
+// tracked completions have the same occupancy as reference BufferedStarts.
 func (s *Scheduler) backfillBatchCapacity(ctx chasm.Context) int64 {
 	getter, ok := ctx.Value(backfillBatchConfigKey{}).(func(string) schedulerconfig.Tweakables)
 	if !ok || getter == nil {
 		return 0
 	}
 	tweaks := getter(ctx.NamespaceEntry().Name().String())
-	buffered := int64(len(s.Queue))
-	for _, field := range s.Operations {
-		if field.Get(ctx).Phase != scheduler2pb.PHASE_START_ONLY {
-			buffered++
-		}
-	}
+	buffered := int64(len(s.Queue)) + s.capacity(ctx).BufferedOperations
 	available := max(int64(0), int64(tweaks.MaxBufferSize)/2-max(int64(0), buffered-10)-int64(tweaks.GeneratorBufferReserveSize))
 	return available / int64(max(1, len(s.Backfills)))
 }

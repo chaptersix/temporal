@@ -204,7 +204,9 @@ func TestPublicBackfillBatchBudgetRetainsVacancyLease(t *testing.T) {
 	owner := s.Coordination.OwnerKey
 	require.NotEmpty(t, owner)
 	state := s.stateFor(ctx, "")
-	state.Root.Unfinished = 4
+	// Public admission now waits on configured retained capacity, not four operations.
+	state.Capacity.MaxBuffer = 2
+	state.Capacity.BufferedOperations = 2
 	planned, ready, _ := s.planWorkFor(ctx, state)
 	require.Nil(t, ready)
 	require.Equal(t, owner, planned.OwnerKey)
@@ -216,7 +218,8 @@ func TestPublicBackfillBatchBudgetRetainsVacancyLease(t *testing.T) {
 	require.Equal(t, owner, planned.OwnerKey)
 	require.True(t, wake.After(time.Unix(0, h.now)))
 	tweaks.MaxBufferSize = 104
-	state.Root.Unfinished = 0
+	state.Capacity.MaxBuffer = 104
+	state.Capacity.BufferedOperations = 0
 	planned, ready, _ = s.planWorkFor(ctx, state)
 	require.NotNil(t, ready)
 	require.Equal(t, owner, planned.OwnerKey)

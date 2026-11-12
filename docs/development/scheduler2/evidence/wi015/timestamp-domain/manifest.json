@@ -1,0 +1,38 @@
+{
+  "source_sha256": {
+    "tests/schedule2_timestamp_test.go": "aa24e74e54e6bd5ac80317e7237f24cce6517e050b3d14c4288b59aadeeec38e",
+    "chasm/lib/scheduler2/public_time.go": "0bf71b02cbbbc145bf03b3b8862fe72ed66c1116c008c8807af16b5ab43a433e",
+    "chasm/lib/scheduler2/public_time_test.go": "c7e994dbc421994038446fe8534dbc2970c4ef0abc9d40872502852902d29e38",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "9aca3fdab7878a6840ad2b8bfdd9be90dc4c4784bea82e282e9f4be5230d6557",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "31b368d55c137333d1e3dfe85e86f72faa0b025c68af77de6e74e3be5d96098f",
+    "chasm/lib/scheduler2/internal/decision/timestamp.go": "5bd303b3f11289dfbf2801abee57d919d5450b8d17da21a1ec5dbcd6a5424b50",
+    "chasm/lib/scheduler2/internal/decision/decision.go": "2c03b21919e9b707ae58e807ea201b9a6837a875429ffb3f011f391ad4030902",
+    "chasm/lib/scheduler2/internal/decision/manual.go": "d2b86f31e7b4ee0d47d1e289bfdfb780fea35086c913bb9e6a9da1931ded782d",
+    "chasm/lib/scheduler2/internal/decision/buffer.go": "c4af526e1c14ac4cf6f32ec31940d4d07d14c31a38ca301c248743b616ee8818",
+    "chasm/lib/scheduler2/internal/occurrence/occurrence.go": "57a2ba7b6e14cef2600d79512bca1e1a28409c66ecb1924c0efdf31e51367eb6",
+    "chasm/lib/scheduler2/internal/occurrence/backfill.go": "359f8171c5f77a0bd4d6c8ec46c698d2e3b4bbe57645d22fbc9a684f1ab2ea6d",
+    "chasm/lib/scheduler2/manual.go": "a4937643cda4655ab561d7e6727c732eb61f93c86a438c99a751aa71dfc80669",
+    "chasm/lib/scheduler2/backfill.go": "5a29e6a36f042c97286089e42cb5260ce08eb639fcc04881d22b572b3f8e72a6",
+    "chasm/lib/scheduler2/generator.go": "0bb7b63c3bcab94459892880e4c81d0dbbcd31720b4e25792582d6e75d30929b",
+    "chasm/lib/scheduler2/component.go": "ac1f7d3deae40af05e4b396edc7996c14aa1a294890afda2ce1edfc3e75323de",
+    "chasm/lib/scheduler2/coordinator.go": "622eeb779c030c32b510d9c623e1057a192a39248015740c44ce6cc42b7d41a3",
+    "chasm/lib/scheduler2/public_projection.go": "73212a0778041978bd9eaef11ff903eb11ab92be5844c5a3224c0724fc93fe79",
+    "service/worker/scheduler/spec.go": "c34ce2e2aee0bb05fe7bf2fdc8017638b36127c69e671fbe3c6bf69d48c9da84",
+    "service/worker/scheduler/workflow.go": "ca5dcc995dea7593ac76ea33d05804c1b461a8852ded33f72b8b54438c325516",
+    "chasm/lib/scheduler/backfiller_tasks.go": "d74971752aa9bb6d864fac63d4ea01a11227224e821c26a367bd2ddb4c355f05",
+    "chasm/lib/scheduler/scheduler.go": "d1b06bd1a5c38225831921a3ef8a66bb5edab8986ff8bc1525a9a6cb53d6e7cc",
+    "service/frontend/workflow_handler.go": "a1162b0cc6bd9860948e90153fecde9686d923334b242f17d01417de8f3c4571"
+  },
+  "commands": {
+    "functional": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep,integration -p 2 ./tests -run '^TestSchedule2TimestampDomain$' -count=1 -timeout=5m -v",
+    "boundary": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep ./chasm/lib/scheduler2 -run '^TestPublic(Timestamp|WideManual|EmptyFuture)' -count=1",
+    "internal_replay": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep ./chasm/lib/scheduler2 -run '^TestCoordinatorSavedReplay$' -count=1"
+  },
+  "results": {
+    "functional_final": "PASS8.074s:5scenarios each V1/scheduler2",
+    "boundary_final": "PASS0.650s",
+    "internal_replay": "PASS0.653s"
+  },
+  "boundary": "Public definition/range/manual timestamp input domain; runtime execution clocks/retry deadlines retain ns representation. Existing interval nominal horizon2100 retained; structured calendars retain existing2000..2100 validation. No claim that old finite Go/Lean correspondence covers wide public timestamp fields.",
+  "post_test_note": "Only an explanatory comment for serial dedicated-cluster cases was added after final passing functional run."
+}

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package temporal.server.chasm.lib.scheduler2.proto.v1;
 
+import "google/protobuf/timestamp.proto";
 import "temporal/api/common/v1/message.proto";
 import "temporal/api/sdk/v1/user_metadata.proto";
 import "temporal/api/enums/v1/schedule.proto";
@@ -140,6 +141,8 @@ message OperationState {
   bool start_observed = 13;
   // StartObservedAt is wall observation plus the issuance snapshot skipped duration.
   int64 start_observed_at = 14;
+ // nominal_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
+ google.protobuf.Timestamp nominal_time = 15;
 }
 
 // Payload keeps large values on a separately loaded node.
@@ -212,6 +215,10 @@ message OccurrenceCandidate {
   int64 revision = 3;
   // Excluded records an exclusion awaiting disposition.
   bool excluded = 4;
+ // nominal_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
+ google.protobuf.Timestamp nominal_time = 5;
+ // actual_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
+ google.protobuf.Timestamp actual_time = 6;
 }
 
 // OccurrenceContinuation stores resumable search separately from generator tokens.
@@ -234,6 +241,12 @@ message OccurrenceContinuation {
   bool eligible_seen = 8;
   // Terminal caches source completion independently of work stops.
   EnumerationStatus terminal = 9;
+ // origin_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
+ google.protobuf.Timestamp origin_time = 10;
+ // search_after_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
+ google.protobuf.Timestamp search_after_time = 11;
+ // disposed_through_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
+ google.protobuf.Timestamp disposed_through_time = 12;
 }
 
 // GeneratorState holds bounded control state for generation.
@@ -286,6 +299,10 @@ message QueuedOccurrence {
   uint64 manual_id = 5;
   // BackfillId identifies the accepted range that owns this nominal occurrence.
   uint64 backfill_id = 6;
+ // nominal_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
+ google.protobuf.Timestamp nominal_time = 7;
+ // actual_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
+ google.protobuf.Timestamp actual_time = 8;
 }
 
 // DrainTask drives an independent bounded queue admission step.
@@ -346,6 +363,8 @@ message ManualCommand {
  int64 nominal = 2;
  // Policy is the override, resolved when transferred to the execution queue.
  temporal.api.enums.v1.ScheduleOverlapPolicy policy = 3;
+ // nominal_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
+ google.protobuf.Timestamp nominal_time = 4;
 }
 // ManualTask transfers one accepted command without external polling.
 message ManualTask {
@@ -403,6 +422,10 @@ message BackfillState {
  int64 skip_batch_remaining = 6;
  // SkipBatchRevision fences a group when the current definition is rebased.
  int64 skip_batch_revision = 7;
+ // start_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
+ google.protobuf.Timestamp start_time = 8;
+ // end_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
+ google.protobuf.Timestamp end_time = 9;
 }
 
 // IdleTask checks the current idle-close token and deadline.
@@ -419,6 +442,8 @@ message PublicRuntime {
   int64 missed_catchup_window = 2;
   // OverlapSkipped counts occurrences disposed by SKIP while another action blocks.
   int64 overlap_skipped = 3;
+  // CompletedOperations retains the ten latest tracked completions by workflow close time.
+  repeated PublicCompletedOperation completed_operations = 4;
 }
 // PublicAction ties a public result to its immutable admitted operation.
 message PublicAction {
@@ -426,4 +451,10 @@ message PublicAction {
   string operation_id = 1;
   // Result carries actual response run identity, scheduled time and observation time.
   temporal.api.schedule.v1.ScheduleActionResult result = 2;
+}
+
+// PublicCompletedOperation records buffer occupancy independently of recent start display.
+message PublicCompletedOperation {
+  string operation_id = 1;
+  google.protobuf.Timestamp close_time = 2;
 }

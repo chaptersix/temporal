@@ -1,0 +1,32 @@
+--- FAIL: TestPublicBackfillBatchBudgetRetainsVacancyLease (0.00s)
+    backfill_batch_test.go:209: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/backfill_batch_test.go:209
+        	Error:      	Expected nil, but got: &scheduler2.workDemand{class:3, key:"backfill/1/1704067200000000000", scan:false, vacancy:true, operation:true, deferred:false}
+        	Test:       	TestPublicBackfillBatchBudgetRetainsVacancyLease
+--- FAIL: TestPublicProjectionDispositionCounters (0.00s)
+    --- FAIL: TestPublicProjectionDispositionCounters/buffer_one_policy (0.00s)
+        public_projection_test.go:165: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_projection_test.go:165
+            	Error:      	Not equal: 
+            	            	expected: []int64{1, 0, 0}
+            	            	actual  : []int64{0, 0, 1}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,5 +1,5 @@
+            	            	 ([]int64) (len=3) {
+            	            	- (int64) 1,
+            	            	  (int64) 0,
+            	            	- (int64) 0
+            	            	+ (int64) 0,
+            	            	+ (int64) 1
+            	            	 }
+            	Test:       	TestPublicProjectionDispositionCounters/buffer_one_policy
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	16.016s
+?   	go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1	[no test files]
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.318s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	1.514s
+?   	go.temporal.io/server/chasm/lib/scheduler2/scheduler2test	[no test files]
+FAIL

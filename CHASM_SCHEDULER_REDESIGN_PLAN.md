@@ -998,3 +998,21 @@ P6 workload, measurement and independent-review obligations. It is a draft with
 WI-015/M3 acceptance as its implementation dependency; no load result or milestone
 completion is claimed. It preserves all six workload families, matched baseline/10x
 offered traces, physical cost/recovery evidence and unsupported migration boundary.
+
+### Composed public compatibility checkpoint
+
+Public capacity and wide timestamp runtime changes are implemented and independently
+reviewed. Full scheduler2 public suite passes146.941s; all selected core/callback/
+queue packages pass (root19.576s); normal/minimal lint passes. Unchanged V1 and
+CHASM shared suites pass88.049s. Exact public capacity neighbors2/5 and retained
+completion occupancy are verified; timestamp differential checks cover ancient
+interval ranges and exact manual times through9999, with saved-state/reload tests.
+All expanded public claims retain explicit separation from finite internal proofs.
+
+The242-row functional overlay now attaches current evidence and named exclusions;
+legacy ownership/token migration cases are not marked passed. Source-backed
+migration-and-policy-boundaries.md records those limits. M3 acceptance audit,
+composed race completion, integration of already accepted WI013 proof artifacts
+and final correspondence revalidation remain open. M4 workload specification is
+WI017 draft; cardinality-dependent metadata work remains its implementation and
+measurement obligation. No milestone completion is inferred from this checkpoint.

@@ -54,21 +54,22 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.Sta
 		CarryoverSet: s.CarryoverSet, PauseOnFailure: s.PauseOnFailure, Policy: s.Policy, BufferDropped: s.BufferDropped,
 		Unfinished: s.Unfinished, BlockingOperationID: s.BlockingOperationId, CapacityDropped: s.CapacityDropped, OverlapSuperseded: s.OverlapSuperseded,
 	}}
+	state.Capacity = s.capacity(ctx)
 	for _, m := range s.Manuals {
-		state.Manuals = append(state.Manuals, decision.ManualCommand{ID: m.Id, Nominal: m.Nominal, Policy: m.Policy})
+		state.Manuals = append(state.Manuals, decision.ManualCommand{ID: m.Id, Nominal: m.Nominal, NominalTime: decodeDecisionTime(m.NominalTime), Policy: m.Policy})
 	}
 	for _, e := range s.Effects {
 		state.Effects = append(state.Effects, decodeEffect(e))
 	}
 	for _, q := range s.Queue {
-		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, WorkflowID: q.WorkflowId, Policy: q.Policy, ManualID: q.ManualId, BackfillID: q.BackfillId})
+		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, NominalTime: decodeDecisionTime(q.NominalTime), ActualTime: decodeDecisionTime(q.ActualTime), WorkflowID: q.WorkflowId, Policy: q.Policy, ManualID: q.ManualId, BackfillID: q.BackfillId})
 	}
 	if field, ok := s.Operations[operationID]; ok {
 		op := field.Get(ctx)
 		state.Operation = &decision.Operation{
 			StartObserved: op.StartObserved, StartObservedAt: op.StartObservedAt,
 			OccurrenceID: op.OccurrenceId, ActionID: op.ActionId, ID: op.Id,
-			ChainID: op.ChainId, Nominal: op.Nominal, Deadline: op.Deadline,
+			ChainID: op.ChainId, Nominal: op.Nominal, NominalTime: decodeDecisionTime(op.NominalTime), Deadline: op.Deadline,
 			BackfillID: op.BackfillId, ManualID: op.ManualId, RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId, Policy: op.Policy,
 		}
 	}
@@ -243,10 +244,10 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 		PendingStarts: pendingStarts, OperationId: latestOperationID, HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
 	}
 	for _, m := range next.Manuals {
-		s.Manuals = append(s.Manuals, &scheduler2pb.ManualCommand{Id: m.ID, Nominal: m.Nominal, Policy: m.Policy})
+		s.Manuals = append(s.Manuals, &scheduler2pb.ManualCommand{Id: m.ID, Nominal: m.Nominal, NominalTime: encodeDecisionTime(m.NominalTime), Policy: m.Policy})
 	}
 	for _, q := range next.Queue {
-		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, WorkflowId: q.WorkflowID, Policy: q.Policy, ManualId: q.ManualID, BackfillId: q.BackfillID})
+		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, NominalTime: encodeDecisionTime(q.NominalTime), ActualTime: encodeDecisionTime(q.ActualTime), WorkflowId: q.WorkflowID, Policy: q.Policy, ManualId: q.ManualID, BackfillId: q.BackfillID})
 	}
 	if next.Carryover != nil {
 		s.Carryover = chasm.NewDataField(ctx, carryoverRecord)
@@ -258,7 +259,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 		metadata := &scheduler2pb.OperationState{
 			StartObserved: op.StartObserved, StartObservedAt: op.StartObservedAt,
 			OccurrenceId: op.OccurrenceID, ActionId: op.ActionID, Id: op.ID, ChainId: op.ChainID,
-			Nominal: op.Nominal, WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy, ManualId: op.ManualID, BackfillId: op.BackfillID,
+			Nominal: op.Nominal, NominalTime: encodeDecisionTime(op.NominalTime), WorkflowId: op.WorkflowID, Deadline: op.Deadline, RetryAt: op.RetryAt, Phase: scheduler2pb.Phase(op.Phase), Policy: op.Policy, ManualId: op.ManualID, BackfillId: op.BackfillID,
 		}
 		s.Operations[op.ID] = chasm.NewDataField(ctx, metadata)
 		if newAdmission {
@@ -312,11 +313,14 @@ func (s *Scheduler) retentionEviction(ctx chasm.Context, before, next decision.S
 	var oldest *scheduler2pb.OperationState
 	for _, field := range s.Operations {
 		op := field.Get(ctx)
-		if decision.Terminal(decision.Phase(op.Phase)) && (oldest == nil || op.Nominal < oldest.Nominal || (op.Nominal == oldest.Nominal && op.Id < oldest.Id)) {
+		if decision.Terminal(decision.Phase(op.Phase)) && (s.PublicRevision == 0 || op.Phase == scheduler2pb.PHASE_START_ONLY) && (oldest == nil || op.Nominal < oldest.Nominal || (op.Nominal == oldest.Nominal && op.Id < oldest.Id)) {
 			oldest = op
 		}
 	}
 	if oldest == nil {
+		if s.PublicRevision != 0 {
+			return "", nil
+		}
 		return "", serviceerror.NewFailedPrecondition("operation capacity has no completed record to reclaim")
 	}
 	return oldest.Id, nil
@@ -357,7 +361,7 @@ func (s *Scheduler) freezeAdmission(ctx chasm.Context, op *decision.Operation) e
 			fields = make(map[string]*commonpb.Payload)
 		}
 		scheduledBy := chasm.SearchAttributeTemporalScheduledByID.Value(ctx.ExecutionKey().BusinessID)
-		scheduledAt := chasm.SearchAttributeTemporalScheduledStartTime.Value(time.Unix(0, op.Nominal).UTC())
+		scheduledAt := chasm.SearchAttributeTemporalScheduledStartTime.Value(op.NominalTime.Time(op.Nominal))
 		fields[scheduledBy.Field] = scheduledBy.Value.MustEncode()
 		fields[scheduledAt.Field] = scheduledAt.Value.MustEncode()
 		request.SearchAttributes = &commonpb.SearchAttributes{IndexedFields: fields}

@@ -12,6 +12,7 @@ import (
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/chasm/lib/scheduler2/internal/decision"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestPublicAdmissionFreezesCallback(t *testing.T) {
@@ -49,7 +50,7 @@ func TestPublicCompletionBeforeAcknowledgment(t *testing.T) {
 			t.Parallel()
 			h := newTreeHarness(t)
 			request := h.admit()
-			completion := &persistencespb.ChasmNexusCompletion{RequestId: request.RequestId, WorkflowFirstExecutionRunId: "first-run"}
+			completion := &persistencespb.ChasmNexusCompletion{RequestId: request.RequestId, WorkflowFirstExecutionRunId: "first-run", CloseTime: timestamppb.New(time.Unix(123, 0))}
 			if failure {
 				completion.Outcome = &persistencespb.ChasmNexusCompletion_Failure{Failure: &failurepb.Failure{Message: "failed"}}
 			} else {
@@ -103,4 +104,25 @@ func requireCallbackNodesEqual(t *testing.T, before, after map[string]*persisten
 		}
 	}
 	require.Equal(t, before, after)
+}
+
+func TestPublicCompletionRequiresCanonicalCloseTime(t *testing.T) {
+	t.Parallel()
+	for _, closeTime := range []*timestamppb.Timestamp{nil, {Seconds: 253402300800}} {
+		name := "missing"
+		if closeTime != nil {
+			name = "invalid"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			h := executingPublicTree(t, nil)
+			id := publicProjectionAdmission(h)
+			before := cloneNodes(h.durable)
+			s, ctx := h.root(true)
+			err := s.HandleNexusCompletion(ctx.(chasm.MutableContext), &persistencespb.ChasmNexusCompletion{RequestId: id, WorkflowFirstExecutionRunId: "chain", CloseTime: closeTime, Outcome: &persistencespb.ChasmNexusCompletion_Success{}})
+			require.ErrorContains(t, err, "valid close time")
+			h.commit(true)
+			requireCallbackNodesEqual(t, before, h.durable)
+		})
+	}
 }

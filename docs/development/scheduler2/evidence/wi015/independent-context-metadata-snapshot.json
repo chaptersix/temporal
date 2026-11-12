@@ -1,0 +1,6 @@
+{
+  "chasm/lib/scheduler2/public_context.go": "0d6b74aed0c4f402cfe235e62635d1452b434180109e724c3dba9a4328e3ae20",
+  "chasm/lib/scheduler2/public_context_test.go": "a6872947a42f11bd0fee23a18385745baa409717516634dc4547d4592bff7735",
+  "chasm/lib/scheduler2/lifecycle.go": "1c5488f7e447103556cbaa7305459193a581bf73a5828075d00b57f74e819e55",
+  "tests/schedule2_metadata_test.go": "179b66a1a2a362383a1ec5c852a75dc827f61e99e22cc568edb5a4ee7a914943"
+}

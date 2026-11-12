@@ -43,7 +43,7 @@ func (s *Scheduler) AcceptBackfill(ctx chasm.MutableContext, request *schedulepb
 	}
 	start, end := request.StartTime.AsTime(), request.EndTime.AsTime()
 	minimum, maximum := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2101, 1, 1, 0, 0, 0, 0, time.UTC)
-	if start.Before(minimum) || !start.Before(maximum) || end.Before(start) || !end.Before(maximum) {
+	if end.Before(start) || (s.PublicRevision == 0 && (start.Before(minimum) || !start.Before(maximum) || end.Before(minimum) || !end.Before(maximum))) {
 		return serviceerror.NewInvalidArgument("backfill range is outside [2000, 2101) or reversed")
 	}
 	if err := s.checkPublicCommandCapacity(1); err != nil {
@@ -68,7 +68,9 @@ func (s *Scheduler) AcceptBackfill(ctx chasm.MutableContext, request *schedulepb
 	}
 	next.ActivitySet = true
 	next.BackfillSequence++
-	next.Backfills = append(next.Backfills, &scheduler2pb.BackfillState{Id: next.BackfillSequence, Start: start.UnixNano(), End: end.UnixNano(), Policy: request.OverlapPolicy})
+	startNano, startTime := encodeTime(start)
+	endNano, endTime := encodeTime(end)
+	next.Backfills = append(next.Backfills, &scheduler2pb.BackfillState{Id: next.BackfillSequence, Start: startNano, StartTime: startTime, End: endNano, EndTime: endTime, Policy: request.OverlapPolicy})
 	s.RootState = next
 	if err := s.reconcileWork(ctx); err != nil {
 		s.RootState = previous
@@ -125,7 +127,7 @@ func (s *Scheduler) scanBackfill(ctx chasm.MutableContext) error {
 	}
 	var state occurrence.State
 	if b.Continuation == nil {
-		state, err = enumerator.BeginRange(time.Unix(0, b.Start).UTC(), time.Unix(0, b.End).UTC())
+		state, err = enumerator.BeginRange(decodeTime(b.Start, b.StartTime), decodeTime(b.End, b.EndTime))
 	} else {
 		state = decodeContinuation(b.Continuation)
 		if b.Continuation.Revision != g.Continuation.Revision {
@@ -136,7 +138,7 @@ func (s *Scheduler) scanBackfill(ctx chasm.MutableContext) error {
 	if err != nil {
 		return err
 	}
-	result, err := enumerator.PeekRange(state, time.Unix(0, b.End).UTC(), 8)
+	result, err := enumerator.PeekRange(state, decodeTime(b.End, b.EndTime), 8)
 	if err != nil {
 		return err
 	}

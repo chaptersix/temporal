@@ -1,0 +1,26 @@
+--- FAIL: TestPublicCapacityWaitRetainsManualAndRetriesConfiguration (0.00s)
+    public_capacity_test.go:161: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_capacity_test.go:161
+        	Error:      	Expected nil, but got: &scheduler2.workDemand{class:4, key:"scan", scan:true, vacancy:false, operation:false, deferred:false}
+        	Test:       	TestPublicCapacityWaitRetainsManualAndRetriesConfiguration
+--- FAIL: TestCoordinatorSavedReplay (0.00s)
+    coordinator_replay_test.go:108: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/common/testing/protorequire/require.go:56
+        	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/coordinator_replay_test.go:108
+        	Error:      	Proto mismatch (-want +got):
+        	            	  (*scheduler2pb.CoordinationState)(Inverse(protocmp.Transform, protocmp.Message{
+        	            	  	... // 3 identical entries
+        	            	  	"next_work":   s"WORK_CLASS_AUTOMATIC",
+        	            	  	"owner_class": s"WORK_CLASS_BACKFILL",
+        	            	- 	"owner_key":   string("backfill/1/1704067200000000000"),
+        	            	+ 	"owner_key":   string("backfill/1/2024-01-01T00:00:00Z"),
+        	            	  	"token":       uint64(3),
+        	            	  }))
+        	Test:       	TestCoordinatorSavedReplay
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	17.382s
+?   	go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1	[no test files]
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.828s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	1.013s
+?   	go.temporal.io/server/chasm/lib/scheduler2/scheduler2test	[no test files]
+FAIL

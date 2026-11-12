@@ -180,15 +180,20 @@ func encodeCandidate(c *occurrence.Candidate) *scheduler2pb.OccurrenceCandidate 
 	if c == nil {
 		return nil
 	}
-	return &scheduler2pb.OccurrenceCandidate{Nominal: c.Nominal.UnixNano(), Actual: c.Actual.UnixNano(), Revision: c.Revision, Excluded: c.Excluded}
+	nominal, nominalTime := encodeTime(c.Nominal)
+	actual, actualTime := encodeTime(c.Actual)
+	return &scheduler2pb.OccurrenceCandidate{Nominal: nominal, NominalTime: nominalTime, Actual: actual, ActualTime: actualTime, Revision: c.Revision, Excluded: c.Excluded}
 }
 func encodeContinuation(s occurrence.State) *scheduler2pb.OccurrenceContinuation {
-	return &scheduler2pb.OccurrenceContinuation{Origin: s.Origin.UnixNano(), DefinitionId: s.DefinitionID, Revision: s.Revision, SearchAfter: s.SearchAfter.UnixNano(), DisposedThrough: s.DisposedThrough.UnixNano(), Pending: encodeCandidate(s.Pending), FullRange: s.FullRange, EligibleSeen: s.EligibleSeen, Terminal: scheduler2pb.EnumerationStatus(s.Terminal + 1)}
+	origin, originTime := encodeTime(s.Origin)
+	search, searchTime := encodeTime(s.SearchAfter)
+	disposed, disposedTime := encodeTime(s.DisposedThrough)
+	return &scheduler2pb.OccurrenceContinuation{Origin: origin, OriginTime: originTime, DefinitionId: s.DefinitionID, Revision: s.Revision, SearchAfter: search, SearchAfterTime: searchTime, DisposedThrough: disposed, DisposedThroughTime: disposedTime, Pending: encodeCandidate(s.Pending), FullRange: s.FullRange, EligibleSeen: s.EligibleSeen, Terminal: scheduler2pb.EnumerationStatus(s.Terminal + 1)}
 }
 func decodeContinuation(s *scheduler2pb.OccurrenceContinuation) occurrence.State {
-	state := occurrence.State{Origin: time.Unix(0, s.Origin).UTC(), DefinitionID: s.DefinitionId, Revision: s.Revision, SearchAfter: time.Unix(0, s.SearchAfter).UTC(), DisposedThrough: time.Unix(0, s.DisposedThrough).UTC(), FullRange: s.FullRange, EligibleSeen: s.EligibleSeen, Terminal: occurrence.Status(s.Terminal) - 1}
+	state := occurrence.State{Origin: decodeTime(s.Origin, s.OriginTime), DefinitionID: s.DefinitionId, Revision: s.Revision, SearchAfter: decodeTime(s.SearchAfter, s.SearchAfterTime), DisposedThrough: decodeTime(s.DisposedThrough, s.DisposedThroughTime), FullRange: s.FullRange, EligibleSeen: s.EligibleSeen, Terminal: occurrence.Status(s.Terminal) - 1}
 	if c := s.Pending; c != nil {
-		state.Pending = &occurrence.Candidate{Nominal: time.Unix(0, c.Nominal).UTC(), Actual: time.Unix(0, c.Actual).UTC(), Revision: c.Revision, Excluded: c.Excluded}
+		state.Pending = &occurrence.Candidate{Nominal: decodeTime(c.Nominal, c.NominalTime), Actual: decodeTime(c.Actual, c.ActualTime), Revision: c.Revision, Excluded: c.Excluded}
 	}
 	return state
 }

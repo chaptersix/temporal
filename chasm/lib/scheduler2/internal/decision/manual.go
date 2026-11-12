@@ -9,9 +9,10 @@ import (
 
 // ManualCommand retains accepted identity independently of execution capacity.
 type ManualCommand struct {
-	ID      uint64
-	Nominal int64
-	Policy  enumspb.ScheduleOverlapPolicy
+	NominalTime Timestamp
+	ID          uint64
+	Nominal     int64
+	Policy      enumspb.ScheduleOverlapPolicy
 }
 
 func acceptManual(next State, event Event) (State, error) {
@@ -32,7 +33,7 @@ func acceptManual(next State, event Event) (State, error) {
 		return State{}, serviceerror.NewFailedPrecondition("manual trigger sequence exhausted")
 	}
 	next.Root.ManualSequence++
-	next.Manuals = append(next.Manuals, ManualCommand{ID: next.Root.ManualSequence, Nominal: event.Nominal, Policy: event.Policy})
+	next.Manuals = append(next.Manuals, ManualCommand{ID: next.Root.ManualSequence, Nominal: event.Nominal, NominalTime: event.NominalTime, Policy: event.Policy})
 	return next, nil
 }
 
@@ -49,13 +50,13 @@ func manualPolicy(state State) enumspb.ScheduleOverlapPolicy {
 
 // CanDispatchManual excludes external queue and operation capacity waits.
 func CanDispatchManual(state State) bool {
-	if len(state.Manuals) == 0 || len(state.Queue) >= 4 {
+	if len(state.Manuals) == 0 || !QueueAvailable(state) {
 		return false
 	}
 	if manualPolicy(state) != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(state) || len(state.Queue) > 0) {
 		return true
 	}
-	return state.Root.Unfinished < 4
+	return OperationAvailable(state)
 }
 
 func dispatchManual(next State, event Event) (State, error) {
@@ -75,13 +76,13 @@ func dispatchManual(next State, event Event) (State, error) {
 		if event.WorkflowID == "" {
 			return State{}, serviceerror.NewInvalidArgument("manual queue requires workflow identity")
 		}
-		next.Queue = append(next.Queue, Queued{Nominal: command.Nominal, Actual: command.Nominal, WorkflowID: event.WorkflowID, Policy: policy, ManualID: command.ID})
+		next.Queue = append(next.Queue, Queued{Nominal: command.Nominal, Actual: command.Nominal, NominalTime: command.NominalTime, ActualTime: command.NominalTime, WorkflowID: event.WorkflowID, Policy: policy, ManualID: command.ID})
 		return next, nil
 	}
 	if len(event.Request) == 0 || next.Root.Incarnation == "" {
 		return State{}, serviceerror.NewInvalidArgument("manual admission requires incarnation and request")
 	}
-	return startOperation(next, event, Queued{Nominal: command.Nominal, WorkflowID: event.WorkflowID, Policy: policy, ManualID: command.ID})
+	return startOperation(next, event, Queued{Nominal: command.Nominal, NominalTime: command.NominalTime, WorkflowID: event.WorkflowID, Policy: policy, ManualID: command.ID})
 }
 
 // ManualNeedsTemplate distinguishes identity/admission work from policy-only disposal.
@@ -100,7 +101,7 @@ func dispatchBackfill(next State, event Event) (State, error) {
 	if event.BackfillID == 0 || !ValidPolicy(event.Policy) {
 		return State{}, serviceerror.NewInvalidArgument("invalid backfill occurrence")
 	}
-	if len(next.Queue) >= 4 {
+	if !QueueAvailable(next) {
 		return next, nil
 	}
 	policy := event.Policy
@@ -116,7 +117,7 @@ func dispatchBackfill(next State, event Event) (State, error) {
 		}
 		return next, nil
 	}
-	candidate := Queued{BackfillID: event.BackfillID, Nominal: event.Nominal, Actual: event.Actual, WorkflowID: event.WorkflowID, Policy: policy}
+	candidate := Queued{BackfillID: event.BackfillID, Nominal: event.Nominal, Actual: event.Actual, NominalTime: event.NominalTime, ActualTime: event.ActualTime, WorkflowID: event.WorkflowID, Policy: policy}
 	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || len(next.Queue) > 0) {
 		if policy == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(next.Queue) > 0) {
 			return next, nil
@@ -127,7 +128,7 @@ func dispatchBackfill(next State, event Event) (State, error) {
 		next.Queue = append(next.Queue, candidate)
 		return next, nil
 	}
-	if next.Root.Unfinished >= 4 {
+	if !OperationAvailable(next) {
 		return next, nil
 	}
 	if len(event.Request) == 0 || next.Root.Incarnation == "" {

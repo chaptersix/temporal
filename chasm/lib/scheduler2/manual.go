@@ -44,10 +44,11 @@ func (s *Scheduler) AcceptManual(ctx chasm.MutableContext, request *schedulepb.T
 		nominal = request.ScheduledTime.AsTime()
 	}
 	// Preserve the timestamp exactly before converting into persisted nanoseconds.
-	if !time.Unix(0, nominal.UnixNano()).Equal(nominal) {
+	nano, wide := encodeTime(nominal)
+	if s.PublicRevision == 0 && wide != nil {
 		return serviceerror.NewInvalidArgument("manual scheduled time exceeds nanosecond range")
 	}
-	return s.Apply(ctx, decision.Event{Kind: decision.AcceptManual, PublicManualIngress: s.PublicRevision != 0, Incarnation: s.Incarnation, Nominal: nominal.UnixNano(), Policy: request.OverlapPolicy})
+	return s.Apply(ctx, decision.Event{Kind: decision.AcceptManual, PublicManualIngress: s.PublicRevision != 0, Incarnation: s.Incarnation, Nominal: nano, NominalTime: decodeDecisionTime(wide), Policy: request.OverlapPolicy})
 }
 
 func (s *Scheduler) prepareManual(ctx chasm.Context, state decision.State, event *decision.Event) error {
@@ -65,7 +66,7 @@ func (s *Scheduler) prepareManual(ctx chasm.Context, state decision.State, event
 	if err := proto.Unmarshal(template, request); err != nil {
 		return err
 	}
-	event.WorkflowID = request.WorkflowId + "-" + time.Unix(0, state.Manuals[0].Nominal).UTC().Format(time.RFC3339)
+	event.WorkflowID = request.WorkflowId + "-" + state.Manuals[0].NominalTime.Time(state.Manuals[0].Nominal).Format(time.RFC3339)
 	event.Request = template
 	return nil
 }

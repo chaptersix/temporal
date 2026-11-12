@@ -387,3 +387,47 @@ M3 remains open. The read-only remaining-public-contract-audit identifies fixed4
 public capacity and timestamp-domain mismatches. Configured capacity semantics,
 full source-backed timestamp acceptance, and actual close/recreate stale physical
 delivery are assigned for implementation; M4 load/state-growth remains pending.
+
+### Authorization and remaining compatibility progress
+
+Actual frontend denial checks pass for all8 schedule APIs with zero selected
+backend dispatches (wi015/authorization/manifest.json, PASS1.176s). Initial fixture
+cleanup failure is preserved and corrected by restoring ordinary delegation during
+cleanup. Existing authorized/persisted identity tests remain separate evidence.
+
+Capacity and wide timestamp work is implementing, not accepted. The configured
+capacity counterexample reproduces the prototype4-slot mismatch; completed tracked
+occupancy must retain10 canonical workflow-close-time records. Timestamp baselines
+establish V1/old CHASM pre2000 interval support and a known old-CHASM ScheduledTime
+ignore defect; V1/API semantics govern exact manual timestamps. Optional wide time
+fields preserve values outside nanosecond range without wrapping. Independent
+review, expanded recovery and combined regression/race/lint gates remain required.
+
+### Physical old-incarnation replay checkpoint
+
+Actual old Start/late result/old callback and both cancel/terminate timer-envelope
+replays pass together3.854s after delete/recreate plus CloseShard. Actual queue
+interceptors provide delivery barriers; old callback token binds original run and
+request ID, effect payload binds ID/logical wake/target chain. No extra external
+RPC or replacement mutation is observed. Parent source review passes with limits:
+this establishes stale-before-RPC effect rejection, not lost accepted effect
+responses or arbitrary failover. Evidence: wi015/recreation-physical. These tests
+and capacity/timestamp changes still require final combined verification.
+
+### Composed public compatibility checkpoint
+
+Public capacity and wide timestamp runtime changes are implemented and independently
+reviewed. Full scheduler2 public suite passes146.941s; all selected core/callback/
+queue packages pass (root19.576s); normal/minimal lint passes. Unchanged V1 and
+CHASM shared suites pass88.049s. Exact public capacity neighbors2/5 and retained
+completion occupancy are verified; timestamp differential checks cover ancient
+interval ranges and exact manual times through9999, with saved-state/reload tests.
+All expanded public claims retain explicit separation from finite internal proofs.
+
+The242-row functional overlay now attaches current evidence and named exclusions;
+legacy ownership/token migration cases are not marked passed. Source-backed
+migration-and-policy-boundaries.md records those limits. M3 acceptance audit,
+composed race completion, integration of already accepted WI013 proof artifacts
+and final correspondence revalidation remain open. M4 workload specification is
+WI017 draft; cardinality-dependent metadata work remains its implementation and
+measurement obligation. No milestone completion is inferred from this checkpoint.
