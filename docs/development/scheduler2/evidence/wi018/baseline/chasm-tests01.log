@@ -1,0 +1,67 @@
+2026-11-11T20:58:50.658-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:422"}
+2026-11-11T20:58:50.658-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:422"}
+2026-11-11T20:58:50.658-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:422"}
+2026-11-11T20:58:50.658-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:422"}
+--- FAIL: TestNodeSuite (0.01s)
+    --- FAIL: TestNodeSuite/TestAndAllChildren_PathIndependence (0.00s)
+        logger.go:146: 2026-11-11T20:58:50.660-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+            	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:422"}
+        panic.go:336: test panicked: runtime error: invalid memory address or nil pointer dereference
+            goroutine 150 [running]:
+            runtime/debug.Stack()
+            	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/debug/stack.go:26 +0x64
+            github.com/stretchr/testify/suite.failOnPanic(0x44313eeb66c8, {0x1049785e8, 0x104c0ba70})
+            	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:89 +0x38
+            github.com/stretchr/testify/suite.Run.func1.1()
+            	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:184 +0x1e4
+            panic({0x1049785e8?, 0x104c0ba70?})
+            	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859 +0x120
+            go.temporal.io/server/chasm.(*Node).noteWork(0x1?, 0x8?, 0x800cf1468?)
+            	/private/tmp/sch-redesign-execution/chasm/work_observation_test_dep.go:43 +0x1c
+            go.temporal.io/server/chasm.(*Node).andAllChildren.func1.func1({0x0, 0x0, 0x0}, 0x44313eebed80)
+            	/private/tmp/sch-redesign-execution/chasm/tree.go:2696 +0x50
+            go.temporal.io/server/chasm.(*Node).andAllChildren.func1(...)
+            	/private/tmp/sch-redesign-execution/chasm/tree.go:2710
+            go.temporal.io/server/chasm.(*nodeSuite).TestAndAllChildren_PathIndependence(0x44313ee951e0)
+            	/private/tmp/sch-redesign-execution/chasm/tree_test.go:5303 +0x3b4
+            reflect.Value.call({0x44313ee99300?, 0x44313ec16780?, 0x44313eeb9140?}, {0x1038dee78, 0x4}, {0x44313ecf1f20, 0x1, 0x1036fb31c?})
+            	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:586 +0xa88
+            reflect.Value.Call({0x44313ee99300?, 0x44313ec16780?, 0x7f1?}, {0x44313ecf1f20?, 0x102dc7eb0?, 0x104160140?})
+            	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/reflect/value.go:369 +0x94
+            github.com/stretchr/testify/suite.Run.func1(0x44313eeb66c8)
+            	/Users/alex/go/pkg/mod/github.com/stretchr/testify@v1.11.1/suite/suite.go:196 +0x35c
+            testing.tRunner(0x44313eeb66c8, 0x44313ee87b90)
+            	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195 +0xc4
+            created by testing.(*T).Run in goroutine 149
+            	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2260 +0x3b8
+2026-11-11T20:58:50.682-0600	info	Warning: CHASM component TestLibrary.Component1 declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:422"}
+2026-11-11T20:58:50.682-0600	info	Warning: CHASM component TestLibrary.Component1 declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:422"}
+2026-11-11T20:58:50.682-0600	info	Warning: CHASM component TestLibrary2.Component1 declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:422"}
+2026-11-11T20:58:50.682-0600	info	Warning: CHASM component TestLibrary.Component1 declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:422"}
+2026-11-11T20:58:50.682-0600	info	Warning: CHASM component TestLibrary.DetachedComponent declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:422"}
+2026-11-11T20:58:50.682-0600	info	Warning: CHASM component TestLibrary.RetentionComponent declares state fields that won't be managed by CHASM:
+	ctrl *gomock.Controller
+	recorder *chasm.MockComponentMockRecorder
+	isgomock struct {}	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:422"}
+FAIL
+FAIL	go.temporal.io/server/chasm	0.500s
+FAIL

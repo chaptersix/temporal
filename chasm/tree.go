@@ -142,6 +142,7 @@ type (
 
 	// nodeBase is a set of dependencies and states shared by all nodes in a CHASM tree.
 	nodeBase struct {
+		observation    workObservation
 		registry       *Registry
 		backend        NodeBackend
 		pathEncoder    NodePathEncoder
@@ -285,6 +286,7 @@ func NewTreeFromDB(
 
 	root := newTreeHelper(registry, backend, pathEncoder, logger, metricsHandler)
 	for encodedPath, serializedNode := range serializedNodes {
+		root.noteWork(workColdNodes, 1)
 		nodePath, err := pathEncoder.Decode(encodedPath)
 		if err != nil {
 			return nil, err
@@ -328,6 +330,7 @@ func newTreeHelper(
 	metricsHandler metrics.Handler,
 ) *Node {
 	base := &nodeBase{
+		observation:    newWorkObservation(backend),
 		registry:       registry,
 		backend:        backend,
 		pathEncoder:    pathEncoder,
@@ -926,6 +929,7 @@ func (n *Node) serializeComponentNode() error {
 //
 // nolint:revive,cognitive-complexity
 func (n *Node) syncSubComponents() error {
+	n.noteWork(workSyncVisits, 1)
 	if n.valueState < valueStateNeedSyncStructure {
 		for _, childNode := range n.children {
 			err := childNode.syncSubComponents()
@@ -981,6 +985,7 @@ func (n *Node) syncSubComponents() error {
 					fmt.Errorf("node %s", n.nodeName))
 			}
 
+			n.noteMapKeyCopy(field.val)
 			if field.val.IsNil() || len(field.val.MapKeys()) == 0 {
 				// nil or empty map: skip without creating a collection node.
 				// Any existing collection node will be removed by deleteChildren below.
@@ -1004,7 +1009,9 @@ func (n *Node) syncSubComponents() error {
 			}
 
 			collectionItemsToKeep := make(map[string]struct{})
+			n.noteMapKeyCopy(field.val)
 			for _, mapKeyV := range field.val.MapKeys() {
+				n.noteWork(workMapSyncKeys, 1)
 				mapItemV := field.val.MapIndex(mapKeyV)
 				collectionKey, err := n.mapKeyToString(mapKeyV)
 				if err != nil {
@@ -1233,6 +1240,7 @@ func (n *Node) deleteChildren(
 	childrenToKeep map[string]struct{},
 ) error {
 	for childName, childNode := range n.children {
+		n.noteWork(workDeleteChildVisits, 1)
 		if _, childToKeep := childrenToKeep[childName]; !childToKeep {
 			if err := childNode.delete(false); err != nil {
 				return err
@@ -1317,6 +1325,7 @@ func (n *Node) deserialize(
 	if n.valueState != valueStateNeedDeserialize && reflect.TypeOf(n.value) == valueT {
 		return nil
 	}
+	n.noteDecode()
 
 	switch n.serializedNode.GetMetadata().GetAttributes().(type) {
 	case *persistencespb.ChasmNodeMetadata_ComponentAttributes:
@@ -1372,6 +1381,7 @@ func (n *Node) deserializeComponentNode(
 				}
 
 				for collectionItemName, collectionItemNode := range collectionNode.children {
+					n.noteWork(workMapHydrationKeys, 1)
 					// field.typ.Elem() is a go type of map item: Field[T]
 					chasmFieldV := reflect.New(field.typ.Elem()).Elem()
 					internalValue := reflect.ValueOf(newFieldInternalWithNode(collectionItemNode))
@@ -2110,6 +2120,7 @@ func (n *Node) closeTransactionSerializeNodes() error {
 		if err := node.serialize(); err != nil {
 			return err
 		}
+		node.noteSerialize()
 
 		// Data bytes unchanged: revert the versioned transition bump and skip persistence.
 		if skipIfClean && bytes.Equal(prevData.GetData(), node.serializedNode.Data.GetData()) {
@@ -2363,6 +2374,7 @@ func (n *Node) validateTask(
 	taskInvocation TaskInvocation,
 	taskInstance any,
 ) (_ bool, retErr error) {
+	n.noteWork(workTaskValidations, 1)
 	registableTask, ok := n.registry.taskFor(taskInstance)
 	if !ok {
 		return false, softassert.UnexpectedInternalErr(
@@ -2681,6 +2693,7 @@ func (n *Node) andAllChildren() iter.Seq2[[]string, *Node] {
 			if node == nil {
 				return true
 			}
+			node.noteWork(workTreeVisits, 1)
 			if !yield(path, node) {
 				return false
 			}

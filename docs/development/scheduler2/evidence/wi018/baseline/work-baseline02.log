@@ -1,0 +1,40 @@
+=== RUN   TestWorkObservationOrdinaryMapBaseline
+=== PAUSE TestWorkObservationOrdinaryMapBaseline
+=== CONT  TestWorkObservationOrdinaryMapBaseline
+=== RUN   TestWorkObservationOrdinaryMapBaseline/records4
+=== PAUSE TestWorkObservationOrdinaryMapBaseline/records4
+=== RUN   TestWorkObservationOrdinaryMapBaseline/records5
+=== PAUSE TestWorkObservationOrdinaryMapBaseline/records5
+=== RUN   TestWorkObservationOrdinaryMapBaseline/records1000
+=== PAUSE TestWorkObservationOrdinaryMapBaseline/records1000
+=== CONT  TestWorkObservationOrdinaryMapBaseline/records4
+=== CONT  TestWorkObservationOrdinaryMapBaseline/records1000
+=== CONT  TestWorkObservationOrdinaryMapBaseline/records5
+=== NAME  TestWorkObservationOrdinaryMapBaseline/records4
+    work_observation_test.go:92: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/work_observation_test.go:92
+        	Error:      	Not equal: 
+        	            	expected: int(4)
+        	            	actual  : int64(0)
+        	Test:       	TestWorkObservationOrdinaryMapBaseline/records4
+=== NAME  TestWorkObservationOrdinaryMapBaseline/records5
+    work_observation_test.go:92: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/work_observation_test.go:92
+        	Error:      	Not equal: 
+        	            	expected: int(5)
+        	            	actual  : int64(0)
+        	Test:       	TestWorkObservationOrdinaryMapBaseline/records5
+=== NAME  TestWorkObservationOrdinaryMapBaseline/records1000
+    work_observation_test.go:92: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/work_observation_test.go:92
+        	Error:      	Not equal: 
+        	            	expected: int(1000)
+        	            	actual  : int64(0)
+        	Test:       	TestWorkObservationOrdinaryMapBaseline/records1000
+--- FAIL: TestWorkObservationOrdinaryMapBaseline (0.00s)
+    --- FAIL: TestWorkObservationOrdinaryMapBaseline/records4 (0.00s)
+    --- FAIL: TestWorkObservationOrdinaryMapBaseline/records5 (0.00s)
+    --- FAIL: TestWorkObservationOrdinaryMapBaseline/records1000 (0.00s)
+FAIL
+FAIL	go.temporal.io/server/chasm	0.509s
+FAIL

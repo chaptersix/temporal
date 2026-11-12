@@ -1,0 +1,10 @@
+# go.temporal.io/server/chasm [go.temporal.io/server/chasm.test]
+chasm/work_observation_test.go:28:57: *workFixture does not satisfy Component (missing method LifecycleState)
+chasm/work_observation_test.go:31:61: in call to NewRegistrablePureTask, type *workFixtureTask of &workFixtureTask{} does not match inferred type PureTaskHandler[*workFixture, *"go.temporal.io/api/common/v1".Payload] for PureTaskHandler[C, T]
+chasm/work_observation_test.go:35:2: invalid operation: PureTaskHandlerBase[*workFixture, *commonpb.Payload] (PureTaskHandlerBase is not a generic type)
+chasm/work_observation_test.go:71:45: cannot use value (variable of type *workFixture) as RootComponent value in argument to root.SetRootComponent: *workFixture does not implement RootComponent (missing method ContextMetadata)
+chasm/work_observation_test.go:72:15: cannot use value (variable of type *workFixture) as Component value in argument to cc.AddTask: *workFixture does not implement Component (missing method LifecycleState)
+chasm/work_observation_test.go:92:20: impossible type assertion: component.(*workFixture)
+	*workFixture does not implement Component (missing method LifecycleState)
+FAIL	go.temporal.io/server/chasm [build failed]
+FAIL

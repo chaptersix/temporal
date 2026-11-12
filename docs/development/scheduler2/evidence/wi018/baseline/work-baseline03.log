@@ -1,0 +1,38 @@
+=== RUN   TestWorkObservationOrdinaryMapBaseline
+=== PAUSE TestWorkObservationOrdinaryMapBaseline
+=== CONT  TestWorkObservationOrdinaryMapBaseline
+=== RUN   TestWorkObservationOrdinaryMapBaseline/records4
+=== PAUSE TestWorkObservationOrdinaryMapBaseline/records4
+=== RUN   TestWorkObservationOrdinaryMapBaseline/records5
+=== PAUSE TestWorkObservationOrdinaryMapBaseline/records5
+=== RUN   TestWorkObservationOrdinaryMapBaseline/records1000
+=== PAUSE TestWorkObservationOrdinaryMapBaseline/records1000
+=== CONT  TestWorkObservationOrdinaryMapBaseline/records4
+=== CONT  TestWorkObservationOrdinaryMapBaseline/records1000
+=== CONT  TestWorkObservationOrdinaryMapBaseline/records5
+=== NAME  TestWorkObservationOrdinaryMapBaseline/records4
+    work_observation_test.go:94: WORK_COUNTS {"size":4,"phase":"cold","counts":{"cold_nodes":6,"data_decode_calls":0,"decode_bytes":9,"decode_calls":1,"delete_child_visits":0,"map_hydration_keys":4,"map_key_copies":0,"map_sync_keys":0,"serialize_bytes":0,"serialize_calls":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+=== NAME  TestWorkObservationOrdinaryMapBaseline/records5
+    work_observation_test.go:94: WORK_COUNTS {"size":5,"phase":"cold","counts":{"cold_nodes":7,"data_decode_calls":0,"decode_bytes":9,"decode_calls":1,"delete_child_visits":0,"map_hydration_keys":5,"map_key_copies":0,"map_sync_keys":0,"serialize_bytes":0,"serialize_calls":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+    work_observation_test.go:109: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/work_observation_test.go:109
+        	Error:      	"1" is not greater than "5"
+        	Test:       	TestWorkObservationOrdinaryMapBaseline/records5
+=== NAME  TestWorkObservationOrdinaryMapBaseline/records4
+    work_observation_test.go:109: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/work_observation_test.go:109
+        	Error:      	"1" is not greater than "4"
+        	Test:       	TestWorkObservationOrdinaryMapBaseline/records4
+=== NAME  TestWorkObservationOrdinaryMapBaseline/records1000
+    work_observation_test.go:94: WORK_COUNTS {"size":1000,"phase":"cold","counts":{"cold_nodes":1002,"data_decode_calls":0,"decode_bytes":9,"decode_calls":1,"delete_child_visits":0,"map_hydration_keys":1000,"map_key_copies":0,"map_sync_keys":0,"serialize_bytes":0,"serialize_calls":0,"sync_visits":0,"task_validations":0,"tree_visits":0}}
+    work_observation_test.go:109: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/work_observation_test.go:109
+        	Error:      	"1" is not greater than "1000"
+        	Test:       	TestWorkObservationOrdinaryMapBaseline/records1000
+--- FAIL: TestWorkObservationOrdinaryMapBaseline (0.00s)
+    --- FAIL: TestWorkObservationOrdinaryMapBaseline/records5 (0.00s)
+    --- FAIL: TestWorkObservationOrdinaryMapBaseline/records4 (0.00s)
+    --- FAIL: TestWorkObservationOrdinaryMapBaseline/records1000 (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm	0.498s
+FAIL

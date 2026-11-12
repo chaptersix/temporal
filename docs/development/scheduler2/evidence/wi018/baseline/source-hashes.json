@@ -1,0 +1,7 @@
+{
+  "chasm/tree.go": "c75ede3379af4c92d60a07a5ddb95d4f27c8431c86e1b37954966e3b4c68bf9d",
+  "chasm/work_observation.go": "45ddf34a98465cd19deac61e422122626e58c31e6c011c3a56659f308c702e3d",
+  "chasm/work_observation_disabled.go": "892778521b354f7714134cf4b39766ccd16aec6203155946847d3962c2351c3c",
+  "chasm/work_observation_test.go": "5e6a381158e933743a2cacbe983ee8d0182f0bbc5b4ff14c722f37165d5a5299",
+  "chasm/work_observation_test_dep.go": "4cd252b60f30eb4e03da6d682253c936cb432dedcd1d28ea7d8757ff34c4edfa"
+}
