@@ -22,7 +22,7 @@ authorship. The following signed commit contains the additions described here.
 | [#59](https://github.com/chaptersix/temporal/pull/59), [#62](https://github.com/chaptersix/temporal/pull/62) | Controlled acceptance/response events, buffer reordering during an outstanding RPC, repeated result reconciliation, and directed selected-start reservation regressions with a minimal reservation fix. Workflow scenarios are adapted without importing experimental activity APIs or action schemas. |
 | [#70](https://github.com/chaptersix/temporal/pull/70) | Duplicate callbacks before/after local start recording for ALLOW_ALL, SKIP and BUFFER_ALL, plus the early ALLOW_ALL callback guard. This branch retains callback attachment; the separate rollout-dependent callback-omission change is not imported. |
 | [#44](https://github.com/chaptersix/temporal/pull/44), [#45](https://github.com/chaptersix/temporal/pull/45) | `migration_handoff_test.go` and the V1 SDK workflow scenarios exercise lost responses, source-close boundaries, destination collisions and signal admission. |
-| [#56](https://github.com/chaptersix/temporal/pull/56) | `service/frontend/migration_delete_race_test.go` includes the native control and an opt-in held-create/delete counterexample. V1 termination is mocked. |
+| [#56](https://github.com/chaptersix/temporal/pull/56) | `service/frontend/migration_delete_race_test.go` includes the native control and a skipped held-create/delete counterexample. V1 termination is mocked. |
 | [#57](https://github.com/chaptersix/temporal/pull/57) | `migration_chain_ownership_test.go` adapts owned-descendant, foreign-chain and expired-first-run ownership checks to this baseline, with the persisted request ID and first-run ownership check. Receipt and start-pending persistence are not imported because they make a pre-commit Unavailable permanent. |
 
 ## Driver changes
@@ -55,7 +55,7 @@ Go `go1.27.3 darwin/arm64` and Rapid `v1.3.0`.
 ```sh
 CGO_ENABLED=0 go test -tags test_dep ./chasm/chasmtest/... ./chasm/lib/scheduler/... ./service/frontend ./service/worker/scheduler -count=1
 CGO_ENABLED=0 make property-test TEST_RACE_FLAG=off
-python3 chasm/lib/scheduler/schedulertest/check_mutations.py
+make mutation-test
 CGO_ENABLED=0 make lint-code-fast GOLANGCI_LINT_BASE_REV=03ecd1d228d2b8d9d433da55785afc9aeeead918 GOLANGCI_LINT_FIX=false
 ```
 
@@ -72,8 +72,9 @@ The original early callback run failed on `accepted-start-lost`, with ActionCoun
 still zero after external acceptance. The fix preserves exactly one counted start.
 
 The catchup-expiry failure is retained both as
-`TestExpiredSelectionReleasesRemainingBuffer` and a Rapid failfile under
-`schedulertest/testdata/rapid`. The explicit trace is: fixed initial clock
+`TestExpiredSelectionReleasesRemainingBuffer`. The Rapid failfile is not
+committed: it replays raw draws, which any generator change invalidates, and
+`testdata/rapid` is ignored. The explicit trace is: fixed initial clock
 2020-01-01 UTC; 10-second interval; end after 31 seconds; BUFFER_ALL; 60-second
 catchup; 10-minute idle; 5-minute workflow-duration bound; `step, step, step, pure`.
 The seeded replay is:
@@ -117,12 +118,9 @@ Each fix has a default-run regression; none is gated.
 
 ## Unresolved counterexamples and limits
 
-Four migration cases remain evidence, not fixes. Enable their intended
-correctness assertions explicitly; this command is expected to fail:
-
-```sh
-TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 CGO_ENABLED=0 go test -tags test_dep ./service/frontend ./service/worker/scheduler -run TestMigrationCounterexample -count=1
-```
+Four migration cases remain evidence, not fixes. Each is an unconditional
+`t.Skip` naming the missing handoff protocol; remove the skip to see the
+assertion fail.
 
 - `TestMigrationCounterexample_TriggerDuringSnapshot`: a signal accepted while
   the migrate activity is pending is dropped with the old snapshot.
@@ -153,8 +151,8 @@ admission fencing remain separate integration coverage. No new in-memory helper
 is presented as persistence or crash evidence. The source-close fault wrapper
 only tests transaction outcome/response ordering in the component engine.
 
-The package tests above, `make property-test` at 5,000 cases, and the four gated
-counterexamples also run under the race detector with no data race reported.
+The package tests above and `make property-test` at 5,000 cases also run under
+the race detector with no data race reported.
 On a macOS host whose default SDK is newer than its linker, the race build fails
 with `unknown architecture arm64e.x1`; set `SDKROOT` to the SDK matching the
 installed Command Line Tools.

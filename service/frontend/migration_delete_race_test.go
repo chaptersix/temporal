@@ -3,7 +3,6 @@ package frontend
 import (
 	"context"
 	"errors"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -43,9 +42,7 @@ func (c *migrationDeleteRaceClient) DeleteSchedule(_ context.Context, req *sched
 
 func TestMigrationDeleteNativeControl(t *testing.T) { testMigrationDeleteRace(t, false) }
 func TestMigrationCounterexample_DeleteDuringCreate(t *testing.T) {
-	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") != "1" {
-		t.Skip("known migration counterexample; set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 to run")
-	}
+	t.Skip("A create held across DeleteSchedule commits an active scheduler afterwards; this needs a handoff protocol that records the delete as a tombstone the in-flight migration create must observe before committing.")
 	testMigrationDeleteRace(t, true)
 }
 

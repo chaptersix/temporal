@@ -3,7 +3,6 @@ package scheduler
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -49,19 +48,12 @@ func newMigrationScenario(t *testing.T) (*testsuite.TestWorkflowEnvironment, *sc
 	}
 }
 
-func requireMigrationCounterexamples(t *testing.T) {
-	t.Helper()
-	if os.Getenv("TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES") != "1" {
-		t.Skip("known migration counterexample; set TEMPORAL_RUN_MIGRATION_COUNTEREXAMPLES=1 to run")
-	}
-}
-
 func TestMigrationScenario_TriggerBeforeSnapshot(t *testing.T) {
 	checkMigrationSignalAccounting(t, false)
 }
 
 func TestMigrationCounterexample_TriggerDuringSnapshot(t *testing.T) {
-	requireMigrationCounterexamples(t)
+	t.Skip("A trigger accepted while the migrate activity is pending is lost with the stale snapshot; this needs a handoff protocol that fences source signal admission once the snapshot is taken or forwards late signals to the destination.")
 	checkMigrationSignalAccounting(t, true)
 }
 
@@ -155,7 +147,7 @@ func TestMigrationScenario_RollbackFreshBackfill(t *testing.T) {
 }
 
 func TestMigrationCounterexample_ForwardDestinationCollision(t *testing.T) {
-	requireMigrationCounterexamples(t)
+	t.Skip("The forward activity treats AlreadyExists as success for an unrelated CHASM schedule; this needs a migration identity on the destination so the source can tell its own earlier create from a foreign schedule.")
 	env, args := newMigrationScenario(t)
 	when := timestamppb.New(baseStartTime)
 	args.State.BufferedStarts = []*schedulespb.BufferedStart{{
@@ -209,7 +201,7 @@ func checkRollbackBackfillStart(t *testing.T, rollback bool) {
 }
 
 func TestMigrationCounterexample_LostCreateResponse(t *testing.T) {
-	requireMigrationCounterexamples(t)
+	t.Skip("After a lost create response the V1 source keeps executing work the committed destination also owns; this needs a handoff protocol that fences source execution until the destination commit is confirmed, gated on a new workflow version.")
 	for _, version := range []SchedulerWorkflowVersion{TriggerImmediatelyTimestamp, MigrationHandoffFixes} {
 		for _, disable := range []bool{false, true} {
 			t.Run(fmt.Sprintf("version_%d_disable_%t", version, disable), func(t *testing.T) {
