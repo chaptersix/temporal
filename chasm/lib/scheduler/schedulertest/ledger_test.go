@@ -132,6 +132,11 @@ func TestCheckInvariants_Ledger(t *testing.T) {
 			cur:  schedulertest.Snapshot{HasPendingTask: true, DroppedStarts: 4, StartRequested: pending("b")},
 		},
 		{
+			name: "replaced by cancel-other start",
+			prev: schedulertest.Snapshot{HasPendingTask: true, PendingStarts: pending("a", "b"), ReplacingStarts: 1},
+			cur:  schedulertest.Snapshot{HasPendingTask: true, StartRequested: pending("b")},
+		},
+		{
 			name: "silent drop",
 			prev: schedulertest.Snapshot{HasPendingTask: true, PendingStarts: pending("a", "b")},
 			cur:  schedulertest.Snapshot{HasPendingTask: true, OverlapSkipped: 1},

@@ -65,7 +65,8 @@ type TaskRunnerHooks struct {
 	// BeforeAdvance runs before the clock moves to the given time and may
 	// itself move the clock to an earlier instant, for example to complete
 	// external work that would otherwise run past a deadline. It runs even
-	// when the clock does not end up moving.
+	// when the clock does not end up moving. If it schedules work earlier than
+	// the given time, the runner stops there instead and calls it again.
 	BeforeAdvance func(to time.Time)
 	// BeforeSideEffect runs after a task has been selected and validated, just
 	// before it executes.
@@ -140,7 +141,7 @@ func (r *TaskRunner) Step() bool {
 	if !ok {
 		return false
 	}
-	r.advanceTo(fireTime)
+	r.advanceTo(fireTime, r.nextFireTime)
 	r.firePureTasks()
 	for r.StepSideEffect() {
 	}
@@ -163,7 +164,7 @@ func (r *TaskRunner) StepPure() bool {
 		fireTime.After(oldest.Add(r.maxSideEffectLag)) {
 		return false
 	}
-	r.advanceTo(fireTime)
+	r.advanceTo(fireTime, r.nextPureFireTime)
 	r.firePureTasks()
 	return true
 }
@@ -477,10 +478,23 @@ func (r *TaskRunner) afterStep() {
 }
 
 // advanceTo moves the clock to t, never backward, after giving BeforeAdvance a
-// chance to act on the way.
-func (r *TaskRunner) advanceTo(t time.Time) {
-	if r.hooks.BeforeAdvance != nil {
+// chance to act on the way. BeforeAdvance may schedule work that falls before
+// t, such as the retry of a start it dispatched; next reports the earliest
+// pending fire time, and the clock stops there instead of jumping over it.
+func (r *TaskRunner) advanceTo(t time.Time, next func() (time.Time, bool)) {
+	for r.hooks.BeforeAdvance != nil {
 		r.hooks.BeforeAdvance(t)
+		earliest, ok := next()
+		if !ok {
+			break
+		}
+		if now := r.clock.Now(); earliest.Before(now) {
+			earliest = now
+		}
+		if !earliest.Before(t) {
+			break
+		}
+		t = earliest
 	}
 	if t.After(r.clock.Now()) {
 		r.clock.Update(t)

@@ -83,11 +83,20 @@ func DefaultConfig() *scheduler.Config {
 		EncodeInternalTokenWithEnvelope: func(string) bool {
 			return true
 		},
-		RetryPolicy: func() backoff.RetryPolicy {
-			return backoff.NewExponentialRetryPolicy(1 * time.Second)
-		},
+		RetryPolicy: func() backoff.RetryPolicy { return deterministicRetryPolicy{} },
 	}
 }
+
+// deterministicRetryPolicy backs off exponentially from one second to a minute
+// like the production policy but without its random jitter, so that a rapid
+// run replays identically while it shrinks a failure.
+type deterministicRetryPolicy struct{}
+
+func (deterministicRetryPolicy) ComputeNextDelay(_ time.Duration, numAttempts int, _ error) time.Duration {
+	return min(time.Second<<min(max(numAttempts-1, 0), 6), time.Minute)
+}
+
+var _ backoff.RetryPolicy = deterministicRetryPolicy{}
 
 // NewRealSpecProcessor builds a real SpecProcessor with no-op metrics, matching
 // production spec processing so generated buffered starts and next-times are

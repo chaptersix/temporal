@@ -1,6 +1,7 @@
 package schedulertest
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -34,6 +35,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// startFaults counts the upcoming StartWorkflowExecution RPCs that fail.
+type startFaults struct {
+	rejected  int // the RPC fails without the start being accepted
+	lostReply int // the start is accepted but the response is lost
+}
+
 // Driver builds a real CHASM scheduler on top of a [chasmtest.Engine] and steps
 // it forward through every task it schedules for itself, advancing a controllable
 // clock. After each settled transition it invokes AfterStep (if set), which is
@@ -50,6 +57,7 @@ type Driver struct {
 	startCalls         chan *StartCall
 	actionsBefore      int
 	recorded           map[string]ExternalStart
+	replacingSeen      map[string]struct{}
 	initialActionCount int64
 
 	T          chasmtest.TB
@@ -88,6 +96,9 @@ type Driver struct {
 	// rpcMu guards actionRPCs and startRequests: InvokerExecuteTask issues
 	// starts from concurrent goroutines.
 	rpcMu *sync.Mutex
+
+	// faults injects failures into uncontrolled start RPCs. Guarded by rpcMu.
+	faults *startFaults
 
 	// maxRunDuration auto-completes a started workflow before the clock moves
 	// past its StartTime plus this. Zero means workflows only complete through
@@ -214,6 +225,7 @@ func newDriverScaffold(t chasmtest.TB, opts ...DriverOption) (*Driver, *driverCo
 		startCalls = make(chan *StartCall)
 	}
 	rpcMu := &sync.Mutex{}
+	faults := &startFaults{}
 	countAction := func() {
 		rpcMu.Lock()
 		defer rpcMu.Unlock()
@@ -241,9 +253,23 @@ func newDriverScaffold(t chasmtest.TB, opts ...DriverOption) (*Driver, *driverCo
 					return nil, ctx.Err()
 				}
 			}
+			rpcMu.Lock()
+			rejected, lostReply := faults.rejected > 0, faults.rejected == 0 && faults.lostReply > 0
+			if rejected {
+				faults.rejected--
+			} else if lostReply {
+				faults.lostReply--
+			}
+			rpcMu.Unlock()
+			if rejected {
+				return nil, serviceerror.NewUnavailable("start rejected by driver")
+			}
 			accepted, err := external.accept(req)
 			if err != nil {
 				return nil, err
+			}
+			if lostReply {
+				return nil, serviceerror.NewUnavailable("start accepted, response lost by driver")
 			}
 			return &workflowservice.StartWorkflowExecutionResponse{RunId: accepted.RunID}, nil
 		}).AnyTimes()
@@ -286,6 +312,7 @@ func newDriverScaffold(t chasmtest.TB, opts ...DriverOption) (*Driver, *driverCo
 	d := &Driver{
 		recordCalls: make(chan *RecordCall),
 		external:    external, startCalls: startCalls, recorded: make(map[string]ExternalStart),
+		replacingSeen:  make(map[string]struct{}),
 		T:              t,
 		Engine:         engine,
 		Registry:       registry,
@@ -297,6 +324,7 @@ func newDriverScaffold(t chasmtest.TB, opts ...DriverOption) (*Driver, *driverCo
 		actionRPCs:     actionRPCs,
 		startRequests:  startRequests,
 		rpcMu:          rpcMu,
+		faults:         faults,
 		metricsCapture: capture,
 		maxRunDuration: cfg.maxRun,
 		AfterStep:      cfg.afterStep,
@@ -529,6 +557,60 @@ func (d *Driver) Patch(patch *schedulepb.SchedulePatch) error {
 	return err
 }
 
+// FailNextStarts makes the next n StartWorkflowExecution RPCs fail before the
+// start is accepted, then lets later RPCs (the scheduler's retries) succeed.
+// It does not apply under WithControlledStarts, where the test decides each
+// RPC's outcome.
+func (d *Driver) FailNextStarts(n int) {
+	d.rpcMu.Lock()
+	defer d.rpcMu.Unlock()
+	d.faults.rejected += n
+}
+
+// LoseNextStartResponses makes the next n StartWorkflowExecution RPCs (after
+// any FailNextStarts) accept the start but return an error, so the scheduler
+// must retry with the same request ID and rely on deduplication.
+func (d *Driver) LoseNextStartResponses(n int) {
+	d.rpcMu.Lock()
+	defer d.rpcMu.Unlock()
+	d.faults.lostReply += n
+}
+
+// Backfill requests a backfill of the given range via Patch.
+func (d *Driver) Backfill(req *schedulepb.BackfillRequest) error {
+	return d.Patch(&schedulepb.SchedulePatch{BackfillRequest: []*schedulepb.BackfillRequest{req}})
+}
+
+// Update applies mutate to a copy of the current schedule definition and
+// replaces the schedule with it through the production Scheduler.Update path,
+// without a conflict token. It returns the scheduler's error (e.g. ErrClosed)
+// without failing the test. On success the AfterStep hook runs.
+func (d *Driver) Update(mutate func(*schedulepb.Schedule)) error {
+	d.T.Helper()
+	engineCtx := chasm.NewEngineContext(context.Background(), d.Engine)
+	_, err := d.Engine.UpdateComponent(engineCtx, d.ref, func(mctx chasm.MutableContext, c chasm.Component) error {
+		s, ok := c.(*scheduler.Scheduler)
+		if !ok {
+			return fmt.Errorf("root component is %T, want *scheduler.Scheduler", c)
+		}
+		next := common.CloneProto(s.Schedule)
+		mutate(next)
+		_, uerr := s.Update(mctx, &schedulerpb.UpdateScheduleRequest{
+			NamespaceId: NamespaceID,
+			FrontendRequest: &workflowservice.UpdateScheduleRequest{
+				Namespace:  Namespace,
+				ScheduleId: ScheduleID,
+				Schedule:   next,
+			},
+		})
+		return uerr
+	})
+	if err == nil && d.AfterStep != nil {
+		d.AfterStep(d)
+	}
+	return err
+}
+
 // Pause pauses the schedule via Patch.
 func (d *Driver) Pause() error {
 	return d.Patch(&schedulepb.SchedulePatch{Pause: "paused by driver"})
@@ -617,8 +699,17 @@ type Snapshot struct {
 	// metric for missed-catchup and paused/limited drops).
 	PendingStarts  map[string]struct{}
 	StartRequested map[string]struct{}
-	OverlapSkipped int64
-	DroppedStarts  int64
+	// ReplacingStarts counts the pending starts that no start RPC has been attempted for (including deferred ones) whose overlap policy
+	// is CANCEL_OTHER or TERMINATE_OTHER. With nothing running, such a start
+	// replaces the one the buffer would otherwise have started
+	// (legacyscheduler.ProcessBuffer), discarding it without counting an overlap
+	// skip, so each can account for one silent disappearance. ReplacingSeen is
+	// the number of distinct such starts ever seen in the buffer in any state,
+	// which covers a replacer that was buffered and started between two snapshots.
+	ReplacingStarts int
+	ReplacingSeen   int
+	OverlapSkipped  int64
+	DroppedStarts   int64
 	// Migrating is true once the schedule hands off to a V1 workflow, which
 	// takes its buffered starts with it.
 	Migrating bool
@@ -667,7 +758,8 @@ func (d *Driver) Snapshot() Snapshot {
 			if inv := s.Invoker.Get(ctx); inv != nil {
 				snap.UntransferableActions = len(inv.GetCancelWorkflows()) + len(inv.GetTerminateWorkflows())
 				snap.BufferedStartsCount = len(inv.GetBufferedStarts())
-				snap.addBufferedStarts(inv.GetBufferedStarts())
+				snap.addBufferedStarts(inv.GetBufferedStarts(), s.Schedule.GetPolicies().GetOverlapPolicy(), d.replacingSeen)
+				snap.ReplacingSeen = len(d.replacingSeen)
 				if inv.LastProcessedTime != nil {
 					snap.InvokerLPT = inv.LastProcessedTime.AsTime()
 				}
@@ -678,11 +770,21 @@ func (d *Driver) Snapshot() Snapshot {
 }
 
 // addBufferedStarts classifies buffered starts into pending (deferred or not)
-// and running.
-func (snap *Snapshot) addBufferedStarts(starts []*schedulespb.BufferedStart) {
+// and running. scheduleOverlap resolves starts with an unspecified policy.
+// replacingSeen accumulates the request IDs of replacing starts across snapshots.
+func (snap *Snapshot) addBufferedStarts(starts []*schedulespb.BufferedStart, scheduleOverlap enumspb.ScheduleOverlapPolicy, replacingSeen map[string]struct{}) {
 	for _, start := range starts {
+		policy := cmp.Or(start.GetOverlapPolicy(), scheduleOverlap)
+		replacing := policy == enumspb.SCHEDULE_OVERLAP_POLICY_CANCEL_OTHER ||
+			policy == enumspb.SCHEDULE_OVERLAP_POLICY_TERMINATE_OTHER
+		if replacing {
+			replacingSeen[start.GetRequestId()] = struct{}{}
+		}
 		switch {
 		case start.GetRunId() == "":
+			if replacing && start.GetAttempt() <= 0 {
+				snap.ReplacingStarts++
+			}
 			if start.GetAttempt() > 0 {
 				snap.UntransferableActions++
 			}

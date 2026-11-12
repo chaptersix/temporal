@@ -217,6 +217,27 @@ func TestTaskRunnerBeforeAdvanceMayMoveClock(t *testing.T) {
 	require.Equal(t, runnerStart.Add(time.Hour), f.ts.Now(), "the runner still lands on the task's time")
 }
 
+func TestTaskRunnerBeforeAdvanceSchedulesEarlierWork(t *testing.T) {
+	f := newRunnerFixture(t, time.Hour)
+	var advances []time.Time
+	var dispatchedAt []time.Time
+	r := chasmtest.NewTaskRunner(t, f.engine, f.ref, f.ts, chasmtest.WithTaskRunnerHooks(chasmtest.TaskRunnerHooks{
+		BeforeAdvance: func(to time.Time) {
+			advances = append(advances, to)
+			if len(advances) == 1 {
+				f.addSideEffect(t, "retry", 10*time.Minute, true)
+			}
+		},
+		AfterSideEffect: func() { dispatchedAt = append(dispatchedAt, f.ts.Now()) },
+	}))
+
+	require.True(t, r.Step())
+	require.Equal(t, []time.Time{runnerStart.Add(time.Hour), runnerStart.Add(10 * time.Minute)}, advances)
+	require.Equal(t, []time.Time{runnerStart.Add(10 * time.Minute)}, dispatchedAt,
+		"work the hook scheduled before the target time is not jumped over")
+	require.Equal(t, runnerStart.Add(10*time.Minute), f.ts.Now())
+}
+
 func TestTaskRunnerToleratedSideEffectError(t *testing.T) {
 	f := newRunnerFixture(t, 0)
 	f.addSideEffect(t, "ghost", time.Minute, false)

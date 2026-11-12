@@ -164,7 +164,9 @@ func checkLedger(prev *Snapshot, cur Snapshot) []Violation {
 	// either sent to StartWorkflowExecution or discarded on purpose (overlap
 	// skip, missed catchup, paused/limited drop). Starts that are buffered and
 	// discarded within one transaction never appear pending, so the discard
-	// counters can only exceed the disappearances, never trail.
+	// counters can only exceed the disappearances, never trail. A start may also
+	// be replaced by a CANCEL_OTHER or TERMINATE_OTHER start (see
+	// Snapshot.ReplacingStarts).
 	var silent []string
 	for id := range prev.PendingStarts {
 		_, still := cur.PendingStarts[id]
@@ -173,7 +175,8 @@ func checkLedger(prev *Snapshot, cur Snapshot) []Violation {
 			silent = append(silent, id)
 		}
 	}
-	discarded := (cur.OverlapSkipped - prev.OverlapSkipped) + (cur.DroppedStarts - prev.DroppedStarts)
+	discarded := (cur.OverlapSkipped - prev.OverlapSkipped) + (cur.DroppedStarts - prev.DroppedStarts) +
+		int64(prev.ReplacingStarts+cur.ReplacingSeen-prev.ReplacingSeen)
 	if int64(len(silent)) > discarded {
 		slices.Sort(silent)
 		vs.add("ledger-silent-drop",
