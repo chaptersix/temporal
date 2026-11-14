@@ -502,9 +502,11 @@ integration-test: clean-test-output
 #     default and costs ~60ms; the nightly soak workflow raises it a long way.
 #
 # When a property fails, rapid writes a minimized reproducer to
-# testdata/rapid/<TestName>/<TestName>-<ts>-<pid>.fail and replays every such
-# file ahead of the random cases on subsequent runs. Commit those files to turn a
-# counterexample into a permanent regression case.
+# testdata/rapid/<TestName>/<TestName>-<ts>-<pid>.fail. Use it to reproduce the
+# failure locally, then pin the case as a hand-written deterministic test. The
+# fail files themselves are gitignored: they replay a raw draw sequence, so any
+# change to a generator makes them decode to different values and stop
+# reproducing the bug silently.
 #
 # See docs/development/testing.md ("Property tests") for how to reproduce a
 # counterexample, when to commit one, and how to add a package to this tier.

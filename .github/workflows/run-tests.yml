@@ -360,7 +360,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: property-test-counterexamples
-          path: "**/testdata/rapid/**"
+          path: "**/testdata/rapid/**/*.fail"
           if-no-files-found: ignore
 
       - name: Post-test reporting
@@ -542,6 +542,7 @@ jobs:
     needs:
       - misc-checks
       - unit-test
+      - property-test
       - integration-test
       - functional-test
     runs-on: ubuntu-latest

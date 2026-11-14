@@ -157,26 +157,44 @@ go test -tags test_dep ./chasm/lib/scheduler/schedulerproptest/ -run TestSchedul
 In CI the fail file is uploaded as a job artifact — `property-test-counterexamples`, or
 `property-test-soak-counterexamples` for the nightly. Download it to reproduce locally.
 
-### Committing a counterexample
+### Pinning a counterexample
 
-rapid replays **every** fail file under `testdata/rapid/<TestName>/` before generating any random
-cases, so a committed fail file becomes a permanent regression case enforced on every later run.
-Fail file names are unique, so several can accumulate for the same test without colliding.
+**Pin the counterexample as a hand-written deterministic test, in the same change as the fix.**
+Translate the shrunk inputs into an explicit test — `TestLedger_DeferredStartsStrandedByPausedCompletion`
+in [schedulertest](../../chasm/lib/scheduler/schedulertest) is an example — and put it next to the
+other unit tests for the package, not in the property tier.
 
-**Commit the fail file in the same change as the fix.** It is a regression test for the bug it
-encodes, and it belongs with the code that fixes it.
+**Do not commit the fail file.** `testdata/rapid/` is gitignored, because a fail file is not a
+durable regression test: it replays a raw sequence of draws, so adding, removing or reordering a
+draw in the generator makes the stored sequence decode to different values. It then stops
+reproducing the bug **silently** — rapid reports no error, the replay simply passes, and the
+protection is gone without anything failing to tell you. A hand-written test says what it means and
+breaks loudly when behaviour changes.
 
-**Do not commit a fail file for a bug that is not fixed yet.** The per-PR job replays it, so it
-would fail on every PR and block all merges. Open an issue instead and attach the printed seed and
-the fail file's contents. If the invariant has to be relaxed in the meantime, scope the exemption as
-narrowly as possible and reference the issue from the code.
+Use the fail file for what it is good at — reproducing the failure *now*, while you write the
+real test.
 
-The fail file goes next to the package under test, keyed by test name — exactly where rapid writes
-it, so a file downloaded from a CI artifact is committed at the same path:
+### Deferring a fix
 
-```
-chasm/lib/scheduler/schedulerproptest/testdata/rapid/TestSchedulerProperties/TestSchedulerProperties-<timestamp>-<pid>.fail
-```
+If the bug cannot be fixed immediately, the thing to avoid is any marker that passes silently once
+the bug is gone. A `t.Skip` and a filter in the invariant hook both do, which is how this
+repository ended up carrying a skip *and* an invariant exemption for a stranding bug that had
+already been fixed on main seven hours earlier — the skip's own comment asked for its deletion, and
+nothing deleted it because nothing broke when the bug disappeared.
+
+So, in order of preference:
+
+- Fix it. A shrunk counterexample is usually small, and the fix often is too.
+- Open an issue, and paste in both the seed and the fail file's contents — a few lines of hex that
+  fully describe the case. Do not rely on the CI artifact; those expire.
+- If the property has to keep running while the bug is open, constrain the **generator** rather
+  than filtering violations in the hook. A generator constraint is visible in the inputs and
+  self-documenting; a violation filter silently swallows every other bug of the same shape, not
+  just the one it names.
+- If you must leave a marker, make it fail when the bug is fixed — for example a deterministic test
+  that asserts the current wrong outcome behind a `// BUG(#NNNNN):` comment, so whoever fixes the
+  bug is forced to update it. Put the issue number in any `t.Skip` message so it is at least
+  greppable.
 
 ### Why retries are disabled
 

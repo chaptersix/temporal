@@ -48,3 +48,9 @@
 
 # Ignoring AI agent files
 .agents/
+
+# rapid failfiles replay raw draw sequences, so any change to a generator makes a
+# stored file decode to different values and stop reproducing — silently, with no
+# error. Pin regressions with hand-written tests instead. CI uploads failfiles as
+# artifacts on failure for local reproduction.
+**/testdata/rapid/
