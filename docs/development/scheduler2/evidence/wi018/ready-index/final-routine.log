@@ -1,0 +1,243 @@
+=== RUN   TestCountBatchAtomicAncestors
+=== PAUSE TestCountBatchAtomicAncestors
+=== RUN   TestCountBatchFailurePoisonsAllLayers
+=== PAUSE TestCountBatchFailurePoisonsAllLayers
+=== RUN   TestCountBatchCanonicalRecreationAndAbort
+=== PAUSE TestCountBatchCanonicalRecreationAndAbort
+=== RUN   TestCountBatchReferenceOverflowAfterAncestor
+=== PAUSE TestCountBatchReferenceOverflowAfterAncestor
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches
+=== RUN   TestCountTrieReference
+=== PAUSE TestCountTrieReference
+=== RUN   TestCountTrieCanonicalSharingAndRollback
+=== PAUSE TestCountTrieCanonicalSharingAndRollback
+=== RUN   TestCountTrieExhaustionRollback
+=== PAUSE TestCountTrieExhaustionRollback
+=== RUN   TestCountTrieStorageAndWork
+=== PAUSE TestCountTrieStorageAndWork
+=== RUN   TestCountTrieFullWidthPaths
+=== PAUSE TestCountTrieFullWidthPaths
+=== RUN   TestCountTrieReferenceExhaustionRollback
+=== PAUSE TestCountTrieReferenceExhaustionRollback
+=== RUN   TestCountBucketsCanonicalSplitMerge
+=== PAUSE TestCountBucketsCanonicalSplitMerge
+=== RUN   TestCountCanonicalIntegers
+=== PAUSE TestCountCanonicalIntegers
+=== RUN   TestCountCompactEncodingBoundaries
+=== PAUSE TestCountCompactEncodingBoundaries
+=== RUN   TestTimeKeyChronologicalOrder
+=== PAUSE TestTimeKeyChronologicalOrder
+=== RUN   TestTimeKeyNormalizesInstant
+=== PAUSE TestTimeKeyNormalizesInstant
+=== RUN   TestSequenceEarliestReference
+=== PAUSE TestSequenceEarliestReference
+=== RUN   TestSequenceEarliestTimeThenSequence
+=== PAUSE TestSequenceEarliestTimeThenSequence
+=== RUN   TestSequenceEarliestReadFailuresPoisonBatch
+=== PAUSE TestSequenceEarliestReadFailuresPoisonBatch
+=== RUN   TestSequenceEarliestRejectsChronologicalSummaryMismatch
+=== PAUSE TestSequenceEarliestRejectsChronologicalSummaryMismatch
+=== RUN   TestSequenceEarliestFullDepthAndSharedOwnership
+=== PAUSE TestSequenceEarliestFullDepthAndSharedOwnership
+=== RUN   TestSequenceEarliestSignedAndWideTimes
+=== PAUSE TestSequenceEarliestSignedAndWideTimes
+=== RUN   TestSequenceEarliestMissingMinimumPage
+=== PAUSE TestSequenceEarliestMissingMinimumPage
+=== RUN   TestSequenceEarliestCombinedKeyDepth
+=== PAUSE TestSequenceEarliestCombinedKeyDepth
+=== RUN   TestSequenceEarliestSharedGenerationSummary
+=== PAUSE TestSequenceEarliestSharedGenerationSummary
+=== RUN   TestSequenceIndexReference
+=== PAUSE TestSequenceIndexReference
+=== RUN   TestSequenceIndexRollbackAndGenerations
+=== PAUSE TestSequenceIndexRollbackAndGenerations
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage
+=== RUN   TestSequenceIndexEveryReadFailureRollsBack
+=== PAUSE TestSequenceIndexEveryReadFailureRollsBack
+=== RUN   TestSequenceIndexClockRollbackRectangle
+=== PAUSE TestSequenceIndexClockRollbackRectangle
+=== RUN   TestSequenceInlineLeafCollapseSharedCountOwner
+=== PAUSE TestSequenceInlineLeafCollapseSharedCountOwner
+=== CONT  TestCountBatchAtomicAncestors
+=== CONT  TestSequenceEarliestReference
+=== CONT  TestCountTrieStorageAndWork
+=== CONT  TestSequenceEarliestSharedGenerationSummary
+=== RUN   TestCountTrieStorageAndWork/4
+=== PAUSE TestCountTrieStorageAndWork/4
+=== RUN   TestCountTrieStorageAndWork/5
+=== PAUSE TestCountTrieStorageAndWork/5
+=== RUN   TestCountTrieStorageAndWork/1000
+=== PAUSE TestCountTrieStorageAndWork/1000
+=== RUN   TestCountTrieStorageAndWork/10000
+=== PAUSE TestCountTrieStorageAndWork/10000
+=== CONT  TestTimeKeyNormalizesInstant
+=== RUN   TestTimeKeyNormalizesInstant/negative_nanosecond
+=== PAUSE TestTimeKeyNormalizesInstant/negative_nanosecond
+=== RUN   TestTimeKeyNormalizesInstant/normalized_nanosecond
+=== PAUSE TestTimeKeyNormalizesInstant/normalized_nanosecond
+=== RUN   TestTimeKeyNormalizesInstant/different_location
+=== PAUSE TestTimeKeyNormalizesInstant/different_location
+=== CONT  TestTimeKeyChronologicalOrder
+--- PASS: TestCountBatchAtomicAncestors (0.00s)
+=== CONT  TestCountCompactEncodingBoundaries
+--- PASS: TestTimeKeyChronologicalOrder (0.00s)
+=== CONT  TestCountCanonicalIntegers
+--- PASS: TestCountCanonicalIntegers (0.00s)
+=== CONT  TestCountBucketsCanonicalSplitMerge
+--- PASS: TestCountCompactEncodingBoundaries (0.00s)
+=== CONT  TestCountTrieReferenceExhaustionRollback
+=== RUN   TestCountTrieReferenceExhaustionRollback/fork_root
+=== PAUSE TestCountTrieReferenceExhaustionRollback/fork_root
+=== RUN   TestCountTrieReferenceExhaustionRollback/update_shared_child
+=== PAUSE TestCountTrieReferenceExhaustionRollback/update_shared_child
+=== CONT  TestCountTrieFullWidthPaths
+--- PASS: TestSequenceEarliestSharedGenerationSummary (0.00s)
+=== CONT  TestSequenceEarliestFullDepthAndSharedOwnership
+--- PASS: TestCountBucketsCanonicalSplitMerge (0.01s)
+=== CONT  TestSequenceEarliestCombinedKeyDepth
+=== NAME  TestSequenceEarliestFullDepthAndSharedOwnership
+    ready_test.go:172: full sequence depth earliest reads=840
+--- PASS: TestSequenceEarliestFullDepthAndSharedOwnership (0.00s)
+=== CONT  TestSequenceEarliestMissingMinimumPage
+--- PASS: TestSequenceEarliestMissingMinimumPage (0.00s)
+=== CONT  TestSequenceEarliestSignedAndWideTimes
+--- PASS: TestSequenceEarliestSignedAndWideTimes (0.00s)
+=== CONT  TestSequenceIndexEveryReadFailureRollsBack
+--- PASS: TestSequenceIndexEveryReadFailureRollsBack (0.00s)
+=== CONT  TestSequenceInlineLeafCollapseSharedCountOwner
+=== RUN   TestSequenceInlineLeafCollapseSharedCountOwner/same_time_false_remove_0
+=== PAUSE TestSequenceInlineLeafCollapseSharedCountOwner/same_time_false_remove_0
+=== RUN   TestSequenceInlineLeafCollapseSharedCountOwner/same_time_false_remove_1
+=== PAUSE TestSequenceInlineLeafCollapseSharedCountOwner/same_time_false_remove_1
+=== RUN   TestSequenceInlineLeafCollapseSharedCountOwner/same_time_true_remove_0
+=== PAUSE TestSequenceInlineLeafCollapseSharedCountOwner/same_time_true_remove_0
+=== RUN   TestSequenceInlineLeafCollapseSharedCountOwner/same_time_true_remove_1
+=== PAUSE TestSequenceInlineLeafCollapseSharedCountOwner/same_time_true_remove_1
+=== CONT  TestSequenceIndexClockRollbackRectangle
+--- PASS: TestSequenceIndexClockRollbackRectangle (0.00s)
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches/missing_child
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches/missing_child
+=== CONT  TestCountTrieExhaustionRollback
+--- PASS: TestCountTrieExhaustionRollback (0.00s)
+=== CONT  TestCountTrieCanonicalSharingAndRollback
+--- PASS: TestCountTrieCanonicalSharingAndRollback (0.00s)
+=== CONT  TestCountTrieReference
+=== NAME  TestCountTrieFullWidthPaths
+    count_test.go:234: maximal-depth increment work={Reads:1709 Writes:245 Releases:163 EncodedBytes:7824 MutationBytes:9365 KeyBytes:12005}
+--- PASS: TestCountTrieFullWidthPaths (0.05s)
+=== CONT  TestSequenceEarliestReadFailuresPoisonBatch
+--- PASS: TestSequenceEarliestReadFailuresPoisonBatch (0.00s)
+=== CONT  TestSequenceEarliestRejectsChronologicalSummaryMismatch
+--- PASS: TestSequenceEarliestRejectsChronologicalSummaryMismatch (0.00s)
+=== CONT  TestCountBatchCanonicalRecreationAndAbort
+--- PASS: TestCountBatchCanonicalRecreationAndAbort (0.00s)
+=== CONT  TestCountBatchReferenceOverflowAfterAncestor
+--- PASS: TestCountBatchReferenceOverflowAfterAncestor (0.00s)
+=== CONT  TestSequenceEarliestTimeThenSequence
+--- PASS: TestSequenceEarliestTimeThenSequence (0.00s)
+=== CONT  TestCountBatchFailurePoisonsAllLayers
+=== RUN   TestCountBatchFailurePoisonsAllLayers/later_read
+=== PAUSE TestCountBatchFailurePoisonsAllLayers/later_read
+=== RUN   TestCountBatchFailurePoisonsAllLayers/publication
+=== PAUSE TestCountBatchFailurePoisonsAllLayers/publication
+=== RUN   TestCountBatchFailurePoisonsAllLayers/missing_key
+=== PAUSE TestCountBatchFailurePoisonsAllLayers/missing_key
+=== CONT  TestSequenceIndexRollbackAndGenerations
+--- PASS: TestSequenceIndexRollbackAndGenerations (0.00s)
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/4
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/4
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/5
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/5
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/1000
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/1000
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/10000
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/10000
+=== NAME  TestSequenceIndexAdversarialDepthAndStorage
+    sequence_test.go:226: full sequence-depth deletion={Reads:2093 Writes:243 Releases:163 EncodedBytes:7047 MutationBytes:14890 KeyBytes:11569}
+=== CONT  TestSequenceIndexReference
+=== NAME  TestSequenceEarliestCombinedKeyDepth
+    ready_test.go:257: combined64/96-bit depth earliest reads=12692
+--- PASS: TestSequenceEarliestCombinedKeyDepth (0.27s)
+=== CONT  TestCountTrieStorageAndWork/4
+    count_test.go:208: N=4 nodes=1 canonical_plus_ref_bytes=56 peak={Reads:8 Writes:2 Releases:1 EncodedBytes:54 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== CONT  TestTimeKeyNormalizesInstant/negative_nanosecond
+=== CONT  TestCountTrieStorageAndWork/10000
+=== NAME  TestCountTrieReference
+    count_test.go:71: [rapid] OK, passed 100 tests (706.039125ms)
+--- PASS: TestCountTrieReference (0.71s)
+=== CONT  TestCountTrieStorageAndWork/1000
+    count_test.go:208: N=1000 nodes=137 canonical_plus_ref_bytes=19804 peak={Reads:144 Writes:22 Releases:13 EncodedBytes:883 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== CONT  TestCountTrieStorageAndWork/5
+    count_test.go:208: N=5 nodes=1 canonical_plus_ref_bytes=69 peak={Reads:8 Writes:2 Releases:1 EncodedBytes:67 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== CONT  TestCountTrieReferenceExhaustionRollback/fork_root
+=== CONT  TestTimeKeyNormalizesInstant/different_location
+=== CONT  TestTimeKeyNormalizesInstant/normalized_nanosecond
+--- PASS: TestTimeKeyNormalizesInstant (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/negative_nanosecond (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/different_location (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/normalized_nanosecond (0.00s)
+=== CONT  TestCountTrieReferenceExhaustionRollback/update_shared_child
+--- PASS: TestCountTrieReferenceExhaustionRollback (0.00s)
+    --- PASS: TestCountTrieReferenceExhaustionRollback/fork_root (0.00s)
+    --- PASS: TestCountTrieReferenceExhaustionRollback/update_shared_child (0.00s)
+=== CONT  TestSequenceInlineLeafCollapseSharedCountOwner/same_time_false_remove_0
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit
+=== CONT  TestSequenceInlineLeafCollapseSharedCountOwner/same_time_true_remove_1
+=== CONT  TestSequenceInlineLeafCollapseSharedCountOwner/same_time_true_remove_0
+=== CONT  TestSequenceInlineLeafCollapseSharedCountOwner/same_time_false_remove_1
+--- PASS: TestSequenceInlineLeafCollapseSharedCountOwner (0.00s)
+    --- PASS: TestSequenceInlineLeafCollapseSharedCountOwner/same_time_false_remove_0 (0.00s)
+    --- PASS: TestSequenceInlineLeafCollapseSharedCountOwner/same_time_true_remove_1 (0.00s)
+    --- PASS: TestSequenceInlineLeafCollapseSharedCountOwner/same_time_true_remove_0 (0.00s)
+    --- PASS: TestSequenceInlineLeafCollapseSharedCountOwner/same_time_false_remove_1 (0.00s)
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches/missing_child
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate
+--- PASS: TestCountBatchRejectsMalformedTouchedBranches (0.00s)
+    --- PASS: TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit (0.00s)
+    --- PASS: TestCountBatchRejectsMalformedTouchedBranches/missing_child (0.00s)
+    --- PASS: TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate (0.00s)
+=== CONT  TestCountBatchFailurePoisonsAllLayers/later_read
+=== CONT  TestCountBatchFailurePoisonsAllLayers/missing_key
+=== CONT  TestCountBatchFailurePoisonsAllLayers/publication
+--- PASS: TestCountBatchFailurePoisonsAllLayers (0.00s)
+    --- PASS: TestCountBatchFailurePoisonsAllLayers/later_read (0.00s)
+    --- PASS: TestCountBatchFailurePoisonsAllLayers/missing_key (0.00s)
+    --- PASS: TestCountBatchFailurePoisonsAllLayers/publication (0.00s)
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/4
+    sequence_test.go:196: N=4 pages=11 value_bytes=354 key_bytes=491 peak={Reads:30 Writes:8 Releases:2 EncodedBytes:97 MutationBytes:226 KeyBytes:364}; excludes CHASM envelopes/heap
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/1000
+=== NAME  TestCountTrieStorageAndWork/10000
+    count_test.go:208: N=10000 nodes=2047 canonical_plus_ref_bytes=232304 peak={Reads:218 Writes:32 Releases:21 EncodedBytes:1165 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+--- PASS: TestCountTrieStorageAndWork (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/4 (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/1000 (0.04s)
+    --- PASS: TestCountTrieStorageAndWork/5 (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/10000 (0.54s)
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/10000
+=== NAME  TestSequenceIndexAdversarialDepthAndStorage/1000
+    sequence_test.go:196: N=1000 pages=3749 value_bytes=243238 key_bytes=173693 peak={Reads:551 Writes:88 Releases:48 EncodedBytes:3280 MutationBytes:6165 KeyBytes:4249}; excludes CHASM envelopes/heap
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/5
+    sequence_test.go:196: N=5 pages=14 value_bytes=495 key_bytes=628 peak={Reads:30 Writes:8 Releases:2 EncodedBytes:97 MutationBytes:226 KeyBytes:364}; excludes CHASM envelopes/heap
+=== NAME  TestSequenceIndexReference
+    sequence_test.go:58: [rapid] OK, passed 100 tests (775.699584ms)
+--- PASS: TestSequenceIndexReference (0.78s)
+=== NAME  TestSequenceEarliestReference
+    ready_test.go:28: [rapid] OK, passed 100 tests (1.774864583s)
+--- PASS: TestSequenceEarliestReference (1.77s)
+=== NAME  TestSequenceIndexAdversarialDepthAndStorage/10000
+    sequence_test.go:196: N=10000 pages=43889 value_bytes=3226036 key_bytes=2050553 peak={Reads:1211 Writes:188 Releases:103 EncodedBytes:7187 MutationBytes:13207 KeyBytes:9129}; excludes CHASM envelopes/heap
+--- PASS: TestSequenceIndexAdversarialDepthAndStorage (0.00s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/4 (0.00s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/1000 (0.07s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/5 (0.00s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/10000 (1.06s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex	2.139s

@@ -137,3 +137,40 @@ func TestIndexBackendSerializedFootprint(t *testing.T) {
 		})
 	}
 }
+
+func TestIndexBackendEarliestPublicationAndReload(t *testing.T) {
+	t.Parallel()
+	h := newIndexHarness(t)
+	index := queueindex.SequenceIndex{9}
+	batch := queueindex.NewCountStoreWithBackend(indexHarnessBackend(t, h, true)).Begin()
+	for _, entry := range []queueindex.SequenceEntry{{Sequence: 1, Time: indexTimeKey(30)}, {Sequence: 2, Time: indexTimeKey(10)}, {Sequence: 3, Time: indexTimeKey(10)}} {
+		require.NoError(t, batch.InsertSequence(index, entry.Sequence, entry.Time))
+	}
+	require.NoError(t, batch.Commit())
+	h.commit(true)
+	for _, publish := range []bool{false, true} {
+		before := cloneNodes(h.durable)
+		batch = queueindex.NewCountStoreWithBackend(indexHarnessBackend(t, h, true)).Begin()
+		require.NoError(t, batch.DeleteSequence(index, 2))
+		entry, ok, err := batch.SequenceEarliest(index)
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Equal(t, queueindex.SequenceEntry{Sequence: 3, Time: indexTimeKey(10)}, entry)
+		require.NoError(t, batch.Commit())
+		h.commit(publish)
+		if !publish {
+			require.Equal(t, before, h.durable)
+		}
+		query := queueindex.NewCountStoreWithBackend(indexHarnessBackend(t, h, false)).Begin()
+		entry, ok, err = query.SequenceEarliest(index)
+		require.NoError(t, err)
+		require.True(t, ok)
+		sequence := uint64(2)
+		if publish {
+			sequence = 3
+		}
+		require.Equal(t, queueindex.SequenceEntry{Sequence: sequence, Time: indexTimeKey(10)}, entry)
+		require.Zero(t, query.Stats().Writes)
+		query.Abort()
+	}
+}

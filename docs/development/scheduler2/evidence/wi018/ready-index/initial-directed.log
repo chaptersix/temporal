@@ -1,0 +1,26 @@
+=== RUN   TestSequenceEarliestReference
+=== PAUSE TestSequenceEarliestReference
+=== RUN   TestSequenceEarliestTimeThenSequence
+=== PAUSE TestSequenceEarliestTimeThenSequence
+=== RUN   TestSequenceEarliestReadFailuresPoisonBatch
+=== PAUSE TestSequenceEarliestReadFailuresPoisonBatch
+=== RUN   TestSequenceEarliestRejectsChronologicalSummaryMismatch
+=== PAUSE TestSequenceEarliestRejectsChronologicalSummaryMismatch
+=== RUN   TestSequenceEarliestFullDepthAndSharedOwnership
+=== PAUSE TestSequenceEarliestFullDepthAndSharedOwnership
+=== CONT  TestSequenceEarliestReference
+=== CONT  TestSequenceEarliestRejectsChronologicalSummaryMismatch
+=== CONT  TestSequenceEarliestReadFailuresPoisonBatch
+=== CONT  TestSequenceEarliestTimeThenSequence
+--- PASS: TestSequenceEarliestRejectsChronologicalSummaryMismatch (0.00s)
+=== CONT  TestSequenceEarliestFullDepthAndSharedOwnership
+--- PASS: TestSequenceEarliestTimeThenSequence (0.00s)
+=== NAME  TestSequenceEarliestFullDepthAndSharedOwnership
+    ready_test.go:171: full sequence depth earliest reads=840
+--- PASS: TestSequenceEarliestReadFailuresPoisonBatch (0.00s)
+--- PASS: TestSequenceEarliestFullDepthAndSharedOwnership (0.00s)
+=== NAME  TestSequenceEarliestReference
+    ready_test.go:27: [rapid] OK, passed 100 tests (1.399510417s)
+--- PASS: TestSequenceEarliestReference (1.40s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex	1.655s
