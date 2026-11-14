@@ -1,0 +1,118 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 12.49775ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (compiled_files|exports_file|name|types_sizes|deps|files|imports) took 109.534958ms"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 2.752125ms"
+level=info msg="[linters_context/goanalysis] analyzers took 792.530758ms with top 10 stages: revive: 404.69975ms, goimports: 209.089292ms, gci: 29.64975ms, forbidigo: 17.56575ms, buildir: 11.913582ms, S1038: 10.263291ms, nilness: 7.148007ms, inspect: 6.436676ms, fact_deprecated: 6.284333ms, ctrlflow: 4.444662ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 6 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner] Issues before processing: 13, after processing: 4"
+level=info msg="[runner] Processors filtering stat (in/out): cgo: 13/13, path_relativity: 13/13, generated_file_filter: 13/13, max_per_file_from_linter: 4/4, source_code: 4/4, path_prettifier: 4/4, filename_unadjuster: 13/13, max_same_issues: 4/4, path_shortener: 4/4, sort_results: 4/4, path_absoluter: 13/13, invalid_issue: 13/13, nolint_filter: 5/5, diff: 5/5, fixer: 5/5, max_from_linter: 4/4, severity-rules: 4/4, exclusion_paths: 13/13, exclusion_rules: 13/5, uniq_by_line: 5/4"
+level=info msg="[runner] processing took 80.16346ms with stages: diff: 79.312916ms, nolint_filter: 478.501µs, exclusion_rules: 123.834µs, generated_file_filter: 105.583µs, source_code: 76.666µs, exclusion_paths: 47.626µs, path_relativity: 6.959µs, cgo: 3.375µs, uniq_by_line: 2.833µs, sort_results: 1.25µs, max_same_issues: 1µs, path_shortener: 750ns, invalid_issue: 625ns, fixer: 459ns, max_per_file_from_linter: 375ns, filename_unadjuster: 291ns, path_prettifier: 167ns, path_absoluter: 125ns, max_from_linter: 83ns, severity-rules: 42ns"
+level=info msg="[runner] linters took 623.451209ms with stages: goanalysis_metalinter: 543.238375ms"
+../chasm/lib/scheduler2/internal/queueindex/retirement.go:128:1: cyclomatic: function (*CountBatch).retirementNode has cyclomatic complexity 26 (> max enabled 25) (revive)
+func (b *CountBatch) retirementNode(index RetirementIndex, id retirementID) (retirementNode, error) {
+	n := retirementNode{id: id}
+	depth := id.depth()
+	if depth < 0 || depth > 704 || retirementPrefix(id.prefix(), depth) != id {
+		return n, b.fail(errors.New("invalid retirement prefix"))
+	}
+	wire, ok, err := b.readIndex(index.pageKey(id))
+	if err != nil {
+		return n, err
+	}
+	if !ok || len(wire) < 2 {
+		return n, b.fail(errors.New("missing retirement node"))
+	}
+	switch wire[0] {
+	case 1:
+		size := int(wire[1])
+		if size < 1 || size > retirementBucketSize || len(wire) != 2+size*88 {
+			return n, b.fail(errors.New("invalid retirement bucket encoding"))
+		}
+		n.keys = make([]RetirementKey, size)
+		n.count = uint64(size)
+		for i := range size {
+			copy(n.keys[i][:], wire[2+i*88:2+(i+1)*88])
+			if !retirementValidKey(n.keys[i]) || i > 0 && retirementCompare(n.keys[i-1], n.keys[i]) >= 0 {
+				return n, b.fail(errors.New("invalid retirement bucket order"))
+			}
+		}
+		if retirementBucket(n.keys).id != id {
+			return n, b.fail(errors.New("invalid retirement bucket prefix"))
+		}
+	case 2:
+		if len(wire) != 189 || depth >= 704 {
+			return n, b.fail(errors.New("invalid retirement branch encoding"))
+		}
+		n.count = binary.BigEndian.Uint64(wire[1:9])
+		copy(n.left[:], wire[9:99])
+		copy(n.right[:], wire[99:])
+		if n.count <= retirementBucketSize {
+			return n, b.fail(errors.New("invalid retirement branch count"))
+		}
+		for side, child := range []retirementID{n.left, n.right} {
+			if child.depth() <= depth || child.depth() > 704 || retirementPrefix(child.prefix(), depth) != id || retirementSide(child.prefix(), depth) != byte(side) {
+				return n, b.fail(errors.New("invalid retirement child prefix"))
+			}
+		}
+	default:
+		return n, b.fail(errors.New("invalid retirement node version"))
+	}
+	return n, nil
+}
+../chasm/lib/scheduler2/internal/queueindex/retirement.go:178:99: confusing-results: unnamed results of the same type may be confusing, consider using named results (revive)
+func (b *CountBatch) retirementChildren(index RetirementIndex, n retirementNode) (retirementNode, retirementNode, error) {
+                                                                                                  ^
+../chasm/lib/scheduler2/internal/queueindex/retirement_test.go:51:2: equal-values: use require.Equal (testifylint)
+	require.EqualValues(t, expected, actual)
+	^
+../chasm/lib/scheduler2/internal/queueindex/retirement_test.go:217:4: enforce-switch-style: switch must have a default case clause (revive)
+			switch kind {
+			case "root":
+				memory.values[index.rootKey()] = []byte{0}
+			case "missing":
+				delete(memory.values, index.pageKey(n.left))
+			case "count":
+				n.count++
+				memory.values[index.pageKey(id)] = n.encode()
+			case "prefix":
+				n.left = n.right
+				memory.values[index.pageKey(id)] = n.encode()
+			case "bucket":
+				for len(n.keys) == 0 {
+					n, err = b.retirementNode(index, n.left)
+					require.NoError(t, err)
+				}
+				n.keys[0][87] = 1
+				memory.values[index.pageKey(n.id)] = n.encode()
+			}
+4 issues:
+* revive: 3
+* testifylint: 1
+level=info msg="File cache stats: 2 entries of total size 18.4KiB"
+level=info msg="Memory: 9 samples, avg is 109.9MB, max is 145.7MB"
+level=info msg="Execution took 769.295917ms"
+make: *** [lint-code] Error 1

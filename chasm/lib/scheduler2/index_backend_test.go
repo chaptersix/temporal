@@ -174,3 +174,46 @@ func TestIndexBackendEarliestPublicationAndReload(t *testing.T) {
 		query.Abort()
 	}
 }
+
+func TestIndexBackendRetirementCollapsePublication(t *testing.T) {
+	t.Parallel()
+	h := newIndexHarness(t)
+	index := queueindex.RetirementIndex{10}
+	batch := queueindex.NewCountStoreWithBackend(indexHarnessBackend(t, h, true)).Begin()
+	for i := range 17 {
+		key, err := queueindex.NewRetirementKey(7, fmt.Sprintf("manual/%d/action/start", i))
+		require.NoError(t, err)
+		require.NoError(t, batch.InsertRetirement(index, key))
+	}
+	require.NoError(t, batch.Commit())
+	h.commit(true)
+	first, err := queueindex.NewRetirementKey(7, "manual/0/action/start")
+	require.NoError(t, err)
+	second, err := queueindex.NewRetirementKey(7, "manual/1/action/start")
+	require.NoError(t, err)
+	for _, publish := range []bool{false, true} {
+		before := cloneNodes(h.durable)
+		batch = queueindex.NewCountStoreWithBackend(indexHarnessBackend(t, h, true)).Begin()
+		require.NoError(t, batch.DeleteRetirement(index, first))
+		minimum, ok, err := batch.RetirementMinimum(index)
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Equal(t, second, minimum)
+		require.NoError(t, batch.Commit())
+		h.commit(publish)
+		if !publish {
+			require.Equal(t, before, h.durable, "discarded bucket collapse restores every index page")
+		}
+		query := queueindex.NewCountStoreWithBackend(indexHarnessBackend(t, h, false)).Begin()
+		minimum, ok, err = query.RetirementMinimum(index)
+		require.NoError(t, err)
+		require.True(t, ok)
+		want := first
+		if publish {
+			want = second
+		}
+		require.Equal(t, want, minimum)
+		require.Zero(t, query.Stats().Writes)
+		query.Abort()
+	}
+}

@@ -1,0 +1,63 @@
+=== RUN   TestRetirementReference
+=== PAUSE TestRetirementReference
+=== RUN   TestRetirementCanonicalOrderAndCollapse
+=== PAUSE TestRetirementCanonicalOrderAndCollapse
+=== RUN   TestRetirementKeyOrdering
+=== PAUSE TestRetirementKeyOrdering
+=== RUN   TestRetirementFailureAtomicity
+=== PAUSE TestRetirementFailureAtomicity
+=== RUN   TestRetirementCorruption
+=== PAUSE TestRetirementCorruption
+=== RUN   TestRetirementDepthAndStorage
+=== PAUSE TestRetirementDepthAndStorage
+=== RUN   TestRetirementPresenceAndOwnerIsolation
+=== PAUSE TestRetirementPresenceAndOwnerIsolation
+=== CONT  TestRetirementReference
+=== CONT  TestRetirementCorruption
+=== CONT  TestRetirementKeyOrdering
+=== CONT  TestRetirementPresenceAndOwnerIsolation
+=== RUN   TestRetirementCorruption/root
+--- PASS: TestRetirementPresenceAndOwnerIsolation (0.00s)
+=== CONT  TestRetirementFailureAtomicity
+--- PASS: TestRetirementKeyOrdering (0.00s)
+=== CONT  TestRetirementCanonicalOrderAndCollapse
+=== RUN   TestRetirementCorruption/missing
+=== RUN   TestRetirementFailureAtomicity/minimum
+=== RUN   TestRetirementFailureAtomicity/insert
+=== RUN   TestRetirementFailureAtomicity/delete
+=== RUN   TestRetirementCorruption/count
+--- PASS: TestRetirementFailureAtomicity (0.00s)
+    --- PASS: TestRetirementFailureAtomicity/minimum (0.00s)
+    --- PASS: TestRetirementFailureAtomicity/insert (0.00s)
+    --- PASS: TestRetirementFailureAtomicity/delete (0.00s)
+=== CONT  TestRetirementDepthAndStorage
+=== RUN   TestRetirementDepthAndStorage/4
+    retirement_test.go:272: N=4 pages=2 payload=444 keys=192 total=636 minimum_reads=4
+=== RUN   TestRetirementDepthAndStorage/5
+    retirement_test.go:272: N=5 pages=2 payload=532 keys=192 total=724 minimum_reads=4
+=== RUN   TestRetirementDepthAndStorage/1000
+=== RUN   TestRetirementCorruption/prefix
+=== RUN   TestRetirementCorruption/bucket
+--- PASS: TestRetirementCorruption (0.01s)
+    --- PASS: TestRetirementCorruption/root (0.00s)
+    --- PASS: TestRetirementCorruption/missing (0.00s)
+    --- PASS: TestRetirementCorruption/count (0.00s)
+    --- PASS: TestRetirementCorruption/prefix (0.00s)
+    --- PASS: TestRetirementCorruption/bucket (0.00s)
+--- PASS: TestRetirementCanonicalOrderAndCollapse (0.03s)
+=== NAME  TestRetirementDepthAndStorage/1000
+    retirement_test.go:272: N=1000 pages=138 payload=101080 keys=21136 total=122216 minimum_reads=28
+=== RUN   TestRetirementDepthAndStorage/10000
+    retirement_test.go:272: N=10000 pages=2048 payload=1075485 keys=315276 total=1390761 minimum_reads=44
+=== NAME  TestRetirementReference
+    retirement_test.go:61: [rapid] OK, passed 100 tests (1.058197s)
+--- PASS: TestRetirementReference (1.06s)
+=== NAME  TestRetirementDepthAndStorage
+    retirement_test.go:304: depth witness keys=576 minimum_reads=264
+--- PASS: TestRetirementDepthAndStorage (1.89s)
+    --- PASS: TestRetirementDepthAndStorage/4 (0.00s)
+    --- PASS: TestRetirementDepthAndStorage/5 (0.00s)
+    --- PASS: TestRetirementDepthAndStorage/1000 (0.07s)
+    --- PASS: TestRetirementDepthAndStorage/10000 (0.94s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex	2.158s

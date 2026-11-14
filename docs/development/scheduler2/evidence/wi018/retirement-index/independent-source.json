@@ -1,0 +1,8 @@
+{
+  "base": "7270828e0",
+  "source_sha256": {
+    "chasm/lib/scheduler2/internal/queueindex/retirement.go": "1ca507e1fbe178751834d388ff070118fe9f3f00975b5b8061f924fba9066b73",
+    "chasm/lib/scheduler2/internal/queueindex/retirement_test.go": "e7af07aa453acf7bda2073cff937ed95125f1eb0ffd58d93a3055baae31b3fe6",
+    "chasm/lib/scheduler2/index_backend_test.go": "3c41539ef8dd5e31754ec19916b260291b04d262474e41cc43e732cfa5bb57e2"
+  }
+}
