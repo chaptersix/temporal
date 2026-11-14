@@ -19,14 +19,21 @@ import (
 
 type payloadPreparation map[string][]byte
 
+func blobIdentity(kind string, data []byte) string {
+	return fmt.Sprintf("%s-%x", kind, sha256.Sum256(data))
+}
+
 func payloadWire(message proto.Message) ([]byte, error) {
 	return proto.MarshalOptions{Deterministic: true}.Marshal(message)
 }
 
 func (s *Scheduler) prepareBlob(ctx chasm.Context, kind string, data []byte, prepared payloadPreparation) (string, error) {
-	id := fmt.Sprintf("%s-%x", kind, sha256.Sum256(data))
-	if field, ok := s.PayloadBlobs[id]; ok {
-		if !bytes.Equal(field.Get(ctx).Data, data) {
+	if err := s.validatePayloadStore(); err != nil {
+		return "", err
+	}
+	id := blobIdentity(kind, data)
+	if record, ok := s.blobRecord(ctx, id); ok {
+		if !bytes.Equal(record.Data, data) {
 			return "", serviceerror.NewInternal("payload digest collision")
 		}
 	} else {
@@ -43,11 +50,14 @@ func (s *Scheduler) publishBlobs(ctx chasm.MutableContext, prepared payloadPrepa
 	}
 }
 func (s *Scheduler) payloadBlob(ctx chasm.Context, id string, kind string) ([]byte, error) {
-	field, ok := s.PayloadBlobs[id]
+	if err := s.validatePayloadStore(); err != nil {
+		return nil, err
+	}
+	record, ok := s.blobRecord(ctx, id)
 	if !ok {
 		return nil, serviceerror.NewInternal("referenced schedule payload is missing")
 	}
-	data := field.Get(ctx).Data
+	data := record.Data
 	if id != fmt.Sprintf("%s-%x", kind, sha256.Sum256(data)) {
 		return nil, serviceerror.NewInternal("referenced schedule payload identity is invalid")
 	}
@@ -65,29 +75,51 @@ func (s *Scheduler) actionBundle(ctx chasm.Context, id string) (*scheduler2pb.Ac
 	return bundle, nil
 }
 
-// storePublicDefinition retains small public metadata independently of shared action bytes.
-func (s *Scheduler) storePublicDefinition(ctx chasm.MutableContext, definition *schedulepb.Schedule) error {
+type publicDefinitionPlan struct {
+	schedule  *schedulepb.Schedule
+	actionRef string
+	blobs     payloadPreparation
+	owner     blobOwnerChange
+}
+
+func (s *Scheduler) preparePublicDefinition(ctx chasm.Context, definition *schedulepb.Schedule) (publicDefinitionPlan, error) {
 	schedule := common.CloneProto(definition)
 	action := schedule.GetAction().GetStartWorkflow()
 	if action == nil {
-		return serviceerror.NewInvalidArgument("schedule action is required")
+		return publicDefinitionPlan{}, serviceerror.NewInvalidArgument("schedule action is required")
 	}
 	bundle := &scheduler2pb.ActionPayloadBundle{Input: action.Input, Header: action.Header, Memo: action.Memo, UserSearchAttributes: action.SearchAttributes, UserMetadata: action.UserMetadata}
 	wire, err := payloadWire(bundle)
 	if err != nil {
-		return err
+		return publicDefinitionPlan{}, err
 	}
 	prepared := payloadPreparation{}
 	id, err := s.prepareBlob(ctx, "action", wire, prepared)
 	if err != nil {
-		return err
+		return publicDefinitionPlan{}, err
 	}
 	action.Input, action.Header, action.Memo, action.SearchAttributes, action.UserMetadata = nil, nil, nil, nil, nil
-	s.publishBlobs(ctx, prepared)
-	s.PublicActionRef = id
-	s.PublicSchedule = chasm.NewDataField(ctx, schedule)
+	return publicDefinitionPlan{schedule: schedule, actionRef: id, blobs: prepared, owner: blobOwnerChange{owner: "public-definition", before: [3]string{s.PublicActionRef}, after: [3]string{id}}}, nil
+}
+func (s *Scheduler) publishPublicDefinition(ctx chasm.MutableContext, plan publicDefinitionPlan) {
+	s.PublicActionRef = plan.actionRef
+	s.PublicSchedule = chasm.NewDataField(ctx, plan.schedule)
+}
+
+func (s *Scheduler) storePublicDefinition(ctx chasm.MutableContext, definition *schedulepb.Schedule) error {
+	plan, err := s.preparePublicDefinition(ctx, definition)
+	if err != nil {
+		return err
+	}
+	blobs, err := s.prepareBlobDelta(ctx, []blobOwnerChange{plan.owner}, plan.blobs)
+	if err != nil {
+		return err
+	}
+	s.publishBlobDelta(ctx, blobs)
+	s.publishPublicDefinition(ctx, plan)
 	return nil
 }
+
 func (s *Scheduler) publicDefinition(ctx chasm.Context) (*schedulepb.Schedule, error) {
 	schedule := common.CloneProto(s.PublicSchedule.Get(ctx))
 	if s.PublicActionRef == "" {
@@ -335,9 +367,10 @@ func (s *Scheduler) carryoverValue(ctx chasm.Context) (*scheduler2pb.CarryoverSt
 	return value, nil
 }
 
-// collectPayloadBlobs walks only bounded reference metadata, never blob contents.
+// collectPayloadBlobs retains the legacy owner scan. Keyed payload storage uses
+// transactional owner deltas and never enters this collector.
 func (s *Scheduler) collectPayloadBlobs(ctx chasm.Context) {
-	if s.PublicRevision == 0 {
+	if s.PublicRevision == 0 || s.PayloadStore != nil {
 		return
 	}
 	live := map[string]bool{s.PublicActionRef: true}

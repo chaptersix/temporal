@@ -21,6 +21,9 @@ import (
 type Scheduler struct {
 	chasm.UnimplementedComponent
 	*scheduler2pb.RootState
+	BlobRecords      chasm.DataMap[*scheduler2pb.Payload]
+	BlobReferences   chasm.DataMap[*scheduler2pb.BlobReference]
+	OperationPages   chasm.DataMap[*commonpb.Payload]
 	OperationRecords chasm.DataMap[*scheduler2pb.OperationState]
 	RequestRecords   chasm.DataMap[*scheduler2pb.Payload]
 	QueueRecords     chasm.DataMap[*scheduler2pb.QueuedOccurrence]
@@ -51,6 +54,9 @@ func (s *Scheduler) state(ctx chasm.Context) (decision.State, error) {
 }
 
 func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) (decision.State, error) {
+	if err := s.validateEffects(); err != nil {
+		return decision.State{}, err
+	}
 	if err := s.validateOperationStore(); err != nil {
 		return decision.State{}, err
 	}
@@ -217,7 +223,20 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 		}
 		maps.Copy(prepared, blobs)
 	}
-	recordPlan, err := s.prepareTransitionRecords(ctx, next, newAdmission, eviction, requestRecord)
+	publicPlan := s.preparePublicTransition(ctx, before, next, event, newAdmission)
+	recordPlan, err := s.prepareTransitionRecords(ctx, next, newAdmission, eviction, publicPlan.eviction, requestRecord)
+	if err != nil {
+		return err
+	}
+	owners := recordPlan.owners
+	if next.Carryover != nil {
+		var old *scheduler2pb.CarryoverState
+		if s.CarryoverSet && s.PayloadStore != nil {
+			old = s.Carryover.Get(ctx)
+		}
+		owners = append(owners, blobOwnerChange{owner: "carryover", before: carryoverRefs(old), after: carryoverRefs(carryoverRecord)})
+	}
+	blobPlan, err := s.prepareBlobDelta(ctx, owners, prepared)
 	if err != nil {
 		return err
 	}
@@ -231,9 +250,9 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 		}
 	}
 	s.publishOperationRecords(ctx, recordPlan)
-	s.publishBlobs(ctx, prepared)
+	s.publishBlobDelta(ctx, blobPlan)
 	s.publishTransition(ctx, before, next, event.Kind, newAdmission, eviction, effectRequests, carryoverRecord)
-	s.publishPublicTransition(ctx, before, next, event, newAdmission)
+	s.publishPublicTransition(ctx, publicPlan)
 	if publicMutation {
 		s.PublicRevision++
 		if event.Kind == decision.Callback && !before.Root.Paused && next.Root.Paused {
@@ -267,7 +286,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 	}
 	previousRoot := s.RootState
 	s.RootState = &scheduler2pb.RootState{
-		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef, IndexedQueue: previousRoot.IndexedQueue, OperationStore: previousRoot.OperationStore,
+		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef, IndexedQueue: previousRoot.IndexedQueue, OperationStore: previousRoot.OperationStore, PayloadStore: previousRoot.PayloadStore,
 		ActivitySet: next.Root.ActivitySet, ActivityAt: next.Root.ActivityAt, UnconfirmedStarts: next.Root.UnconfirmedStarts,
 		IdleDuration: previousRoot.IdleDuration, IdleToken: previousRoot.IdleToken, IdleArmed: previousRoot.IdleArmed, IdleAt: previousRoot.IdleAt,
 		Closed: previousRoot.Closed, Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
@@ -336,6 +355,9 @@ func (s *Scheduler) request(ctx chasm.Context, operationID string) (*workflowser
 
 // retentionEviction chooses at most one completed record; active work is never reclaimed.
 func (s *Scheduler) retentionEviction(ctx chasm.Context, before, next decision.State) (string, error) {
+	if s.OperationStore != nil {
+		return s.indexedRetentionEviction(ctx, before, next)
+	}
 	if next.Operation == nil || (before.Operation != nil && before.Operation.ID == next.Operation.ID) || len(s.Operations) < 4 {
 		return "", nil
 	}

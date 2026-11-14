@@ -1,0 +1,172 @@
+=== RUN   TestRetirementReference
+=== PAUSE TestRetirementReference
+=== RUN   TestRetirementCanonicalOrderAndCollapse
+=== PAUSE TestRetirementCanonicalOrderAndCollapse
+=== RUN   TestRetirementKeyOrdering
+=== PAUSE TestRetirementKeyOrdering
+=== RUN   TestRetirementFailureAtomicity
+=== PAUSE TestRetirementFailureAtomicity
+=== RUN   TestRetirementCorruption
+=== PAUSE TestRetirementCorruption
+=== RUN   TestRetirementDepthAndStorage
+=== PAUSE TestRetirementDepthAndStorage
+=== RUN   TestRetirementPresenceAndOwnerIsolation
+=== PAUSE TestRetirementPresenceAndOwnerIsolation
+=== RUN   TestRetirementSplitCollapseReadFailures
+=== PAUSE TestRetirementSplitCollapseReadFailures
+=== CONT  TestRetirementReference
+=== CONT  TestRetirementCorruption
+=== RUN   TestRetirementCorruption/root
+=== CONT  TestRetirementKeyOrdering
+=== CONT  TestRetirementFailureAtomicity
+--- PASS: TestRetirementKeyOrdering (0.00s)
+=== CONT  TestRetirementCanonicalOrderAndCollapse
+=== RUN   TestRetirementFailureAtomicity/minimum
+=== RUN   TestRetirementCorruption/missing
+=== RUN   TestRetirementFailureAtomicity/insert
+=== RUN   TestRetirementFailureAtomicity/delete
+=== RUN   TestRetirementFailureAtomicity/count
+=== RUN   TestRetirementCorruption/count
+--- PASS: TestRetirementFailureAtomicity (0.00s)
+    --- PASS: TestRetirementFailureAtomicity/minimum (0.00s)
+    --- PASS: TestRetirementFailureAtomicity/insert (0.00s)
+    --- PASS: TestRetirementFailureAtomicity/delete (0.00s)
+    --- PASS: TestRetirementFailureAtomicity/count (0.00s)
+=== CONT  TestRetirementPresenceAndOwnerIsolation
+--- PASS: TestRetirementPresenceAndOwnerIsolation (0.00s)
+=== CONT  TestRetirementSplitCollapseReadFailures
+=== RUN   TestRetirementSplitCollapseReadFailures/16
+=== RUN   TestRetirementSplitCollapseReadFailures/17
+--- PASS: TestRetirementSplitCollapseReadFailures (0.00s)
+    --- PASS: TestRetirementSplitCollapseReadFailures/16 (0.00s)
+    --- PASS: TestRetirementSplitCollapseReadFailures/17 (0.00s)
+=== CONT  TestRetirementDepthAndStorage
+=== RUN   TestRetirementDepthAndStorage/4
+=== RUN   TestRetirementCorruption/prefix
+=== NAME  TestRetirementDepthAndStorage/4
+    retirement_test.go:278: N=4 pages=2 payload=444 keys=192 total=636 minimum_reads=4
+=== RUN   TestRetirementDepthAndStorage/5
+    retirement_test.go:278: N=5 pages=2 payload=532 keys=192 total=724 minimum_reads=4
+=== RUN   TestRetirementDepthAndStorage/1000
+=== RUN   TestRetirementCorruption/bucket
+--- PASS: TestRetirementCorruption (0.01s)
+    --- PASS: TestRetirementCorruption/root (0.00s)
+    --- PASS: TestRetirementCorruption/missing (0.00s)
+    --- PASS: TestRetirementCorruption/count (0.00s)
+    --- PASS: TestRetirementCorruption/prefix (0.00s)
+    --- PASS: TestRetirementCorruption/bucket (0.00s)
+--- PASS: TestRetirementCanonicalOrderAndCollapse (0.03s)
+=== NAME  TestRetirementDepthAndStorage/1000
+    retirement_test.go:278: N=1000 pages=138 payload=101080 keys=21136 total=122216 minimum_reads=28
+=== RUN   TestRetirementDepthAndStorage/10000
+    retirement_test.go:278: N=10000 pages=2048 payload=1075485 keys=315276 total=1390761 minimum_reads=44
+=== NAME  TestRetirementReference
+    retirement_test.go:61: [rapid] OK, passed 100 tests (1.601495167s)
+--- PASS: TestRetirementReference (1.60s)
+=== NAME  TestRetirementDepthAndStorage
+    retirement_test.go:310: depth witness keys=504 minimum_reads=1956
+--- PASS: TestRetirementDepthAndStorage (2.20s)
+    --- PASS: TestRetirementDepthAndStorage/4 (0.00s)
+    --- PASS: TestRetirementDepthAndStorage/5 (0.00s)
+    --- PASS: TestRetirementDepthAndStorage/1000 (0.08s)
+    --- PASS: TestRetirementDepthAndStorage/10000 (1.31s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex	2.426s
+=== RUN   TestOperationRetirementReference
+=== PAUSE TestOperationRetirementReference
+=== RUN   TestOperationRetirementPublicationAndPhase
+=== PAUSE TestOperationRetirementPublicationAndPhase
+=== RUN   TestOperationRetirementCorruption
+=== PAUSE TestOperationRetirementCorruption
+=== RUN   TestOperationRetirementIdentityAndAdmissionGate
+=== PAUSE TestOperationRetirementIdentityAndAdmissionGate
+=== RUN   TestOperationRetirementNoEligibleRecord
+=== PAUSE TestOperationRetirementNoEligibleRecord
+=== RUN   TestOperationRetirementReadOnlyPreparation
+=== PAUSE TestOperationRetirementReadOnlyPreparation
+=== RUN   TestOperationStoreAddressedPublication
+=== PAUSE TestOperationStoreAddressedPublication
+=== RUN   TestOperationStoreRejectsInvalidSummary
+=== PAUSE TestOperationStoreRejectsInvalidSummary
+=== RUN   TestOperationStorePreflightRejectsWithoutWrites
+=== PAUSE TestOperationStorePreflightRejectsWithoutWrites
+=== RUN   TestOperationStoreDescribeRejectsInvalidRepresentation
+=== PAUSE TestOperationStoreDescribeRejectsInvalidRepresentation
+=== CONT  TestOperationRetirementReference
+=== CONT  TestOperationStoreDescribeRejectsInvalidRepresentation
+=== CONT  TestOperationRetirementReadOnlyPreparation
+=== CONT  TestOperationStoreRejectsInvalidSummary
+=== RUN   TestOperationStoreDescribeRejectsInvalidRepresentation/unknown_format
+=== PAUSE TestOperationStoreDescribeRejectsInvalidRepresentation/unknown_format
+=== RUN   TestOperationStoreDescribeRejectsInvalidRepresentation/mixed_records
+=== PAUSE TestOperationStoreDescribeRejectsInvalidRepresentation/mixed_records
+=== CONT  TestOperationStorePreflightRejectsWithoutWrites
+=== RUN   TestOperationStorePreflightRejectsWithoutWrites/overflow
+=== PAUSE TestOperationStorePreflightRejectsWithoutWrites/overflow
+=== RUN   TestOperationStorePreflightRejectsWithoutWrites/underflow
+=== PAUSE TestOperationStorePreflightRejectsWithoutWrites/underflow
+=== RUN   TestOperationStorePreflightRejectsWithoutWrites/duplicate
+=== PAUSE TestOperationStorePreflightRejectsWithoutWrites/duplicate
+=== RUN   TestOperationStorePreflightRejectsWithoutWrites/budget
+=== PAUSE TestOperationStorePreflightRejectsWithoutWrites/budget
+=== RUN   TestOperationStorePreflightRejectsWithoutWrites/retained_request
+=== PAUSE TestOperationStorePreflightRejectsWithoutWrites/retained_request
+=== CONT  TestOperationStoreAddressedPublication
+=== RUN   TestOperationStoreAddressedPublication/finite
+=== PAUSE TestOperationStoreAddressedPublication/finite
+=== RUN   TestOperationStoreAddressedPublication/addressed
+=== PAUSE TestOperationStoreAddressedPublication/addressed
+=== CONT  TestOperationRetirementIdentityAndAdmissionGate
+--- PASS: TestOperationRetirementIdentityAndAdmissionGate (0.01s)
+=== CONT  TestOperationRetirementNoEligibleRecord
+--- PASS: TestOperationRetirementReadOnlyPreparation (0.01s)
+=== CONT  TestOperationRetirementCorruption
+=== RUN   TestOperationRetirementCorruption/root
+--- PASS: TestOperationStoreRejectsInvalidSummary (0.01s)
+=== CONT  TestOperationRetirementPublicationAndPhase
+=== RUN   TestOperationRetirementPublicationAndPhase/preflight
+=== RUN   TestOperationRetirementCorruption/record
+--- PASS: TestOperationRetirementNoEligibleRecord (0.01s)
+=== CONT  TestOperationStoreDescribeRejectsInvalidRepresentation/unknown_format
+--- PASS: TestOperationRetirementReference (0.02s)
+=== CONT  TestOperationStorePreflightRejectsWithoutWrites/overflow
+=== RUN   TestOperationRetirementPublicationAndPhase/indexes
+=== CONT  TestOperationStoreDescribeRejectsInvalidRepresentation/mixed_records
+=== RUN   TestOperationRetirementCorruption/phase
+=== RUN   TestOperationRetirementPublicationAndPhase/record
+--- PASS: TestOperationStoreDescribeRejectsInvalidRepresentation (0.00s)
+    --- PASS: TestOperationStoreDescribeRejectsInvalidRepresentation/unknown_format (0.01s)
+    --- PASS: TestOperationStoreDescribeRejectsInvalidRepresentation/mixed_records (0.00s)
+=== CONT  TestOperationStorePreflightRejectsWithoutWrites/retained_request
+=== CONT  TestOperationStorePreflightRejectsWithoutWrites/budget
+=== RUN   TestOperationRetirementCorruption/nominal
+=== CONT  TestOperationStorePreflightRejectsWithoutWrites/duplicate
+=== RUN   TestOperationRetirementPublicationAndPhase/complete
+=== RUN   TestOperationRetirementCorruption/identity
+=== CONT  TestOperationStorePreflightRejectsWithoutWrites/underflow
+=== CONT  TestOperationStoreAddressedPublication/finite
+--- PASS: TestOperationRetirementPublicationAndPhase (0.03s)
+    --- PASS: TestOperationRetirementPublicationAndPhase/preflight (0.01s)
+    --- PASS: TestOperationRetirementPublicationAndPhase/indexes (0.00s)
+    --- PASS: TestOperationRetirementPublicationAndPhase/record (0.01s)
+    --- PASS: TestOperationRetirementPublicationAndPhase/complete (0.01s)
+=== CONT  TestOperationStoreAddressedPublication/addressed
+--- PASS: TestOperationStorePreflightRejectsWithoutWrites (0.00s)
+    --- PASS: TestOperationStorePreflightRejectsWithoutWrites/overflow (0.00s)
+    --- PASS: TestOperationStorePreflightRejectsWithoutWrites/retained_request (0.00s)
+    --- PASS: TestOperationStorePreflightRejectsWithoutWrites/budget (0.01s)
+    --- PASS: TestOperationStorePreflightRejectsWithoutWrites/duplicate (0.00s)
+    --- PASS: TestOperationStorePreflightRejectsWithoutWrites/underflow (0.01s)
+=== RUN   TestOperationRetirementCorruption/summary
+--- PASS: TestOperationStoreAddressedPublication (0.00s)
+    --- PASS: TestOperationStoreAddressedPublication/finite (0.01s)
+    --- PASS: TestOperationStoreAddressedPublication/addressed (0.00s)
+--- PASS: TestOperationRetirementCorruption (0.04s)
+    --- PASS: TestOperationRetirementCorruption/root (0.01s)
+    --- PASS: TestOperationRetirementCorruption/record (0.01s)
+    --- PASS: TestOperationRetirementCorruption/phase (0.00s)
+    --- PASS: TestOperationRetirementCorruption/nominal (0.00s)
+    --- PASS: TestOperationRetirementCorruption/identity (0.01s)
+    --- PASS: TestOperationRetirementCorruption/summary (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.737s

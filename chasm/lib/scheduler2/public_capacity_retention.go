@@ -10,10 +10,10 @@ import (
 
 // retainPublicCompletions matches the reference buffer's completed-result
 // occupancy, independently of recent actions ordered by start time.
-func (s *Scheduler) retainPublicCompletions(runtime *scheduler2pb.PublicRuntime, before, next decision.State, event decision.Event) {
+func retainPublicCompletions(runtime *scheduler2pb.PublicRuntime, before, next decision.State, event decision.Event) string {
 	op := next.Operation
 	if op == nil || op.Phase != decision.Completed || (before.Operation != nil && before.Operation.Phase == decision.Completed) {
-		return
+		return ""
 	}
 	runtime.CompletedOperations = append(runtime.CompletedOperations, &scheduler2pb.PublicCompletedOperation{OperationId: op.ID, CloseTime: timestamppb.New(event.PublicCloseTime)})
 	slices.SortStableFunc(runtime.CompletedOperations, func(a, b *scheduler2pb.PublicCompletedOperation) int {
@@ -22,7 +22,7 @@ func (s *Scheduler) retainPublicCompletions(runtime *scheduler2pb.PublicRuntime,
 	if len(runtime.CompletedOperations) > 10 {
 		oldest := runtime.CompletedOperations[0]
 		runtime.CompletedOperations = runtime.CompletedOperations[1:]
-		delete(s.Operations, oldest.OperationId)
-		delete(s.Requests, oldest.OperationId)
+		return oldest.OperationId
 	}
+	return ""
 }

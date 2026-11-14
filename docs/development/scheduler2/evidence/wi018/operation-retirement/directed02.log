@@ -1,0 +1,46 @@
+=== RUN   TestOperationRetirementReference
+=== PAUSE TestOperationRetirementReference
+=== RUN   TestOperationRetirementPublicationAndPhase
+=== PAUSE TestOperationRetirementPublicationAndPhase
+=== RUN   TestOperationRetirementCorruption
+=== PAUSE TestOperationRetirementCorruption
+=== RUN   TestOperationRetirementIdentityAndAdmissionGate
+=== PAUSE TestOperationRetirementIdentityAndAdmissionGate
+=== RUN   TestOperationRetirementNoEligibleRecord
+=== PAUSE TestOperationRetirementNoEligibleRecord
+=== RUN   TestOperationRetirementReadOnlyPreparation
+=== PAUSE TestOperationRetirementReadOnlyPreparation
+=== CONT  TestOperationRetirementReference
+=== CONT  TestOperationRetirementIdentityAndAdmissionGate
+=== CONT  TestOperationRetirementReadOnlyPreparation
+=== CONT  TestOperationRetirementNoEligibleRecord
+--- PASS: TestOperationRetirementReadOnlyPreparation (0.01s)
+=== CONT  TestOperationRetirementCorruption
+=== RUN   TestOperationRetirementCorruption/root
+--- PASS: TestOperationRetirementNoEligibleRecord (0.01s)
+=== CONT  TestOperationRetirementPublicationAndPhase
+=== RUN   TestOperationRetirementPublicationAndPhase/preflight
+--- PASS: TestOperationRetirementIdentityAndAdmissionGate (0.01s)
+=== RUN   TestOperationRetirementPublicationAndPhase/indexes
+=== RUN   TestOperationRetirementCorruption/record
+=== RUN   TestOperationRetirementPublicationAndPhase/record
+--- PASS: TestOperationRetirementReference (0.01s)
+=== RUN   TestOperationRetirementCorruption/phase
+=== RUN   TestOperationRetirementPublicationAndPhase/complete
+--- PASS: TestOperationRetirementPublicationAndPhase (0.01s)
+    --- PASS: TestOperationRetirementPublicationAndPhase/preflight (0.00s)
+    --- PASS: TestOperationRetirementPublicationAndPhase/indexes (0.00s)
+    --- PASS: TestOperationRetirementPublicationAndPhase/record (0.00s)
+    --- PASS: TestOperationRetirementPublicationAndPhase/complete (0.00s)
+=== RUN   TestOperationRetirementCorruption/nominal
+=== RUN   TestOperationRetirementCorruption/identity
+=== RUN   TestOperationRetirementCorruption/summary
+--- PASS: TestOperationRetirementCorruption (0.01s)
+    --- PASS: TestOperationRetirementCorruption/root (0.00s)
+    --- PASS: TestOperationRetirementCorruption/record (0.00s)
+    --- PASS: TestOperationRetirementCorruption/phase (0.00s)
+    --- PASS: TestOperationRetirementCorruption/nominal (0.00s)
+    --- PASS: TestOperationRetirementCorruption/identity (0.00s)
+    --- PASS: TestOperationRetirementCorruption/summary (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.684s

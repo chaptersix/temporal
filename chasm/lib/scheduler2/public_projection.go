@@ -15,23 +15,29 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// publishPublicTransition records public metadata in the same transaction as the
-// accepted transition. It never reads a frozen workflow request or carryover.
-func (s *Scheduler) publishPublicTransition(ctx chasm.MutableContext, before, next decision.State, event decision.Event, admitted bool) {
+type publicTransitionPlan struct {
+	runtime  *scheduler2pb.PublicRuntime
+	info     *schedulepb.ScheduleInfo
+	eviction string
+}
+
+// preparePublicTransition exposes completion retention before any owner writes.
+func (s *Scheduler) preparePublicTransition(ctx chasm.Context, before, next decision.State, event decision.Event, admitted bool) publicTransitionPlan {
 	if s.PublicRevision == 0 {
-		return
+		return publicTransitionPlan{}
 	}
 	runtime := &scheduler2pb.PublicRuntime{}
 	if stored, ok := s.PublicRuntime.TryGet(ctx); ok {
 		runtime = common.CloneProto(stored)
 	}
+	plan := publicTransitionPlan{runtime: runtime}
 	skipped, missed, dropped := publicDispositionCounts(before, next, event)
 	runtime.OverlapSkipped += skipped
 	runtime.MissedCatchupWindow += missed
 	if dropped != 0 {
 		info := common.CloneProto(s.PublicInfo.Get(ctx))
 		info.BufferDropped += dropped
-		s.PublicInfo = chasm.NewDataField(ctx, info)
+		plan.info = info
 	}
 	if admitted {
 		at := event.ActualTime.Time(event.Actual)
@@ -53,8 +59,19 @@ func (s *Scheduler) publishPublicTransition(ctx chasm.MutableContext, before, ne
 		}
 		runtime.Actions = append(runtime.Actions, &scheduler2pb.PublicAction{OperationId: next.Operation.ID, Result: &schedulepb.ScheduleActionResult{ScheduleTime: timestamppb.New(at), StartWorkflowResult: &commonpb.WorkflowExecution{WorkflowId: next.Operation.WorkflowID}}})
 	}
-	s.retainPublicCompletions(runtime, before, next, event)
+	plan.eviction = retainPublicCompletions(runtime, before, next, event)
 	updatePublicResult(runtime, before, next, event)
+	return plan
+}
+
+func (s *Scheduler) publishPublicTransition(ctx chasm.MutableContext, plan publicTransitionPlan) {
+	if plan.runtime == nil {
+		return
+	}
+	runtime := plan.runtime
+	if plan.info != nil {
+		s.PublicInfo = chasm.NewDataField(ctx, plan.info)
+	}
 	s.retainPublicActions(runtime)
 	s.PublicRuntime = chasm.NewDataField(ctx, runtime)
 	if stored, ok := s.PublicSchedule.TryGet(ctx); ok {

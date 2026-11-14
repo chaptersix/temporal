@@ -27,6 +27,9 @@ func (*EffectHandler) Validate(_ chasm.Context, s *Scheduler, _ chasm.TaskInvoca
 	if s.Closed {
 		return false, nil
 	}
+	if err := s.validateEffects(); err != nil {
+		return false, err
+	}
 	for _, metadata := range s.Effects {
 		effect := decodeEffect(metadata)
 		if effect.ID != task.EffectId || effect.TargetID != s.BlockingOperationId {

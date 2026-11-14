@@ -48,13 +48,46 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 
 // configureGeneration prepares the full successor before publishing any fields.
 // Both control entry points check terminal authority before calling it.
+type generationPreparation struct {
+	generator  *Generator
+	definition *scheduler2pb.GenerationDefinition
+	state      occurrence.State
+	superseded *occurrence.Candidate
+	config     GenerationConfig
+	preview    decision.State
+	now        time.Time
+	blobs      payloadPreparation
+	owner      blobOwnerChange
+}
+
 func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config GenerationConfig, controls *UpdateConfig) error {
+	plan, err := s.prepareGeneration(ctx, config, controls)
+	if err != nil {
+		return err
+	}
+	return s.commitGeneration(ctx, plan)
+}
+func (s *Scheduler) commitGeneration(ctx chasm.MutableContext, plan *generationPreparation) error {
+	blobs, err := s.prepareBlobDelta(ctx, []blobOwnerChange{plan.owner}, plan.blobs)
+	if err != nil {
+		return err
+	}
+	s.publishBlobDelta(ctx, blobs)
+	s.publishGeneration(ctx, plan)
+	if err := s.reconcileWork(ctx); err != nil {
+		return err
+	}
+	s.collectPayloadBlobs(ctx)
+	return nil
+}
+
+func (s *Scheduler) prepareGeneration(ctx chasm.Context, config GenerationConfig, controls *UpdateConfig) (*generationPreparation, error) {
 	if !decision.ValidPolicy(config.Policy) || config.Request == nil || config.Request.WorkflowId == "" || config.CatchupWindow < 0 || config.Revision < s.Revision {
-		return serviceerror.NewInvalidArgument("invalid local generation configuration")
+		return nil, serviceerror.NewInvalidArgument("invalid local generation configuration")
 	}
 	e, err := s.newEnumerator(config.Spec, config.Seed, config.Revision)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	now := ctx.Now(s)
 	var g *Generator
@@ -71,42 +104,42 @@ func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config Generat
 		state, err = e.Begin(after)
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Validate the execution clock without consuming the new continuation.
 	if _, err = e.Run(state, now, occurrence.Limits{Probes: 1, Outputs: 1}); err != nil {
-		return err
+		return nil, err
 	}
 	spec, err := proto.MarshalOptions{Deterministic: true}.Marshal(config.Spec)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	request, err := proto.MarshalOptions{Deterministic: true}.Marshal(config.Request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	requestRecord, blobs, err := s.splitRequest(ctx, request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if requestRecord.ResultRef != "" || requestRecord.FailureRef != "" {
-		return serviceerror.NewInvalidArgument("generation template cannot contain completion carryover")
+		return nil, serviceerror.NewInvalidArgument("generation template cannot contain completion carryover")
 	}
 	if g != nil && g.Token == math.MaxUint64 {
-		return serviceerror.NewFailedPrecondition("generation token exhausted")
+		return nil, serviceerror.NewFailedPrecondition("generation token exhausted")
 	}
 	// Configuration arms an immediate scan even for an empty source. Preflight
 	// its coordinator wake before replacing any root, generator or DATA fields.
 	if err := checkWorkWakeToken(s.Coordination, now); err != nil {
-		return err
+		return nil, err
 	}
 	atNano, err := activityNano(now)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	preview, err := s.stateFor(ctx, "")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if controls != nil {
 		preview.Root.Paused = controls.Paused
@@ -119,14 +152,21 @@ func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config Generat
 	}
 	preview.Root.ActivitySet = true
 	if _, _, err := s.checkIdlePlan(preview, encodeContinuation(state), true, len(s.Backfills) > 0); err != nil {
-		return err
+		return nil, err
 	}
+
+	oldRef := s.generatorOwnerRef(ctx, g)
+	return &generationPreparation{generator: g, definition: &scheduler2pb.GenerationDefinition{Spec: spec, Seed: config.Seed, Request: requestRecord.Data, ActionRef: requestRecord.ActionRef}, state: state, superseded: superseded, config: config, preview: preview, now: now, blobs: blobs, owner: blobOwnerChange{owner: "generator-definition", before: [3]string{oldRef}, after: [3]string{requestRecord.ActionRef}}}, nil
+}
+
+func (s *Scheduler) publishGeneration(ctx chasm.MutableContext, plan *generationPreparation) {
+	g, state, superseded := plan.generator, plan.state, plan.superseded
+	config, preview, now := plan.config, plan.preview, plan.now
 	if g == nil {
 		g = &Generator{GeneratorState: &scheduler2pb.GeneratorState{}}
 		s.Generator = chasm.NewComponentField(ctx, g)
 	}
-	s.publishBlobs(ctx, blobs)
-	g.Definition = chasm.NewDataField(ctx, &scheduler2pb.GenerationDefinition{Spec: spec, Seed: config.Seed, Request: requestRecord.Data, ActionRef: requestRecord.ActionRef})
+	g.Definition = chasm.NewDataField(ctx, plan.definition)
 	g.Continuation = encodeContinuation(state)
 	g.CatchupWindow = int64(config.CatchupWindow)
 	g.Superseded = encodeCandidate(superseded)
@@ -141,11 +181,7 @@ func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config Generat
 	s.Policy = config.Policy
 	s.Cursor = max(s.Cursor, state.DisposedThrough.UnixNano())
 	g.arm(ctx, now)
-	if err := s.reconcileWork(ctx); err != nil {
-		return err
-	}
-	s.collectPayloadBlobs(ctx)
-	return nil
+
 }
 
 func (g *Generator) arm(ctx chasm.MutableContext, at time.Time) {
@@ -218,4 +254,11 @@ func (s *Scheduler) newEnumerator(spec *schedulepb.ScheduleSpec, seed string, re
 		return occurrence.NewPublic(spec, seed, revision)
 	}
 	return occurrence.New(spec, seed, revision)
+}
+
+func (s *Scheduler) generatorOwnerRef(ctx chasm.Context, g *Generator) string {
+	if s.PayloadStore != nil && g != nil {
+		return g.Definition.Get(ctx).ActionRef
+	}
+	return ""
 }

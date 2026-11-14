@@ -353,3 +353,22 @@ func (b *CountBatch) retirementChangeBucket(index RetirementIndex, n retirementN
 	}
 	return next, b.stageRetirement(index, next)
 }
+
+// RetirementCount reads the owning root cardinality and validates its immediate
+// children. It detects missing roots when compared with the owner's summary.
+func (b *CountBatch) RetirementCount(index RetirementIndex) (uint64, error) {
+	id, err := b.retirementRoot(index)
+	if err != nil || id == (retirementID{}) {
+		return 0, err
+	}
+	n, err := b.retirementNode(index, id)
+	if err != nil {
+		return 0, err
+	}
+	if len(n.keys) == 0 {
+		if _, _, err = b.retirementChildren(index, n); err != nil {
+			return 0, err
+		}
+	}
+	return n.count, nil
+}

@@ -1,0 +1,412 @@
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery
+=== RUN   TestCoordinatorBackfillOverlapDispositions
+=== PAUSE TestCoordinatorBackfillOverlapDispositions
+=== RUN   TestEffectMembershipIndependentBoundary
+=== PAUSE TestEffectMembershipIndependentBoundary
+=== RUN   TestEffectsFormerByteCeilingAndLargeRetention
+=== PAUSE TestEffectsFormerByteCeilingAndLargeRetention
+=== RUN   TestEffectsSavedReplay
+=== PAUSE TestEffectsSavedReplay
+=== RUN   TestEffectsTaskLostAckFrozenRetryAndNotFound
+=== PAUSE TestEffectsTaskLostAckFrozenRetryAndNotFound
+=== RUN   TestEffectsTaskTerminateOverInFlightCancel
+=== PAUSE TestEffectsTaskTerminateOverInFlightCancel
+=== RUN   TestEffectsTaskPermitAndDetachedRequest
+=== PAUSE TestEffectsTaskPermitAndDetachedRequest
+=== RUN   TestEffectsTaskCancellationAfterRemoteAcceptance
+=== PAUSE TestEffectsTaskCancellationAfterRemoteAcceptance
+=== RUN   TestEffectsTaskDeadlineBoundary
+=== PAUSE TestEffectsTaskDeadlineBoundary
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation
+=== RUN   TestEffectsUnknownTargetBindingAndFrozenRetry
+=== PAUSE TestEffectsUnknownTargetBindingAndFrozenRetry
+=== RUN   TestEffectsTerminateSupersedesCancelAndLateEvidence
+=== PAUSE TestEffectsTerminateSupersedesCancelAndLateEvidence
+=== RUN   TestEffectsQueueOverflowCreatesNoDemand
+=== PAUSE TestEffectsQueueOverflowCreatesNoDemand
+=== RUN   TestEffectsMetadataAndUnrelatedPayloadIsolation
+=== PAUSE TestEffectsMetadataAndUnrelatedPayloadIsolation
+=== RUN   TestEffectsDelayedBindingAfterParallelAdmission
+=== PAUSE TestEffectsDelayedBindingAfterParallelAdmission
+=== RUN   TestEffectsClockRollbackPreservesObligation
+=== PAUSE TestEffectsClockRollbackPreservesObligation
+=== RUN   TestEffectMetadataBoundRejectsBeforeUse
+=== PAUSE TestEffectMetadataBoundRejectsBeforeUse
+=== RUN   TestEffectMetadataBoundAcceptsBothKinds
+=== PAUSE TestEffectMetadataBoundAcceptsBothKinds
+=== RUN   TestIdleObligationsManualQueueAndUpdate
+=== PAUSE TestIdleObligationsManualQueueAndUpdate
+=== RUN   TestIdleObligationsBackfillDefinitionReplacement
+=== PAUSE TestIdleObligationsBackfillDefinitionReplacement
+=== RUN   TestIdleObligationsEffectCompletionAndDrain
+=== PAUSE TestIdleObligationsEffectCompletionAndDrain
+=== RUN   TestIdleObligationsOpenSelectivePayloadLoading
+=== PAUSE TestIdleObligationsOpenSelectivePayloadLoading
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions
+=== RUN   TestIdleAnchorSurvivesRetentionAndClockRollback
+=== PAUSE TestIdleAnchorSurvivesRetentionAndClockRollback
+=== RUN   TestIdlePauseResumeReplacesExpiredObligation
+=== PAUSE TestIdlePauseResumeReplacesExpiredObligation
+=== RUN   TestIdleHistoricalBackfillUsesStartObservation
+=== PAUSE TestIdleHistoricalBackfillUsesStartObservation
+=== RUN   TestIdleExactDeadlineRollbackAndFailedClosePublication
+=== PAUSE TestIdleExactDeadlineRollbackAndFailedClosePublication
+=== RUN   TestIdleRearmIsAtomicAndDoesNotDuplicate
+=== PAUSE TestIdleRearmIsAtomicAndDoesNotDuplicate
+=== RUN   TestIdleUpdateAdvancesAnchorAndInvalidatesOldDeadline
+=== PAUSE TestIdleUpdateAdvancesAnchorAndInvalidatesOldDeadline
+=== RUN   TestIdleAmbiguousWaitAndObservedStartedEligibility
+=== PAUSE TestIdleAmbiguousWaitAndObservedStartedEligibility
+=== RUN   TestIdleEligibilityMetadataProjection
+=== PAUSE TestIdleEligibilityMetadataProjection
+=== RUN   TestIdleConfigurationBoundariesRejectBeforeWrites
+=== PAUSE TestIdleConfigurationBoundariesRejectBeforeWrites
+=== RUN   TestManualExplicitOverlapOverrides
+=== PAUSE TestManualExplicitOverlapOverrides
+=== RUN   TestEffectPhysicalWakePreservesLogicalFence
+--- PASS: TestEffectPhysicalWakePreservesLogicalFence (0.01s)
+=== RUN   TestPublicVisibilityIdleDeadlineRequiresArmedOpenSchedule
+=== PAUSE TestPublicVisibilityIdleDeadlineRequiresArmedOpenSchedule
+=== RUN   TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+=== PAUSE TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+=== RUN   TestUpdateFinalAutomaticIntentHoldsIdle
+=== PAUSE TestUpdateFinalAutomaticIntentHoldsIdle
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery/limit-1
+=== CONT  TestIdleObligationsManualQueueAndUpdate
+=== CONT  TestEffectMetadataBoundAcceptsBothKinds
+--- PASS: TestEffectMetadataBoundAcceptsBothKinds (0.00s)
+=== CONT  TestUpdateFinalAutomaticIntentHoldsIdle
+=== CONT  TestEffectMetadataBoundRejectsBeforeUse
+=== RUN   TestEffectMetadataBoundRejectsBeforeUse/too_many
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery/limit-1
+=== PAUSE TestEffectMetadataBoundRejectsBeforeUse/too_many
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery/limit+0
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery/limit+0
+=== RUN   TestConfigurationIdleLimitNeighborsAndRecovery/limit+1
+=== PAUSE TestConfigurationIdleLimitNeighborsAndRecovery/limit+1
+=== RUN   TestEffectMetadataBoundRejectsBeforeUse/nil
+=== PAUSE TestEffectMetadataBoundRejectsBeforeUse/nil
+=== RUN   TestEffectMetadataBoundRejectsBeforeUse/duplicate
+=== PAUSE TestEffectMetadataBoundRejectsBeforeUse/duplicate
+=== RUN   TestEffectMetadataBoundRejectsBeforeUse/kind
+=== PAUSE TestEffectMetadataBoundRejectsBeforeUse/kind
+=== RUN   TestEffectMetadataBoundRejectsBeforeUse/phase
+=== PAUSE TestEffectMetadataBoundRejectsBeforeUse/phase
+=== RUN   TestEffectMetadataBoundRejectsBeforeUse/target
+=== PAUSE TestEffectMetadataBoundRejectsBeforeUse/target
+=== RUN   TestEffectMetadataBoundRejectsBeforeUse/identity
+=== PAUSE TestEffectMetadataBoundRejectsBeforeUse/identity
+=== RUN   TestEffectMetadataBoundRejectsBeforeUse/request_count
+=== PAUSE TestEffectMetadataBoundRejectsBeforeUse/request_count
+=== RUN   TestEffectMetadataBoundRejectsBeforeUse/missing_request
+=== PAUSE TestEffectMetadataBoundRejectsBeforeUse/missing_request
+=== RUN   TestEffectMetadataBoundRejectsBeforeUse/orphan_request
+=== PAUSE TestEffectMetadataBoundRejectsBeforeUse/orphan_request
+=== CONT  TestEffectsClockRollbackPreservesObligation
+=== CONT  TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters
+--- PASS: TestUpdateFinalAutomaticIntentHoldsIdle (0.00s)
+=== CONT  TestEffectsDelayedBindingAfterParallelAdmission
+--- PASS: TestEffectsClockRollbackPreservesObligation (0.01s)
+=== CONT  TestPublicVisibilityIdleDeadlineRequiresArmedOpenSchedule
+--- PASS: TestIdleObligationsManualQueueAndUpdate (0.01s)
+=== CONT  TestEffectsMetadataAndUnrelatedPayloadIsolation
+--- PASS: TestUpdateConfigurationPreservesAdmittedEffectsAndWaiters (0.01s)
+=== CONT  TestEffectsQueueOverflowCreatesNoDemand
+--- PASS: TestPublicVisibilityIdleDeadlineRequiresArmedOpenSchedule (0.00s)
+=== CONT  TestEffectsTerminateSupersedesCancelAndLateEvidence
+--- PASS: TestEffectsDelayedBindingAfterParallelAdmission (0.00s)
+=== CONT  TestEffectsUnknownTargetBindingAndFrozenRetry
+--- PASS: TestEffectsMetadataAndUnrelatedPayloadIsolation (0.00s)
+=== CONT  TestManualExplicitOverlapOverrides
+=== RUN   TestManualExplicitOverlapOverrides/Skip
+=== PAUSE TestManualExplicitOverlapOverrides/Skip
+=== RUN   TestManualExplicitOverlapOverrides/BufferOne
+=== PAUSE TestManualExplicitOverlapOverrides/BufferOne
+=== RUN   TestManualExplicitOverlapOverrides/BufferAll
+=== PAUSE TestManualExplicitOverlapOverrides/BufferAll
+=== RUN   TestManualExplicitOverlapOverrides/CancelOther
+=== PAUSE TestManualExplicitOverlapOverrides/CancelOther
+=== RUN   TestManualExplicitOverlapOverrides/TerminateOther
+=== PAUSE TestManualExplicitOverlapOverrides/TerminateOther
+=== RUN   TestManualExplicitOverlapOverrides/AllowAll
+=== PAUSE TestManualExplicitOverlapOverrides/AllowAll
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation/retry
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation/retry
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation/completion
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation/completion
+=== RUN   TestEffectsTaskOriginalPhysicalInvalidation/terminate
+=== PAUSE TestEffectsTaskOriginalPhysicalInvalidation/terminate
+=== CONT  TestIdleConfigurationBoundariesRejectBeforeWrites
+=== RUN   TestIdleConfigurationBoundariesRejectBeforeWrites/negative
+=== PAUSE TestIdleConfigurationBoundariesRejectBeforeWrites/negative
+=== RUN   TestIdleConfigurationBoundariesRejectBeforeWrites/over_maximum
+=== PAUSE TestIdleConfigurationBoundariesRejectBeforeWrites/over_maximum
+=== RUN   TestIdleConfigurationBoundariesRejectBeforeWrites/token_exhausted
+=== PAUSE TestIdleConfigurationBoundariesRejectBeforeWrites/token_exhausted
+=== RUN   TestIdleConfigurationBoundariesRejectBeforeWrites/deadline_overflow
+=== PAUSE TestIdleConfigurationBoundariesRejectBeforeWrites/deadline_overflow
+=== CONT  TestEffectsTaskDeadlineBoundary
+=== RUN   TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== PAUSE TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== RUN   TestEffectsTaskDeadlineBoundary/exact
+=== PAUSE TestEffectsTaskDeadlineBoundary/exact
+=== RUN   TestEffectsTaskDeadlineBoundary/one_nanosecond_after
+=== PAUSE TestEffectsTaskDeadlineBoundary/one_nanosecond_after
+=== CONT  TestIdleEligibilityMetadataProjection
+=== RUN   TestIdleEligibilityMetadataProjection/paused
+=== PAUSE TestIdleEligibilityMetadataProjection/paused
+=== RUN   TestIdleEligibilityMetadataProjection/pending_manual
+=== PAUSE TestIdleEligibilityMetadataProjection/pending_manual
+=== RUN   TestIdleEligibilityMetadataProjection/pending_backfill
+=== PAUSE TestIdleEligibilityMetadataProjection/pending_backfill
+=== RUN   TestIdleEligibilityMetadataProjection/queued
+=== PAUSE TestIdleEligibilityMetadataProjection/queued
+=== RUN   TestIdleEligibilityMetadataProjection/unconfirmed
+=== PAUSE TestIdleEligibilityMetadataProjection/unconfirmed
+=== RUN   TestIdleEligibilityMetadataProjection/awaiting_effect
+=== PAUSE TestIdleEligibilityMetadataProjection/awaiting_effect
+=== RUN   TestIdleEligibilityMetadataProjection/pending_effect
+=== PAUSE TestIdleEligibilityMetadataProjection/pending_effect
+=== RUN   TestIdleEligibilityMetadataProjection/ambiguous_effect
+=== PAUSE TestIdleEligibilityMetadataProjection/ambiguous_effect
+=== RUN   TestIdleEligibilityMetadataProjection/accepted_effect
+=== PAUSE TestIdleEligibilityMetadataProjection/accepted_effect
+=== RUN   TestIdleEligibilityMetadataProjection/active_scan_unarmed
+=== PAUSE TestIdleEligibilityMetadataProjection/active_scan_unarmed
+=== RUN   TestIdleEligibilityMetadataProjection/yield_unarmed
+=== PAUSE TestIdleEligibilityMetadataProjection/yield_unarmed
+=== RUN   TestIdleEligibilityMetadataProjection/budget_exhausted_active
+=== PAUSE TestIdleEligibilityMetadataProjection/budget_exhausted_active
+=== CONT  TestEffectsTaskCancellationAfterRemoteAcceptance
+--- PASS: TestEffectsQueueOverflowCreatesNoDemand (0.01s)
+=== CONT  TestIdleAmbiguousWaitAndObservedStartedEligibility
+--- PASS: TestEffectsUnknownTargetBindingAndFrozenRetry (0.01s)
+=== CONT  TestEffectsTaskPermitAndDetachedRequest
+--- PASS: TestEffectsTerminateSupersedesCancelAndLateEvidence (0.01s)
+=== CONT  TestIdleUpdateAdvancesAnchorAndInvalidatesOldDeadline
+--- PASS: TestIdleAmbiguousWaitAndObservedStartedEligibility (0.00s)
+=== CONT  TestEffectsTaskTerminateOverInFlightCancel
+--- PASS: TestEffectsTaskCancellationAfterRemoteAcceptance (0.00s)
+=== CONT  TestEffectsTaskLostAckFrozenRetryAndNotFound
+--- PASS: TestIdleUpdateAdvancesAnchorAndInvalidatesOldDeadline (0.00s)
+=== CONT  TestIdleRearmIsAtomicAndDoesNotDuplicate
+--- PASS: TestEffectsTaskPermitAndDetachedRequest (0.00s)
+=== CONT  TestEffectsSavedReplay
+--- PASS: TestEffectsTaskTerminateOverInFlightCancel (0.00s)
+=== CONT  TestEffectsFormerByteCeilingAndLargeRetention
+=== RUN   TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131071
+=== PAUSE TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131071
+=== RUN   TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131072
+=== PAUSE TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131072
+=== RUN   TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131073
+=== PAUSE TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131073
+=== RUN   TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_262144
+=== PAUSE TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_262144
+=== RUN   TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131071
+=== PAUSE TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131071
+=== RUN   TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131072
+=== PAUSE TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131072
+=== RUN   TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131073
+=== PAUSE TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131073
+=== RUN   TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_262144
+=== PAUSE TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_262144
+=== CONT  TestEffectMembershipIndependentBoundary
+=== RUN   TestEffectMembershipIndependentBoundary/valid
+=== PAUSE TestEffectMembershipIndependentBoundary/valid
+=== RUN   TestEffectMembershipIndependentBoundary/duplicate
+=== PAUSE TestEffectMembershipIndependentBoundary/duplicate
+=== RUN   TestEffectMembershipIndependentBoundary/orphan
+=== PAUSE TestEffectMembershipIndependentBoundary/orphan
+=== RUN   TestEffectMembershipIndependentBoundary/missing
+=== PAUSE TestEffectMembershipIndependentBoundary/missing
+=== CONT  TestCoordinatorBackfillOverlapDispositions
+=== RUN   TestCoordinatorBackfillOverlapDispositions/Skip
+=== PAUSE TestCoordinatorBackfillOverlapDispositions/Skip
+=== RUN   TestCoordinatorBackfillOverlapDispositions/BufferOne
+=== PAUSE TestCoordinatorBackfillOverlapDispositions/BufferOne
+=== RUN   TestCoordinatorBackfillOverlapDispositions/BufferAll
+=== PAUSE TestCoordinatorBackfillOverlapDispositions/BufferAll
+=== RUN   TestCoordinatorBackfillOverlapDispositions/CancelOther
+=== PAUSE TestCoordinatorBackfillOverlapDispositions/CancelOther
+=== RUN   TestCoordinatorBackfillOverlapDispositions/TerminateOther
+=== PAUSE TestCoordinatorBackfillOverlapDispositions/TerminateOther
+=== RUN   TestCoordinatorBackfillOverlapDispositions/AllowAll
+=== PAUSE TestCoordinatorBackfillOverlapDispositions/AllowAll
+=== CONT  TestIdleExactDeadlineRollbackAndFailedClosePublication
+--- PASS: TestIdleRearmIsAtomicAndDoesNotDuplicate (0.00s)
+=== CONT  TestIdleHistoricalBackfillUsesStartObservation
+--- PASS: TestEffectsTaskLostAckFrozenRetryAndNotFound (0.01s)
+=== CONT  TestIdlePauseResumeReplacesExpiredObligation
+--- PASS: TestIdleExactDeadlineRollbackAndFailedClosePublication (0.00s)
+=== CONT  TestIdleAnchorSurvivesRetentionAndClockRollback
+--- PASS: TestIdleHistoricalBackfillUsesStartObservation (0.00s)
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion
+=== RUN   TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment
+=== PAUSE TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment
+=== CONT  TestIdleObligationsOpenSelectivePayloadLoading
+--- PASS: TestIdlePauseResumeReplacesExpiredObligation (0.00s)
+=== CONT  TestIdleObligationsEffectCompletionAndDrain
+--- PASS: TestIdleObligationsOpenSelectivePayloadLoading (0.00s)
+=== CONT  TestIdleObligationsBackfillDefinitionReplacement
+--- PASS: TestEffectsSavedReplay (0.01s)
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery/limit-1
+--- PASS: TestIdleAnchorSurvivesRetentionAndClockRollback (0.01s)
+=== CONT  TestEffectMetadataBoundRejectsBeforeUse/too_many
+--- PASS: TestIdleObligationsBackfillDefinitionReplacement (0.00s)
+=== CONT  TestEffectMetadataBoundRejectsBeforeUse/request_count
+--- PASS: TestIdleObligationsEffectCompletionAndDrain (0.01s)
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery/limit+1
+=== CONT  TestConfigurationIdleLimitNeighborsAndRecovery/limit+0
+=== CONT  TestEffectMetadataBoundRejectsBeforeUse/orphan_request
+=== CONT  TestEffectMetadataBoundRejectsBeforeUse/missing_request
+=== CONT  TestEffectMetadataBoundRejectsBeforeUse/phase
+=== CONT  TestEffectMetadataBoundRejectsBeforeUse/identity
+=== CONT  TestEffectMetadataBoundRejectsBeforeUse/target
+=== CONT  TestEffectMetadataBoundRejectsBeforeUse/duplicate
+=== CONT  TestEffectMetadataBoundRejectsBeforeUse/kind
+=== CONT  TestEffectMetadataBoundRejectsBeforeUse/nil
+=== CONT  TestManualExplicitOverlapOverrides/Skip
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation/retry
+--- PASS: TestEffectMetadataBoundRejectsBeforeUse (0.00s)
+    --- PASS: TestEffectMetadataBoundRejectsBeforeUse/too_many (0.00s)
+    --- PASS: TestEffectMetadataBoundRejectsBeforeUse/request_count (0.00s)
+    --- PASS: TestEffectMetadataBoundRejectsBeforeUse/orphan_request (0.00s)
+    --- PASS: TestEffectMetadataBoundRejectsBeforeUse/missing_request (0.00s)
+    --- PASS: TestEffectMetadataBoundRejectsBeforeUse/phase (0.00s)
+    --- PASS: TestEffectMetadataBoundRejectsBeforeUse/identity (0.00s)
+    --- PASS: TestEffectMetadataBoundRejectsBeforeUse/target (0.00s)
+    --- PASS: TestEffectMetadataBoundRejectsBeforeUse/duplicate (0.00s)
+    --- PASS: TestEffectMetadataBoundRejectsBeforeUse/nil (0.00s)
+    --- PASS: TestEffectMetadataBoundRejectsBeforeUse/kind (0.00s)
+=== CONT  TestManualExplicitOverlapOverrides/AllowAll
+=== CONT  TestManualExplicitOverlapOverrides/TerminateOther
+=== CONT  TestManualExplicitOverlapOverrides/CancelOther
+=== CONT  TestManualExplicitOverlapOverrides/BufferAll
+=== CONT  TestManualExplicitOverlapOverrides/BufferOne
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation/terminate
+=== CONT  TestEffectsTaskOriginalPhysicalInvalidation/completion
+--- PASS: TestManualExplicitOverlapOverrides (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/Skip (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/AllowAll (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/CancelOther (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/TerminateOther (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/BufferOne (0.00s)
+    --- PASS: TestManualExplicitOverlapOverrides/BufferAll (0.00s)
+=== CONT  TestIdleConfigurationBoundariesRejectBeforeWrites/negative
+=== CONT  TestEffectsTaskDeadlineBoundary/one_nanosecond_before
+=== CONT  TestIdleConfigurationBoundariesRejectBeforeWrites/deadline_overflow
+--- PASS: TestEffectsTaskOriginalPhysicalInvalidation (0.00s)
+    --- PASS: TestEffectsTaskOriginalPhysicalInvalidation/retry (0.00s)
+    --- PASS: TestEffectsTaskOriginalPhysicalInvalidation/terminate (0.00s)
+    --- PASS: TestEffectsTaskOriginalPhysicalInvalidation/completion (0.00s)
+=== CONT  TestIdleConfigurationBoundariesRejectBeforeWrites/token_exhausted
+=== CONT  TestIdleConfigurationBoundariesRejectBeforeWrites/over_maximum
+=== CONT  TestIdleEligibilityMetadataProjection/paused
+=== CONT  TestEffectsTaskDeadlineBoundary/one_nanosecond_after
+--- PASS: TestIdleConfigurationBoundariesRejectBeforeWrites (0.00s)
+    --- PASS: TestIdleConfigurationBoundariesRejectBeforeWrites/negative (0.00s)
+    --- PASS: TestIdleConfigurationBoundariesRejectBeforeWrites/deadline_overflow (0.00s)
+    --- PASS: TestIdleConfigurationBoundariesRejectBeforeWrites/over_maximum (0.00s)
+    --- PASS: TestIdleConfigurationBoundariesRejectBeforeWrites/token_exhausted (0.00s)
+=== CONT  TestIdleEligibilityMetadataProjection/pending_effect
+=== CONT  TestEffectsTaskDeadlineBoundary/exact
+=== CONT  TestIdleEligibilityMetadataProjection/budget_exhausted_active
+=== CONT  TestIdleEligibilityMetadataProjection/yield_unarmed
+--- PASS: TestEffectsTaskDeadlineBoundary (0.00s)
+    --- PASS: TestEffectsTaskDeadlineBoundary/one_nanosecond_before (0.00s)
+    --- PASS: TestEffectsTaskDeadlineBoundary/one_nanosecond_after (0.00s)
+    --- PASS: TestEffectsTaskDeadlineBoundary/exact (0.00s)
+=== CONT  TestIdleEligibilityMetadataProjection/active_scan_unarmed
+=== CONT  TestIdleEligibilityMetadataProjection/ambiguous_effect
+=== CONT  TestIdleEligibilityMetadataProjection/queued
+=== CONT  TestIdleEligibilityMetadataProjection/awaiting_effect
+=== CONT  TestIdleEligibilityMetadataProjection/unconfirmed
+=== CONT  TestIdleEligibilityMetadataProjection/pending_backfill
+=== CONT  TestIdleEligibilityMetadataProjection/pending_manual
+=== CONT  TestIdleEligibilityMetadataProjection/accepted_effect
+=== CONT  TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131071
+=== CONT  TestEffectMembershipIndependentBoundary/valid
+=== CONT  TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_262144
+--- PASS: TestIdleEligibilityMetadataProjection (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/paused (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/pending_effect (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/budget_exhausted_active (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/yield_unarmed (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/active_scan_unarmed (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/ambiguous_effect (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/awaiting_effect (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/queued (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/unconfirmed (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/pending_backfill (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/pending_manual (0.00s)
+    --- PASS: TestIdleEligibilityMetadataProjection/accepted_effect (0.00s)
+=== CONT  TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131073
+=== CONT  TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131072
+=== CONT  TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131071
+=== CONT  TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_262144
+=== CONT  TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131073
+=== CONT  TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131072
+=== CONT  TestCoordinatorBackfillOverlapDispositions/Skip
+=== CONT  TestEffectMembershipIndependentBoundary/missing
+=== CONT  TestEffectMembershipIndependentBoundary/orphan
+=== CONT  TestEffectMembershipIndependentBoundary/duplicate
+--- PASS: TestEffectsFormerByteCeilingAndLargeRetention (0.00s)
+    --- PASS: TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131071 (0.00s)
+    --- PASS: TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131073 (0.00s)
+    --- PASS: TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_262144 (0.00s)
+    --- PASS: TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131072 (0.00s)
+    --- PASS: TestEffectsFormerByteCeilingAndLargeRetention/TerminateOther/bytes_131071 (0.00s)
+    --- PASS: TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_262144 (0.00s)
+    --- PASS: TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131073 (0.00s)
+    --- PASS: TestEffectsFormerByteCeilingAndLargeRetention/CancelOther/bytes_131072 (0.00s)
+=== CONT  TestCoordinatorBackfillOverlapDispositions/CancelOther
+--- PASS: TestEffectMembershipIndependentBoundary (0.00s)
+    --- PASS: TestEffectMembershipIndependentBoundary/valid (0.00s)
+    --- PASS: TestEffectMembershipIndependentBoundary/missing (0.00s)
+    --- PASS: TestEffectMembershipIndependentBoundary/orphan (0.00s)
+    --- PASS: TestEffectMembershipIndependentBoundary/duplicate (0.00s)
+=== CONT  TestCoordinatorBackfillOverlapDispositions/AllowAll
+=== CONT  TestCoordinatorBackfillOverlapDispositions/TerminateOther
+=== CONT  TestCoordinatorBackfillOverlapDispositions/BufferAll
+=== CONT  TestCoordinatorBackfillOverlapDispositions/BufferOne
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment
+--- PASS: TestCoordinatorBackfillOverlapDispositions (0.00s)
+    --- PASS: TestCoordinatorBackfillOverlapDispositions/Skip (0.00s)
+    --- PASS: TestCoordinatorBackfillOverlapDispositions/CancelOther (0.00s)
+    --- PASS: TestCoordinatorBackfillOverlapDispositions/AllowAll (0.00s)
+    --- PASS: TestCoordinatorBackfillOverlapDispositions/TerminateOther (0.00s)
+    --- PASS: TestCoordinatorBackfillOverlapDispositions/BufferAll (0.00s)
+    --- PASS: TestCoordinatorBackfillOverlapDispositions/BufferOne (0.00s)
+=== CONT  TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion
+--- PASS: TestConfigurationIdleLimitNeighborsAndRecovery (0.00s)
+    --- PASS: TestConfigurationIdleLimitNeighborsAndRecovery/limit-1 (0.00s)
+    --- PASS: TestConfigurationIdleLimitNeighborsAndRecovery/limit+0 (0.00s)
+    --- PASS: TestConfigurationIdleLimitNeighborsAndRecovery/limit+1 (1.00s)
+--- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions (0.00s)
+    --- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions/automatic_exhaustion (0.97s)
+    --- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions/backfill_exhaustion (0.97s)
+    --- PASS: TestIdleSuccessorTokenPreflightPreservesTransitions/start_acknowledgment (0.98s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	1.696s
+=== RUN   TestEffectsIndependentProperties
+=== PAUSE TestEffectsIndependentProperties
+=== RUN   TestEffectsFreeSelectionAndOverflow
+=== PAUSE TestEffectsFreeSelectionAndOverflow
+=== CONT  TestEffectsIndependentProperties
+=== CONT  TestEffectsFreeSelectionAndOverflow
+--- PASS: TestEffectsFreeSelectionAndOverflow (0.00s)
+=== NAME  TestEffectsIndependentProperties
+    effects_test.go:14: [rapid] OK, passed 100 tests (27.345834ms)
+--- PASS: TestEffectsIndependentProperties (0.03s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.830s

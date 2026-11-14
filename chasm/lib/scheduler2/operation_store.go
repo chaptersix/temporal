@@ -17,7 +17,7 @@ func (s *Scheduler) validateOperationStore() error {
 		return nil
 	}
 	c := s.OperationStore
-	if c.FormatVersion != operationStoreVersion || c.OperationCount < 0 || c.RequestCount < 0 || c.RequestCount > c.OperationCount {
+	if c.FormatVersion != operationStoreVersion || c.OperationCount < 0 || c.RequestCount < 0 || c.RequestCount > c.OperationCount || c.RetirementCount < 0 || c.RetirementCount > c.OperationCount {
 		return serviceerror.NewInternal("invalid operation store summary")
 	}
 	if len(s.Operations) != 0 || len(s.Requests) != 0 {
@@ -71,6 +71,8 @@ type operationRecordChange struct {
 type operationRecordPlan struct {
 	changes []operationRecordChange
 	control *pb.OperationStoreControl
+	owners  []blobOwnerChange
+	indexes operationIndexPlan
 }
 
 func (s *Scheduler) prepareOperationRecords(ctx chasm.Context, changes []operationRecordChange) (operationRecordPlan, error) {
@@ -87,8 +89,12 @@ func (s *Scheduler) prepareOperationRecords(ctx chasm.Context, changes []operati
 			return operationRecordPlan{}, serviceerror.NewInternal("invalid operation record identity")
 		}
 		seen[change.id] = true
-		if err := s.prepareOperationRecord(ctx, change, plan.control); err != nil {
+		oldRefs, err := s.prepareOperationRecord(ctx, change, plan.control)
+		if err != nil {
 			return operationRecordPlan{}, err
+		}
+		if change.changeRequest {
+			plan.owners = append(plan.owners, blobOwnerChange{owner: "request/" + change.id, before: oldRefs, after: payloadRefs(change.request)})
 		}
 		change.operation = common.CloneProto(change.operation)
 		change.request = common.CloneProto(change.request)
@@ -97,6 +103,11 @@ func (s *Scheduler) prepareOperationRecords(ctx chasm.Context, changes []operati
 	if plan.control != nil && plan.control.RequestCount > plan.control.OperationCount {
 		return operationRecordPlan{}, serviceerror.NewInternal("invalid request owner count")
 	}
+	indexes, err := s.prepareOperationIndexes(ctx, changes, plan.control)
+	if err != nil {
+		return operationRecordPlan{}, err
+	}
+	plan.indexes = indexes
 	return plan, nil
 }
 
@@ -118,6 +129,7 @@ func changedRecordCount(count int64, before, after bool) (int64, error) {
 
 // publishOperationRecords is nonrejecting after addressed preflight under the same lease.
 func (s *Scheduler) publishOperationRecords(ctx chasm.MutableContext, plan operationRecordPlan) {
+	s.publishOperationIndexes(ctx, plan.indexes)
 	for _, c := range plan.changes {
 		if s.OperationStore != nil {
 			if c.operation == nil {
@@ -150,7 +162,7 @@ func (s *Scheduler) publishOperationRecords(ctx chasm.MutableContext, plan opera
 	s.OperationStore = plan.control
 }
 
-func (s *Scheduler) prepareTransitionRecords(ctx chasm.Context, next decision.State, admitted bool, eviction string, request *pb.Payload) (operationRecordPlan, error) {
+func (s *Scheduler) prepareTransitionRecords(ctx chasm.Context, next decision.State, admitted bool, eviction, completedEviction string, request *pb.Payload) (operationRecordPlan, error) {
 	var changes []operationRecordChange
 	if eviction != "" {
 		changes = append(changes, operationRecordChange{id: eviction, changeRequest: true})
@@ -167,40 +179,56 @@ func (s *Scheduler) prepareTransitionRecords(ctx chasm.Context, next decision.St
 		}
 		changes = append(changes, change)
 	}
+	if completedEviction != "" {
+		found := false
+		for i := range changes {
+			if changes[i].id == completedEviction {
+				changes[i] = operationRecordChange{id: completedEviction, changeRequest: true}
+				found = true
+			}
+		}
+		if !found {
+			changes = append(changes, operationRecordChange{id: completedEviction, changeRequest: true})
+		}
+	}
 	return s.prepareOperationRecords(ctx, changes)
 }
 
-func (s *Scheduler) prepareOperationRecord(ctx chasm.Context, change operationRecordChange, control *pb.OperationStoreControl) error {
+func (s *Scheduler) prepareOperationRecord(ctx chasm.Context, change operationRecordChange, control *pb.OperationStoreControl) (refs [3]string, err error) {
 	_, existed := s.operationRecord(ctx, change.id)
 	hadRequest := false
 	if change.changeRequest || change.operation == nil {
-		if s.OperationStore == nil {
+		if s.PayloadStore != nil {
+			old, ok := s.requestRecord(ctx, change.id)
+			hadRequest = ok
+			refs = payloadRefs(old)
+		} else if s.OperationStore == nil {
 			_, hadRequest = s.Requests[change.id]
 		} else {
 			_, hadRequest = s.RequestRecords.Get(ctx, change.id)
 		}
 	}
 	if change.changeRequest && change.request != nil && hadRequest {
-		return serviceerror.NewInternal("immutable operation request cannot be replaced")
+		return refs, serviceerror.NewInternal("immutable operation request cannot be replaced")
 	}
 	if change.operation == nil && (!change.changeRequest && hadRequest || change.request != nil) {
-		return serviceerror.NewInternal("request owner requires operation metadata")
+		return refs, serviceerror.NewInternal("request owner requires operation metadata")
 	}
 	if control != nil {
 		if existed && control.OperationCount == 0 || hadRequest && control.RequestCount == 0 {
-			return serviceerror.NewInternal("operation record membership exceeds summary")
+			return refs, serviceerror.NewInternal("operation record membership exceeds summary")
 		}
 		var err error
 		control.OperationCount, err = changedRecordCount(control.OperationCount, existed, change.operation != nil)
 		if err != nil {
-			return err
+			return refs, err
 		}
 		if change.changeRequest {
 			control.RequestCount, err = changedRecordCount(control.RequestCount, hadRequest, change.request != nil)
 			if err != nil {
-				return err
+				return refs, err
 			}
 		}
 	}
-	return nil
+	return refs, nil
 }

@@ -27,6 +27,10 @@ func NewPublicSchedule(ctx chasm.MutableContext, request *workflowservice.Create
 }
 
 func newPublicSchedule(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, execution bool) (*Scheduler, error) {
+	return newPublicScheduleWithPayloadStore(ctx, request, execution, false)
+}
+
+func newPublicScheduleWithPayloadStore(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, execution, keyedPayloads bool) (*Scheduler, error) {
 	if request == nil || request.Schedule == nil {
 		return nil, serviceerror.NewInvalidArgument("schedule is required")
 	}
@@ -67,6 +71,11 @@ func newPublicSchedule(ctx chasm.MutableContext, request *workflowservice.Create
 	s.IndexedQueue = newQueueState()
 	s.QueueRecords = chasm.NewDataMap[*scheduler2pb.QueuedOccurrence](ctx)
 	s.QueuePages = chasm.NewDataMap[*commonpb.Payload](ctx)
+	if keyedPayloads {
+		s.PayloadStore = &scheduler2pb.PayloadStoreControl{FormatVersion: payloadStoreVersion}
+		s.BlobRecords = chasm.NewDataMap[*scheduler2pb.Payload](ctx)
+		s.BlobReferences = chasm.NewDataMap[*scheduler2pb.BlobReference](ctx)
+	}
 	s.PublicRevision = 1
 	s.Paused, s.Limited, s.Policy = schedule.State.Paused, schedule.State.LimitedActions, policy
 	s.PauseOnFailure = schedule.Policies.PauseOnFailure

@@ -191,17 +191,24 @@ func TestIdleEligibilityMetadataProjection(t *testing.T) {
 		{"pending backfill", func(s *Scheduler, _ chasm.MutableContext) { s.Backfills = []*scheduler2pb.BackfillState{{Id: 1}} }, false},
 		{"queued", func(s *Scheduler, _ chasm.MutableContext) { s.Queue = []*scheduler2pb.QueuedOccurrence{{Nominal: 1}} }, false},
 		{"unconfirmed", func(s *Scheduler, _ chasm.MutableContext) { s.UnconfirmedStarts = 1 }, false},
-		{"awaiting effect", func(s *Scheduler, _ chasm.MutableContext) {
-			s.Effects = []*scheduler2pb.EffectState{{Phase: scheduler2pb.EffectPhase(decision.AwaitingTarget)}}
+		{"awaiting effect", func(s *Scheduler, c chasm.MutableContext) {
+			s.BlockingOperationId = "idle-effect-target"
+			s.Effects = []*scheduler2pb.EffectState{{Id: "idle-effect-target/cancel", TargetId: "idle-effect-target", Kind: scheduler2pb.EFFECT_KIND_CANCEL, Phase: scheduler2pb.EffectPhase(decision.AwaitingTarget)}}
 		}, false},
-		{"pending effect", func(s *Scheduler, _ chasm.MutableContext) {
-			s.Effects = []*scheduler2pb.EffectState{{Phase: scheduler2pb.EffectPhase(decision.EffectPending)}}
+		{"pending effect", func(s *Scheduler, c chasm.MutableContext) {
+			s.BlockingOperationId = "idle-effect-target"
+			s.Effects = []*scheduler2pb.EffectState{{Id: "idle-effect-target/cancel", TargetId: "idle-effect-target", Kind: scheduler2pb.EFFECT_KIND_CANCEL, Phase: scheduler2pb.EffectPhase(decision.EffectPending)}}
+			s.EffectRequests["idle-effect-target/cancel"] = chasm.NewDataField(c, &scheduler2pb.Payload{})
 		}, false},
-		{"ambiguous effect", func(s *Scheduler, _ chasm.MutableContext) {
-			s.Effects = []*scheduler2pb.EffectState{{Phase: scheduler2pb.EffectPhase(decision.EffectAmbiguous)}}
+		{"ambiguous effect", func(s *Scheduler, c chasm.MutableContext) {
+			s.BlockingOperationId = "idle-effect-target"
+			s.Effects = []*scheduler2pb.EffectState{{Id: "idle-effect-target/cancel", TargetId: "idle-effect-target", Kind: scheduler2pb.EFFECT_KIND_CANCEL, Phase: scheduler2pb.EffectPhase(decision.EffectAmbiguous)}}
+			s.EffectRequests["idle-effect-target/cancel"] = chasm.NewDataField(c, &scheduler2pb.Payload{})
 		}, false},
-		{"accepted effect", func(s *Scheduler, _ chasm.MutableContext) {
-			s.Effects = []*scheduler2pb.EffectState{{Phase: scheduler2pb.EffectPhase(decision.EffectAccepted)}}
+		{"accepted effect", func(s *Scheduler, c chasm.MutableContext) {
+			s.BlockingOperationId = "idle-effect-target"
+			s.Effects = []*scheduler2pb.EffectState{{Id: "idle-effect-target/cancel", TargetId: "idle-effect-target", Kind: scheduler2pb.EFFECT_KIND_CANCEL, Phase: scheduler2pb.EffectPhase(decision.EffectAccepted)}}
+			s.EffectRequests["idle-effect-target/cancel"] = chasm.NewDataField(c, &scheduler2pb.Payload{})
 		}, true},
 		{"active scan unarmed", func(s *Scheduler, c chasm.MutableContext) {
 			g := s.Generator.Get(c)

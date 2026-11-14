@@ -3,6 +3,7 @@ package scheduler2
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"math"
 	"strings"
 
@@ -20,10 +21,14 @@ import (
 // newExecutingPublicSchedule publishes the definition, generation and initial
 // controls in the same creation transaction.
 func newExecutingPublicSchedule(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, tweaks schedulerconfig.Tweakables) (*Scheduler, error) {
+	return newExecutingPublicScheduleWithPayloadStore(ctx, request, tweaks, false)
+}
+
+func newExecutingPublicScheduleWithPayloadStore(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, tweaks schedulerconfig.Tweakables, keyedPayloads bool) (*Scheduler, error) {
 	if request != nil && request.InitialPatch.GetTimeSkippingConfig() != nil {
 		ctx.SetTimeSkippingConfig(request.InitialPatch.TimeSkippingConfig)
 	}
-	s, err := newPublicSchedule(ctx, request, true)
+	s, err := newPublicScheduleWithPayloadStore(ctx, request, true, keyedPayloads)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +121,19 @@ func (s *Scheduler) UpdatePublic(ctx chasm.MutableContext, request *workflowserv
 	}
 	config := UpdateConfig{Generation: publicGeneration(ctx, request.Namespace, request.ScheduleId, schedule, s.Revision+1, tweaks),
 		Paused: schedule.State.Paused, Limited: schedule.State.LimitedActions, Remaining: schedule.State.RemainingActions, PauseOnFailure: schedule.Policies.PauseOnFailure}
-	if err := s.UpdateConfiguration(ctx, config); err != nil {
+	generation, err := s.prepareConfiguration(ctx, config)
+	if err != nil {
+		return err
+	}
+	definition, err := s.preparePublicDefinition(ctx, schedule)
+	if err != nil {
+		return err
+	}
+	prepared := payloadPreparation{}
+	maps.Copy(prepared, generation.blobs)
+	maps.Copy(prepared, definition.blobs)
+	blobPlan, err := s.prepareBlobDelta(ctx, []blobOwnerChange{generation.owner, definition.owner}, prepared)
+	if err != nil {
 		return err
 	}
 	visibility := s.Visibility.Get(ctx)
@@ -128,7 +145,10 @@ func (s *Scheduler) UpdatePublic(ctx chasm.MutableContext, request *workflowserv
 	if request.Memo != nil {
 		visibility.ReplaceCustomMemo(ctx, common.CloneProto(request.Memo).Fields)
 	}
-	if err := s.storePublicDefinition(ctx, schedule); err != nil {
+	s.publishBlobDelta(ctx, blobPlan)
+	s.publishGeneration(ctx, generation)
+	s.publishPublicDefinition(ctx, definition)
+	if err := s.reconcileWork(ctx); err != nil {
 		return err
 	}
 	s.publishPublicMutation(ctx)

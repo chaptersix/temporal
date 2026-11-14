@@ -1339,6 +1339,80 @@ func (this *OperationStoreControl) Equal(that interface{}) bool {
 	return proto.Equal(this, that1)
 }
 
+// Marshal an object of type PayloadStoreControl to the protobuf v3 wire format
+func (val *PayloadStoreControl) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type PayloadStoreControl from the protobuf v3 wire format
+func (val *PayloadStoreControl) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *PayloadStoreControl) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two PayloadStoreControl values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *PayloadStoreControl) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *PayloadStoreControl
+	switch t := that.(type) {
+	case *PayloadStoreControl:
+		that1 = t
+	case PayloadStoreControl:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type BlobReference to the protobuf v3 wire format
+func (val *BlobReference) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type BlobReference from the protobuf v3 wire format
+func (val *BlobReference) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *BlobReference) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two BlobReference values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *BlobReference) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *BlobReference
+	switch t := that.(type) {
+	case *BlobReference:
+		that1 = t
+	case BlobReference:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
 var (
 	Phase_shorthandValue = map[string]int32{
 		"Unspecified": 0,

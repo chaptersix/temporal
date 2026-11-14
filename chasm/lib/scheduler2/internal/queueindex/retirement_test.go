@@ -79,6 +79,9 @@ func TestRetirementReference(t *testing.T) {
 			slices.SortFunc(keys, retirementCompare)
 			key, ok, err := b.RetirementMinimum(index)
 			require.NoError(rt, err)
+			count, err := b.RetirementCount(index)
+			require.NoError(rt, err)
+			require.Equal(rt, uint64(len(keys)), count)
 			require.Equal(rt, len(keys) > 0, ok)
 			if ok {
 				require.Equal(rt, keys[0], key)
@@ -163,6 +166,7 @@ func TestRetirementFailureAtomicity(t *testing.T) {
 	require.NoError(t, b.Commit())
 	snapshot := backendSnapshot(base)
 	actions := map[string]func(*CountBatch) error{
+		"count":   func(b *CountBatch) error { _, err := b.RetirementCount(index); return err },
 		"minimum": func(b *CountBatch) error { _, _, err := b.RetirementMinimum(index); return err },
 		"insert":  func(b *CountBatch) error { return b.InsertRetirement(index, retirementTestKey(96)) },
 		"delete":  func(b *CountBatch) error { return b.DeleteRetirement(index, retirementTestKey(0)) },

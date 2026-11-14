@@ -104,6 +104,8 @@ message RootState {
   QueueState indexed_queue = 44;
   // OperationStore selects addressed metadata and immutable request storage.
   OperationStoreControl operation_store = 45;
+  // PayloadStore selects immutable keyed blobs and exact reference owner counts.
+  PayloadStoreControl payload_store = 46;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -643,4 +645,18 @@ message OperationStoreControl {
   int64 operation_count = 2;
   // RequestCount counts retained immutable issuance request owners.
   int64 request_count = 3;
+  // RetirementCount counts StartOnly records in the public retirement index.
+  int64 retirement_count = 4;
+}
+
+// PayloadStoreControl selects the exclusive keyed content/ownership representation.
+message PayloadStoreControl {
+  // FormatVersion identifies the immutable blob/refcount layout.
+  uint32 format_version = 1;
+}
+
+// BlobReference stores owner membership separately from immutable payload bytes.
+message BlobReference {
+  // OwnerCount counts distinct live owners, deduplicating references within one owner.
+  uint64 owner_count = 1;
 }

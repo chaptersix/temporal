@@ -1,0 +1,19 @@
+{
+  "source_sha256": {
+    "chasm/lib/scheduler2/blob_delta.go": "4400ea7179d3b8ed727a6bb135da7746df7d00c5ea554f6bc1b57d46d97a6ea8",
+    "chasm/lib/scheduler2/blob_delta_test.go": "01833784ad0a673b19750085ebd2e7729fe8d72631ba27e7c3024a04bd33a69e",
+    "chasm/lib/scheduler2/component.go": "b76115ec10e31f9b15f24965585b4401a5f3cf4674b0b5f69797995316cb0d39",
+    "chasm/lib/scheduler2/generator.go": "d9362106c72d58a9e4778645fd16faf1c8b80665bf5e2c2f512d90b365ec0ee2",
+    "chasm/lib/scheduler2/operation_store.go": "8e830b546dd3063792cf2f9b962602cb8bf400a6c1154ffbad281dc5ca04f9f2",
+    "chasm/lib/scheduler2/payload_storage.go": "e4f2863ef4bcb8e8f8ab52e8f8acdcb66ff008377fdd8ca1354d1151465682f4",
+    "chasm/lib/scheduler2/public.go": "5c5f6e1a0ed394117f1468dc63b46f7ebf10cf180272cd0771376086ad223671",
+    "chasm/lib/scheduler2/public_mutation.go": "ed2a42faf42fcd624ebf578da6079aed16059171e59f5628b9f49cd8d4796b2c",
+    "chasm/lib/scheduler2/public_projection.go": "9ec26b0ccf62090bc2a025e292779708e195c24ab86b14444b9733041e72232e",
+    "chasm/lib/scheduler2/public_capacity_retention.go": "a0ae9d730c7f28b2e8f30afce37fda60ee7ea6fb16f00a011e15e02f3ff7e8bf",
+    "chasm/lib/scheduler2/update.go": "9f2d0929b77029436e7a5d51a507573f048e74c47915a4b58953a1feacc2fa45",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "25d828bbfdb9781ad5b65bae0c480fb64f6c139d625d2a056176ee4bab303d62",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "d6af6f6cfa0344528f5a1b1cdb555f0be974f09487f9b9e852de190e553e34a9",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go": "c5dcf36224c0bf164b71ff29266258676827b9b404248b8b7169d3f467687e4c"
+  },
+  "scope": "all payload owner writer seams and test-selected fresh keyed creation; default public selection unchanged; keyed operation runtime remains gated"
+}

@@ -17,6 +17,9 @@ func decodeEffect(e *scheduler2pb.EffectState) decision.Effect {
 }
 
 func (s *Scheduler) prepareEffects(ctx chasm.Context, next decision.State) (decision.State, map[string][]byte, error) {
+	if err := validateDecisionEffects(next); err != nil {
+		return decision.State{}, nil, err
+	}
 	for _, effect := range next.Effects {
 		if effect.Phase != decision.AwaitingTarget {
 			continue
@@ -107,9 +110,9 @@ func (s *Scheduler) publishEffects(ctx chasm.MutableContext, before, next decisi
 			}
 		}
 	}
-	for id := range s.EffectRequests {
-		if !retained[id] {
-			delete(s.EffectRequests, id)
+	for _, effect := range before.Effects {
+		if !retained[effect.ID] {
+			delete(s.EffectRequests, effect.ID)
 		}
 	}
 }
@@ -123,6 +126,9 @@ type EffectRequest struct {
 func (s *Scheduler) effectRequest(ctx chasm.Context, id string) (*EffectRequest, error) {
 	if s.Closed {
 		return nil, nil
+	}
+	if err := s.validateEffects(); err != nil {
+		return nil, err
 	}
 	for _, metadata := range s.Effects {
 		effect := decodeEffect(metadata)

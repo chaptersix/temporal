@@ -33,17 +33,25 @@ func Update(ctx context.Context, ref chasm.ComponentRef, requestID string, confi
 // UpdateConfiguration validates and publishes one full configuration replacement.
 // Admitted requests and queued occurrence identities retain their original values.
 func (s *Scheduler) UpdateConfiguration(ctx chasm.MutableContext, config UpdateConfig) error {
+	plan, err := s.prepareConfiguration(ctx, config)
+	if err != nil {
+		return err
+	}
+	return s.commitGeneration(ctx, plan)
+}
+
+func (s *Scheduler) prepareConfiguration(ctx chasm.Context, config UpdateConfig) (*generationPreparation, error) {
 	if s.Closed {
-		return serviceerror.NewNotFound("schedule is closed")
+		return nil, serviceerror.NewNotFound("schedule is closed")
 	}
 	if !s.HasGenerator {
-		return serviceerror.NewFailedPrecondition("schedule requires initial configuration")
+		return nil, serviceerror.NewFailedPrecondition("schedule requires initial configuration")
 	}
 	if config.Generation.Revision <= s.Revision {
-		return serviceerror.NewFailedPrecondition("configuration revision must advance")
+		return nil, serviceerror.NewFailedPrecondition("configuration revision must advance")
 	}
 	if config.Remaining < 0 {
-		return serviceerror.NewInvalidArgument("remaining actions must be nonnegative")
+		return nil, serviceerror.NewInvalidArgument("remaining actions must be nonnegative")
 	}
-	return s.configureGeneration(ctx, config.Generation, &config)
+	return s.prepareGeneration(ctx, config.Generation, &config)
 }
