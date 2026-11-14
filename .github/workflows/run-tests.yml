@@ -324,6 +324,54 @@ jobs:
           path: ${{ env.LEAK_OUTPUT_DIR }}
           if-no-files-found: ignore
 
+  property-test:
+    name: Property test
+    needs: [pre-build]
+    runs-on: ubuntu-24.04-arm
+    env:
+      TEST_TIMEOUT: 5m
+      GITHUB_TIMEOUT: 10
+      # Property tests run a single attempt: a retry would re-draw rapid's random
+      # seed and replace a real counterexample with a different, likely passing,
+      # input set. The Makefile locks the attempt count, and this keeps
+      # post-test-reporting's "fewer junit files than attempts means crash"
+      # heuristic correct for a one-attempt job.
+      MAX_TEST_ATTEMPTS: 1
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ env.COMMIT }}
+
+      - name: Prepare Go
+        uses: ./.github/actions/prepare-go
+
+      - name: Run property tests
+        timeout-minutes: ${{ fromJSON(env.GITHUB_TIMEOUT) }}
+        run: |
+          export TEST_RUNNER_TIMEOUT="$(("$GITHUB_TIMEOUT" - 1))m"
+          ./develop/github/monitor_test.sh make property-test-coverage
+
+      # rapid writes a minimized reproducer next to the failing package. Without
+      # this it is discarded with the runner and the counterexample is lost.
+      # Commit a downloaded .fail file to replay it on every later run.
+      - name: Upload property test counterexamples
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: property-test-counterexamples
+          path: "**/testdata/rapid/**"
+          if-no-files-found: ignore
+
+      - name: Post-test reporting
+        if: always()
+        uses: ./.github/actions/post-test-reporting
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          job_name: Property test
+          artifact_name_suffix: property-test
+
   integration-test:
     name: Integration test
     needs: [pre-build]

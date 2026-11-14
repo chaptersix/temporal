@@ -89,6 +89,15 @@ func DefaultConfig() *scheduler.Config {
 	}
 }
 
+// ConfigWith returns [DefaultConfig] with Tweakables adjusted by fn.
+func ConfigWith(fn func(*scheduler.Tweakables)) *scheduler.Config {
+	cfg := DefaultConfig()
+	tweakables := scheduler.DefaultTweakables
+	fn(&tweakables)
+	cfg.Tweakables = func(string) scheduler.Tweakables { return tweakables }
+	return cfg
+}
+
 // NewRealSpecProcessor builds a real SpecProcessor with no-op metrics, matching
 // production spec processing so generated buffered starts and next-times are
 // realistic.

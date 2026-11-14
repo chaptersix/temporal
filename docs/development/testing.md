@@ -87,6 +87,125 @@ unless there is a reason not to.
 `make parallelize-tests` can be used to automatically add `t.Parallel()`.
 Use `//parallelize:ignore` to opt your test out of it.
 
+## Property tests
+
+Property tests assert invariants against randomly-generated inputs instead of hand-written cases.
+They use [rapid](https://pkg.go.dev/pgregory.net/rapid), which generates the inputs and, on
+failure, shrinks them to a minimal counterexample.
+
+They run in their own tier, separate from unit tests, because they need a different runner
+configuration; see [Why retries are disabled](#why-retries-are-disabled).
+
+The tier is every package directory whose name ends in `proptest`; see
+[Adding a property test](#adding-a-property-test).
+
+### Running locally
+
+```bash
+make property-test                     # rapid's default: 100 generated cases per property
+make property-test RAPID_CHECKS=50000  # soak before pushing a change to a covered package
+```
+
+Or with plain `go test`. Note that `-rapid.*` are test *binary* flags, so the package has to come
+before them — otherwise `go test` stops parsing and fails with `[setup failed]`:
+
+```bash
+go test -tags test_dep ./chasm/lib/scheduler/schedulerproptest/ -run TestSchedulerProperties -rapid.checks=1000
+```
+
+### Configuration
+
+`RAPID_CHECKS` sets the number of generated cases per property, and defaults to `100` — cheap
+enough to run on every PR. Every rapid flag also has an environment variable form
+(`-rapid.checks` / `RAPID_CHECKS`, and so on); see rapid's documentation for the full set.
+
+Seeds are **not** pinned in CI. Retries are disabled instead, which keeps a counterexample from
+being discarded while still letting coverage accumulate across commits.
+
+### In CI
+
+| Job | Workflow | Gates merges |
+| --- | --- | --- |
+| `Property test` | `run-tests.yml`, every PR | intended |
+| `Property test soak` | `property-test-soak.yml`, nightly 0600 UTC | no |
+
+Both run a single attempt. The soak also accepts a manual `workflow_dispatch` with a `rapid_checks`
+input.
+
+`Property test` only blocks a merge once it is listed as a required status check in the repository's
+branch protection settings; the workflow alone does not make it one.
+
+The soak is deliberately never a required check. A counterexample it finds is a real bug, but it is
+found on an input that no particular PR introduced, so it must not block unrelated merges.
+
+### When a counterexample is found
+
+rapid prints the minimized counterexample along with a line naming both ways to reproduce it — the
+*fail file* it just wrote, and the seed:
+
+```
+To reproduce, specify -run="<TestName>" -rapid.failfile="<path>" (or -rapid.seed=<seed>)
+```
+
+Either form works. The fail file path is relative to the package directory:
+
+```bash
+go test -tags test_dep ./chasm/lib/scheduler/schedulerproptest/ -run TestSchedulerProperties \
+  -rapid.failfile="testdata/rapid/TestSchedulerProperties/TestSchedulerProperties-<timestamp>-<pid>.fail"
+```
+
+In CI the fail file is uploaded as a job artifact — `property-test-counterexamples`, or
+`property-test-soak-counterexamples` for the nightly. Download it to reproduce locally.
+
+### Committing a counterexample
+
+rapid replays **every** fail file under `testdata/rapid/<TestName>/` before generating any random
+cases, so a committed fail file becomes a permanent regression case enforced on every later run.
+Fail file names are unique, so several can accumulate for the same test without colliding.
+
+**Commit the fail file in the same change as the fix.** It is a regression test for the bug it
+encodes, and it belongs with the code that fixes it.
+
+**Do not commit a fail file for a bug that is not fixed yet.** The per-PR job replays it, so it
+would fail on every PR and block all merges. Open an issue instead and attach the printed seed and
+the fail file's contents. If the invariant has to be relaxed in the meantime, scope the exemption as
+narrowly as possible and reference the issue from the code.
+
+The fail file goes next to the package under test, keyed by test name — exactly where rapid writes
+it, so a file downloaded from a CI artifact is committed at the same path:
+
+```
+chasm/lib/scheduler/schedulerproptest/testdata/rapid/TestSchedulerProperties/TestSchedulerProperties-<timestamp>-<pid>.fail
+```
+
+### Why retries are disabled
+
+`property-test-coverage` passes `--max-attempts=1` to the test runner, unlike the unit and
+functional tiers, which retry up to `MAX_TEST_ATTEMPTS` times. **Do not re-enable retries for this
+tier.**
+
+The test runner exits with the exit code of its *last* attempt, and each retry re-runs the test in a
+fresh process, where rapid draws a new random seed. A retried property test therefore checks a
+different set of inputs than the one that failed: the counterexample would be replaced by a
+likely-passing run, and the job would go green having found a real bug.
+
+### Adding a property test
+
+**Put property tests in their own package directory, named with a `proptest` suffix.** The tier is
+selected by directory name — `PROPERTY_TEST_DIRS` in the [Makefile](../../Makefile) matches any
+directory ending in `proptest` — so creating one enrolls it automatically and excludes it from the
+unit tier. Nothing needs registering. Also add it to the `property` category in
+[find_altered_tests.go](../../cmd/tools/test/find_altered_tests.go), which is a separate list.
+
+The dedicated directory is not stylistic. The tier subtracts whole directories from
+`UNIT_TEST_DIRS`, so a property test placed inside the package it exercises forces a choice between
+pulling that package's entire unit test suite into the no-retry tier, or leaving the property test
+in the retrying tier where its counterexamples are discarded.
+
+Because a sibling directory can only reach exported API, the package under test needs an exported
+harness — see [schedulertest](../../chasm/lib/scheduler/schedulertest), which is a non-test package
+precisely so property tests can import its driver.
+
 ## Test helpers
 
 Test helpers can be found in the [common/testing](../../common/testing) package.

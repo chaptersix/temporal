@@ -127,9 +127,17 @@ MIXED_BRAIN_TEST_ROOT         := ./tests/mixedbrain
 DB_INTEGRATION_TEST_ROOT      := ./common/persistence/tests
 DB_TOOL_INTEGRATION_TEST_ROOT := ./tools/tests
 INTEGRATION_TEST_DIRS := $(DB_INTEGRATION_TEST_ROOT) $(DB_TOOL_INTEGRATION_TEST_ROOT) ./temporaltest
+# Property tests run in their own tier so they can be run without retries; see
+# the Property tests section below for why. The tier is selected by directory
+# name: any package directory ending in "proptest" joins it, and is filtered out
+# of UNIT_TEST_DIRS below so it does not also run in the retrying unit tier,
+# where a counterexample would be masked by a retry. Deriving the list from a
+# naming convention means a new property test package cannot be silently left in
+# the unit tier by forgetting to register it here.
+PROPERTY_TEST_DIRS := $(patsubst %/,%,$(filter %proptest/,$(TEST_DIRS)))
 TESTCORE_UNITTESTS := ./tests/testcore
 ifeq ($(UNIT_TEST_DIRS),)
-UNIT_TEST_DIRS := $(filter-out $(FUNCTIONAL_TEST_ROOT)% $(FUNCTIONAL_TEST_XDC_ROOT)% $(FUNCTIONAL_TEST_NDC_ROOT)% $(MIXED_BRAIN_TEST_ROOT)% $(DB_INTEGRATION_TEST_ROOT)% $(DB_TOOL_INTEGRATION_TEST_ROOT)% ./temporaltest%,$(TEST_DIRS))
+UNIT_TEST_DIRS := $(filter-out $(FUNCTIONAL_TEST_ROOT)% $(FUNCTIONAL_TEST_XDC_ROOT)% $(FUNCTIONAL_TEST_NDC_ROOT)% $(MIXED_BRAIN_TEST_ROOT)% $(DB_INTEGRATION_TEST_ROOT)% $(DB_TOOL_INTEGRATION_TEST_ROOT)% ./temporaltest% $(addsuffix %,$(PROPERTY_TEST_DIRS)),$(TEST_DIRS))
 
 # Testcore unit tests are filtered out by the FUNCTIONAL_TEST_ROOT pattern, need to add them back manually.
 UNIT_TEST_DIRS += $(TESTCORE_UNITTESTS)
@@ -481,6 +489,33 @@ integration-test: clean-test-output
 	@CGO_ENABLED=$(TEST_CGO_ENABLED) go test $(INTEGRATION_TEST_DIRS) $(COMPILED_TEST_ARGS) 2>&1 | tee -a test.log
 	@$(MAKE) verify-test-log
 
+# Property tests check invariants against randomly-generated inputs, so they need
+# a different runner configuration than ordinary unit tests:
+#
+#  1. They must NOT be retried. test-runner exits with the exit code of its last
+#     attempt only, and a retry re-runs the test in a fresh process where rapid
+#     draws a new random seed. A real counterexample would therefore be replaced
+#     by a different (likely passing) input set and the job would go green. The
+#     attempt count is locked with := so that the MAX_TEST_ATTEMPTS environment
+#     variable set in the CI workflow cannot re-enable retries here.
+#  2. The number of generated cases is a knob. The default matches rapid's own
+#     default and costs ~60ms; the nightly soak workflow raises it a long way.
+#
+# When a property fails, rapid writes a minimized reproducer to
+# testdata/rapid/<TestName>/<TestName>-<ts>-<pid>.fail and replays every such
+# file ahead of the random cases on subsequent runs. Commit those files to turn a
+# counterexample into a permanent regression case.
+#
+# See docs/development/testing.md ("Property tests") for how to reproduce a
+# counterexample, when to commit one, and how to add a package to this tier.
+PROPERTY_TEST_MAX_ATTEMPTS := 1
+RAPID_CHECKS ?= 100
+
+property-test: clean-test-output
+	@printf $(COLOR) "Run property tests ($(RAPID_CHECKS) checks)..."
+	@RAPID_CHECKS=$(RAPID_CHECKS) CGO_ENABLED=$(TEST_CGO_ENABLED) go test $(PROPERTY_TEST_DIRS) $(COMPILED_TEST_ARGS) 2>&1 | tee -a test.log
+	@$(MAKE) verify-test-log
+
 functional-test: clean-test-output
 	@printf $(COLOR) "Run functional tests..."
 	@CGO_ENABLED=$(TEST_CGO_ENABLED) go test $(FUNCTIONAL_TEST_ROOT) $(COMPILED_TEST_ARGS) -persistenceType=$(PERSISTENCE_TYPE) -persistenceDriver=$(PERSISTENCE_DRIVER) 2>&1 | tee -a test.log
@@ -521,7 +556,7 @@ verify-test-log:
 	@grep -q "^ok" test.log || (echo "TEST FAILURE: no passing test found in test.log" && exit 1)
 	@! grep -q "^--- FAIL" test.log || (echo "TEST FAILURE: failing test found in test.log" && exit 1)
 
-test: unit-test integration-test functional-test
+test: unit-test property-test integration-test functional-test
 
 ##### Coverage & Reporting #####
 $(TEST_OUTPUT_ROOT):
@@ -543,6 +578,13 @@ integration-test-coverage: prepare-coverage-test
 	@printf $(COLOR) "Run integration tests with coverage..."
 	CGO_ENABLED=$(TEST_CGO_ENABLED) go run ./cmd/tools/test-runner test --gotestsum-path=$(GOTESTSUM) --max-attempts=$(MAX_TEST_ATTEMPTS) $(TEST_RUNNER_TIMEOUT_ARG) --junitfile=$(NEW_REPORT) -- \
 		$(COMPILED_TEST_ARGS) -coverprofile=$(NEW_COVER_PROFILE) $(INTEGRATION_TEST_DIRS)
+
+# Runs through test-runner (not plain go test) to keep the JUnit report, coverage
+# and flaky-test reporting, but with retries disabled. See PROPERTY_TEST_DIRS.
+property-test-coverage: prepare-coverage-test
+	@printf $(COLOR) "Run property tests with coverage ($(RAPID_CHECKS) checks)..."
+	RAPID_CHECKS=$(RAPID_CHECKS) CGO_ENABLED=$(TEST_CGO_ENABLED) go run ./cmd/tools/test-runner test --gotestsum-path=$(GOTESTSUM) --max-attempts=$(PROPERTY_TEST_MAX_ATTEMPTS) $(TEST_RUNNER_TIMEOUT_ARG) --junitfile=$(NEW_REPORT) -- \
+		$(COMPILED_TEST_ARGS) -coverprofile=$(NEW_COVER_PROFILE) $(PROPERTY_TEST_DIRS)
 
 # MUST use the same build flags as functional-test-coverage and functional-test-{xdc,ndc}-coverage for best build caching.
 pre-build-functional-test-coverage: prepare-coverage-test

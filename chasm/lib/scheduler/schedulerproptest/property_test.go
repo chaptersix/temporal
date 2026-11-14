@@ -1,4 +1,13 @@
-package schedulertest_test
+// Package schedulerproptest holds the property tests for the CHASM scheduler,
+// driving the [schedulertest] harness against randomly-generated schedules and
+// operation sequences.
+//
+// Property tests live in their own directory rather than alongside the unit
+// tests in package schedulertest because the CI tier that runs them is selected
+// by directory name (any directory matching *proptest) and runs without retries
+// — retrying a property test re-draws rapid's seed and discards the
+// counterexample. See docs/development/testing.md ("Property tests").
+package schedulerproptest
 
 import (
 	"testing"
@@ -33,7 +42,7 @@ func TestSchedulerProperties(t *testing.T) {
 		d := schedulertest.NewDriver(t,
 			schedulertest.WithStartTime(start),
 			schedulertest.WithSchedule(sched),
-			schedulertest.WithConfig(configWith(func(tw *scheduler.Tweakables) {
+			schedulertest.WithConfig(schedulertest.ConfigWith(func(tw *scheduler.Tweakables) {
 				tw.IdleTime = idle
 			})),
 			// InvokerExecuteTask may lag the timers, and workflows may run, but

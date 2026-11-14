@@ -13,15 +13,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// configWith returns DefaultConfig with Tweakables adjusted by fn.
-func configWith(fn func(*scheduler.Tweakables)) *scheduler.Config {
-	cfg := schedulertest.DefaultConfig()
-	tweakables := scheduler.DefaultTweakables
-	fn(&tweakables)
-	cfg.Tweakables = func(string) scheduler.Tweakables { return tweakables }
-	return cfg
-}
-
 // oneShotSchedule fires exactly once, at start+offset.
 func oneShotSchedule(start time.Time, offset time.Duration) *schedulepb.Schedule {
 	s := schedulertest.DefaultSchedule()
@@ -76,7 +67,7 @@ func TestLedger_FinalStartPendingAtIdle(t *testing.T) {
 			d := schedulertest.NewDriver(t,
 				schedulertest.WithStartTime(start),
 				schedulertest.WithSchedule(oneShotSchedule(start, tc.offset)),
-				schedulertest.WithConfig(configWith(func(tw *scheduler.Tweakables) {
+				schedulertest.WithConfig(schedulertest.ConfigWith(func(tw *scheduler.Tweakables) {
 					tw.IdleTime = idle
 					tw.EnablePendingStartIdleFix = tc.fixOn
 				})),
@@ -188,7 +179,7 @@ func TestLedger_DeferredStartsStrandedByPausedCompletion(t *testing.T) {
 	d := schedulertest.NewDriver(t,
 		schedulertest.WithStartTime(start),
 		schedulertest.WithSchedule(s),
-		schedulertest.WithConfig(configWith(func(tw *scheduler.Tweakables) { tw.IdleTime = idle })),
+		schedulertest.WithConfig(schedulertest.ConfigWith(func(tw *scheduler.Tweakables) { tw.IdleTime = idle })),
 		schedulertest.WithAfterStep(collectViolations(&violations)),
 	)
 

@@ -33,10 +33,12 @@ import (
 // FUNCTIONAL_TEST_XDC_ROOT
 // FUNCTIONAL_TEST_NDC_ROOT
 // INTEGRATION_TEST_DIRS
+// PROPERTY_TEST_DIRS
 // UNIT_TEST_DIRS
 var CategoryDirs = map[string][]string{
 	"unit":           {"./client", "./common", "./internal", "./service", "./temporal", "./tools", "./cmd"},
 	"integration":    {"./common/persistence/tests", "./tools/tests", "./temporaltest"},
+	"property":       {"./chasm/lib/scheduler/schedulerproptest"},
 	"functional":     {"./tests"},
 	"functional_ndc": {"./tests/ndc"},
 	"functional_xdc": {"./tests/xdc"},
