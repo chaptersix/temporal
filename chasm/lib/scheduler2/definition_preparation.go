@@ -28,6 +28,7 @@ type CalendarPreparation struct {
 	chasm.UnimplementedComponent
 	*scheduler2pb.CalendarPreparationState
 	Source     chasm.Field[*schedulepb.StructuredCalendarSpec]
+	Timezone   chasm.Field[*TimezonePreparation]
 	Pages      chasm.DataMap[*scheduler2pb.CalendarPreparationPage]
 	Superseded chasm.DataMap[*scheduler2pb.CalendarSupersededSource]
 }

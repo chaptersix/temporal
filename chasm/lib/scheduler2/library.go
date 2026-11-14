@@ -35,6 +35,7 @@ func (l *Library) Components() []*chasm.RegistrableComponent {
 		chasm.NewRegistrableComponent[*Scheduler]("scheduler", chasm.WithBusinessIDAlias("ScheduleId"), chasm.WithSearchAttributes(publicNextActionTime, publicRunningWorkflowCount, publicBufferedStartsCount, publicIdleCloseTime), chasm.WithContextValues(map[any]any{publicSpecBuilderKey{}: l.specBuilder, backfillBatchConfigKey{}: l.tweaks, workQuantaKey{}: l.workQuanta, publicListSpecLimitKey{}: func() int { return legacy.CurrentTweakablePolicies.SpecFieldLengthLimit }})),
 		chasm.NewRegistrableComponent[*Generator]("generator"),
 		chasm.NewRegistrableComponent[*CalendarPreparation]("calendarPreparation"),
+		chasm.NewRegistrableComponent[*TimezonePreparation]("timezonePreparation"),
 	}
 }
 func (l *Library) Tasks() []*chasm.RegistrableTask {

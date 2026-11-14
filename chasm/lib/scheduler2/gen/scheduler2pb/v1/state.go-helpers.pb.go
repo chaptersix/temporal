@@ -1154,6 +1154,191 @@ func (this *CompletedDrain) Equal(that interface{}) bool {
 	return proto.Equal(this, that1)
 }
 
+// Marshal an object of type TimezonePreparationState to the protobuf v3 wire format
+func (val *TimezonePreparationState) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type TimezonePreparationState from the protobuf v3 wire format
+func (val *TimezonePreparationState) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *TimezonePreparationState) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two TimezonePreparationState values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *TimezonePreparationState) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *TimezonePreparationState
+	switch t := that.(type) {
+	case *TimezonePreparationState:
+		that1 = t
+	case TimezonePreparationState:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type TimezonePreparationSource to the protobuf v3 wire format
+func (val *TimezonePreparationSource) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type TimezonePreparationSource from the protobuf v3 wire format
+func (val *TimezonePreparationSource) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *TimezonePreparationSource) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two TimezonePreparationSource values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *TimezonePreparationSource) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *TimezonePreparationSource
+	switch t := that.(type) {
+	case *TimezonePreparationSource:
+		that1 = t
+	case TimezonePreparationSource:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type TimezonePreparationPage to the protobuf v3 wire format
+func (val *TimezonePreparationPage) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type TimezonePreparationPage from the protobuf v3 wire format
+func (val *TimezonePreparationPage) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *TimezonePreparationPage) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two TimezonePreparationPage values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *TimezonePreparationPage) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *TimezonePreparationPage
+	switch t := that.(type) {
+	case *TimezonePreparationPage:
+		that1 = t
+	case TimezonePreparationPage:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type TimezoneSupersededSource to the protobuf v3 wire format
+func (val *TimezoneSupersededSource) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type TimezoneSupersededSource from the protobuf v3 wire format
+func (val *TimezoneSupersededSource) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *TimezoneSupersededSource) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two TimezoneSupersededSource values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *TimezoneSupersededSource) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *TimezoneSupersededSource
+	switch t := that.(type) {
+	case *TimezoneSupersededSource:
+		that1 = t
+	case TimezoneSupersededSource:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type OperationStoreControl to the protobuf v3 wire format
+func (val *OperationStoreControl) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type OperationStoreControl from the protobuf v3 wire format
+func (val *OperationStoreControl) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *OperationStoreControl) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two OperationStoreControl values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *OperationStoreControl) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *OperationStoreControl
+	switch t := that.(type) {
+	case *OperationStoreControl:
+		that1 = t
+	case OperationStoreControl:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
 var (
 	Phase_shorthandValue = map[string]int32{
 		"Unspecified": 0,

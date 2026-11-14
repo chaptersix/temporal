@@ -1,0 +1,16 @@
+{
+  "source_sha256": {
+    "chasm/lib/scheduler2/operation_store.go": "9633e8f68f7474d15f387e35c0d22af12f0f85a5cd1008e93b9f79f4ec4623c3",
+    "chasm/lib/scheduler2/operation_store_test.go": "9ad266f40165d8a0cdb2515e2e89911bf5aab1a7d927204fc84e81c5d57a374e",
+    "chasm/lib/scheduler2/component.go": "ae42d8e3ee7b95b3340d000e0b28ab15a3033c47e317a4dc11a82f0623ff9b4e",
+    "chasm/lib/scheduler2/effects.go": "5735426df8c3659cf184a23fe6ba3d89697f4eda9cc5233fb27572bccd0a3b68",
+    "chasm/lib/scheduler2/public_completion.go": "dcb5de169508b514c64e33b7be3dc0ca732909051cfc4f5142620696b4637236",
+    "chasm/lib/scheduler2/public_projection.go": "6d6d59171150ff355e2b92a3b2c161d366db9ab14006a50a23f11ae0fca4fec0",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "602615069cccd6e84dcb8b8f11b5c2e48cb257749bb495c364cfa3540a2a4e3c",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "3463a26b8031690930fef4f4b722945f7030cd612020350aeec14655dcdfe220",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go": "ffc88c2bf1bded8c557477662d04675a295253625b495c1d2bbe8784eb176b45",
+    "chasm/lib/scheduler2/public.go": "8d02166706c72526abc7d23302fbf1d69ff1cf67c4c2e87ef3a6c7322e94a2a3"
+  },
+  "scope": "addressed operation/request adapter and finite caller integration; keyed runtime explicitly inactive",
+  "final_full": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2 -count=1; PASS18.830s"
+}

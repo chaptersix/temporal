@@ -17,11 +17,13 @@ func (s *Scheduler) HandleNexusCompletion(ctx chasm.MutableContext, completion *
 	if s.Closed {
 		return nil
 	}
-	field, ok := s.Operations[completion.GetRequestId()]
+	if err := s.validateOperationStore(); err != nil {
+		return err
+	}
+	operation, ok := s.operationRecord(ctx, completion.GetRequestId())
 	if !ok {
 		return nil
 	}
-	operation := field.Get(ctx)
 	if decision.Terminal(decision.Phase(operation.Phase)) {
 		return nil
 	}

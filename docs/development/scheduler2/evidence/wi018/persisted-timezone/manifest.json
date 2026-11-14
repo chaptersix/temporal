@@ -1,0 +1,55 @@
+{
+  "scope": "Persisted timezone standalone capability, not runtime integration; proto/generated snapshot also contains operation-store additions owned by framework/root",
+  "sources": [
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_codec.go",
+      "sha256": "e5560bf899a3e493ebd4c0ddd3e3297ddf90739e9105d6fd88b44cdff6268635",
+      "bytes": 7319
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_codec_test.go",
+      "sha256": "7243639232c9e89eefb341a20073cd4d3e1753caca5ae3b986b934641627f076",
+      "bytes": 3224
+    },
+    {
+      "path": "chasm/lib/scheduler2/timezone_staging.go",
+      "sha256": "e370fad09133d37748c204d869df85b8dbc9d3948866fcfb2a3e17dd6cc3b7da",
+      "bytes": 4013
+    },
+    {
+      "path": "chasm/lib/scheduler2/timezone_preparation.go",
+      "sha256": "49302cdd5d54192f27856d062fc26e09fa81348a947ca20a8e22246122c38b6a",
+      "bytes": 10719
+    },
+    {
+      "path": "chasm/lib/scheduler2/timezone_preparation_test.go",
+      "sha256": "187bb4250327024c125492c1602810da043322418224f5d470902b3375c8f1a6",
+      "bytes": 12220
+    },
+    {
+      "path": "chasm/lib/scheduler2/definition_preparation.go",
+      "sha256": "9969168f14c458a1c4f6c21e616bb8527b7a5a232f427b191773b7580e7ca8cf",
+      "bytes": 16293
+    },
+    {
+      "path": "chasm/lib/scheduler2/library.go",
+      "sha256": "723e9cd493ae47e9a9eb56159f4adbd484f88868285bee7b2ba9395b92e1d3eb",
+      "bytes": 2419
+    },
+    {
+      "path": "chasm/lib/scheduler2/proto/v1/state.proto",
+      "sha256": "602615069cccd6e84dcb8b8f11b5c2e48cb257749bb495c364cfa3540a2a4e3c",
+      "bytes": 27054
+    },
+    {
+      "path": "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go",
+      "sha256": "3463a26b8031690930fef4f4b722945f7030cd612020350aeec14655dcdfe220",
+      "bytes": 154099
+    },
+    {
+      "path": "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go",
+      "sha256": "ffc88c2bf1bded8c557477662d04675a295253625b495c1d2bbe8784eb176b45",
+      "bytes": 39533
+    }
+  ]
+}

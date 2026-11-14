@@ -101,6 +101,9 @@ func publicConflictToken(runID string, revision uint64) []byte {
 
 // DescribePublic returns detached data without consulting runtime configuration.
 func (s *Scheduler) DescribePublic(ctx chasm.Context) (*workflowservice.DescribeScheduleResponse, error) {
+	if err := s.validateOperationStore(); err != nil {
+		return nil, err
+	}
 	if s.Closed {
 		return nil, serviceerror.NewNotFound("schedule is closed")
 	}

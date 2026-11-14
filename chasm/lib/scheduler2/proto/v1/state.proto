@@ -102,6 +102,8 @@ message RootState {
   string public_action_ref = 43;
   // IndexedQueue selects exclusive indexed queue storage for newly created public executions.
   QueueState indexed_queue = 44;
+  // OperationStore selects addressed metadata and immutable request storage.
+  OperationStoreControl operation_store = 45;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -570,4 +572,75 @@ message CompletedDrain {
   int64 missed = 13;
   // Superseded records the already applied overlap replacement count.
   int64 superseded = 14;
+}
+
+// TimezonePreparationState owns fixed control for an unselected prepared snapshot.
+message TimezonePreparationState {
+  // Format version identifies this preparation control schema.
+  uint32 format_version = 1;
+  // Definition source ID binds this snapshot to one calendar revision.
+  bytes definition_source_id = 2;
+  // Source ID identifies this generation's page ownership.
+  bytes source_id = 3;
+  // Semantic fingerprint identifies resolved rules and loader-cache behavior.
+  bytes semantic_fingerprint = 4;
+  // Generation increases on every snapshot replacement.
+  uint64 generation = 5;
+  // Header is the fixed-size validated prepared-timezone encoding.
+  bytes header = 6;
+  // Total pages is derived from the header transition count.
+  uint32 total_pages = 7;
+  // Installed pages is the published contiguous page frontier.
+  uint32 installed_pages = 8;
+  // Cleanup head identifies the oldest superseded owner.
+  uint64 cleanup_head = 9;
+  // Cleanup tail is the next unused owner ordinal.
+  uint64 cleanup_tail = 10;
+  // Cleanup count equals tail minus head.
+  uint64 cleanup_count = 11;
+}
+
+// TimezonePreparationSource is detached input for outside-mutation reconstruction.
+message TimezonePreparationSource {
+  // Name is supplied by the original resolved input.
+  string name = 1;
+  // TZif data is the exact resolved byte input; absent only for explicit UTC.
+  bytes tzif_data = 2;
+  // Resolved at is the original loader-cache seed instant.
+  google.protobuf.Timestamp resolved_at = 3;
+  // UTC distinguishes canonical UTC from absent custom bytes.
+  bool utc = 4;
+}
+
+// TimezonePreparationPage keeps one bounded encoded page under its owner.
+message TimezonePreparationPage {
+  // Source ID identifies the generation that owns this page.
+  bytes source_id = 1;
+  // Ordinal is the addressed transition-page index.
+  uint32 ordinal = 2;
+  // Encoded contains at most sixteen entries with fixed identity metadata.
+  bytes encoded = 3;
+}
+
+// TimezoneSupersededSource retains cleanup authority for an installed prefix.
+message TimezoneSupersededSource {
+  // Source ID identifies the superseded page owner.
+  bytes source_id = 1;
+  // Header preserves exact page-count and semantic identity validation.
+  bytes header = 2;
+  // Installed pages is the prefix that existed at replacement.
+  uint32 installed_pages = 3;
+  // Cursor is the next page to reclaim from that prefix.
+  uint32 cursor = 4;
+}
+
+// OperationStoreControl holds only maintained addressed-record counts.
+// Version one is not activated until projection, ownership and dispatch integration.
+message OperationStoreControl {
+  // FormatVersion identifies the addressed record layout.
+  uint32 format_version = 1;
+  // OperationCount counts retained operation records, including terminal metadata.
+  int64 operation_count = 2;
+  // RequestCount counts retained immutable issuance request owners.
+  int64 request_count = 3;
 }

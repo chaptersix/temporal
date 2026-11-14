@@ -129,11 +129,10 @@ func (s *Scheduler) publicInfoProjection(ctx chasm.Context, info *schedulepb.Sch
 		info.MissedCatchupWindow = runtime.MissedCatchupWindow
 		info.OverlapSkipped = runtime.OverlapSkipped
 		for _, a := range runtime.Actions {
-			field, exists := s.Operations[a.OperationId]
+			op, exists := s.operationRecord(ctx, a.OperationId)
 			if !exists {
 				continue
 			}
-			op := field.Get(ctx)
 			if op.Phase == scheduler2pb.PHASE_STARTED && a.Result.GetStartWorkflowResult().GetRunId() != "" {
 				info.RunningWorkflows = append(info.RunningWorkflows, common.CloneProto(a.Result.StartWorkflowResult))
 			}

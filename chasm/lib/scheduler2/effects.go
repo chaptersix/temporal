@@ -49,7 +49,11 @@ func (s *Scheduler) prepareEffects(ctx chasm.Context, next decision.State) (deci
 		}
 		// Effect identity lives in the small skeleton; large fields are irrelevant.
 		start := &workflowservice.StartWorkflowExecutionRequest{}
-		if err := proto.Unmarshal(s.Requests[effect.TargetID].Get(ctx).Data, start); err != nil {
+		record, err := s.requiredRequestRecord(ctx, effect.TargetID)
+		if err != nil {
+			return decision.State{}, nil, err
+		}
+		if err := proto.Unmarshal(record.Data, start); err != nil {
 			return decision.State{}, nil, err
 		}
 		wire, err := freezeEffect(effect, start)
