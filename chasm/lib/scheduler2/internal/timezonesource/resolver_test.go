@@ -2,13 +2,16 @@ package timezonesource
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"math"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence"
 	"go.temporal.io/server/common/clock"
 )
 
@@ -216,4 +219,48 @@ func TestSourceUnknownErrorIsCached(t *testing.T) {
 	_, second := resolver.Resolve("Zone", nil)
 	require.Same(t, first, second)
 	require.ErrorIs(t, first, failure)
+}
+
+func TestWindowsLocalSnapshotLifetime(t *testing.T) {
+	t.Parallel()
+	now := clock.NewEventTimeSource().Update(time.Date(2024, 7, 1, 0, 0, 0, 123, time.UTC))
+	captures := 0
+	environment := NewEnvironment(SourceConfig{
+		Clock:     now,
+		LookupEnv: func(key string) (string, bool) { require.NotEqual(t, "TZ", key); return "", false },
+		WindowsLocal: func() (occurrence.WindowsTimezoneSource, error) {
+			captures++
+			return occurrence.WindowsTimezoneSource{WordBits: 64, Bias: math.MinInt32, StandardBias: math.MaxInt32}, nil
+		},
+	})
+	resolver := NewResolver(environment)
+	first, err := resolver.Resolve("Local", nil)
+	require.NoError(t, err)
+	require.Equal(t, WindowsNative, first.Kind())
+	require.False(t, first.UTC())
+	require.Nil(t, first.Data())
+	require.Len(t, first.NativeData(), 182)
+	source, err := occurrence.WindowsTimezoneSourceFromBytes(first.NativeData())
+	require.NoError(t, err)
+	require.Equal(t, int64(2024), source.InitializationYear)
+	require.Equal(t, now.Now(), first.ResolvedAt())
+	frame := first.NativeData()
+	clear(frame)
+	require.NotEqual(t, frame, first.NativeData())
+	require.Equal(t, sha256.Sum256(first.NativeData()), first.SourceHash())
+	now.Update(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	again, err := resolver.Resolve("Local", nil)
+	require.NoError(t, err)
+	require.Same(t, first, again)
+	other, err := NewResolver(environment).Resolve("Local", nil)
+	require.NoError(t, err)
+	require.Same(t, first, other)
+	require.Equal(t, 1, captures)
+	fallback := NewResolver(NewEnvironment(SourceConfig{WindowsLocal: func() (occurrence.WindowsTimezoneSource, error) {
+		return occurrence.WindowsTimezoneSource{}, errors.New("API unavailable")
+	}}))
+	utc, err := fallback.Resolve("Local", nil)
+	require.NoError(t, err)
+	require.True(t, utc.UTC())
+	require.Equal(t, UTC, utc.Kind())
 }

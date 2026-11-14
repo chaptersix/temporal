@@ -7,7 +7,10 @@ import (
 	"time"
 
 	"go.temporal.io/api/serviceerror"
+	scheduler2pb "go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1"
 	"go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence"
+	"go.temporal.io/server/chasm/lib/scheduler2/internal/timezonesource"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // StagedTimezoneSource is immutable input-proportional preparation. It binds a
@@ -20,6 +23,7 @@ type StagedTimezoneSource struct {
 	pages                              [][]byte
 	name                               string
 	source                             []byte
+	native                             []byte
 	resolvedAt                         time.Time
 	utc                                bool
 }
@@ -52,6 +56,9 @@ func StageCalendarUTC(calendar *StagedCalendarSource, generation uint64) (*Stage
 func stageCalendarTimezone(calendar *StagedCalendarSource, name string, data []byte, resolvedAt time.Time, generation uint64, utc bool, zone *occurrence.PreparedTimezone) (*StagedTimezoneSource, error) {
 	if generation == 0 {
 		return nil, serviceerror.NewInvalidArgument("timezone generation must be positive")
+	}
+	if err := timestamppb.New(resolvedAt).CheckValid(); err != nil {
+		return nil, serviceerror.NewInvalidArgument("timezone preparation instant is not representable")
 	}
 	stage := &StagedTimezoneSource{definitionID: calendar.sourceID, generation: generation, fingerprint: zone.Fingerprint(), header: zone.Header(), name: name, source: bytes.Clone(data), resolvedAt: resolvedAt.UTC(), utc: utc}
 	hash := sha256.New()
@@ -92,4 +99,72 @@ func (stage *StagedTimezoneSource) validate() (*occurrence.PreparedTimezone, err
 		return nil, serviceerror.NewInvalidArgument("timezone staging header does not match")
 	}
 	return zone, nil
+}
+
+// StageResolvedCalendarTimezone binds a detached resolved source outside mutation.
+func StageResolvedCalendarTimezone(calendar *StagedCalendarSource, snapshot *timezonesource.Snapshot, generation uint64) (*StagedTimezoneSource, error) {
+	if snapshot == nil || snapshot.Prepared() == nil {
+		return nil, serviceerror.NewInvalidArgument("resolved timezone snapshot is required")
+	}
+	switch snapshot.Kind() {
+	case timezonesource.UTC:
+		if err := calendar.validate(); err != nil {
+			return nil, err
+		}
+		return stageCalendarTimezone(calendar, snapshot.Name(), nil, snapshot.ResolvedAt(), generation, true, snapshot.Prepared())
+	case timezonesource.TZif:
+		return StageCalendarTimezone(calendar, snapshot.Name(), snapshot.Data(), snapshot.ResolvedAt(), generation)
+	case timezonesource.WindowsNative:
+		return StageCalendarWindowsTimezone(calendar, snapshot.Name(), snapshot.NativeData(), snapshot.ResolvedAt(), generation)
+	default:
+		return nil, serviceerror.NewInvalidArgument("unknown resolved timezone source kind")
+	}
+}
+
+// StageCalendarWindowsTimezone prepares a captured native record without platform access.
+func StageCalendarWindowsTimezone(calendar *StagedCalendarSource, name string, data []byte, resolvedAt time.Time, generation uint64) (*StagedTimezoneSource, error) {
+	if err := calendar.validate(); err != nil {
+		return nil, err
+	}
+	source, err := occurrence.WindowsTimezoneSourceFromBytes(data)
+	if err != nil {
+		return nil, err
+	}
+	zone, err := occurrence.PrepareWindowsTimezone(source)
+	if err != nil {
+		return nil, err
+	}
+	stage, err := stageCalendarTimezone(calendar, name, nil, resolvedAt, generation, false, zone)
+	if err != nil {
+		return nil, err
+	}
+	stage.native = bytes.Clone(data)
+	return stage, nil
+}
+
+// StageCalendarTimezoneSnapshot reconstructs detached persisted input outside
+// mutation. The caller must supply its original bound calendar definition.
+func StageCalendarTimezoneSnapshot(calendar *StagedCalendarSource, source *scheduler2pb.TimezonePreparationSource, generation uint64) (*StagedTimezoneSource, error) {
+	if source == nil || source.ResolvedAt == nil {
+		return nil, serviceerror.NewInvalidArgument("timezone source snapshot is incomplete")
+	}
+	if err := calendar.validate(); err != nil {
+		return nil, err
+	}
+	if err := source.ResolvedAt.CheckValid(); err != nil {
+		return nil, serviceerror.NewInvalidArgument("timezone source preparation instant is invalid")
+	}
+	if source.Utc {
+		if len(source.TzifData) != 0 || len(source.WindowsNativeData) != 0 {
+			return nil, serviceerror.NewInvalidArgument("UTC source has conflicting timezone data")
+		}
+		return stageCalendarTimezone(calendar, source.Name, nil, source.ResolvedAt.AsTime(), generation, true, occurrence.PreparedUTC())
+	}
+	if len(source.WindowsNativeData) != 0 {
+		if len(source.TzifData) != 0 {
+			return nil, serviceerror.NewInvalidArgument("timezone source has conflicting variants")
+		}
+		return StageCalendarWindowsTimezone(calendar, source.Name, source.WindowsNativeData, source.ResolvedAt.AsTime(), generation)
+	}
+	return StageCalendarTimezone(calendar, source.Name, source.TzifData, source.ResolvedAt.AsTime(), generation)
 }

@@ -106,6 +106,8 @@ message RootState {
   OperationStoreControl operation_store = 45;
   // PayloadStore selects immutable keyed blobs and exact reference owner counts.
   PayloadStoreControl payload_store = 46;
+  // ProjectionStore selects addressed action history and running membership.
+  ProjectionStoreControl projection_store = 47;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -151,6 +153,8 @@ message OperationState {
   int64 start_observed_at = 14;
  // nominal_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
  google.protobuf.Timestamp nominal_time = 15;
+  // ReadySequence identifies the owned issuance locator; zero means no wake.
+  uint64 ready_sequence = 16;
 }
 
 // Payload keeps large values on a separately loaded node.
@@ -452,6 +456,8 @@ message PublicRuntime {
   int64 overlap_skipped = 3;
   // CompletedOperations retains the ten latest tracked completions by workflow close time.
   repeated PublicCompletedOperation completed_operations = 4;
+  // RecentActions holds at most ten acknowledged results in actual-time/admission order.
+  repeated RecentPublicAction recent_actions = 5;
 }
 // PublicAction ties a public result to its immutable admitted operation.
 message PublicAction {
@@ -606,12 +612,14 @@ message TimezonePreparationState {
 message TimezonePreparationSource {
   // Name is supplied by the original resolved input.
   string name = 1;
-  // TZif data is the exact resolved byte input; absent only for explicit UTC.
+  // TZif data is the exact resolved byte input for a TZif source.
   bytes tzif_data = 2;
   // Resolved at is the original loader-cache seed instant.
   google.protobuf.Timestamp resolved_at = 3;
   // UTC distinguishes canonical UTC from absent custom bytes.
   bool utc = 4;
+  // Windows native data retains the versioned API snapshot, source word width and initialization year.
+  bytes windows_native_data = 5;
 }
 
 // TimezonePreparationPage keeps one bounded encoded page under its owner.
@@ -647,6 +655,12 @@ message OperationStoreControl {
   int64 request_count = 3;
   // RetirementCount counts StartOnly records in the public retirement index.
   int64 retirement_count = 4;
+  // PendingCount counts issuance wakes, including the active claim.
+  int64 pending_count = 5;
+  // NextReadySequence is the next unused locator identity and starts at one.
+  uint64 next_ready_sequence = 6;
+  // StartDispatch owns the fixed start issuance and recovery task slot.
+  StartDispatchControl start_dispatch = 7;
 }
 
 // PayloadStoreControl selects the exclusive keyed content/ownership representation.
@@ -659,4 +673,92 @@ message PayloadStoreControl {
 message BlobReference {
   // OwnerCount counts distinct live owners, deduplicating references within one owner.
   uint64 owner_count = 1;
+}
+
+// StartDispatchControl fences the mutually exclusive dispatch and recovery tasks.
+message StartDispatchControl {
+  // Token increases when the slot is rearmed, released or replaced.
+  uint64 token = 1;
+  // Armed indicates that a dispatch or recovery obligation is published.
+  bool armed = 2;
+  // At is the execution Unix nanosecond deadline of that obligation.
+  int64 at = 3;
+  // Claim owns one operation while its external start can be in flight.
+  StartClaim claim = 4;
+}
+
+// StartClaim retains operation authority until settlement or recovery.
+message StartClaim {
+  // OperationId identifies the immutable admitted operation.
+  string operation_id = 1;
+  // ReadySequence identifies its retained ready locator.
+  uint64 ready_sequence = 2;
+  // LogicalWake preserves the operation's original issuance wake.
+  int64 logical_wake = 3;
+  // Expiry is the physical task deadline converted to execution Unix nanoseconds.
+  int64 expiry = 4;
+}
+
+// ReadyRecord maps a never-reused sequence to its addressed pending operation.
+message ReadyRecord {
+  // OperationId identifies the immutable admitted operation.
+  string operation_id = 1;
+  // LogicalWake preserves the operation's retry or deadline authority.
+  int64 logical_wake = 2;
+  // ReadyAt is the execution Unix nanosecond ordering time, refreshed on recovery.
+  int64 ready_at = 3;
+}
+
+// ProjectionStoreControl holds fixed public projection authority.
+message ProjectionStoreControl {
+  // FormatVersion identifies the addressed projection representation.
+  uint32 format_version = 1;
+  // NextActionSequence is the next unused admission-order identity, starting at one.
+  uint64 next_action_sequence = 2;
+  // RunningCount counts Started operations with an acknowledged public run ID.
+  int64 running_count = 3;
+}
+
+// RecentPublicAction is one member of the fixed recent-ten window.
+message RecentPublicAction {
+  // Sequence preserves admission order for equal actual timestamps.
+  uint64 sequence = 1;
+  // Action is a detached projection mirrored from the addressed action record.
+  PublicAction action = 2;
+}
+
+// PublicActionRecord survives while operation metadata or the recent window owns it.
+message PublicActionRecord {
+  // Sequence is the immutable action-admission order.
+  uint64 sequence = 1;
+  // Action stores the public result without issuance payloads.
+  PublicAction action = 2;
+  // OperationOwned distinguishes retained operation authority from recent-only history.
+  bool operation_owned = 3;
+}
+
+// RunningPublicAction is the exact output value for one running-index member.
+message RunningPublicAction {
+  // Sequence must match its addressed sequence key and running index entry.
+  uint64 sequence = 1;
+  // OperationId is the immutable admitted operation identity.
+  string operation_id = 2;
+  // Execution holds the workflow and acknowledged public run IDs.
+  temporal.api.common.v1.WorkflowExecution execution = 3;
+}
+
+// StartDispatchTask drives one durable claim before external start issuance.
+message StartDispatchTask {
+  // Token fences the current dispatcher obligation.
+  uint64 token = 1;
+  // WakeTime is its logical execution Unix nanosecond deadline.
+  int64 wake_time = 2;
+}
+
+// StartRecoveryTask releases an expired durable start claim.
+message StartRecoveryTask {
+  // Token fences the current claim recovery obligation.
+  uint64 token = 1;
+  // WakeTime is the claim expiry in execution Unix nanoseconds.
+  int64 wake_time = 2;
 }

@@ -4,7 +4,7 @@ Owner: root. Implementation map following dispatch-cleanup-contract.md and the a
 
 ## Readiness ownership and fixed control
 
-OperationStoreControl gains maintained PendingCount, NextReadySequence and one StartDispatch control. PendingCount counts decision.Wake presence, including an in-flight claimed operation. NextReadySequence is monotone and checked before increment; sequence0 is absent. OperationState gains ReadySequence, which is zero exactly when no issuance wake is owned. It is storage metadata, not part of the finite decision oracle.
+OperationStoreControl gains maintained PendingCount, NextReadySequence and one StartDispatch control. PendingCount counts decision.Wake presence, including an in-flight claimed operation. NextReadySequence is the next unused identity, starts at1, and is checked before increment; sequence0 is absent. Exhaustion rejects before publication. OperationState gains ReadySequence, which is zero exactly when no issuance wake is owned. It is storage metadata, not part of the finite decision oracle.
 
 A dedicated SequenceIndex under OperationPages orders (effective ready time, sequence). ReadyRecords is a DATA map keyed by the fixed-width sequence, containing operation ID, original logical Wake and effective ReadyAt. The ready record remains owned while claimed, while its index entry is removed. Thus records are bounded by pending operations and each index identity maps to one addressed operation without scanning IDs. Never reuse a sequence after removal.
 

@@ -1,0 +1,5 @@
+# go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence
+chasm/lib/scheduler2/internal/occurrence/prepared_timezone_codec.go:23:32: z.nativeHeader undefined (type *PreparedTimezone has no field or method nativeHeader)
+chasm/lib/scheduler2/internal/occurrence/prepared_timezone_codec.go:125:36: undefined: decodeNativeTimezoneHeader
+FAIL	go.temporal.io/server/chasm/lib/scheduler2 [build failed]
+FAIL

@@ -15,32 +15,51 @@ import (
 	"go.temporal.io/server/common/clock"
 )
 
+// Kind distinguishes canonical UTC, custom TZif and native Windows input.
+type Kind uint8
+
+const (
+	UTC Kind = iota
+	TZif
+	WindowsNative
+)
+
 // Snapshot owns immutable resolved input and the original preparation instant.
 // It is prepared outside CHASM mutations and may be shared by builder caches.
 type Snapshot struct {
 	name, source string
+	kind         Kind
+	native       []byte
 	data         []byte
 	resolvedAt   time.Time
 	zone         *occurrence.PreparedTimezone
 }
 
+func (s *Snapshot) Kind() Kind                             { return s.kind }
+func (s *Snapshot) NativeData() []byte                     { return bytes.Clone(s.native) }
 func (s *Snapshot) Name() string                           { return s.name }
 func (s *Snapshot) Source() string                         { return s.source }
 func (s *Snapshot) Data() []byte                           { return bytes.Clone(s.data) }
 func (s *Snapshot) ResolvedAt() time.Time                  { return s.resolvedAt }
 func (s *Snapshot) Prepared() *occurrence.PreparedTimezone { return s.zone }
-func (s *Snapshot) SourceHash() [32]byte                   { return sha256.Sum256(s.data) }
-func (s *Snapshot) UTC() bool                              { return s.data == nil }
+func (s *Snapshot) SourceHash() [32]byte {
+	if s.kind == WindowsNative {
+		return sha256.Sum256(s.native)
+	}
+	return sha256.Sum256(s.data)
+}
+func (s *Snapshot) UTC() bool { return s.kind == UTC }
 
 // SourceConfig supplies process-owned sources. Callers share one Environment
 // across builders. Source reads and environment capture occur outside mutation.
 type SourceConfig struct {
-	LookupEnv func(string) (string, bool)
-	Read      func(source, name string) ([]byte, error)
-	Embedded  func(string) ([]byte, error)
-	Platform  []string
-	GOROOT    string
-	Clock     clock.TimeSource
+	LookupEnv    func(string) (string, bool)
+	Read         func(source, name string) ([]byte, error)
+	Embedded     func(string) ([]byte, error)
+	Platform     []string
+	GOROOT       string
+	Clock        clock.TimeSource
+	WindowsLocal func() (occurrence.WindowsTimezoneSource, error)
 }
 
 // Environment owns process-global source capture. It does not reconstruct
@@ -51,9 +70,10 @@ type Environment struct {
 	override     string
 	localOnce    sync.Once
 	local        *Snapshot
+	localErr     error
 }
 
-// NewEnvironment creates an isolated Unix source environment. Platform paths are
+// NewEnvironment creates an isolated source environment. Platform paths are
 // explicit so tests and platform providers do not inherit the host filesystem.
 func NewEnvironment(config SourceConfig) *Environment {
 	if config.Read == nil {
@@ -106,15 +126,21 @@ func (e *Environment) prepare(name, source string, data []byte) (*Snapshot, erro
 	if err != nil {
 		return nil, errors.New("malformed time zone information")
 	}
-	return &Snapshot{name: name, source: source, data: bytes.Clone(data), resolvedAt: at, zone: zone}, nil
+	return &Snapshot{kind: TZif, name: name, source: source, data: bytes.Clone(data), resolvedAt: at, zone: zone}, nil
 }
 func (e *Environment) resolve(name string) (*Snapshot, error) {
 	if name == "" || name == "UTC" {
 		return e.utc(name), nil
 	}
 	if name == "Local" {
-		e.localOnce.Do(func() { e.local = e.resolveUnixLocal() })
-		return e.local, nil
+		e.localOnce.Do(func() {
+			if e.config.WindowsLocal != nil {
+				e.local, e.localErr = e.resolveWindowsLocal()
+			} else {
+				e.local = e.resolveUnixLocal()
+			}
+		})
+		return e.local, e.localErr
 	}
 	if strings.Contains(name, "..") || name[0] == '/' || name[0] == '\\' {
 		return nil, errors.New("time: invalid location name")
@@ -205,4 +231,25 @@ func (e *Environment) resolveUnixLocal() *Snapshot {
 	}
 	snapshot.name = "Local"
 	return snapshot
+}
+
+func (e *Environment) resolveWindowsLocal() (*Snapshot, error) {
+	source, err := e.config.WindowsLocal()
+	if err != nil {
+		return e.utc("Local"), nil
+	}
+	at := e.config.Clock.Now().UTC()
+	source.InitializationYear = int64(at.Year())
+	zone, err := occurrence.PrepareWindowsTimezone(source)
+	if err != nil {
+		return nil, err
+	}
+	return &Snapshot{kind: WindowsNative, name: "Local", source: "windows-api", native: source.Bytes(), resolvedAt: at, zone: zone}, nil
+}
+
+func gorootSource(root string) string {
+	if root == "" {
+		return ""
+	}
+	return root + "/lib/time/zoneinfo.zip"
 }

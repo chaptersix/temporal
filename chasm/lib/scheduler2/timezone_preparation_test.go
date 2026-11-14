@@ -11,10 +11,14 @@ import (
 	schedulepb "go.temporal.io/api/schedule/v1"
 	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/chasm"
+	scheduler2pb "go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1"
 	"go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence"
+	"go.temporal.io/server/chasm/lib/scheduler2/internal/timezonesource"
 	"go.temporal.io/server/common"
+	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/testing/testlogger"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 //go:embed internal/occurrence/testdata/America_New_York.tzif
@@ -318,5 +322,174 @@ func TestTimezonePreparationEveryCleanupPageFault(t *testing.T) {
 		require.True(t, ok)
 		require.Zero(t, owner.Cursor)
 		h.commit(false)
+	}
+}
+
+func TestTimezonePreparationNativeReloadAndCleanup(t *testing.T) {
+	t.Parallel()
+	calendar, err := StageCalendarSource(preparationCalendar(1), 1)
+	require.NoError(t, err)
+	source := occurrence.WindowsTimezoneSource{WordBits: 64, InitializationYear: 2024, Bias: 480, DaylightBias: -60, StandardDate: occurrence.WindowsSystemTime{Month: 11, Day: 1, Hour: 2}, DaylightDate: occurrence.WindowsSystemTime{Month: 3, Day: 2, Hour: 2}}
+	resolvedAt := time.Date(2024, 1, 1, 0, 0, 0, 123, time.UTC)
+	stage, err := StageCalendarWindowsTimezone(calendar, "Local", source.Bytes(), resolvedAt, 1)
+	require.NoError(t, err)
+	require.Len(t, stage.pages, 25)
+	h := newPreparationHarness(t, calendar)
+	bindTimezone(t, h, stage)
+	installTimezone(t, h, stage)
+	p, ctx := timezoneRoot(t, h, false)
+	snapshot, generation, binding := p.SourceSnapshot(ctx)
+	require.Equal(t, calendar.sourceID[:], binding)
+	require.Equal(t, source.Bytes(), snapshot.WindowsNativeData)
+	require.Empty(t, snapshot.TzifData)
+	require.False(t, snapshot.Utc)
+	rebuilt, err := StageCalendarTimezoneSnapshot(calendar, snapshot, generation)
+	require.NoError(t, err)
+	require.Equal(t, stage.ownerID, rebuilt.ownerID)
+	require.Equal(t, stage.header, rebuilt.header)
+	require.Equal(t, stage.pages, rebuilt.pages)
+	// Source input is not consulted while restoring the native capability.
+	h.durable["Timezone$Source"].Data.Data = []byte{0xff}
+	h.reload()
+	p, ctx = timezoneRoot(t, h, false)
+	zone, err := p.PreparedTimezone(ctx)
+	require.NoError(t, err)
+	require.Equal(t, stage.fingerprint, zone.Fingerprint())
+	for i := uint32(0); i < zone.PageCount(); i++ {
+		page, err := zone.Page(i)
+		require.NoError(t, err)
+		require.Len(t, page, 294)
+		require.Equal(t, stage.pages[i], page)
+	}
+	next, err := StageCalendarUTC(calendar, 2)
+	require.NoError(t, err)
+	bindTimezone(t, h, next)
+	p, ctx = timezoneRoot(t, h, true)
+	before := common.CloneProto(p.TimezonePreparationState)
+	_, err = p.CleanupSuperseded(ctx.(chasm.MutableContext), 16)
+	require.NoError(t, err)
+	h.commit(false)
+	p, ctx = timezoneRoot(t, h, false)
+	require.True(t, proto.Equal(before, p.TimezonePreparationState))
+	_, exists := p.Pages.Get(ctx, timezonePageKey(stage.ownerID[:], 0))
+	require.True(t, exists)
+	calls := 0
+	for {
+		p, ctx = timezoneRoot(t, h, true)
+		done, err := p.CleanupSuperseded(ctx.(chasm.MutableContext), 16)
+		require.NoError(t, err)
+		calls++
+		h.commit(true)
+		if done {
+			break
+		}
+	}
+	require.Equal(t, 2, calls)
+	p, ctx = timezoneRoot(t, h, false)
+	zone, err = p.PreparedTimezone(ctx)
+	require.NoError(t, err)
+	require.Equal(t, occurrence.PreparedUTC().Fingerprint(), zone.Fingerprint())
+}
+
+func TestTimezoneStagingResolvedVariants(t *testing.T) {
+	t.Parallel()
+	calendar, err := StageCalendarSource(preparationCalendar(1), 1)
+	require.NoError(t, err)
+	for _, kind := range []string{"UTC", "TZif", "native"} {
+		t.Run(kind, func(t *testing.T) {
+			t.Parallel()
+			now := clock.NewEventTimeSource().Update(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
+			config := timezonesource.SourceConfig{Clock: now, LookupEnv: func(string) (string, bool) { return "", false }}
+			name := "UTC"
+			var custom []byte
+			switch kind {
+			case "UTC":
+			case "TZif":
+				name = "custom"
+				custom = persistedNewYorkTZ
+			case "native":
+				name = "Local"
+				config.WindowsLocal = func() (occurrence.WindowsTimezoneSource, error) {
+					return occurrence.WindowsTimezoneSource{WordBits: 64, Bias: -60}, nil
+				}
+			default:
+				t.Fatal("unexpected fixture")
+			}
+			snapshot, err := timezonesource.NewResolver(timezonesource.NewEnvironment(config)).Resolve(name, custom)
+			require.NoError(t, err)
+			stage, err := StageResolvedCalendarTimezone(calendar, snapshot, 1)
+			require.NoError(t, err)
+			require.Equal(t, snapshot.Prepared().Fingerprint(), stage.fingerprint)
+			source := stage.sourceProto()
+			rebuilt, err := StageCalendarTimezoneSnapshot(calendar, source, 1)
+			require.NoError(t, err)
+			require.Equal(t, stage.ownerID, rebuilt.ownerID)
+			require.Equal(t, stage.header, rebuilt.header)
+		})
+	}
+}
+
+func TestTimezoneStagingRejectsConflictingSourceVariants(t *testing.T) {
+	t.Parallel()
+	calendar, err := StageCalendarSource(preparationCalendar(1), 1)
+	require.NoError(t, err)
+	_, err = StageResolvedCalendarTimezone(calendar, &timezonesource.Snapshot{}, 1)
+	require.Error(t, err)
+	native, err := StageCalendarWindowsTimezone(calendar, "Local", (occurrence.WindowsTimezoneSource{WordBits: 64, InitializationYear: 2024}).Bytes(), time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), 1)
+	require.NoError(t, err)
+	for _, kind := range []string{"UTC with native", "TZif with native", "missing timestamp"} {
+		source := native.sourceProto()
+		switch kind {
+		case "UTC with native":
+			source.Utc = true
+		case "TZif with native":
+			source.TzifData = persistedNewYorkTZ
+		case "missing timestamp":
+			source.ResolvedAt = nil
+		default:
+			t.Fatal("unexpected fixture")
+		}
+		_, err = StageCalendarTimezoneSnapshot(calendar, source, 1)
+		require.Error(t, err, kind)
+	}
+}
+
+func TestTimezoneStagingRejectsInvalidPreparationInstants(t *testing.T) {
+	t.Parallel()
+	calendar, err := StageCalendarSource(preparationCalendar(1), 1)
+	require.NoError(t, err)
+	native := (occurrence.WindowsTimezoneSource{WordBits: 64, InitializationYear: 2024}).Bytes()
+	for _, variant := range []string{"UTC", "TZif", "native"} {
+		t.Run(variant, func(t *testing.T) {
+			t.Parallel()
+			for _, invalid := range []*timestamppb.Timestamp{{Nanos: -1}, {Nanos: 1000000000}, {Seconds: -62135596801}, {Seconds: 253402300800}} {
+				source := &scheduler2pb.TimezonePreparationSource{Name: "test", ResolvedAt: invalid}
+				switch variant {
+				case "UTC":
+					source.Utc = true
+				case "TZif":
+					source.TzifData = persistedNewYorkTZ
+				case "native":
+					source.WindowsNativeData = native
+				default:
+					t.Fatal("unexpected fixture")
+				}
+				_, err := StageCalendarTimezoneSnapshot(calendar, source, 1)
+				require.ErrorContains(t, err, "preparation instant is invalid")
+			}
+		})
+	}
+	for _, sec := range []int64{-62135596801, 253402300800} {
+		instant := time.Unix(sec, 0).UTC()
+		_, err := StageCalendarTimezone(calendar, "custom", persistedNewYorkTZ, instant, 1)
+		require.ErrorContains(t, err, "not representable")
+		_, err = StageCalendarWindowsTimezone(calendar, "Local", native, instant, 1)
+		require.ErrorContains(t, err, "not representable")
+	}
+	for _, instant := range []time.Time{time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(9999, 12, 31, 23, 59, 59, 999999999, time.UTC)} {
+		stage, err := StageCalendarTimezone(calendar, "custom", persistedNewYorkTZ, instant, 1)
+		require.NoError(t, err)
+		require.NoError(t, stage.sourceProto().ResolvedAt.CheckValid())
+		require.Equal(t, instant, stage.sourceProto().ResolvedAt.AsTime())
 	}
 }

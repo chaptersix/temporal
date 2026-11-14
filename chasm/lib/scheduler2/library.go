@@ -39,5 +39,5 @@ func (l *Library) Components() []*chasm.RegistrableComponent {
 	}
 }
 func (l *Library) Tasks() []*chasm.RegistrableTask {
-	return []*chasm.RegistrableTask{chasm.NewRegistrablePureTask("idle", &IdleHandler{}), chasm.NewRegistrablePureTask("work", &WorkHandler{}), chasm.NewRegistrableSideEffectTask("start", l.start), chasm.NewRegistrableSideEffectTask("effect", l.effects), chasm.NewRegistrablePureTask("generate", &GenerateHandler{}), chasm.NewRegistrablePureTask("drain", &DrainHandler{}), chasm.NewRegistrablePureTask("manual", &ManualHandler{})}
+	return []*chasm.RegistrableTask{chasm.NewRegistrablePureTask("idle", &IdleHandler{}), chasm.NewRegistrablePureTask("work", &WorkHandler{}), chasm.NewRegistrableSideEffectTask("start", l.start), chasm.NewRegistrableSideEffectTask("startDispatch", &StartDispatchHandler{start: l.start}), chasm.NewRegistrablePureTask("startRecovery", &StartRecoveryHandler{}), chasm.NewRegistrableSideEffectTask("effect", l.effects), chasm.NewRegistrablePureTask("generate", &GenerateHandler{}), chasm.NewRegistrablePureTask("drain", &DrainHandler{}), chasm.NewRegistrablePureTask("manual", &ManualHandler{})}
 }

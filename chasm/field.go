@@ -78,6 +78,11 @@ func DataPointerTo[D proto.Message](
 	}
 }
 
+// IsSet reports whether the field contains a stored reference or staged value.
+// It does not deserialize DATA, resolve pointers, validate referenced contents,
+// or mark a node dirty. A dangling pointer can therefore still be set.
+func (f Field[T]) IsSet() bool { return !f.Internal.isEmpty() }
+
 // TryGet returns the value of the field and a boolean indicating if the value was found, deserializing if necessary.
 // Panics rather than returning an error, as errors are supposed to be handled by the framework as opposed to the
 // application, even if the error is an application bug.

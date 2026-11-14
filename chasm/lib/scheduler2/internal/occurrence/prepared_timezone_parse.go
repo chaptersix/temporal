@@ -14,11 +14,11 @@ type preparedTZZone struct {
 }
 type preparedTZTransition struct {
 	when   int64
-	offset int
+	offset int64
 }
 type preparedTZParsed struct {
 	transitions []preparedTZTransition
-	firstOffset int
+	firstOffset int64
 	rules       preparedTZRules
 }
 
@@ -86,18 +86,18 @@ func parsePreparedTZData(data []byte) (preparedTZParsed, error) {
 		} else {
 			when = int64(binary.BigEndian.Uint64(times[i*8:]))
 		}
-		tx[i] = preparedTZTransition{when: when, offset: zones[indices[i]].offset}
+		tx[i] = preparedTZTransition{when: when, offset: int64(zones[indices[i]].offset)}
 		firstUsed = firstUsed || indices[i] == 0
 	}
 	first := preparedFirstZone(zones, indices, firstUsed)
 	if len(tx) == 0 {
-		tx = []preparedTZTransition{{when: preparedTZAlpha, offset: zones[0].offset}}
+		tx = []preparedTZTransition{{when: preparedTZAlpha, offset: int64(zones[0].offset)}}
 	}
 	var rules preparedTZRules
 	if len(data) > 2 && data[0] == '\n' && data[len(data)-1] == '\n' {
 		rules = parsePreparedTZRules(string(data[1 : len(data)-1]))
 	}
-	return preparedTZParsed{transitions: tx, firstOffset: zones[first].offset, rules: rules}, nil
+	return preparedTZParsed{transitions: tx, firstOffset: int64(zones[first].offset), rules: rules}, nil
 }
 
 func preparedFirstZone(zones []preparedTZZone, indices []byte, firstUsed bool) int {

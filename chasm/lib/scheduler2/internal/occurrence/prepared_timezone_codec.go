@@ -7,16 +7,22 @@ import (
 	"math"
 )
 
-// PreparedTimezoneHeaderBytes is the fixed encoded control size. It excludes
-// transition pages and source bytes, which are stored separately.
+// PreparedTimezoneHeaderBytes is the format1 control size and maximum across
+// versions. Transition pages and source bytes are stored separately.
 const PreparedTimezoneHeaderBytes = 89
 
 // PreparedTimezonePageBytes is the largest encoded sixteen-entry page.
-const PreparedTimezonePageBytes = 230
+const PreparedTimezonePageBytes = 294
+
+// PreparedTimezoneTZifPageBytes is the format1 maximum.
+const PreparedTimezoneTZifPageBytes = 230
 
 // Header returns detached fixed-size control for persistence. Page readers and
 // source data are never serialized into this header.
 func (z *PreparedTimezone) Header() []byte {
+	if z.codecVersion == 2 {
+		return z.nativeHeader()
+	}
 	wire := make([]byte, 0, PreparedTimezoneHeaderBytes)
 	wire = append(wire, 1)
 	wire = append(wire, z.identity[:]...)
@@ -75,16 +81,28 @@ func (z *PreparedTimezone) Page(ordinal uint32) ([]byte, error) {
 	if page.identity != z.identity || page.ordinal != int(ordinal) || page.length != expected {
 		return nil, errors.New("prepared timezone page identity mismatch")
 	}
-	wire := make([]byte, 0, 38+12*page.length)
-	wire = append(wire, 1)
+	return z.encodePage(ordinal, page), nil
+}
+
+func (z *PreparedTimezone) encodePage(ordinal uint32, page preparedTimezonePage) []byte {
+	width, version := 12, byte(1)
+	if z.codecVersion == 2 {
+		width, version = 16, 2
+	}
+	wire := make([]byte, 0, 38+width*page.length)
+	wire = append(wire, version)
 	wire = append(wire, z.identity[:]...)
 	wire = binary.BigEndian.AppendUint32(wire, ordinal)
 	wire = append(wire, byte(page.length))
 	for _, entry := range page.entries[:page.length] {
 		wire = binary.BigEndian.AppendUint64(wire, uint64(entry.when))
-		wire = binary.BigEndian.AppendUint32(wire, uint32(entry.offset))
+		if version == 2 {
+			wire = binary.BigEndian.AppendUint64(wire, uint64(entry.offset))
+		} else {
+			wire = binary.BigEndian.AppendUint32(wire, uint32(entry.offset))
+		}
 	}
-	return wire, nil
+	return wire
 }
 
 // RestorePreparedTimezone validates fixed control without reading source or
@@ -112,6 +130,9 @@ func RestorePreparedTimezone(header []byte, reader func(uint32) ([]byte, error))
 }
 
 func decodePreparedTimezoneHeader(wire []byte) (*PreparedTimezone, error) {
+	if len(wire) > 0 && wire[0] == 2 {
+		return decodeNativeTimezoneHeader(wire)
+	}
 	bad := errors.New("invalid prepared timezone header")
 	if len(wire) != PreparedTimezoneHeaderBytes || wire[0] != 1 {
 		return nil, bad
@@ -123,11 +144,11 @@ func decodePreparedTimezoneHeader(wire []byte) (*PreparedTimezone, error) {
 		return nil, bad
 	}
 	z.count = int(count)
-	z.first = int(int32(binary.BigEndian.Uint32(wire[37:41])))
+	z.first = int64(int32(binary.BigEndian.Uint32(wire[37:41])))
 	if wire[41] > 1 {
 		return nil, bad
 	}
-	z.cache = preparedTimezoneCache{present: wire[41] == 1, start: int64(binary.BigEndian.Uint64(wire[42:50])), end: int64(binary.BigEndian.Uint64(wire[50:58])), offset: int(int32(binary.BigEndian.Uint32(wire[58:62])))}
+	z.cache = preparedTimezoneCache{present: wire[41] == 1, start: int64(binary.BigEndian.Uint64(wire[42:50])), end: int64(binary.BigEndian.Uint64(wire[50:58])), offset: int64(int32(binary.BigEndian.Uint32(wire[58:62])))}
 	if !z.cache.present && z.cache != (preparedTimezoneCache{}) {
 		return nil, bad
 	}
@@ -184,13 +205,21 @@ func validPreparedTimezoneRule(rule preparedTZRule) bool {
 
 func (z *PreparedTimezone) decodePage(ordinal uint32, wire []byte) (preparedTimezonePage, error) {
 	expected := min(preparedTimezonePageSize, z.count-int(ordinal)*preparedTimezonePageSize)
-	if expected <= 0 || len(wire) != 38+12*expected || wire[0] != 1 || !bytes.Equal(wire[1:33], z.identity[:]) || binary.BigEndian.Uint32(wire[33:37]) != ordinal || int(wire[37]) != expected {
+	width, version := 12, byte(1)
+	if z.codecVersion == 2 {
+		width, version = 16, 2
+	}
+	if expected <= 0 || len(wire) != 38+width*expected || wire[0] != version || !bytes.Equal(wire[1:33], z.identity[:]) || binary.BigEndian.Uint32(wire[33:37]) != ordinal || int(wire[37]) != expected {
 		return preparedTimezonePage{}, errors.New("invalid prepared timezone page")
 	}
 	page := preparedTimezonePage{identity: z.identity, ordinal: int(ordinal), length: expected}
 	for i := range expected {
-		entry := wire[38+12*i : 50+12*i]
-		page.entries[i] = preparedTZTransition{when: int64(binary.BigEndian.Uint64(entry[:8])), offset: int(int32(binary.BigEndian.Uint32(entry[8:])))}
+		entry := wire[38+width*i : 38+width*(i+1)]
+		offset := int64(int32(binary.BigEndian.Uint32(entry[8:])))
+		if version == 2 {
+			offset = int64(binary.BigEndian.Uint64(entry[8:]))
+		}
+		page.entries[i] = preparedTZTransition{when: int64(binary.BigEndian.Uint64(entry[:8])), offset: offset}
 	}
 	return page, nil
 }

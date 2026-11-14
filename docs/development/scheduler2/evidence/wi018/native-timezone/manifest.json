@@ -1,0 +1,80 @@
+{
+  "scope": "Native Windows pure source, format2 pages, platform capture and standalone persisted staging; no runtime consumer",
+  "sources": [
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/native_compat_test.go",
+      "sha256": "781c4bf4d6102f3a67a9192a30e4a1c66085833e5ea4edabf5d468d13e74e254",
+      "bytes": 1046
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/prepared_timezone.go",
+      "sha256": "ad1857efb67280816e576924175c0e763cee1f8555b795cd2a38d2ddc1a3f64c",
+      "bytes": 6456
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_codec.go",
+      "sha256": "905692d4cf0306b3b549d4603217b02b44907eb843d19887b712c8da0be8acda",
+      "bytes": 8092
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_codec_test.go",
+      "sha256": "ec6216a1df98e349a7096907c20bdfa6f6a1b69ac89885f6bf25e18f59c07bb1",
+      "bytes": 3228
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_parse.go",
+      "sha256": "aacae6ee689660b129597d27f1b53499b002582ebcda585ec77641c2e4ad7fad",
+      "bytes": 3370
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_test.go",
+      "sha256": "7c51f7e4859c74100e5eac0472078bed856b5437d87d78e1adf18a87cbd7f54e",
+      "bytes": 12508
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_windows_source.go",
+      "sha256": "a8adbbc7998439334d9c425ed97f2ad61f851785434af837f0c9202651e7944f",
+      "bytes": 8561
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_windows_source_test.go",
+      "sha256": "be7614573a4045aa75a2f804aa12527bf0d5f2554d81e28c6e18c9079bccfa3a",
+      "bytes": 13384
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/provider_unix.go",
+      "sha256": "c452b4ce4f03980f698c36a5d36c7fcb3d9b2a28dadb5a3452f65aba9125bdf1",
+      "bytes": 736
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/provider_windows.go",
+      "sha256": "406ef97dcdd2d0d780f61e48796373ded1a6b5e158048735acda75e5cb041dc6",
+      "bytes": 1556
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/resolver.go",
+      "sha256": "d5b55fd9f3f1d81ab251423f3a456b0432874821f187430939d06bf5e9d2cfb3",
+      "bytes": 7748
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/resolver_test.go",
+      "sha256": "187ae4ee6858bf1c6c34be0b2d16ef2d02c93a2271cb80a3b60d6e57970d2605",
+      "bytes": 9163
+    },
+    {
+      "path": "chasm/lib/scheduler2/timezone_preparation.go",
+      "sha256": "b959164c39853774be6691e771211e09e16533042074ced10ca79b71b4e55954",
+      "bytes": 10765
+    },
+    {
+      "path": "chasm/lib/scheduler2/timezone_preparation_test.go",
+      "sha256": "fdbf42d32bfa083da95d188ff61d92dc356c2710fe83d7e24310045ab0ab2c29",
+      "bytes": 19211
+    },
+    {
+      "path": "chasm/lib/scheduler2/timezone_staging.go",
+      "sha256": "679dc9893869e1429e6ac9fe9f018eef870519f804319f508d41573e1552b5a4",
+      "bytes": 7572
+    }
+  ]
+}

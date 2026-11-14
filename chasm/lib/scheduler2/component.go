@@ -26,12 +26,18 @@ type Scheduler struct {
 	OperationPages   chasm.DataMap[*commonpb.Payload]
 	OperationRecords chasm.DataMap[*scheduler2pb.OperationState]
 	RequestRecords   chasm.DataMap[*scheduler2pb.Payload]
+	ReadyRecords     chasm.DataMap[*scheduler2pb.ReadyRecord]
+	ActionRecords    chasm.DataMap[*scheduler2pb.PublicActionRecord]
+	RunningRecords   chasm.DataMap[*scheduler2pb.RunningPublicAction]
+	ProjectionPages  chasm.DataMap[*commonpb.Payload]
 	QueueRecords     chasm.DataMap[*scheduler2pb.QueuedOccurrence]
 	QueuePages       chasm.DataMap[*commonpb.Payload]
 	Operations       chasm.Map[string, *scheduler2pb.OperationState]
 	Requests         chasm.Map[string, *scheduler2pb.Payload]
 	PayloadBlobs     chasm.Map[string, *scheduler2pb.Payload]
 	EffectRequests   chasm.Map[string, *scheduler2pb.Payload]
+	CancelRequest    chasm.Field[*scheduler2pb.Payload]
+	TerminateRequest chasm.Field[*scheduler2pb.Payload]
 	Generator        chasm.Field[*Generator]
 	Carryover        chasm.Field[*scheduler2pb.CarryoverState]
 	Diagnostics      chasm.Field[*scheduler2pb.Payload]
@@ -54,6 +60,9 @@ func (s *Scheduler) state(ctx chasm.Context) (decision.State, error) {
 }
 
 func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) (decision.State, error) {
+	if err := s.validatePublicProjection(ctx); err != nil {
+		return decision.State{}, err
+	}
 	if err := s.validateEffects(); err != nil {
 		return decision.State{}, err
 	}
@@ -223,8 +232,15 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 		}
 		maps.Copy(prepared, blobs)
 	}
-	publicPlan := s.preparePublicTransition(ctx, before, next, event, newAdmission)
+	publicPlan, err := s.preparePublicTransition(ctx, before, next, event, newAdmission)
+	if err != nil {
+		return err
+	}
 	recordPlan, err := s.prepareTransitionRecords(ctx, next, newAdmission, eviction, publicPlan.eviction, requestRecord)
+	if err != nil {
+		return err
+	}
+	publicPlan, err = s.finalizePublicTransition(ctx, publicPlan, recordPlan)
 	if err != nil {
 		return err
 	}
@@ -266,16 +282,19 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 // publishTransition cannot reject: validation and successor-token checks precede
 // every DATA, control-state and task write in this publication phase.
 func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next decision.State, kind decision.Kind, newAdmission bool, eviction string, effectRequests map[string][]byte, carryoverRecord *scheduler2pb.CarryoverState) {
-	pendingStarts := maps.Clone(s.PendingStarts)
-	if pendingStarts == nil {
-		pendingStarts = make(map[string]int64)
-	}
-	delete(pendingStarts, eviction)
-	if next.Operation != nil {
-		if wake, pending := decision.Wake(next); pending {
-			pendingStarts[next.Operation.ID] = wake
-		} else {
-			delete(pendingStarts, next.Operation.ID)
+	var pendingStarts map[string]int64
+	if s.OperationStore == nil || s.OperationStore.StartDispatch == nil {
+		pendingStarts = maps.Clone(s.PendingStarts)
+		if pendingStarts == nil {
+			pendingStarts = make(map[string]int64)
+		}
+		delete(pendingStarts, eviction)
+		if next.Operation != nil {
+			if wake, pending := decision.Wake(next); pending {
+				pendingStarts[next.Operation.ID] = wake
+			} else {
+				delete(pendingStarts, next.Operation.ID)
+			}
 		}
 	}
 	hasGenerator, latestOperationID := s.HasGenerator, s.OperationId
@@ -286,7 +305,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 	}
 	previousRoot := s.RootState
 	s.RootState = &scheduler2pb.RootState{
-		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef, IndexedQueue: previousRoot.IndexedQueue, OperationStore: previousRoot.OperationStore, PayloadStore: previousRoot.PayloadStore,
+		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef, IndexedQueue: previousRoot.IndexedQueue, OperationStore: previousRoot.OperationStore, PayloadStore: previousRoot.PayloadStore, ProjectionStore: previousRoot.ProjectionStore,
 		ActivitySet: next.Root.ActivitySet, ActivityAt: next.Root.ActivityAt, UnconfirmedStarts: next.Root.UnconfirmedStarts,
 		IdleDuration: previousRoot.IdleDuration, IdleToken: previousRoot.IdleToken, IdleArmed: previousRoot.IdleArmed, IdleAt: previousRoot.IdleAt,
 		Closed: previousRoot.Closed, Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
@@ -313,7 +332,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 	}
 	oldWake, hadWake := decision.Wake(before)
 	wake, hasWake := decision.Wake(next)
-	if hasWake && (!hadWake || before.Operation.ID != next.Operation.ID || oldWake != wake) {
+	if (s.OperationStore == nil || s.OperationStore.StartDispatch == nil) && hasWake && (!hadWake || before.Operation.ID != next.Operation.ID || oldWake != wake) {
 		scheduled := time.Unix(0, wake)
 		if s.workQuanta(ctx) > 0 && !scheduled.After(ctx.Now(s)) {
 			// Due side effects use the transfer queue, as in the legacy invoker.

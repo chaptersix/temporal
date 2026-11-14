@@ -1,0 +1,42 @@
+--- FAIL: TestStartClaimUsesIssuanceClockSnapshot (0.01s)
+panic: DataMap requires an execution context [recovered, repanicked]
+
+goroutine 27 [running]:
+testing.tRunner.func1.2({0x103793e90, 0x241acbb36300})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2125 +0x1a0
+testing.tRunner.func1()
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2128 +0x2c8
+panic({0x103793e90?, 0x241acbb36300?})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859 +0x120
+go.temporal.io/server/chasm.dataMapMust(...)
+	/private/tmp/sch-redesign-execution/chasm/data_map.go:171
+go.temporal.io/server/chasm.dataMapContext({0x151b6f998?, 0x241acbb362d0?})
+	/private/tmp/sch-redesign-execution/chasm/data_map.go:105 +0xe8
+go.temporal.io/server/chasm.dataMapInternal.checked({0x241acba976d8?}, {0x151b6f998?, 0x241acbb362d0?})
+	/private/tmp/sch-redesign-execution/chasm/data_map.go:117 +0x30
+go.temporal.io/server/chasm.DataMap[...].Get(0x1035d6a00?, {0x151b6f998, 0x241acbb362d0?}, {0x241acb1616b0?, 0x24})
+	/private/tmp/sch-redesign-execution/chasm/data_map.go:40 +0x3c
+go.temporal.io/server/chasm/lib/scheduler2.(*indexBackend).Read(0x241acba977e8?, {0x241acb1616b0?, 0x151b6ba28?})
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/index_backend.go:22 +0x40
+go.temporal.io/server/chasm/lib/scheduler2.(*operationIndexCapture).Read(0x241acba97818?, {0x241acb1616b0?, 0x241acb1616b0?})
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/operation_indexes.go:29 +0x28
+go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex.(*CountBatch).readIndex(0x241acc492090, {0x241acb1616b0, 0x24})
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/queueindex/backend.go:171 +0x1c4
+go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex.(*CountBatch).sequenceRoot(0x241acc492090, {0x1, 0x72, 0x65, 0x61, 0x64, 0x79, 0x0, 0x0, 0x0, ...})
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/queueindex/sequence.go:66 +0x70
+go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex.(*CountBatch).SequenceCount(0x241acc492090, {0x1, 0x72, 0x65, 0x61, 0x64, 0x79, 0x0, 0x0, 0x0, ...}, ...)
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/queueindex/sequence.go:410 +0x104
+go.temporal.io/server/chasm/lib/scheduler2.(*operationReadinessEditor).validateCount(0x28?, 0x103d13578?)
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/operation_readiness.go:118 +0xcc
+go.temporal.io/server/chasm/lib/scheduler2.(*Scheduler).newOperationReadinessEditor(0x241acdbe2d88, {0x151b6f998, 0x241acbb362d0}, 0x241acdbfe000)
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/operation_readiness.go:79 +0x2ec
+go.temporal.io/server/chasm/lib/scheduler2.(*Scheduler).claimStart(0x241acdbe2d88, {0x103f33d78, 0x241acbb362d0}, {0x241acdbfa680?, {0x1001e78f0?, 0x241acb19a6f8?, 0x1040cf2c0?}})
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/start_dispatch.go:71 +0x254
+go.temporal.io/server/chasm/lib/scheduler2.TestStartClaimUsesIssuanceClockSnapshot(0x241acb9938c8)
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/start_dispatch_test.go:168 +0x1c8
+testing.tRunner(0x241acb9938c8, 0x103f37c18)
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2260 +0x3b8
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.682s
+FAIL

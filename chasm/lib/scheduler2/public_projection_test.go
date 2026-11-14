@@ -10,6 +10,7 @@ import (
 	enumspb "go.temporal.io/api/enums/v1"
 	schedulepb "go.temporal.io/api/schedule/v1"
 	"go.temporal.io/server/chasm"
+	pb "go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1"
 	"go.temporal.io/server/chasm/lib/scheduler2/internal/decision"
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/testing/protorequire"
@@ -29,10 +30,22 @@ func publicProjectionAdmission(h *treeHarness) string {
 
 func TestPublicProjectionLifecycleAndLateAcknowledgment(t *testing.T) {
 	t.Parallel()
+	for _, indexed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("indexed=%v", indexed), func(t *testing.T) { testPublicProjectionLifecycleAndLateAcknowledgment(t, indexed) })
+	}
+}
+
+func testPublicProjectionLifecycleAndLateAcknowledgment(t *testing.T, indexed bool) {
+	t.Parallel()
 	for _, callbackFirst := range []bool{false, true} {
 		t.Run(fmt.Sprintf("callbackFirst=%v", callbackFirst), func(t *testing.T) {
 			t.Parallel()
 			h := executingPublicTree(t, nil)
+			if indexed {
+				s, _ := h.root(true)
+				s.ProjectionStore = &pb.ProjectionStoreControl{FormatVersion: projectionStoreVersion, NextActionSequence: 1}
+				h.commit(true)
+			}
 			id := publicProjectionAdmission(h)
 			s, ctx := h.root(false)
 			description, err := s.DescribePublic(ctx)
@@ -83,7 +96,19 @@ func TestPublicProjectionLifecycleAndLateAcknowledgment(t *testing.T) {
 
 func TestPublicProjectionHistorySurvivesOperationEviction(t *testing.T) {
 	t.Parallel()
+	for _, indexed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("indexed=%v", indexed), func(t *testing.T) { testPublicProjectionHistorySurvivesOperationEviction(t, indexed) })
+	}
+}
+
+func testPublicProjectionHistorySurvivesOperationEviction(t *testing.T, indexed bool) {
+	t.Parallel()
 	h := executingPublicTree(t, nil)
+	if indexed {
+		s, _ := h.root(true)
+		s.ProjectionStore = &pb.ProjectionStoreControl{FormatVersion: projectionStoreVersion, NextActionSequence: 1}
+		h.commit(true)
+	}
 	s, _ := h.root(true)
 	s.Policy = enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL
 	h.commit(true)

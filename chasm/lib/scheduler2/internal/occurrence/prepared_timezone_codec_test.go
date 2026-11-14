@@ -19,7 +19,7 @@ func TestPreparedTimezoneCodecRoundTrip(t *testing.T) {
 	for ordinal := uint32(0); ordinal < z.PageCount(); ordinal++ {
 		page, err := z.Page(ordinal)
 		require.NoError(t, err)
-		require.LessOrEqual(t, len(page), PreparedTimezonePageBytes)
+		require.LessOrEqual(t, len(page), PreparedTimezoneTZifPageBytes)
 		pages[ordinal] = page
 	}
 	reads := 0

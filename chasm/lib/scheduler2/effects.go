@@ -17,6 +17,9 @@ func decodeEffect(e *scheduler2pb.EffectState) decision.Effect {
 }
 
 func (s *Scheduler) prepareEffects(ctx chasm.Context, next decision.State) (decision.State, map[string][]byte, error) {
+	if err := s.validateEffects(); err != nil {
+		return decision.State{}, nil, err
+	}
 	if err := validateDecisionEffects(next); err != nil {
 		return decision.State{}, nil, err
 	}
@@ -47,7 +50,7 @@ func (s *Scheduler) prepareEffects(ctx chasm.Context, next decision.State) (deci
 		if effect.Phase != decision.EffectPending {
 			continue
 		}
-		if _, exists := s.EffectRequests[effect.ID]; exists {
+		if s.effectRequestPresent(effect.ID, effect.Kind) {
 			continue
 		}
 		// Effect identity lives in the small skeleton; large fields are irrelevant.
@@ -91,6 +94,14 @@ func freezeEffect(effect decision.Effect, start *workflowservice.StartWorkflowEx
 
 func (s *Scheduler) publishEffects(ctx chasm.MutableContext, before, next decision.State, requests map[string][]byte) {
 	retained := make(map[string]bool, len(next.Effects))
+	for _, effect := range next.Effects {
+		retained[effect.ID] = true
+	}
+	for _, effect := range before.Effects {
+		if !retained[effect.ID] {
+			s.deleteEffectRequest(effect)
+		}
+	}
 	oldWakes := make(map[string]int64)
 	for _, effect := range before.Effects {
 		if wake, pending := decision.EffectWake(effect); pending {
@@ -98,21 +109,15 @@ func (s *Scheduler) publishEffects(ctx chasm.MutableContext, before, next decisi
 		}
 	}
 	for _, effect := range next.Effects {
-		retained[effect.ID] = true
 		s.Effects = append(s.Effects, &scheduler2pb.EffectState{Id: effect.ID, TargetId: effect.TargetID, Kind: scheduler2pb.EffectKind(effect.Kind), Phase: scheduler2pb.EffectPhase(effect.Phase), ChainId: effect.ChainID, Deadline: effect.Deadline, RetryAt: effect.RetryAt})
 		if wire, ok := requests[effect.ID]; ok {
-			s.EffectRequests[effect.ID] = chasm.NewDataField(ctx, &scheduler2pb.Payload{Data: wire})
+			s.storeEffectRequest(ctx, effect, wire)
 		}
 		if wake, pending := decision.EffectWake(effect); pending {
 			previous, existed := oldWakes[effect.ID]
 			if !existed || previous != wake {
 				ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: time.Unix(0, wake)}, &scheduler2pb.EffectTask{EffectId: effect.ID, WakeTime: wake})
 			}
-		}
-	}
-	for _, effect := range before.Effects {
-		if !retained[effect.ID] {
-			delete(s.EffectRequests, effect.ID)
 		}
 	}
 }
@@ -154,7 +159,11 @@ func (s *Scheduler) effectRequest(ctx chasm.Context, id string) (*EffectRequest,
 		default:
 			return nil, serviceerror.NewInvalidArgument("unknown overlap effect")
 		}
-		if err := proto.Unmarshal(s.EffectRequests[id].Get(ctx).Data, message); err != nil {
+		wire, err := s.effectRequestBytes(ctx, effect)
+		if err != nil {
+			return nil, err
+		}
+		if err := proto.Unmarshal(wire, message); err != nil {
 			return nil, err
 		}
 		return request, nil

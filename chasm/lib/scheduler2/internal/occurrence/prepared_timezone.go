@@ -18,20 +18,21 @@ type preparedTimezonePage struct {
 type preparedTimezoneCache struct {
 	present    bool
 	start, end int64
-	offset     int
+	offset     int64
 }
 
 // PreparedTimezone owns immutable indexed transitions and parsed extension rules.
 // Construction and hashing are input-proportional and must run outside mutation.
 // Lookup uses only fixed-size pages; it never loads a time.Location or parses text.
 type PreparedTimezone struct {
-	identity [32]byte
-	count    int
-	first    int
-	cache    preparedTimezoneCache
-	rules    preparedTZRules
-	pages    []preparedTimezonePage
-	readPage func(int) (preparedTimezonePage, error)
+	identity     [32]byte
+	count        int
+	first        int64
+	codecVersion uint8
+	cache        preparedTimezoneCache
+	rules        preparedTZRules
+	pages        []preparedTimezonePage
+	readPage     func(int) (preparedTimezonePage, error)
 }
 
 type timezoneWork struct{ lookups, pages int }
@@ -52,7 +53,8 @@ func PrepareTimezone(data []byte, resolvedAt time.Time) (*PreparedTimezone, erro
 			if i+1 < len(parsed.transitions) {
 				z.cache.end = parsed.transitions[i+1].when
 			} else if z.rules.valid {
-				z.cache.offset, z.cache.start, z.cache.end = z.rules.lookup(tx.when, sec)
+				offset, start, end := z.rules.lookup(tx.when, sec)
+				z.cache.offset, z.cache.start, z.cache.end = int64(offset), start, end
 			}
 			break
 		}
@@ -71,14 +73,7 @@ func PrepareTimezone(data []byte, resolvedAt time.Time) (*PreparedTimezone, erro
 	binary.BigEndian.PutUint64(cache[17:25], uint64(z.cache.offset))
 	_, _ = hash.Write(cache[:])
 	copy(z.identity[:], hash.Sum(nil))
-	z.pages = make([]preparedTimezonePage, (len(parsed.transitions)+preparedTimezonePageSize-1)/preparedTimezonePageSize)
-	for i, tx := range parsed.transitions {
-		page := &z.pages[i/preparedTimezonePageSize]
-		page.identity = z.identity
-		page.ordinal = i / preparedTimezonePageSize
-		page.entries[i%preparedTimezonePageSize] = tx
-		page.length++
-	}
+	z.setTransitions(parsed.transitions)
 	return z, nil
 }
 
@@ -115,7 +110,7 @@ func (z *PreparedTimezone) transition(index int, work *timezoneWork) (preparedTZ
 	return page.entries[index%preparedTimezonePageSize], nil
 }
 
-func (z *PreparedTimezone) lookup(sec int64, work *timezoneWork) (offset int, start, end int64, err error) {
+func (z *PreparedTimezone) lookup(sec int64, work *timezoneWork) (offset, start, end int64, err error) {
 	work.lookups++
 	if z.count == 0 {
 		return 0, preparedTZAlpha, preparedTZOmega, nil
@@ -151,8 +146,8 @@ func (z *PreparedTimezone) lookup(sec int64, work *timezoneWork) (offset int, st
 		return 0, 0, 0, err
 	}
 	if lo == z.count-1 && z.rules.valid {
-		offset, start, end = z.rules.lookup(chosen.when, sec)
-		return offset, start, end, nil
+		ruleOffset, start, end := z.rules.lookup(chosen.when, sec)
+		return int64(ruleOffset), start, end, nil
 	}
 	return chosen.offset, chosen.when, end, nil
 }
@@ -185,4 +180,15 @@ func (z *PreparedTimezone) date(year, month, day, hour, minute, second int, work
 		unixSec -= int64(offset)
 	}
 	return time.Unix(unixSec, 0).UTC(), nil
+}
+
+func (z *PreparedTimezone) setTransitions(transitions []preparedTZTransition) {
+	z.pages = make([]preparedTimezonePage, (len(transitions)+preparedTimezonePageSize-1)/preparedTimezonePageSize)
+	for i, tx := range transitions {
+		page := &z.pages[i/preparedTimezonePageSize]
+		page.identity = z.identity
+		page.ordinal = i / preparedTimezonePageSize
+		page.entries[i%preparedTimezonePageSize] = tx
+		page.length++
+	}
 }

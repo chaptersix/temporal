@@ -1,0 +1,20 @@
+{
+  "note": "Root-owned evolving schema snapshot; native dependency is only additive TimezonePreparationSource.windows_native_data field5. Parent composed acceptance owns shared schema freeze.",
+  "sources": [
+    {
+      "path": "chasm/lib/scheduler2/proto/v1/state.proto",
+      "sha256": "a0b68711ff849212b446af2973b43a4187c3efd052f95e5e9c1edec39da467c6",
+      "bytes": 31981
+    },
+    {
+      "path": "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go",
+      "sha256": "e010fc35d1045159a854c4ad8bff043185fa5ef973da4e3a0e8453e10f96abb6",
+      "bytes": 183279
+    },
+    {
+      "path": "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go",
+      "sha256": "09dcdc5da35f31099ab27e27b6eaaa3b13e25dd8cfdf7eb9f174ff9a578f4508",
+      "bytes": 50657
+    }
+  ]
+}

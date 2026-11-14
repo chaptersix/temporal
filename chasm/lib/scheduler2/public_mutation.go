@@ -83,6 +83,9 @@ func publicGeneration(ctx chasm.Context, namespace, scheduleID string, schedule 
 }
 
 func (s *Scheduler) checkPublicMutation(ctx chasm.Context) error {
+	if err := s.validatePublicProjection(ctx); err != nil {
+		return err
+	}
 	if s.Closed {
 		return serviceerror.NewNotFound("schedule is closed")
 	}

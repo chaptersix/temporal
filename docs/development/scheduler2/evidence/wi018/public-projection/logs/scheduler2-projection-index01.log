@@ -1,0 +1,20 @@
+--- FAIL: TestSequenceAtOrAfterReference (0.05s)
+    sequence_next_test.go:25: [rapid] failed after 0 tests: (*T).FailNow() called
+        To reproduce, specify -run="TestSequenceAtOrAfterReference" -rapid.failfile="testdata/rapid/TestSequenceAtOrAfterReference/TestSequenceAtOrAfterReference-20261113230747-70893.fail" (or -rapid.seed=3488958474313076907)
+        Failed test output:
+    sequence_next_test.go:30: [rapid] draw sequence: 0x0
+    sequence_next_test.go:35: [rapid] draw lower: 0x0
+    sequence_next_test.go:30: [rapid] draw sequence: 0x0
+    sequence_next_test.go:33: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/queueindex/sequence_next_test.go:33
+        	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+        	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:234
+        	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+        	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/queueindex/sequence_next_test.go:25
+        	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/asm_arm64.s:1039
+        	Error:      	Received unexpected error:
+        	            	sequence already indexed
+        	Test:       	TestSequenceAtOrAfterReference
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex	0.294s
+FAIL

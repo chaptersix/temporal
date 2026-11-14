@@ -16,10 +16,3 @@ import (
 func NewUnixEnvironment(timeSource clock.TimeSource) *Environment {
 	return NewEnvironment(SourceConfig{LookupEnv: os.LookupEnv, Read: ReadSource, Embedded: Embedded, Platform: []string{"/usr/share/zoneinfo/", "/usr/share/lib/zoneinfo/", "/usr/lib/locale/TZ/", "/etc/zoneinfo"}, GOROOT: gorootSource(runtime.GOROOT()), Clock: timeSource})
 }
-
-func gorootSource(root string) string {
-	if root == "" {
-		return ""
-	}
-	return root + "/lib/time/zoneinfo.zip"
-}

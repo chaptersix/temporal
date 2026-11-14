@@ -11,6 +11,9 @@ func (s *Scheduler) validateEffects() error {
 	if len(s.Effects) > 2 || len(s.EffectRequests) > 2 {
 		return serviceerror.NewInternal("overlap effect bound exceeded")
 	}
+	if s.fixedEffectStorage() && len(s.EffectRequests) != 0 || !s.fixedEffectStorage() && (s.CancelRequest.IsSet() || s.TerminateRequest.IsSet()) {
+		return serviceerror.NewInternal("mixed overlap request storage")
+	}
 	var seen uint8
 	matched := 0
 	for _, effect := range s.Effects {
@@ -20,14 +23,14 @@ func (s *Scheduler) validateEffects() error {
 		if err := validateEffectIdentity(s.BlockingOperationId, effect.Id, effect.TargetId, effect.Kind, effect.Phase, &seen); err != nil {
 			return err
 		}
-		_, present := s.EffectRequests[effect.Id]
+		present := s.effectRequestPresent(effect.Id, decision.EffectKind(effect.Kind))
 		if present {
 			matched++
 		} else if effect.Phase == pb.EFFECT_PHASE_PENDING {
 			return serviceerror.NewInternal("pending overlap request is missing")
 		}
 	}
-	if matched != len(s.EffectRequests) {
+	if matched != s.effectRequestCount() {
 		return serviceerror.NewInternal("unowned overlap request")
 	}
 	return nil

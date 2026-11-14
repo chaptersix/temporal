@@ -69,10 +69,12 @@ type operationRecordChange struct {
 	changeRequest bool
 }
 type operationRecordPlan struct {
-	changes []operationRecordChange
-	control *pb.OperationStoreControl
-	owners  []blobOwnerChange
-	indexes operationIndexPlan
+	changes         []operationRecordChange
+	control         *pb.OperationStoreControl
+	owners          []blobOwnerChange
+	indexes         operationIndexPlan
+	readiness       operationReadinessPlan
+	dispatchChanged bool
 }
 
 func (s *Scheduler) prepareOperationRecords(ctx chasm.Context, changes []operationRecordChange) (operationRecordPlan, error) {
@@ -108,6 +110,26 @@ func (s *Scheduler) prepareOperationRecords(ctx chasm.Context, changes []operati
 		return operationRecordPlan{}, err
 	}
 	plan.indexes = indexes
+	if plan.control != nil && plan.control.StartDispatch != nil {
+		editor, err := s.newOperationReadinessEditor(ctx, plan.control)
+		if err != nil {
+			return operationRecordPlan{}, err
+		}
+		defer editor.abort()
+		for _, change := range plan.changes {
+			if err := editor.change(change); err != nil {
+				return operationRecordPlan{}, err
+			}
+		}
+		plan.dispatchChanged, err = prepareStartDispatch(editor, false)
+		if err != nil {
+			return operationRecordPlan{}, err
+		}
+		plan.readiness, err = editor.finish()
+		if err != nil {
+			return operationRecordPlan{}, err
+		}
+	}
 	return plan, nil
 }
 
@@ -159,7 +181,9 @@ func (s *Scheduler) publishOperationRecords(ctx chasm.MutableContext, plan opera
 			}
 		}
 	}
+	s.publishOperationReadiness(ctx, plan.readiness)
 	s.OperationStore = plan.control
+	s.publishStartDispatch(ctx, plan.dispatchChanged)
 }
 
 func (s *Scheduler) prepareTransitionRecords(ctx chasm.Context, next decision.State, admitted bool, eviction, completedEviction string, request *pb.Payload) (operationRecordPlan, error) {

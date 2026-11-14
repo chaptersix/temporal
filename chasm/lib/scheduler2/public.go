@@ -110,6 +110,9 @@ func publicConflictToken(runID string, revision uint64) []byte {
 
 // DescribePublic returns detached data without consulting runtime configuration.
 func (s *Scheduler) DescribePublic(ctx chasm.Context) (*workflowservice.DescribeScheduleResponse, error) {
+	if err := s.validatePublicProjection(ctx); err != nil {
+		return nil, err
+	}
 	if err := s.validateOperationStore(); err != nil {
 		return nil, err
 	}
@@ -138,7 +141,9 @@ func (s *Scheduler) DescribePublic(ctx chasm.Context) (*workflowservice.Describe
 	schedule.Policies.CatchupWindow = durationpb.New(window)
 	legacyscheduler.CleanSpec(schedule.Spec)
 	info := common.CloneProto(s.PublicInfo.Get(ctx))
-	s.publicInfoProjection(ctx, info, schedule.Spec)
+	if err := s.publicInfoProjection(ctx, info, schedule.Spec); err != nil {
+		return nil, err
+	}
 	info.StateSizeBytes = int64(ctx.ExecutionInfo().ApproximateStateSize)
 	info.TimeSkippingInfo = ctx.GetTimeSkippingInfo()
 	visibility := s.Visibility.Get(ctx)

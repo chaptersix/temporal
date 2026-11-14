@@ -50,9 +50,26 @@ func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ ch
 		return err
 	}
 	event := decision.Event{Kind: decision.Expire, Incarnation: ref.RunID, OperationID: task.OperationId}
+	event, err = h.issueStart(ctx, snapshot, event)
+	if err != nil {
+		return err
+	}
+	// Task validity can change while the RPC is in flight. Merge against the same
+	// execution incarnation and let operation identity/phase validate the result.
+	resultRef := chasm.NewComponentRef[*Scheduler](ref.ExecutionKey)
+	_, _, err = chasm.UpdateComponent(ctx, resultRef,
+		func(s *Scheduler, ctx chasm.MutableContext, event decision.Event) (chasm.NoValue, error) {
+			return nil, s.Apply(ctx, event)
+		}, event)
+	return err
+}
+
+// issueStart uses the detached issuance snapshot after its caller establishes
+// durable authority and acquires the handler's shared local permit.
+func (h *StartHandler) issueStart(ctx context.Context, snapshot startSnapshot, event decision.Event) (decision.Event, error) {
 	if snapshot.request != nil {
 		if err := ctx.Err(); err != nil {
-			return err
+			return event, err
 		}
 		var chain string
 		var startErr error
@@ -70,19 +87,13 @@ func (h *StartHandler) Execute(ctx context.Context, ref chasm.ComponentRef, _ ch
 		} else {
 			event.Kind = decision.Acknowledged
 			event.ChainID = chain
+			var err error
 			event.StartObservedAt, err = activityNano(h.wallNow().Add(snapshot.skipped))
 			if err != nil {
-				return err
+				return event, err
 			}
 			event.StartObserved = true
 		}
 	}
-	// Task validity can change while the RPC is in flight. Merge against the same
-	// execution incarnation and let operation identity/phase validate the result.
-	resultRef := chasm.NewComponentRef[*Scheduler](ref.ExecutionKey)
-	_, _, err = chasm.UpdateComponent(ctx, resultRef,
-		func(s *Scheduler, ctx chasm.MutableContext, event decision.Event) (chasm.NoValue, error) {
-			return nil, s.Apply(ctx, event)
-		}, event)
-	return err
+	return event, nil
 }

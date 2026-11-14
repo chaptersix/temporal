@@ -29,7 +29,13 @@ func (s *Scheduler) SearchAttributes(ctx chasm.Context) []chasm.SearchAttributeK
 		attributes = append(attributes, publicIdleCloseTime.Value(time.Unix(0, s.IdleAt)))
 	}
 	var running int64
-	if runtime, ok := s.PublicRuntime.TryGet(ctx); ok {
+	if s.ProjectionStore != nil {
+		if err := s.validatePublicProjection(ctx); err != nil {
+			// The framework caller handles invariant failures, as with DATA decoding.
+			panic(err) //nolint:forbidigo
+		}
+		running = s.ProjectionStore.RunningCount
+	} else if runtime, ok := s.PublicRuntime.TryGet(ctx); ok {
 		for _, action := range runtime.Actions {
 			operation, exists := s.Operations[action.OperationId]
 			if exists && operation.Get(ctx).Phase == scheduler2pb.PHASE_STARTED && action.Result.GetStartWorkflowResult().GetRunId() != "" {

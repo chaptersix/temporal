@@ -16,13 +16,21 @@ import (
 )
 
 type publicTransitionPlan struct {
-	runtime  *scheduler2pb.PublicRuntime
-	info     *schedulepb.ScheduleInfo
-	eviction string
+	runtime    *scheduler2pb.PublicRuntime
+	info       *schedulepb.ScheduleInfo
+	eviction   string
+	projection *projectionMutation
 }
 
 // preparePublicTransition exposes completion retention before any owner writes.
-func (s *Scheduler) preparePublicTransition(ctx chasm.Context, before, next decision.State, event decision.Event, admitted bool) publicTransitionPlan {
+func (s *Scheduler) preparePublicTransition(ctx chasm.Context, before, next decision.State, event decision.Event, admitted bool) (publicTransitionPlan, error) {
+	if s.ProjectionStore != nil {
+		return s.prepareIndexedPublicTransition(ctx, before, next, event, admitted)
+	}
+	return s.prepareLegacyPublicTransition(ctx, before, next, event, admitted), nil
+}
+
+func (s *Scheduler) prepareLegacyPublicTransition(ctx chasm.Context, before, next decision.State, event decision.Event, admitted bool) publicTransitionPlan {
 	if s.PublicRevision == 0 {
 		return publicTransitionPlan{}
 	}
@@ -40,24 +48,7 @@ func (s *Scheduler) preparePublicTransition(ctx chasm.Context, before, next deci
 		plan.info = info
 	}
 	if admitted {
-		at := event.ActualTime.Time(event.Actual)
-		switch event.Kind {
-		case decision.DispatchManual:
-			at = next.Operation.NominalTime.Time(next.Operation.Nominal)
-		case decision.Drain:
-			if before.IndexedQueue.Enabled {
-				candidate := next.QueueChange.Drain.Candidate
-				at = candidate.ActualTime.Time(candidate.Actual)
-			} else {
-				index := decision.DrainIndex(before, event.Now, event.CatchupWindow)
-				if index >= 0 {
-					at = before.Queue[index].ActualTime.Time(before.Queue[index].Actual)
-				}
-			}
-		default:
-			// Automatic and backfill events carry their jittered time.
-		}
-		runtime.Actions = append(runtime.Actions, &scheduler2pb.PublicAction{OperationId: next.Operation.ID, Result: &schedulepb.ScheduleActionResult{ScheduleTime: timestamppb.New(at), StartWorkflowResult: &commonpb.WorkflowExecution{WorkflowId: next.Operation.WorkflowID}}})
+		runtime.Actions = append(runtime.Actions, admittedPublicAction(before, next, event))
 	}
 	plan.eviction = retainPublicCompletions(runtime, before, next, event)
 	updatePublicResult(runtime, before, next, event)
@@ -72,7 +63,11 @@ func (s *Scheduler) publishPublicTransition(ctx chasm.MutableContext, plan publi
 	if plan.info != nil {
 		s.PublicInfo = chasm.NewDataField(ctx, plan.info)
 	}
-	s.retainPublicActions(runtime)
+	if plan.projection != nil {
+		s.publishActionRecords(ctx, plan.projection)
+	} else {
+		s.retainPublicActions(runtime)
+	}
 	s.PublicRuntime = chasm.NewDataField(ctx, runtime)
 	if stored, ok := s.PublicSchedule.TryGet(ctx); ok {
 		s.publishPublicList(ctx, stored)
@@ -83,6 +78,13 @@ func (s *Scheduler) publicRecent(ctx chasm.Context, count int) []*schedulepb.Sch
 	runtime, ok := s.PublicRuntime.TryGet(ctx)
 	if !ok {
 		return nil
+	}
+	if s.ProjectionStore != nil {
+		actions := make([]*schedulepb.ScheduleActionResult, 0, min(count, len(runtime.RecentActions)))
+		for _, entry := range runtime.RecentActions[max(0, len(runtime.RecentActions)-count):] {
+			actions = append(actions, common.CloneProto(entry.Action.Result))
+		}
+		return actions
 	}
 	var actions []*schedulepb.ScheduleActionResult
 	for _, a := range runtime.Actions {
@@ -136,7 +138,7 @@ func (s *Scheduler) publicFuture(ctx chasm.Context, spec *schedulepb.ScheduleSpe
 	return result
 }
 
-func (s *Scheduler) publicInfoProjection(ctx chasm.Context, info *schedulepb.ScheduleInfo, spec *schedulepb.ScheduleSpec) {
+func (s *Scheduler) publicInfoProjection(ctx chasm.Context, info *schedulepb.ScheduleInfo, spec *schedulepb.ScheduleSpec) error {
 	info.ActionCount = s.Started
 	info.BufferSize = s.queueLength() + s.UnconfirmedStarts
 	info.RecentActions = s.publicRecent(ctx, 10)
@@ -145,6 +147,14 @@ func (s *Scheduler) publicInfoProjection(ctx chasm.Context, info *schedulepb.Sch
 	if runtime, ok := s.PublicRuntime.TryGet(ctx); ok {
 		info.MissedCatchupWindow = runtime.MissedCatchupWindow
 		info.OverlapSkipped = runtime.OverlapSkipped
+		if s.ProjectionStore != nil {
+			running, err := s.runningProjection(ctx)
+			if err != nil {
+				return err
+			}
+			info.RunningWorkflows = running
+			return nil
+		}
 		for _, a := range runtime.Actions {
 			op, exists := s.operationRecord(ctx, a.OperationId)
 			if !exists {
@@ -155,6 +165,7 @@ func (s *Scheduler) publicInfoProjection(ctx chasm.Context, info *schedulepb.Sch
 			}
 		}
 	}
+	return nil
 }
 
 func (s *Scheduler) publicListProjection(ctx chasm.Context, info *schedulepb.ScheduleListInfo, spec *schedulepb.ScheduleSpec) {
@@ -289,4 +300,25 @@ func publicExpiredWaiters(before, after []decision.Queued, now, catchup int64) i
 		}
 	}
 	return count
+}
+
+func admittedPublicAction(before, next decision.State, event decision.Event) *scheduler2pb.PublicAction {
+	at := event.ActualTime.Time(event.Actual)
+	switch event.Kind {
+	case decision.DispatchManual:
+		at = next.Operation.NominalTime.Time(next.Operation.Nominal)
+	case decision.Drain:
+		if before.IndexedQueue.Enabled {
+			candidate := next.QueueChange.Drain.Candidate
+			at = candidate.ActualTime.Time(candidate.Actual)
+		} else {
+			index := decision.DrainIndex(before, event.Now, event.CatchupWindow)
+			if index >= 0 {
+				at = before.Queue[index].ActualTime.Time(before.Queue[index].Actual)
+			}
+		}
+	default:
+		// Automatic and backfill events carry their jittered time.
+	}
+	return &scheduler2pb.PublicAction{OperationId: next.Operation.ID, Result: &schedulepb.ScheduleActionResult{ScheduleTime: timestamppb.New(at), StartWorkflowResult: &commonpb.WorkflowExecution{WorkflowId: next.Operation.WorkflowID}}}
 }

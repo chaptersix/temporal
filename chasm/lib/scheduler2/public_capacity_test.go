@@ -9,6 +9,7 @@ import (
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/server/chasm"
 	schedulerconfig "go.temporal.io/server/chasm/lib/scheduler"
+	pb "go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1"
 	"go.temporal.io/server/chasm/lib/scheduler2/internal/decision"
 	"go.temporal.io/server/common/testing/testlogger"
 )
@@ -104,8 +105,20 @@ func TestPublicCapacityTrackedCompletionAndFullBufferDrain(t *testing.T) {
 
 func TestPublicCapacityCompletionRetentionUsesCanonicalCloseTime(t *testing.T) {
 	t.Parallel()
+	for _, indexed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("indexed=%v", indexed), func(t *testing.T) { testPublicCapacityCompletionRetentionUsesCanonicalCloseTime(t, indexed) })
+	}
+}
+
+func testPublicCapacityCompletionRetentionUsesCanonicalCloseTime(t *testing.T, indexed bool) {
+	t.Parallel()
 	limit := 0
 	h := publicCapacityHarness(t, &limit, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL)
+	if indexed {
+		s, _ := h.root(true)
+		s.ProjectionStore = &pb.ProjectionStoreControl{FormatVersion: projectionStoreVersion, NextActionSequence: 1}
+		h.commit(true)
+	}
 	ids := make([]string, 11)
 	for i := range ids {
 		ids[i] = publicProjectionAdmission(h)
@@ -128,8 +141,20 @@ func TestPublicCapacityCompletionRetentionUsesCanonicalCloseTime(t *testing.T) {
 
 func TestPublicCapacityLateOldestCompletionEvictsItself(t *testing.T) {
 	t.Parallel()
+	for _, indexed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("indexed=%v", indexed), func(t *testing.T) { testPublicCapacityLateOldestCompletionEvictsItself(t, indexed) })
+	}
+}
+
+func testPublicCapacityLateOldestCompletionEvictsItself(t *testing.T, indexed bool) {
+	t.Parallel()
 	limit := 0
 	h := publicCapacityHarness(t, &limit, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL)
+	if indexed {
+		s, _ := h.root(true)
+		s.ProjectionStore = &pb.ProjectionStoreControl{FormatVersion: projectionStoreVersion, NextActionSequence: 1}
+		h.commit(true)
+	}
 	for i := range 10 {
 		id := publicProjectionAdmission(h)
 		h.apply(decision.Event{Kind: decision.Callback, Incarnation: "incarnation", OperationID: id, ChainID: "chain", Outcome: decision.Success, Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED, PublicCloseTime: time.Unix(int64(i+100), 0)}, true)

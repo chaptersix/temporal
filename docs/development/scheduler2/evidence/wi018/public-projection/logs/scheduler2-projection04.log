@@ -1,0 +1,20 @@
+--- FAIL: TestPublicActionRunningProjectionOutputScope (0.00s)
+panic: field value of type  not found [recovered, repanicked]
+
+goroutine 37 [running]:
+testing.tRunner.func1.2({0x106037ab8, 0x71e8ffce6720})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2125 +0x1a0
+testing.tRunner.func1()
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2128 +0x2c8
+panic({0x106037ab8?, 0x71e8ffce6720?})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859 +0x120
+go.temporal.io/server/chasm.Field[...].Get(0x105e75fc0, {0x1067d7068?, 0x71e8ffcd87e0?})
+	/private/tmp/sch-redesign-execution/chasm/field.go:164 +0xdc
+go.temporal.io/server/chasm/lib/scheduler2.TestPublicActionRunningProjectionOutputScope(0x71e9006a8488)
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_action_store_test.go:62 +0x3a4
+testing.tRunner(0x71e9006a8488, 0x1067daf90)
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2260 +0x3b8
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.678s
+FAIL

@@ -1,0 +1,4 @@
+# go.temporal.io/server/chasm/lib/scheduler2 [go.temporal.io/server/chasm/lib/scheduler2.test]
+chasm/lib/scheduler2/public_action_store_test.go:103:10: assignment mismatch: 1 variable but decision.Step returns 2 values
+FAIL	go.temporal.io/server/chasm/lib/scheduler2 [build failed]
+FAIL

@@ -1,0 +1,48 @@
+=== RUN   TestFieldIsSetStagedAndEmpty
+=== PAUSE TestFieldIsSetStagedAndEmpty
+=== RUN   TestFieldSuite
+=== RUN   TestFieldSuite/TestFieldIsSetDoesNotMaterialize
+    logger.go:146: 2026-11-13T23:18:11.450-0600	info	Warning: CHASM component TestLibrary.test_timeskipping_component declares state fields that won't be managed by CHASM:
+        	isExecutionSkippable bool	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:433"}
+--- PASS: TestFieldSuite (0.00s)
+    --- PASS: TestFieldSuite/TestFieldIsSetDoesNotMaterialize (0.00s)
+=== CONT  TestFieldIsSetStagedAndEmpty
+--- PASS: TestFieldIsSetStagedAndEmpty (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm	0.394s
+=== RUN   TestFixedEffectStoragePublicationAndRetry
+=== PAUSE TestFixedEffectStoragePublicationAndRetry
+=== RUN   TestFixedEffectStorageMetadataDoesNotReadRequests
+=== PAUSE TestFixedEffectStorageMetadataDoesNotReadRequests
+=== RUN   TestFixedEffectStorageMembershipAndEnvelope
+=== PAUSE TestFixedEffectStorageMembershipAndEnvelope
+=== RUN   TestFixedEffectStorageNewTargetFreezesNewBytes
+=== PAUSE TestFixedEffectStorageNewTargetFreezesNewBytes
+=== RUN   TestFixedEffectStorageTaskChurnBound
+=== PAUSE TestFixedEffectStorageTaskChurnBound
+=== RUN   TestEffectRequestEnvelopeCanonical
+=== PAUSE TestEffectRequestEnvelopeCanonical
+=== CONT  TestFixedEffectStoragePublicationAndRetry
+=== CONT  TestFixedEffectStorageNewTargetFreezesNewBytes
+=== CONT  TestEffectRequestEnvelopeCanonical
+=== CONT  TestFixedEffectStorageMembershipAndEnvelope
+=== RUN   TestFixedEffectStorageMembershipAndEnvelope/missing
+--- PASS: TestEffectRequestEnvelopeCanonical (0.00s)
+=== CONT  TestFixedEffectStorageTaskChurnBound
+=== RUN   TestFixedEffectStorageMembershipAndEnvelope/orphan
+--- PASS: TestFixedEffectStorageNewTargetFreezesNewBytes (0.01s)
+=== CONT  TestFixedEffectStorageMetadataDoesNotReadRequests
+--- PASS: TestFixedEffectStoragePublicationAndRetry (0.01s)
+=== RUN   TestFixedEffectStorageMembershipAndEnvelope/legacy
+=== RUN   TestFixedEffectStorageMembershipAndEnvelope/owner
+--- PASS: TestFixedEffectStorageMetadataDoesNotReadRequests (0.00s)
+=== RUN   TestFixedEffectStorageMembershipAndEnvelope/encoding
+--- PASS: TestFixedEffectStorageMembershipAndEnvelope (0.01s)
+    --- PASS: TestFixedEffectStorageMembershipAndEnvelope/missing (0.01s)
+    --- PASS: TestFixedEffectStorageMembershipAndEnvelope/orphan (0.00s)
+    --- PASS: TestFixedEffectStorageMembershipAndEnvelope/legacy (0.00s)
+    --- PASS: TestFixedEffectStorageMembershipAndEnvelope/owner (0.00s)
+    --- PASS: TestFixedEffectStorageMembershipAndEnvelope/encoding (0.00s)
+--- PASS: TestFixedEffectStorageTaskChurnBound (0.02s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.713s

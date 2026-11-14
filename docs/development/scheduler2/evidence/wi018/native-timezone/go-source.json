@@ -1,0 +1,14 @@
+[
+  {
+    "path": "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo_windows.go",
+    "sha256": "831f1d99fc109507783841c65f0e196f063a1ce6490354869bf6df68aa626434"
+  },
+  {
+    "path": "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo.go",
+    "sha256": "198928e8d2573d88d8743db57b86777a26506f17ef2b0283882a9f5c884979b7"
+  },
+  {
+    "path": "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/time.go",
+    "sha256": "7d992810b162f65e02cea4d60fd0d90af59b3cafa2c8926ca08083d5c73451dc"
+  }
+]

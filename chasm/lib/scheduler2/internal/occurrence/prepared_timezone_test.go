@@ -104,7 +104,7 @@ func TestPreparedTimezoneCustomAcceptance(t *testing.T) {
 					offset, _, _, err := got.lookup(sec, &work)
 					require.NoError(t, err)
 					_, expected := time.Unix(sec, 0).In(want).Zone()
-					require.Equal(t, expected, offset)
+					require.Equal(t, int64(expected), offset)
 				}
 			}
 		})
@@ -124,7 +124,7 @@ func TestPreparedTimezoneCustomAcceptance(t *testing.T) {
 					offset, start, end, err := got.lookup(at.Unix(), &work)
 					require.NoError(t, err)
 					_, expected := at.In(want).Zone()
-					require.Equal(t, expected, offset)
+					require.Equal(t, int64(expected), offset)
 					left, right := at.In(want).ZoneBounds()
 					if !left.IsZero() {
 						require.Equal(t, left.Unix(), start)
@@ -153,7 +153,7 @@ func TestPreparedTimezoneUnsortedCache(t *testing.T) {
 	withoutCache.cache.present = false
 	offset, _, _, err = withoutCache.lookup(nowSec, &work)
 	require.NoError(t, err)
-	require.Equal(t, 7200, offset)
+	require.Equal(t, int64(7200), offset)
 	reference, err := time.LoadLocationFromTZData("unsorted", data)
 	require.NoError(t, err)
 	_, expected := time.Unix(nowSec, 0).In(reference).Zone()
@@ -287,8 +287,8 @@ func TestPreparedTimezoneFirstZoneAndDuplicates(t *testing.T) {
 			offset, _, _, err := z.lookup(0, &work)
 			require.NoError(t, err)
 			_, want := time.Unix(0, 0).In(reference).Zone()
-			require.Equal(t, tc.want, offset)
-			require.Equal(t, want, offset)
+			require.Equal(t, int64(tc.want), offset)
+			require.Equal(t, int64(want), offset)
 		})
 	}
 	data := timezoneFixture([]int64{0, 0, 10}, []byte{0, 1, 2}, []preparedTZZone{{offset: 11}, {offset: 22}, {offset: 33}}, "", true)
@@ -297,7 +297,7 @@ func TestPreparedTimezoneFirstZoneAndDuplicates(t *testing.T) {
 	var work timezoneWork
 	offset, _, _, err := z.lookup(0, &work)
 	require.NoError(t, err)
-	require.Equal(t, 22, offset)
+	require.Equal(t, int64(22), offset)
 	for _, version := range []byte{0, '2', '3'} {
 		empty := timezoneFixture(nil, nil, []preparedTZZone{{offset: 1234}}, "", version != 0)
 		empty[4] = version
@@ -305,7 +305,7 @@ func TestPreparedTimezoneFirstZoneAndDuplicates(t *testing.T) {
 		require.NoError(t, err)
 		offset, _, _, err := z.lookup(-1<<62, &work)
 		require.NoError(t, err)
-		require.Equal(t, 1234, offset)
+		require.Equal(t, int64(1234), offset)
 	}
 }
 

@@ -35,7 +35,7 @@ func (stage *StagedTimezoneSource) state() *scheduler2pb.TimezonePreparationStat
 	return &scheduler2pb.TimezonePreparationState{FormatVersion: 1, DefinitionSourceId: bytes.Clone(stage.definitionID[:]), SourceId: bytes.Clone(stage.ownerID[:]), SemanticFingerprint: bytes.Clone(stage.fingerprint[:]), Generation: stage.generation, Header: bytes.Clone(stage.header), TotalPages: uint32(len(stage.pages))}
 }
 func (stage *StagedTimezoneSource) sourceProto() *scheduler2pb.TimezonePreparationSource {
-	return &scheduler2pb.TimezonePreparationSource{Name: stage.name, TzifData: bytes.Clone(stage.source), ResolvedAt: timestamppb.New(stage.resolvedAt), Utc: stage.utc}
+	return &scheduler2pb.TimezonePreparationSource{Name: stage.name, TzifData: bytes.Clone(stage.source), ResolvedAt: timestamppb.New(stage.resolvedAt), Utc: stage.utc, WindowsNativeData: bytes.Clone(stage.native)}
 }
 
 // NewTimezonePreparation publishes control and detached input; pages are installed separately.

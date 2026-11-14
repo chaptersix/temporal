@@ -1,0 +1,21 @@
+# 2026/11/13 23:07:47.714416 [TestSequenceAtOrAfterReference] [rapid] draw sequence: 0x0
+# 2026/11/13 23:07:47.714420 [TestSequenceAtOrAfterReference] [rapid] draw lower: 0x0
+# 2026/11/13 23:07:47.714426 [TestSequenceAtOrAfterReference] [rapid] draw sequence: 0x0
+# 2026/11/13 23:07:47.714437 [TestSequenceAtOrAfterReference] 
+# 	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/queueindex/sequence_next_test.go:33
+# 	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				/Users/alex/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/queueindex/sequence_next_test.go:25
+# 	Error:      	Received unexpected error:
+# 	            	sequence already indexed
+# 	Test:       	TestSequenceAtOrAfterReference
+# 
+v0.4.8#3488958474313076907
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

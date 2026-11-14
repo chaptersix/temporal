@@ -1,0 +1,52 @@
+=== RUN   TestOperationReadinessExactOrdering
+=== PAUSE TestOperationReadinessExactOrdering
+=== RUN   TestOperationReadinessClaimRecovery
+=== PAUSE TestOperationReadinessClaimRecovery
+=== RUN   TestOperationReadinessOtherClaimPreserved
+=== PAUSE TestOperationReadinessOtherClaimPreserved
+=== RUN   TestOperationReadinessCorruption
+=== PAUSE TestOperationReadinessCorruption
+=== RUN   TestOperationReadinessExhaustionAndExpiry
+=== PAUSE TestOperationReadinessExhaustionAndExpiry
+=== RUN   TestOperationReadinessRetirementCaptureDisjoint
+=== PAUSE TestOperationReadinessRetirementCaptureDisjoint
+=== CONT  TestOperationReadinessExactOrdering
+=== CONT  TestOperationReadinessCorruption
+=== CONT  TestOperationReadinessExhaustionAndExpiry
+=== RUN   TestOperationReadinessExhaustionAndExpiry/sequence
+=== RUN   TestOperationReadinessCorruption/root
+=== CONT  TestOperationReadinessRetirementCaptureDisjoint
+=== RUN   TestOperationReadinessRetirementCaptureDisjoint/false
+=== RUN   TestOperationReadinessExhaustionAndExpiry/future_claim
+=== RUN   TestOperationReadinessRetirementCaptureDisjoint/true
+=== RUN   TestOperationReadinessCorruption/locator
+=== RUN   TestOperationReadinessExhaustionAndExpiry/expired_recovery
+--- PASS: TestOperationReadinessRetirementCaptureDisjoint (0.01s)
+    --- PASS: TestOperationReadinessRetirementCaptureDisjoint/false (0.01s)
+    --- PASS: TestOperationReadinessRetirementCaptureDisjoint/true (0.01s)
+=== CONT  TestOperationReadinessOtherClaimPreserved
+=== RUN   TestOperationReadinessCorruption/record
+--- PASS: TestOperationReadinessExhaustionAndExpiry (0.02s)
+    --- PASS: TestOperationReadinessExhaustionAndExpiry/sequence (0.01s)
+    --- PASS: TestOperationReadinessExhaustionAndExpiry/future_claim (0.00s)
+    --- PASS: TestOperationReadinessExhaustionAndExpiry/expired_recovery (0.00s)
+=== CONT  TestOperationReadinessClaimRecovery
+--- PASS: TestOperationReadinessExactOrdering (0.02s)
+=== RUN   TestOperationReadinessCorruption/logical_wake
+--- PASS: TestOperationReadinessClaimRecovery (0.01s)
+=== RUN   TestOperationReadinessCorruption/sequence
+--- PASS: TestOperationReadinessOtherClaimPreserved (0.01s)
+=== RUN   TestOperationReadinessCorruption/count
+=== RUN   TestOperationReadinessCorruption/claim_underflow
+=== RUN   TestOperationReadinessCorruption/missing_dispatch
+--- PASS: TestOperationReadinessCorruption (0.03s)
+    --- PASS: TestOperationReadinessCorruption/root (0.01s)
+    --- PASS: TestOperationReadinessCorruption/locator (0.00s)
+    --- PASS: TestOperationReadinessCorruption/record (0.01s)
+    --- PASS: TestOperationReadinessCorruption/logical_wake (0.00s)
+    --- PASS: TestOperationReadinessCorruption/sequence (0.00s)
+    --- PASS: TestOperationReadinessCorruption/count (0.00s)
+    --- PASS: TestOperationReadinessCorruption/claim_underflow (0.00s)
+    --- PASS: TestOperationReadinessCorruption/missing_dispatch (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.709s

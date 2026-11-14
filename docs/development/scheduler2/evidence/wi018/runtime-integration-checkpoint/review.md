@@ -1,0 +1,11 @@
+# Runtime integration prerequisite checkpoint
+
+Independent review covered readiness/editor publication, exact count/index/locator correspondence, retirement namespace separation, fixed dispatch claim/recovery and merge fencing, projection action ownership/recent ordering/running output traversal, fixed effect-slot envelope/presence checks, and native timezone source/codec/staging. No remaining source finding in this increment's stated capability scope. Native persisted timestamps now reject invalid values before AsTime normalization; recovery tasks require exact claim expiry; negative results after logical expiry are ignored.
+
+All34 author-owned source hashes match the refreshed manifests. Source authority is the checkpoint source manifest plus the local commit. Readiness and retirement captures use separate key families; running uses its own ProjectionPages because canonical sequence count pages can share reference ownership.
+
+Root tests cover failed claim publication/no RPC, cancellation after successful claim publication/no RPC, durable recovery with a fresh sequence, same-snapshot clock conversion and lock-delay deadline preservation, shared finite/dispatcher permit, and exact recovery fences. The first extra clock fixture used an unsupported wrapped execution context and failed before implementation execution; it was replaced with the real backend time-skipping state. No product failure is hidden by that fixture repair.
+
+Required combined fast lint passes normal/minimal/vet zero issues. Public TestSchedule2 regression passes166.101s against the default profile and registrations compiled at its start; later fixed-slot source/timestamp corrections are covered by final composed checks. It is not selected-operation runtime evidence. Root independent SequenceAtOrAfter150 Rapid seed20 passes0.559s; original test-only duplicate-sequence counterexample is retained and replayed.
+
+Still incomplete: private complete-profile construction/activation, selected real RPC result flows and failure matrix, bounded framework registration (legacy empty-map declaration and MemoVersion), shared timezone startup/Generator and preview continuation, full-transaction counts/storage, final M3 acceptance and all M4 measurements. OperationStore applyTransition remains gated here. No pushes, routing, rollout or migration.

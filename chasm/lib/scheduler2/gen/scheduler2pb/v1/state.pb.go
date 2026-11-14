@@ -495,9 +495,11 @@ type RootState struct {
 	// OperationStore selects addressed metadata and immutable request storage.
 	OperationStore *OperationStoreControl `protobuf:"bytes,45,opt,name=operation_store,json=operationStore,proto3" json:"operation_store,omitempty"`
 	// PayloadStore selects immutable keyed blobs and exact reference owner counts.
-	PayloadStore  *PayloadStoreControl `protobuf:"bytes,46,opt,name=payload_store,json=payloadStore,proto3" json:"payload_store,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	PayloadStore *PayloadStoreControl `protobuf:"bytes,46,opt,name=payload_store,json=payloadStore,proto3" json:"payload_store,omitempty"`
+	// ProjectionStore selects addressed action history and running membership.
+	ProjectionStore *ProjectionStoreControl `protobuf:"bytes,47,opt,name=projection_store,json=projectionStore,proto3" json:"projection_store,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RootState) Reset() {
@@ -852,6 +854,13 @@ func (x *RootState) GetPayloadStore() *PayloadStoreControl {
 	return nil
 }
 
+func (x *RootState) GetProjectionStore() *ProjectionStoreControl {
+	if x != nil {
+		return x.ProjectionStore
+	}
+	return nil
+}
+
 // OperationState holds metadata without decoding request payloads.
 type OperationState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -884,7 +893,9 @@ type OperationState struct {
 	// StartObservedAt is wall observation plus the issuance snapshot skipped duration.
 	StartObservedAt int64 `protobuf:"varint,14,opt,name=start_observed_at,json=startObservedAt,proto3" json:"start_observed_at,omitempty"`
 	// nominal_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
-	NominalTime   *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=nominal_time,json=nominalTime,proto3" json:"nominal_time,omitempty"`
+	NominalTime *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=nominal_time,json=nominalTime,proto3" json:"nominal_time,omitempty"`
+	// ReadySequence identifies the owned issuance locator; zero means no wake.
+	ReadySequence uint64 `protobuf:"varint,16,opt,name=ready_sequence,json=readySequence,proto3" json:"ready_sequence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1022,6 +1033,13 @@ func (x *OperationState) GetNominalTime() *timestamppb.Timestamp {
 		return x.NominalTime
 	}
 	return nil
+}
+
+func (x *OperationState) GetReadySequence() uint64 {
+	if x != nil {
+		return x.ReadySequence
+	}
+	return 0
 }
 
 // Payload keeps large values on a separately loaded node.
@@ -2539,8 +2557,10 @@ type PublicRuntime struct {
 	OverlapSkipped int64 `protobuf:"varint,3,opt,name=overlap_skipped,json=overlapSkipped,proto3" json:"overlap_skipped,omitempty"`
 	// CompletedOperations retains the ten latest tracked completions by workflow close time.
 	CompletedOperations []*PublicCompletedOperation `protobuf:"bytes,4,rep,name=completed_operations,json=completedOperations,proto3" json:"completed_operations,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// RecentActions holds at most ten acknowledged results in actual-time/admission order.
+	RecentActions []*RecentPublicAction `protobuf:"bytes,5,rep,name=recent_actions,json=recentActions,proto3" json:"recent_actions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PublicRuntime) Reset() {
@@ -2597,6 +2617,13 @@ func (x *PublicRuntime) GetOverlapSkipped() int64 {
 func (x *PublicRuntime) GetCompletedOperations() []*PublicCompletedOperation {
 	if x != nil {
 		return x.CompletedOperations
+	}
+	return nil
+}
+
+func (x *PublicRuntime) GetRecentActions() []*RecentPublicAction {
+	if x != nil {
+		return x.RecentActions
 	}
 	return nil
 }
@@ -3568,14 +3595,16 @@ type TimezonePreparationSource struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name is supplied by the original resolved input.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// TZif data is the exact resolved byte input; absent only for explicit UTC.
+	// TZif data is the exact resolved byte input for a TZif source.
 	TzifData []byte `protobuf:"bytes,2,opt,name=tzif_data,json=tzifData,proto3" json:"tzif_data,omitempty"`
 	// Resolved at is the original loader-cache seed instant.
 	ResolvedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=resolved_at,json=resolvedAt,proto3" json:"resolved_at,omitempty"`
 	// UTC distinguishes canonical UTC from absent custom bytes.
-	Utc           bool `protobuf:"varint,4,opt,name=utc,proto3" json:"utc,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Utc bool `protobuf:"varint,4,opt,name=utc,proto3" json:"utc,omitempty"`
+	// Windows native data retains the versioned API snapshot, source word width and initialization year.
+	WindowsNativeData []byte `protobuf:"bytes,5,opt,name=windows_native_data,json=windowsNativeData,proto3" json:"windows_native_data,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *TimezonePreparationSource) Reset() {
@@ -3634,6 +3663,13 @@ func (x *TimezonePreparationSource) GetUtc() bool {
 		return x.Utc
 	}
 	return false
+}
+
+func (x *TimezonePreparationSource) GetWindowsNativeData() []byte {
+	if x != nil {
+		return x.WindowsNativeData
+	}
+	return nil
 }
 
 // TimezonePreparationPage keeps one bounded encoded page under its owner.
@@ -3785,8 +3821,14 @@ type OperationStoreControl struct {
 	RequestCount int64 `protobuf:"varint,3,opt,name=request_count,json=requestCount,proto3" json:"request_count,omitempty"`
 	// RetirementCount counts StartOnly records in the public retirement index.
 	RetirementCount int64 `protobuf:"varint,4,opt,name=retirement_count,json=retirementCount,proto3" json:"retirement_count,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// PendingCount counts issuance wakes, including the active claim.
+	PendingCount int64 `protobuf:"varint,5,opt,name=pending_count,json=pendingCount,proto3" json:"pending_count,omitempty"`
+	// NextReadySequence is the next unused locator identity and starts at one.
+	NextReadySequence uint64 `protobuf:"varint,6,opt,name=next_ready_sequence,json=nextReadySequence,proto3" json:"next_ready_sequence,omitempty"`
+	// StartDispatch owns the fixed start issuance and recovery task slot.
+	StartDispatch *StartDispatchControl `protobuf:"bytes,7,opt,name=start_dispatch,json=startDispatch,proto3" json:"start_dispatch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *OperationStoreControl) Reset() {
@@ -3845,6 +3887,27 @@ func (x *OperationStoreControl) GetRetirementCount() int64 {
 		return x.RetirementCount
 	}
 	return 0
+}
+
+func (x *OperationStoreControl) GetPendingCount() int64 {
+	if x != nil {
+		return x.PendingCount
+	}
+	return 0
+}
+
+func (x *OperationStoreControl) GetNextReadySequence() uint64 {
+	if x != nil {
+		return x.NextReadySequence
+	}
+	return 0
+}
+
+func (x *OperationStoreControl) GetStartDispatch() *StartDispatchControl {
+	if x != nil {
+		return x.StartDispatch
+	}
+	return nil
 }
 
 // PayloadStoreControl selects the exclusive keyed content/ownership representation.
@@ -3939,11 +4002,578 @@ func (x *BlobReference) GetOwnerCount() uint64 {
 	return 0
 }
 
+// StartDispatchControl fences the mutually exclusive dispatch and recovery tasks.
+type StartDispatchControl struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Token increases when the slot is rearmed, released or replaced.
+	Token uint64 `protobuf:"varint,1,opt,name=token,proto3" json:"token,omitempty"`
+	// Armed indicates that a dispatch or recovery obligation is published.
+	Armed bool `protobuf:"varint,2,opt,name=armed,proto3" json:"armed,omitempty"`
+	// At is the execution Unix nanosecond deadline of that obligation.
+	At int64 `protobuf:"varint,3,opt,name=at,proto3" json:"at,omitempty"`
+	// Claim owns one operation while its external start can be in flight.
+	Claim         *StartClaim `protobuf:"bytes,4,opt,name=claim,proto3" json:"claim,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartDispatchControl) Reset() {
+	*x = StartDispatchControl{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartDispatchControl) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartDispatchControl) ProtoMessage() {}
+
+func (x *StartDispatchControl) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartDispatchControl.ProtoReflect.Descriptor instead.
+func (*StartDispatchControl) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *StartDispatchControl) GetToken() uint64 {
+	if x != nil {
+		return x.Token
+	}
+	return 0
+}
+
+func (x *StartDispatchControl) GetArmed() bool {
+	if x != nil {
+		return x.Armed
+	}
+	return false
+}
+
+func (x *StartDispatchControl) GetAt() int64 {
+	if x != nil {
+		return x.At
+	}
+	return 0
+}
+
+func (x *StartDispatchControl) GetClaim() *StartClaim {
+	if x != nil {
+		return x.Claim
+	}
+	return nil
+}
+
+// StartClaim retains operation authority until settlement or recovery.
+type StartClaim struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// OperationId identifies the immutable admitted operation.
+	OperationId string `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	// ReadySequence identifies its retained ready locator.
+	ReadySequence uint64 `protobuf:"varint,2,opt,name=ready_sequence,json=readySequence,proto3" json:"ready_sequence,omitempty"`
+	// LogicalWake preserves the operation's original issuance wake.
+	LogicalWake int64 `protobuf:"varint,3,opt,name=logical_wake,json=logicalWake,proto3" json:"logical_wake,omitempty"`
+	// Expiry is the physical task deadline converted to execution Unix nanoseconds.
+	Expiry        int64 `protobuf:"varint,4,opt,name=expiry,proto3" json:"expiry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartClaim) Reset() {
+	*x = StartClaim{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartClaim) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartClaim) ProtoMessage() {}
+
+func (x *StartClaim) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartClaim.ProtoReflect.Descriptor instead.
+func (*StartClaim) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *StartClaim) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *StartClaim) GetReadySequence() uint64 {
+	if x != nil {
+		return x.ReadySequence
+	}
+	return 0
+}
+
+func (x *StartClaim) GetLogicalWake() int64 {
+	if x != nil {
+		return x.LogicalWake
+	}
+	return 0
+}
+
+func (x *StartClaim) GetExpiry() int64 {
+	if x != nil {
+		return x.Expiry
+	}
+	return 0
+}
+
+// ReadyRecord maps a never-reused sequence to its addressed pending operation.
+type ReadyRecord struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// OperationId identifies the immutable admitted operation.
+	OperationId string `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	// LogicalWake preserves the operation's retry or deadline authority.
+	LogicalWake int64 `protobuf:"varint,2,opt,name=logical_wake,json=logicalWake,proto3" json:"logical_wake,omitempty"`
+	// ReadyAt is the execution Unix nanosecond ordering time, refreshed on recovery.
+	ReadyAt       int64 `protobuf:"varint,3,opt,name=ready_at,json=readyAt,proto3" json:"ready_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReadyRecord) Reset() {
+	*x = ReadyRecord{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReadyRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadyRecord) ProtoMessage() {}
+
+func (x *ReadyRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadyRecord.ProtoReflect.Descriptor instead.
+func (*ReadyRecord) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *ReadyRecord) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *ReadyRecord) GetLogicalWake() int64 {
+	if x != nil {
+		return x.LogicalWake
+	}
+	return 0
+}
+
+func (x *ReadyRecord) GetReadyAt() int64 {
+	if x != nil {
+		return x.ReadyAt
+	}
+	return 0
+}
+
+// ProjectionStoreControl holds fixed public projection authority.
+type ProjectionStoreControl struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// FormatVersion identifies the addressed projection representation.
+	FormatVersion uint32 `protobuf:"varint,1,opt,name=format_version,json=formatVersion,proto3" json:"format_version,omitempty"`
+	// NextActionSequence is the next unused admission-order identity, starting at one.
+	NextActionSequence uint64 `protobuf:"varint,2,opt,name=next_action_sequence,json=nextActionSequence,proto3" json:"next_action_sequence,omitempty"`
+	// RunningCount counts Started operations with an acknowledged public run ID.
+	RunningCount  int64 `protobuf:"varint,3,opt,name=running_count,json=runningCount,proto3" json:"running_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectionStoreControl) Reset() {
+	*x = ProjectionStoreControl{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectionStoreControl) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectionStoreControl) ProtoMessage() {}
+
+func (x *ProjectionStoreControl) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectionStoreControl.ProtoReflect.Descriptor instead.
+func (*ProjectionStoreControl) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *ProjectionStoreControl) GetFormatVersion() uint32 {
+	if x != nil {
+		return x.FormatVersion
+	}
+	return 0
+}
+
+func (x *ProjectionStoreControl) GetNextActionSequence() uint64 {
+	if x != nil {
+		return x.NextActionSequence
+	}
+	return 0
+}
+
+func (x *ProjectionStoreControl) GetRunningCount() int64 {
+	if x != nil {
+		return x.RunningCount
+	}
+	return 0
+}
+
+// RecentPublicAction is one member of the fixed recent-ten window.
+type RecentPublicAction struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Sequence preserves admission order for equal actual timestamps.
+	Sequence uint64 `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	// Action is a detached projection mirrored from the addressed action record.
+	Action        *PublicAction `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecentPublicAction) Reset() {
+	*x = RecentPublicAction{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecentPublicAction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecentPublicAction) ProtoMessage() {}
+
+func (x *RecentPublicAction) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecentPublicAction.ProtoReflect.Descriptor instead.
+func (*RecentPublicAction) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *RecentPublicAction) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *RecentPublicAction) GetAction() *PublicAction {
+	if x != nil {
+		return x.Action
+	}
+	return nil
+}
+
+// PublicActionRecord survives while operation metadata or the recent window owns it.
+type PublicActionRecord struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Sequence is the immutable action-admission order.
+	Sequence uint64 `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	// Action stores the public result without issuance payloads.
+	Action *PublicAction `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	// OperationOwned distinguishes retained operation authority from recent-only history.
+	OperationOwned bool `protobuf:"varint,3,opt,name=operation_owned,json=operationOwned,proto3" json:"operation_owned,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PublicActionRecord) Reset() {
+	*x = PublicActionRecord{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicActionRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicActionRecord) ProtoMessage() {}
+
+func (x *PublicActionRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicActionRecord.ProtoReflect.Descriptor instead.
+func (*PublicActionRecord) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *PublicActionRecord) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *PublicActionRecord) GetAction() *PublicAction {
+	if x != nil {
+		return x.Action
+	}
+	return nil
+}
+
+func (x *PublicActionRecord) GetOperationOwned() bool {
+	if x != nil {
+		return x.OperationOwned
+	}
+	return false
+}
+
+// RunningPublicAction is the exact output value for one running-index member.
+type RunningPublicAction struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Sequence must match its addressed sequence key and running index entry.
+	Sequence uint64 `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	// OperationId is the immutable admitted operation identity.
+	OperationId string `protobuf:"bytes,2,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	// Execution holds the workflow and acknowledged public run IDs.
+	Execution     *v11.WorkflowExecution `protobuf:"bytes,3,opt,name=execution,proto3" json:"execution,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunningPublicAction) Reset() {
+	*x = RunningPublicAction{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunningPublicAction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunningPublicAction) ProtoMessage() {}
+
+func (x *RunningPublicAction) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunningPublicAction.ProtoReflect.Descriptor instead.
+func (*RunningPublicAction) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *RunningPublicAction) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *RunningPublicAction) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *RunningPublicAction) GetExecution() *v11.WorkflowExecution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+// StartDispatchTask drives one durable claim before external start issuance.
+type StartDispatchTask struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Token fences the current dispatcher obligation.
+	Token uint64 `protobuf:"varint,1,opt,name=token,proto3" json:"token,omitempty"`
+	// WakeTime is its logical execution Unix nanosecond deadline.
+	WakeTime      int64 `protobuf:"varint,2,opt,name=wake_time,json=wakeTime,proto3" json:"wake_time,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartDispatchTask) Reset() {
+	*x = StartDispatchTask{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartDispatchTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartDispatchTask) ProtoMessage() {}
+
+func (x *StartDispatchTask) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartDispatchTask.ProtoReflect.Descriptor instead.
+func (*StartDispatchTask) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *StartDispatchTask) GetToken() uint64 {
+	if x != nil {
+		return x.Token
+	}
+	return 0
+}
+
+func (x *StartDispatchTask) GetWakeTime() int64 {
+	if x != nil {
+		return x.WakeTime
+	}
+	return 0
+}
+
+// StartRecoveryTask releases an expired durable start claim.
+type StartRecoveryTask struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Token fences the current claim recovery obligation.
+	Token uint64 `protobuf:"varint,1,opt,name=token,proto3" json:"token,omitempty"`
+	// WakeTime is the claim expiry in execution Unix nanoseconds.
+	WakeTime      int64 `protobuf:"varint,2,opt,name=wake_time,json=wakeTime,proto3" json:"wake_time,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartRecoveryTask) Reset() {
+	*x = StartRecoveryTask{}
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartRecoveryTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartRecoveryTask) ProtoMessage() {}
+
+func (x *StartRecoveryTask) ProtoReflect() protoreflect.Message {
+	mi := &file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartRecoveryTask.ProtoReflect.Descriptor instead.
+func (*StartRecoveryTask) Descriptor() ([]byte, []int) {
+	return file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *StartRecoveryTask) GetToken() uint64 {
+	if x != nil {
+		return x.Token
+	}
+	return 0
+}
+
+func (x *StartRecoveryTask) GetWakeTime() int64 {
+	if x != nil {
+		return x.WakeTime
+	}
+	return 0
+}
+
 var File_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto protoreflect.FileDescriptor
 
 const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "" +
 	"\n" +
-	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$temporal/api/common/v1/message.proto\x1a'temporal/api/sdk/v1/user_metadata.proto\x1a$temporal/api/enums/v1/schedule.proto\x1a&temporal/api/schedule/v1/message.proto\"\xf0\x11\n" +
+	"9temporal/server/chasm/lib/scheduler2/proto/v1/state.proto\x12-temporal.server.chasm.lib.scheduler2.proto.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$temporal/api/common/v1/message.proto\x1a'temporal/api/sdk/v1/user_metadata.proto\x1a$temporal/api/enums/v1/schedule.proto\x1a&temporal/api/schedule/v1/message.proto\"\xe2\x12\n" +
 	"\tRootState\x12 \n" +
 	"\vincarnation\x18\x01 \x01(\tR\vincarnation\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x16\n" +
@@ -3998,10 +4628,11 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\x11public_action_ref\x18+ \x01(\tR\x0fpublicActionRef\x12^\n" +
 	"\rindexed_queue\x18, \x01(\v29.temporal.server.chasm.lib.scheduler2.proto.v1.QueueStateR\findexedQueue\x12m\n" +
 	"\x0foperation_store\x18- \x01(\v2D.temporal.server.chasm.lib.scheduler2.proto.v1.OperationStoreControlR\x0eoperationStore\x12g\n" +
-	"\rpayload_store\x18. \x01(\v2B.temporal.server.chasm.lib.scheduler2.proto.v1.PayloadStoreControlR\fpayloadStore\x1a@\n" +
+	"\rpayload_store\x18. \x01(\v2B.temporal.server.chasm.lib.scheduler2.proto.v1.PayloadStoreControlR\fpayloadStore\x12p\n" +
+	"\x10projection_store\x18/ \x01(\v2E.temporal.server.chasm.lib.scheduler2.proto.v1.ProjectionStoreControlR\x0fprojectionStore\x1a@\n" +
 	"\x12PendingStartsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\xd1\x04\n" +
+	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\xf8\x04\n" +
 	"\x0eOperationState\x12#\n" +
 	"\roccurrence_id\x18\x01 \x01(\tR\foccurrenceId\x12\x1b\n" +
 	"\taction_id\x18\x02 \x01(\tR\bactionId\x12\x0e\n" +
@@ -4020,7 +4651,8 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"backfillId\x12%\n" +
 	"\x0estart_observed\x18\r \x01(\bR\rstartObserved\x12*\n" +
 	"\x11start_observed_at\x18\x0e \x01(\x03R\x0fstartObservedAt\x12=\n" +
-	"\fnominal_time\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\vnominalTime\"|\n" +
+	"\fnominal_time\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\vnominalTime\x12%\n" +
+	"\x0eready_sequence\x18\x10 \x01(\x04R\rreadySequence\"|\n" +
 	"\aPayload\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\x12\x1d\n" +
 	"\n" +
@@ -4149,12 +4781,13 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"start_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\" \n" +
 	"\bIdleTask\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\x04R\x05token\"\xbf\x02\n" +
+	"\x05token\x18\x01 \x01(\x04R\x05token\"\xa9\x03\n" +
 	"\rPublicRuntime\x12U\n" +
 	"\aactions\x18\x01 \x03(\v2;.temporal.server.chasm.lib.scheduler2.proto.v1.PublicActionR\aactions\x122\n" +
 	"\x15missed_catchup_window\x18\x02 \x01(\x03R\x13missedCatchupWindow\x12'\n" +
 	"\x0foverlap_skipped\x18\x03 \x01(\x03R\x0eoverlapSkipped\x12z\n" +
-	"\x14completed_operations\x18\x04 \x03(\v2G.temporal.server.chasm.lib.scheduler2.proto.v1.PublicCompletedOperationR\x13completedOperations\"y\n" +
+	"\x14completed_operations\x18\x04 \x03(\v2G.temporal.server.chasm.lib.scheduler2.proto.v1.PublicCompletedOperationR\x13completedOperations\x12h\n" +
+	"\x0erecent_actions\x18\x05 \x03(\v2A.temporal.server.chasm.lib.scheduler2.proto.v1.RecentPublicActionR\rrecentActions\"y\n" +
 	"\fPublicAction\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12F\n" +
 	"\x06result\x18\x02 \x01(\v2..temporal.api.schedule.v1.ScheduleActionResultR\x06result\"x\n" +
@@ -4250,13 +4883,14 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\fcleanup_head\x18\t \x01(\x04R\vcleanupHead\x12!\n" +
 	"\fcleanup_tail\x18\n" +
 	" \x01(\x04R\vcleanupTail\x12#\n" +
-	"\rcleanup_count\x18\v \x01(\x04R\fcleanupCount\"\x9b\x01\n" +
+	"\rcleanup_count\x18\v \x01(\x04R\fcleanupCount\"\xcb\x01\n" +
 	"\x19TimezonePreparationSource\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
 	"\ttzif_data\x18\x02 \x01(\fR\btzifData\x12;\n" +
 	"\vresolved_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"resolvedAt\x12\x10\n" +
-	"\x03utc\x18\x04 \x01(\bR\x03utc\"j\n" +
+	"\x03utc\x18\x04 \x01(\bR\x03utc\x12.\n" +
+	"\x13windows_native_data\x18\x05 \x01(\fR\x11windowsNativeData\"j\n" +
 	"\x17TimezonePreparationPage\x12\x1b\n" +
 	"\tsource_id\x18\x01 \x01(\fR\bsourceId\x12\x18\n" +
 	"\aordinal\x18\x02 \x01(\rR\aordinal\x12\x18\n" +
@@ -4265,17 +4899,56 @@ const file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc = "
 	"\tsource_id\x18\x01 \x01(\fR\bsourceId\x12\x16\n" +
 	"\x06header\x18\x02 \x01(\fR\x06header\x12'\n" +
 	"\x0finstalled_pages\x18\x03 \x01(\rR\x0einstalledPages\x12\x16\n" +
-	"\x06cursor\x18\x04 \x01(\rR\x06cursor\"\xb7\x01\n" +
+	"\x06cursor\x18\x04 \x01(\rR\x06cursor\"\xf8\x02\n" +
 	"\x15OperationStoreControl\x12%\n" +
 	"\x0eformat_version\x18\x01 \x01(\rR\rformatVersion\x12'\n" +
 	"\x0foperation_count\x18\x02 \x01(\x03R\x0eoperationCount\x12#\n" +
 	"\rrequest_count\x18\x03 \x01(\x03R\frequestCount\x12)\n" +
-	"\x10retirement_count\x18\x04 \x01(\x03R\x0fretirementCount\"<\n" +
+	"\x10retirement_count\x18\x04 \x01(\x03R\x0fretirementCount\x12#\n" +
+	"\rpending_count\x18\x05 \x01(\x03R\fpendingCount\x12.\n" +
+	"\x13next_ready_sequence\x18\x06 \x01(\x04R\x11nextReadySequence\x12j\n" +
+	"\x0estart_dispatch\x18\a \x01(\v2C.temporal.server.chasm.lib.scheduler2.proto.v1.StartDispatchControlR\rstartDispatch\"<\n" +
 	"\x13PayloadStoreControl\x12%\n" +
 	"\x0eformat_version\x18\x01 \x01(\rR\rformatVersion\"0\n" +
 	"\rBlobReference\x12\x1f\n" +
 	"\vowner_count\x18\x01 \x01(\x04R\n" +
-	"ownerCount*\x84\x01\n" +
+	"ownerCount\"\xa3\x01\n" +
+	"\x14StartDispatchControl\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\x04R\x05token\x12\x14\n" +
+	"\x05armed\x18\x02 \x01(\bR\x05armed\x12\x0e\n" +
+	"\x02at\x18\x03 \x01(\x03R\x02at\x12O\n" +
+	"\x05claim\x18\x04 \x01(\v29.temporal.server.chasm.lib.scheduler2.proto.v1.StartClaimR\x05claim\"\x91\x01\n" +
+	"\n" +
+	"StartClaim\x12!\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12%\n" +
+	"\x0eready_sequence\x18\x02 \x01(\x04R\rreadySequence\x12!\n" +
+	"\flogical_wake\x18\x03 \x01(\x03R\vlogicalWake\x12\x16\n" +
+	"\x06expiry\x18\x04 \x01(\x03R\x06expiry\"n\n" +
+	"\vReadyRecord\x12!\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12!\n" +
+	"\flogical_wake\x18\x02 \x01(\x03R\vlogicalWake\x12\x19\n" +
+	"\bready_at\x18\x03 \x01(\x03R\areadyAt\"\x96\x01\n" +
+	"\x16ProjectionStoreControl\x12%\n" +
+	"\x0eformat_version\x18\x01 \x01(\rR\rformatVersion\x120\n" +
+	"\x14next_action_sequence\x18\x02 \x01(\x04R\x12nextActionSequence\x12#\n" +
+	"\rrunning_count\x18\x03 \x01(\x03R\frunningCount\"\x85\x01\n" +
+	"\x12RecentPublicAction\x12\x1a\n" +
+	"\bsequence\x18\x01 \x01(\x04R\bsequence\x12S\n" +
+	"\x06action\x18\x02 \x01(\v2;.temporal.server.chasm.lib.scheduler2.proto.v1.PublicActionR\x06action\"\xae\x01\n" +
+	"\x12PublicActionRecord\x12\x1a\n" +
+	"\bsequence\x18\x01 \x01(\x04R\bsequence\x12S\n" +
+	"\x06action\x18\x02 \x01(\v2;.temporal.server.chasm.lib.scheduler2.proto.v1.PublicActionR\x06action\x12'\n" +
+	"\x0foperation_owned\x18\x03 \x01(\bR\x0eoperationOwned\"\x9d\x01\n" +
+	"\x13RunningPublicAction\x12\x1a\n" +
+	"\bsequence\x18\x01 \x01(\x04R\bsequence\x12!\n" +
+	"\foperation_id\x18\x02 \x01(\tR\voperationId\x12G\n" +
+	"\texecution\x18\x03 \x01(\v2).temporal.api.common.v1.WorkflowExecutionR\texecution\"F\n" +
+	"\x11StartDispatchTask\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\x04R\x05token\x12\x1b\n" +
+	"\twake_time\x18\x02 \x01(\x03R\bwakeTime\"F\n" +
+	"\x11StartRecoveryTask\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\x04R\x05token\x12\x1b\n" +
+	"\twake_time\x18\x02 \x01(\x03R\bwakeTime*\x84\x01\n" +
 	"\x05Phase\x12\x15\n" +
 	"\x11PHASE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rPHASE_PENDING\x10\x01\x12\x11\n" +
@@ -4325,7 +4998,7 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDescGZIP(
 }
 
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []any{
 	(Phase)(0),                        // 0: temporal.server.chasm.lib.scheduler2.proto.v1.Phase
 	(EnumerationStatus)(0),            // 1: temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
@@ -4370,20 +5043,30 @@ var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_goTypes = []a
 	(*OperationStoreControl)(nil),     // 40: temporal.server.chasm.lib.scheduler2.proto.v1.OperationStoreControl
 	(*PayloadStoreControl)(nil),       // 41: temporal.server.chasm.lib.scheduler2.proto.v1.PayloadStoreControl
 	(*BlobReference)(nil),             // 42: temporal.server.chasm.lib.scheduler2.proto.v1.BlobReference
-	nil,                               // 43: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
-	(v1.ScheduleOverlapPolicy)(0),     // 44: temporal.api.enums.v1.ScheduleOverlapPolicy
-	(*timestamppb.Timestamp)(nil),     // 45: google.protobuf.Timestamp
-	(*v11.Payloads)(nil),              // 46: temporal.api.common.v1.Payloads
-	(*v11.Header)(nil),                // 47: temporal.api.common.v1.Header
-	(*v11.Memo)(nil),                  // 48: temporal.api.common.v1.Memo
-	(*v11.SearchAttributes)(nil),      // 49: temporal.api.common.v1.SearchAttributes
-	(*v12.UserMetadata)(nil),          // 50: temporal.api.sdk.v1.UserMetadata
-	(*v13.ScheduleActionResult)(nil),  // 51: temporal.api.schedule.v1.ScheduleActionResult
+	(*StartDispatchControl)(nil),      // 43: temporal.server.chasm.lib.scheduler2.proto.v1.StartDispatchControl
+	(*StartClaim)(nil),                // 44: temporal.server.chasm.lib.scheduler2.proto.v1.StartClaim
+	(*ReadyRecord)(nil),               // 45: temporal.server.chasm.lib.scheduler2.proto.v1.ReadyRecord
+	(*ProjectionStoreControl)(nil),    // 46: temporal.server.chasm.lib.scheduler2.proto.v1.ProjectionStoreControl
+	(*RecentPublicAction)(nil),        // 47: temporal.server.chasm.lib.scheduler2.proto.v1.RecentPublicAction
+	(*PublicActionRecord)(nil),        // 48: temporal.server.chasm.lib.scheduler2.proto.v1.PublicActionRecord
+	(*RunningPublicAction)(nil),       // 49: temporal.server.chasm.lib.scheduler2.proto.v1.RunningPublicAction
+	(*StartDispatchTask)(nil),         // 50: temporal.server.chasm.lib.scheduler2.proto.v1.StartDispatchTask
+	(*StartRecoveryTask)(nil),         // 51: temporal.server.chasm.lib.scheduler2.proto.v1.StartRecoveryTask
+	nil,                               // 52: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+	(v1.ScheduleOverlapPolicy)(0),     // 53: temporal.api.enums.v1.ScheduleOverlapPolicy
+	(*timestamppb.Timestamp)(nil),     // 54: google.protobuf.Timestamp
+	(*v11.Payloads)(nil),              // 55: temporal.api.common.v1.Payloads
+	(*v11.Header)(nil),                // 56: temporal.api.common.v1.Header
+	(*v11.Memo)(nil),                  // 57: temporal.api.common.v1.Memo
+	(*v11.SearchAttributes)(nil),      // 58: temporal.api.common.v1.SearchAttributes
+	(*v12.UserMetadata)(nil),          // 59: temporal.api.sdk.v1.UserMetadata
+	(*v13.ScheduleActionResult)(nil),  // 60: temporal.api.schedule.v1.ScheduleActionResult
+	(*v11.WorkflowExecution)(nil),     // 61: temporal.api.common.v1.WorkflowExecution
 }
 var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_depIdxs = []int32{
-	44, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	53, // 0: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
 	16, // 1: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence
-	43, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.pending_starts:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
+	52, // 2: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.pending_starts:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RootState.PendingStartsEntry
 	18, // 3: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.effects:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectState
 	20, // 4: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.manuals:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand
 	22, // 5: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.coordination:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState
@@ -4391,52 +5074,59 @@ var file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_depIdxs = []i
 	34, // 7: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.indexed_queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.QueueState
 	40, // 8: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.operation_store:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OperationStoreControl
 	41, // 9: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.payload_store:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.PayloadStoreControl
-	0,  // 10: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
-	44, // 11: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	45, // 12: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.nominal_time:type_name -> google.protobuf.Timestamp
-	46, // 13: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.input:type_name -> temporal.api.common.v1.Payloads
-	47, // 14: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.header:type_name -> temporal.api.common.v1.Header
-	48, // 15: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.memo:type_name -> temporal.api.common.v1.Memo
-	49, // 16: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.user_search_attributes:type_name -> temporal.api.common.v1.SearchAttributes
-	50, // 17: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.user_metadata:type_name -> temporal.api.sdk.v1.UserMetadata
-	45, // 18: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate.nominal_time:type_name -> google.protobuf.Timestamp
-	45, // 19: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate.actual_time:type_name -> google.protobuf.Timestamp
-	11, // 20: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	1,  // 21: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	45, // 22: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.origin_time:type_name -> google.protobuf.Timestamp
-	45, // 23: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.search_after_time:type_name -> google.protobuf.Timestamp
-	45, // 24: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.disposed_through_time:type_name -> google.protobuf.Timestamp
-	12, // 25: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
-	1,  // 26: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
-	11, // 27: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
-	44, // 28: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	45, // 29: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.nominal_time:type_name -> google.protobuf.Timestamp
-	45, // 30: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.actual_time:type_name -> google.protobuf.Timestamp
-	2,  // 31: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.kind:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
-	3,  // 32: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
-	44, // 33: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	45, // 34: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand.nominal_time:type_name -> google.protobuf.Timestamp
-	4,  // 35: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_work:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
-	4,  // 36: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
-	4,  // 37: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_operation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
-	4,  // 38: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.owner_class:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
-	44, // 39: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
-	12, // 40: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
-	45, // 41: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.start_time:type_name -> google.protobuf.Timestamp
-	45, // 42: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.end_time:type_name -> google.protobuf.Timestamp
-	27, // 43: temporal.server.chasm.lib.scheduler2.proto.v1.PublicRuntime.actions:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.PublicAction
-	28, // 44: temporal.server.chasm.lib.scheduler2.proto.v1.PublicRuntime.completed_operations:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.PublicCompletedOperation
-	51, // 45: temporal.server.chasm.lib.scheduler2.proto.v1.PublicAction.result:type_name -> temporal.api.schedule.v1.ScheduleActionResult
-	45, // 46: temporal.server.chasm.lib.scheduler2.proto.v1.PublicCompletedOperation.close_time:type_name -> google.protobuf.Timestamp
-	30, // 47: temporal.server.chasm.lib.scheduler2.proto.v1.CalendarPreparationState.cursor:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.CalendarPreparationCursor
-	31, // 48: temporal.server.chasm.lib.scheduler2.proto.v1.CalendarPreparationPage.ranges:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.CalendarPreparationRange
-	35, // 49: temporal.server.chasm.lib.scheduler2.proto.v1.QueueState.completed_drain:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.CompletedDrain
-	45, // 50: temporal.server.chasm.lib.scheduler2.proto.v1.TimezonePreparationSource.resolved_at:type_name -> google.protobuf.Timestamp
-	51, // [51:51] is the sub-list for method output_type
-	51, // [51:51] is the sub-list for method input_type
-	51, // [51:51] is the sub-list for extension type_name
-	51, // [51:51] is the sub-list for extension extendee
-	0,  // [0:51] is the sub-list for field type_name
+	46, // 10: temporal.server.chasm.lib.scheduler2.proto.v1.RootState.projection_store:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.ProjectionStoreControl
+	0,  // 11: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.Phase
+	53, // 12: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	54, // 13: temporal.server.chasm.lib.scheduler2.proto.v1.OperationState.nominal_time:type_name -> google.protobuf.Timestamp
+	55, // 14: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.input:type_name -> temporal.api.common.v1.Payloads
+	56, // 15: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.header:type_name -> temporal.api.common.v1.Header
+	57, // 16: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.memo:type_name -> temporal.api.common.v1.Memo
+	58, // 17: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.user_search_attributes:type_name -> temporal.api.common.v1.SearchAttributes
+	59, // 18: temporal.server.chasm.lib.scheduler2.proto.v1.ActionPayloadBundle.user_metadata:type_name -> temporal.api.sdk.v1.UserMetadata
+	54, // 19: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate.nominal_time:type_name -> google.protobuf.Timestamp
+	54, // 20: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate.actual_time:type_name -> google.protobuf.Timestamp
+	11, // 21: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.pending:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	1,  // 22: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.terminal:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	54, // 23: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.origin_time:type_name -> google.protobuf.Timestamp
+	54, // 24: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.search_after_time:type_name -> google.protobuf.Timestamp
+	54, // 25: temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation.disposed_through_time:type_name -> google.protobuf.Timestamp
+	12, // 26: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+	1,  // 27: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.last_status:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EnumerationStatus
+	11, // 28: temporal.server.chasm.lib.scheduler2.proto.v1.GeneratorState.superseded:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceCandidate
+	53, // 29: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	54, // 30: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.nominal_time:type_name -> google.protobuf.Timestamp
+	54, // 31: temporal.server.chasm.lib.scheduler2.proto.v1.QueuedOccurrence.actual_time:type_name -> google.protobuf.Timestamp
+	2,  // 32: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.kind:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectKind
+	3,  // 33: temporal.server.chasm.lib.scheduler2.proto.v1.EffectState.phase:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.EffectPhase
+	53, // 34: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	54, // 35: temporal.server.chasm.lib.scheduler2.proto.v1.ManualCommand.nominal_time:type_name -> google.protobuf.Timestamp
+	4,  // 36: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_work:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+	4,  // 37: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_queue:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+	4,  // 38: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.next_operation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+	4,  // 39: temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState.owner_class:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.WorkClass
+	53, // 40: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.policy:type_name -> temporal.api.enums.v1.ScheduleOverlapPolicy
+	12, // 41: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.continuation:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.OccurrenceContinuation
+	54, // 42: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.start_time:type_name -> google.protobuf.Timestamp
+	54, // 43: temporal.server.chasm.lib.scheduler2.proto.v1.BackfillState.end_time:type_name -> google.protobuf.Timestamp
+	27, // 44: temporal.server.chasm.lib.scheduler2.proto.v1.PublicRuntime.actions:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.PublicAction
+	28, // 45: temporal.server.chasm.lib.scheduler2.proto.v1.PublicRuntime.completed_operations:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.PublicCompletedOperation
+	47, // 46: temporal.server.chasm.lib.scheduler2.proto.v1.PublicRuntime.recent_actions:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.RecentPublicAction
+	60, // 47: temporal.server.chasm.lib.scheduler2.proto.v1.PublicAction.result:type_name -> temporal.api.schedule.v1.ScheduleActionResult
+	54, // 48: temporal.server.chasm.lib.scheduler2.proto.v1.PublicCompletedOperation.close_time:type_name -> google.protobuf.Timestamp
+	30, // 49: temporal.server.chasm.lib.scheduler2.proto.v1.CalendarPreparationState.cursor:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.CalendarPreparationCursor
+	31, // 50: temporal.server.chasm.lib.scheduler2.proto.v1.CalendarPreparationPage.ranges:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.CalendarPreparationRange
+	35, // 51: temporal.server.chasm.lib.scheduler2.proto.v1.QueueState.completed_drain:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.CompletedDrain
+	54, // 52: temporal.server.chasm.lib.scheduler2.proto.v1.TimezonePreparationSource.resolved_at:type_name -> google.protobuf.Timestamp
+	43, // 53: temporal.server.chasm.lib.scheduler2.proto.v1.OperationStoreControl.start_dispatch:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.StartDispatchControl
+	44, // 54: temporal.server.chasm.lib.scheduler2.proto.v1.StartDispatchControl.claim:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.StartClaim
+	27, // 55: temporal.server.chasm.lib.scheduler2.proto.v1.RecentPublicAction.action:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.PublicAction
+	27, // 56: temporal.server.chasm.lib.scheduler2.proto.v1.PublicActionRecord.action:type_name -> temporal.server.chasm.lib.scheduler2.proto.v1.PublicAction
+	61, // 57: temporal.server.chasm.lib.scheduler2.proto.v1.RunningPublicAction.execution:type_name -> temporal.api.common.v1.WorkflowExecution
+	58, // [58:58] is the sub-list for method output_type
+	58, // [58:58] is the sub-list for method input_type
+	58, // [58:58] is the sub-list for extension type_name
+	58, // [58:58] is the sub-list for extension extendee
+	0,  // [0:58] is the sub-list for field type_name
 }
 
 func init() { file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() }
@@ -4450,7 +5140,7 @@ func file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc), len(file_temporal_server_chasm_lib_scheduler2_proto_v1_state_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   39,
+			NumMessages:   48,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
