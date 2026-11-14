@@ -57,3 +57,10 @@ The primitive preserves compiledCalendar.next's local-year2100 horizon. Compiled
 ZoneConversions counts time.Date construction and each zone-dependent Date/Clock/Hour/Weekday API call, not underlying timezone lookups. The first-copy helper uses one construction plus two Date/Clock pairs (five calls), which preserves reference wall-field equality. Normalization calls it twice at an hour carry, so the maximum is10 counted calls per phase step. Tests assert both partition-independent aggregate counts and exact no-carry/hour-carry totals. Go lookup work remains explicitly unbounded in arbitrary TZif size until the prepared timezone adapter is implemented.
 
 Final source hashes, full occurrence tests, lint and failed historical fixture/style logs are archived in prepared-calendar/. No scheduler runtime route or named resolver is activated.
+
+
+## Indexed timezone conversion integration
+
+The later prepared-timezone implementation supersedes this document's initial unbounded time.Location prototype. NewResolvedLocation now accepts an immutable PreparedTimezone and derives its actual snapshot fingerprint; PreparedLocationFromTZData takes an explicit resolvedAt instant and prepares custom bytes outside mutation. UTC has a canonical PreparedUTC capability. No named resolver or user-location fallback runs inside Advance.
+
+CalendarNextStats now counts adapter conversions, offset lookups and fixed page reads. A phase has at most6 conversions/8 offset lookups, each lookup at most66 fixed16-entry page reads. All addressed reader errors return the original incoming continuation even after earlier successful phases in the same call. The previous10-Go-API-call metric described the old prototype; it is not the new lookup count. Evidence and exclusions are in prepared-timezone/review.md. Persisted timezone pages, named resolution, and runtime integration remain open.

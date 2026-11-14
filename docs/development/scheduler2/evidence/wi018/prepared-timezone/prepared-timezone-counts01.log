@@ -1,0 +1,46 @@
+=== RUN   TestPreparedTimezoneIndexedWorkAndFaults
+=== PAUSE TestPreparedTimezoneIndexedWorkAndFaults
+=== CONT  TestPreparedTimezoneIndexedWorkAndFaults
+=== RUN   TestPreparedTimezoneIndexedWorkAndFaults/4
+=== PAUSE TestPreparedTimezoneIndexedWorkAndFaults/4
+=== RUN   TestPreparedTimezoneIndexedWorkAndFaults/5
+=== PAUSE TestPreparedTimezoneIndexedWorkAndFaults/5
+=== RUN   TestPreparedTimezoneIndexedWorkAndFaults/1000
+=== PAUSE TestPreparedTimezoneIndexedWorkAndFaults/1000
+=== RUN   TestPreparedTimezoneIndexedWorkAndFaults/10000
+=== PAUSE TestPreparedTimezoneIndexedWorkAndFaults/10000
+=== CONT  TestPreparedTimezoneIndexedWorkAndFaults/4
+=== CONT  TestPreparedTimezoneIndexedWorkAndFaults/1000
+=== CONT  TestPreparedTimezoneIndexedWorkAndFaults/5
+=== CONT  TestPreparedTimezoneIndexedWorkAndFaults/10000
+=== NAME  TestPreparedTimezoneIndexedWorkAndFaults/1000
+    prepared_timezone_test.go:203: N=1000 second=-1 page_reads=1 fixed_page_slots=16
+    prepared_timezone_test.go:203: N=1000 second=0 page_reads=11 fixed_page_slots=16
+    prepared_timezone_test.go:203: N=1000 second=50000 page_reads=11 fixed_page_slots=16
+=== NAME  TestPreparedTimezoneIndexedWorkAndFaults/4
+    prepared_timezone_test.go:203: N=4 second=-1 page_reads=1 fixed_page_slots=16
+=== NAME  TestPreparedTimezoneIndexedWorkAndFaults/1000
+    prepared_timezone_test.go:203: N=1000 second=100000 page_reads=12 fixed_page_slots=16
+=== NAME  TestPreparedTimezoneIndexedWorkAndFaults/4
+    prepared_timezone_test.go:203: N=4 second=0 page_reads=4 fixed_page_slots=16
+    prepared_timezone_test.go:203: N=4 second=200 page_reads=4 fixed_page_slots=16
+=== NAME  TestPreparedTimezoneIndexedWorkAndFaults/5
+    prepared_timezone_test.go:203: N=5 second=-1 page_reads=1 fixed_page_slots=16
+=== NAME  TestPreparedTimezoneIndexedWorkAndFaults/4
+    prepared_timezone_test.go:203: N=4 second=400 page_reads=4 fixed_page_slots=16
+=== NAME  TestPreparedTimezoneIndexedWorkAndFaults/5
+    prepared_timezone_test.go:203: N=5 second=0 page_reads=4 fixed_page_slots=16
+    prepared_timezone_test.go:203: N=5 second=250 page_reads=4 fixed_page_slots=16
+    prepared_timezone_test.go:203: N=5 second=500 page_reads=5 fixed_page_slots=16
+=== NAME  TestPreparedTimezoneIndexedWorkAndFaults/10000
+    prepared_timezone_test.go:203: N=10000 second=-1 page_reads=1 fixed_page_slots=16
+    prepared_timezone_test.go:203: N=10000 second=0 page_reads=15 fixed_page_slots=16
+    prepared_timezone_test.go:203: N=10000 second=500000 page_reads=15 fixed_page_slots=16
+    prepared_timezone_test.go:203: N=10000 second=1000000 page_reads=16 fixed_page_slots=16
+--- PASS: TestPreparedTimezoneIndexedWorkAndFaults (0.00s)
+    --- PASS: TestPreparedTimezoneIndexedWorkAndFaults/1000 (0.00s)
+    --- PASS: TestPreparedTimezoneIndexedWorkAndFaults/4 (0.00s)
+    --- PASS: TestPreparedTimezoneIndexedWorkAndFaults/5 (0.00s)
+    --- PASS: TestPreparedTimezoneIndexedWorkAndFaults/10000 (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.607s

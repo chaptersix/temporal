@@ -12,33 +12,30 @@ import (
 // or admission has occurred. Completed results are unaffected by zone refresh.
 var ErrPreparedZoneChanged = errors.New("prepared calendar resolved timezone changed")
 
-// PreparedLocation is an immutable resolved timezone capability supplied outside
-// mutation. This prototype still uses Go timezone operations; its phase budget
-// does not bound arbitrary TZif lookupFirstZone or POSIX-extension parsing work.
+// PreparedLocation is an immutable prepared timezone capability supplied outside
+// mutation. Its fingerprint includes conversion rules and loader-cache behavior.
 type PreparedLocation struct {
-	location    *time.Location
+	location    *PreparedTimezone
 	fingerprint [32]byte
 }
 
-// NewResolvedLocation binds a caller-verified semantic fingerprint to a resolved
-// location. A named-zone resolver must fingerprint actual resolved rules, not the
-// name. The caller keeps the location immutable and performs cache misses outside
-// mutation; this constructor does not load named zones or implement that cache.
-func NewResolvedLocation(location *time.Location, fingerprint [32]byte) (*PreparedLocation, error) {
-	if location == nil || fingerprint == [32]byte{} {
-		return nil, errors.New("resolved location and nonzero semantic fingerprint required")
+// NewResolvedLocation binds a prepared immutable snapshot. Named resolution must
+// supply its actual rules outside mutation; no time.Location fallback exists.
+func NewResolvedLocation(location *PreparedTimezone) (*PreparedLocation, error) {
+	if location == nil || location.identity == [32]byte{} {
+		return nil, errors.New("prepared timezone required")
 	}
-	return &PreparedLocation{location: location, fingerprint: fingerprint}, nil
+	return &PreparedLocation{location: location, fingerprint: location.identity}, nil
 }
 
 // PreparedLocationFromTZData parses caller-supplied custom bytes outside mutation.
 // Nil is not interpreted as a request to load a named zone; present-empty data
 // follows LoadLocationFromTZData's error behavior.
-func PreparedLocationFromTZData(name string, data []byte) (*PreparedLocation, error) {
+func PreparedLocationFromTZData(name string, data []byte, resolvedAt time.Time) (*PreparedLocation, error) {
 	if data == nil {
 		return nil, errors.New("custom timezone data is absent")
 	}
-	location, err := time.LoadLocationFromTZData(name, data)
+	location, err := PrepareTimezone(data, resolvedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -47,10 +44,10 @@ func PreparedLocationFromTZData(name string, data []byte) (*PreparedLocation, er
 	binary.BigEndian.PutUint64(length[:], uint64(len(name)))
 	_, _ = hash.Write(length[:])
 	_, _ = hash.Write([]byte(name))
-	_, _ = hash.Write(data)
+	_, _ = hash.Write(location.identity[:])
 	var id [32]byte
 	copy(id[:], hash.Sum(nil))
-	return NewResolvedLocation(location, id)
+	return &PreparedLocation{location: location, fingerprint: id}, nil
 }
 
 // Fingerprint identifies the resolved rules supplied for this capability.
@@ -108,10 +105,9 @@ func (s CalendarNextState) Result() (candidate time.Time, found, done bool) {
 	return time.Unix(s.CandidateSeconds, 0).UTC(), true, true
 }
 
-// CalendarNextStats counts phase steps and calls to time.Date or zone-dependent
-// time accessors (Date, Clock, Hour, Weekday). In and Add do not resolve zone
-// offsets. One counted call may perform several lookups; this is not a CPU bound.
-type CalendarNextStats struct{ Steps, ZoneConversions int }
+// CalendarNextStats counts phase steps, adapter conversions, offset lookups and
+// fixed timezone page reads. UTC-only civil arithmetic does not read zone pages.
+type CalendarNextStats struct{ Steps, ZoneConversions, TimezoneLookups, TimezonePageReads int }
 
 // AdvancePreparedCalendar performs at most budget fixed calendar phase steps.
 // All errors return the original state. No resolver, range compiler, union scan,
@@ -130,7 +126,9 @@ func AdvancePreparedCalendar(state CalendarNextState, definition PreparedCalenda
 	next := state
 	for stats.Steps < budget && next.Phase != CalendarNextComplete {
 		stats.Steps++
-		advanceCalendarPhase(&next, definition, zone, after, &stats)
+		if err := advanceCalendarPhase(&next, definition, zone, after, &stats); err != nil {
+			return state, stats, err
+		}
 	}
 	return next, stats, nil
 }
@@ -167,22 +165,28 @@ func validateCalendarWallState(state CalendarNextState) error {
 	return nil
 }
 
-func advanceCalendarPhase(s *CalendarNextState, d PreparedCalendar, z *PreparedLocation, after time.Time, stats *CalendarNextStats) {
+func advanceCalendarPhase(s *CalendarNextState, d PreparedCalendar, z *PreparedLocation, after time.Time, stats *CalendarNextStats) error {
 	switch s.Phase {
 	case CalendarNextInitial:
-		local := after.In(z.location)
-		stats.ZoneConversions += 3 // Date, Clock, previous-hour comparison.
+		local, err := calendarWall(z, after.Unix(), stats)
+		if err != nil {
+			return err
+		}
+		previous, err := calendarWall(z, after.Unix()-3600, stats)
+		if err != nil {
+			return err
+		}
 		var month time.Month
 		s.Year, month, s.Day = local.Date()
 		s.Month = int(month)
 		s.Hour, s.Minute, s.Second = local.Clock()
-		s.SecondCopy = local.Add(-time.Hour).Hour() == s.Hour
+		s.SecondCopy = previous.Hour() == s.Hour
 		s.SourceID, s.ResolvedZoneID = d.SourceID, z.fingerprint
 		s.AfterSeconds, s.AfterNanos = after.Unix(), int32(after.Nanosecond())
 		s.Second++
 		s.Phase = CalendarNextNormalize
 	case CalendarNextNormalize:
-		normalizeCalendarNext(s, z, stats)
+		return normalizeCalendarNext(s, z, stats)
 	case CalendarNextYear:
 		if calendarYearMatches(d.Masks, s.Year) {
 			s.Phase = CalendarNextMonth
@@ -211,17 +215,18 @@ func advanceCalendarPhase(s *CalendarNextState, d PreparedCalendar, z *PreparedL
 			}
 		}
 	case CalendarNextDay:
-		advanceCalendarDay(s, d, z, stats)
+		return advanceCalendarDay(s, d, z, stats)
 	case CalendarNextHour, CalendarNextMinute, CalendarNextSecond, CalendarNextCandidate:
-		advanceCalendarClock(s, d, z, stats)
+		return advanceCalendarClock(s, d, z, stats)
 	case CalendarNextComplete:
 		// Already complete; the driver does not call this phase.
 	default:
-		return // Invalid phases are rejected before entering the driver.
+		return nil // Invalid phases are rejected before entering the driver.
 	}
+	return nil
 }
 
-func advanceCalendarClock(s *CalendarNextState, d PreparedCalendar, z *PreparedLocation, stats *CalendarNextStats) {
+func advanceCalendarClock(s *CalendarNextState, d PreparedCalendar, z *PreparedLocation, stats *CalendarNextStats) error {
 	switch s.Phase {
 	case CalendarNextHour:
 		if calendarBit(d.Masks.Fields[2], s.Hour) {
@@ -255,21 +260,28 @@ func advanceCalendarClock(s *CalendarNextState, d PreparedCalendar, z *PreparedL
 			}
 		}
 	case CalendarNextCandidate:
-		finishCalendarCandidate(s, z, stats)
+		return finishCalendarCandidate(s, z, stats)
 	default:
 		// The phase dispatcher calls this helper only for clock phases.
 	}
+	return nil
 }
 
-func finishCalendarCandidate(s *CalendarNextState, z *PreparedLocation, stats *CalendarNextStats) {
-	candidate := preparedCalendarDate(s.Year, s.Month, s.Day, s.Hour, s.Minute, s.Second, z.location, stats)
-	stats.ZoneConversions++
-	if candidate.Hour() != s.Hour {
+func finishCalendarCandidate(s *CalendarNextState, z *PreparedLocation, stats *CalendarNextStats) error {
+	candidate, err := preparedCalendarDate(s.Year, s.Month, s.Day, s.Hour, s.Minute, s.Second, z, stats)
+	if err != nil {
+		return err
+	}
+	wall, err := calendarWall(z, candidate.Unix(), stats)
+	if err != nil {
+		return err
+	}
+	if wall.Hour() != s.Hour {
 		s.Hour++
 		s.Minute = 0
 		s.Second = 0
 		s.Phase = CalendarNextNormalize
-		return
+		return nil
 	}
 	if s.SecondCopy {
 		candidate = candidate.Add(time.Hour)
@@ -277,18 +289,25 @@ func finishCalendarCandidate(s *CalendarNextState, z *PreparedLocation, stats *C
 	s.CandidateSeconds = candidate.Unix()
 	s.Found = true
 	s.Phase = CalendarNextComplete
+	return nil
 }
 
-func normalizeCalendarNext(s *CalendarNextState, z *PreparedLocation, stats *CalendarNextStats) {
+func normalizeCalendarNext(s *CalendarNextState, z *PreparedLocation, stats *CalendarNextStats) error {
 	if s.Second >= 60 {
 		s.Minute++
 		s.Second = 0
 	}
 	if s.Minute >= 60 {
-		previous := preparedCalendarDate(s.Year, s.Month, s.Day, s.Hour, 0, 0, z.location, stats)
+		previous, err := preparedCalendarDate(s.Year, s.Month, s.Day, s.Hour, 0, 0, z, stats)
+		if err != nil {
+			return err
+		}
 		s.Hour++
 		s.Minute = 0
-		next := preparedCalendarDate(s.Year, s.Month, s.Day, s.Hour, 0, 0, z.location, stats)
+		next, err := preparedCalendarDate(s.Year, s.Month, s.Day, s.Hour, 0, 0, z, stats)
+		if err != nil {
+			return err
+		}
 		if !s.SecondCopy && next.Sub(previous) > time.Hour {
 			s.Hour--
 			s.SecondCopy = true
@@ -310,20 +329,27 @@ func normalizeCalendarNext(s *CalendarNextState, z *PreparedLocation, stats *Cal
 	}
 	if s.Year > 2100 {
 		s.Phase = CalendarNextComplete
-		return
+		return nil
 	}
 	s.Phase = CalendarNextYear
+	return nil
 }
-func advanceCalendarDay(s *CalendarNextState, d PreparedCalendar, z *PreparedLocation, stats *CalendarNextStats) {
+func advanceCalendarDay(s *CalendarNextState, d PreparedCalendar, z *PreparedLocation, stats *CalendarNextStats) error {
 	matches := calendarBit(d.Masks.Fields[3], s.Day)
 	if matches {
-		stats.ZoneConversions += 2 // Date construction and Weekday.
-		weekday := time.Date(s.Year, time.Month(s.Month), s.Day, s.Hour, s.Minute, s.Second, 0, z.location).Weekday()
-		matches = calendarBit(d.Masks.Fields[5], int(weekday))
+		candidate, err := calendarDate(z, s.Year, s.Month, s.Day, s.Hour, s.Minute, s.Second, stats)
+		if err != nil {
+			return err
+		}
+		wall, err := calendarWall(z, candidate.Unix(), stats)
+		if err != nil {
+			return err
+		}
+		matches = calendarBit(d.Masks.Fields[5], int(wall.Weekday()))
 	}
 	if matches {
 		s.Phase = CalendarNextHour
-		return
+		return nil
 	}
 	s.Day++
 	s.Hour = 0
@@ -333,7 +359,9 @@ func advanceCalendarDay(s *CalendarNextState, d PreparedCalendar, z *PreparedLoc
 	if s.Day > preparedDaysInMonth(s.Month, s.Year) {
 		s.Phase = CalendarNextNormalize
 	}
+	return nil
 }
+
 func calendarBit(mask uint64, value int) bool {
 	return value >= 0 && value < 64 && mask&(uint64(1)<<value) != 0
 }
@@ -357,17 +385,44 @@ func preparedDaysInMonth(month, year int) int {
 	return 30 + (bits>>month)&1
 }
 
+func calendarWall(z *PreparedLocation, sec int64, stats *CalendarNextStats) (time.Time, error) {
+	stats.ZoneConversions++
+	var work timezoneWork
+	value, err := z.location.wall(sec, &work)
+	stats.TimezoneLookups += work.lookups
+	stats.TimezonePageReads += work.pages
+	return value, err
+}
+func calendarDate(z *PreparedLocation, year, month, day, hour, minute, second int, stats *CalendarNextStats) (time.Time, error) {
+	stats.ZoneConversions++
+	var work timezoneWork
+	value, err := z.location.date(year, month, day, hour, minute, second, &work)
+	stats.TimezoneLookups += work.lookups
+	stats.TimezonePageReads += work.pages
+	return value, err
+}
+
 // Keep the reference's corrected first-copy choice, including its one-hour scope.
-func preparedCalendarDate(year, month, day, hour, minute, second int, zone *time.Location, stats *CalendarNextStats) time.Time {
-	stats.ZoneConversions += 5 // Date construction and two Date/Clock pairs.
-	result := time.Date(year, time.Month(month), day, hour, minute, second, 0, zone)
-	earlier := result.Add(-time.Hour)
-	ey, em, ed := earlier.Date()
-	ry, rm, rd := result.Date()
-	eh, emin, es := earlier.Clock()
-	rh, rmin, rs := result.Clock()
-	if ey == ry && em == rm && ed == rd && eh == rh && emin == rmin && es == rs {
-		return earlier
+func preparedCalendarDate(year, month, day, hour, minute, second int, zone *PreparedLocation, stats *CalendarNextStats) (time.Time, error) {
+	result, err := calendarDate(zone, year, month, day, hour, minute, second, stats)
+	if err != nil {
+		return time.Time{}, err
 	}
-	return result
+	earlier := result.Add(-time.Hour)
+	before, err := calendarWall(zone, earlier.Unix(), stats)
+	if err != nil {
+		return time.Time{}, err
+	}
+	current, err := calendarWall(zone, result.Unix(), stats)
+	if err != nil {
+		return time.Time{}, err
+	}
+	by, bm, bd := before.Date()
+	cy, cm, cd := current.Date()
+	bh, bmin, bs := before.Clock()
+	ch, cmin, cs := current.Clock()
+	if by == cy && bm == cm && bd == cd && bh == ch && bmin == cmin && bs == cs {
+		return earlier, nil
+	}
+	return result, nil
 }

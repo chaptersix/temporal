@@ -1,7 +1,6 @@
 package occurrence
 
 import (
-	"crypto/sha256"
 	_ "embed"
 	"encoding/json"
 	"testing"
@@ -63,9 +62,13 @@ func runPreparedCalendar(t *testing.T, d PreparedCalendar, z *PreparedLocation, 
 		require.NoError(t, err)
 		require.LessOrEqual(t, stats.Steps, budgets[i%len(budgets)])
 		require.Positive(t, stats.Steps)
-		require.LessOrEqual(t, stats.ZoneConversions, 10*stats.Steps)
+		require.LessOrEqual(t, stats.ZoneConversions, 6*stats.Steps)
 		total.Steps += stats.Steps
 		total.ZoneConversions += stats.ZoneConversions
+		total.TimezoneLookups += stats.TimezoneLookups
+		total.TimezonePageReads += stats.TimezonePageReads
+		require.LessOrEqual(t, stats.TimezoneLookups, 8*stats.Steps)
+		require.LessOrEqual(t, stats.TimezonePageReads, 66*stats.TimezoneLookups)
 		wire, err := json.Marshal(next)
 		require.NoError(t, err)
 		require.NoError(t, json.Unmarshal(wire, &state))
@@ -100,9 +103,9 @@ func TestPreparedCalendarReference(t *testing.T) {
 				var location *PreparedLocation
 				var err error
 				if zone.data == nil {
-					location, err = NewResolvedLocation(time.UTC, sha256.Sum256([]byte("UTC")))
+					location, err = NewResolvedLocation(PreparedUTC())
 				} else {
-					location, err = PreparedLocationFromTZData(zone.name, zone.data)
+					location, err = PreparedLocationFromTZData(zone.name, zone.data, time.Now())
 				}
 				require.NoError(t, err)
 				definition, compiled := preparedCalendarFixture(t, &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{calendar.cal}, TimezoneName: zone.name, TimezoneData: zone.data})
@@ -134,9 +137,9 @@ func TestPreparedCalendarReference(t *testing.T) {
 func TestPreparedCalendarIdentityAndRefresh(t *testing.T) {
 	t.Parallel()
 	definition, _ := preparedCalendarFixture(t, &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{Hour: []*schedulepb.Range{{Start: 1}}}}})
-	first, err := PreparedLocationFromTZData("named", preparedNewYorkTZ)
+	first, err := PreparedLocationFromTZData("named", preparedNewYorkTZ, time.Now())
 	require.NoError(t, err)
-	changed, err := PreparedLocationFromTZData("named", preparedLondonTZ)
+	changed, err := PreparedLocationFromTZData("named", preparedLondonTZ, time.Now())
 	require.NoError(t, err)
 	after := time.Date(2024, 10, 27, 0, 0, 0, 0, time.UTC)
 	partial, _, err := AdvancePreparedCalendar(CalendarNextState{}, definition, first, after, 1)
@@ -181,39 +184,43 @@ func TestPreparedCalendarIdentityAndRefresh(t *testing.T) {
 func TestPreparedLocationInput(t *testing.T) {
 	t.Parallel()
 	for _, data := range [][]byte{nil, {}, []byte("bad TZif")} {
-		_, err := PreparedLocationFromTZData("custom", data)
+		_, err := PreparedLocationFromTZData("custom", data, time.Now())
 		require.Error(t, err)
 	}
 	data := append([]byte(nil), preparedNewYorkTZ...)
-	first, err := PreparedLocationFromTZData("custom", data)
+	first, err := PreparedLocationFromTZData("custom", data, time.Now())
 	require.NoError(t, err)
 	for i := range data {
 		data[i] = 0
 	}
-	same, err := PreparedLocationFromTZData("custom", preparedNewYorkTZ)
+	same, err := PreparedLocationFromTZData("custom", preparedNewYorkTZ, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, first.fingerprint, same.fingerprint)
-	require.Equal(t, first.location.String(), same.location.String())
 	for _, at := range []time.Time{time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2024, 7, 1, 0, 0, 0, 0, time.UTC)} {
-		require.Equal(t, at.In(first.location).Format(time.RFC3339), at.In(same.location).Format(time.RFC3339))
+		var work timezoneWork
+		before, err := first.location.wall(at.Unix(), &work)
+		require.NoError(t, err)
+		after, err := same.location.wall(at.Unix(), &work)
+		require.NoError(t, err)
+		require.Equal(t, before, after)
 	}
-	_, err = NewResolvedLocation(nil, first.fingerprint)
+	_, err = NewResolvedLocation(nil)
 	require.Error(t, err)
-	_, err = NewResolvedLocation(time.UTC, [32]byte{})
+	_, err = NewResolvedLocation(&PreparedTimezone{})
 	require.Error(t, err)
 }
 
 func TestPreparedCalendarZoneOperationCounts(t *testing.T) {
 	t.Parallel()
 	definition, _ := preparedCalendarFixture(t, &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{Second: []*schedulepb.Range{{Start: 0, End: 59}}, Minute: []*schedulepb.Range{{Start: 0, End: 59}}, Hour: []*schedulepb.Range{{Start: 0, End: 23}}}}})
-	zone, err := NewResolvedLocation(time.UTC, sha256.Sum256([]byte("UTC")))
+	zone, err := NewResolvedLocation(PreparedUTC())
 	require.NoError(t, err)
 	for _, tc := range []struct {
 		name                        string
 		minute, second, conversions int
 	}{
-		{"no carry", 0, 0, 11},
-		{"hour carry", 59, 59, 21},
+		{"no carry", 0, 0, 8},
+		{"hour carry", 59, 59, 14},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -222,7 +229,7 @@ func TestPreparedCalendarZoneOperationCounts(t *testing.T) {
 			candidate, found, done := state.Result()
 			require.True(t, found && done)
 			require.Equal(t, after.Add(time.Second), candidate)
-			require.Equal(t, CalendarNextStats{Steps: 9, ZoneConversions: tc.conversions}, stats)
+			require.Equal(t, CalendarNextStats{Steps: 9, ZoneConversions: tc.conversions, TimezoneLookups: tc.conversions}, stats)
 		})
 	}
 }
@@ -245,7 +252,7 @@ func TestPreparedCalendarKnownDSTInstants(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			definition, _ := preparedCalendarFixture(t, &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{Hour: []*schedulepb.Range{{Start: tc.hour}}, Minute: []*schedulepb.Range{{Start: tc.minute}}}}, TimezoneName: tc.name, TimezoneData: tc.data})
-			zone, err := PreparedLocationFromTZData(tc.name, tc.data)
+			zone, err := PreparedLocationFromTZData(tc.name, tc.data, time.Now())
 			require.NoError(t, err)
 			after, err := time.Parse(time.RFC3339, tc.after)
 			require.NoError(t, err)
@@ -272,9 +279,9 @@ func TestPreparedCalendarLocalAndUTCHorizon(t *testing.T) {
 			var zone *PreparedLocation
 			var err error
 			if tc.data == nil {
-				zone, err = NewResolvedLocation(time.UTC, sha256.Sum256([]byte("UTC")))
+				zone, err = NewResolvedLocation(PreparedUTC())
 			} else {
-				zone, err = PreparedLocationFromTZData(tc.name, tc.data)
+				zone, err = PreparedLocationFromTZData(tc.name, tc.data, time.Now())
 			}
 			require.NoError(t, err)
 			after := time.Date(2100, 12, 31, 23, 59, 59, 0, time.UTC)

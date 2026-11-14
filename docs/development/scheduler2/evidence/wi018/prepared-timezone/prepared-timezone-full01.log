@@ -1,0 +1,4 @@
+# go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence [go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence.test]
+chasm/lib/scheduler2/internal/occurrence/prepared_timezone_test.go:231:38: undefined: schedulepb
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence [build failed]
+FAIL

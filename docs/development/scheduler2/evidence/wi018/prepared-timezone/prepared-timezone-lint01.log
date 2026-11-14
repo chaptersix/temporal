@@ -1,0 +1,216 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 12.412ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (imports|compiled_files|deps|exports_file|name|types_sizes|files) took 435.775625ms"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 2.142417ms"
+level=info msg="[linters_context/goanalysis] analyzers took 1.013349216s with top 10 stages: revive: 531.915ms, goimports: 273.160458ms, buildir: 24.659205ms, gci: 22.526542ms, forbidigo: 12.7295ms, nilness: 12.253009ms, S1038: 11.41975ms, exhaustive: 10.327179ms, QF1010: 7.536208ms, fact_deprecated: 7.131187ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_rules] Skipped 5 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 2 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 4 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 9 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner] Issues before processing: 35, after processing: 12"
+level=info msg="[runner] Processors filtering stat (in/out): filename_unadjuster: 35/35, exclusion_rules: 35/15, nolint_filter: 15/14, max_per_file_from_linter: 12/12, max_from_linter: 12/12, path_shortener: 12/12, path_prettifier: 12/12, exclusion_paths: 35/35, uniq_by_line: 14/12, sort_results: 12/12, invalid_issue: 35/35, diff: 14/14, fixer: 14/14, source_code: 12/12, severity-rules: 12/12, path_absoluter: 35/35, cgo: 35/35, path_relativity: 35/35, generated_file_filter: 35/35, max_same_issues: 12/12"
+level=info msg="[runner] processing took 82.655999ms with stages: diff: 80.334834ms, nolint_filter: 1.634208ms, generated_file_filter: 271.083µs, exclusion_rules: 183.458µs, source_code: 140.584µs, exclusion_paths: 55.917µs, path_relativity: 19.624µs, uniq_by_line: 5.666µs, cgo: 3.417µs, sort_results: 1.833µs, path_shortener: 1.375µs, invalid_issue: 1.208µs, max_same_issues: 917ns, path_absoluter: 500ns, max_per_file_from_linter: 458ns, filename_unadjuster: 334ns, fixer: 250ns, path_prettifier: 209ns, severity-rules: 83ns, max_from_linter: 41ns"
+level=info msg="[runner] linters took 1.453914375s with stages: goanalysis_metalinter: 1.371211583s"
+../chasm/lib/scheduler2/internal/occurrence/prepared_calendar.go:38:41: use of `time.Now` forbidden because "Using time.Now is not allowed in chasm/lib package (non-test files), use ctx.Now(component) instead" (forbidigo)
+	location, err := PrepareTimezone(data, time.Now())
+	                                       ^
+../chasm/lib/scheduler2/internal/occurrence/prepared_timezone.go:172:2: epoch-naming: var unix should have one of these suffixes: Sec, Second, Seconds (revive)
+	unix := time.Date(year, time.Month(month), day, hour, minute, second, 0, time.UTC).Unix()
+	^
+../chasm/lib/scheduler2/internal/occurrence/prepared_timezone_parse.go:27:1: cyclomatic: function parsePreparedTZData has cyclomatic complexity 30 (> max enabled 25) (revive)
+func parsePreparedTZData(data []byte) (preparedTZParsed, error) {
+	bad := errors.New("malformed prepared timezone data")
+	if len(data) < 44 || string(data[:4]) != "TZif" {
+		return preparedTZParsed{}, bad
+	}
+	version := data[4]
+	if version != 0 && version != '2' && version != '3' {
+		return preparedTZParsed{}, bad
+	}
+	counts := func(raw []byte) [6]uint64 {
+		var n [6]uint64
+		for i := range n {
+			n[i] = uint64(binary.BigEndian.Uint32(raw[4*i:]))
+		}
+		return n
+	}
+	n := counts(data[20:44])
+	data = data[44:]
+	size := uint64(4)
+	if version != 0 {
+		skip := n[3]*5 + n[4]*6 + n[5] + n[2]*8 + n[1] + n[0] + 20
+		if skip+24 > uint64(len(data)) {
+			return preparedTZParsed{}, bad
+		}
+		data = data[int(skip):]
+		n = counts(data[:24])
+		data = data[24:]
+		size = 8
+	}
+	needed := n[3]*(size+1) + n[4]*6 + n[5] + n[2]*(size+4) + n[1] + n[0]
+	if n[4] == 0 || needed > uint64(len(data)) {
+		return preparedTZParsed{}, bad
+	}
+	times := data[:int(n[3]*size)]
+	data = data[len(times):]
+	indices := data[:int(n[3])]
+	data = data[len(indices):]
+	zoneData := data[:int(n[4]*6)]
+	data = data[len(zoneData):]
+	abbreviations := data[:int(n[5])]
+	data = data[len(abbreviations):]
+	data = data[int(n[2]*(size+4)+n[1]+n[0]):]
+	zones := make([]preparedTZZone, int(n[4]))
+	for i := range zones {
+		row := zoneData[i*6:]
+		if int(row[5]) >= len(abbreviations) {
+			return preparedTZParsed{}, bad
+		}
+		zones[i] = preparedTZZone{offset: int(int32(binary.BigEndian.Uint32(row))), daylight: row[4] != 0}
+	}
+	tx := make([]preparedTZTransition, int(n[3]))
+	firstUsed := false
+	for i := range tx {
+		if int(indices[i]) >= len(zones) {
+			return preparedTZParsed{}, bad
+		}
+		var when int64
+		if size == 4 {
+			when = int64(int32(binary.BigEndian.Uint32(times[i*4:])))
+		} else {
+			when = int64(binary.BigEndian.Uint64(times[i*8:]))
+		}
+		tx[i] = preparedTZTransition{when: when, offset: zones[indices[i]].offset}
+		firstUsed = firstUsed || indices[i] == 0
+	}
+	first := 0
+	if firstUsed {
+		first = -1
+		if len(indices) > 0 && zones[indices[0]].daylight {
+			for i := int(indices[0]) - 1; i >= 0; i-- {
+				if !zones[i].daylight {
+					first = i
+					break
+				}
+			}
+		}
+		if first < 0 {
+			for i, z := range zones {
+				if !z.daylight {
+					first = i
+					break
+				}
+			}
+		}
+		if first < 0 {
+			first = 0
+		}
+	}
+	if len(tx) == 0 {
+		tx = []preparedTZTransition{{when: preparedTZAlpha, offset: zones[0].offset}}
+	}
+	var rules preparedTZRules
+	if len(data) > 2 && data[0] == '\n' && data[len(data)-1] == '\n' {
+		rules = parsePreparedTZRules(string(data[1 : len(data)-1]))
+	}
+	return preparedTZParsed{transitions: tx, firstOffset: zones[first].offset, rules: rules}, nil
+}
+../chasm/lib/scheduler2/internal/occurrence/prepared_timezone_rules.go:98:45: confusing-results: unnamed results of the same type may be confusing, consider using named results (revive)
+func preparedTZTzsetName(s string) (string, string, bool) {
+                                            ^
+../chasm/lib/scheduler2/internal/occurrence/prepared_timezone_rules.go:116:9: indent-error-flow: if block ends with a return statement, so drop this else and outdent its block (revive)
+	} else {
+		for i, r := range s {
+			if r == '>' {
+				return s[1:i], s[i+1:], true
+			}
+		}
+		return "", "", false
+	}
+../chasm/lib/scheduler2/internal/occurrence/prepared_timezone_rules.go:134:2: QF1003: could use tagged switch on s[0] (staticcheck)
+	if s[0] == '+' {
+	^
+../chasm/lib/scheduler2/internal/occurrence/prepared_timezone_rules.go:208:2: QF1003: could use tagged switch on s[0] (staticcheck)
+	if s[0] == 'J' {
+	^
+../chasm/lib/scheduler2/internal/occurrence/prepared_timezone_rules.go:264:35: redefines-builtin-id: redefinition of the built-in function min (revive)
+func preparedTZTzsetNum(s string, min, max int) (num int, rest string, ok bool) {
+                                  ^
+../chasm/lib/scheduler2/internal/occurrence/prepared_timezone_rules.go:293:2: enforce-switch-style: switch must have a default case clause (revive)
+	switch r.kind {
+	case preparedTZRuleJulian:
+		s = (r.day - 1) * preparedTZSecondsPerDay
+		if preparedTZIsLeap(year) && r.day >= 60 {
+			s += preparedTZSecondsPerDay
+		}
+	case preparedTZRuleDOY:
+		s = r.day * preparedTZSecondsPerDay
+	case preparedTZRuleMonthWeekDay:
+		// Zeller's Congruence.
+		m1 := (r.mon+9)%12 + 1
+		yy0 := year
+		if r.mon <= 2 {
+			yy0--
+		}
+		yy1 := yy0 / 100
+		yy2 := yy0 % 100
+		dow := ((26*m1-2)/10 + 1 + yy2 + yy2/4 + yy1/4 - 2*yy1) % 7
+		if dow < 0 {
+			dow += 7
+		}
+		// Now dow is the day-of-week of the first day of r.mon.
+		// Get the day-of-month of the first "dow" day.
+		d := r.day - dow
+		if d < 0 {
+			d += 7
+		}
+		for i := 1; i < r.week; i++ {
+			if d+7 >= preparedTZDaysIn(time.Month(r.mon), year) {
+				break
+			}
+			d += 7
+		}
+		d += preparedTZDaysBefore(time.Month(r.mon))
+		if preparedTZIsLeap(year) && r.mon > 2 {
+			d++
+		}
+		s = d * preparedTZSecondsPerDay
+	}
+../chasm/lib/scheduler2/internal/occurrence/prepared_timezone_test.go:142:2: epoch-naming: var now should have one of these suffixes: Sec, Second, Seconds (revive)
+	now := time.Now().Unix()
+	^
+../chasm/lib/scheduler2/internal/occurrence/prepared_timezone_test.go:210:38: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+						return preparedTimezonePage{}, fmt.Errorf("injected missing page")
+						                               ^
+../chasm/lib/scheduler2/internal/occurrence/prepared_timezone_test.go:249:36: unnecessary-format: unnecessary use of formatting function "fmt.Errorf", you can replace it with "errors.New" (revive)
+				return preparedTimezonePage{}, fmt.Errorf("injected timezone page failure")
+				                               ^
+12 issues:
+* forbidigo: 1
+* revive: 9
+* staticcheck: 2
+level=info msg="File cache stats: 5 entries of total size 39.6KiB"
+level=info msg="Memory: 21 samples, avg is 408.3MB, max is 776.9MB"
+level=info msg="Execution took 1.926880208s"
+make: *** [lint-code] Error 1

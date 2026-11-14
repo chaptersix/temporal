@@ -1,0 +1,19 @@
+{
+  "source_sha256": {
+    "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_license.txt": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+    "chasm/lib/scheduler2/internal/occurrence/prepared_timezone.go": "f25422b57e0e058867c8a67c5fceb0534e14134adf16271963f3757a5d962493",
+    "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_rules.go": "e0a741d55d258ffb0af728b73a3ae8135f81da42ff3bdc3bcf90c31042b75f47",
+    "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_parse.go": "6854c7b7157698b6084f3683e4089b88a89ad6b6ce00b142126b2390aab7102f",
+    "chasm/lib/scheduler2/internal/occurrence/prepared_timezone_test.go": "190a78a613985842721c1665440938f5d844312d9b1d6feaa4b30064184e898c",
+    "chasm/lib/scheduler2/internal/occurrence/prepared_calendar.go": "305437b1c988293671e292dc8ce6ea49be0b43f53ebc6c015a83e7028252476e",
+    "chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go": "457e9fc532bc04101636f8698114e50f8484f6a5d15cd1009884ff9b34501d92"
+  },
+  "scope": "immutable in-memory prepared timezone + pure calendar integration; no persisted timezone pages/named resolver/runtime routing",
+  "review_reference_sha256": {
+    "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo.go": "198928e8d2573d88d8743db57b86777a26506f17ef2b0283882a9f5c884979b7",
+    "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo_read.go": "812b0025c6e4face22e709053183d59e03e71e3c1459187350f4088587f4a134",
+    "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/time.go": "7d992810b162f65e02cea4d60fd0d90af59b3cafa2c8926ca08083d5c73451dc"
+  },
+  "independent_command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2/internal/occurrence -count=1",
+  "result": "PASS 1.068s; seven frozen source hashes matched before independent execution"
+}
