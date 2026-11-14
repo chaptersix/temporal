@@ -102,7 +102,7 @@ The tier is every package directory whose name ends in `proptest`; see
 ### Running locally
 
 ```bash
-make property-test                     # rapid's default: 100 generated cases per property
+make property-test                     # 1000 generated cases per property
 make property-test RAPID_CHECKS=50000  # soak before pushing a change to a covered package
 ```
 
@@ -115,7 +115,7 @@ go test -tags test_dep ./chasm/lib/scheduler/schedulerproptest/ -run TestSchedul
 
 ### Configuration
 
-`RAPID_CHECKS` sets the number of generated cases per property, and defaults to `100` — cheap
+`RAPID_CHECKS` sets the number of generated cases per property, and defaults to `1000` — cheap
 enough to run on every PR. Every rapid flag also has an environment variable form
 (`-rapid.checks` / `RAPID_CHECKS`, and so on); see rapid's documentation for the full set.
 

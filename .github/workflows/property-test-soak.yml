@@ -1,6 +1,6 @@
 name: Property Test Soak
 
-# The per-PR Property test job runs rapid's default 100 checks so it stays cheap
+# The per-PR Property test job runs 1000 checks so it stays cheap
 # enough to gate on. This workflow is where the input space actually gets
 # explored: the same tests, same single attempt, but orders of magnitude more
 # generated cases, on a fresh random seed each night.

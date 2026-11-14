@@ -278,7 +278,7 @@ func newTestEngineContextFromConfig(
 	require.NoError(t, registry.Register(newTestLibrary(logger, specProcessor)))
 
 	config.engineOpts = append(config.engineOpts, chasmtest.WithInvariantCheck(
-		func(t *testing.T, node *chasm.Node, root chasm.RootComponent) {
+		func(t chasmtest.TB, node *chasm.Node, root chasm.RootComponent) {
 			requireValidSchedulerState(t, registry, node, root)
 		},
 	))

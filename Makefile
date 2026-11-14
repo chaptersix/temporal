@@ -511,7 +511,9 @@ integration-test: clean-test-output
 # See docs/development/testing.md ("Property tests") for how to reproduce a
 # counterexample, when to commit one, and how to add a package to this tier.
 PROPERTY_TEST_MAX_ATTEMPTS := 1
-RAPID_CHECKS ?= 100
+# Generated cases per property. Above rapid's own default of 100, to catch more
+# before a merge; the nightly soak workflow raises it much further.
+RAPID_CHECKS ?= 1000
 
 property-test: clean-test-output
 	@printf $(COLOR) "Run property tests ($(RAPID_CHECKS) checks)..."
