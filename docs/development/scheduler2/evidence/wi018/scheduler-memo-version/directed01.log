@@ -1,0 +1,49 @@
+=== RUN   TestMemoVersionLegacyBaselineAndNestedReservation
+=== PAUSE TestMemoVersionLegacyBaselineAndNestedReservation
+=== RUN   TestMemoVersionReservationLimits
+=== PAUSE TestMemoVersionReservationLimits
+=== RUN   TestMemoVersionAcknowledgmentAndCallback
+=== PAUSE TestMemoVersionAcknowledgmentAndCallback
+=== RUN   TestMemoVersionOverflowBeforePublicWrites
+=== PAUSE TestMemoVersionOverflowBeforePublicWrites
+=== RUN   TestMemoVersionPauseUsesOneReservation
+=== PAUSE TestMemoVersionPauseUsesOneReservation
+=== RUN   TestMemoVersionGenerationPausedOverride
+=== PAUSE TestMemoVersionGenerationPausedOverride
+=== RUN   TestMemoVersionDoesNotReadList
+=== PAUSE TestMemoVersionDoesNotReadList
+=== CONT  TestMemoVersionLegacyBaselineAndNestedReservation
+=== CONT  TestMemoVersionPauseUsesOneReservation
+=== CONT  TestMemoVersionDoesNotReadList
+=== CONT  TestMemoVersionOverflowBeforePublicWrites
+--- PASS: TestMemoVersionLegacyBaselineAndNestedReservation (0.00s)
+=== CONT  TestMemoVersionAcknowledgmentAndCallback
+=== RUN   TestMemoVersionAcknowledgmentAndCallback/false
+--- FAIL: TestMemoVersionDoesNotReadList (0.00s)
+panic: failed to deserialize data: error deserializing using Proto3 encoding: proto: cannot parse invalid wire-format data [recovered, repanicked]
+
+goroutine 39 [running]:
+testing.tRunner.func1.2({0x1044b5830, 0x479eaa9ffe80})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2125 +0x1a0
+testing.tRunner.func1()
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2128 +0x2c8
+panic({0x1044b5830?, 0x479eaa9ffe80?})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859 +0x120
+go.temporal.io/server/chasm.Field[...].TryGet(0x1043e71e0, {0x104d47f08, 0x479eaab12070})
+	/private/tmp/sch-redesign-execution/chasm/field.go:117 +0x504
+go.temporal.io/server/chasm/lib/scheduler2.(*Scheduler).SearchAttributes(0x479eab1ad448, {0x104d47f08, 0x479eaab12070})
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_visibility.go:25 +0x108
+go.temporal.io/server/chasm.newTreeInitSearchAttributesAndMemo(0x479eab1bd800, 0x479eab1d82d0?)
+	/private/tmp/sch-redesign-execution/chasm/tree.go:385 +0xdc
+go.temporal.io/server/chasm.NewTreeFromDB(0x479eab1c3aa0, 0x479eaacca070, {0x104d489a8?, 0x479eab1c07e0?}, {0x104d2c1c0, 0x104f13c20}, {0x104d42470?, 0x479eab1c3bf0?}, {0x104d428d0?, 0x104f13c20?})
+	/private/tmp/sch-redesign-execution/chasm/tree.go:307 +0x1e8
+go.temporal.io/server/chasm/lib/scheduler2.(*treeHarness).reload(0x479eaa842410)
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/persistence_test.go:81 +0xb0
+go.temporal.io/server/chasm/lib/scheduler2.TestMemoVersionDoesNotReadList(0x479eaafd6008)
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/memo_version_test.go:172 +0x110
+testing.tRunner(0x479eaafd6008, 0x104d4bfe8)
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2260 +0x3b8
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.670s
+FAIL

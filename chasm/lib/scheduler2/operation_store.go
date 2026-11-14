@@ -12,6 +12,10 @@ import (
 
 const operationStoreVersion = 1
 
+func (s *Scheduler) completeOperationProfile() bool {
+	return s.PublicRevision != 0 && s.IndexedQueue != nil && s.PayloadStore != nil && s.ProjectionStore != nil && s.OperationStore != nil && s.OperationStore.StartDispatch != nil
+}
+
 func (s *Scheduler) validateOperationStore() error {
 	if s.OperationStore == nil {
 		return nil
@@ -19,6 +23,14 @@ func (s *Scheduler) validateOperationStore() error {
 	c := s.OperationStore
 	if c.FormatVersion != operationStoreVersion || c.OperationCount < 0 || c.RequestCount < 0 || c.RequestCount > c.OperationCount || c.RetirementCount < 0 || c.RetirementCount > c.OperationCount {
 		return serviceerror.NewInternal("invalid operation store summary")
+	}
+	if dispatch := c.StartDispatch; dispatch != nil {
+		if c.PendingCount < 0 || c.PendingCount > c.OperationCount || c.NextReadySequence == 0 || dispatch.Token == 0 {
+			return serviceerror.NewInternal("invalid readiness summary")
+		}
+		if len(s.PendingStarts) != 0 {
+			return serviceerror.NewInternal("mixed start scheduling representations")
+		}
 	}
 	if len(s.Operations) != 0 || len(s.Requests) != 0 {
 		return serviceerror.NewInternal("mixed operation storage representations")

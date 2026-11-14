@@ -1,0 +1,70 @@
+--- FAIL: TestAddressedRuntimePhysicalRetryKeepsFrozenRequest (0.01s)
+    logger.go:146: 2026-11-13T23:29:18.148-0600	error	Panic is captured	{"sys-stack-trace": "goroutine 51 [running]:\nruntime/debug.Stack()\n\t/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/debug/stack.go:26 +0x64\ngo.temporal.io/server/common/log.CapturePanic({0x108402450, 0x5118cd0cf020}, 0x5118cceb9d08)\n\t/private/tmp/sch-redesign-execution/common/log/panic.go:22 +0x110\npanic({0x107f36de0?, 0x107a86d40?})\n\t/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859 +0x120\ngo.temporal.io/server/chasm.(*visibilityTaskHandler).Execute(0x5118cd1842d0?, {0x30?, 0x108238690?}, {{{0x105f21abf, 0x9}, {0x105f1fdec, 0x8}, {0x105f2521a, 0xb}}, 0xd69b04cb, ...}, ...)\n\t/private/tmp/sch-redesign-execution/chasm/visibility.go:453 +0x2c\ngo.temporal.io/server/chasm.NewRegistrableSideEffectTask[...].func2({{{0x105f21abf, 0x9}, {0x105f1fdec, 0x8}, {0x105f2521a, 0xb}}, 0xd69b04cb, {0x0, 0x0}, 0x5118cd180380, ...}, ...)\n\t/private/tmp/sch-redesign-execution/chasm/registrable_task.go:79 +0xa8\ngo.temporal.io/server/chasm.(*Node).invokeSideEffectTaskFn(0x5118cd12cd80, {0x1083fb6c8, 0x5118ccb20850}, 0x5118cd0b8c60, {{0x105f21abf, 0x9}, {0x105f1fdec, 0x8}, {0x105f2521a, 0xb}}, ...)\n\t/private/tmp/sch-redesign-execution/chasm/tree.go:4246 +0x378\ngo.temporal.io/server/chasm.(*Node).ExecuteSideEffectTask(0x5118cd12cd80, {0x1083fb6c8, 0x5118ccb20850}, {{0x105f21abf, 0x9}, {0x105f1fdec, 0x8}, {0x105f2521a, 0xb}}, 0x5118ce0b29c0, ...)\n\t/private/tmp/sch-redesign-execution/chasm/tree.go:4150 +0x90\ngo.temporal.io/server/chasm/lib/scheduler2.(*taskEngine).execute(...)\n\t/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/tasks_test.go:81\ngo.temporal.io/server/chasm/lib/scheduler2.TestAddressedRuntimePhysicalRetryKeepsFrozenRequest(0x5118cd15afc8)\n\t/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:172 +0x150\ntesting.tRunner(0x5118cd15afc8, 0x10840bb48)\n\t/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195 +0xc4\ncreated by testing.(*T).Run in goroutine 1\n\t/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2260 +0x3b8\n", "error": "panic: chasm visibilityTaskHandler should not be called directly", "logging-call-at": "/private/tmp/sch-redesign-execution/common/log/panic.go:24"}
+        go.temporal.io/server/common/log.(*zapLogger).Error
+        	/private/tmp/sch-redesign-execution/common/log/zap_logger.go:191
+        go.temporal.io/server/common/testing/testlogger.(*TestLogger).Error
+        	/private/tmp/sch-redesign-execution/common/testing/testlogger/testlogger.go:543
+        go.temporal.io/server/common/log.CapturePanic
+        	/private/tmp/sch-redesign-execution/common/log/panic.go:24
+        runtime.gopanic
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859
+        go.temporal.io/server/chasm.(*visibilityTaskHandler).Execute
+        	/private/tmp/sch-redesign-execution/chasm/visibility.go:453
+        go.temporal.io/server/chasm.NewRegistrableSideEffectTask[...].func2
+        	/private/tmp/sch-redesign-execution/chasm/registrable_task.go:79
+        go.temporal.io/server/chasm.(*Node).invokeSideEffectTaskFn
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:4246
+        go.temporal.io/server/chasm.(*Node).ExecuteSideEffectTask
+        	/private/tmp/sch-redesign-execution/chasm/tree.go:4150
+        go.temporal.io/server/chasm/lib/scheduler2.(*taskEngine).execute
+        	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/tasks_test.go:81
+        go.temporal.io/server/chasm/lib/scheduler2.TestAddressedRuntimePhysicalRetryKeepsFrozenRequest
+        	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:172
+        testing.tRunner
+        	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+    addressed_runtime_test.go:172: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:172
+        	Error:      	Received unexpected error:
+        	            	panic: chasm visibilityTaskHandler should not be called directly
+        	Test:       	TestAddressedRuntimePhysicalRetryKeepsFrozenRequest
+--- FAIL: TestAddressedRuntimePhysicalSuccessAndCallbackOrdering (0.01s)
+    --- FAIL: TestAddressedRuntimePhysicalSuccessAndCallbackOrdering/false (0.01s)
+        addressed_runtime_test.go:139: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:95
+            	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:139
+            	Error:      	Not equal: 
+            	            	expected: 0
+            	            	actual  : 1
+            	Test:       	TestAddressedRuntimePhysicalSuccessAndCallbackOrdering/false
+    --- FAIL: TestAddressedRuntimePhysicalSuccessAndCallbackOrdering/true (0.00s)
+        logger.go:146: 2026-11-13T23:29:18.151-0600	error	Panic is captured	{"sys-stack-trace": "goroutine 8 [running]:\nruntime/debug.Stack()\n\t/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/debug/stack.go:26 +0x64\ngo.temporal.io/server/common/log.CapturePanic({0x108402450, 0x5118ccecbe00}, 0x5118cd22da78)\n\t/private/tmp/sch-redesign-execution/common/log/panic.go:22 +0x110\npanic({0x107f36de0?, 0x107a86d40?})\n\t/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859 +0x120\ngo.temporal.io/server/chasm.(*visibilityTaskHandler).Execute(0x5118ce08e7e0?, {0x30?, 0x108238690?}, {{{0x105f21abf, 0x9}, {0x105f1fdec, 0x8}, {0x105f2521a, 0xb}}, 0xd69b04cb, ...}, ...)\n\t/private/tmp/sch-redesign-execution/chasm/visibility.go:453 +0x2c\ngo.temporal.io/server/chasm.NewRegistrableSideEffectTask[...].func2({{{0x105f21abf, 0x9}, {0x105f1fdec, 0x8}, {0x105f2521a, 0xb}}, 0xd69b04cb, {0x0, 0x0}, 0x5118cd0acc80, ...}, ...)\n\t/private/tmp/sch-redesign-execution/chasm/registrable_task.go:79 +0xa8\ngo.temporal.io/server/chasm.(*Node).invokeSideEffectTaskFn(0x5118cd21f7a0, {0x1083fb6c8, 0x5118cc9d9880}, 0x5118cd10a510, {{0x105f21abf, 0x9}, {0x105f1fdec, 0x8}, {0x105f2521a, 0xb}}, ...)\n\t/private/tmp/sch-redesign-execution/chasm/tree.go:4246 +0x378\ngo.temporal.io/server/chasm.(*Node).ExecuteSideEffectTask(0x5118cd21f7a0, {0x1083fb6c8, 0x5118cc9d9880}, {{0x105f21abf, 0x9}, {0x105f1fdec, 0x8}, {0x105f2521a, 0xb}}, 0x5118ce0b2840, ...)\n\t/private/tmp/sch-redesign-execution/chasm/tree.go:4150 +0x90\ngo.temporal.io/server/chasm/lib/scheduler2.(*taskEngine).execute(...)\n\t/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/tasks_test.go:81\ngo.temporal.io/server/chasm/lib/scheduler2.TestAddressedRuntimePhysicalSuccessAndCallbackOrdering.func1(0x5118cd091d48)\n\t/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:132 +0x1c0\ntesting.tRunner(0x5118cd091d48, 0x5118cd100100)\n\t/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195 +0xc4\ncreated by testing.(*T).Run in goroutine 50\n\t/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2260 +0x3b8\n", "error": "panic: chasm visibilityTaskHandler should not be called directly", "logging-call-at": "/private/tmp/sch-redesign-execution/common/log/panic.go:24"}
+            go.temporal.io/server/common/log.(*zapLogger).Error
+            	/private/tmp/sch-redesign-execution/common/log/zap_logger.go:191
+            go.temporal.io/server/common/testing/testlogger.(*TestLogger).Error
+            	/private/tmp/sch-redesign-execution/common/testing/testlogger/testlogger.go:543
+            go.temporal.io/server/common/log.CapturePanic
+            	/private/tmp/sch-redesign-execution/common/log/panic.go:24
+            runtime.gopanic
+            	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859
+            go.temporal.io/server/chasm.(*visibilityTaskHandler).Execute
+            	/private/tmp/sch-redesign-execution/chasm/visibility.go:453
+            go.temporal.io/server/chasm.NewRegistrableSideEffectTask[...].func2
+            	/private/tmp/sch-redesign-execution/chasm/registrable_task.go:79
+            go.temporal.io/server/chasm.(*Node).invokeSideEffectTaskFn
+            	/private/tmp/sch-redesign-execution/chasm/tree.go:4246
+            go.temporal.io/server/chasm.(*Node).ExecuteSideEffectTask
+            	/private/tmp/sch-redesign-execution/chasm/tree.go:4150
+            go.temporal.io/server/chasm/lib/scheduler2.(*taskEngine).execute
+            	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/tasks_test.go:81
+            go.temporal.io/server/chasm/lib/scheduler2.TestAddressedRuntimePhysicalSuccessAndCallbackOrdering.func1
+            	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:132
+            testing.tRunner
+            	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195
+        addressed_runtime_test.go:132: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:132
+            	Error:      	Received unexpected error:
+            	            	panic: chasm visibilityTaskHandler should not be called directly
+            	Test:       	TestAddressedRuntimePhysicalSuccessAndCallbackOrdering/true
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.705s
+FAIL

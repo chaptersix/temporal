@@ -1,0 +1,21 @@
+=== RUN   TestBoundedRuntimeHundredInitialCommands
+=== PAUSE TestBoundedRuntimeHundredInitialCommands
+=== RUN   TestBoundedRuntimeHundredPatchedCommands
+=== PAUSE TestBoundedRuntimeHundredPatchedCommands
+=== CONT  TestBoundedRuntimeHundredInitialCommands
+=== RUN   TestBoundedRuntimeHundredInitialCommands/false
+=== CONT  TestBoundedRuntimeHundredPatchedCommands
+=== NAME  TestBoundedRuntimeHundredInitialCommands/false
+    bounded_runtime_test.go:77: regular=5 immediate_enqueues=103 immediate_attempts=103 logical_root_pure=1 logical_root_side=0 visibility=1
+=== RUN   TestBoundedRuntimeHundredInitialCommands/true
+=== NAME  TestBoundedRuntimeHundredPatchedCommands
+    bounded_runtime_test.go:103: regular=3 immediate_enqueues=102 immediate_attempts=102 logical_root_pure=1 logical_root_side=1 visibility=1
+    bounded_runtime_test.go:115: regular=2 immediate_enqueues=1 immediate_attempts=1 logical_root_pure=1 logical_root_side=1 visibility=1
+--- PASS: TestBoundedRuntimeHundredPatchedCommands (0.01s)
+=== NAME  TestBoundedRuntimeHundredInitialCommands/true
+    bounded_runtime_test.go:77: regular=5 immediate_enqueues=103 immediate_attempts=103 logical_root_pure=1 logical_root_side=0 visibility=1
+--- PASS: TestBoundedRuntimeHundredInitialCommands (0.01s)
+    --- PASS: TestBoundedRuntimeHundredInitialCommands/false (0.01s)
+    --- PASS: TestBoundedRuntimeHundredInitialCommands/true (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.752s

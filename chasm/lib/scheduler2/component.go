@@ -42,6 +42,7 @@ type Scheduler struct {
 	Carryover        chasm.Field[*scheduler2pb.CarryoverState]
 	Diagnostics      chasm.Field[*scheduler2pb.Payload]
 	PublicSchedule   chasm.Field[*schedulepb.Schedule]
+	PublicMetadata   chasm.Field[*scheduler2pb.PublicActionMetadata]
 	PublicInfo       chasm.Field[*schedulepb.ScheduleInfo]
 	PublicRuntime    chasm.Field[*scheduler2pb.PublicRuntime]
 	PublicList       chasm.Field[*schedulepb.ScheduleListInfo]
@@ -147,7 +148,7 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 	if err := s.validateOperationStore(); err != nil {
 		return err
 	}
-	if s.OperationStore != nil {
+	if s.OperationStore != nil && !s.completeOperationProfile() {
 		return serviceerror.NewFailedPrecondition("addressed operation runtime integration is incomplete")
 	}
 	if s.Closed {
@@ -155,6 +156,13 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 	}
 	if event.Incarnation != s.Incarnation {
 		return nil
+	}
+	if s.PublicList.IsSet() {
+		var err error
+		ctx, err = s.reserveMemoVersion(ctx)
+		if err != nil {
+			return err
+		}
 	}
 	now := ctx.Now(s)
 	if !time.Unix(0, now.UnixNano()).Equal(now) {
@@ -282,6 +290,9 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 // publishTransition cannot reject: validation and successor-token checks precede
 // every DATA, control-state and task write in this publication phase.
 func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next decision.State, kind decision.Kind, newAdmission bool, eviction string, effectRequests map[string][]byte, carryoverRecord *scheduler2pb.CarryoverState) {
+	if s.PublicList.IsSet() && s.Paused != next.Root.Paused {
+		s.publishMemoVersion(ctx)
+	}
 	var pendingStarts map[string]int64
 	if s.OperationStore == nil || s.OperationStore.StartDispatch == nil {
 		pendingStarts = maps.Clone(s.PendingStarts)
@@ -305,7 +316,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 	}
 	previousRoot := s.RootState
 	s.RootState = &scheduler2pb.RootState{
-		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef, IndexedQueue: previousRoot.IndexedQueue, OperationStore: previousRoot.OperationStore, PayloadStore: previousRoot.PayloadStore, ProjectionStore: previousRoot.ProjectionStore,
+		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef, IndexedQueue: previousRoot.IndexedQueue, OperationStore: previousRoot.OperationStore, PayloadStore: previousRoot.PayloadStore, ProjectionStore: previousRoot.ProjectionStore, MemoRevision: previousRoot.MemoRevision,
 		ActivitySet: next.Root.ActivitySet, ActivityAt: next.Root.ActivityAt, UnconfirmedStarts: next.Root.UnconfirmedStarts,
 		IdleDuration: previousRoot.IdleDuration, IdleToken: previousRoot.IdleToken, IdleArmed: previousRoot.IdleArmed, IdleAt: previousRoot.IdleAt,
 		Closed: previousRoot.Closed, Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,

@@ -1,0 +1,167 @@
+=== RUN   TestBoundedRuntimeHundredInitialCommands
+=== PAUSE TestBoundedRuntimeHundredInitialCommands
+=== RUN   TestBoundedRuntimeHundredPatchedCommands
+=== PAUSE TestBoundedRuntimeHundredPatchedCommands
+=== RUN   TestBoundedRuntimeCombinedWorkAndClaimRecovery
+=== PAUSE TestBoundedRuntimeCombinedWorkAndClaimRecovery
+=== RUN   TestBoundedRuntimeEffectBindingAndVisibility
+=== PAUSE TestBoundedRuntimeEffectBindingAndVisibility
+=== RUN   TestBoundedRuntimeRejectsLegacyMapInsertion
+=== PAUSE TestBoundedRuntimeRejectsLegacyMapInsertion
+=== CONT  TestBoundedRuntimeHundredInitialCommands
+=== RUN   TestBoundedRuntimeHundredInitialCommands/false
+=== CONT  TestBoundedRuntimeEffectBindingAndVisibility
+=== CONT  TestBoundedRuntimeRejectsLegacyMapInsertion
+=== CONT  TestBoundedRuntimeCombinedWorkAndClaimRecovery
+--- PASS: TestBoundedRuntimeRejectsLegacyMapInsertion (0.00s)
+=== CONT  TestBoundedRuntimeHundredPatchedCommands
+=== NAME  TestBoundedRuntimeHundredInitialCommands/false
+    bounded_runtime_test.go:79: regular=5 immediate_enqueues=103 immediate_attempts=103 logical_root_pure=1 logical_root_side=0 visibility=1
+=== NAME  TestBoundedRuntimeEffectBindingAndVisibility
+    bounded_runtime_test.go:175: regular=2 immediate_enqueues=0 immediate_attempts=0 logical_root_pure=1 logical_root_side=1 visibility=1
+=== RUN   TestBoundedRuntimeHundredInitialCommands/true
+=== NAME  TestBoundedRuntimeEffectBindingAndVisibility
+    bounded_runtime_test.go:191: regular=4 immediate_enqueues=1 immediate_attempts=1 logical_root_pure=1 logical_root_side=1 visibility=1
+--- PASS: TestBoundedRuntimeEffectBindingAndVisibility (0.01s)
+=== NAME  TestBoundedRuntimeCombinedWorkAndClaimRecovery
+    bounded_runtime_test.go:144: regular=3 immediate_enqueues=1 immediate_attempts=1 logical_root_pure=1 logical_root_side=1 visibility=1
+--- PASS: TestBoundedRuntimeCombinedWorkAndClaimRecovery (0.01s)
+=== NAME  TestBoundedRuntimeHundredPatchedCommands
+    bounded_runtime_test.go:105: regular=3 immediate_enqueues=102 immediate_attempts=102 logical_root_pure=1 logical_root_side=1 visibility=1
+    bounded_runtime_test.go:117: regular=2 immediate_enqueues=1 immediate_attempts=1 logical_root_pure=1 logical_root_side=1 visibility=1
+--- PASS: TestBoundedRuntimeHundredPatchedCommands (0.00s)
+=== NAME  TestBoundedRuntimeHundredInitialCommands/true
+    bounded_runtime_test.go:79: regular=5 immediate_enqueues=103 immediate_attempts=103 logical_root_pure=1 logical_root_side=0 visibility=1
+--- PASS: TestBoundedRuntimeHundredInitialCommands (0.01s)
+    --- PASS: TestBoundedRuntimeHundredInitialCommands/false (0.01s)
+    --- PASS: TestBoundedRuntimeHundredInitialCommands/true (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.693s
+=== RUN   TestRequiredEmptyMapDeclaration
+=== PAUSE TestRequiredEmptyMapDeclaration
+=== RUN   TestRequiredEmptyMapRejectsHotEntries
+=== PAUSE TestRequiredEmptyMapRejectsHotEntries
+=== RUN   TestRequiredEmptyMapAttachmentAndDefault
+=== PAUSE TestRequiredEmptyMapAttachmentAndDefault
+=== RUN   TestRequiredEmptyMapColdAndReplication
+=== PAUSE TestRequiredEmptyMapColdAndReplication
+=== RUN   TestRequiredEmptyMapRejectsLateCallbackMutation
+=== PAUSE TestRequiredEmptyMapRejectsLateCallbackMutation
+=== RUN   TestBoundedWorkFailureReloadPreservesTasks
+=== PAUSE TestBoundedWorkFailureReloadPreservesTasks
+=== RUN   TestBoundedWorkOfflineAndCompleteExport
+=== PAUSE TestBoundedWorkOfflineAndCompleteExport
+=== RUN   TestBoundedWorkPendingMetadataMatchesDefault
+=== PAUSE TestBoundedWorkPendingMetadataMatchesDefault
+=== RUN   TestBoundedWorkPointMutation
+=== PAUSE TestBoundedWorkPointMutation
+=== RUN   TestBoundedWorkRedirtyAfterDrain
+=== PAUSE TestBoundedWorkRedirtyAfterDrain
+=== CONT  TestBoundedWorkFailureReloadPreservesTasks
+=== CONT  TestRequiredEmptyMapColdAndReplication
+=== RUN   TestBoundedWorkFailureReloadPreservesTasks/serializer
+=== PAUSE TestBoundedWorkFailureReloadPreservesTasks/serializer
+=== CONT  TestRequiredEmptyMapRejectsLateCallbackMutation
+=== CONT  TestRequiredEmptyMapAttachmentAndDefault
+=== RUN   TestBoundedWorkFailureReloadPreservesTasks/structure
+=== PAUSE TestBoundedWorkFailureReloadPreservesTasks/structure
+=== CONT  TestRequiredEmptyMapRejectsHotEntries
+=== RUN   TestRequiredEmptyMapAttachmentAndDefault/false
+=== RUN   TestRequiredEmptyMapRejectsLateCallbackMutation/lifecycle
+=== RUN   TestRequiredEmptyMapRejectsHotEntries/1
+=== NAME  TestRequiredEmptyMapAttachmentAndDefault/false
+    logger.go:146: 2026-11-13T23:43:04.298-0600	info	Warning: CHASM component requiredempty.root declares state fields that won't be managed by CHASM:
+        	poison string	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:433"}
+=== NAME  TestRequiredEmptyMapRejectsHotEntries/1
+    logger.go:146: 2026-11-13T23:43:04.298-0600	info	Warning: CHASM component requiredempty.root declares state fields that won't be managed by CHASM:
+        	poison string	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:433"}
+=== NAME  TestRequiredEmptyMapRejectsLateCallbackMutation/lifecycle
+    logger.go:146: 2026-11-13T23:43:04.298-0600	info	Warning: CHASM component requiredempty.root declares state fields that won't be managed by CHASM:
+        	poison string	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:433"}
+=== NAME  TestRequiredEmptyMapColdAndReplication
+    logger.go:146: 2026-11-13T23:43:04.298-0600	info	Warning: CHASM component requiredempty.root declares state fields that won't be managed by CHASM:
+        	poison string	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:433"}
+=== RUN   TestRequiredEmptyMapAttachmentAndDefault/true
+    logger.go:146: 2026-11-13T23:43:04.298-0600	info	Warning: CHASM component requiredempty.root declares state fields that won't be managed by CHASM:
+        	poison string	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:433"}
+--- PASS: TestRequiredEmptyMapAttachmentAndDefault (0.00s)
+    --- PASS: TestRequiredEmptyMapAttachmentAndDefault/false (0.00s)
+    --- PASS: TestRequiredEmptyMapAttachmentAndDefault/true (0.00s)
+=== CONT  TestBoundedWorkPointMutation
+=== RUN   TestBoundedWorkPointMutation/4
+=== NAME  TestRequiredEmptyMapColdAndReplication
+    logger.go:146: 2026-11-13T23:43:04.298-0600	info	Warning: CHASM component requiredempty.root declares state fields that won't be managed by CHASM:
+        	poison string	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:433"}
+=== RUN   TestRequiredEmptyMapRejectsLateCallbackMutation/time_skipping
+=== PAUSE TestBoundedWorkPointMutation/4
+=== RUN   TestBoundedWorkPointMutation/5
+=== PAUSE TestBoundedWorkPointMutation/5
+=== RUN   TestBoundedWorkPointMutation/1000
+=== PAUSE TestBoundedWorkPointMutation/1000
+--- PASS: TestRequiredEmptyMapColdAndReplication (0.00s)
+=== CONT  TestBoundedWorkRedirtyAfterDrain
+=== RUN   TestBoundedWorkPointMutation/10000
+=== PAUSE TestBoundedWorkPointMutation/10000
+=== NAME  TestRequiredEmptyMapRejectsLateCallbackMutation/time_skipping
+    logger.go:146: 2026-11-13T23:43:04.298-0600	info	Warning: CHASM component requiredempty.root declares state fields that won't be managed by CHASM:
+        	poison string	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:433"}
+=== CONT  TestBoundedWorkPendingMetadataMatchesDefault
+=== RUN   TestRequiredEmptyMapRejectsHotEntries/10000
+=== NAME  TestRequiredEmptyMapRejectsLateCallbackMutation/time_skipping
+    logger.go:146: 2026-11-13T23:43:04.298-0600	debug	chasm time skipping skipped because the execution is not skippable	{"archetype": "root", "logging-call-at": "/private/tmp/sch-redesign-execution/chasm/tree.go:4371"}
+=== NAME  TestRequiredEmptyMapRejectsHotEntries/10000
+    logger.go:146: 2026-11-13T23:43:04.298-0600	info	Warning: CHASM component requiredempty.root declares state fields that won't be managed by CHASM:
+        	poison string	{"logging-call-at": "/private/tmp/sch-redesign-execution/chasm/registry.go:433"}
+--- PASS: TestRequiredEmptyMapRejectsLateCallbackMutation (0.00s)
+    --- PASS: TestRequiredEmptyMapRejectsLateCallbackMutation/lifecycle (0.00s)
+    --- PASS: TestRequiredEmptyMapRejectsLateCallbackMutation/time_skipping (0.00s)
+=== CONT  TestBoundedWorkOfflineAndCompleteExport
+--- PASS: TestBoundedWorkRedirtyAfterDrain (0.00s)
+=== CONT  TestRequiredEmptyMapDeclaration
+=== RUN   TestRequiredEmptyMapDeclaration/names=[]
+=== RUN   TestRequiredEmptyMapDeclaration/names=[]#01
+=== RUN   TestRequiredEmptyMapDeclaration/names=[missing]
+--- PASS: TestBoundedWorkPendingMetadataMatchesDefault (0.00s)
+=== CONT  TestBoundedWorkFailureReloadPreservesTasks/structure
+=== CONT  TestBoundedWorkFailureReloadPreservesTasks/serializer
+--- PASS: TestBoundedWorkFailureReloadPreservesTasks (0.00s)
+    --- PASS: TestBoundedWorkFailureReloadPreservesTasks/structure (0.00s)
+    --- PASS: TestBoundedWorkFailureReloadPreservesTasks/serializer (0.00s)
+=== CONT  TestBoundedWorkPointMutation/4
+=== RUN   TestRequiredEmptyMapDeclaration/names=[Legacy]
+=== RUN   TestRequiredEmptyMapDeclaration/names=[State]
+=== RUN   TestRequiredEmptyMapDeclaration/names=[Records]
+=== RUN   TestRequiredEmptyMapDeclaration/names=[old_old]
+--- PASS: TestRequiredEmptyMapDeclaration (0.00s)
+    --- PASS: TestRequiredEmptyMapDeclaration/names=[] (0.00s)
+    --- PASS: TestRequiredEmptyMapDeclaration/names=[]#01 (0.00s)
+    --- PASS: TestRequiredEmptyMapDeclaration/names=[missing] (0.00s)
+    --- PASS: TestRequiredEmptyMapDeclaration/names=[Legacy] (0.00s)
+    --- PASS: TestRequiredEmptyMapDeclaration/names=[State] (0.00s)
+    --- PASS: TestRequiredEmptyMapDeclaration/names=[Records] (0.00s)
+    --- PASS: TestRequiredEmptyMapDeclaration/names=[old_old] (0.00s)
+=== CONT  TestBoundedWorkPointMutation/10000
+=== NAME  TestBoundedWorkPointMutation/4
+    bounded_work_test.go:52: WORK_COUNTS {"size":4,"phase":"bounded-hot0","counts":{"cold_nodes":0,"data_decode_calls":1,"decode_calls":1,"decode_data_bytes":11,"delete_child_visits":1,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"path_inspections":8,"serialize_calls":2,"serialize_data_bytes":3,"serialized_node_proto_bytes":51,"slot_visits":5,"sync_visits":1,"task_immediate_attempts":0,"task_immediate_enqueues":0,"task_regular_enqueues":0,"task_validations":0,"tree_visits":0,"workset_drains":6,"workset_enqueues":6}}
+    bounded_work_test.go:52: WORK_COUNTS {"size":4,"phase":"bounded-hot1","counts":{"cold_nodes":0,"data_decode_calls":0,"decode_calls":0,"decode_data_bytes":0,"delete_child_visits":1,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"path_inspections":8,"serialize_calls":2,"serialize_data_bytes":3,"serialized_node_proto_bytes":51,"slot_visits":5,"sync_visits":1,"task_immediate_attempts":0,"task_immediate_enqueues":0,"task_regular_enqueues":0,"task_validations":0,"tree_visits":0,"workset_drains":6,"workset_enqueues":6}}
+=== CONT  TestBoundedWorkPointMutation/1000
+--- PASS: TestBoundedWorkOfflineAndCompleteExport (0.00s)
+=== CONT  TestBoundedWorkPointMutation/5
+    bounded_work_test.go:52: WORK_COUNTS {"size":5,"phase":"bounded-hot0","counts":{"cold_nodes":0,"data_decode_calls":1,"decode_calls":1,"decode_data_bytes":11,"delete_child_visits":1,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"path_inspections":8,"serialize_calls":2,"serialize_data_bytes":3,"serialized_node_proto_bytes":51,"slot_visits":5,"sync_visits":1,"task_immediate_attempts":0,"task_immediate_enqueues":0,"task_regular_enqueues":0,"task_validations":0,"tree_visits":0,"workset_drains":6,"workset_enqueues":6}}
+    bounded_work_test.go:52: WORK_COUNTS {"size":5,"phase":"bounded-hot1","counts":{"cold_nodes":0,"data_decode_calls":0,"decode_calls":0,"decode_data_bytes":0,"delete_child_visits":1,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"path_inspections":8,"serialize_calls":2,"serialize_data_bytes":3,"serialized_node_proto_bytes":51,"slot_visits":5,"sync_visits":1,"task_immediate_attempts":0,"task_immediate_enqueues":0,"task_regular_enqueues":0,"task_validations":0,"tree_visits":0,"workset_drains":6,"workset_enqueues":6}}
+--- PASS: TestRequiredEmptyMapRejectsHotEntries (0.00s)
+    --- PASS: TestRequiredEmptyMapRejectsHotEntries/1 (0.00s)
+    --- PASS: TestRequiredEmptyMapRejectsHotEntries/10000 (0.00s)
+=== NAME  TestBoundedWorkPointMutation/1000
+    bounded_work_test.go:52: WORK_COUNTS {"size":1000,"phase":"bounded-hot0","counts":{"cold_nodes":0,"data_decode_calls":1,"decode_calls":1,"decode_data_bytes":11,"delete_child_visits":1,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"path_inspections":8,"serialize_calls":2,"serialize_data_bytes":3,"serialized_node_proto_bytes":51,"slot_visits":5,"sync_visits":1,"task_immediate_attempts":0,"task_immediate_enqueues":0,"task_regular_enqueues":0,"task_validations":0,"tree_visits":0,"workset_drains":6,"workset_enqueues":6}}
+    bounded_work_test.go:52: WORK_COUNTS {"size":1000,"phase":"bounded-hot1","counts":{"cold_nodes":0,"data_decode_calls":0,"decode_calls":0,"decode_data_bytes":0,"delete_child_visits":1,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"path_inspections":8,"serialize_calls":2,"serialize_data_bytes":3,"serialized_node_proto_bytes":51,"slot_visits":5,"sync_visits":1,"task_immediate_attempts":0,"task_immediate_enqueues":0,"task_regular_enqueues":0,"task_validations":0,"tree_visits":0,"workset_drains":6,"workset_enqueues":6}}
+=== NAME  TestBoundedWorkPointMutation/10000
+    bounded_work_test.go:52: WORK_COUNTS {"size":10000,"phase":"bounded-hot0","counts":{"cold_nodes":0,"data_decode_calls":1,"decode_calls":1,"decode_data_bytes":11,"delete_child_visits":1,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"path_inspections":8,"serialize_calls":2,"serialize_data_bytes":3,"serialized_node_proto_bytes":51,"slot_visits":5,"sync_visits":1,"task_immediate_attempts":0,"task_immediate_enqueues":0,"task_regular_enqueues":0,"task_validations":0,"tree_visits":0,"workset_drains":6,"workset_enqueues":6}}
+    bounded_work_test.go:52: WORK_COUNTS {"size":10000,"phase":"bounded-hot1","counts":{"cold_nodes":0,"data_decode_calls":0,"decode_calls":0,"decode_data_bytes":0,"delete_child_visits":1,"map_hydration_keys":0,"map_key_copies":0,"map_sync_keys":0,"path_inspections":8,"serialize_calls":2,"serialize_data_bytes":3,"serialized_node_proto_bytes":51,"slot_visits":5,"sync_visits":1,"task_immediate_attempts":0,"task_immediate_enqueues":0,"task_regular_enqueues":0,"task_validations":0,"tree_visits":0,"workset_drains":6,"workset_enqueues":6}}
+--- PASS: TestBoundedWorkPointMutation (0.00s)
+    --- PASS: TestBoundedWorkPointMutation/4 (0.00s)
+    --- PASS: TestBoundedWorkPointMutation/5 (0.00s)
+    --- PASS: TestBoundedWorkPointMutation/1000 (0.00s)
+    --- PASS: TestBoundedWorkPointMutation/10000 (0.03s)
+PASS
+ok  	go.temporal.io/server/chasm	0.736s

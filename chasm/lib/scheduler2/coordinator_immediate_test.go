@@ -112,9 +112,17 @@ func TestCoordinatorDueStartUsesTransferAndRetryUsesTimer(t *testing.T) {
 	payload := &scheduler2pb.StartTask{}
 	require.NoError(t, proto.Unmarshal(initial.Info.Data.Data, payload))
 	require.Equal(t, s.PendingStarts[id], payload.WakeTime)
+	beforeRetry := len(h.physical)
 	h.apply(decision.Event{Kind: decision.RetryableFailure, Incarnation: s.Incarnation, OperationID: id}, true)
 	s, cc := h.root(false)
-	retry := h.physical[len(h.physical)-1]
+	var retries []*tasks.ChasmTask
+	for _, task := range h.physical[beforeRetry:] {
+		if task.Info.TypeId == startType {
+			retries = append(retries, task)
+		}
+	}
+	require.Len(t, retries, 1)
+	retry := retries[0]
 	require.Equal(t, startType, retry.Info.TypeId)
 	require.Equal(t, tasks.CategoryTimer, retry.GetCategory())
 	require.NoError(t, proto.Unmarshal(retry.Info.Data.Data, payload))

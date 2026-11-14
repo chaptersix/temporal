@@ -86,6 +86,7 @@ func (n *Node) checkBoundedTasks() error {
 	return nil
 }
 func (n *Node) countBoundedImmediateExecution() error {
+	n.noteWork(workTaskImmediateAttempts, 1)
 	if n.bounded == nil {
 		return nil
 	}

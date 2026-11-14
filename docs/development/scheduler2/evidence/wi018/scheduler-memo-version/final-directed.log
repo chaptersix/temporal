@@ -1,0 +1,50 @@
+=== RUN   TestMemoVersionLegacyBaselineAndNestedReservation
+=== PAUSE TestMemoVersionLegacyBaselineAndNestedReservation
+=== RUN   TestMemoVersionReservationLimits
+=== PAUSE TestMemoVersionReservationLimits
+=== RUN   TestMemoVersionAcknowledgmentAndCallback
+=== PAUSE TestMemoVersionAcknowledgmentAndCallback
+=== RUN   TestMemoVersionOverflowBeforePublicWrites
+=== PAUSE TestMemoVersionOverflowBeforePublicWrites
+=== RUN   TestMemoVersionPauseUsesOneReservation
+=== PAUSE TestMemoVersionPauseUsesOneReservation
+=== RUN   TestMemoVersionGenerationPausedOverride
+=== PAUSE TestMemoVersionGenerationPausedOverride
+=== RUN   TestMemoVersionDoesNotReadList
+=== PAUSE TestMemoVersionDoesNotReadList
+=== RUN   TestMemoVersionLegacyPublicRecord
+=== PAUSE TestMemoVersionLegacyPublicRecord
+=== RUN   TestMemoVersionOverflowBeforeTransition
+=== PAUSE TestMemoVersionOverflowBeforeTransition
+=== RUN   TestMemoVersionPrivatePausedProjection
+=== PAUSE TestMemoVersionPrivatePausedProjection
+=== CONT  TestMemoVersionLegacyBaselineAndNestedReservation
+=== CONT  TestMemoVersionGenerationPausedOverride
+=== CONT  TestMemoVersionOverflowBeforeTransition
+=== CONT  TestMemoVersionLegacyPublicRecord
+=== RUN   TestMemoVersionOverflowBeforeTransition/false
+--- PASS: TestMemoVersionLegacyBaselineAndNestedReservation (0.00s)
+=== CONT  TestMemoVersionPrivatePausedProjection
+--- PASS: TestMemoVersionPrivatePausedProjection (0.00s)
+=== CONT  TestMemoVersionOverflowBeforePublicWrites
+--- PASS: TestMemoVersionLegacyPublicRecord (0.01s)
+=== CONT  TestMemoVersionPauseUsesOneReservation
+--- PASS: TestMemoVersionGenerationPausedOverride (0.01s)
+=== CONT  TestMemoVersionAcknowledgmentAndCallback
+=== RUN   TestMemoVersionAcknowledgmentAndCallback/false
+=== RUN   TestMemoVersionAcknowledgmentAndCallback/true
+--- PASS: TestMemoVersionPauseUsesOneReservation (0.00s)
+=== CONT  TestMemoVersionReservationLimits
+--- PASS: TestMemoVersionOverflowBeforePublicWrites (0.00s)
+=== CONT  TestMemoVersionDoesNotReadList
+--- PASS: TestMemoVersionAcknowledgmentAndCallback (0.00s)
+    --- PASS: TestMemoVersionAcknowledgmentAndCallback/false (0.00s)
+    --- PASS: TestMemoVersionAcknowledgmentAndCallback/true (0.00s)
+--- PASS: TestMemoVersionDoesNotReadList (0.00s)
+--- PASS: TestMemoVersionReservationLimits (0.00s)
+=== RUN   TestMemoVersionOverflowBeforeTransition/true
+--- PASS: TestMemoVersionOverflowBeforeTransition (0.02s)
+    --- PASS: TestMemoVersionOverflowBeforeTransition/false (0.01s)
+    --- PASS: TestMemoVersionOverflowBeforeTransition/true (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.694s

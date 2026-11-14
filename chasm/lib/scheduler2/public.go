@@ -31,6 +31,10 @@ func newPublicSchedule(ctx chasm.MutableContext, request *workflowservice.Create
 }
 
 func newPublicScheduleWithPayloadStore(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, execution, keyedPayloads bool) (*Scheduler, error) {
+	return newPublicScheduleWithStores(ctx, request, execution, keyedPayloads, false)
+}
+
+func newPublicScheduleWithStores(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, execution, keyedPayloads, keyedRuntime bool) (*Scheduler, error) {
 	if request == nil || request.Schedule == nil {
 		return nil, serviceerror.NewInvalidArgument("schedule is required")
 	}
@@ -76,7 +80,20 @@ func newPublicScheduleWithPayloadStore(ctx chasm.MutableContext, request *workfl
 		s.BlobRecords = chasm.NewDataMap[*scheduler2pb.Payload](ctx)
 		s.BlobReferences = chasm.NewDataMap[*scheduler2pb.BlobReference](ctx)
 	}
+	if keyedRuntime {
+		s.OperationStore = &scheduler2pb.OperationStoreControl{FormatVersion: operationStoreVersion, NextReadySequence: 1, StartDispatch: &scheduler2pb.StartDispatchControl{Token: 1}}
+		s.OperationRecords = chasm.NewDataMap[*scheduler2pb.OperationState](ctx)
+		s.RequestRecords = chasm.NewDataMap[*scheduler2pb.Payload](ctx)
+		s.OperationPages = chasm.NewDataMap[*commonpb.Payload](ctx)
+		s.ReadyRecords = chasm.NewDataMap[*scheduler2pb.ReadyRecord](ctx)
+		s.ProjectionStore = &scheduler2pb.ProjectionStoreControl{FormatVersion: projectionStoreVersion, NextActionSequence: 1}
+		s.ActionRecords = chasm.NewDataMap[*scheduler2pb.PublicActionRecord](ctx)
+		s.RunningRecords = chasm.NewDataMap[*scheduler2pb.RunningPublicAction](ctx)
+		s.ProjectionPages = chasm.NewDataMap[*commonpb.Payload](ctx)
+		s.PublicRuntime = chasm.NewDataField(ctx, &scheduler2pb.PublicRuntime{})
+	}
 	s.PublicRevision = 1
+	s.MemoRevision = 1
 	s.Paused, s.Limited, s.Policy = schedule.State.Paused, schedule.State.LimitedActions, policy
 	s.PauseOnFailure = schedule.Policies.PauseOnFailure
 	if err := s.storePublicDefinition(ctx, schedule); err != nil {

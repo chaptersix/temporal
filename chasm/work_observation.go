@@ -23,5 +23,8 @@ const (
 	workSetDrains
 	workSlotVisits
 	workPathInspections
+	workTaskRegularEnqueues
+	workTaskImmediateEnqueues
+	workTaskImmediateAttempts
 	workCounterCount
 )

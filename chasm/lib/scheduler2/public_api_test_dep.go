@@ -25,6 +25,7 @@ import (
 )
 
 type publicTestFrontend struct {
+	addressed   bool
 	engine      chasm.Engine
 	visibility  chasm.VisibilityManager
 	mapper      *chasm.VisibilitySearchAttributesMapper
@@ -65,6 +66,9 @@ func (f *publicTestFrontend) CreateSchedule(ctx context.Context, namespaceID nam
 	constructor := NewPublicSchedule
 	if f.tweaks != nil {
 		constructor = func(cc chasm.MutableContext, r *workflowservice.CreateScheduleRequest) (*Scheduler, error) {
+			if f.addressed {
+				return newAddressedPublicSchedule(cc, r, f.tweaks(r.Namespace))
+			}
 			return newExecutingPublicSchedule(cc, r, f.tweaks(r.Namespace))
 		}
 	}
@@ -131,6 +135,20 @@ func (f *publicTestFrontend) CountSchedules(ctx context.Context, _ namespace.ID,
 // NewPublicExecutionTestFrontend binds side effects to actual service clients.
 // Activation remains confined to explicitly constructed dedicated test clusters.
 func NewPublicExecutionTestFrontend(runtime testhooks.HistoryChasmRuntime) (testhooks.ScheduleFrontend, error) {
+	return newPublicExecutionTestFrontend(runtime, false)
+}
+
+// NewBoundedPublicExecutionTestFrontend selects the fresh addressed runtime and
+// bounded CHASM traversal in an explicitly isolated test cluster.
+func NewBoundedPublicExecutionTestFrontend(runtime testhooks.HistoryChasmRuntime) (testhooks.ScheduleFrontend, error) {
+	return newPublicExecutionTestFrontend(runtime, true)
+}
+
+// NewBoundedPublicTestNilLibrary supplies the matching offline descriptor for
+// dedicated frontend and history registries in bounded-profile tests.
+func NewBoundedPublicTestNilLibrary() *Library { return newBoundedNilLibrary() }
+
+func newPublicExecutionTestFrontend(runtime testhooks.HistoryChasmRuntime, addressed bool) (testhooks.ScheduleFrontend, error) {
 	start := NewStartHandler(nil)
 	start.startWorkflow = func(ctx context.Context, request *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
 		if err := runtime.CallbackValidator.Validate(ctx, request.Namespace, request.CompletionCallbacks, callbacks.ValidatorOptions{EnabledKinds: chasmworkflow.EnabledCallbackKinds.Get(runtime.DynamicConfig)(request.Namespace)}); err != nil {
@@ -167,12 +185,16 @@ func NewPublicExecutionTestFrontend(runtime testhooks.HistoryChasmRuntime) (test
 		},
 	)
 	library := NewLibrary(start, effects)
+	if addressed {
+		library = newBoundedLibrary(start, effects)
+	}
 	library.tweaks = schedulerconfig.CurrentTweakables.Get(runtime.DynamicConfig)
 	library.specBuilder = legacyscheduler.NewSpecBuilder(dynamicconfig.SchedulerSpecWarnIterations.Get(runtime.DynamicConfig), dynamicconfig.SchedulerSpecMaxIterations.Get(runtime.DynamicConfig))
 	frontend, err := newPublicTestFrontend(runtime.Engine, runtime.Visibility, runtime.Registry, library)
 	if err != nil {
 		return nil, err
 	}
+	frontend.addressed = addressed
 	frontend.tweaks = schedulerconfig.CurrentTweakables.Get(runtime.DynamicConfig)
 	frontend.specBuilder = library.specBuilder
 	return frontend, nil

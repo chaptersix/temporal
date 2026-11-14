@@ -104,6 +104,12 @@ func (s *Scheduler) preparePublicDefinition(ctx chasm.Context, definition *sched
 func (s *Scheduler) publishPublicDefinition(ctx chasm.MutableContext, plan publicDefinitionPlan) {
 	s.PublicActionRef = plan.actionRef
 	s.PublicSchedule = chasm.NewDataField(ctx, plan.schedule)
+	if s.OperationStore != nil {
+		action := plan.schedule.GetAction().GetStartWorkflow()
+		s.PublicMetadata = chasm.NewDataField(ctx, &scheduler2pb.PublicActionMetadata{
+			WorkflowType: action.GetWorkflowType().GetName(), TaskQueue: action.GetTaskQueue().GetName(),
+		})
+	}
 }
 
 func (s *Scheduler) storePublicDefinition(ctx chasm.MutableContext, definition *schedulepb.Schedule) error {

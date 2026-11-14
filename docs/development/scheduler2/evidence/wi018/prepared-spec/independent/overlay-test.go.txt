@@ -1,0 +1,18 @@
+package occurrence
+import (
+ "testing"
+ "time"
+ schedulepb "go.temporal.io/api/schedule/v1"
+ "github.com/stretchr/testify/require"
+)
+func TestIndependentExcludedFinalCandidate(t *testing.T) {
+ cal := &schedulepb.StructuredCalendarSpec{Year: []*schedulepb.Range{{Start:2024}}, Month: []*schedulepb.Range{{Start:1}}, DayOfMonth: []*schedulepb.Range{{Start:1}}}
+ h,r,z,reference := specFixture(t, &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{cal}, ExcludeStructuredCalendar: []*schedulepb.StructuredCalendarSpec{cal}}, "")
+ after := time.Date(2023,12,31,23,59,59,0,time.UTC)
+ want,err := reference.GetNextTime("",after);require.NoError(t,err)
+ for _,budget := range []int{1,7,64} {
+ got := runPreparedSpec(t,h,r,z,after,budget)
+ t.Logf("budget=%d legacy=%+v prepared=%+v",budget,want,got.Result())
+ require.Equal(t,want.Nominal,got.Result().Nominal)
+ }
+}

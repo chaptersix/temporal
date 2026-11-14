@@ -1,0 +1,8 @@
+--- FAIL: TestAddressedRuntimeAutomaticCoordinatorPhysicalStart (0.01s)
+    addressed_runtime_test.go:308: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:308
+        	Error:      	"incarnation/automatic/1794634276000000000/action/start" does not contain "/auto/"
+        	Test:       	TestAddressedRuntimeAutomaticCoordinatorPhysicalStart
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.658s
+FAIL

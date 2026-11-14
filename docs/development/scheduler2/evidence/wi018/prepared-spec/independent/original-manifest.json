@@ -1,0 +1,37 @@
+[
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_calendar.go",
+    "sha256": "5c409272c2477875b834c7fdecad1ab02f862af7cd87826b924c60441a0debd8",
+    "bytes": 13479
+  },
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_spec.go",
+    "sha256": "f835e45c738b344bcb7384aa4ff999ba0c4178e82c670eacfda216f05e202799",
+    "bytes": 9599
+  },
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_spec_test.go",
+    "sha256": "53498a650db8835ac95aa5328980b76a6a66e1cd1c595ff6f626038d55c196e0",
+    "bytes": 12561
+  },
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_match.go",
+    "sha256": "3198a66850c5fd51997f6dba6c3ef2ea772d0df5e12685fec853d2f3315ef8e4",
+    "bytes": 453
+  },
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_jitter.go",
+    "sha256": "1f77b2642875bc4490ecb53a28fa75c3223f00cd47a1ad9abc857549ea381bc4",
+    "bytes": 4022
+  },
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_jitter_test.go",
+    "sha256": "b4c0914da4d79c3ceea4c89deac23f586264c0685dadddc37a57348408e5604b",
+    "bytes": 1360
+  },
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_jitter_license.txt",
+    "sha256": "823170f83eaa6f58c1ca96c2ef3f67713625a4cda889dc550d9c57c6108c33e6",
+    "bytes": 1114
+  }
+]

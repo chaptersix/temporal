@@ -108,6 +108,8 @@ message RootState {
   PayloadStoreControl payload_store = 46;
   // ProjectionStore selects addressed action history and running membership.
   ProjectionStoreControl projection_store = 47;
+  // MemoRevision versions public memo content independently of conflict tokens.
+  uint64 memo_revision = 48;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -761,4 +763,58 @@ message StartRecoveryTask {
   uint64 token = 1;
   // WakeTime is the claim expiry in execution Unix nanoseconds.
   int64 wake_time = 2;
+}
+
+message DefinitionPreparationState {
+  // Format version identifies the fixed control representation.
+  uint32 format_version = 1;
+  // Source ID is the exact canonical definition and seed content identity.
+  bytes source_id = 2;
+  // Owner ID binds this revision's immutable pages.
+  bytes owner_id = 3;
+  // Revision increases on definition replacement.
+  int64 revision = 4;
+  // Header encodes fixed counts and wrapper bounds.
+  bytes header = 5;
+  // Total pages includes term and seed pages.
+  uint64 total_pages = 6;
+  // Installed pages is the published contiguous prefix.
+  uint64 installed_pages = 7;
+  // Cleanup head identifies the oldest superseded owner.
+  uint64 cleanup_head = 8;
+  // Cleanup tail identifies the next unused owner ordinal.
+  uint64 cleanup_tail = 9;
+  // Cleanup count equals tail minus head.
+  uint64 cleanup_count = 10;
+}
+message DefinitionPreparationSource {
+  // Canonical spec preserves the full detached public definition.
+  bytes canonical_spec = 1;
+  // Seed preserves exact seed bytes, including any non-UTF8 bytes.
+  bytes seed = 2;
+}
+message DefinitionPreparationPage {
+  // Owner ID identifies the revision that owns this page.
+  bytes owner_id = 1;
+  // Ordinal identifies the page in its owner's combined page space.
+  uint64 ordinal = 2;
+  // Encoded contains bounded calendar/interval records or seed bytes.
+  bytes encoded = 3;
+}
+message DefinitionSupersededSource {
+  // Owner ID retains cleanup authority for this revision.
+  bytes owner_id = 1;
+  // Header preserves the exact expected page shape and content identity.
+  bytes header = 2;
+  // Installed pages records the prefix present at replacement.
+  uint64 installed_pages = 3;
+  // Cursor identifies the next page to reclaim.
+  uint64 cursor = 4;
+}
+
+message PublicActionMetadata {
+  // Workflow type attributes schedule API requests without reading the action.
+  string workflow_type = 1;
+  // Task queue attributes schedule API requests without reading the action.
+  string task_queue = 2;
 }

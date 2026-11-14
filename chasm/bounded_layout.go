@@ -22,9 +22,10 @@ type BoundedTaskLimits struct {
 // BoundedComponentSlot declares a component at one fixed path. Construct slots
 // with BoundedComponent so the component type is checked by Go.
 type BoundedComponentSlot struct {
-	path   []string
-	typ    reflect.Type
-	limits BoundedTaskLimits
+	path      []string
+	typ       reflect.Type
+	limits    BoundedTaskLimits
+	emptyMaps []string
 }
 
 // BoundedComponent declares a fixed component slot and its task limits.
@@ -49,14 +50,16 @@ func WithBoundedDataLayout(layout BoundedDataLayout) RegistrableComponentOption 
 		copyLayout.Components = slices.Clone(layout.Components)
 		for i := range copyLayout.Components {
 			copyLayout.Components[i].path = slices.Clone(layout.Components[i].path)
+			copyLayout.Components[i].emptyMaps = slices.Clone(layout.Components[i].emptyMaps)
 		}
 		rc.boundedLayout = &copyLayout
 	}
 }
 
 type boundedField struct {
-	kind fieldKind
-	typ  reflect.Type
+	requiredEmpty bool
+	kind          fieldKind
+	typ           reflect.Type
 }
 type compiledBoundedLayout struct {
 	components     []BoundedComponentSlot
@@ -126,6 +129,9 @@ func compileBoundedLayout(rc *RegistrableComponent) (*compiledBoundedLayout, err
 }
 
 func (layout *compiledBoundedLayout) compileFields(slot BoundedComponentSlot) (map[string]boundedField, error) {
+	if err := validateEmptyMapDeclaration(slot); err != nil {
+		return nil, err
+	}
 	result := make(map[string]boundedField)
 	for field := range fieldsOf(reflect.New(slot.typ.Elem())) {
 		if field.err != nil {
@@ -135,7 +141,12 @@ func (layout *compiledBoundedLayout) compileFields(slot BoundedComponentSlot) (m
 		switch field.kind {
 		case fieldKindData:
 			continue
-		case fieldKindSubMap, fieldKindMutableState, fieldKindUnspecified:
+		case fieldKindSubMap:
+			if !slices.Contains(slot.emptyMaps, field.name) {
+				return nil, fmt.Errorf("unsupported field in bounded layout: %v.%s", slot.path, field.name)
+			}
+			info.requiredEmpty = true
+		case fieldKindMutableState, fieldKindUnspecified:
 			return nil, fmt.Errorf("unsupported field in bounded layout: %v.%s", slot.path, field.name)
 		case fieldKindDataMap:
 			info.typ = field.val.Interface().(interface{ dataType() reflect.Type }).dataType()
@@ -210,6 +221,9 @@ func (n *Node) validateBoundedNode(path []string, node *Node) error {
 	if len(path) > 0 {
 		if parent, ok := b.layout.byPath[boundedPath(path[:len(path)-1])]; ok {
 			field, ok := b.layout.fields[parent][path[len(path)-1]]
+			if ok && field.requiredEmpty && node.isMap() && len(node.children) == 0 {
+				return nil
+			}
 			if ok && field.kind == fieldKindDataMap && node.isMap() {
 				return nil
 			}
@@ -318,5 +332,8 @@ func (n *Node) validateBoundedComponent(index int, node *Node, path []string) er
 		return serviceerror.NewInternalf("bounded component type mismatch at %v", path)
 	}
 	n.bounded.slots[index] = node
+	if err := n.validateRequiredEmptySlot(index, node); err != nil {
+		return err
+	}
 	return node.checkBoundedTasks()
 }

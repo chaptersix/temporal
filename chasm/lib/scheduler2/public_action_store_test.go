@@ -57,6 +57,8 @@ func TestPublicActionRunningProjectionOutputScope(t *testing.T) {
 	for i := 1; i <= 25; i++ {
 		s, raw := h.root(true)
 		ctx := raw.(chasm.MutableContext)
+		ctx, memoErr := s.reserveMemoVersion(ctx)
+		require.NoError(t, memoErr)
 		id := fmt.Sprintf("operation-%02d", i)
 		execution := &commonpb.WorkflowExecution{WorkflowId: id, RunId: "run"}
 		expected = append(expected, execution)
@@ -129,6 +131,8 @@ func TestPublicActionInvalidSummaryRejected(t *testing.T) {
 			h := indexedProjectionHarness(t)
 			s, raw := h.root(true)
 			ctx := raw.(chasm.MutableContext)
+			ctx, memoErr := s.reserveMemoVersion(ctx)
+			require.NoError(t, memoErr)
 			test.mutate(s, ctx)
 			_, err := s.DescribePublic(ctx)
 			require.Error(t, err)

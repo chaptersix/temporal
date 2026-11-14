@@ -143,7 +143,7 @@ func validateCalendarNext(state CalendarNextState, definition PreparedCalendar, 
 	if zone == nil || zone.location == nil || zone.fingerprint == [32]byte{} {
 		return errors.New("resolved timezone unavailable")
 	}
-	if !supported(after) {
+	if after.Year() < 1 || after.Year() > 9999 {
 		return errors.New("prepared calendar search boundary outside supported domain")
 	}
 	if state.Phase == CalendarNextInitial {

@@ -75,6 +75,9 @@ func (n *Node) enqueueBoundedState() {
 	}
 }
 func (n *Node) syncBoundedStructure() error {
+	if err := n.validateRequiredEmptyMaps(); err != nil {
+		return err
+	}
 	root := n.root()
 	var deferred []*Node
 	defer func() {

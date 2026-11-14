@@ -85,8 +85,9 @@ fixtures use the old registry. Live and nil/offline registration for a selected
 profile must use the same descriptor. A separate root type would avoid this
 framework extension but duplicate many typed handlers and parent pointers.
 
-Add Scheduler.MemoVersion using the persisted PublicRevision: accepted transitions
-refreshing PublicList already advance it; verify all definition/patch paths do so.
+Add a dedicated Scheduler memo revision and MemoVersion hook. Root review found
+PublicRevision is insufficient: ack/callback refresh PublicList without advancing
+the public conflict revision. Index agent owns the dedicated counter/hook.
 Declare fixed Scheduler root, Generator child, Visibility child; current Calendar-
 Preparation is not attached to the Scheduler tree. Root task limits must derive
 from actual work/idle/recovery/effect/dispatch maxima and coordinator quanta=2;

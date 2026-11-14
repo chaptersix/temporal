@@ -1746,6 +1746,191 @@ func (this *StartRecoveryTask) Equal(that interface{}) bool {
 	return proto.Equal(this, that1)
 }
 
+// Marshal an object of type DefinitionPreparationState to the protobuf v3 wire format
+func (val *DefinitionPreparationState) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type DefinitionPreparationState from the protobuf v3 wire format
+func (val *DefinitionPreparationState) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *DefinitionPreparationState) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two DefinitionPreparationState values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *DefinitionPreparationState) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *DefinitionPreparationState
+	switch t := that.(type) {
+	case *DefinitionPreparationState:
+		that1 = t
+	case DefinitionPreparationState:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type DefinitionPreparationSource to the protobuf v3 wire format
+func (val *DefinitionPreparationSource) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type DefinitionPreparationSource from the protobuf v3 wire format
+func (val *DefinitionPreparationSource) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *DefinitionPreparationSource) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two DefinitionPreparationSource values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *DefinitionPreparationSource) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *DefinitionPreparationSource
+	switch t := that.(type) {
+	case *DefinitionPreparationSource:
+		that1 = t
+	case DefinitionPreparationSource:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type DefinitionPreparationPage to the protobuf v3 wire format
+func (val *DefinitionPreparationPage) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type DefinitionPreparationPage from the protobuf v3 wire format
+func (val *DefinitionPreparationPage) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *DefinitionPreparationPage) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two DefinitionPreparationPage values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *DefinitionPreparationPage) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *DefinitionPreparationPage
+	switch t := that.(type) {
+	case *DefinitionPreparationPage:
+		that1 = t
+	case DefinitionPreparationPage:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type DefinitionSupersededSource to the protobuf v3 wire format
+func (val *DefinitionSupersededSource) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type DefinitionSupersededSource from the protobuf v3 wire format
+func (val *DefinitionSupersededSource) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *DefinitionSupersededSource) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two DefinitionSupersededSource values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *DefinitionSupersededSource) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *DefinitionSupersededSource
+	switch t := that.(type) {
+	case *DefinitionSupersededSource:
+		that1 = t
+	case DefinitionSupersededSource:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
+// Marshal an object of type PublicActionMetadata to the protobuf v3 wire format
+func (val *PublicActionMetadata) Marshal() ([]byte, error) {
+	return proto.Marshal(val)
+}
+
+// Unmarshal an object of type PublicActionMetadata from the protobuf v3 wire format
+func (val *PublicActionMetadata) Unmarshal(buf []byte) error {
+	return proto.Unmarshal(buf, val)
+}
+
+// Size returns the size of the object, in bytes, once serialized
+func (val *PublicActionMetadata) Size() int {
+	return proto.Size(val)
+}
+
+// Equal returns whether two PublicActionMetadata values are equivalent by recursively
+// comparing the message's fields.
+// For more information see the documentation for
+// https://pkg.go.dev/google.golang.org/protobuf/proto#Equal
+func (this *PublicActionMetadata) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	var that1 *PublicActionMetadata
+	switch t := that.(type) {
+	case *PublicActionMetadata:
+		that1 = t
+	case PublicActionMetadata:
+		that1 = &t
+	default:
+		return false
+	}
+
+	return proto.Equal(this, that1)
+}
+
 var (
 	Phase_shorthandValue = map[string]int32{
 		"Unspecified": 0,

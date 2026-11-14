@@ -1,0 +1,34 @@
+=== RUN   TestMemoVersionLegacyBaselineAndNestedReservation
+=== PAUSE TestMemoVersionLegacyBaselineAndNestedReservation
+=== RUN   TestMemoVersionReservationLimits
+=== PAUSE TestMemoVersionReservationLimits
+=== RUN   TestMemoVersionAcknowledgmentAndCallback
+=== PAUSE TestMemoVersionAcknowledgmentAndCallback
+=== RUN   TestMemoVersionOverflowBeforePublicWrites
+=== PAUSE TestMemoVersionOverflowBeforePublicWrites
+=== RUN   TestMemoVersionPauseUsesOneReservation
+=== PAUSE TestMemoVersionPauseUsesOneReservation
+=== RUN   TestMemoVersionGenerationPausedOverride
+=== PAUSE TestMemoVersionGenerationPausedOverride
+=== RUN   TestMemoVersionDoesNotReadList
+=== PAUSE TestMemoVersionDoesNotReadList
+=== CONT  TestMemoVersionLegacyBaselineAndNestedReservation
+=== CONT  TestMemoVersionPauseUsesOneReservation
+=== CONT  TestMemoVersionDoesNotReadList
+=== CONT  TestMemoVersionAcknowledgmentAndCallback
+=== RUN   TestMemoVersionAcknowledgmentAndCallback/false
+--- PASS: TestMemoVersionDoesNotReadList (0.00s)
+=== CONT  TestMemoVersionOverflowBeforePublicWrites
+=== CONT  TestMemoVersionReservationLimits
+--- PASS: TestMemoVersionLegacyBaselineAndNestedReservation (0.00s)
+--- PASS: TestMemoVersionReservationLimits (0.00s)
+=== CONT  TestMemoVersionGenerationPausedOverride
+--- PASS: TestMemoVersionGenerationPausedOverride (0.00s)
+--- PASS: TestMemoVersionPauseUsesOneReservation (0.01s)
+=== RUN   TestMemoVersionAcknowledgmentAndCallback/true
+--- PASS: TestMemoVersionAcknowledgmentAndCallback (0.01s)
+    --- PASS: TestMemoVersionAcknowledgmentAndCallback/false (0.01s)
+    --- PASS: TestMemoVersionAcknowledgmentAndCallback/true (0.00s)
+--- PASS: TestMemoVersionOverflowBeforePublicWrites (0.01s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.667s

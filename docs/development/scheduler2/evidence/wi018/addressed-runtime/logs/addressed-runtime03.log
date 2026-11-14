@@ -1,0 +1,33 @@
+--- FAIL: TestAddressedRuntimeCloseDuringPhysicalRPC (0.01s)
+    addressed_runtime_test.go:275: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:275
+        	Error:      	Expected nil, but got: &scheduler2pb.StartClaim{state:impl.MessageState{NoUnkeyedLiterals:pragma.NoUnkeyedLiterals{}, DoNotCompare:pragma.DoNotCompare{}, DoNotCopy:pragma.DoNotCopy{}, atomicMessageInfo:(*impl.MessageInfo)(nil)}, OperationId:"incarnation/manual/1/action/start", ReadySequence:0x1, LogicalWake:1794634222463183000, Expiry:1794634282464538000, unknownFields:[]uint8(nil), sizeCache:0}
+        	Test:       	TestAddressedRuntimeCloseDuringPhysicalRPC
+--- FAIL: TestAddressedRuntimePhysicalRetryKeepsFrozenRequest (0.01s)
+    addressed_runtime_test.go:193: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:102
+        	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:193
+        	Error:      	Not equal: 
+        	            	expected: 0
+        	            	actual  : 1
+        	Test:       	TestAddressedRuntimePhysicalRetryKeepsFrozenRequest
+--- FAIL: TestAddressedRuntimePhysicalClaimCrashAndRecovery (0.01s)
+    addressed_runtime_test.go:250: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:102
+        	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:250
+        	Error:      	Not equal: 
+        	            	expected: 0
+        	            	actual  : 1
+        	Test:       	TestAddressedRuntimePhysicalClaimCrashAndRecovery
+--- FAIL: TestAddressedRuntimePhysicalSuccessAndCallbackOrdering (0.01s)
+    --- FAIL: TestAddressedRuntimePhysicalSuccessAndCallbackOrdering/false (0.01s)
+        addressed_runtime_test.go:146: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:102
+            	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:146
+            	Error:      	Not equal: 
+            	            	expected: 0
+            	            	actual  : 1
+            	Test:       	TestAddressedRuntimePhysicalSuccessAndCallbackOrdering/false
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.675s
+FAIL

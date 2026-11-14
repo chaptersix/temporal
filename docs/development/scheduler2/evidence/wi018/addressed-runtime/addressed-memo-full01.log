@@ -1,0 +1,23 @@
+ok  	go.temporal.io/server/chasm	0.463s
+--- FAIL: TestCoordinatorDueStartUsesTransferAndRetryUsesTimer (0.00s)
+    coordinator_immediate_test.go:118: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/coordinator_immediate_test.go:118
+        	Error:      	Not equal: 
+        	            	expected: 0xc36d23bd
+        	            	actual  : 0xf9edd232
+        	Test:       	TestCoordinatorDueStartUsesTransferAndRetryUsesTimer
+--- FAIL: TestAddressedRuntimeAutomaticCoordinatorPhysicalStart (0.00s)
+    addressed_runtime_test.go:308: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:308
+        	Error:      	"incarnation/automatic/1794634288000000000/action/start" does not contain "/auto/"
+        	Test:       	TestAddressedRuntimeAutomaticCoordinatorPhysicalStart
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	20.237s
+?   	go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1	[no test files]
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.305s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	1.140s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex	3.783s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/timezonesource	0.671s
+?   	go.temporal.io/server/chasm/lib/scheduler2/internal/timezonesource/cmd/tzbundle	[no test files]
+?   	go.temporal.io/server/chasm/lib/scheduler2/scheduler2test	[no test files]
+FAIL

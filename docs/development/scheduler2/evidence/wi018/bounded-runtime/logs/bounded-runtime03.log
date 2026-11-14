@@ -1,0 +1,39 @@
+=== RUN   TestBoundedRuntimeHundredInitialCommands
+=== PAUSE TestBoundedRuntimeHundredInitialCommands
+=== RUN   TestBoundedRuntimeHundredPatchedCommands
+=== PAUSE TestBoundedRuntimeHundredPatchedCommands
+=== RUN   TestBoundedRuntimeCombinedWorkAndClaimRecovery
+=== PAUSE TestBoundedRuntimeCombinedWorkAndClaimRecovery
+=== RUN   TestBoundedRuntimeEffectBindingAndVisibility
+=== PAUSE TestBoundedRuntimeEffectBindingAndVisibility
+=== RUN   TestBoundedRuntimeRejectsLegacyMapInsertion
+=== PAUSE TestBoundedRuntimeRejectsLegacyMapInsertion
+=== CONT  TestBoundedRuntimeHundredInitialCommands
+=== RUN   TestBoundedRuntimeHundredInitialCommands/false
+=== CONT  TestBoundedRuntimeEffectBindingAndVisibility
+=== CONT  TestBoundedRuntimeCombinedWorkAndClaimRecovery
+=== CONT  TestBoundedRuntimeHundredPatchedCommands
+=== NAME  TestBoundedRuntimeEffectBindingAndVisibility
+    bounded_runtime_test.go:176: regular=2 immediate_enqueues=0 immediate_attempts=0 logical_root_pure=1 logical_root_side=1 visibility=1
+=== NAME  TestBoundedRuntimeHundredInitialCommands/false
+    bounded_runtime_test.go:79: regular=5 immediate_enqueues=103 immediate_attempts=103 logical_root_pure=1 logical_root_side=0 visibility=1
+=== RUN   TestBoundedRuntimeHundredInitialCommands/true
+=== NAME  TestBoundedRuntimeHundredPatchedCommands
+    bounded_runtime_test.go:106: regular=3 immediate_enqueues=102 immediate_attempts=102 logical_root_pure=1 logical_root_side=1 visibility=1
+    bounded_runtime_test.go:118: regular=2 immediate_enqueues=1 immediate_attempts=1 logical_root_pure=1 logical_root_side=1 visibility=1
+--- PASS: TestBoundedRuntimeHundredPatchedCommands (0.01s)
+=== NAME  TestBoundedRuntimeCombinedWorkAndClaimRecovery
+    bounded_runtime_test.go:145: regular=3 immediate_enqueues=1 immediate_attempts=1 logical_root_pure=1 logical_root_side=1 visibility=1
+--- PASS: TestBoundedRuntimeCombinedWorkAndClaimRecovery (0.01s)
+=== CONT  TestBoundedRuntimeRejectsLegacyMapInsertion
+=== NAME  TestBoundedRuntimeEffectBindingAndVisibility
+    bounded_runtime_test.go:193: regular=4 immediate_enqueues=1 immediate_attempts=1 logical_root_pure=1 logical_root_side=1 visibility=1
+--- PASS: TestBoundedRuntimeEffectBindingAndVisibility (0.01s)
+--- PASS: TestBoundedRuntimeRejectsLegacyMapInsertion (0.00s)
+=== NAME  TestBoundedRuntimeHundredInitialCommands/true
+    bounded_runtime_test.go:79: regular=5 immediate_enqueues=103 immediate_attempts=103 logical_root_pure=1 logical_root_side=0 visibility=1
+--- PASS: TestBoundedRuntimeHundredInitialCommands (0.01s)
+    --- PASS: TestBoundedRuntimeHundredInitialCommands/false (0.01s)
+    --- PASS: TestBoundedRuntimeHundredInitialCommands/true (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.634s

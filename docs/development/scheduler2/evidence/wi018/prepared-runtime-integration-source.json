@@ -1,0 +1,93 @@
+{
+  "note": "Planning audit snapshot of currently evolving shared source, not an acceptance freeze",
+  "sources": [
+    {
+      "path": "chasm/lib/scheduler2/generator.go",
+      "sha256": "d9362106c72d58a9e4778645fd16faf1c8b80665bf5e2c2f512d90b365ec0ee2"
+    },
+    {
+      "path": "chasm/lib/scheduler2/coordinator.go",
+      "sha256": "83e5853d76da7785ec90fde90095dd955f55c5b12607844765af9b1822955cc6"
+    },
+    {
+      "path": "chasm/lib/scheduler2/backfill.go",
+      "sha256": "eb30ce022c126ae93e7e17d00ceb89c43f67c1059600900265fe427ef49940a3"
+    },
+    {
+      "path": "chasm/lib/scheduler2/library.go",
+      "sha256": "57620ae71e7e169dcea25ea6271969af6f8cb8b9ded212a1c69cbe33cb2c45d9"
+    },
+    {
+      "path": "chasm/lib/scheduler2/public_api_test_dep.go",
+      "sha256": "1f774a4c7cf8d4bcb31f785c7afdb04f21d66eb4f13a7ade9e115ad343277aee"
+    },
+    {
+      "path": "chasm/lib/scheduler2/public_projection.go",
+      "sha256": "4599538f60ceb1a24b40997e72476657bbebb5db51a29a0be4c1192a808db48c"
+    },
+    {
+      "path": "chasm/lib/scheduler2/public_mutation.go",
+      "sha256": "51a213cc411a2d980ea5586858cb365a122b3f9f9f59425a49e9f75dd9880906"
+    },
+    {
+      "path": "chasm/lib/scheduler2/public_context.go",
+      "sha256": "0d6b74aed0c4f402cfe235e62635d1452b434180109e724c3dba9a4328e3ae20"
+    },
+    {
+      "path": "chasm/lib/scheduler2/public_visibility.go",
+      "sha256": "9cc9028e8c274795fe3df64e0f54c626b8f73fdf218a691fd7d05bd948949020"
+    },
+    {
+      "path": "chasm/lib/scheduler2/public.go",
+      "sha256": "1eecacf0b2764ad2359de461e1b1eda0c77abb6357c2ee0d4a57581322f01952"
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/occurrence.go",
+      "sha256": "57a2ba7b6e14cef2600d79512bca1e1a28409c66ecb1924c0efdf31e51367eb6"
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/backfill.go",
+      "sha256": "359f8171c5f77a0bd4d6c8ec46c698d2e3b4bbe57645d22fbc9a684f1ab2ea6d"
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/occurrence/preparation.go",
+      "sha256": "ed5140387a49c97451796ef033a8829b5364a7526f41f687180a535ae93be110"
+    },
+    {
+      "path": "service/worker/scheduler/spec.go",
+      "sha256": "c34ce2e2aee0bb05fe7bf2fdc8017638b36127c69e671fbe3c6bf69d48c9da84"
+    },
+    {
+      "path": "service/worker/scheduler/candidate.go",
+      "sha256": "794011c72c2705bc4a4d4bb76d603c794ae9d180bb2ec379edc3708722ccef09"
+    },
+    {
+      "path": "service/worker/scheduler/calendar.go",
+      "sha256": "479689bac6ee9d23ddf4e721d174a6578781fd1008cb56b4040981dc04dbd97d"
+    },
+    {
+      "path": "chasm/visibility_version.go",
+      "sha256": "dee63fc8e01c258974f7228ea43d40544580aba7ff82890f3d23fd5377636dad"
+    },
+    {
+      "path": "chasm/visibility.go",
+      "sha256": "d6d900bb713d07ac2f6c0baf622e57def4f4da8714a9bd0a0ce349b60ea4471d"
+    },
+    {
+      "path": "chasm/lib/scheduler2/public_projection_test.go",
+      "sha256": "4605b33ed0f6d03e98624457ab2df32d806c383f490cd23da6a54bf71e75acab"
+    },
+    {
+      "path": "tests/schedule_test.go",
+      "sha256": "d2961c0a67cf57762d7e0c590b1ef8b9ccecbb26a84ebd70f19ff6a48fdb523b"
+    },
+    {
+      "path": "/Users/alex/go/pkg/mod/github.com/dgryski/go-farm@v0.0.0-20240924180020-3414d57e47da/farmhashmk.go",
+      "sha256": "ff3b1c45588debb557b62b2cdb8ba999aaf25494849fe380adb00513fa5e1992"
+    },
+    {
+      "path": "/Users/alex/go/pkg/mod/github.com/dgryski/go-farm@v0.0.0-20240924180020-3414d57e47da/fp_generic.go",
+      "sha256": "770240ee5adb4cae7c04fbcd3649c72d747156ec7073fea9a2077a2cc9d39ebe"
+    }
+  ]
+}

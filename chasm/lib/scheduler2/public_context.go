@@ -7,16 +7,23 @@ import (
 
 // ContextMetadata attributes schedule API requests to the configured action.
 func (s *Scheduler) ContextMetadata(ctx chasm.Context) map[string]string {
-	schedule, ok := s.PublicSchedule.TryGet(ctx)
-	if !ok {
-		return nil
+	var workflowType, taskQueue string
+	if s.OperationStore != nil {
+		metadata := s.PublicMetadata.Get(ctx)
+		workflowType, taskQueue = metadata.GetWorkflowType(), metadata.GetTaskQueue()
+	} else {
+		schedule, ok := s.PublicSchedule.TryGet(ctx)
+		if !ok {
+			return nil
+		}
+		action := schedule.GetAction().GetStartWorkflow()
+		workflowType, taskQueue = action.GetWorkflowType().GetName(), action.GetTaskQueue().GetName()
 	}
-	action := schedule.GetAction().GetStartWorkflow()
 	metadata := make(map[string]string, 2)
-	if name := action.GetWorkflowType().GetName(); name != "" {
+	if name := workflowType; name != "" {
 		metadata[contextutil.MetadataKeyWorkflowType] = name
 	}
-	if queue := action.GetTaskQueue().GetName(); queue != "" {
+	if queue := taskQueue; queue != "" {
 		metadata[contextutil.MetadataKeyWorkflowTaskQueue] = queue
 	}
 	if len(metadata) == 0 {

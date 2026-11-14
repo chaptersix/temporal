@@ -68,6 +68,13 @@ func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config Generat
 	return s.commitGeneration(ctx, plan)
 }
 func (s *Scheduler) commitGeneration(ctx chasm.MutableContext, plan *generationPreparation) error {
+	if s.PublicList.IsSet() && s.Paused != plan.preview.Root.Paused {
+		var err error
+		ctx, err = s.reserveMemoVersion(ctx)
+		if err != nil {
+			return err
+		}
+	}
 	blobs, err := s.prepareBlobDelta(ctx, []blobOwnerChange{plan.owner}, plan.blobs)
 	if err != nil {
 		return err
@@ -172,6 +179,9 @@ func (s *Scheduler) publishGeneration(ctx chasm.MutableContext, plan *generation
 	g.Superseded = encodeCandidate(superseded)
 	g.LastStatus = scheduler2pb.ENUMERATION_STATUS_ACTIVE
 	s.ActivitySet, s.ActivityAt = preview.Root.ActivitySet, preview.Root.ActivityAt
+	if s.PublicList.IsSet() && s.Paused != preview.Root.Paused {
+		s.publishMemoVersion(ctx)
+	}
 	s.Paused = preview.Root.Paused
 	s.Limited = preview.Root.Limited
 	s.Remaining = preview.Root.Remaining

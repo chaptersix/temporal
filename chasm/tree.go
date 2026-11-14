@@ -1861,6 +1861,11 @@ func (n *Node) AddTask(
 	task any,
 ) {
 	rt, ok := n.registry.taskFor(task)
+	if ok && rt.isPureTask && taskAttributes.IsImmediate() {
+		n.noteWork(workTaskImmediateEnqueues, 1)
+	} else {
+		n.noteWork(workTaskRegularEnqueues, 1)
+	}
 	if err := n.recordBoundedTask(component, ok && rt.isPureTask && taskAttributes.IsImmediate()); err != nil {
 		// nolint:forbidigo // Framework entry points recover invariant violations.
 		panic(err)
@@ -1943,6 +1948,10 @@ func (n *Node) CloseTransaction(ctx context.Context, isActive bool) (NodesMutati
 	}
 
 	if err := n.closeTransactionHandleTimeSkipping(immutableContext); err != nil {
+		return NodesMutation{}, err
+	}
+
+	if err := n.validateRequiredEmptyMaps(); err != nil {
 		return NodesMutation{}, err
 	}
 
@@ -2160,6 +2169,9 @@ func (n *Node) closeTransactionForceUpdateVisibility(
 }
 
 func (n *Node) closeTransactionSerializeNodes() error {
+	if err := n.validateRequiredEmptyMaps(); err != nil {
+		return err
+	}
 	skipPersistenceIfClean := n.backend.ChasmSkipPersistenceEnabled()
 	for nodePath, node := range n.nodesToSerialize() {
 		if node.valueState > valueStateNeedSerialize {

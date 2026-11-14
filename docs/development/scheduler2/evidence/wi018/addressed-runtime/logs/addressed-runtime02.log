@@ -1,0 +1,20 @@
+--- FAIL: TestAddressedRuntimePhysicalRetryKeepsFrozenRequest (0.01s)
+    addressed_runtime_test.go:193: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:102
+        	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:193
+        	Error:      	Not equal: 
+        	            	expected: 0
+        	            	actual  : 1
+        	Test:       	TestAddressedRuntimePhysicalRetryKeepsFrozenRequest
+--- FAIL: TestAddressedRuntimePhysicalSuccessAndCallbackOrdering (0.01s)
+    --- FAIL: TestAddressedRuntimePhysicalSuccessAndCallbackOrdering/false (0.01s)
+        addressed_runtime_test.go:146: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:102
+            	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/addressed_runtime_test.go:146
+            	Error:      	Not equal: 
+            	            	expected: 0
+            	            	actual  : 1
+            	Test:       	TestAddressedRuntimePhysicalSuccessAndCallbackOrdering/false
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.680s
+FAIL

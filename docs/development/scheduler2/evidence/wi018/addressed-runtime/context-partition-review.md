@@ -1,0 +1,5 @@
+# Selected context metadata partition
+
+The selected addressed profile writes PublicMetadata at creation and on every action-definition replacement through publishPublicDefinition. ContextMetadata reads this fixed DATA message, with no PublicSchedule or action-payload hydration. The legacy profile retains its existing path. The independent reviewer inspected all PublicSchedule writes: remaining direct writes only change pause/notes, and cannot stale the action metadata. Missing selected metadata fails through Field.Get rather than falling back to the large definition.
+
+The directed ContextMetadata and MemoVersion suite passes0.709s. The new witness performs real UpdatePublic, commits, poisons PublicSchedule, reloads cold and verifies both action type/task queue and materialized paths; closed-root metadata remains available. Log: context-partition01.log. This isolates one metadata read; it does not establish a whole-transaction bound while preview and SearchAttributes still load large definitions.

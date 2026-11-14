@@ -30,6 +30,10 @@ func (s *Scheduler) Close(_ chasm.MutableContext) error {
 	s.ManualArmed = false
 	s.DrainArmed = false
 	s.PendingStarts = nil
+	if s.OperationStore != nil && s.OperationStore.StartDispatch != nil {
+		s.OperationStore = common.CloneProto(s.OperationStore)
+		s.OperationStore.StartDispatch.Armed = false
+	}
 	return nil
 }
 

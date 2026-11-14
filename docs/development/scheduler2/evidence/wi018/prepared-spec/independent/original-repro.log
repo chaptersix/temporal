@@ -1,0 +1,20 @@
+=== RUN   TestIndependentExcludedFinalCandidate
+    independent_review_test.go:15: budget=1 legacy={Nominal:0001-01-01 00:00:00 +0000 UTC Next:0001-01-01 00:00:00 +0000 UTC ComputeLimitWarning:false} prepared={Nominal:2024-01-01 00:00:00 +0000 UTC Actual:0001-01-01 00:00:00 +0000 UTC Excluded:false Found:false Done:true ComputeLimitWarning:false}
+    independent_review_test.go:16: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/occurrence/independent_review_test.go:16
+        	Error:      	Not equal: 
+        	            	expected: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+        	            	actual  : time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,2 +1,2 @@
+        	            	-(time.Time) 0001-01-01 00:00:00 +0000 UTC
+        	            	+(time.Time) 2024-01-01 00:00:00 +0000 UTC
+        	            	 
+        	Test:       	TestIndependentExcludedFinalCandidate
+--- FAIL: TestIndependentExcludedFinalCandidate (0.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	0.630s
+FAIL

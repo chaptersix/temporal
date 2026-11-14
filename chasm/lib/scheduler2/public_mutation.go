@@ -25,10 +25,20 @@ func newExecutingPublicSchedule(ctx chasm.MutableContext, request *workflowservi
 }
 
 func newExecutingPublicScheduleWithPayloadStore(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, tweaks schedulerconfig.Tweakables, keyedPayloads bool) (*Scheduler, error) {
+	return newExecutingPublicScheduleWithStores(ctx, request, tweaks, keyedPayloads, false)
+}
+
+// newAddressedPublicSchedule selects the complete addressed runtime only for a
+// fresh private execution. It does not migrate an existing representation.
+func newAddressedPublicSchedule(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, tweaks schedulerconfig.Tweakables) (*Scheduler, error) {
+	return newExecutingPublicScheduleWithStores(ctx, request, tweaks, true, true)
+}
+
+func newExecutingPublicScheduleWithStores(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, tweaks schedulerconfig.Tweakables, keyedPayloads, keyedRuntime bool) (*Scheduler, error) {
 	if request != nil && request.InitialPatch.GetTimeSkippingConfig() != nil {
 		ctx.SetTimeSkippingConfig(request.InitialPatch.TimeSkippingConfig)
 	}
-	s, err := newPublicScheduleWithPayloadStore(ctx, request, true, keyedPayloads)
+	s, err := newPublicScheduleWithStores(ctx, request, true, keyedPayloads, keyedRuntime)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +113,12 @@ func (s *Scheduler) UpdatePublic(ctx chasm.MutableContext, request *workflowserv
 	if err := s.checkPublicMutation(ctx); err != nil {
 		return err
 	}
+	var memoErr error
+	ctx, memoErr = s.reserveMemoVersion(ctx)
+	if memoErr != nil {
+		return memoErr
+	}
+
 	if request.ConflictToken != nil && !bytes.Equal(request.ConflictToken, publicConflictToken(s.Incarnation, s.PublicRevision)) {
 		return serviceerror.NewFailedPrecondition("mismatched conflict token")
 	}
@@ -164,6 +180,12 @@ func (s *Scheduler) PatchPublic(ctx chasm.MutableContext, patch *schedulepb.Sche
 	if err := s.checkPublicMutation(ctx); err != nil {
 		return err
 	}
+	var memoErr error
+	ctx, memoErr = s.reserveMemoVersion(ctx)
+	if memoErr != nil {
+		return memoErr
+	}
+
 	if err := s.applyPublicPatch(ctx, patch); err != nil {
 		return err
 	}
@@ -174,6 +196,11 @@ func (s *Scheduler) PatchPublic(ctx chasm.MutableContext, patch *schedulepb.Sche
 func (s *Scheduler) applyPublicPatch(ctx chasm.MutableContext, patch *schedulepb.SchedulePatch) error {
 	if patch == nil {
 		return nil
+	}
+	var memoErr error
+	ctx, memoErr = s.reserveMemoVersion(ctx)
+	if memoErr != nil {
+		return memoErr
 	}
 	newCommands := len(patch.BackfillRequest)
 	if patch.TriggerImmediately != nil {
@@ -229,6 +256,7 @@ func (s *Scheduler) publishPublicList(ctx chasm.MutableContext, schedule *schedu
 	list := &schedulepb.ScheduleListInfo{Spec: spec,
 		WorkflowType: common.CloneProto(schedule.GetAction().GetStartWorkflow().GetWorkflowType()), Notes: schedule.GetState().GetNotes(), Paused: s.Paused}
 	s.publicListProjection(ctx, list, schedule.Spec)
+	s.publishMemoVersion(ctx)
 	s.PublicList = chasm.NewDataField(ctx, list)
 }
 
