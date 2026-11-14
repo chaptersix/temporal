@@ -1,0 +1,10 @@
+{
+  "status": "implementing; not milestone acceptance",
+  "files": {
+    "chasm/lib/scheduler2/preparation_task.go": "3c9919524e6c48e85834223f833692444a580c98c9f311c686144ff9bd16826c",
+    "chasm/lib/scheduler2/library.go": "710f31ede145a234c16f3689da9502dc5b2dce4b4f6b12731dcca17961428983",
+    "chasm/lib/scheduler2/coordinator.go": "d96eefa25eca310e313102ea8c18c4a6dbbec40c2833c8a272531b15f99342e2",
+    "chasm/lib/scheduler2/idle.go": "e8e758584a2fe08ef7df296f66204a0ee579eb523d2b2f9982d404ee3b18d021",
+    "chasm/lib/scheduler2/timeskipping.go": "53e576778dfec65b1c0254373d8f8f07f5fd68fedea45a36f9125900e5d2e7c3"
+  }
+}

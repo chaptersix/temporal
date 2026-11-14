@@ -218,19 +218,8 @@ func (n *Node) validateBoundedNode(path []string, node *Node) error {
 	if len(path) == 1 && slices.Contains(reservedRootChildren, path[0]) && node.isData() && len(node.children) == 0 {
 		return nil
 	}
-	if len(path) > 0 {
-		if parent, ok := b.layout.byPath[boundedPath(path[:len(path)-1])]; ok {
-			field, ok := b.layout.fields[parent][path[len(path)-1]]
-			if ok && field.requiredEmpty && node.isMap() && len(node.children) == 0 {
-				return nil
-			}
-			if ok && field.kind == fieldKindDataMap && node.isMap() {
-				return nil
-			}
-			if ok && field.kind == fieldKindSubField && !field.typ.Implements(reflect.TypeFor[Component]()) && node.isData() && len(node.children) == 0 {
-				return nil
-			}
-		}
+	if n.isBoundedFieldNode(path, node) {
+		return nil
 	}
 	if len(path) > 1 {
 		if owner, ok := b.layout.byPath[boundedPath(path[:len(path)-2])]; ok {
@@ -241,6 +230,28 @@ func (n *Node) validateBoundedNode(path []string, node *Node) error {
 		}
 	}
 	return serviceerror.NewInternalf("unexpected bounded layout node at %v", path)
+}
+
+// isBoundedFieldNode checks direct DATA and collection fields of a fixed slot.
+func (n *Node) isBoundedFieldNode(path []string, node *Node) bool {
+	if len(path) == 0 {
+		return false
+	}
+	parent, ok := n.bounded.layout.byPath[boundedPath(path[:len(path)-1])]
+	if !ok {
+		return false
+	}
+	field, ok := n.bounded.layout.fields[parent][path[len(path)-1]]
+	if !ok {
+		return false
+	}
+	if field.requiredEmpty && node.isMap() && len(node.children) == 0 {
+		return true
+	}
+	if field.kind == fieldKindDataMap && node.isMap() {
+		return true
+	}
+	return field.kind == fieldKindSubField && !field.typ.Implements(reflect.TypeFor[Component]()) && node.isData() && len(node.children) == 0
 }
 
 func (n *Node) validateBoundedMutation(mutation NodesMutation) error {

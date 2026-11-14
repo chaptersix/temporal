@@ -1,0 +1,1185 @@
+--- FAIL: TestStagedPublicIntegrationInitialPatchAndColdPatch (0.01s)
+    staged_public_integration_test.go:47: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/staged_public_integration_test.go:47
+        	Error:      	"[]" should have 1 item(s), but has 0
+        	Test:       	TestStagedPublicIntegrationInitialPatchAndColdPatch
+--- FAIL: TestStagedPublicIntegrationReplacementCoherenceAndStaleFence (0.01s)
+    staged_public_integration_test.go:94: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/staged_public_integration_test.go:94
+        	Error:      	Not equal: 
+        	            	expected: []*timestamppb.Timestamp{(*timestamppb.Timestamp)(0x12854a845200)}
+        	            	actual  : []*timestamppb.Timestamp{(*timestamppb.Timestamp)(0x12854a872f80)}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -9,3 +9,1164 @@
+        	            	    },
+        	            	-   atomicMessageInfo: (*impl.MessageInfo)(<nil>)
+        	            	+   atomicMessageInfo: (*impl.MessageInfo)({
+        	            	+    GoReflectType: (*reflect.rtype)({
+        	            	+     t: (abi.Type) {
+        	            	+      Size_: (uintptr) 0x8,
+        	            	+      PtrBytes: (uintptr) 0x8,
+        	            	+      Hash: (uint32) 4066033664,
+        	            	+      TFlag: (abi.TFlag) 41,
+        	            	+      Align_: (uint8) 8,
+        	            	+      FieldAlign_: (uint8) 8,
+        	            	+      Kind_: (abi.Kind) 22,
+        	            	+      Equal: (func(unsafe.Pointer, unsafe.Pointer) bool) 0x1040a8d90,
+        	            	+      GCData: (*uint8)(1),
+        	            	+      Str: (abi.NameOff) 3576481,
+        	            	+      PtrToThis: (abi.TypeOff) 0
+        	            	+     }
+        	            	+    }),
+        	            	+    Desc: (*filedesc.Message)({
+        	            	+     Base: (filedesc.Base) {
+        	            	+      L0: (filedesc.BaseL0) {
+        	            	+       FullName: (protoreflect.FullName) (len=25) "google.protobuf.Timestamp",
+        	            	+       ParentFile: (*filedesc.File)({
+        	            	+        fileRaw: (filedesc.fileRaw) {
+        	            	+         builder: (filedesc.Builder) {
+        	            	+          GoPackagePath: (string) (len=50) "google.golang.org/protobuf/types/known/timestamppb",
+        	            	+          RawDescriptor: ([]uint8) (len=255) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          NumEnums: (int32) 0,
+        	            	+          NumMessages: (int32) 1,
+        	            	+          NumExtensions: (int32) 0,
+        	            	+          NumServices: (int32) 0,
+        	            	+          TypeResolver: (*protoregistry.Types)({
+        	            	+           <max depth reached>
+        	            	+          }),
+        	            	+          FileRegistry: (*filetype.resolverByIndex)({
+        	            	+           <max depth reached>
+        	            	+          })
+        	            	+         },
+        	            	+         allEnums: ([]filedesc.Enum) {
+        	            	+         },
+        	            	+         allMessages: ([]filedesc.Message) (len=1) {
+        	            	+          (filedesc.Message) {
+        	            	+           <max depth reached>
+        	            	+          }
+        	            	+         },
+        	            	+         allExtensions: ([]filedesc.Extension) {
+        	            	+         },
+        	            	+         allServices: ([]filedesc.Service) {
+        	            	+         }
+        	            	+        },
+        	            	+        L1: (filedesc.FileL1) {
+        	            	+         Syntax: (protoreflect.Syntax) 3,
+        	            	+         Edition: (filedesc.Edition) 999,
+        	            	+         Path: (string) (len=31) "google/protobuf/timestamp.proto",
+        	            	+         Package: (protoreflect.FullName) (len=15) "google.protobuf",
+        	            	+         Enums: (filedesc.Enums) {
+        	            	+          List: ([]filedesc.Enum) <nil>,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          byName: (map[protoreflect.Name]*filedesc.Enum) <nil>
+        	            	+         },
+        	            	+         Messages: (filedesc.Messages) {
+        	            	+          List: ([]filedesc.Message) (len=1) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          byName: (map[protoreflect.Name]*filedesc.Message) <nil>
+        	            	+         },
+        	            	+         Extensions: (filedesc.Extensions) {
+        	            	+          List: ([]filedesc.Extension) <nil>,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          byName: (map[protoreflect.Name]*filedesc.Extension) <nil>
+        	            	+         },
+        	            	+         Services: (filedesc.Services) {
+        	            	+          List: ([]filedesc.Service) <nil>,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          byName: (map[protoreflect.Name]*filedesc.Service) <nil>
+        	            	+         },
+        	            	+         EditionFeatures: (filedesc.EditionFeatures) {
+        	            	+          StripEnumPrefix: (int) 1,
+        	            	+          IsFieldPresence: (bool) false,
+        	            	+          IsLegacyRequired: (bool) false,
+        	            	+          IsOpenEnum: (bool) true,
+        	            	+          IsPacked: (bool) true,
+        	            	+          IsUTF8Validated: (bool) true,
+        	            	+          IsDelimitedEncoded: (bool) false,
+        	            	+          IsJSONCompliant: (bool) true,
+        	            	+          GenerateLegacyUnmarshalJSON: (bool) false,
+        	            	+          APILevel: (int) 0
+        	            	+         }
+        	            	+        },
+        	            	+        once: (uint32) 1,
+        	            	+        mu: (sync.Mutex) {
+        	            	+         _: (sync.noCopy) {
+        	            	+         },
+        	            	+         mu: (sync.Mutex) {
+        	            	+          state: (int32) 0,
+        	            	+          sema: (uint32) 0
+        	            	+         }
+        	            	+        },
+        	            	+        L2: (*filedesc.FileL2)({
+        	            	+         Options: (func() protoreflect.ProtoMessage) 0x104343eb0,
+        	            	+         Imports: (filedesc.FileImports) <nil>,
+        	            	+         OptionImports: (func() protoreflect.FileImports) <nil>,
+        	            	+         Locations: (filedesc.SourceLocations) {
+        	            	+          List: ([]protoreflect.SourceLocation) <nil>,
+        	            	+          File: (protoreflect.FileDescriptor) <nil>,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          byPath: (map[filedesc.pathKey]int) <nil>
+        	            	+         }
+        	            	+        })
+        	            	+       }),
+        	            	+       Parent: (*filedesc.File)({
+        	            	+        fileRaw: (filedesc.fileRaw) {
+        	            	+         builder: (filedesc.Builder) {
+        	            	+          GoPackagePath: (string) (len=50) "google.golang.org/protobuf/types/known/timestamppb",
+        	            	+          RawDescriptor: ([]uint8) (len=255) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          NumEnums: (int32) 0,
+        	            	+          NumMessages: (int32) 1,
+        	            	+          NumExtensions: (int32) 0,
+        	            	+          NumServices: (int32) 0,
+        	            	+          TypeResolver: (*protoregistry.Types)({
+        	            	+           <max depth reached>
+        	            	+          }),
+        	            	+          FileRegistry: (*filetype.resolverByIndex)({
+        	            	+           <max depth reached>
+        	            	+          })
+        	            	+         },
+        	            	+         allEnums: ([]filedesc.Enum) {
+        	            	+         },
+        	            	+         allMessages: ([]filedesc.Message) (len=1) {
+        	            	+          (filedesc.Message) {
+        	            	+           <max depth reached>
+        	            	+          }
+        	            	+         },
+        	            	+         allExtensions: ([]filedesc.Extension) {
+        	            	+         },
+        	            	+         allServices: ([]filedesc.Service) {
+        	            	+         }
+        	            	+        },
+        	            	+        L1: (filedesc.FileL1) {
+        	            	+         Syntax: (protoreflect.Syntax) 3,
+        	            	+         Edition: (filedesc.Edition) 999,
+        	            	+         Path: (string) (len=31) "google/protobuf/timestamp.proto",
+        	            	+         Package: (protoreflect.FullName) (len=15) "google.protobuf",
+        	            	+         Enums: (filedesc.Enums) {
+        	            	+          List: ([]filedesc.Enum) <nil>,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          byName: (map[protoreflect.Name]*filedesc.Enum) <nil>
+        	            	+         },
+        	            	+         Messages: (filedesc.Messages) {
+        	            	+          List: ([]filedesc.Message) (len=1) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          byName: (map[protoreflect.Name]*filedesc.Message) <nil>
+        	            	+         },
+        	            	+         Extensions: (filedesc.Extensions) {
+        	            	+          List: ([]filedesc.Extension) <nil>,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          byName: (map[protoreflect.Name]*filedesc.Extension) <nil>
+        	            	+         },
+        	            	+         Services: (filedesc.Services) {
+        	            	+          List: ([]filedesc.Service) <nil>,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          byName: (map[protoreflect.Name]*filedesc.Service) <nil>
+        	            	+         },
+        	            	+         EditionFeatures: (filedesc.EditionFeatures) {
+        	            	+          StripEnumPrefix: (int) 1,
+        	            	+          IsFieldPresence: (bool) false,
+        	            	+          IsLegacyRequired: (bool) false,
+        	            	+          IsOpenEnum: (bool) true,
+        	            	+          IsPacked: (bool) true,
+        	            	+          IsUTF8Validated: (bool) true,
+        	            	+          IsDelimitedEncoded: (bool) false,
+        	            	+          IsJSONCompliant: (bool) true,
+        	            	+          GenerateLegacyUnmarshalJSON: (bool) false,
+        	            	+          APILevel: (int) 0
+        	            	+         }
+        	            	+        },
+        	            	+        once: (uint32) 1,
+        	            	+        mu: (sync.Mutex) {
+        	            	+         _: (sync.noCopy) {
+        	            	+         },
+        	            	+         mu: (sync.Mutex) {
+        	            	+          state: (int32) 0,
+        	            	+          sema: (uint32) 0
+        	            	+         }
+        	            	+        },
+        	            	+        L2: (*filedesc.FileL2)({
+        	            	+         Options: (func() protoreflect.ProtoMessage) 0x104343eb0,
+        	            	+         Imports: (filedesc.FileImports) <nil>,
+        	            	+         OptionImports: (func() protoreflect.FileImports) <nil>,
+        	            	+         Locations: (filedesc.SourceLocations) {
+        	            	+          List: ([]protoreflect.SourceLocation) <nil>,
+        	            	+          File: (protoreflect.FileDescriptor) <nil>,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          byPath: (map[filedesc.pathKey]int) <nil>
+        	            	+         }
+        	            	+        })
+        	            	+       }),
+        	            	+       Index: (int) 0
+        	            	+      }
+        	            	+     },
+        	            	+     L1: (filedesc.MessageL1) {
+        	            	+      Enums: (filedesc.Enums) {
+        	            	+       List: ([]filedesc.Enum) <nil>,
+        	            	+       once: (sync.Once) {
+        	            	+        _: (sync.noCopy) {
+        	            	+        },
+        	            	+        done: (atomic.Bool) {
+        	            	+         _: (atomic.noCopy) {
+        	            	+         },
+        	            	+         v: (uint32) 0
+        	            	+        },
+        	            	+        m: (sync.Mutex) {
+        	            	+         _: (sync.noCopy) {
+        	            	+         },
+        	            	+         mu: (sync.Mutex) {
+        	            	+          state: (int32) 0,
+        	            	+          sema: (uint32) 0
+        	            	+         }
+        	            	+        }
+        	            	+       },
+        	            	+       byName: (map[protoreflect.Name]*filedesc.Enum) <nil>
+        	            	+      },
+        	            	+      Messages: (filedesc.Messages) {
+        	            	+       List: ([]filedesc.Message) <nil>,
+        	            	+       once: (sync.Once) {
+        	            	+        _: (sync.noCopy) {
+        	            	+        },
+        	            	+        done: (atomic.Bool) {
+        	            	+         _: (atomic.noCopy) {
+        	            	+         },
+        	            	+         v: (uint32) 0
+        	            	+        },
+        	            	+        m: (sync.Mutex) {
+        	            	+         _: (sync.noCopy) {
+        	            	+         },
+        	            	+         mu: (sync.Mutex) {
+        	            	+          state: (int32) 0,
+        	            	+          sema: (uint32) 0
+        	            	+         }
+        	            	+        }
+        	            	+       },
+        	            	+       byName: (map[protoreflect.Name]*filedesc.Message) <nil>
+        	            	+      },
+        	            	+      Extensions: (filedesc.Extensions) {
+        	            	+       List: ([]filedesc.Extension) <nil>,
+        	            	+       once: (sync.Once) {
+        	            	+        _: (sync.noCopy) {
+        	            	+        },
+        	            	+        done: (atomic.Bool) {
+        	            	+         _: (atomic.noCopy) {
+        	            	+         },
+        	            	+         v: (uint32) 0
+        	            	+        },
+        	            	+        m: (sync.Mutex) {
+        	            	+         _: (sync.noCopy) {
+        	            	+         },
+        	            	+         mu: (sync.Mutex) {
+        	            	+          state: (int32) 0,
+        	            	+          sema: (uint32) 0
+        	            	+         }
+        	            	+        }
+        	            	+       },
+        	            	+       byName: (map[protoreflect.Name]*filedesc.Extension) <nil>
+        	            	+      },
+        	            	+      EditionFeatures: (filedesc.EditionFeatures) {
+        	            	+       StripEnumPrefix: (int) 1,
+        	            	+       IsFieldPresence: (bool) false,
+        	            	+       IsLegacyRequired: (bool) false,
+        	            	+       IsOpenEnum: (bool) true,
+        	            	+       IsPacked: (bool) true,
+        	            	+       IsUTF8Validated: (bool) true,
+        	            	+       IsDelimitedEncoded: (bool) false,
+        	            	+       IsJSONCompliant: (bool) true,
+        	            	+       GenerateLegacyUnmarshalJSON: (bool) false,
+        	            	+       APILevel: (int) 0
+        	            	+      },
+        	            	+      Visibility: (int32) 0,
+        	            	+      IsMapEntry: (bool) false,
+        	            	+      IsMessageSet: (bool) false
+        	            	+     },
+        	            	+     L2: (*filedesc.MessageL2)({
+        	            	+      Options: (func() protoreflect.ProtoMessage) <nil>,
+        	            	+      Fields: (filedesc.Fields) {
+        	            	+       List: ([]filedesc.Field) (len=2) {
+        	            	+        (filedesc.Field) {
+        	            	+         Base: (filedesc.Base) {
+        	            	+          L0: (filedesc.BaseL0) {
+        	            	+           <max depth reached>
+        	            	+          }
+        	            	+         },
+        	            	+         L1: (filedesc.FieldL1) {
+        	            	+          Options: (func() protoreflect.ProtoMessage) <nil>,
+        	            	+          Number: (protowire.Number) 1,
+        	            	+          Cardinality: (protoreflect.Cardinality) 1,
+        	            	+          Kind: (protoreflect.Kind) 3,
+        	            	+          StringName: (filedesc.stringName) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          IsProto3Optional: (bool) false,
+        	            	+          IsLazy: (bool) false,
+        	            	+          Default: (filedesc.defaultValue) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          ContainingOneof: (protoreflect.OneofDescriptor) <nil>,
+        	            	+          Enum: (protoreflect.EnumDescriptor) <nil>,
+        	            	+          Message: (protoreflect.MessageDescriptor) <nil>,
+        	            	+          EditionFeatures: (filedesc.EditionFeatures) {
+        	            	+           <max depth reached>
+        	            	+          }
+        	            	+         }
+        	            	+        },
+        	            	+        (filedesc.Field) {
+        	            	+         Base: (filedesc.Base) {
+        	            	+          L0: (filedesc.BaseL0) {
+        	            	+           <max depth reached>
+        	            	+          }
+        	            	+         },
+        	            	+         L1: (filedesc.FieldL1) {
+        	            	+          Options: (func() protoreflect.ProtoMessage) <nil>,
+        	            	+          Number: (protowire.Number) 2,
+        	            	+          Cardinality: (protoreflect.Cardinality) 1,
+        	            	+          Kind: (protoreflect.Kind) 5,
+        	            	+          StringName: (filedesc.stringName) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          IsProto3Optional: (bool) false,
+        	            	+          IsLazy: (bool) false,
+        	            	+          Default: (filedesc.defaultValue) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          ContainingOneof: (protoreflect.OneofDescriptor) <nil>,
+        	            	+          Enum: (protoreflect.EnumDescriptor) <nil>,
+        	            	+          Message: (protoreflect.MessageDescriptor) <nil>,
+        	            	+          EditionFeatures: (filedesc.EditionFeatures) {
+        	            	+           <max depth reached>
+        	            	+          }
+        	            	+         }
+        	            	+        }
+        	            	+       },
+        	            	+       once: (sync.Once) {
+        	            	+        _: (sync.noCopy) {
+        	            	+        },
+        	            	+        done: (atomic.Bool) {
+        	            	+         _: (atomic.noCopy) {
+        	            	+         },
+        	            	+         v: (uint32) 0
+        	            	+        },
+        	            	+        m: (sync.Mutex) {
+        	            	+         _: (sync.noCopy) {
+        	            	+         },
+        	            	+         mu: (sync.Mutex) {
+        	            	+          state: (int32) 0,
+        	            	+          sema: (uint32) 0
+        	            	+         }
+        	            	+        }
+        	            	+       },
+        	            	+       byName: (map[protoreflect.Name]*filedesc.Field) <nil>,
+        	            	+       byJSON: (map[string]*filedesc.Field) <nil>,
+        	            	+       byText: (map[string]*filedesc.Field) <nil>,
+        	            	+       byNum: (map[protowire.Number]*filedesc.Field) <nil>
+        	            	+      },
+        	            	+      Oneofs: (filedesc.Oneofs) {
+        	            	+       List: ([]filedesc.Oneof) {
+        	            	+       },
+        	            	+       once: (sync.Once) {
+        	            	+        _: (sync.noCopy) {
+        	            	+        },
+        	            	+        done: (atomic.Bool) {
+        	            	+         _: (atomic.noCopy) {
+        	            	+         },
+        	            	+         v: (uint32) 0
+        	            	+        },
+        	            	+        m: (sync.Mutex) {
+        	            	+         _: (sync.noCopy) {
+        	            	+         },
+        	            	+         mu: (sync.Mutex) {
+        	            	+          state: (int32) 0,
+        	            	+          sema: (uint32) 0
+        	            	+         }
+        	            	+        }
+        	            	+       },
+        	            	+       byName: (map[protoreflect.Name]*filedesc.Oneof) <nil>
+        	            	+      },
+        	            	+      ReservedNames: (filedesc.Names) {
+        	            	+       List: ([]protoreflect.Name) <nil>,
+        	            	+       once: (sync.Once) {
+        	            	+        _: (sync.noCopy) {
+        	            	+        },
+        	            	+        done: (atomic.Bool) {
+        	            	+         _: (atomic.noCopy) {
+        	            	+         },
+        	            	+         v: (uint32) 0
+        	            	+        },
+        	            	+        m: (sync.Mutex) {
+        	            	+         _: (sync.noCopy) {
+        	            	+         },
+        	            	+         mu: (sync.Mutex) {
+        	            	+          state: (int32) 0,
+        	            	+          sema: (uint32) 0
+        	            	+         }
+        	            	+        }
+        	            	+       },
+        	            	+       has: (map[protoreflect.Name]int) <nil>
+        	            	+      },
+        	            	+      ReservedRanges: (filedesc.FieldRanges) {
+        	            	+       List: ([][2]protowire.Number) <nil>,
+        	            	+       once: (sync.Once) {
+        	            	+        _: (sync.noCopy) {
+        	            	+        },
+        	            	+        done: (atomic.Bool) {
+        	            	+         _: (atomic.noCopy) {
+        	            	+         },
+        	            	+         v: (uint32) 0
+        	            	+        },
+        	            	+        m: (sync.Mutex) {
+        	            	+         _: (sync.noCopy) {
+        	            	+         },
+        	            	+         mu: (sync.Mutex) {
+        	            	+          state: (int32) 0,
+        	            	+          sema: (uint32) 0
+        	            	+         }
+        	            	+        }
+        	            	+       },
+        	            	+       sorted: ([][2]protowire.Number) <nil>
+        	            	+      },
+        	            	+      RequiredNumbers: (filedesc.FieldNumbers) {
+        	            	+       List: ([]protowire.Number) <nil>,
+        	            	+       once: (sync.Once) {
+        	            	+        _: (sync.noCopy) {
+        	            	+        },
+        	            	+        done: (atomic.Bool) {
+        	            	+         _: (atomic.noCopy) {
+        	            	+         },
+        	            	+         v: (uint32) 0
+        	            	+        },
+        	            	+        m: (sync.Mutex) {
+        	            	+         _: (sync.noCopy) {
+        	            	+         },
+        	            	+         mu: (sync.Mutex) {
+        	            	+          state: (int32) 0,
+        	            	+          sema: (uint32) 0
+        	            	+         }
+        	            	+        }
+        	            	+       },
+        	            	+       has: (map[protowire.Number]struct {}) <nil>
+        	            	+      },
+        	            	+      ExtensionRanges: (filedesc.FieldRanges) {
+        	            	+       List: ([][2]protowire.Number) <nil>,
+        	            	+       once: (sync.Once) {
+        	            	+        _: (sync.noCopy) {
+        	            	+        },
+        	            	+        done: (atomic.Bool) {
+        	            	+         _: (atomic.noCopy) {
+        	            	+         },
+        	            	+         v: (uint32) 0
+        	            	+        },
+        	            	+        m: (sync.Mutex) {
+        	            	+         _: (sync.noCopy) {
+        	            	+         },
+        	            	+         mu: (sync.Mutex) {
+        	            	+          state: (int32) 0,
+        	            	+          sema: (uint32) 0
+        	            	+         }
+        	            	+        }
+        	            	+       },
+        	            	+       sorted: ([][2]protowire.Number) <nil>
+        	            	+      },
+        	            	+      ExtensionRangeOptions: ([]func() protoreflect.ProtoMessage) <nil>
+        	            	+     })
+        	            	+    }),
+        	            	+    Exporter: (impl.exporter) <nil>,
+        	            	+    OneofWrappers: ([]interface {}) <nil>,
+        	            	+    initMu: (sync.Mutex) {
+        	            	+     _: (sync.noCopy) {
+        	            	+     },
+        	            	+     mu: (sync.Mutex) {
+        	            	+      state: (int32) 0,
+        	            	+      sema: (uint32) 0
+        	            	+     }
+        	            	+    },
+        	            	+    initDone: (uint32) 1,
+        	            	+    reflectMessageInfo: (impl.reflectMessageInfo) {
+        	            	+     fields: (map[protowire.Number]*impl.fieldInfo) (len=2) {
+        	            	+      (protowire.Number) 1: (*impl.fieldInfo)({
+        	            	+       fieldDesc: (*filedesc.Field)({
+        	            	+        Base: (filedesc.Base) {
+        	            	+         L0: (filedesc.BaseL0) {
+        	            	+          FullName: (protoreflect.FullName) (len=33) "google.protobuf.Timestamp.seconds",
+        	            	+          ParentFile: (*filedesc.File)({
+        	            	+           <max depth reached>
+        	            	+          }),
+        	            	+          Parent: (*filedesc.Message)(<already shown>),
+        	            	+          Index: (int) 0
+        	            	+         }
+        	            	+        },
+        	            	+        L1: (filedesc.FieldL1) {
+        	            	+         Options: (func() protoreflect.ProtoMessage) <nil>,
+        	            	+         Number: (protowire.Number) 1,
+        	            	+         Cardinality: (protoreflect.Cardinality) 1,
+        	            	+         Kind: (protoreflect.Kind) 3,
+        	            	+         StringName: (filedesc.stringName) {
+        	            	+          hasJSON: (bool) true,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          nameJSON: (string) (len=7) "seconds",
+        	            	+          nameText: (string) ""
+        	            	+         },
+        	            	+         IsProto3Optional: (bool) false,
+        	            	+         IsLazy: (bool) false,
+        	            	+         Default: (filedesc.defaultValue) {
+        	            	+          has: (bool) false,
+        	            	+          val: (protoreflect.Value) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          enum: (protoreflect.EnumValueDescriptor) <nil>,
+        	            	+          bytes: ([]uint8) <nil>
+        	            	+         },
+        	            	+         ContainingOneof: (protoreflect.OneofDescriptor) <nil>,
+        	            	+         Enum: (protoreflect.EnumDescriptor) <nil>,
+        	            	+         Message: (protoreflect.MessageDescriptor) <nil>,
+        	            	+         EditionFeatures: (filedesc.EditionFeatures) {
+        	            	+          StripEnumPrefix: (int) 1,
+        	            	+          IsFieldPresence: (bool) false,
+        	            	+          IsLegacyRequired: (bool) false,
+        	            	+          IsOpenEnum: (bool) true,
+        	            	+          IsPacked: (bool) true,
+        	            	+          IsUTF8Validated: (bool) true,
+        	            	+          IsDelimitedEncoded: (bool) false,
+        	            	+          IsJSONCompliant: (bool) true,
+        	            	+          GenerateLegacyUnmarshalJSON: (bool) false,
+        	            	+          APILevel: (int) 0
+        	            	+         }
+        	            	+        }
+        	            	+       }),
+        	            	+       has: (func(impl.pointer) bool) 0x10439fd60,
+        	            	+       clear: (func(impl.pointer)) 0x10439fca0,
+        	            	+       get: (func(impl.pointer) protoreflect.Value) 0x1043a16c0,
+        	            	+       set: (func(impl.pointer, protoreflect.Value)) 0x10439fab0,
+        	            	+       mutable: (func(impl.pointer) protoreflect.Value) <nil>,
+        	            	+       newMessage: (func() protoreflect.Message) <nil>,
+        	            	+       newField: (func() protoreflect.Value) 0x10439fa70
+        	            	+      }),
+        	            	+      (protowire.Number) 2: (*impl.fieldInfo)({
+        	            	+       fieldDesc: (*filedesc.Field)({
+        	            	+        Base: (filedesc.Base) {
+        	            	+         L0: (filedesc.BaseL0) {
+        	            	+          FullName: (protoreflect.FullName) (len=31) "google.protobuf.Timestamp.nanos",
+        	            	+          ParentFile: (*filedesc.File)({
+        	            	+           <max depth reached>
+        	            	+          }),
+        	            	+          Parent: (*filedesc.Message)(<already shown>),
+        	            	+          Index: (int) 1
+        	            	+         }
+        	            	+        },
+        	            	+        L1: (filedesc.FieldL1) {
+        	            	+         Options: (func() protoreflect.ProtoMessage) <nil>,
+        	            	+         Number: (protowire.Number) 2,
+        	            	+         Cardinality: (protoreflect.Cardinality) 1,
+        	            	+         Kind: (protoreflect.Kind) 5,
+        	            	+         StringName: (filedesc.stringName) {
+        	            	+          hasJSON: (bool) true,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          nameJSON: (string) (len=5) "nanos",
+        	            	+          nameText: (string) ""
+        	            	+         },
+        	            	+         IsProto3Optional: (bool) false,
+        	            	+         IsLazy: (bool) false,
+        	            	+         Default: (filedesc.defaultValue) {
+        	            	+          has: (bool) false,
+        	            	+          val: (protoreflect.Value) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          enum: (protoreflect.EnumValueDescriptor) <nil>,
+        	            	+          bytes: ([]uint8) <nil>
+        	            	+         },
+        	            	+         ContainingOneof: (protoreflect.OneofDescriptor) <nil>,
+        	            	+         Enum: (protoreflect.EnumDescriptor) <nil>,
+        	            	+         Message: (protoreflect.MessageDescriptor) <nil>,
+        	            	+         EditionFeatures: (filedesc.EditionFeatures) {
+        	            	+          StripEnumPrefix: (int) 1,
+        	            	+          IsFieldPresence: (bool) false,
+        	            	+          IsLegacyRequired: (bool) false,
+        	            	+          IsOpenEnum: (bool) true,
+        	            	+          IsPacked: (bool) true,
+        	            	+          IsUTF8Validated: (bool) true,
+        	            	+          IsDelimitedEncoded: (bool) false,
+        	            	+          IsJSONCompliant: (bool) true,
+        	            	+          GenerateLegacyUnmarshalJSON: (bool) false,
+        	            	+          APILevel: (int) 0
+        	            	+         }
+        	            	+        }
+        	            	+       }),
+        	            	+       has: (func(impl.pointer) bool) 0x10439fd60,
+        	            	+       clear: (func(impl.pointer)) 0x10439fca0,
+        	            	+       get: (func(impl.pointer) protoreflect.Value) 0x1043a17a0,
+        	            	+       set: (func(impl.pointer, protoreflect.Value)) 0x10439fab0,
+        	            	+       mutable: (func(impl.pointer) protoreflect.Value) <nil>,
+        	            	+       newMessage: (func() protoreflect.Message) <nil>,
+        	            	+       newField: (func() protoreflect.Value) 0x10439fa70
+        	            	+      })
+        	            	+     },
+        	            	+     oneofs: (map[protoreflect.Name]*impl.oneofInfo) {
+        	            	+     },
+        	            	+     fieldTypes: (map[protowire.Number]interface {}) <nil>,
+        	            	+     denseFields: ([]*impl.fieldInfo) (len=4) {
+        	            	+      (*impl.fieldInfo)(<nil>),
+        	            	+      (*impl.fieldInfo)({
+        	            	+       fieldDesc: (*filedesc.Field)({
+        	            	+        Base: (filedesc.Base) {
+        	            	+         L0: (filedesc.BaseL0) {
+        	            	+          FullName: (protoreflect.FullName) (len=33) "google.protobuf.Timestamp.seconds",
+        	            	+          ParentFile: (*filedesc.File)({
+        	            	+           <max depth reached>
+        	            	+          }),
+        	            	+          Parent: (*filedesc.Message)(<already shown>),
+        	            	+          Index: (int) 0
+        	            	+         }
+        	            	+        },
+        	            	+        L1: (filedesc.FieldL1) {
+        	            	+         Options: (func() protoreflect.ProtoMessage) <nil>,
+        	            	+         Number: (protowire.Number) 1,
+        	            	+         Cardinality: (protoreflect.Cardinality) 1,
+        	            	+         Kind: (protoreflect.Kind) 3,
+        	            	+         StringName: (filedesc.stringName) {
+        	            	+          hasJSON: (bool) true,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          nameJSON: (string) (len=7) "seconds",
+        	            	+          nameText: (string) ""
+        	            	+         },
+        	            	+         IsProto3Optional: (bool) false,
+        	            	+         IsLazy: (bool) false,
+        	            	+         Default: (filedesc.defaultValue) {
+        	            	+          has: (bool) false,
+        	            	+          val: (protoreflect.Value) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          enum: (protoreflect.EnumValueDescriptor) <nil>,
+        	            	+          bytes: ([]uint8) <nil>
+        	            	+         },
+        	            	+         ContainingOneof: (protoreflect.OneofDescriptor) <nil>,
+        	            	+         Enum: (protoreflect.EnumDescriptor) <nil>,
+        	            	+         Message: (protoreflect.MessageDescriptor) <nil>,
+        	            	+         EditionFeatures: (filedesc.EditionFeatures) {
+        	            	+          StripEnumPrefix: (int) 1,
+        	            	+          IsFieldPresence: (bool) false,
+        	            	+          IsLegacyRequired: (bool) false,
+        	            	+          IsOpenEnum: (bool) true,
+        	            	+          IsPacked: (bool) true,
+        	            	+          IsUTF8Validated: (bool) true,
+        	            	+          IsDelimitedEncoded: (bool) false,
+        	            	+          IsJSONCompliant: (bool) true,
+        	            	+          GenerateLegacyUnmarshalJSON: (bool) false,
+        	            	+          APILevel: (int) 0
+        	            	+         }
+        	            	+        }
+        	            	+       }),
+        	            	+       has: (func(impl.pointer) bool) 0x10439fd60,
+        	            	+       clear: (func(impl.pointer)) 0x10439fca0,
+        	            	+       get: (func(impl.pointer) protoreflect.Value) 0x1043a16c0,
+        	            	+       set: (func(impl.pointer, protoreflect.Value)) 0x10439fab0,
+        	            	+       mutable: (func(impl.pointer) protoreflect.Value) <nil>,
+        	            	+       newMessage: (func() protoreflect.Message) <nil>,
+        	            	+       newField: (func() protoreflect.Value) 0x10439fa70
+        	            	+      }),
+        	            	+      (*impl.fieldInfo)({
+        	            	+       fieldDesc: (*filedesc.Field)({
+        	            	+        Base: (filedesc.Base) {
+        	            	+         L0: (filedesc.BaseL0) {
+        	            	+          FullName: (protoreflect.FullName) (len=31) "google.protobuf.Timestamp.nanos",
+        	            	+          ParentFile: (*filedesc.File)({
+        	            	+           <max depth reached>
+        	            	+          }),
+        	            	+          Parent: (*filedesc.Message)(<already shown>),
+        	            	+          Index: (int) 1
+        	            	+         }
+        	            	+        },
+        	            	+        L1: (filedesc.FieldL1) {
+        	            	+         Options: (func() protoreflect.ProtoMessage) <nil>,
+        	            	+         Number: (protowire.Number) 2,
+        	            	+         Cardinality: (protoreflect.Cardinality) 1,
+        	            	+         Kind: (protoreflect.Kind) 5,
+        	            	+         StringName: (filedesc.stringName) {
+        	            	+          hasJSON: (bool) true,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          nameJSON: (string) (len=5) "nanos",
+        	            	+          nameText: (string) ""
+        	            	+         },
+        	            	+         IsProto3Optional: (bool) false,
+        	            	+         IsLazy: (bool) false,
+        	            	+         Default: (filedesc.defaultValue) {
+        	            	+          has: (bool) false,
+        	            	+          val: (protoreflect.Value) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          enum: (protoreflect.EnumValueDescriptor) <nil>,
+        	            	+          bytes: ([]uint8) <nil>
+        	            	+         },
+        	            	+         ContainingOneof: (protoreflect.OneofDescriptor) <nil>,
+        	            	+         Enum: (protoreflect.EnumDescriptor) <nil>,
+        	            	+         Message: (protoreflect.MessageDescriptor) <nil>,
+        	            	+         EditionFeatures: (filedesc.EditionFeatures) {
+        	            	+          StripEnumPrefix: (int) 1,
+        	            	+          IsFieldPresence: (bool) false,
+        	            	+          IsLegacyRequired: (bool) false,
+        	            	+          IsOpenEnum: (bool) true,
+        	            	+          IsPacked: (bool) true,
+        	            	+          IsUTF8Validated: (bool) true,
+        	            	+          IsDelimitedEncoded: (bool) false,
+        	            	+          IsJSONCompliant: (bool) true,
+        	            	+          GenerateLegacyUnmarshalJSON: (bool) false,
+        	            	+          APILevel: (int) 0
+        	            	+         }
+        	            	+        }
+        	            	+       }),
+        	            	+       has: (func(impl.pointer) bool) 0x10439fd60,
+        	            	+       clear: (func(impl.pointer)) 0x10439fca0,
+        	            	+       get: (func(impl.pointer) protoreflect.Value) 0x1043a17a0,
+        	            	+       set: (func(impl.pointer, protoreflect.Value)) 0x10439fab0,
+        	            	+       mutable: (func(impl.pointer) protoreflect.Value) <nil>,
+        	            	+       newMessage: (func() protoreflect.Message) <nil>,
+        	            	+       newField: (func() protoreflect.Value) 0x10439fa70
+        	            	+      }),
+        	            	+      (*impl.fieldInfo)(<nil>)
+        	            	+     },
+        	            	+     rangeInfos: ([]interface {}) (len=2) {
+        	            	+      (*impl.fieldInfo)({
+        	            	+       fieldDesc: (*filedesc.Field)({
+        	            	+        Base: (filedesc.Base) {
+        	            	+         L0: (filedesc.BaseL0) {
+        	            	+          FullName: (protoreflect.FullName) (len=31) "google.protobuf.Timestamp.nanos",
+        	            	+          ParentFile: (*filedesc.File)({
+        	            	+           <max depth reached>
+        	            	+          }),
+        	            	+          Parent: (*filedesc.Message)(<already shown>),
+        	            	+          Index: (int) 1
+        	            	+         }
+        	            	+        },
+        	            	+        L1: (filedesc.FieldL1) {
+        	            	+         Options: (func() protoreflect.ProtoMessage) <nil>,
+        	            	+         Number: (protowire.Number) 2,
+        	            	+         Cardinality: (protoreflect.Cardinality) 1,
+        	            	+         Kind: (protoreflect.Kind) 5,
+        	            	+         StringName: (filedesc.stringName) {
+        	            	+          hasJSON: (bool) true,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          nameJSON: (string) (len=5) "nanos",
+        	            	+          nameText: (string) ""
+        	            	+         },
+        	            	+         IsProto3Optional: (bool) false,
+        	            	+         IsLazy: (bool) false,
+        	            	+         Default: (filedesc.defaultValue) {
+        	            	+          has: (bool) false,
+        	            	+          val: (protoreflect.Value) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          enum: (protoreflect.EnumValueDescriptor) <nil>,
+        	            	+          bytes: ([]uint8) <nil>
+        	            	+         },
+        	            	+         ContainingOneof: (protoreflect.OneofDescriptor) <nil>,
+        	            	+         Enum: (protoreflect.EnumDescriptor) <nil>,
+        	            	+         Message: (protoreflect.MessageDescriptor) <nil>,
+        	            	+         EditionFeatures: (filedesc.EditionFeatures) {
+        	            	+          StripEnumPrefix: (int) 1,
+        	            	+          IsFieldPresence: (bool) false,
+        	            	+          IsLegacyRequired: (bool) false,
+        	            	+          IsOpenEnum: (bool) true,
+        	            	+          IsPacked: (bool) true,
+        	            	+          IsUTF8Validated: (bool) true,
+        	            	+          IsDelimitedEncoded: (bool) false,
+        	            	+          IsJSONCompliant: (bool) true,
+        	            	+          GenerateLegacyUnmarshalJSON: (bool) false,
+        	            	+          APILevel: (int) 0
+        	            	+         }
+        	            	+        }
+        	            	+       }),
+        	            	+       has: (func(impl.pointer) bool) 0x10439fd60,
+        	            	+       clear: (func(impl.pointer)) 0x10439fca0,
+        	            	+       get: (func(impl.pointer) protoreflect.Value) 0x1043a17a0,
+        	            	+       set: (func(impl.pointer, protoreflect.Value)) 0x10439fab0,
+        	            	+       mutable: (func(impl.pointer) protoreflect.Value) <nil>,
+        	            	+       newMessage: (func() protoreflect.Message) <nil>,
+        	            	+       newField: (func() protoreflect.Value) 0x10439fa70
+        	            	+      }),
+        	            	+      (*impl.fieldInfo)({
+        	            	+       fieldDesc: (*filedesc.Field)({
+        	            	+        Base: (filedesc.Base) {
+        	            	+         L0: (filedesc.BaseL0) {
+        	            	+          FullName: (protoreflect.FullName) (len=33) "google.protobuf.Timestamp.seconds",
+        	            	+          ParentFile: (*filedesc.File)({
+        	            	+           <max depth reached>
+        	            	+          }),
+        	            	+          Parent: (*filedesc.Message)(<already shown>),
+        	            	+          Index: (int) 0
+        	            	+         }
+        	            	+        },
+        	            	+        L1: (filedesc.FieldL1) {
+        	            	+         Options: (func() protoreflect.ProtoMessage) <nil>,
+        	            	+         Number: (protowire.Number) 1,
+        	            	+         Cardinality: (protoreflect.Cardinality) 1,
+        	            	+         Kind: (protoreflect.Kind) 3,
+        	            	+         StringName: (filedesc.stringName) {
+        	            	+          hasJSON: (bool) true,
+        	            	+          once: (sync.Once) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          nameJSON: (string) (len=7) "seconds",
+        	            	+          nameText: (string) ""
+        	            	+         },
+        	            	+         IsProto3Optional: (bool) false,
+        	            	+         IsLazy: (bool) false,
+        	            	+         Default: (filedesc.defaultValue) {
+        	            	+          has: (bool) false,
+        	            	+          val: (protoreflect.Value) {
+        	            	+           <max depth reached>
+        	            	+          },
+        	            	+          enum: (protoreflect.EnumValueDescriptor) <nil>,
+        	            	+          bytes: ([]uint8) <nil>
+        	            	+         },
+        	            	+         ContainingOneof: (protoreflect.OneofDescriptor) <nil>,
+        	            	+         Enum: (protoreflect.EnumDescriptor) <nil>,
+        	            	+         Message: (protoreflect.MessageDescriptor) <nil>,
+        	            	+         EditionFeatures: (filedesc.EditionFeatures) {
+        	            	+          StripEnumPrefix: (int) 1,
+        	            	+          IsFieldPresence: (bool) false,
+        	            	+          IsLegacyRequired: (bool) false,
+        	            	+          IsOpenEnum: (bool) true,
+        	            	+          IsPacked: (bool) true,
+        	            	+          IsUTF8Validated: (bool) true,
+        	            	+          IsDelimitedEncoded: (bool) false,
+        	            	+          IsJSONCompliant: (bool) true,
+        	            	+          GenerateLegacyUnmarshalJSON: (bool) false,
+        	            	+          APILevel: (int) 0
+        	            	+         }
+        	            	+        }
+        	            	+       }),
+        	            	+       has: (func(impl.pointer) bool) 0x10439fd60,
+        	            	+       clear: (func(impl.pointer)) 0x10439fca0,
+        	            	+       get: (func(impl.pointer) protoreflect.Value) 0x1043a16c0,
+        	            	+       set: (func(impl.pointer, protoreflect.Value)) 0x10439fab0,
+        	            	+       mutable: (func(impl.pointer) protoreflect.Value) <nil>,
+        	            	+       newMessage: (func() protoreflect.Message) <nil>,
+        	            	+       newField: (func() protoreflect.Value) 0x10439fa70
+        	            	+      })
+        	            	+     },
+        	            	+     getUnknown: (func(impl.pointer) protoreflect.RawFields) 0x10439de70,
+        	            	+     setUnknown: (func(impl.pointer, protoreflect.RawFields)) 0x10439dde0,
+        	            	+     extensionMap: (func(impl.pointer) *impl.extensionMap) 0x1043a1ad0,
+        	            	+     nilMessage: (impl.atomicNilMessage) {
+        	            	+      p: (unsafe.Pointer) 0x128549e30050
+        	            	+     }
+        	            	+    },
+        	            	+    coderMessageInfo: (impl.coderMessageInfo) {
+        	            	+     methods: (struct { pragma.NoUnkeyedLiterals; Flags uint64; Size func(struct { pragma.NoUnkeyedLiterals; Message protoreflect.Message; Flags uint8 }) struct { pragma.NoUnkeyedLiterals; Size int }; Marshal func(struct { pragma.NoUnkeyedLiterals; Message protoreflect.Message; Buf []uint8; Flags uint8 }) (struct { pragma.NoUnkeyedLiterals; Buf []uint8 }, error); Unmarshal func(struct { pragma.NoUnkeyedLiterals; Message protoreflect.Message; Buf []uint8; Flags uint8; Resolver interface { FindExtensionByName(protoreflect.FullName) (protoreflect.ExtensionType, error); FindExtensionByNumber(protoreflect.FullName, protowire.Number) (protoreflect.ExtensionType, error) }; Depth int }) (struct { pragma.NoUnkeyedLiterals; Flags uint8 }, error); Merge func(struct { pragma.NoUnkeyedLiterals; Source protoreflect.Message; Destination protoreflect.Message }) struct { pragma.NoUnkeyedLiterals; Flags uint8 }; CheckInitialized func(struct { pragma.NoUnkeyedLiterals; Message protoreflect.Message }) (struct { pragma.NoUnkeyedLiterals }, error); Equal func(struct { pragma.NoUnkeyedLiterals; MessageA protoreflect.Message; MessageB protoreflect.Message }) struct { pragma.NoUnkeyedLiterals; Equal bool } }) {
+        	            	+      NoUnkeyedLiterals: (pragma.NoUnkeyedLiterals) {
+        	            	+      },
+        	            	+      Flags: (uint64) 3,
+        	            	+      Size: (func(struct { pragma.NoUnkeyedLiterals; Message protoreflect.Message; Flags uint8 }) struct { pragma.NoUnkeyedLiterals; Size int }) 0x1043a6190,
+        	            	+      Marshal: (func(struct { pragma.NoUnkeyedLiterals; Message protoreflect.Message; Buf []uint8; Flags uint8 }) (struct { pragma.NoUnkeyedLiterals; Buf []uint8 }, error)) 0x1043a6110,
+        	            	+      Unmarshal: (func(struct { pragma.NoUnkeyedLiterals; Message protoreflect.Message; Buf []uint8; Flags uint8; Resolver interface { FindExtensionByName(protoreflect.FullName) (protoreflect.ExtensionType, error); FindExtensionByNumber(protoreflect.FullName, protowire.Number) (protoreflect.ExtensionType, error) }; Depth int }) (struct { pragma.NoUnkeyedLiterals; Flags uint8 }, error)) 0x1043a61f0,
+        	            	+      Merge: (func(struct { pragma.NoUnkeyedLiterals; Source protoreflect.Message; Destination protoreflect.Message }) struct { pragma.NoUnkeyedLiterals; Flags uint8 }) 0x1043a6300,
+        	            	+      CheckInitialized: (func(struct { pragma.NoUnkeyedLiterals; Message protoreflect.Message }) (struct { pragma.NoUnkeyedLiterals }, error)) 0x1043a62a0,
+        	            	+      Equal: (func(struct { pragma.NoUnkeyedLiterals; MessageA protoreflect.Message; MessageB protoreflect.Message }) struct { pragma.NoUnkeyedLiterals; Equal bool }) 0x10437dd80
+        	            	+     },
+        	            	+     orderedCoderFields: ([]*impl.coderFieldInfo) (len=2) {
+        	            	+      (*impl.coderFieldInfo)({
+        	            	+       funcs: (impl.pointerCoderFuncs) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        size: (func(impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) int) 0x10435e870,
+        	            	+        marshal: (func([]uint8, impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) ([]uint8, error)) 0x10435e8b0,
+        	            	+        unmarshal: (func([]uint8, impl.pointer, protowire.Type, *impl.coderFieldInfo, impl.unmarshalOptions) (impl.unmarshalOutput, error)) 0x10435e750,
+        	            	+        isInit: (func(impl.pointer, *impl.coderFieldInfo) error) <nil>,
+        	            	+        merge: (func(impl.pointer, impl.pointer, *impl.coderFieldInfo, impl.mergeOptions)) 0x1043897d0
+        	            	+       },
+        	            	+       mi: (*impl.MessageInfo)(<nil>),
+        	            	+       ft: (*reflect.rtype)({
+        	            	+        t: (abi.Type) {
+        	            	+         Size_: (uintptr) 0x8,
+        	            	+         PtrBytes: (uintptr) <nil>,
+        	            	+         Hash: (uint32) 1713971779,
+        	            	+         TFlag: (abi.TFlag) 15,
+        	            	+         Align_: (uint8) 8,
+        	            	+         FieldAlign_: (uint8) 8,
+        	            	+         Kind_: (abi.Kind) 6,
+        	            	+         Equal: (func(unsafe.Pointer, unsafe.Pointer) bool) 0x1040a8d90,
+        	            	+         GCData: (*uint8)(0),
+        	            	+         Str: (abi.NameOff) 3187576,
+        	            	+         PtrToThis: (abi.TypeOff) 872696
+        	            	+        }
+        	            	+       }),
+        	            	+       validation: (impl.validationInfo) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        typ: (impl.validationType) 7,
+        	            	+        keyType: (impl.validationType) 0,
+        	            	+        valType: (impl.validationType) 0,
+        	            	+        requiredBit: (uint64) 0
+        	            	+       },
+        	            	+       num: (protowire.Number) 1,
+        	            	+       offset: (impl.offset) 0x8,
+        	            	+       wiretag: (uint64) 8,
+        	            	+       tagsize: (int) 1,
+        	            	+       isPointer: (bool) false,
+        	            	+       isRequired: (bool) false,
+        	            	+       isLazy: (bool) false,
+        	            	+       presenceIndex: (uint32) 4294967295
+        	            	+      }),
+        	            	+      (*impl.coderFieldInfo)({
+        	            	+       funcs: (impl.pointerCoderFuncs) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        size: (func(impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) int) 0x104359fd0,
+        	            	+        marshal: (func([]uint8, impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) ([]uint8, error)) 0x10435a010,
+        	            	+        unmarshal: (func([]uint8, impl.pointer, protowire.Type, *impl.coderFieldInfo, impl.unmarshalOptions) (impl.unmarshalOutput, error)) 0x104359eb0,
+        	            	+        isInit: (func(impl.pointer, *impl.coderFieldInfo) error) <nil>,
+        	            	+        merge: (func(impl.pointer, impl.pointer, *impl.coderFieldInfo, impl.mergeOptions)) 0x1043894b0
+        	            	+       },
+        	            	+       mi: (*impl.MessageInfo)(<nil>),
+        	            	+       ft: (*reflect.rtype)({
+        	            	+        t: (abi.Type) {
+        	            	+         Size_: (uintptr) 0x4,
+        	            	+         PtrBytes: (uintptr) <nil>,
+        	            	+         Hash: (uint32) 2484257786,
+        	            	+         TFlag: (abi.TFlag) 15,
+        	            	+         Align_: (uint8) 4,
+        	            	+         FieldAlign_: (uint8) 4,
+        	            	+         Kind_: (abi.Kind) 5,
+        	            	+         Equal: (func(unsafe.Pointer, unsafe.Pointer) bool) 0x1040a8d70,
+        	            	+         GCData: (*uint8)(0),
+        	            	+         Str: (abi.NameOff) 3187568,
+        	            	+         PtrToThis: (abi.TypeOff) 872640
+        	            	+        }
+        	            	+       }),
+        	            	+       validation: (impl.validationInfo) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        typ: (impl.validationType) 7,
+        	            	+        keyType: (impl.validationType) 0,
+        	            	+        valType: (impl.validationType) 0,
+        	            	+        requiredBit: (uint64) 0
+        	            	+       },
+        	            	+       num: (protowire.Number) 2,
+        	            	+       offset: (impl.offset) 0x10,
+        	            	+       wiretag: (uint64) 16,
+        	            	+       tagsize: (int) 1,
+        	            	+       isPointer: (bool) false,
+        	            	+       isRequired: (bool) false,
+        	            	+       isLazy: (bool) false,
+        	            	+       presenceIndex: (uint32) 4294967295
+        	            	+      })
+        	            	+     },
+        	            	+     denseCoderFields: ([]*impl.coderFieldInfo) (len=3) {
+        	            	+      (*impl.coderFieldInfo)(<nil>),
+        	            	+      (*impl.coderFieldInfo)({
+        	            	+       funcs: (impl.pointerCoderFuncs) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        size: (func(impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) int) 0x10435e870,
+        	            	+        marshal: (func([]uint8, impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) ([]uint8, error)) 0x10435e8b0,
+        	            	+        unmarshal: (func([]uint8, impl.pointer, protowire.Type, *impl.coderFieldInfo, impl.unmarshalOptions) (impl.unmarshalOutput, error)) 0x10435e750,
+        	            	+        isInit: (func(impl.pointer, *impl.coderFieldInfo) error) <nil>,
+        	            	+        merge: (func(impl.pointer, impl.pointer, *impl.coderFieldInfo, impl.mergeOptions)) 0x1043897d0
+        	            	+       },
+        	            	+       mi: (*impl.MessageInfo)(<nil>),
+        	            	+       ft: (*reflect.rtype)({
+        	            	+        t: (abi.Type) {
+        	            	+         Size_: (uintptr) 0x8,
+        	            	+         PtrBytes: (uintptr) <nil>,
+        	            	+         Hash: (uint32) 1713971779,
+        	            	+         TFlag: (abi.TFlag) 15,
+        	            	+         Align_: (uint8) 8,
+        	            	+         FieldAlign_: (uint8) 8,
+        	            	+         Kind_: (abi.Kind) 6,
+        	            	+         Equal: (func(unsafe.Pointer, unsafe.Pointer) bool) 0x1040a8d90,
+        	            	+         GCData: (*uint8)(0),
+        	            	+         Str: (abi.NameOff) 3187576,
+        	            	+         PtrToThis: (abi.TypeOff) 872696
+        	            	+        }
+        	            	+       }),
+        	            	+       validation: (impl.validationInfo) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        typ: (impl.validationType) 7,
+        	            	+        keyType: (impl.validationType) 0,
+        	            	+        valType: (impl.validationType) 0,
+        	            	+        requiredBit: (uint64) 0
+        	            	+       },
+        	            	+       num: (protowire.Number) 1,
+        	            	+       offset: (impl.offset) 0x8,
+        	            	+       wiretag: (uint64) 8,
+        	            	+       tagsize: (int) 1,
+        	            	+       isPointer: (bool) false,
+        	            	+       isRequired: (bool) false,
+        	            	+       isLazy: (bool) false,
+        	            	+       presenceIndex: (uint32) 4294967295
+        	            	+      }),
+        	            	+      (*impl.coderFieldInfo)({
+        	            	+       funcs: (impl.pointerCoderFuncs) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        size: (func(impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) int) 0x104359fd0,
+        	            	+        marshal: (func([]uint8, impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) ([]uint8, error)) 0x10435a010,
+        	            	+        unmarshal: (func([]uint8, impl.pointer, protowire.Type, *impl.coderFieldInfo, impl.unmarshalOptions) (impl.unmarshalOutput, error)) 0x104359eb0,
+        	            	+        isInit: (func(impl.pointer, *impl.coderFieldInfo) error) <nil>,
+        	            	+        merge: (func(impl.pointer, impl.pointer, *impl.coderFieldInfo, impl.mergeOptions)) 0x1043894b0
+        	            	+       },
+        	            	+       mi: (*impl.MessageInfo)(<nil>),
+        	            	+       ft: (*reflect.rtype)({
+        	            	+        t: (abi.Type) {
+        	            	+         Size_: (uintptr) 0x4,
+        	            	+         PtrBytes: (uintptr) <nil>,
+        	            	+         Hash: (uint32) 2484257786,
+        	            	+         TFlag: (abi.TFlag) 15,
+        	            	+         Align_: (uint8) 4,
+        	            	+         FieldAlign_: (uint8) 4,
+        	            	+         Kind_: (abi.Kind) 5,
+        	            	+         Equal: (func(unsafe.Pointer, unsafe.Pointer) bool) 0x1040a8d70,
+        	            	+         GCData: (*uint8)(0),
+        	            	+         Str: (abi.NameOff) 3187568,
+        	            	+         PtrToThis: (abi.TypeOff) 872640
+        	            	+        }
+        	            	+       }),
+        	            	+       validation: (impl.validationInfo) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        typ: (impl.validationType) 7,
+        	            	+        keyType: (impl.validationType) 0,
+        	            	+        valType: (impl.validationType) 0,
+        	            	+        requiredBit: (uint64) 0
+        	            	+       },
+        	            	+       num: (protowire.Number) 2,
+        	            	+       offset: (impl.offset) 0x10,
+        	            	+       wiretag: (uint64) 16,
+        	            	+       tagsize: (int) 1,
+        	            	+       isPointer: (bool) false,
+        	            	+       isRequired: (bool) false,
+        	            	+       isLazy: (bool) false,
+        	            	+       presenceIndex: (uint32) 4294967295
+        	            	+      })
+        	            	+     },
+        	            	+     coderFields: (map[protowire.Number]*impl.coderFieldInfo) (len=2) {
+        	            	+      (protowire.Number) 1: (*impl.coderFieldInfo)({
+        	            	+       funcs: (impl.pointerCoderFuncs) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        size: (func(impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) int) 0x10435e870,
+        	            	+        marshal: (func([]uint8, impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) ([]uint8, error)) 0x10435e8b0,
+        	            	+        unmarshal: (func([]uint8, impl.pointer, protowire.Type, *impl.coderFieldInfo, impl.unmarshalOptions) (impl.unmarshalOutput, error)) 0x10435e750,
+        	            	+        isInit: (func(impl.pointer, *impl.coderFieldInfo) error) <nil>,
+        	            	+        merge: (func(impl.pointer, impl.pointer, *impl.coderFieldInfo, impl.mergeOptions)) 0x1043897d0
+        	            	+       },
+        	            	+       mi: (*impl.MessageInfo)(<nil>),
+        	            	+       ft: (*reflect.rtype)({
+        	            	+        t: (abi.Type) {
+        	            	+         Size_: (uintptr) 0x8,
+        	            	+         PtrBytes: (uintptr) <nil>,
+        	            	+         Hash: (uint32) 1713971779,
+        	            	+         TFlag: (abi.TFlag) 15,
+        	            	+         Align_: (uint8) 8,
+        	            	+         FieldAlign_: (uint8) 8,
+        	            	+         Kind_: (abi.Kind) 6,
+        	            	+         Equal: (func(unsafe.Pointer, unsafe.Pointer) bool) 0x1040a8d90,
+        	            	+         GCData: (*uint8)(0),
+        	            	+         Str: (abi.NameOff) 3187576,
+        	            	+         PtrToThis: (abi.TypeOff) 872696
+        	            	+        }
+        	            	+       }),
+        	            	+       validation: (impl.validationInfo) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        typ: (impl.validationType) 7,
+        	            	+        keyType: (impl.validationType) 0,
+        	            	+        valType: (impl.validationType) 0,
+        	            	+        requiredBit: (uint64) 0
+        	            	+       },
+        	            	+       num: (protowire.Number) 1,
+        	            	+       offset: (impl.offset) 0x8,
+        	            	+       wiretag: (uint64) 8,
+        	            	+       tagsize: (int) 1,
+        	            	+       isPointer: (bool) false,
+        	            	+       isRequired: (bool) false,
+        	            	+       isLazy: (bool) false,
+        	            	+       presenceIndex: (uint32) 4294967295
+        	            	+      }),
+        	            	+      (protowire.Number) 2: (*impl.coderFieldInfo)({
+        	            	+       funcs: (impl.pointerCoderFuncs) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        size: (func(impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) int) 0x104359fd0,
+        	            	+        marshal: (func([]uint8, impl.pointer, *impl.coderFieldInfo, impl.marshalOptions) ([]uint8, error)) 0x10435a010,
+        	            	+        unmarshal: (func([]uint8, impl.pointer, protowire.Type, *impl.coderFieldInfo, impl.unmarshalOptions) (impl.unmarshalOutput, error)) 0x104359eb0,
+        	            	+        isInit: (func(impl.pointer, *impl.coderFieldInfo) error) <nil>,
+        	            	+        merge: (func(impl.pointer, impl.pointer, *impl.coderFieldInfo, impl.mergeOptions)) 0x1043894b0
+        	            	+       },
+        	            	+       mi: (*impl.MessageInfo)(<nil>),
+        	            	+       ft: (*reflect.rtype)({
+        	            	+        t: (abi.Type) {
+        	            	+         Size_: (uintptr) 0x4,
+        	            	+         PtrBytes: (uintptr) <nil>,
+        	            	+         Hash: (uint32) 2484257786,
+        	            	+         TFlag: (abi.TFlag) 15,
+        	            	+         Align_: (uint8) 4,
+        	            	+         FieldAlign_: (uint8) 4,
+        	            	+         Kind_: (abi.Kind) 5,
+        	            	+         Equal: (func(unsafe.Pointer, unsafe.Pointer) bool) 0x1040a8d70,
+        	            	+         GCData: (*uint8)(0),
+        	            	+         Str: (abi.NameOff) 3187568,
+        	            	+         PtrToThis: (abi.TypeOff) 872640
+        	            	+        }
+        	            	+       }),
+        	            	+       validation: (impl.validationInfo) {
+        	            	+        mi: (*impl.MessageInfo)(<nil>),
+        	            	+        typ: (impl.validationType) 7,
+        	            	+        keyType: (impl.validationType) 0,
+        	            	+        valType: (impl.validationType) 0,
+        	            	+        requiredBit: (uint64) 0
+        	            	+       },
+        	            	+       num: (protowire.Number) 2,
+        	            	+       offset: (impl.offset) 0x10,
+        	            	+       wiretag: (uint64) 16,
+        	            	+       tagsize: (int) 1,
+        	            	+       isPointer: (bool) false,
+        	            	+       isRequired: (bool) false,
+        	            	+       isLazy: (bool) false,
+        	            	+       presenceIndex: (uint32) 4294967295
+        	            	+      })
+        	            	+     },
+        	            	+     sizecacheOffset: (impl.offset) 0x30,
+        	            	+     unknownOffset: (impl.offset) 0x18,
+        	            	+     unknownPtrKind: (bool) false,
+        	            	+     extensionOffset: (impl.offset) 0xffffffffffffffff,
+        	            	+     needsInitCheck: (bool) false,
+        	            	+     isMessageSet: (bool) false,
+        	            	+     numRequiredFields: (uint8) 0,
+        	            	+     lazyOffset: (impl.offset) 0xffffffffffffffff,
+        	            	+     presenceOffset: (impl.offset) 0xffffffffffffffff,
+        	            	+     presenceSize: (impl.presenceSize) 0
+        	            	+    }
+        	            	+   })
+        	            	   },
+        	Test:       	TestStagedPublicIntegrationReplacementCoherenceAndStaleFence
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.663s
+FAIL

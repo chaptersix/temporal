@@ -1,0 +1,19 @@
+func (s *Scheduler) Memo(ctx chasm.Context) proto.Message {
+	if s.ListControl.IsSet() {
+		info, err := s.listMemo(ctx)
+		if err != nil {
+			panic(err) //nolint:forbidigo // Framework invariant failure, as with DATA decoding.
+		}
+		if info == nil {
+			return nil
+		}
+		return info
+	}
+	stored, ok := s.PublicList.TryGet(ctx)
+	if !ok {
+		return nil
+	}
+	info := common.CloneProto(stored)
+	info.Paused = s.Paused
+	return info
+}

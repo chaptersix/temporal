@@ -80,8 +80,11 @@ func (s *Scheduler) checkIdlePlan(state decision.State, continuation *scheduler2
 }
 
 func (s *Scheduler) planIdle(ctx chasm.Context, state decision.State) (int64, bool, error) {
-	if s.Closed || s.IdleDuration == 0 {
+	if s.Closed || s.IdleDuration == 0 || s.sourcePreparationPending(ctx) {
 		return 0, false, nil
+	}
+	if ready, err := s.preparedMaintenanceReady(ctx, false); err != nil || ready {
+		return 0, false, err
 	}
 	var continuation *scheduler2pb.OccurrenceContinuation
 	if s.HasGenerator {

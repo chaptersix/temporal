@@ -1,0 +1,9 @@
+# Prepared maintenance helper checkpoint
+
+Two owned files are frozen in manifest.json/final-source. Root owns coordinator class 5, schema, context policy sampler, source task grants and installation hooks.
+
+One maintenance quantum rotates over definition cleanup, timezone cleanup and preview. Each cleanup visits at most 16 addressed pages; each preview evaluates at most 64 prepared-spec steps. Three-way rotation gives preview service despite a remaining large retired prefix. Root coordinator integrates this class into its existing two-quanta budget and five-class rotation; these helper tests do not independently establish physical coordinator task bounds.
+
+Fixed control readiness suppresses preview while source work is pending but retains cleanup readiness. New logical preview outputs require the root source-check callback, retain the grant across partial work/reload, and clear it after one completed output. Empty target bypasses source evaluation. Owner/stamp fences discard obsolete jobs without replacing the list. Completed coherent window publication reserves MemoVersion before any job/list writes. Missing cleanup records reject without cursor advance.
+
+Validation: directed02 PASS 0.689s covers five tests, including 1024-term retired prefix, three-branch progress, reload and one grant/policy sample per output, poisoned full definition source avoidance, source-blocked readiness, stale job discard, cleanup fault and memo exhaustion. directed01 had only a test fixture resetting MemoVersion below its durable prior value; directed02 restores the actual prior value. lint01 reported require.Len style; corrected lint02 PASS normal/minimal/vet zero issues. No production routing, rollout or migration is enabled by this capability. Parent owns final composed/physical acceptance.

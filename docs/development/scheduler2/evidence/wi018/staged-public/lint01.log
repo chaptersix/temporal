@@ -1,0 +1,184 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 11.258125ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (compiled_files|deps|files|types_sizes|exports_file|imports|name) took 1.63757675s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 25.486584ms"
+level=info msg="[linters_context/goanalysis] analyzers took 14.233524716s with top 10 stages: goimports: 3.014214625s, revive: 1.294672334s, gci: 450.88675ms, buildir: 445.829673ms, S1038: 394.852125ms, testifylint: 324.91575ms, printf: 259.375042ms, SA1012: 252.087875ms, QF1010: 227.912375ms, inline: 224.903537ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 15 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 67 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 6 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 106 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner] Issues before processing: 213, after processing: 3"
+level=info msg="[runner] Processors filtering stat (in/out): filename_unadjuster: 213/213, path_relativity: 213/213, exclusion_rules: 213/18, uniq_by_line: 3/3, path_absoluter: 213/213, cgo: 213/213, invalid_issue: 213/213, nolint_filter: 18/12, diff: 12/3, path_prettifier: 3/3, exclusion_paths: 213/213, generated_file_filter: 213/213, fixer: 3/3, max_from_linter: 3/3, severity-rules: 3/3, max_per_file_from_linter: 3/3, max_same_issues: 3/3, source_code: 3/3, path_shortener: 3/3, sort_results: 3/3"
+level=info msg="[runner] processing took 131.339709ms with stages: diff: 126.891126ms, nolint_filter: 2.390625ms, generated_file_filter: 1.18075ms, exclusion_rules: 566.624µs, path_relativity: 119.959µs, source_code: 100.5µs, exclusion_paths: 67.541µs, cgo: 7.291µs, invalid_issue: 4.5µs, path_absoluter: 3.125µs, uniq_by_line: 3.042µs, sort_results: 1.209µs, path_shortener: 958ns, filename_unadjuster: 833ns, max_same_issues: 751ns, max_per_file_from_linter: 292ns, fixer: 208ns, path_prettifier: 208ns, max_from_linter: 84ns, severity-rules: 83ns"
+level=info msg="[runner] linters took 4.434639083s with stages: goanalysis_metalinter: 4.303241917s"
+../chasm/lib/scheduler2/preparation_task_test.go:279:4: enforce-switch-style: switch must have a default case clause (revive)
+			switch mode {
+			case "idle":
+				s.Paused = false
+				s.Limited = true
+				s.Remaining = 0
+				s.ActivitySet = true
+				s.ActivityAt = e.h.now
+				s.IdleDuration = int64(time.Second)
+				s.IdleToken = math.MaxUint64
+				s.IdleArmed = false
+				s.Generator.Get(ctx).Armed = false
+			case "coordinator":
+				s.Coordination.Token = math.MaxUint64
+				s.Coordination.Armed = false
+				s.Generator.Get(ctx).Armed = true
+				s.Generator.Get(ctx).WakeAt = e.h.now
+			case "source":
+				r.Token = math.MaxUint64
+				s.SourceRequest = chasm.NewDataField(ctx, r)
+				response.task.Token = r.Token
+			}
+../chasm/lib/scheduler2/public.go:41:1: cognitive-complexity: function newPublicScheduleWithStage has cognitive complexity 26 (> max enabled 25) (revive)
+func newPublicScheduleWithStage(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, execution, keyedPayloads, keyedRuntime bool, staged *stagedPublicDefinition) (*Scheduler, error) {
+	if request == nil || request.Schedule == nil {
+		return nil, serviceerror.NewInvalidArgument("schedule is required")
+	}
+	if request.Schedule.GetAction().GetStartWorkflow() == nil {
+		return nil, serviceerror.NewInvalidArgument("Only StartWorkflow action is supported for schedules")
+	}
+	schedule := common.CloneProto(request.Schedule)
+	spec := schedule.GetSpec()
+	if !execution && (!schedule.GetState().GetPaused() || len(spec.GetInterval())+len(spec.GetStructuredCalendar())+len(spec.GetCalendar())+len(spec.GetCronString()) != 0 || proto.Size(request.InitialPatch) != 0) {
+		return nil, serviceerror.NewUnimplemented("scheduler2 public execution and initial patches are not wired")
+	}
+	if schedule.Spec == nil {
+		schedule.Spec = &schedulepb.ScheduleSpec{}
+	}
+	if staged == nil {
+		if _, err := occurrence.NewPublic(schedule.Spec, "", 1); err != nil {
+			return nil, err
+		}
+	} else if err := staged.validateBinding(ctx.ExecutionKey().NamespaceID, request.ScheduleId, 0); err != nil {
+		return nil, err
+	}
+	if schedule.State == nil {
+		schedule.State = &schedulepb.ScheduleState{}
+	}
+	if schedule.State.RemainingActions < 0 {
+		return nil, serviceerror.NewInvalidArgument("remaining actions must be nonnegative")
+	}
+	if schedule.Policies == nil {
+		schedule.Policies = &schedulepb.SchedulePolicies{}
+	}
+	policy := schedule.Policies.OverlapPolicy
+	if policy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
+		policy = enumspb.SCHEDULE_OVERLAP_POLICY_SKIP
+	}
+	if !decision.ValidPolicy(policy) {
+		return nil, serviceerror.NewInvalidArgument("invalid overlap policy")
+	}
+	s, err := NewExecution(ctx, schedule.State.RemainingActions)
+	if err != nil {
+		return nil, err
+	}
+	s.IndexedQueue = newQueueState()
+	s.QueueRecords = chasm.NewDataMap[*scheduler2pb.QueuedOccurrence](ctx)
+	s.QueuePages = chasm.NewDataMap[*commonpb.Payload](ctx)
+	if keyedPayloads {
+		s.PayloadStore = &scheduler2pb.PayloadStoreControl{FormatVersion: payloadStoreVersion}
+		s.BlobRecords = chasm.NewDataMap[*scheduler2pb.Payload](ctx)
+		s.BlobReferences = chasm.NewDataMap[*scheduler2pb.BlobReference](ctx)
+	}
+	if keyedRuntime {
+		s.BackfillWork = chasm.NewDataMap[*scheduler2pb.Payload](ctx)
+		s.OperationStore = &scheduler2pb.OperationStoreControl{FormatVersion: operationStoreVersion, NextReadySequence: 1, StartDispatch: &scheduler2pb.StartDispatchControl{Token: 1}}
+		s.OperationRecords = chasm.NewDataMap[*scheduler2pb.OperationState](ctx)
+		s.RequestRecords = chasm.NewDataMap[*scheduler2pb.Payload](ctx)
+		s.OperationPages = chasm.NewDataMap[*commonpb.Payload](ctx)
+		s.ReadyRecords = chasm.NewDataMap[*scheduler2pb.ReadyRecord](ctx)
+		s.ProjectionStore = &scheduler2pb.ProjectionStoreControl{FormatVersion: projectionStoreVersion, NextActionSequence: 1}
+		s.ActionRecords = chasm.NewDataMap[*scheduler2pb.PublicActionRecord](ctx)
+		s.RunningRecords = chasm.NewDataMap[*scheduler2pb.RunningPublicAction](ctx)
+		s.ProjectionPages = chasm.NewDataMap[*commonpb.Payload](ctx)
+		s.PublicRuntime = chasm.NewDataField(ctx, &scheduler2pb.PublicRuntime{})
+	}
+	s.PublicRevision = 1
+	s.MemoRevision = 1
+	s.Paused, s.Limited, s.Policy = schedule.State.Paused, schedule.State.LimitedActions, policy
+	s.PauseOnFailure = schedule.Policies.PauseOnFailure
+	if err := s.storePublicDefinition(ctx, schedule); err != nil {
+		return nil, err
+	}
+	s.PublicInfo = chasm.NewDataField(ctx, &schedulepb.ScheduleInfo{
+		CreateTime: timestamppb.New(ctx.Now(s)), UpdateTime: timestamppb.New(time.Time{}),
+	})
+	if staged == nil {
+		listSpec := common.CloneProto(schedule.Spec)
+		legacyscheduler.CleanSpec(listSpec)
+		listSpec.TimezoneData = nil
+		list := &schedulepb.ScheduleListInfo{
+			Spec: listSpec, WorkflowType: common.CloneProto(schedule.GetAction().GetStartWorkflow().GetWorkflowType()),
+			Notes: schedule.State.Notes, Paused: schedule.State.Paused,
+		}
+		s.publicListProjection(ctx, list, schedule.Spec)
+		s.PublicList = chasm.NewDataField(ctx, list)
+
+	} else {
+		var err error
+		ctx, err = s.reserveMemoVersion(ctx)
+		if err != nil {
+			return nil, err
+		}
+		s.ListControl = chasm.NewDataField(ctx, &scheduler2pb.PublicListControl{})
+		list, preview, err := s.prepareStagedPublicList(ctx, staged, ctx.Now(s), nil)
+		if err != nil {
+			return nil, err
+		}
+		s.publishListRefresh(ctx, list)
+		s.ListPreview = chasm.NewDataField(ctx, preview)
+	}
+	visibility := chasm.NewVisibility(ctx)
+	s.Visibility = chasm.NewComponentField(ctx, visibility)
+	sa := common.CloneProto(request.SearchAttributes)
+	if err := visibility.MergeCustomSearchAttributes(ctx, sa.GetIndexedFields()); err != nil {
+		return nil, err
+	}
+	visibility.MergeCustomMemo(ctx, common.CloneProto(request.Memo).GetFields())
+	return s, nil
+}
+../chasm/lib/scheduler2/staged_generation_test.go:75:4: enforce-switch-style: switch must have a default case clause (revive)
+			switch failure {
+			case "source token":
+				r := common.CloneProto(s.SourceRequest.Get(raw))
+				r.Token = math.MaxUint64
+				s.SourceRequest = chasm.NewDataField(raw.(chasm.MutableContext), r)
+			case "cleanup token":
+				p := s.Generator.Get(raw).PreparedDefinition.Get(raw)
+				p.CleanupHead, p.CleanupTail = math.MaxUint64, math.MaxUint64
+			case "binding":
+				config.Generation.Seed = "wrong"
+			case "missing stage":
+				config.Generation.prepared = nil
+			}
+3 issues:
+* revive: 3
+level=info msg="File cache stats: 3 entries of total size 23.7KiB"
+level=info msg="Memory: 63 samples, avg is 652.0MB, max is 1173.9MB"
+level=info msg="Execution took 6.138826584s"
+make: *** [lint-code] Error 1

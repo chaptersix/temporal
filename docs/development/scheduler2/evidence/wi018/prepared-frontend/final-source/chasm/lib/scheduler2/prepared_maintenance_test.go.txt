@@ -1,0 +1,305 @@
+//go:build test_dep
+
+package scheduler2
+
+import (
+	"bytes"
+	"math"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+	schedulepb "go.temporal.io/api/schedule/v1"
+	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1"
+	"go.temporal.io/server/common"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+func preparedMaintenanceTree(t *testing.T) *treeHarness {
+	t.Helper()
+	h := preparedRuntimeTree(t)
+	s, ctx := h.root(false)
+	owner := [32]byte(s.Generator.Get(ctx).PreparedDefinition.Get(ctx).OwnerId)
+	stamp := stageListTest(t, h, owner, listTestStatic(t, "prepared", 2), 2, nil)
+	s, ctx = h.root(true)
+	job, err := newListPreview(owner, stamp, time.Unix(0, h.now), false, 0)
+	require.NoError(t, err)
+	s.ListPreview = chasm.NewDataField(ctx.(chasm.MutableContext), job)
+	h.commit(true)
+	return h
+}
+
+func TestPreparedMaintenanceRotation(t *testing.T) {
+	t.Parallel()
+	cursor := uint32(0)
+	for n := 0; n < 30; n++ {
+		selected, err := selectPreparedMaintenance(cursor, [3]bool{true, true, true})
+		require.NoError(t, err)
+		require.Equal(t, uint32(n%3+1), selected)
+		cursor = selected%3 + 1
+	}
+	selected, err := selectPreparedMaintenance(2, [3]bool{true, false, true})
+	require.NoError(t, err)
+	require.EqualValues(t, 3, selected)
+	_, err = selectPreparedMaintenance(4, [3]bool{})
+	require.Error(t, err)
+}
+
+func TestPreparedMaintenancePreviewReloadAndPermit(t *testing.T) {
+	t.Parallel()
+	h := preparedMaintenanceTree(t)
+	grants, samples := 0, 0
+	partial := false
+	for quantum := 0; quantum < 1000; quantum++ {
+		s, raw := h.root(true)
+		ctx := raw.(chasm.MutableContext)
+		if !s.ListPreview.IsSet() {
+			memo, err := s.listMemo(ctx)
+			require.NoError(t, err)
+			require.Len(t, memo.FutureActionTimes, 5)
+			require.Equal(t, 1, grants)
+			require.Equal(t, 5, samples)
+			require.True(t, partial)
+			return
+		}
+		ready, err := s.preparedMaintenanceReady(ctx, false)
+		require.NoError(t, err)
+		require.True(t, ready)
+		before := common.CloneProto(s.ListPreview.Get(ctx))
+		planned := &scheduler2pb.CoordinationState{}
+		require.NoError(t, s.maintainPrepared(ctx, planned, func() (int, int) { samples++; return 0, 0 }, func(chasm.MutableContext, *scheduler2pb.PublicListPreview) (bool, error) { grants++; return true, nil }))
+		if s.ListPreview.IsSet() {
+			after := s.ListPreview.Get(ctx)
+			if len(after.Work) > 0 {
+				partial = true
+				require.True(t, after.PreparedSourceReady)
+				if len(before.Work) > 0 {
+					require.GreaterOrEqual(t, len(after.FutureActionTimes), len(before.FutureActionTimes))
+				}
+			} else {
+				require.True(t, after.PreparedSourceReady)
+			}
+		}
+		require.NotContains(t, h.node.MaterializedPathsForTest(), "Generator/PreparedDefinition/Source")
+		h.commit(true)
+	}
+	t.Fatal("preview did not complete")
+}
+
+func TestPreparedMaintenancePreviewFencesAndMemoExhaustion(t *testing.T) {
+	t.Parallel()
+	h := preparedMaintenanceTree(t)
+	s, raw := h.root(true)
+	ctx := raw.(chasm.MutableContext)
+	ready, err := s.preparedMaintenanceReady(ctx, true)
+	require.NoError(t, err)
+	require.False(t, ready, "source pending suppresses preview")
+	original := common.CloneProto(s.ListPreview.Get(ctx))
+	planned := &scheduler2pb.CoordinationState{}
+	require.NoError(t, s.maintainPrepared(ctx, planned, nil, func(chasm.MutableContext, *scheduler2pb.PublicListPreview) (bool, error) { return false, nil }))
+	require.True(t, proto.Equal(original, s.ListPreview.Get(ctx)))
+	// An empty target needs no source or policy provider. Memo exhaustion must
+	// reject final publication without replacing either the job or list control.
+	empty, err := newListPreview([32]byte(original.OwnerId), original.Stamp, original.After.AsTime(), true, 0)
+	require.NoError(t, err)
+	s.Limited, s.Remaining = true, 0
+	s.ListPreview = chasm.NewDataField(ctx, empty)
+	revision := s.MemoVersion(ctx)
+	s.MemoRevision = math.MaxUint64
+	before := common.CloneProto(s.ListControl.Get(ctx))
+	require.Error(t, s.maintainPrepared(ctx, planned, nil, nil))
+	require.True(t, proto.Equal(empty, s.ListPreview.Get(ctx)))
+	require.True(t, proto.Equal(before, s.ListControl.Get(ctx)))
+	s.MemoRevision = revision
+	require.NoError(t, s.maintainPrepared(ctx, planned, nil, nil))
+	require.False(t, s.ListPreview.IsSet())
+	require.Equal(t, revision+1, s.MemoRevision)
+	h.commit(true)
+}
+
+func TestPreparedMaintenanceCleanupCannotStarvePreview(t *testing.T) {
+	t.Parallel()
+	h := preparedMaintenanceTree(t)
+	spec := &schedulepb.ScheduleSpec{}
+	for range 1024 {
+		spec.Interval = append(spec.Interval, &schedulepb.IntervalSpec{Interval: durationpb.New(time.Second)})
+	}
+	retired, err := StageDefinitionSource(spec, "retired", 99)
+	require.NoError(t, err)
+	s, raw := h.root(true)
+	ctx := raw.(chasm.MutableContext)
+	p := s.Generator.Get(ctx).PreparedDefinition.Get(ctx)
+	p.CleanupTail, p.CleanupCount = 1, 1
+	p.Superseded.Put(ctx, "0", &scheduler2pb.DefinitionSupersededSource{OwnerId: bytes.Clone(retired.owner[:]), Header: retired.header.encode(), InstalledPages: uint64(len(retired.pages))})
+	for n, page := range retired.pages {
+		p.Pages.Put(ctx, definitionPageKey(retired.owner[:], uint64(n)), &scheduler2pb.DefinitionPreparationPage{OwnerId: bytes.Clone(retired.owner[:]), Ordinal: uint64(n), Encoded: bytes.Clone(page)})
+	}
+	zone := p.Timezone.Get(ctx)
+	zone.CleanupTail, zone.CleanupCount = 1, 1
+	zone.Superseded.Put(ctx, "0", &scheduler2pb.TimezoneSupersededSource{SourceId: bytes.Repeat([]byte{7}, 32), Header: bytes.Clone(zone.Header)})
+	h.commit(true)
+	grants := 0
+	planned := &scheduler2pb.CoordinationState{}
+	for quantum := 0; quantum < 3; quantum++ {
+		s, raw = h.root(true)
+		ctx = raw.(chasm.MutableContext)
+		require.NoError(t, s.maintainPrepared(ctx, planned, func() (int, int) { return 0, 0 }, func(chasm.MutableContext, *scheduler2pb.PublicListPreview) (bool, error) { grants++; return true, nil }))
+		h.commit(true)
+	}
+	s, raw = h.root(false)
+	p = s.Generator.Get(raw).PreparedDefinition.Get(raw)
+	old, ok := p.Superseded.Get(raw, "0")
+	require.True(t, ok)
+	require.EqualValues(t, 16, old.Cursor)
+	require.EqualValues(t, 1, p.CleanupCount, "large definition prefix remains")
+	require.Zero(t, p.Timezone.Get(raw).CleanupCount)
+	require.Equal(t, 1, grants, "preview receives third quantum while old prefix remains")
+	require.NotEmpty(t, s.ListPreview.Get(raw).Work)
+}
+
+func TestPreparedMaintenanceStalePreviewAndCleanupFault(t *testing.T) {
+	t.Parallel()
+	h := preparedMaintenanceTree(t)
+	s, raw := h.root(true)
+	ctx := raw.(chasm.MutableContext)
+	job := common.CloneProto(s.ListPreview.Get(ctx))
+	job.Stamp++
+	s.ListPreview = chasm.NewDataField(ctx, job)
+	control := common.CloneProto(s.ListControl.Get(ctx))
+	planned := &scheduler2pb.CoordinationState{}
+	require.NoError(t, s.maintainPrepared(ctx, planned, nil, nil))
+	require.False(t, s.ListPreview.IsSet())
+	require.True(t, proto.Equal(control, s.ListControl.Get(ctx)))
+	p := s.Generator.Get(ctx).PreparedDefinition.Get(ctx)
+	p.CleanupCount, p.CleanupTail = 1, 1
+	planned.NextPreparedMaintenance = 1
+	ready, err := s.preparedMaintenanceReady(ctx, true)
+	require.NoError(t, err)
+	require.True(t, ready, "source preparation must not block cleanup")
+	require.Error(t, s.maintainPrepared(ctx, planned, nil, nil), "missing retired descriptor fails before any deletion")
+	require.EqualValues(t, 1, planned.NextPreparedMaintenance)
+	require.EqualValues(t, 1, p.CleanupCount)
+	require.Zero(t, p.CleanupHead)
+}
+
+func publishMaintenanceWindow(t *testing.T, h *treeHarness, future []*timestamppb.Timestamp) {
+	t.Helper()
+	s, raw := h.root(true)
+	ctx := raw.(chasm.MutableContext)
+	job := s.ListPreview.Get(ctx)
+	plan, ok, err := s.prepareListWindow(ctx, [32]byte(job.OwnerId), job.Stamp, future)
+	require.NoError(t, err)
+	require.True(t, ok)
+	plan.control.PublishedTargetCount = s.previewTarget()
+	ctx, err = s.reserveMemoVersion(ctx)
+	require.NoError(t, err)
+	s.publishListWindow(ctx, plan)
+	s.ListPreview = chasm.Field[*scheduler2pb.PublicListPreview]{}
+	h.commit(true)
+}
+
+func TestPreparedMaintenanceRefreshWakeAndExhaustion(t *testing.T) {
+	t.Parallel()
+	h := preparedMaintenanceTree(t)
+	first := time.Unix(0, h.now).Add(time.Minute)
+	publishMaintenanceWindow(t, h, []*timestamppb.Timestamp{timestamppb.New(first)})
+	s, ctx := h.root(false)
+	ready, wake, err := s.preparedMaintenanceWake(ctx, false)
+	require.NoError(t, err)
+	require.False(t, ready)
+	require.True(t, first.Equal(wake))
+	h.now = first.UnixNano()
+	h.reload()
+	s, ctx = h.root(true)
+	ready, wake, err = s.preparedMaintenanceWake(ctx, false)
+	require.NoError(t, err)
+	require.True(t, ready)
+	require.True(t, wake.IsZero())
+	previous := common.CloneProto(s.ListControl.Get(ctx))
+	require.NoError(t, s.maintainPrepared(ctx.(chasm.MutableContext), &scheduler2pb.CoordinationState{}, nil, nil))
+	require.Equal(t, previous.PublishedStamp, s.ListControl.Get(ctx).PublishedStamp)
+	require.True(t, s.ListPreview.Get(ctx).After.AsTime().Equal(first))
+	h.commit(true)
+	publishMaintenanceWindow(t, h, nil)
+	s, ctx = h.root(false)
+	ready, wake, err = s.preparedMaintenanceWake(ctx, false)
+	require.NoError(t, err)
+	require.False(t, ready)
+	require.True(t, wake.IsZero(), "exhaustion must not busy-loop")
+	s, ctx = h.root(true)
+	s.Limited, s.Remaining = true, 0
+	ready, _, err = s.preparedMaintenanceWake(ctx, false)
+	require.NoError(t, err)
+	require.True(t, ready)
+	require.NoError(t, s.maintainPrepared(ctx.(chasm.MutableContext), &scheduler2pb.CoordinationState{}, nil, nil))
+	require.True(t, s.ListPreview.Get(ctx).Done)
+	require.NoError(t, s.maintainPrepared(ctx.(chasm.MutableContext), &scheduler2pb.CoordinationState{}, nil, nil))
+	require.False(t, s.ListPreview.IsSet())
+	require.Zero(t, s.ListControl.Get(ctx).PublishedTargetCount)
+	ready, wake, err = s.preparedMaintenanceWake(ctx, false)
+	require.NoError(t, err)
+	require.False(t, ready)
+	require.True(t, wake.IsZero())
+}
+
+func TestPreparedMaintenanceRefreshPendingTargetAndBoundary(t *testing.T) {
+	t.Parallel()
+	h := preparedMaintenanceTree(t)
+	s, raw := h.root(true)
+	ctx := raw.(chasm.MutableContext)
+	before := common.CloneProto(s.ListPreview.Get(ctx))
+	s.Limited, s.Remaining = true, 2
+	s.Cursor = ctx.Now(s).Add(time.Hour).UnixNano()
+	info := common.CloneProto(s.PublicInfo.Get(ctx))
+	info.UpdateTime = timestamppb.New(ctx.Now(s).Add(2 * time.Hour))
+	s.PublicInfo = chasm.NewDataField(ctx, info)
+	require.NoError(t, s.maintainPrepared(ctx, &scheduler2pb.CoordinationState{}, nil, nil))
+	job := s.ListPreview.Get(ctx)
+	require.Equal(t, before.Stamp, job.Stamp)
+	require.Equal(t, before.OwnerId, job.OwnerId)
+	require.EqualValues(t, 2, job.TargetCount)
+	require.Equal(t, info.UpdateTime.AsTime(), job.After.AsTime())
+	require.False(t, job.PreparedSourceReady)
+	require.Empty(t, job.Work)
+}
+
+func TestPreparedMaintenanceDelayedSnapshotStillPublishes(t *testing.T) {
+	t.Parallel()
+	h := preparedMaintenanceTree(t)
+	s, raw := h.root(false)
+	original := s.ListPreview.Get(raw).OriginalAfter.AsTime()
+	for quantum := 0; quantum < 1000; quantum++ {
+		s, raw = h.root(true)
+		if !s.ListPreview.IsSet() {
+			require.NotZero(t, s.ListControl.Get(raw).PublishedStamp)
+			require.Len(t, s.ListControl.Get(raw).FutureActionTimes, 5)
+			return
+		}
+		require.True(t, s.ListPreview.Get(raw).OriginalAfter.AsTime().Equal(original))
+		require.NoError(t, s.maintainPrepared(raw.(chasm.MutableContext), &scheduler2pb.CoordinationState{}, func() (int, int) { return 0, 0 }, func(chasm.MutableContext, *scheduler2pb.PublicListPreview) (bool, error) { return true, nil }))
+		h.commit(true)
+		h.now += int64(2 * time.Second)
+		h.reload()
+	}
+	t.Fatal("physical delay starved the captured preview")
+}
+
+func TestPreparedMaintenanceQuantumAccountsAllOutputs(t *testing.T) {
+	t.Parallel()
+	h, stage := listPreviewDefinition(t, &schedulepb.ScheduleSpec{Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}}}, "")
+	p, ctx := definitionRoot(t, h, false)
+	job, err := newListPreview(stage.owner, 1, time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), false, 0)
+	require.NoError(t, err)
+	samples := 0
+	step, err := advanceListPreviewQuantum(ctx, p, job, stage.owner, 1, func() (int, int) { samples++; return 0, 0 })
+	require.NoError(t, err)
+	require.True(t, step.job.Done)
+	require.Len(t, step.job.FutureActionTimes, 5)
+	require.Equal(t, 5, samples)
+	require.Greater(t, step.stats.Steps, 5)
+	require.LessOrEqual(t, step.stats.Steps, 64)
+	require.Equal(t, 10, step.stats.TermReads, "both raw and following union term read per output")
+}

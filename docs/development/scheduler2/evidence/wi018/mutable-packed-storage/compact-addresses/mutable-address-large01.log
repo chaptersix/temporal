@@ -1,0 +1,23 @@
+=== RUN   TestMutablePackedSixClassIndexMeasurement
+=== RUN   TestMutablePackedSixClassIndexMeasurement/1000
+    mutable_queue_index_measurement_test.go:92: MUTABLE_SIX_CLASS_INDEX_ONLY N=1000 initial_framed=331485 two_generation_framed=187213 peak_committed=331485 nodes=229 max_mutation_updated_framed_bytes=81283 max_changed_pages=71 max_backend_reads=861; excludes queue records and Scheduler
+=== RUN   TestMutablePackedSixClassIndexMeasurement/10000
+    mutable_queue_index_measurement_test.go:92: MUTABLE_SIX_CLASS_INDEX_ONLY N=10000 initial_framed=4417695 two_generation_framed=2454837 peak_committed=4417695 nodes=2808 max_mutation_updated_framed_bytes=296508 max_changed_pages=276 max_backend_reads=2634; excludes queue records and Scheduler
+--- PASS: TestMutablePackedSixClassIndexMeasurement (37.56s)
+    --- PASS: TestMutablePackedSixClassIndexMeasurement/1000 (1.03s)
+    --- PASS: TestMutablePackedSixClassIndexMeasurement/10000 (36.54s)
+=== RUN   TestMutablePackedStorageMeasurement
+=== RUN   TestMutablePackedStorageMeasurement/1000
+    mutable_storage_measurement_test.go:173: MUTABLE isolated_issuance=false full_namespace=false N=1000 original=1898183 initial=723086 after_delete=525563 final=686150 peak_committed=723086 nodes=829 max_transaction_updated_framed_bytes=6144 max_changed_pages=8 max_backend_reads=8 verification_reads=38995 fixed=4091
+    mutable_storage_measurement_test.go:173: MUTABLE isolated_issuance=true full_namespace=false N=1000 original=1898183 initial=770891 after_delete=562878 final=737348 peak_committed=770891 nodes=1737 max_transaction_updated_framed_bytes=4331 max_changed_pages=8 max_backend_reads=8 verification_reads=35995 fixed=4091
+    mutable_storage_measurement_test.go:181: MUTABLE isolated_issuance=true full_namespace=true N=1000 original=1898183 initial=793658 after_delete=575589 final=752116 peak_committed=793658 nodes=1737 max_transaction_updated_framed_bytes=4451 max_changed_pages=8 max_backend_reads=8 verification_reads=35995 fixed=4091
+=== RUN   TestMutablePackedStorageMeasurement/10000
+    mutable_storage_measurement_test.go:173: MUTABLE isolated_issuance=false full_namespace=false N=10000 original=18975955 initial=7383700 after_delete=5318678 final=6986157 peak_committed=7383700 nodes=8283 max_transaction_updated_framed_bytes=6573 max_changed_pages=10 max_backend_reads=10 verification_reads=480000 fixed=4091
+    mutable_storage_measurement_test.go:173: MUTABLE isolated_issuance=true full_namespace=false N=10000 original=18975955 initial=7860057 after_delete=5697936 final=7497759 peak_committed=7860057 nodes=17352 max_transaction_updated_framed_bytes=5543 max_changed_pages=10 max_backend_reads=10 verification_reads=440000 fixed=4091
+    mutable_storage_measurement_test.go:181: MUTABLE isolated_issuance=true full_namespace=true N=10000 original=18975955 initial=8089853 after_delete=5823678 final=7645200 peak_committed=8089853 nodes=17352 max_transaction_updated_framed_bytes=5683 max_changed_pages=10 max_backend_reads=10 verification_reads=440000 fixed=4091
+--- PASS: TestMutablePackedStorageMeasurement (14.91s)
+    --- PASS: TestMutablePackedStorageMeasurement/1000 (1.02s)
+    --- PASS: TestMutablePackedStorageMeasurement/10000 (13.89s)
+=== RUN   TestImmutableRequestAddress
+--- PASS: TestImmutableRequestAddress (0.00s)
+PASS

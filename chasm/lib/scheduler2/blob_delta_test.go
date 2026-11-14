@@ -228,9 +228,11 @@ func TestBlobCompletionRetentionSelfEviction(t *testing.T) {
 		h.apply(decision.Event{Kind: decision.Callback, Incarnation: "incarnation", OperationID: id, ChainID: id + "/chain", Outcome: decision.Success, Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED, Result: completionWire(t, &commonpb.Payload{Data: []byte{byte(i)}}), PublicCloseTime: closeTime}, true)
 	}
 	s, ctx := h.root(false)
-	_, ok := s.operationRecord(ctx, id)
+	_, ok, readErr := s.operationRecord(ctx, id)
+	require.NoError(t, readErr)
 	require.False(t, ok)
-	_, ok = s.requestRecord(ctx, id)
+	_, ok, readErr = s.requestRecord(ctx, id)
+	require.NoError(t, readErr)
 	require.False(t, ok)
 	require.Len(t, s.PublicRuntime.Get(ctx).CompletedOperations, 10)
 	resultRef := s.Carryover.Get(ctx).ResultRef

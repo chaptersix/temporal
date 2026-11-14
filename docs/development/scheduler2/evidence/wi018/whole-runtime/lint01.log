@@ -1,0 +1,125 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 11.051709ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (name|types_sizes|compiled_files|exports_file|deps|files|imports) took 233.471792ms"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 18.206042ms"
+level=info msg="[linters_context/goanalysis] analyzers took 0s with no stages"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 14 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 6 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 105 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 60 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner] Issues before processing: 198, after processing: 2"
+level=info msg="[runner] Processors filtering stat (in/out): max_same_issues: 2/2, path_absoluter: 198/198, cgo: 198/198, invalid_issue: 198/198, exclusion_paths: 198/198, generated_file_filter: 198/198, fixer: 2/2, source_code: 2/2, filename_unadjuster: 198/198, path_relativity: 198/198, diff: 9/2, severity-rules: 2/2, path_prettifier: 2/2, nolint_filter: 13/9, uniq_by_line: 2/2, max_from_linter: 2/2, sort_results: 2/2, exclusion_rules: 198/13, max_per_file_from_linter: 2/2, path_shortener: 2/2"
+level=info msg="[runner] processing took 83.982291ms with stages: diff: 80.976459ms, nolint_filter: 1.347333ms, generated_file_filter: 915.751µs, exclusion_rules: 516.792µs, path_relativity: 90.75µs, exclusion_paths: 59.374µs, source_code: 54.208µs, cgo: 7.666µs, invalid_issue: 4.501µs, uniq_by_line: 3.958µs, sort_results: 1µs, max_same_issues: 958ns, path_shortener: 875ns, filename_unadjuster: 834ns, path_absoluter: 625ns, max_per_file_from_linter: 416ns, fixer: 375ns, path_prettifier: 249ns, severity-rules: 84ns, max_from_linter: 83ns"
+level=info msg="[runner] linters took 266.087417ms with stages: goanalysis_metalinter: 182.048083ms"
+../chasm/lib/scheduler2/public_list_storage.go:75:1: cyclomatic: function (*Scheduler).listControl has cyclomatic complexity 28 (> max enabled 25) (revive)
+func (s *Scheduler) listControl(ctx chasm.Context) (*scheduler2pb.PublicListControl, error) {
+	c, ok := s.ListControl.TryGet(ctx)
+	if !ok {
+		if s.ListStaticA.IsSet() || s.ListStaticB.IsSet() || s.ListNotes.IsSet() {
+			return nil, errors.New("orphan list partition")
+		}
+		return &scheduler2pb.PublicListControl{}, nil
+	}
+	if c == nil || c.PublishedSlot > 2 || c.PendingSlot > 2 || len(c.RecentActions) > 5 || len(c.FutureActionTimes) > 5 || c.PublishedListLimit < 0 || c.PendingListLimit < 0 {
+		return nil, errors.New("invalid list control")
+	}
+	if (c.PublishedSlot == 0) != (c.PublishedStamp == 0) || (c.PendingSlot == 0) != (c.PendingStamp == 0) || (c.PendingStamp != 0 && c.PendingStamp <= c.PublishedStamp) || (c.PublishedSlot == 0 && len(c.FutureActionTimes) != 0) {
+		return nil, errors.New("invalid list publication stamp")
+	}
+	for slot := uint32(1); slot <= 2; slot++ {
+		owner := listSlotOwner(c, slot)
+		referenced := c.PublishedSlot == slot || c.PendingSlot == slot
+		if referenced != s.listSlot(slot).IsSet() || (referenced && !validListOwner(owner)) || (!referenced && len(owner) != 0) {
+			return nil, errors.New("invalid list slot ownership")
+		}
+	}
+	for _, action := range c.RecentActions {
+		if action == nil {
+			return nil, errors.New("invalid recent list action")
+		}
+	}
+	if err := validListFuture(c.FutureActionTimes); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+../chasm/lib/scheduler2/public_list_storage.go:118:1: cyclomatic: function (*Scheduler).prepareListRefresh has cyclomatic complexity 26 (> max enabled 25) (revive)
+func (s *Scheduler) prepareListRefresh(ctx chasm.Context, owner [32]byte, static *schedulepb.ScheduleListInfo, limit int64, recent []*schedulepb.ScheduleActionResult, notes *string) (publicListPlan, error) {
+	c, err := s.listControl(ctx)
+	if err != nil {
+		return publicListPlan{}, err
+	}
+	if owner == [32]byte{} || limit < 0 || len(recent) > 5 {
+		return publicListPlan{}, errors.New("invalid list refresh")
+	}
+	for _, a := range recent {
+		if a == nil {
+			return publicListPlan{}, errors.New("invalid recent list action")
+		}
+	}
+	stamp := max(c.PublishedStamp, c.PendingStamp)
+	if stamp == math.MaxUint64 {
+		return publicListPlan{}, errors.New("list preview stamp exhausted")
+	}
+	if static == nil && (c.PublishedSlot == 0 || !bytes.Equal(listSlotOwner(c, c.PublishedSlot), owner[:]) || limit != c.PublishedListLimit) {
+		return publicListPlan{}, errors.New("list static restaging required")
+	}
+	if static != nil && (static.Spec == nil || static.Spec.TimezoneData != nil || static.Notes != "" || static.Paused || len(static.RecentActions) != 0 || len(static.FutureActionTimes) != 0) {
+		return publicListPlan{}, errors.New("invalid staged list static")
+	}
+	next := common.CloneProto(c)
+	next.PendingStamp = stamp + 1
+	next.PendingListLimit = limit
+	next.RecentActions = nil
+	for _, a := range recent {
+		next.RecentActions = append(next.RecentActions, common.CloneProto(a))
+	}
+	var detachedNotes *string
+	if notes != nil {
+		value := *notes
+		detachedNotes = &value
+	}
+	plan := publicListPlan{control: next, static: static, notes: detachedNotes, memoChanged: notes != nil || !proto.Equal(&scheduler2pb.PublicListControl{RecentActions: c.RecentActions}, &scheduler2pb.PublicListControl{RecentActions: next.RecentActions})}
+	if static != nil {
+		next.PendingSlot = 1
+		if c.PublishedSlot == 1 {
+			next.PendingSlot = 2
+		}
+		plan.staticSlot = next.PendingSlot
+		setListSlotOwner(next, next.PendingSlot, owner[:])
+	} else {
+		next.PendingSlot = c.PublishedSlot
+		if c.PendingSlot != 0 && c.PendingSlot != c.PublishedSlot {
+			plan.clearSlot = c.PendingSlot
+			setListSlotOwner(next, c.PendingSlot, nil)
+		}
+	}
+	return plan, nil
+}
+2 issues:
+* revive: 2
+level=info msg="File cache stats: 1 entries of total size 9.9KiB"
+level=info msg="Memory: 7 samples, avg is 58.3MB, max is 75.4MB"
+level=info msg="Execution took 550.460083ms"
+make: *** [lint-code] Error 1

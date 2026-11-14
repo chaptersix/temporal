@@ -1,0 +1,9 @@
+--- FAIL: TestStagedGenerationReplacementFencesOldTask (0.01s)
+    staged_generation_test.go:58: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/staged_generation_test.go:58
+        	Error:      	Received unexpected error:
+        	            	task is no longer valid
+        	Test:       	TestStagedGenerationReplacementFencesOldTask
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.655s
+FAIL

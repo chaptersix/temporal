@@ -1,0 +1,141 @@
+2026/11/14 12:44:41 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestInput","worker":false}
+2026/11/14 12:44:41 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestBufferSizeReportedWhenBuffered","worker":false}
+2026/11/14 12:44:41 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestAllowAllDescribeContract","worker":false}
+2026/11/14 12:44:41 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestListSchedulesFilterByScheduleId","worker":false}
+2026/11/14 12:44:42 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestUpdateScheduleRequestIDTooLong","worker":false}
+2026/11/14 12:44:42 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestUpdateScheduleBlobSizeLimit","worker":false}
+2026/11/14 12:44:42 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestUpdateIntervalTakesEffect","worker":false}
+2026/11/14 12:44:43 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestUnpauseResumesProcessing","worker":false}
+2026/11/14 12:44:48 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestSchedule_InternalTaskQueue","worker":false}
+2026/11/14 12:44:48 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestScheduleContinuesAfterWorkflowRetryFailure","worker":false}
+2026/11/14 12:44:51 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestPausedScheduleNeverIdles","worker":false}
+2026/11/14 12:44:52 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestPausedEmptySpecStaysOpen","worker":false}
+2026/11/14 12:44:58 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestPatchTriggerRetryDedupsRequestID","worker":false}
+2026/11/14 12:44:58 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestListSchedulesReturnsWorkflowStatus","worker":false}
+2026/11/14 12:44:59 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestListSchedulesRecentActionsCapped","worker":false}
+2026/11/14 12:45:04 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestListSchedulesPagination","worker":false}
+2026/11/14 12:45:05 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestCreateScheduleDuplicateSdkError","worker":false}
+2026/11/14 12:45:05 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestDeletedScheduleOperations","worker":false}
+2026/11/14 12:45:05 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestCountSchedules","worker":false}
+2026/11/14 12:45:06 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestBasics","worker":false}
+2026/11/14 12:45:08 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestBufferOneDeferredFiresAfterCompletion","worker":false}
+2026/11/14 12:45:13 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestLimitMemoSpecSize","worker":false}
+2026/11/14 12:45:15 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestListSchedulesFilterAndEntryFields","worker":false}
+2026/11/14 12:45:21 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestListScheduleMatchingTimes","worker":false}
+2026/11/14 12:45:22 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestLastCompletionAndError","worker":false}
+2026/11/14 12:45:22 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestLastCompletionResultAfterNoResultWorkflow","worker":false}
+2026/11/14 12:45:25 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestJitteredWakeupSurvivesCompletion","worker":false}
+2026/11/14 12:45:36 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestTriggerImmediately/OnActiveSchedule","worker":false}
+2026/11/14 12:45:37 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestTriggerImmediately/AfterActionsExhausted","worker":false}
+2026/11/14 12:45:38 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestTriggerImmediately/OnPausedSchedule","worker":false}
+2026/11/14 12:45:39 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestBackfill/ReprocessCompletedActionExactTimePaused","worker":false}
+2026/11/14 12:45:43 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestBackfill/BufferOneOverlap","worker":false}
+2026/11/14 12:45:44 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestBackfill/RangeSmallerThanInterval","worker":false}
+2026/11/14 12:45:45 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestBackfill/MultiRangeCountedExactlyOnce","worker":false}
+2026/11/14 12:45:49 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestBackfill/ReprocessCompletedActionInRange","worker":false}
+2026/11/14 12:45:55 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestBackfill/SkipOverlap","worker":false}
+2026/11/14 12:46:02 CLUSTEREVENT {"kind":"dedicated","reason":"schedule frontend configured","suite":"TestSchedule2PreparedSharedSuite","test":"TestSchedule2PreparedSharedSuite/TestBackfill/ReprocessCompletedActionExactTimeActive","worker":false}
+--- FAIL: TestSchedule2PreparedSharedSuite (0.00s)
+    --- FAIL: TestSchedule2PreparedSharedSuite/TestUpdateIntervalTakesEffect (10.05s)
+        schedule_test.go:2742: RequireTruef: expected at least 2 runs within 10s after updating interval to 1s (not satisfied after 9.999998458s)
+            details:
+              attempts         = 21
+              attempt timeouts = 0
+    --- FAIL: TestSchedule2PreparedSharedSuite/TestListSchedulesReturnsWorkflowStatus (15.05s)
+        schedule_test.go:2590: attempt errors:
+            
+              --- attempt 1 ---
+                
+                	Error Trace:	/private/tmp/sch-redesign-execution/tests/schedule_test.go:5089
+                	            				/private/tmp/sch-redesign-execution/common/testing/await/require_ctx.go:228
+                	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/asm_arm64.s:1039
+                	Error:      	schedule has not appeared in visibility
+                
+              ... 12 attempts omitted ...
+            
+              --- attempt 14 ---
+                
+                	Error Trace:	/private/tmp/sch-redesign-execution/tests/schedule_test.go:5083
+                	            				/private/tmp/sch-redesign-execution/common/testing/await/require_ctx.go:228
+                	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/asm_arm64.s:1039
+                	Error:      	Should be true
+                	Messages:   	schedule "sched-test-list-running" has not reached the expected visibility state
+                
+            
+              --- attempt 15 ---
+                
+                	Error Trace:	/private/tmp/sch-redesign-execution/tests/schedule_test.go:5083
+                	            				/private/tmp/sch-redesign-execution/common/testing/await/require_ctx.go:228
+                	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/asm_arm64.s:1039
+                	Error:      	Should be true
+                	Messages:   	schedule "sched-test-list-running" has not reached the expected visibility state
+                
+            
+              --- attempt 16 ---
+                
+                	Error Trace:	/private/tmp/sch-redesign-execution/tests/schedule_test.go:5079
+                	            				/private/tmp/sch-redesign-execution/common/testing/await/require_ctx.go:228
+                	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/asm_arm64.s:1039
+                	Error:      	Received unexpected error:
+                	            	context deadline exceeded
+                
+        schedule_test.go:2590: Require: condition not satisfied after 14.99999775s
+            details:
+              attempts         = 16
+              attempt timeouts = 0
+    --- FAIL: TestSchedule2PreparedSharedSuite/TestLimitMemoSpecSize (1.05s)
+        schedule_test.go:2903: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/tests/schedule_test.go:2903
+            	Error:      	"[]" should have 10 item(s), but has 0
+            	Test:       	TestSchedule2PreparedSharedSuite/TestLimitMemoSpecSize
+    --- FAIL: TestSchedule2PreparedSharedSuite/TestBasics (15.05s)
+        schedule_test.go:1619: RequireTrue: condition not satisfied after 14.999997458s
+            details:
+              attempts         = 31
+              attempt timeouts = 0
+    --- FAIL: TestSchedule2PreparedSharedSuite/TestListSchedulesRecentActionsCapped (39.24s)
+        schedule_test.go:2675: attempt errors:
+            
+              --- attempt 1 ---
+                
+                	Error Trace:	/private/tmp/sch-redesign-execution/tests/schedule_test.go:5083
+                	            				/private/tmp/sch-redesign-execution/common/testing/await/require_ctx.go:228
+                	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/asm_arm64.s:1039
+                	Error:      	Should be true
+                	Messages:   	schedule "sched-list-cap-d4581b26-a12a-4347-aefe-3133c6e31fb5" has not reached the expected visibility state
+                
+              ... 12 attempts omitted ...
+            
+              --- attempt 14 ---
+                
+                	Error Trace:	/private/tmp/sch-redesign-execution/tests/schedule_test.go:5083
+                	            				/private/tmp/sch-redesign-execution/common/testing/await/require_ctx.go:228
+                	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/asm_arm64.s:1039
+                	Error:      	Should be true
+                	Messages:   	schedule "sched-list-cap-d4581b26-a12a-4347-aefe-3133c6e31fb5" has not reached the expected visibility state
+                
+            
+              --- attempt 15 ---
+                
+                	Error Trace:	/private/tmp/sch-redesign-execution/tests/schedule_test.go:5083
+                	            				/private/tmp/sch-redesign-execution/common/testing/await/require_ctx.go:228
+                	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/asm_arm64.s:1039
+                	Error:      	Should be true
+                	Messages:   	schedule "sched-list-cap-d4581b26-a12a-4347-aefe-3133c6e31fb5" has not reached the expected visibility state
+                
+            
+              --- attempt 16 ---
+                
+                	Error Trace:	/private/tmp/sch-redesign-execution/tests/schedule_test.go:5079
+                	            				/private/tmp/sch-redesign-execution/common/testing/await/require_ctx.go:228
+                	            				/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/asm_arm64.s:1039
+                	Error:      	Received unexpected error:
+                	            	context deadline exceeded
+                
+        schedule_test.go:2675: Require: condition not satisfied after 14.999997375s
+            details:
+              attempts         = 16
+              attempt timeouts = 0
+FAIL
+FAIL	go.temporal.io/server/tests	98.531s
+FAIL

@@ -28,6 +28,12 @@ func newAddressedTaskEngine(t *testing.T, rpc func(context.Context, *workflowser
 	return newAddressedTaskEngineWithAdmission(t, rpc, false)
 }
 func newAddressedTaskEngineWithAdmission(t *testing.T, rpc func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error), automatic bool) *taskEngine {
+	return newSelectedTaskEngineWithAdmission(t, false, rpc, automatic)
+}
+func newSelectedTaskEngine(t *testing.T, packed bool, rpc func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error)) *taskEngine {
+	return newSelectedTaskEngineWithAdmission(t, packed, rpc, false)
+}
+func newSelectedTaskEngineWithAdmission(t *testing.T, packed bool, rpc func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error), automatic bool) *taskEngine {
 	t.Helper()
 	// Reuse the locked mock-engine adapter, then discard its entire setup tree.
 	// The selected execution below is created fresh, never converted from it.
@@ -43,7 +49,11 @@ func newAddressedTaskEngineWithAdmission(t *testing.T, rpc func(context.Context,
 	starter.wallNow = func() time.Time { return time.Unix(0, h.now) }
 	registry := chasm.NewRegistry(log.NewNoopLogger())
 	require.NoError(t, registry.Register(&chasm.CoreLibrary{}))
-	require.NoError(t, registry.Register(NewLibrary(starter, nil)))
+	library := NewLibrary(starter, nil)
+	if packed {
+		library = newBoundedLibrary(starter, nil)
+	}
+	require.NoError(t, registry.Register(library))
 	h.registry = registry
 	h.node = chasm.NewEmptyTree(registry, h.backend, chasm.DefaultPathEncoder, log.NewNoopLogger(), metrics.NoopMetricsHandler)
 	request := &workflowservice.CreateScheduleRequest{Namespace: "namespace", ScheduleId: "schedule", Schedule: &schedulepb.Schedule{
@@ -55,7 +65,11 @@ func newAddressedTaskEngineWithAdmission(t *testing.T, rpc func(context.Context,
 		request.InitialPatch = nil
 		request.Schedule.Spec = generationSpec(time.Unix(0, h.now), time.Unix(0, h.now).Add(time.Hour), time.Second)
 	}
-	s, err := newAddressedPublicSchedule(chasm.NewMutableContext(t.Context(), h.node), request, schedulerconfig.DefaultTweakables)
+	constructor := newAddressedPublicSchedule
+	if packed {
+		constructor = newPackedAddressedPublicSchedule
+	}
+	s, err := constructor(chasm.NewMutableContext(t.Context(), h.node), request, schedulerconfig.DefaultTweakables)
 	require.NoError(t, err)
 	require.NoError(t, h.node.SetRootComponent(s))
 	h.commit(true)
@@ -81,6 +95,16 @@ func newAddressedTaskEngineWithAdmission(t *testing.T, rpc func(context.Context,
 	require.Empty(t, s.Requests)
 	require.Empty(t, s.PayloadBlobs)
 	require.NotEmpty(t, h.physical)
+	if packed {
+		require.NotNil(t, s.PackedStorage)
+		_, ctx := h.root(false)
+		_, old := s.OperationRecords.Get(ctx, s.OperationId)
+		require.False(t, old)
+		_, old = s.RequestRecords.Get(ctx, s.OperationId)
+		require.False(t, old)
+		_, old = s.ActionRecords.Get(ctx, s.OperationId)
+		require.False(t, old)
+	}
 	return e
 }
 func newestAddressedPhysical(t *testing.T, h *treeHarness) *tasks.ChasmTask {
@@ -106,12 +130,14 @@ func newestAddressedPhysical(t *testing.T, h *treeHarness) *tasks.ChasmTask {
 func assertAddressedOwners(t *testing.T, h *treeHarness, id string, phase pb.Phase, pending, requests, running int64) {
 	t.Helper()
 	s, ctx := h.root(false)
-	op, ok := s.operationRecord(ctx, id)
+	op, ok, readErr := s.operationRecord(ctx, id)
+	require.NoError(t, readErr)
 	require.True(t, ok)
 	require.Equal(t, phase, op.Phase)
 	require.Equal(t, pending, s.OperationStore.PendingCount)
 	require.Equal(t, requests, s.OperationStore.RequestCount)
-	_, requestPresent := s.requestRecord(ctx, id)
+	_, requestPresent, readErr := s.requestRecord(ctx, id)
+	require.NoError(t, readErr)
 	require.Equal(t, requests != 0, requestPresent)
 	require.Equal(t, running, s.ProjectionStore.RunningCount)
 	count, ok := s.BlobReferences.Get(ctx, s.PublicActionRef)
@@ -124,12 +150,15 @@ func assertAddressedOwners(t *testing.T, h *treeHarness, id string, phase pb.Pha
 	require.Empty(t, s.PublicRuntime.Get(ctx).Actions)
 }
 func TestAddressedRuntimePhysicalSuccessAndCallbackOrdering(t *testing.T) {
+	testSelectedRuntimePhysicalSuccessAndCallbackOrdering(t, false)
+}
+func testSelectedRuntimePhysicalSuccessAndCallbackOrdering(t *testing.T, packed bool) {
 	t.Parallel()
 	for _, early := range []bool{false, true} {
 		t.Run(fmt.Sprint(early), func(t *testing.T) {
 			var e *taskEngine
 			calls := 0
-			e = newAddressedTaskEngine(t, func(_ context.Context, request *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
+			e = newSelectedTaskEngine(t, packed, func(_ context.Context, request *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
 				calls++
 				s, ctx := e.h.root(false)
 				require.NotNil(t, s.OperationStore.StartDispatch.Claim)
@@ -178,9 +207,12 @@ func TestAddressedRuntimePhysicalSuccessAndCallbackOrdering(t *testing.T) {
 	}
 }
 func TestAddressedRuntimePhysicalRetryKeepsFrozenRequest(t *testing.T) {
+	testSelectedRuntimePhysicalRetryKeepsFrozenRequest(t, false)
+}
+func testSelectedRuntimePhysicalRetryKeepsFrozenRequest(t *testing.T, packed bool) {
 	t.Parallel()
 	var observed []*workflowservice.StartWorkflowExecutionRequest
-	e := newAddressedTaskEngine(t, func(_ context.Context, r *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
+	e := newSelectedTaskEngine(t, packed, func(_ context.Context, r *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
 		observed = append(observed, common.CloneProto(r))
 		if len(observed) == 1 {
 			return nil, errors.New("accepted response lost")
@@ -200,7 +232,8 @@ func TestAddressedRuntimePhysicalRetryKeepsFrozenRequest(t *testing.T) {
 	after, err := s.requiredRequestRecord(raw, id)
 	require.NoError(t, err)
 	protorequire.ProtoEqual(t, before, after)
-	op, ok := s.operationRecord(raw, id)
+	op, ok, readErr := s.operationRecord(raw, id)
+	require.NoError(t, readErr)
 	require.True(t, ok)
 	e.h.now = op.RetryAt
 	e.h.reload()
@@ -211,10 +244,13 @@ func TestAddressedRuntimePhysicalRetryKeepsFrozenRequest(t *testing.T) {
 }
 
 func TestAddressedRuntimePhysicalClaimCrashAndRecovery(t *testing.T) {
+	testSelectedRuntimePhysicalClaimCrashAndRecovery(t, false)
+}
+func testSelectedRuntimePhysicalClaimCrashAndRecovery(t *testing.T, packed bool) {
 	t.Parallel()
 	var cancel context.CancelFunc
 	calls := 0
-	e := newAddressedTaskEngine(t, func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
+	e := newSelectedTaskEngine(t, packed, func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
 		calls++
 		if calls == 1 {
 			cancel()
@@ -235,7 +271,8 @@ func TestAddressedRuntimePhysicalClaimCrashAndRecovery(t *testing.T) {
 	s, raw = e.h.root(false)
 	claim := common.CloneProto(s.OperationStore.StartDispatch.Claim)
 	require.NotNil(t, claim)
-	pending, ok := s.operationRecord(raw, id)
+	pending, ok, readErr := s.operationRecord(raw, id)
+	require.NoError(t, readErr)
 	require.True(t, ok)
 	e.h.now = claim.Expiry
 	before := cloneNodes(e.h.durable)
@@ -250,7 +287,8 @@ func TestAddressedRuntimePhysicalClaimCrashAndRecovery(t *testing.T) {
 	commitGeneration(e.h, true)
 	s, raw = e.h.root(false)
 	require.Nil(t, s.OperationStore.StartDispatch.Claim)
-	next, ok := s.operationRecord(raw, id)
+	next, ok, readErr := s.operationRecord(raw, id)
+	require.NoError(t, readErr)
 	require.True(t, ok)
 	require.Equal(t, pending.RetryAt, next.RetryAt)
 	require.Equal(t, pending.Deadline, next.Deadline)
@@ -268,10 +306,13 @@ func TestAddressedRuntimePhysicalClaimCrashAndRecovery(t *testing.T) {
 }
 
 func TestAddressedRuntimeCloseDuringPhysicalRPC(t *testing.T) {
+	testSelectedRuntimeCloseDuringPhysicalRPC(t, false)
+}
+func testSelectedRuntimeCloseDuringPhysicalRPC(t *testing.T, packed bool) {
 	t.Parallel()
 	var e *taskEngine
 	calls := 0
-	e = newAddressedTaskEngine(t, func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
+	e = newSelectedTaskEngine(t, packed, func(context.Context, *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
 		calls++
 		s, ctx := e.h.root(true)
 		require.NotNil(t, s.OperationStore.StartDispatch.Claim)
@@ -297,9 +338,12 @@ func TestAddressedRuntimeCloseDuringPhysicalRPC(t *testing.T) {
 }
 
 func TestAddressedRuntimeAutomaticCoordinatorPhysicalStart(t *testing.T) {
+	testSelectedRuntimeAutomaticCoordinatorPhysicalStart(t, false)
+}
+func testSelectedRuntimeAutomaticCoordinatorPhysicalStart(t *testing.T, packed bool) {
 	t.Parallel()
 	var observed *workflowservice.StartWorkflowExecutionRequest
-	e := newAddressedTaskEngineWithAdmission(t, func(_ context.Context, r *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
+	e := newSelectedTaskEngineWithAdmission(t, packed, func(_ context.Context, r *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
 		observed = common.CloneProto(r)
 		return &workflowservice.StartWorkflowExecutionResponse{RunId: "automatic", FirstExecutionRunId: "chain"}, nil
 	}, true)

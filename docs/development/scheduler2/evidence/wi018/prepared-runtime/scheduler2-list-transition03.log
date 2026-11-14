@@ -1,0 +1,8 @@
+--- FAIL: TestSelectedListTransitionAvoidsDefinitionAndPreservesPreview (0.01s)
+    public_list_transition_test.go:53: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_list_transition_test.go:53
+        	Error:      	"6" is not greater than "6"
+        	Test:       	TestSelectedListTransitionAvoidsDefinitionAndPreservesPreview
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.715s
+FAIL

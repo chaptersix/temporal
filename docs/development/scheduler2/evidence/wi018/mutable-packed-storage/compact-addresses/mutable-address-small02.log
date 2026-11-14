@@ -1,0 +1,11 @@
+=== RUN   TestMutablePackedStorageMeasurement
+=== RUN   TestMutablePackedStorageMeasurement/4
+    mutable_storage_measurement_test.go:173: MUTABLE isolated_issuance=false full_namespace=false N=4 original=10386 initial=6838 after_delete=6469 final=6838 peak_committed=6838 nodes=14 max_transaction_updated_framed_bytes=1010 max_changed_pages=2 max_backend_reads=2 verification_reads=70 fixed=4056
+    mutable_storage_measurement_test.go:173: MUTABLE isolated_issuance=true full_namespace=false N=4 original=10386 initial=6915 after_delete=6494 final=6915 peak_committed=6915 nodes=16 max_transaction_updated_framed_bytes=1010 max_changed_pages=2 max_backend_reads=2 verification_reads=66 fixed=4056
+    mutable_storage_measurement_test.go:181: MUTABLE isolated_issuance=true full_namespace=true N=4 original=10386 initial=7156 after_delete=6734 final=7156 peak_committed=7156 nodes=16 max_transaction_updated_framed_bytes=1050 max_changed_pages=2 max_backend_reads=2 verification_reads=66 fixed=4056
+--- PASS: TestMutablePackedStorageMeasurement (0.01s)
+    --- PASS: TestMutablePackedStorageMeasurement/4 (0.01s)
+=== RUN   TestImmutableRequestAddress
+--- PASS: TestImmutableRequestAddress (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.660s

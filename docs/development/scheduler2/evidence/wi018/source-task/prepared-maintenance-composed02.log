@@ -1,0 +1,26 @@
+ok  	go.temporal.io/server/chasm	1.290s
+--- FAIL: TestCoordinatorSavedReplay (0.01s)
+    coordinator_replay_test.go:108: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/common/testing/protorequire/require.go:56
+        	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/coordinator_replay_test.go:108
+        	Error:      	Proto mismatch (-want +got):
+        	            	  (*scheduler2pb.CoordinationState)(Inverse(protocmp.Transform, protocmp.Message{
+        	            	  	"@type":     s"temporal.server.chasm.lib.scheduler2.proto.v1.CoordinationState",
+        	            	  	"at":        int64(1704070800000000000),
+        	            	- 	"next_work": s"WORK_CLASS_DRAIN",
+        	            	+ 	"next_work": s"WORK_CLASS_PREPARED_MAINTENANCE",
+        	            	  	"token":     uint64(1),
+        	            	  }))
+        	Test:       	TestCoordinatorSavedReplay
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	38.917s
+?   	go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1	[no test files]
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/decision	0.724s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	3.231s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/packedstore	3.256s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex	9.895s
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/timezonesource	0.932s
+?   	go.temporal.io/server/chasm/lib/scheduler2/internal/timezonesource/cmd/tzbundle	[no test files]
+?   	go.temporal.io/server/chasm/lib/scheduler2/scheduler2test	[no test files]
+ok  	go.temporal.io/server/service/worker/scheduler	4.560s
+FAIL

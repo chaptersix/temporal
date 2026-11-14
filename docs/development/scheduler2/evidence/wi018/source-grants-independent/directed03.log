@@ -1,0 +1,9 @@
+--- FAIL: TestPreparedSourceAutomaticPhysicalGrant (0.01s)
+    prepared_source_checks_test.go:55: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/prepared_source_checks_test.go:55
+        	Error:      	"0" is not positive
+        	Test:       	TestPreparedSourceAutomaticPhysicalGrant
+        	Messages:   	quantum=2 root=incarnation:"incarnation" revision:1 cursor:1704067210000000000 has_generator:true policy:SCHEDULE_OVERLAP_POLICY_SKIP coordination:{token:5 armed:true at:1704067213002000000 next_work:WORK_CLASS_PREPARED_MAINTENANCE} activity_set:true activity_at:1704067210000000000 idle_duration:604800000000000 public_revision:1 public_action_ref:"action-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" indexed_queue:{format_version:1 generation:1 version:1 next_sequence:1} operation_store:{format_version:1 next_ready_sequence:1 start_dispatch:{token:1}} payload_store:{format_version:1} projection_store:{format_version:1 next_action_sequence:1} memo_revision:2 coordinator=token:5 armed:true at:1704067213002000000 next_work:WORK_CLASS_PREPARED_MAINTENANCE generator=continuation:{origin:1704067210000000000 definition_id:"683bab662a2c1178a8e28e453dd9179506df73f4a4ef5291c349cdfc1d903218" revision:1 search_after:1704067210000000000 disposed_through:1704067210000000000 terminal:ENUMERATION_STATUS_ACTIVE} token:4 armed:true wake_at:1704067213002000000 catchup_window:31536000000000000 last_status:ENUMERATION_STATUS_YIELD prepared_source_revision:1 request=definition_owner_id:"P+\x04\xb1\xe7\xd7eC\xbd\xb7\x86\xd6򋱓NCE,B\x16k\t׳\xba\xc4j0\xaa\x7f" token:7 phase:2 check_kind:1
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	1.331s
+FAIL

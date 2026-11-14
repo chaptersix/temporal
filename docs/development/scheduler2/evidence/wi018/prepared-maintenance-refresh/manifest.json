@@ -1,0 +1,14 @@
+[
+  {
+    "path": "chasm/lib/scheduler2/prepared_maintenance.go",
+    "sha256": "672b508feee9f5a7c3bf7a46cd4e4d8aec1c7c166bb475e8a3c22cd29e778405",
+    "bytes": 7487,
+    "archive_path": "final-source/chasm/lib/scheduler2/prepared_maintenance.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/prepared_maintenance_test.go",
+    "sha256": "fc3ec532b293ce10fa9d10f4e1f1f1ae9b23809b435ed7bfa4517da53a895dad",
+    "bytes": 10765,
+    "archive_path": "final-source/chasm/lib/scheduler2/prepared_maintenance_test.go.txt"
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "path": "chasm/lib/scheduler2/definition_staging.go",
+    "sha256": "7382bc75e7be3a314f7e2247ed0b41937944bb7abe88f343d043ad51e0617cd6",
+    "bytes": 11759
+  },
+  {
+    "path": "chasm/lib/scheduler2/prepared_definition.go",
+    "sha256": "8a3c0d71f02a1a1eafb8591fdd937ec20745558605a46a999c95d0e4ada6c441",
+    "bytes": 12255
+  },
+  {
+    "path": "chasm/lib/scheduler2/prepared_definition_codec.go",
+    "sha256": "d9c3c9023a958b4c7c5e92c49ede62c8fb5fdacb1e9310f077335119cd748f6f",
+    "bytes": 8097
+  },
+  {
+    "path": "chasm/lib/scheduler2/prepared_definition_test.go",
+    "sha256": "6c80be3ae4a490b6293b5ff7b935f852f7db18b87e028ef6e0e5f7e27bdc0433",
+    "bytes": 13957
+  },
+  {
+    "path": "chasm/lib/scheduler2/timezone_staging.go",
+    "sha256": "ce9825c6af8844a9ea7546b002c516053382b8cc3ca70f97fa626429617ed439",
+    "bytes": 7871
+  },
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_spec.go",
+    "sha256": "8fb65909683084c2af18d212555c8ca73182bc4220b7dbf2d053e60e3dfbb4ce",
+    "bytes": 9981
+  },
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_spec_test.go",
+    "sha256": "f43d58d57ae8bcc367f21371be3dc41d7545cb4bad76bf8e1f6e1be613ba0d14",
+    "bytes": 14822
+  },
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_calendar.go",
+    "sha256": "2331ecef85ebe730ec41748682be5336dea67c588208b641f4741e839419a142",
+    "bytes": 13469
+  },
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_spec_codec.go",
+    "sha256": "d4be0799f74a03891f6d3487496c85e560bd5c4486351931948dbbe22af265fb",
+    "bytes": 8148
+  },
+  {
+    "path": "chasm/lib/scheduler2/internal/occurrence/prepared_spec_codec_test.go",
+    "sha256": "08141d9b52a2272a9976044d5214f0b622173ca90c127bb20c1044dad8d7cb57",
+    "bytes": 2683
+  },
+  {
+    "path": "service/worker/scheduler/canonical.go",
+    "sha256": "7e235f3c95e7a712212262e5c37a22ddf6ea8ea3da69843006a40725933e18ca",
+    "bytes": 1546
+  },
+  {
+    "path": "service/worker/scheduler/canonical_test.go",
+    "sha256": "94c1c309cb77354871e17c8e698a07bc7ab888bd81dae0a47c06b630a0b53e1c",
+    "bytes": 2792
+  }
+]

@@ -30,7 +30,10 @@ type Scheduler struct {
 	ActionRecords    chasm.DataMap[*scheduler2pb.PublicActionRecord]
 	RunningRecords   chasm.DataMap[*scheduler2pb.RunningPublicAction]
 	ProjectionPages  chasm.DataMap[*commonpb.Payload]
+	PackedPages      chasm.DataMap[*commonpb.Payload]
+	PackedRequests   chasm.DataMap[*scheduler2pb.Payload]
 	QueueRecords     chasm.DataMap[*scheduler2pb.QueuedOccurrence]
+	BackfillWork     chasm.DataMap[*scheduler2pb.Payload]
 	QueuePages       chasm.DataMap[*commonpb.Payload]
 	Operations       chasm.Map[string, *scheduler2pb.OperationState]
 	Requests         chasm.Map[string, *scheduler2pb.Payload]
@@ -46,6 +49,12 @@ type Scheduler struct {
 	PublicInfo       chasm.Field[*schedulepb.ScheduleInfo]
 	PublicRuntime    chasm.Field[*scheduler2pb.PublicRuntime]
 	PublicList       chasm.Field[*schedulepb.ScheduleListInfo]
+	ListControl      chasm.Field[*scheduler2pb.PublicListControl]
+	ListPreview      chasm.Field[*scheduler2pb.PublicListPreview]
+	SourceRequest    chasm.Field[*scheduler2pb.SourcePreparationRequest]
+	ListStaticA      chasm.Field[*schedulepb.ScheduleListInfo]
+	ListStaticB      chasm.Field[*schedulepb.ScheduleListInfo]
+	ListNotes        chasm.Field[*scheduler2pb.Payload]
 	Visibility       chasm.Field[*chasm.Visibility]
 }
 
@@ -97,7 +106,11 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) (decision.St
 			state.Queue = append(state.Queue, decodeQueued(q))
 		}
 	}
-	if op, ok := s.operationRecord(ctx, operationID); ok {
+	op, ok, err := s.operationRecord(ctx, operationID)
+	if err != nil {
+		return decision.State{}, err
+	}
+	if ok {
 		state.Operation = &decision.Operation{
 			StartObserved: op.StartObserved, StartObservedAt: op.StartObservedAt,
 			OccurrenceID: op.OccurrenceId, ActionID: op.ActionId, ID: op.Id,
@@ -157,88 +170,23 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 	if event.Incarnation != s.Incarnation {
 		return nil
 	}
-	if s.PublicList.IsSet() {
+	if s.PublicList.IsSet() || s.ListControl.IsSet() {
 		var err error
 		ctx, err = s.reserveMemoVersion(ctx)
 		if err != nil {
 			return err
 		}
 	}
-	now := ctx.Now(s)
-	if !time.Unix(0, now.UnixNano()).Equal(now) {
-		return serviceerror.NewInvalidArgument("execution time exceeds nanosecond range")
-	}
-	event.Now = now.UnixNano()
-	operationID := event.OperationID
-	if admissionEvent(event.Kind) || event.Kind == decision.Update {
-		operationID = s.OperationId
-	}
-	before, err := s.stateFor(ctx, operationID)
+	plan, err := s.prepareTransitionDecision(ctx, event)
 	if err != nil {
 		return err
 	}
-	if err := s.prepareManual(ctx, before, &event); err != nil {
-		return err
-	}
-	if err := s.prepareDrain(ctx, before, &event); err != nil {
-		return err
-	}
-	if err := s.prepareCompletion(before, &event); err != nil {
-		return err
-	}
-	if err := s.prepareFailureCarryover(ctx, &before, event); err != nil {
-		return err
-	}
-
-	next, err := decision.Step(before, event)
+	before, next, event := plan.before, plan.next, plan.event
+	newAdmission, publicMutation := plan.admitted, plan.publicMutation
+	eviction, effectRequests := plan.eviction, plan.effects
+	requestRecord, carryoverRecord, prepared, err := s.prepareTransitionPayloads(ctx, next, newAdmission)
 	if err != nil {
 		return err
-	}
-	publicMutation := s.PublicRevision != 0 && ((admissionEvent(event.Kind) && next.Root.Remaining < before.Root.Remaining) || (event.Kind == decision.Callback && !before.Root.Paused && next.Root.Paused))
-	if publicMutation && s.PublicRevision == math.MaxUint64 {
-		return serviceerror.NewFailedPrecondition("public mutation counter exhausted")
-	}
-	next, effectRequests, err := s.prepareEffects(ctx, next)
-	if err != nil {
-		return err
-	}
-	newAdmission := admissionEvent(event.Kind) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID)
-	if newAdmission {
-		if err := s.freezeAdmission(ctx, next.Operation); err != nil {
-			return err
-		}
-	}
-	if decision.QueueLength(next) > 0 && !s.HasGenerator {
-		return serviceerror.NewFailedPrecondition("buffering requires a configured template")
-	}
-	if err := s.checkNextWorkToken(ctx, next); err != nil {
-		return err
-	}
-	if err := s.checkNextIdle(ctx, next); err != nil {
-		return err
-	}
-	eviction, err := s.retentionEviction(ctx, before, next)
-	if err != nil {
-		return err
-	}
-	prepared := payloadPreparation{}
-	var requestRecord *scheduler2pb.Payload
-	var carryoverRecord *scheduler2pb.CarryoverState
-	if newAdmission {
-		var blobs payloadPreparation
-		requestRecord, blobs, err = s.splitRequest(ctx, next.Operation.Request)
-		if err != nil {
-			return err
-		}
-		maps.Copy(prepared, blobs)
-	}
-	if next.Carryover != nil {
-		var blobs payloadPreparation
-		carryoverRecord, blobs, err = s.prepareCarryover(ctx, &scheduler2pb.CarryoverState{Result: next.Carryover.Result, Failure: next.Carryover.Failure, FailurePresent: next.Carryover.FailurePresent})
-		if err != nil {
-			return err
-		}
-		maps.Copy(prepared, blobs)
 	}
 	publicPlan, err := s.preparePublicTransition(ctx, before, next, event, newAdmission)
 	if err != nil {
@@ -264,6 +212,10 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 	if err != nil {
 		return err
 	}
+	packedPlan, err := s.preparePackedPublication(ctx, recordPlan, publicPlan)
+	if err != nil {
+		return err
+	}
 	if next.QueueChange.Appended {
 		if err := s.stageQueueAppend(ctx, next.QueueChange.Append); err != nil {
 			return err
@@ -273,41 +225,129 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 			return err
 		}
 	}
+	s.publishPackedMutation(ctx, packedPlan)
 	s.publishOperationRecords(ctx, recordPlan)
 	s.publishBlobDelta(ctx, blobPlan)
 	s.publishTransition(ctx, before, next, event.Kind, newAdmission, eviction, effectRequests, carryoverRecord)
 	s.publishPublicTransition(ctx, publicPlan)
+	s.publishPublicControls(ctx, before, next, event, publicMutation)
+	s.collectPayloadBlobs(ctx)
+	return nil
+}
+
+func (s *Scheduler) changesPublicControls(before, next decision.State, kind decision.Kind) bool {
+	return s.PublicRevision != 0 && ((admissionEvent(kind) && next.Root.Remaining < before.Root.Remaining) || (kind == decision.Callback && !before.Root.Paused && next.Root.Paused))
+}
+
+func (s *Scheduler) publishPublicControls(ctx chasm.MutableContext, before, next decision.State, event decision.Event, publicMutation bool) {
 	if publicMutation {
 		s.PublicRevision++
-		if event.Kind == decision.Callback && !before.Root.Paused && next.Root.Paused {
+		if event.Kind == decision.Callback && !before.Root.Paused && next.Root.Paused && !s.ListControl.IsSet() {
 			s.projectPublicPause(ctx, event.Status, next.Operation.WorkflowID)
 		}
 	}
-	s.collectPayloadBlobs(ctx)
-	return nil
+}
+
+func (s *Scheduler) prepareTransitionPayloads(ctx chasm.Context, next decision.State, newAdmission bool) (*scheduler2pb.Payload, *scheduler2pb.CarryoverState, payloadPreparation, error) {
+	prepared := payloadPreparation{}
+	var requestRecord *scheduler2pb.Payload
+	var carryoverRecord *scheduler2pb.CarryoverState
+	var err error
+	if newAdmission {
+		var blobs payloadPreparation
+		requestRecord, blobs, err = s.splitRequest(ctx, next.Operation.Request)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		maps.Copy(prepared, blobs)
+	}
+	if next.Carryover != nil {
+		var blobs payloadPreparation
+		carryoverRecord, blobs, err = s.prepareCarryover(ctx, &scheduler2pb.CarryoverState{Result: next.Carryover.Result, Failure: next.Carryover.Failure, FailurePresent: next.Carryover.FailurePresent})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		maps.Copy(prepared, blobs)
+	}
+	return requestRecord, carryoverRecord, prepared, nil
+}
+
+type transitionDecision struct {
+	before, next             decision.State
+	event                    decision.Event
+	admitted, publicMutation bool
+	eviction                 string
+	effects                  map[string][]byte
+}
+
+func (s *Scheduler) prepareTransitionDecision(ctx chasm.Context, event decision.Event) (transitionDecision, error) {
+	now := ctx.Now(s)
+	if !time.Unix(0, now.UnixNano()).Equal(now) {
+		return transitionDecision{}, serviceerror.NewInvalidArgument("execution time exceeds nanosecond range")
+	}
+	event.Now = now.UnixNano()
+	operationID := event.OperationID
+	if admissionEvent(event.Kind) || event.Kind == decision.Update {
+		operationID = s.OperationId
+	}
+	before, err := s.stateFor(ctx, operationID)
+	if err != nil {
+		return transitionDecision{}, err
+	}
+	if err := s.prepareManual(ctx, before, &event); err != nil {
+		return transitionDecision{}, err
+	}
+	if err := s.prepareDrain(ctx, before, &event); err != nil {
+		return transitionDecision{}, err
+	}
+	if err := s.prepareCompletion(before, &event); err != nil {
+		return transitionDecision{}, err
+	}
+	if err := s.prepareFailureCarryover(ctx, &before, event); err != nil {
+		return transitionDecision{}, err
+	}
+
+	next, err := decision.Step(before, event)
+	if err != nil {
+		return transitionDecision{}, err
+	}
+	publicMutation := s.changesPublicControls(before, next, event.Kind)
+	if publicMutation && s.PublicRevision == math.MaxUint64 {
+		return transitionDecision{}, serviceerror.NewFailedPrecondition("public mutation counter exhausted")
+	}
+	next, effectRequests, err := s.prepareEffects(ctx, next)
+	if err != nil {
+		return transitionDecision{}, err
+	}
+	newAdmission := admissionEvent(event.Kind) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID)
+	if newAdmission {
+		if err := s.freezeAdmission(ctx, next.Operation); err != nil {
+			return transitionDecision{}, err
+		}
+	}
+	if decision.QueueLength(next) > 0 && !s.HasGenerator {
+		return transitionDecision{}, serviceerror.NewFailedPrecondition("buffering requires a configured template")
+	}
+	if err := s.checkNextWorkToken(ctx, next); err != nil {
+		return transitionDecision{}, err
+	}
+	if err := s.checkNextIdle(ctx, next); err != nil {
+		return transitionDecision{}, err
+	}
+	eviction, err := s.retentionEviction(ctx, before, next)
+	if err != nil {
+		return transitionDecision{}, err
+	}
+	return transitionDecision{before: before, next: next, event: event, admitted: newAdmission, publicMutation: publicMutation, eviction: eviction, effects: effectRequests}, nil
 }
 
 // publishTransition cannot reject: validation and successor-token checks precede
 // every DATA, control-state and task write in this publication phase.
 func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next decision.State, kind decision.Kind, newAdmission bool, eviction string, effectRequests map[string][]byte, carryoverRecord *scheduler2pb.CarryoverState) {
-	if s.PublicList.IsSet() && s.Paused != next.Root.Paused {
+	if (s.PublicList.IsSet() || s.ListControl.IsSet()) && s.Paused != next.Root.Paused {
 		s.publishMemoVersion(ctx)
 	}
-	var pendingStarts map[string]int64
-	if s.OperationStore == nil || s.OperationStore.StartDispatch == nil {
-		pendingStarts = maps.Clone(s.PendingStarts)
-		if pendingStarts == nil {
-			pendingStarts = make(map[string]int64)
-		}
-		delete(pendingStarts, eviction)
-		if next.Operation != nil {
-			if wake, pending := decision.Wake(next); pending {
-				pendingStarts[next.Operation.ID] = wake
-			} else {
-				delete(pendingStarts, next.Operation.ID)
-			}
-		}
-	}
+	pendingStarts := s.pendingStartsAfter(next, eviction)
 	hasGenerator, latestOperationID := s.HasGenerator, s.OperationId
 	drainToken, drainArmed, drainAt := s.DrainToken, s.DrainArmed, s.DrainAt
 	manualToken, manualArmed, manualAt := s.ManualToken, s.ManualArmed, s.ManualAt
@@ -316,7 +356,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 	}
 	previousRoot := s.RootState
 	s.RootState = &scheduler2pb.RootState{
-		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef, IndexedQueue: previousRoot.IndexedQueue, OperationStore: previousRoot.OperationStore, PayloadStore: previousRoot.PayloadStore, ProjectionStore: previousRoot.ProjectionStore, MemoRevision: previousRoot.MemoRevision,
+		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef, IndexedQueue: previousRoot.IndexedQueue, OperationStore: previousRoot.OperationStore, PayloadStore: previousRoot.PayloadStore, ProjectionStore: previousRoot.ProjectionStore, MemoRevision: previousRoot.MemoRevision, PackedStorage: previousRoot.PackedStorage,
 		ActivitySet: next.Root.ActivitySet, ActivityAt: next.Root.ActivityAt, UnconfirmedStarts: next.Root.UnconfirmedStarts,
 		IdleDuration: previousRoot.IdleDuration, IdleToken: previousRoot.IdleToken, IdleArmed: previousRoot.IdleArmed, IdleAt: previousRoot.IdleAt,
 		Closed: previousRoot.Closed, Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
@@ -355,6 +395,25 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 	}
 	s.publishEffects(ctx, before, next, effectRequests)
 
+}
+
+func (s *Scheduler) pendingStartsAfter(next decision.State, eviction string) map[string]int64 {
+	var pendingStarts map[string]int64
+	if s.OperationStore == nil || s.OperationStore.StartDispatch == nil {
+		pendingStarts = maps.Clone(s.PendingStarts)
+		if pendingStarts == nil {
+			pendingStarts = make(map[string]int64)
+		}
+		delete(pendingStarts, eviction)
+		if next.Operation != nil {
+			if wake, pending := decision.Wake(next); pending {
+				pendingStarts[next.Operation.ID] = wake
+			} else {
+				delete(pendingStarts, next.Operation.ID)
+			}
+		}
+	}
+	return pendingStarts
 }
 
 // request returns a detached request after checking the selected operation's deadline.

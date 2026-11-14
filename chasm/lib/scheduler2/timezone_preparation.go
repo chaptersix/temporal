@@ -19,9 +19,10 @@ import (
 type TimezonePreparation struct {
 	chasm.UnimplementedComponent
 	*scheduler2pb.TimezonePreparationState
-	Source     chasm.Field[*scheduler2pb.TimezonePreparationSource]
-	Pages      chasm.DataMap[*scheduler2pb.TimezonePreparationPage]
-	Superseded chasm.DataMap[*scheduler2pb.TimezoneSupersededSource]
+	Source      chasm.Field[*scheduler2pb.TimezonePreparationSource]
+	Pages       chasm.DataMap[*scheduler2pb.TimezonePreparationPage]
+	Superseded  chasm.DataMap[*scheduler2pb.TimezoneSupersededSource]
+	SourcePages chasm.DataMap[*scheduler2pb.TimezoneSourcePage]
 }
 
 func (*TimezonePreparation) LifecycleState(chasm.Context) chasm.LifecycleState {
@@ -50,6 +51,9 @@ func timezonePageKey(owner []byte, ordinal uint32) string {
 }
 func validTimezoneID(id []byte) bool { return len(id) == 32 && !bytes.Equal(id, make([]byte, 32)) }
 func (p *TimezonePreparation) header() (*occurrence.PreparedTimezone, error) {
+	if p.TimezonePreparationState != nil && p.FormatVersion == 2 {
+		return p.activePagedHeader()
+	}
 	if p.TimezonePreparationState == nil || p.FormatVersion != 1 || p.Generation == 0 || !validTimezoneID(p.SourceId) || !validTimezoneID(p.DefinitionSourceId) || !validTimezoneID(p.SemanticFingerprint) {
 		return nil, serviceerror.NewInternal("invalid timezone control")
 	}
@@ -72,6 +76,9 @@ func (p *TimezonePreparation) validateCleanupQueue() error {
 
 // ReplaceSource retains the previous installed prefix under FIFO cleanup ownership.
 func (p *TimezonePreparation) ReplaceSource(ctx chasm.MutableContext, stage *StagedTimezoneSource) error {
+	if p.TimezonePreparationState != nil && p.FormatVersion == 2 {
+		return serviceerror.NewFailedPrecondition("paged timezone requires candidate replacement")
+	}
 	if _, err := stage.validate(); err != nil {
 		return err
 	}
@@ -100,9 +107,13 @@ func (p *TimezonePreparation) ReplaceSource(ctx chasm.MutableContext, stage *Sta
 	return nil
 }
 
-// SourceSnapshot returns detached reconstruction input, generation and the exact
-// bound calendar identity. Rebuilding requires that original calendar revision.
+// SourceSnapshot returns legacy detached reconstruction input, generation and the exact
+// bound calendar identity. Paged owners return no legacy source; use
+// SourceSnapshotChecked for version-independent read/export reconstruction.
 func (p *TimezonePreparation) SourceSnapshot(ctx chasm.Context) (*scheduler2pb.TimezonePreparationSource, uint64, []byte) {
+	if p.TimezonePreparationState != nil && p.FormatVersion == 2 {
+		return nil, p.Generation, bytes.Clone(p.DefinitionSourceId)
+	}
 	return common.CloneProto(p.Source.Get(ctx)), p.Generation, bytes.Clone(p.DefinitionSourceId)
 }
 
@@ -160,6 +171,9 @@ func (p *TimezonePreparation) PreparedTimezone(ctx chasm.Context) (*occurrence.P
 
 // CleanupSuperseded reclaims at most sixteen pages from one oldest owner.
 func (p *TimezonePreparation) CleanupSuperseded(ctx chasm.MutableContext, limit int) (bool, error) {
+	if p.TimezonePreparationState != nil && p.FormatVersion == 2 {
+		return p.cleanupPagedSources(ctx, limit)
+	}
 	if limit < 1 || limit > maxPreparationInstallPages {
 		return false, serviceerror.NewInvalidArgument("timezone cleanup budget is outside supported bounds")
 	}

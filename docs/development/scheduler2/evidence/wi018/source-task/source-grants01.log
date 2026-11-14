@@ -1,0 +1,17 @@
+--- FAIL: TestStagedGenerationReplacementFencesOldTask (0.00s)
+    staged_generation_test.go:54: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/staged_generation_test.go:54
+        	Error:      	Not equal: 
+        	            	expected: int(1)
+        	            	actual  : uint64(0x0)
+        	Test:       	TestStagedGenerationReplacementFencesOldTask
+--- FAIL: TestPreparedMaintenancePreviewFencesAndMemoExhaustion (0.00s)
+    prepared_maintenance_test.go:117: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/persistence_test.go:109
+        	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/prepared_maintenance_test.go:117
+        	Error:      	Received unexpected error:
+        	            	visibility memo version must not decrease or wrap
+        	Test:       	TestPreparedMaintenancePreviewFencesAndMemoExhaustion
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	1.680s
+FAIL

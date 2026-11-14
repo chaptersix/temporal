@@ -106,7 +106,7 @@ func validatePreparedSpec(s PreparedSpecState, h PreparedSpecHeader, z *Prepared
 	if budget < 1 || budget > MaxPreparationSteps || h.SourceID == [32]byte{} || r.Term == nil || r.Seed == nil || z == nil || z.location == nil {
 		return errors.New("invalid prepared spec input")
 	}
-	if after.Year() < 1 || after.Year() > 9999 || h.SeedBytes > uint64(^uint(0)>>1)-15 {
+	if !validPreparedBoundary(after) || h.SeedBytes > uint64(^uint(0)>>1)-15 {
 		return errors.New("prepared spec input outside supported domain")
 	}
 	if s.Phase == specInitial {
@@ -163,7 +163,7 @@ func advanceSpecPhase(s *PreparedSpecState, h PreparedSpecHeader, z *PreparedLoc
 			return nil
 		}
 		s.Nominal = time.Unix(s.Minimum, 0).UTC()
-		if s.Nominal.Year() > 2100 || (h.HasEnd && s.Nominal.After(h.End)) {
+		if s.Nominal.IsZero() || s.Nominal.Year() > 2100 || (h.HasEnd && s.Nominal.After(h.End)) {
 			s.Nominal = time.Time{}
 			s.Phase = specComplete
 			return nil
@@ -244,7 +244,7 @@ func advanceSpecUnion(s *PreparedSpecState, h PreparedSpecHeader, z *PreparedLoc
 	s.Calendar = cal
 	candidate, found, done := cal.Result()
 	if done {
-		if found {
+		if found && !candidate.IsZero() {
 			s.Minimum = min(s.Minimum, candidate.Unix())
 		}
 		s.Index++
@@ -305,4 +305,10 @@ func finishSpecUnion(s *PreparedSpecState, h PreparedSpecHeader) {
 		}
 		s.Phase = specBounds
 	}
+}
+
+// validPreparedBoundary includes the inclusive public backfill sentinel used by
+// Enumerator.BeginRange at the first representable public timestamp.
+func validPreparedBoundary(t time.Time) bool {
+	return (t.Year() >= 1 && t.Year() <= 9999) || t.Equal(time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond))
 }

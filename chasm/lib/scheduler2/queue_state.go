@@ -82,7 +82,7 @@ func encodeQueued(q decision.Queued) *pb.QueuedOccurrence {
 	return &pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, NominalTime: encodeDecisionTime(q.NominalTime), ActualTime: encodeDecisionTime(q.ActualTime), WorkflowId: q.WorkflowID, Policy: q.Policy, ManualId: q.ManualID, BackfillId: q.BackfillID}
 }
 func (s *Scheduler) queueBatch(ctx chasm.Context) *queueindex.CountBatch {
-	return queueindex.NewCountStoreWithBackend(&indexBackend{ctx: ctx, pages: s.QueuePages}).Begin()
+	return queueindex.NewCountStoreWithBackend(s.queueIndexReader(ctx)).Begin()
 }
 
 // queuePlanBatch models a prospective append only in an unpublished index overlay.
@@ -162,7 +162,10 @@ func (s *Scheduler) planQueueDrain(ctx chasm.Context, state decision.State, now,
 	if state.QueueChange.Appended && last.Sequence == s.IndexedQueue.NextSequence {
 		p.Candidate = state.QueueChange.Append
 	} else {
-		record, ok := s.QueueRecords.Get(ctx, queueRecordKey(last.Sequence))
+		record, ok, err := s.queuedRecord(ctx, last.Sequence)
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			return nil, serviceerror.NewInternal("selected queue record absent")
 		}
@@ -295,7 +298,9 @@ func (s *Scheduler) stageQueueAppend(ctx chasm.MutableContext, q decision.Queued
 		return serviceerror.NewFailedPrecondition("queue identity or count exhausted")
 	}
 	key := queueRecordKey(state.NextSequence)
-	if _, ok := s.QueueRecords.Get(ctx, key); ok {
+	if _, ok, err := s.queuedRecord(ctx, state.NextSequence); err != nil {
+		return err
+	} else if ok {
 		return serviceerror.NewInternal("queue record identity collision")
 	}
 	next := common.CloneProto(state)
@@ -304,7 +309,7 @@ func (s *Scheduler) stageQueueAppend(ctx chasm.MutableContext, q decision.Queued
 	setQueueCounts(next, counts)
 	next.NextSequence++
 	next.Version++
-	b := s.queueBatch(ctx)
+	b, capture := s.queueMutationBatch(ctx)
 	defer b.Abort()
 	if err = b.InsertSequence(queueIndex(state.Generation, decision.QueueClass(q)), state.NextSequence, queueTime(q)); err != nil {
 		return err
@@ -312,7 +317,12 @@ func (s *Scheduler) stageQueueAppend(ctx chasm.MutableContext, q decision.Queued
 	if err = b.Commit(); err != nil {
 		return err
 	}
-	s.QueueRecords.Put(ctx, key, encodeQueued(q))
+	if err = s.stagePackedQueueMutation(ctx, capture, true, state.NextSequence, encodeQueued(q)); err != nil {
+		return err
+	}
+	if s.PackedStorage == nil {
+		s.QueueRecords.Put(ctx, key, encodeQueued(q))
+	}
 	s.IndexedQueue = next
 	return nil
 }
@@ -440,7 +450,10 @@ func (s *Scheduler) maintainQueue(ctx chasm.MutableContext) (bool, error) {
 	q := s.IndexedQueue
 	d := q.CompletedDrain
 	sequence, class := d.NextSequence, int(d.NextClass)
-	record, ok := s.QueueRecords.Get(ctx, queueRecordKey(sequence))
+	record, ok, err := s.queuedRecord(ctx, sequence)
+	if err != nil {
+		return false, err
+	}
 	if !ok {
 		return false, serviceerror.NewInternal("queue cleanup record absent")
 	}
@@ -449,7 +462,7 @@ func (s *Scheduler) maintainQueue(ctx chasm.MutableContext) (bool, error) {
 		return false, serviceerror.NewInternal("queue cleanup class mismatch")
 	}
 	at := queueTime(value)
-	b := s.queueBatch(ctx)
+	b, capture := s.queueMutationBatch(ctx)
 	defer b.Abort()
 	entry, ok, err := b.Sequence(queueIndex(d.SourceGeneration, class), sequence)
 	if err != nil {
@@ -488,7 +501,10 @@ func (s *Scheduler) maintainQueue(ctx chasm.MutableContext) (bool, error) {
 	if err = b.Commit(); err != nil {
 		return false, err
 	}
-	if !keep {
+	if err = s.stagePackedQueueMutation(ctx, capture, !keep, sequence, nil); err != nil {
+		return false, err
+	}
+	if !keep && s.PackedStorage == nil {
 		s.QueueRecords.Delete(ctx, queueRecordKey(sequence))
 	}
 	s.IndexedQueue = next
@@ -561,7 +577,10 @@ func (s *Scheduler) projectQueueGeneration(ctx chasm.Context, b *queueindex.Coun
 		if e.Sequence == 0 {
 			break
 		}
-		record, ok := s.QueueRecords.Get(ctx, queueRecordKey(e.Sequence))
+		record, ok, err := s.queuedRecord(ctx, e.Sequence)
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			return nil, serviceerror.NewInternal("queue export record absent")
 		}

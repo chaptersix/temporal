@@ -1,0 +1,136 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 14.041916ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (compiled_files|deps|exports_file|files|imports|name|types_sizes) took 1.739350792s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 27.98425ms"
+level=info msg="[linters_context/goanalysis] analyzers took 7.080933047s with top 10 stages: goimports: 3.212488459s, revive: 1.537591667s, gci: 318.244792ms, buildir: 203.855355ms, slog: 156.72725ms, forbidigo: 132.132167ms, S1038: 122.663916ms, testifylint: 103.931917ms, exhaustive: 82.175393ms, printf: 64.017842ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 19 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 70 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 111 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 26 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner] Issues before processing: 325, after processing: 2"
+level=info msg="[runner] Processors filtering stat (in/out): severity-rules: 2/2, generated_file_filter: 325/321, exclusion_rules: 321/92, source_code: 2/2, path_shortener: 2/2, sort_results: 2/2, cgo: 325/325, exclusion_paths: 325/325, diff: 72/2, uniq_by_line: 2/2, path_prettifier: 2/2, path_absoluter: 325/325, filename_unadjuster: 325/325, max_per_file_from_linter: 2/2, max_same_issues: 2/2, invalid_issue: 325/325, path_relativity: 325/325, nolint_filter: 92/72, fixer: 2/2, max_from_linter: 2/2"
+level=info msg="[runner] processing took 122.462584ms with stages: diff: 108.255ms, nolint_filter: 10.7505ms, generated_file_filter: 2.020625ms, exclusion_rules: 976.333µs, path_relativity: 238.583µs, source_code: 97.208µs, exclusion_paths: 85.208µs, cgo: 13.625µs, invalid_issue: 9µs, uniq_by_line: 6.334µs, filename_unadjuster: 3.792µs, path_absoluter: 2.416µs, sort_results: 1.292µs, path_shortener: 958ns, max_same_issues: 584ns, fixer: 375ns, max_per_file_from_linter: 334ns, path_prettifier: 208ns, max_from_linter: 125ns, severity-rules: 84ns"
+level=info msg="[runner] linters took 4.555496333s with stages: goanalysis_metalinter: 4.432972292s"
+../chasm/lib/scheduler2/timezone_pending.go:246:1: cognitive-complexity: function (*TimezonePreparation).preflightTimezoneBatch has cognitive complexity 30 (> max enabled 25) (revive)
+func (p *TimezonePreparation) preflightTimezoneBatch(ctx chasm.Context, batch *TimezoneInstallBatch) (uint64, uint32, error) {
+	d := batch.descriptor
+	sourceEnd, transitionEnd := batch.sourceFrontier, batch.transitionFrontier
+	if batch.count == 0 {
+		return 0, 0, serviceerror.NewInvalidArgument("timezone installation batch is empty")
+	}
+	for i := uint8(0); i < batch.count; i++ {
+		page := batch.pages[i]
+		if page.source {
+			if page.ordinal != sourceEnd || transitionEnd != 0 || !validTimezoneSourcePage(page.encoded, d.sourceBytes, page.ordinal) {
+				return 0, 0, serviceerror.NewInternal("invalid timezone source batch page")
+			}
+			if _, exists := p.SourcePages.Get(ctx, timezoneSourcePageKey(d.ownerID[:], page.ordinal)); exists {
+				return 0, 0, serviceerror.NewInternal("timezone source page already owned")
+			}
+			sourceEnd++
+		} else {
+			if sourceEnd != d.SourcePageCount() || page.ordinal != uint64(transitionEnd) || transitionEnd >= d.totalPages {
+				return 0, 0, serviceerror.NewInternal("invalid timezone transition batch page")
+			}
+			if _, exists := p.Pages.Get(ctx, timezonePageKey(d.ownerID[:], transitionEnd)); exists {
+				return 0, 0, serviceerror.NewInternal("timezone transition page already owned")
+			}
+			zone, err := occurrence.RestorePreparedTimezone(d.header[:d.headerSize], func(ordinal uint32) ([]byte, error) {
+				if uint64(ordinal) != page.ordinal {
+					return nil, serviceerror.NewInternal("timezone batch page address mismatch")
+				}
+				return page.encoded, nil
+			})
+			if err != nil {
+				return 0, 0, err
+			}
+			if _, err = zone.Page(transitionEnd); err != nil {
+				return 0, 0, err
+			}
+			transitionEnd++
+		}
+	}
+	return sourceEnd, transitionEnd, nil
+}
+../chasm/lib/scheduler2/timezone_source_pages.go:71:1: cyclomatic: function (*TimezonePreparation).cleanupPagedSources has cyclomatic complexity 29 (> max enabled 25) (revive)
+func (p *TimezonePreparation) cleanupPagedSources(ctx chasm.MutableContext, limit int) (bool, error) {
+	if limit < 1 || limit > maxPreparationInstallPages {
+		return false, serviceerror.NewInvalidArgument("timezone cleanup budget is outside supported bounds")
+	}
+	if err := p.validatePagedControl(); err != nil {
+		return false, err
+	}
+	if p.CleanupCount == 0 {
+		return true, nil
+	}
+	key := strconv.FormatUint(p.CleanupHead, 10)
+	old, ok := p.Superseded.Get(ctx, key)
+	if !ok || old == nil || !validTimezoneID(old.SourceId) || bytes.Equal(old.SourceId, p.SourceId) || (p.Pending != nil && bytes.Equal(old.SourceId, p.Pending.SourceId)) {
+		return false, serviceerror.NewInternal("invalid timezone cleanup owner")
+	}
+	zone, err := p.restore(ctx, old.SourceId, old.Header)
+	if err != nil {
+		return false, err
+	}
+	if old.Cursor > old.InstalledPages || old.InstalledPages > zone.PageCount() || old.SourceBytes == 0 || old.SourceCursor > old.InstalledSourcePages || old.InstalledSourcePages > definitionPageCount(old.SourceBytes, timezoneSourcePageBytes) {
+		return false, serviceerror.NewInternal("invalid timezone cleanup frontier")
+	}
+	end := old.Cursor + min(uint32(limit), old.InstalledPages-old.Cursor)
+	sourceEnd := old.SourceCursor + min(uint64(limit)-uint64(end-old.Cursor), old.InstalledSourcePages-old.SourceCursor)
+	for ordinal := old.Cursor; ordinal < end; ordinal++ {
+		if _, err = zone.Page(ordinal); err != nil {
+			return false, err
+		}
+	}
+	for ordinal := old.SourceCursor; ordinal < sourceEnd; ordinal++ {
+		page, exists := p.SourcePages.Get(ctx, timezoneSourcePageKey(old.SourceId, ordinal))
+		if !exists || page == nil || !bytes.Equal(page.SourceId, old.SourceId) || page.Ordinal != ordinal || !validTimezoneSourcePage(page.Encoded, old.SourceBytes, ordinal) {
+			return false, serviceerror.NewInternal("invalid timezone cleanup source page")
+		}
+	}
+	for ordinal := old.Cursor; ordinal < end; ordinal++ {
+		p.Pages.Delete(ctx, timezonePageKey(old.SourceId, ordinal))
+	}
+	for ordinal := old.SourceCursor; ordinal < sourceEnd; ordinal++ {
+		p.SourcePages.Delete(ctx, timezoneSourcePageKey(old.SourceId, ordinal))
+	}
+	next := common.CloneProto(old)
+	next.Cursor = end
+	next.SourceCursor = sourceEnd
+	if end == old.InstalledPages && sourceEnd == old.InstalledSourcePages {
+		p.Superseded.Delete(ctx, key)
+		p.CleanupHead++
+		p.CleanupCount--
+	} else {
+		p.Superseded.Put(ctx, key, next)
+	}
+	return p.CleanupCount == 0, nil
+}
+2 issues:
+* revive: 2
+level=info msg="File cache stats: 2 entries of total size 17.4KiB"
+level=info msg="Memory: 64 samples, avg is 692.9MB, max is 1223.5MB"
+level=info msg="Execution took 6.366120166s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

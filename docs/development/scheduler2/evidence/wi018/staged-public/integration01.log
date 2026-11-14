@@ -1,0 +1,4 @@
+# go.temporal.io/server/chasm/lib/scheduler2 [go.temporal.io/server/chasm/lib/scheduler2.test]
+chasm/lib/scheduler2/staged_public_integration_test.go:96:73: s.PublicMetadata.Get(ctx).WorkflowType.Name undefined (type string has no field or method Name)
+FAIL	go.temporal.io/server/chasm/lib/scheduler2 [build failed]
+FAIL

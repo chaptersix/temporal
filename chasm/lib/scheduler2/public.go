@@ -35,6 +35,10 @@ func newPublicScheduleWithPayloadStore(ctx chasm.MutableContext, request *workfl
 }
 
 func newPublicScheduleWithStores(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, execution, keyedPayloads, keyedRuntime bool) (*Scheduler, error) {
+	return newPublicScheduleWithStage(ctx, request, execution, keyedPayloads, keyedRuntime, nil)
+}
+
+func newPublicScheduleWithStage(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, execution, keyedPayloads, keyedRuntime bool, staged *stagedPublicDefinition) (*Scheduler, error) {
 	if request == nil || request.Schedule == nil {
 		return nil, serviceerror.NewInvalidArgument("schedule is required")
 	}
@@ -49,7 +53,11 @@ func newPublicScheduleWithStores(ctx chasm.MutableContext, request *workflowserv
 	if schedule.Spec == nil {
 		schedule.Spec = &schedulepb.ScheduleSpec{}
 	}
-	if _, err := occurrence.NewPublic(schedule.Spec, "", 1); err != nil {
+	if staged == nil {
+		if _, err := occurrence.NewPublic(schedule.Spec, "", 1); err != nil {
+			return nil, err
+		}
+	} else if err := staged.validateBinding(ctx.ExecutionKey().NamespaceID, request.ScheduleId, 0); err != nil {
 		return nil, err
 	}
 	if schedule.State == nil {
@@ -81,6 +89,12 @@ func newPublicScheduleWithStores(ctx chasm.MutableContext, request *workflowserv
 		s.BlobReferences = chasm.NewDataMap[*scheduler2pb.BlobReference](ctx)
 	}
 	if keyedRuntime {
+		if selected, ok := ctx.Value(packedFreshProfileKey{}).(bool); ok && selected {
+			s.PackedStorage = &scheduler2pb.PackedStorageControl{FormatVersion: packedStorageVersion, NextLocator: 1}
+			s.PackedPages = chasm.NewDataMap[*commonpb.Payload](ctx)
+			s.PackedRequests = chasm.NewDataMap[*scheduler2pb.Payload](ctx)
+		}
+		s.BackfillWork = chasm.NewDataMap[*scheduler2pb.Payload](ctx)
 		s.OperationStore = &scheduler2pb.OperationStoreControl{FormatVersion: operationStoreVersion, NextReadySequence: 1, StartDispatch: &scheduler2pb.StartDispatchControl{Token: 1}}
 		s.OperationRecords = chasm.NewDataMap[*scheduler2pb.OperationState](ctx)
 		s.RequestRecords = chasm.NewDataMap[*scheduler2pb.Payload](ctx)
@@ -102,15 +116,9 @@ func newPublicScheduleWithStores(ctx chasm.MutableContext, request *workflowserv
 	s.PublicInfo = chasm.NewDataField(ctx, &schedulepb.ScheduleInfo{
 		CreateTime: timestamppb.New(ctx.Now(s)), UpdateTime: timestamppb.New(time.Time{}),
 	})
-	listSpec := common.CloneProto(schedule.Spec)
-	legacyscheduler.CleanSpec(listSpec)
-	listSpec.TimezoneData = nil
-	list := &schedulepb.ScheduleListInfo{
-		Spec: listSpec, WorkflowType: common.CloneProto(schedule.GetAction().GetStartWorkflow().GetWorkflowType()),
-		Notes: schedule.State.Notes, Paused: schedule.State.Paused,
+	if err := s.initializePublicList(ctx, schedule, staged); err != nil {
+		return nil, err
 	}
-	s.publicListProjection(ctx, list, schedule.Spec)
-	s.PublicList = chasm.NewDataField(ctx, list)
 	visibility := chasm.NewVisibility(ctx)
 	s.Visibility = chasm.NewComponentField(ctx, visibility)
 	sa := common.CloneProto(request.SearchAttributes)
@@ -173,6 +181,16 @@ func (s *Scheduler) DescribePublic(ctx chasm.Context) (*workflowservice.Describe
 
 // Memo reads only the compact list partition, avoiding the action payload.
 func (s *Scheduler) Memo(ctx chasm.Context) proto.Message {
+	if s.ListControl.IsSet() {
+		info, err := s.listMemo(ctx)
+		if err != nil {
+			panic(err) //nolint:forbidigo // Framework invariant failure, as with DATA decoding.
+		}
+		if info == nil {
+			return nil
+		}
+		return info
+	}
 	stored, ok := s.PublicList.TryGet(ctx)
 	if !ok {
 		return nil
@@ -180,4 +198,34 @@ func (s *Scheduler) Memo(ctx chasm.Context) proto.Message {
 	info := common.CloneProto(stored)
 	info.Paused = s.Paused
 	return info
+}
+
+func (s *Scheduler) initializePublicList(ctx chasm.MutableContext, schedule *schedulepb.Schedule, staged *stagedPublicDefinition) error {
+	if staged == nil {
+		listSpec := common.CloneProto(schedule.Spec)
+		legacyscheduler.CleanSpec(listSpec)
+		listSpec.TimezoneData = nil
+		list := &schedulepb.ScheduleListInfo{
+			Spec: listSpec, WorkflowType: common.CloneProto(schedule.GetAction().GetStartWorkflow().GetWorkflowType()),
+			Notes: schedule.State.Notes, Paused: schedule.State.Paused,
+		}
+		s.publicListProjection(ctx, list, schedule.Spec)
+		s.PublicList = chasm.NewDataField(ctx, list)
+
+	} else {
+		var err error
+		ctx, err = s.reserveMemoVersion(ctx)
+		if err != nil {
+			return err
+		}
+		s.ListControl = chasm.NewDataField(ctx, &scheduler2pb.PublicListControl{})
+		list, preview, err := s.prepareStagedPublicList(ctx, staged, ctx.Now(s), nil)
+		if err != nil {
+			return err
+		}
+		s.publishListRefresh(ctx, list)
+		s.ListPreview = chasm.NewDataField(ctx, preview)
+	}
+
+	return nil
 }

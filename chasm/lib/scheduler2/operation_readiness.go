@@ -74,7 +74,7 @@ func (s *Scheduler) newOperationReadinessEditor(ctx chasm.Context, control *pb.O
 	if control.PendingCount != s.OperationStore.PendingCount || control.NextReadySequence != s.OperationStore.NextReadySequence || !proto.Equal(control.StartDispatch, s.OperationStore.StartDispatch) {
 		return nil, serviceerror.NewInternal("stale readiness control")
 	}
-	capture := &operationIndexCapture{reader: &indexBackend{ctx: ctx, pages: s.OperationPages}}
+	capture := &operationIndexCapture{reader: s.operationIndexReader(ctx, false)}
 	e := &operationReadinessEditor{scheduler: s, ctx: ctx, control: control, capture: capture, batch: queueindex.NewCountStoreWithBackend(capture).Begin(), records: make(map[uint64]*pb.ReadyRecord), metadata: make(map[string]*pb.OperationState), recovered: make(map[string]*pb.OperationState)}
 	if err := e.validateCount(s.OperationStore); err != nil {
 		e.batch.Abort()
@@ -127,7 +127,11 @@ func (e *operationReadinessEditor) validateCount(control *pb.OperationStoreContr
 func (e *operationReadinessEditor) operation(id string) (*pb.OperationState, error) {
 	op, exists := e.metadata[id]
 	if !exists {
-		op, exists = e.scheduler.operationRecord(e.ctx, id)
+		var err error
+		op, exists, err = e.scheduler.operationRecord(e.ctx, id)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if !exists || op == nil || op.Id != id {
 		return nil, serviceerror.NewInternal("readiness operation record is missing or mismatched")
@@ -137,7 +141,11 @@ func (e *operationReadinessEditor) operation(id string) (*pb.OperationState, err
 func (e *operationReadinessEditor) locator(sequence uint64) (*pb.ReadyRecord, error) {
 	record, exists := e.records[sequence]
 	if !exists {
-		record, exists = e.scheduler.ReadyRecords.Get(e.ctx, readyRecordKey(sequence))
+		var err error
+		record, exists, err = e.scheduler.readyRecord(e.ctx, sequence)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if !exists || record == nil {
 		return nil, serviceerror.NewInternal("readiness locator is missing")
@@ -221,7 +229,10 @@ func (e *operationReadinessEditor) change(change operationRecordChange) (err err
 	if _, seen := e.metadata[change.id]; seen || len(e.metadata) >= 3 {
 		return serviceerror.NewInternal("readiness record mutation budget exceeded")
 	}
-	old, exists := e.scheduler.operationRecord(e.ctx, change.id)
+	old, exists, err := e.scheduler.operationRecord(e.ctx, change.id)
+	if err != nil {
+		return err
+	}
 	if exists && (old == nil || old.Id != change.id) {
 		return serviceerror.NewInternal("invalid old readiness operation")
 	}
@@ -291,7 +302,9 @@ func (e *operationReadinessEditor) add(op *pb.OperationState, readyAt int64) err
 	if _, exists := e.records[sequence]; exists {
 		return serviceerror.NewInternal("readiness sequence was reused")
 	}
-	if _, exists := e.scheduler.ReadyRecords.Get(e.ctx, readyRecordKey(sequence)); exists {
+	if _, exists, err := e.scheduler.readyRecord(e.ctx, sequence); err != nil {
+		return err
+	} else if exists {
 		return serviceerror.NewInternal("readiness locator sequence collision")
 	}
 	if err := e.batch.InsertSequence(operationReadyIndex, sequence, readyTimeKey(readyAt)); err != nil {
@@ -415,6 +428,9 @@ func (s *Scheduler) prepareOperationReadiness(ctx chasm.Context, changes []opera
 	return e.finish()
 }
 func (s *Scheduler) publishOperationReadiness(ctx chasm.MutableContext, plan operationReadinessPlan) {
+	if s.PackedStorage != nil {
+		return
+	}
 	s.publishOperationIndexes(ctx, plan.indexes)
 	for _, change := range plan.records {
 		if change.record == nil {

@@ -1,0 +1,217 @@
+{
+  "file": "docs/development/scheduler2/evidence/wi018/packed-runtime/persistence/breakdown/state-1310720-1000.pb.gz",
+  "groups": {
+    "": {
+      "node_bytes": 421,
+      "nodes": 1,
+      "path_bytes": 0
+    },
+    "BlobRecords": {
+      "node_bytes": 1310772,
+      "nodes": 2,
+      "path_bytes": 94
+    },
+    "BlobReferences": {
+      "node_bytes": 36,
+      "nodes": 2,
+      "path_bytes": 100
+    },
+    "Generator": {
+      "node_bytes": 151,
+      "nodes": 1,
+      "path_bytes": 9
+    },
+    "Generator$PreparedDefinition": {
+      "node_bytes": 196,
+      "nodes": 1,
+      "path_bytes": 28
+    },
+    "Generator$PreparedDefinition$Pages": {
+      "node_bytes": 250,
+      "nodes": 4,
+      "path_bytes": 337
+    },
+    "Generator$PreparedDefinition$Source": {
+      "node_bytes": 104,
+      "nodes": 1,
+      "path_bytes": 35
+    },
+    "Generator$PreparedDefinition$Timezone": {
+      "node_bytes": 266,
+      "nodes": 1,
+      "path_bytes": 37
+    },
+    "Generator$PreparedDefinition$Timezone$Pages": {
+      "node_bytes": 4299,
+      "nodes": 16,
+      "path_bytes": 1698
+    },
+    "Generator$PreparedDefinition$Timezone$SourcePages": {
+      "node_bytes": 3835,
+      "nodes": 5,
+      "path_bytes": 513
+    },
+    "Generator$Request": {
+      "node_bytes": 485,
+      "nodes": 1,
+      "path_bytes": 17
+    },
+    "ListControl": {
+      "node_bytes": 62,
+      "nodes": 1,
+      "path_bytes": 11
+    },
+    "ListNotes": {
+      "node_bytes": 16,
+      "nodes": 1,
+      "path_bytes": 9
+    },
+    "ListStaticA": {
+      "node_bytes": 55,
+      "nodes": 1,
+      "path_bytes": 11
+    },
+    "PackedPages": {
+      "node_bytes": 555319,
+      "nodes": 1101,
+      "path_bytes": 21026
+    },
+    "PackedRequests": {
+      "node_bytes": 395689,
+      "nodes": 1001,
+      "path_bytes": 28014
+    },
+    "PublicInfo": {
+      "node_bytes": 46,
+      "nodes": 1,
+      "path_bytes": 10
+    },
+    "PublicMetadata": {
+      "node_bytes": 128,
+      "nodes": 1,
+      "path_bytes": 14
+    },
+    "PublicRuntime": {
+      "node_bytes": 18,
+      "nodes": 1,
+      "path_bytes": 13
+    },
+    "PublicSchedule": {
+      "node_bytes": 208,
+      "nodes": 1,
+      "path_bytes": 14
+    },
+    "SourceRequest": {
+      "node_bytes": 61,
+      "nodes": 1,
+      "path_bytes": 13
+    },
+    "Visibility": {
+      "node_bytes": 69,
+      "nodes": 1,
+      "path_bytes": 10
+    }
+  },
+  "namespaces": {
+    "A": {
+      "encoded_bytes": 83197,
+      "logical_key_bytes": 8000,
+      "pages": 141,
+      "records": 1000,
+      "stored_key_suffix_bytes": 1024,
+      "value_bytes": 78028
+    },
+    "E": {
+      "encoded_bytes": 9169,
+      "logical_key_bytes": 8000,
+      "pages": 141,
+      "records": 1000,
+      "stored_key_suffix_bytes": 1024,
+      "value_bytes": 4000
+    },
+    "I": {
+      "encoded_bytes": 44791,
+      "logical_key_bytes": 79000,
+      "pages": 141,
+      "records": 1000,
+      "stored_key_suffix_bytes": 21616,
+      "value_bytes": 9000
+    },
+    "O": {
+      "encoded_bytes": 105915,
+      "logical_key_bytes": 8000,
+      "pages": 141,
+      "records": 1000,
+      "stored_key_suffix_bytes": 1024,
+      "value_bytes": 100746
+    },
+    "R": {
+      "encoded_bytes": 26917,
+      "logical_key_bytes": 8000,
+      "pages": 141,
+      "records": 1000,
+      "stored_key_suffix_bytes": 1024,
+      "value_bytes": 21726
+    },
+    "X": {
+      "encoded_bytes": 257384,
+      "logical_key_bytes": 152084,
+      "pages": 390,
+      "records": 3308,
+      "stored_key_suffix_bytes": 59296,
+      "value_bytes": 169387
+    }
+  },
+  "request_count": 1000,
+  "request_delta_bytes": 370920,
+  "request_fields": {
+    "1": {
+      "delta_bytes": 3000,
+      "literal_bytes": 0,
+      "raw_bytes": 92000
+    },
+    "10": {
+      "delta_bytes": 9802,
+      "literal_bytes": 6802,
+      "raw_bytes": 81000
+    },
+    "11": {
+      "delta_bytes": 3000,
+      "literal_bytes": 0,
+      "raw_bytes": 2000
+    },
+    "15": {
+      "delta_bytes": 30060,
+      "literal_bytes": 26060,
+      "raw_bytes": 206902
+    },
+    "2": {
+      "delta_bytes": 3925,
+      "literal_bytes": 925,
+      "raw_bytes": 59000
+    },
+    "21": {
+      "delta_bytes": 310133,
+      "literal_bytes": 306012,
+      "raw_bytes": 324756
+    },
+    "3": {
+      "delta_bytes": 3000,
+      "literal_bytes": 0,
+      "raw_bytes": 17000
+    },
+    "4": {
+      "delta_bytes": 3000,
+      "literal_bytes": 0,
+      "raw_bytes": 99000
+    },
+    "9": {
+      "delta_bytes": 4000,
+      "literal_bytes": 0,
+      "raw_bytes": 140000
+    }
+  },
+  "request_template_bytes": 1020,
+  "total_proto_bytes": 2342051
+}
+CANDIDATE {"A": {"dictionary_deflate1_candidate_bytes": 22089, "old_value_bytes": 78028, "raw_bytes": 83584, "saved": 55939}, "E": {"dictionary_deflate1_candidate_bytes": 4000, "old_value_bytes": 4000, "raw_bytes": 73000, "saved": 0}, "O": {"dictionary_deflate1_candidate_bytes": 31132, "old_value_bytes": 100746, "raw_bytes": 99880, "saved": 69614}, "Q": {"dictionary_deflate1_candidate_bytes": 64808, "old_value_bytes": 370920, "raw_bytes": 1021658, "saved": 306112}, "R": {"dictionary_deflate1_candidate_bytes": 17716, "old_value_bytes": 21726, "raw_bytes": 30000, "saved": 4010}}

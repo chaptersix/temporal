@@ -39,33 +39,54 @@ func (s *Scheduler) validateOperationStore() error {
 }
 
 // operationRecord reads one detached metadata value without loading issuance bytes.
-func (s *Scheduler) operationRecord(ctx chasm.Context, id string) (*pb.OperationState, bool) {
+func (s *Scheduler) operationRecord(ctx chasm.Context, id string) (*pb.OperationState, bool, error) {
+	if s.PackedStorage != nil {
+		v, err := s.newPackedView(ctx)
+		if err != nil {
+			return nil, false, err
+		}
+		defer v.close()
+		return v.operation(id)
+	}
 	if s.OperationStore != nil {
-		return s.OperationRecords.Get(ctx, id)
+		value, ok := s.OperationRecords.Get(ctx, id)
+		return value, ok, nil
 	}
 	field, ok := s.Operations[id]
 	if !ok {
-		return nil, false
+		return nil, false, nil
 	}
-	return common.CloneProto(field.Get(ctx)), true
+	return common.CloneProto(field.Get(ctx)), true, nil
 }
 
-func (s *Scheduler) requestRecord(ctx chasm.Context, id string) (*pb.Payload, bool) {
+func (s *Scheduler) requestRecord(ctx chasm.Context, id string) (*pb.Payload, bool, error) {
+	if s.PackedStorage != nil {
+		v, err := s.newPackedView(ctx)
+		if err != nil {
+			return nil, false, err
+		}
+		defer v.close()
+		return v.request(id)
+	}
 	if s.OperationStore != nil {
-		return s.RequestRecords.Get(ctx, id)
+		value, ok := s.RequestRecords.Get(ctx, id)
+		return value, ok, nil
 	}
 	field, ok := s.Requests[id]
 	if !ok {
-		return nil, false
+		return nil, false, nil
 	}
-	return common.CloneProto(field.Get(ctx)), true
+	return common.CloneProto(field.Get(ctx)), true, nil
 }
 
 func (s *Scheduler) requiredRequestRecord(ctx chasm.Context, id string) (*pb.Payload, error) {
 	if err := s.validateOperationStore(); err != nil {
 		return nil, err
 	}
-	record, ok := s.requestRecord(ctx, id)
+	record, ok, err := s.requestRecord(ctx, id)
+	if err != nil {
+		return nil, err
+	}
 	if !ok {
 		return nil, serviceerror.NewInternal("operation issuance request is missing")
 	}
@@ -122,27 +143,35 @@ func (s *Scheduler) prepareOperationRecords(ctx chasm.Context, changes []operati
 		return operationRecordPlan{}, err
 	}
 	plan.indexes = indexes
-	if plan.control != nil && plan.control.StartDispatch != nil {
-		editor, err := s.newOperationReadinessEditor(ctx, plan.control)
-		if err != nil {
-			return operationRecordPlan{}, err
-		}
-		defer editor.abort()
-		for _, change := range plan.changes {
-			if err := editor.change(change); err != nil {
-				return operationRecordPlan{}, err
-			}
-		}
-		plan.dispatchChanged, err = prepareStartDispatch(editor, false)
-		if err != nil {
-			return operationRecordPlan{}, err
-		}
-		plan.readiness, err = editor.finish()
-		if err != nil {
-			return operationRecordPlan{}, err
-		}
+	if err := s.prepareOperationDispatch(ctx, &plan); err != nil {
+		return operationRecordPlan{}, err
 	}
 	return plan, nil
+}
+
+func (s *Scheduler) prepareOperationDispatch(ctx chasm.Context, plan *operationRecordPlan) error {
+	if plan.control == nil || plan.control.StartDispatch == nil {
+		return nil
+	}
+	editor, err := s.newOperationReadinessEditor(ctx, plan.control)
+	if err != nil {
+		return err
+	}
+	defer editor.abort()
+	for _, change := range plan.changes {
+		if err := editor.change(change); err != nil {
+			return err
+		}
+	}
+	plan.dispatchChanged, err = prepareStartDispatch(editor, false)
+	if err != nil {
+		return err
+	}
+	plan.readiness, err = editor.finish()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func changedRecordCount(count int64, before, after bool) (int64, error) {
@@ -163,6 +192,11 @@ func changedRecordCount(count int64, before, after bool) (int64, error) {
 
 // publishOperationRecords is nonrejecting after addressed preflight under the same lease.
 func (s *Scheduler) publishOperationRecords(ctx chasm.MutableContext, plan operationRecordPlan) {
+	if s.PackedStorage != nil {
+		s.OperationStore = plan.control
+		s.publishStartDispatch(ctx, plan.dispatchChanged)
+		return
+	}
 	s.publishOperationIndexes(ctx, plan.indexes)
 	for _, c := range plan.changes {
 		if s.OperationStore != nil {
@@ -231,17 +265,15 @@ func (s *Scheduler) prepareTransitionRecords(ctx chasm.Context, next decision.St
 }
 
 func (s *Scheduler) prepareOperationRecord(ctx chasm.Context, change operationRecordChange, control *pb.OperationStoreControl) (refs [3]string, err error) {
-	_, existed := s.operationRecord(ctx, change.id)
+	_, existed, err := s.operationRecord(ctx, change.id)
+	if err != nil {
+		return refs, err
+	}
 	hadRequest := false
 	if change.changeRequest || change.operation == nil {
-		if s.PayloadStore != nil {
-			old, ok := s.requestRecord(ctx, change.id)
-			hadRequest = ok
-			refs = payloadRefs(old)
-		} else if s.OperationStore == nil {
-			_, hadRequest = s.Requests[change.id]
-		} else {
-			_, hadRequest = s.RequestRecords.Get(ctx, change.id)
+		refs, hadRequest, err = s.operationRequestOwnership(ctx, change.id)
+		if err != nil {
+			return refs, err
 		}
 	}
 	if change.changeRequest && change.request != nil && hadRequest {
@@ -267,4 +299,31 @@ func (s *Scheduler) prepareOperationRecord(ctx chasm.Context, change operationRe
 		}
 	}
 	return refs, nil
+}
+
+func (s *Scheduler) operationRequestOwnership(ctx chasm.Context, id string) ([3]string, bool, error) {
+	if s.PayloadStore != nil {
+		old, ok, err := s.requestEnvelopeRecord(ctx, id)
+		return payloadRefs(old), ok, err
+	}
+	if s.OperationStore == nil {
+		_, ok := s.Requests[id]
+		return [3]string{}, ok, nil
+	}
+	_, ok := s.RequestRecords.Get(ctx, id)
+	return [3]string{}, ok, nil
+}
+
+// Cleanup reads references without materializing an immutable issuance snapshot.
+func (s *Scheduler) requestEnvelopeRecord(ctx chasm.Context, id string) (*pb.Payload, bool, error) {
+	if s.PackedStorage == nil {
+		return s.requestRecord(ctx, id)
+	}
+	v, err := s.newPackedView(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	defer v.close()
+	record, _, ok, err := v.requestEnvelope(id)
+	return record, ok, err
 }

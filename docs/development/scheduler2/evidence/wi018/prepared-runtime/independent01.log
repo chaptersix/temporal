@@ -1,0 +1,10 @@
+--- FAIL: TestPreparedPendingTransferIndependentOfTimezoneInstall (0.01s)
+    prepared_runtime_independent_test.go:52: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/prepared_runtime_independent_test.go:52
+        	Error:      	Received unexpected error:
+        	            	timezone pages are not installed
+        	Test:       	TestPreparedPendingTransferIndependentOfTimezoneInstall
+        	Messages:   	completed pending authority must not depend on installing a later timezone snapshot
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.706s
+FAIL

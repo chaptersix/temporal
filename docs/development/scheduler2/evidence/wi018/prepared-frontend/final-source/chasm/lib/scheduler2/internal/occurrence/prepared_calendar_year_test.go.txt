@@ -1,0 +1,57 @@
+package occurrence
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+	schedulepb "go.temporal.io/api/schedule/v1"
+)
+
+func TestPreparedCalendarYearMaskJump(t *testing.T) {
+	t.Parallel()
+	for _, mask := range []CalendarMasks{{}, {AllYears: true}, {Years: [2]uint64{1, 0}}, {Years: [2]uint64{1 << 63, 1}}, {Years: [2]uint64{0, 1 << 36}}, {Years: [2]uint64{^uint64(0), (1 << 37) - 1}}} {
+		for start := 1990; start <= 2101; start++ {
+			want, found := 0, false
+			for year := start; year <= 2100; year++ {
+				if calendarYearMatches(mask, year) {
+					want, found = year, true
+					break
+				}
+			}
+			got, ok := nextPreparedCalendarYear(mask, start)
+			require.Equal(t, found, ok)
+			require.Equal(t, want, got)
+		}
+	}
+}
+
+func TestPreparedCalendarExpiredYearExhaustsOneQuantum(t *testing.T) {
+	t.Parallel()
+	zone, err := NewResolvedLocation(PreparedUTC())
+	require.NoError(t, err)
+	d, _ := preparedCalendarFixture(t, &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{Year: []*schedulepb.Range{{Start: 2010}}}}})
+	state, stats, err := AdvancePreparedCalendar(CalendarNextState{}, d, zone, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), 64)
+	require.NoError(t, err)
+	_, found, done := state.Result()
+	require.True(t, done)
+	require.False(t, found)
+	require.Equal(t, 3, stats.Steps)
+}
+
+func TestPreparedCalendarSparseYearJumpReference(t *testing.T) {
+	t.Parallel()
+	after := time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC)
+	d, reference := preparedCalendarFixture(t, &schedulepb.ScheduleSpec{StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{Year: []*schedulepb.Range{{Start: 2099}}}}, TimezoneName: "America/New_York", TimezoneData: preparedNewYorkTZ})
+	zone, err := PreparedLocationFromTZData("America/New_York", preparedNewYorkTZ, time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	state, stats := runPreparedCalendar(t, d, zone, after, []int{1, 7, 64})
+	got, found, done := state.Result()
+	require.True(t, found)
+	require.True(t, done)
+	want, err := reference.GetNextTime("", after)
+	require.NoError(t, err)
+	require.Equal(t, want.Next, got)
+	require.Equal(t, time.Date(2099, 1, 1, 5, 0, 0, 0, time.UTC), got)
+	require.Less(t, stats.Steps, 20)
+}

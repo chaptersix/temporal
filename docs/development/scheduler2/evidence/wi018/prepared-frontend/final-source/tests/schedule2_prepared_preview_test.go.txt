@@ -1,0 +1,30 @@
+package tests
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+	schedulepb "go.temporal.io/api/schedule/v1"
+	"go.temporal.io/server/chasm"
+	"go.temporal.io/server/chasm/lib/scheduler2"
+	"go.temporal.io/server/common/testing/await"
+)
+
+func TestSchedule2PreparedPreviewPhysicalProgress(t *testing.T) {
+	env := newScheduleEnv(t, []scheduleBackend{schedule2PreparedBackend})
+	id := "prepared-preview-progress"
+	createSchedule(env.Context(), t, env, id, &schedulepb.Schedule{Spec: intervalSpec(time.Second), Action: startWorkflowAction(env, "preview-workflow", "preview-type"), State: &schedulepb.ScheduleState{Paused: true}})
+	ctx, err := env.GetTestCluster().Host().ChasmContext(t.Context())
+	require.NoError(t, err)
+	await.Require(t.Context(), t, func(at *await.T) {
+		_, err := chasm.ReadComponent(ctx, chasm.NewComponentRef[*scheduler2.Scheduler](chasm.ExecutionKey{NamespaceID: env.NamespaceID().String(), BusinessID: id}), func(s *scheduler2.Scheduler, cc chasm.Context, _ struct{}) (struct{}, error) {
+			control := s.ListControl.Get(cc)
+			preview, _ := s.ListPreview.TryGet(cc)
+			request, _ := s.SourceRequest.TryGet(cc)
+			require.NotZero(at, control.PublishedStamp, "control=%s preview=%s source=%s coordination=%s", control, preview, request, s.Coordination)
+			return struct{}{}, nil
+		}, struct{}{})
+		require.NoError(at, err)
+	}, 15*time.Second, time.Second)
+}

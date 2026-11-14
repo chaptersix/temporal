@@ -112,6 +112,11 @@ func (s *Scheduler) claimStart(ctx chasm.MutableContext, input startClaimInput) 
 		return claimedStart{}, err
 	}
 	result := claimedStart{snapshot: snapshot, claim: common.CloneProto(control.StartDispatch.Claim), token: control.StartDispatch.Token}
+	packedPlan, err := s.preparePackedReadiness(ctx, plan, control)
+	if err != nil {
+		return claimedStart{}, err
+	}
+	s.publishPackedMutation(ctx, packedPlan)
 	s.publishOperationReadiness(ctx, plan)
 	s.OperationStore = control
 	s.publishStartDispatch(ctx, changed)
@@ -223,6 +228,11 @@ func (*StartRecoveryHandler) Execute(ctx chasm.MutableContext, s *Scheduler, _ c
 	if err != nil {
 		return err
 	}
+	packedPlan, err := s.preparePackedReadiness(ctx, plan, control)
+	if err != nil {
+		return err
+	}
+	s.publishPackedMutation(ctx, packedPlan)
 	s.publishOperationReadiness(ctx, plan)
 	s.OperationStore = control
 	s.publishStartDispatch(ctx, changed)

@@ -1,0 +1,20 @@
+--- FAIL: TestIndependentPackedTouchedChildRange (0.00s)
+    independent_test.go:22: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/packedstore/independent_test.go:22
+        	Error:      	An error is expected but got nil.
+        	Test:       	TestIndependentPackedTouchedChildRange
+        	Messages:   	touched child maximum crosses next parent separator
+--- FAIL: TestIndependentPackedAllocationCollision (0.00s)
+    independent_test.go:39: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/packedstore/independent_test.go:39
+        	Error:      	An error is expected but got nil.
+        	Test:       	TestIndependentPackedAllocationCollision
+--- FAIL: TestIndependentPackedChildOutsideAllocationFrontier (0.00s)
+    independent_test.go:54: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/packedstore/independent_test.go:54
+        	Error:      	An error is expected but got nil.
+        	Test:       	TestIndependentPackedChildOutsideAllocationFrontier
+        	Messages:   	referenced page was never allocated under this control
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/packedstore	0.262s
+FAIL

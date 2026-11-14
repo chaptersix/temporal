@@ -1,0 +1,20 @@
+--- FAIL: TestPreparedSourcePreviewFenceAndBackfillGrant (0.01s)
+panic: field value of type  not found [recovered, repanicked]
+
+goroutine 8 [running]:
+testing.tRunner.func1.2({0x1041bc750, 0x69313197cac8})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2125 +0x1a0
+testing.tRunner.func1()
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2128 +0x2c8
+panic({0x1041bc750?, 0x69313197cac8?})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859 +0x120
+go.temporal.io/server/chasm.Field[...].Get(0x103ff7760, {0x10496a4e0?, 0x693130730fc0?})
+	/private/tmp/sch-redesign-execution/chasm/field.go:169 +0xdc
+go.temporal.io/server/chasm/lib/scheduler2.TestPreparedSourcePreviewFenceAndBackfillGrant(0x693130edb448)
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/prepared_source_checks_test.go:91 +0x698
+testing.tRunner(0x693130edb448, 0x10496e910)
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2260 +0x3b8
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	3.946s
+FAIL

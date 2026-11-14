@@ -1,0 +1,10 @@
+[
+  {
+    "path": "chasm/lib/scheduler2/preparation_task.go",
+    "sha256": "3c9919524e6c48e85834223f833692444a580c98c9f311c686144ff9bd16826c"
+  },
+  {
+    "path": "chasm/lib/scheduler2/preparation_task_test.go",
+    "sha256": "06fa650be3eaaaac448f50068711f240cd0c96a87bb0f6c4be415a33b8560568"
+  }
+]

@@ -1,0 +1,1 @@
+Frozen Go source is stored with a .go.txt suffix so repository tooling does not compile evidence copies as packages. Bytes and SHA256 hashes are unchanged. The manifest archive_path locates each frozen artifact; path is its original repository location.

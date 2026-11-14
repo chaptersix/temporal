@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strconv"
 	"time"
 
 	enumspb "go.temporal.io/api/enums/v1"
@@ -121,6 +122,9 @@ func (s *Scheduler) scanBackfill(ctx chasm.MutableContext) error {
 		return nil
 	}
 	g := s.Generator.Get(ctx)
+	if g.PreparedDefinition.IsSet() {
+		return s.scanPreparedBackfill(ctx, g, b)
+	}
 	enumerator, err := backfillEnumerator(ctx, g)
 	if err != nil {
 		return err
@@ -142,6 +146,10 @@ func (s *Scheduler) scanBackfill(ctx chasm.MutableContext) error {
 	if err != nil {
 		return err
 	}
+	return s.publishBackfillScan(ctx, g, b, result, nil, false)
+}
+
+func (s *Scheduler) publishBackfillScan(ctx chasm.MutableContext, g *Generator, b *scheduler2pb.BackfillState, result occurrence.Result, work *scheduler2pb.Payload, rebased bool) error {
 	switch result.Status {
 	case occurrence.Active:
 		b.Continuation = encodeContinuation(result.State)
@@ -170,6 +178,17 @@ func (s *Scheduler) scanBackfill(ctx chasm.MutableContext) error {
 	default:
 		return serviceerror.NewInternal("unexpected backfill enumeration status")
 	}
+	if g.PreparedDefinition.IsSet() {
+		key := strconv.FormatUint(b.Id, 10)
+		if work == nil {
+			s.BackfillWork.Delete(ctx, key)
+		} else {
+			s.BackfillWork.Put(ctx, key, work)
+		}
+		if rebased {
+			b.SkipBatchRemaining = 0
+		}
+	}
 	return nil
 }
 
@@ -181,7 +200,7 @@ func (s *Scheduler) finishBackfill(ctx chasm.MutableContext) error {
 		return serviceerror.NewFailedPrecondition("backfill handoff has no selected continuation")
 	}
 	g := s.Generator.Get(ctx)
-	enumerator, err := backfillEnumerator(ctx, g)
+	enumerator, err := s.automaticDisposer(ctx, g)
 	if err != nil {
 		return err
 	}

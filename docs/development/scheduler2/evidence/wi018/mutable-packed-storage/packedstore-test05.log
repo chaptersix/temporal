@@ -1,0 +1,16 @@
+=== RUN   TestIndependentPackedTouchedChildRange
+--- PASS: TestIndependentPackedTouchedChildRange (0.00s)
+=== RUN   TestIndependentPackedAllocationCollision
+--- PASS: TestIndependentPackedAllocationCollision (0.00s)
+=== RUN   TestIndependentPackedChildOutsideAllocationFrontier
+--- PASS: TestIndependentPackedChildOutsideAllocationFrontier (0.00s)
+=== RUN   TestPackedStoreMutableReference
+--- PASS: TestPackedStoreMutableReference (1.08s)
+=== RUN   TestPackedStoreAtomicFaults
+--- PASS: TestPackedStoreAtomicFaults (0.00s)
+=== RUN   TestPackedStoreMalformedPages
+--- PASS: TestPackedStoreMalformedPages (0.00s)
+=== RUN   TestPackedStoreInsertFaultsAndExhaustion
+--- PASS: TestPackedStoreInsertFaultsAndExhaustion (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/packedstore	1.267s

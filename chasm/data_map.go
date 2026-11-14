@@ -228,32 +228,40 @@ func (s *dataMapState) sync() error {
 				return err
 			}
 		}
-		child, exists := collection.children[key]
-		if exists && !child.isData() {
-			return serviceerror.NewInternal("DataMap entry is not DATA")
+		if err := s.putEntry(collection, key, value); err != nil {
+			return err
 		}
-		if !exists {
-			child = s.removed[key]
-			if child == nil {
-				child = newNode(n.nodeBase, collection, key)
-				child.initSerializedNode(fieldTypeData)
-			}
-			path, err := child.getEncodedPath()
-			if err != nil {
-				return err
-			}
-			delete(n.mutation.DeletedNodes, path)
-			collection.children[key] = child
-			if err := n.validateBoundedNode(child.path(), child); err != nil {
-				return err
-			}
-		}
-		child.setValue(value)
-		child.setValueState(valueStateNeedSerialize)
 	}
 	// Discard backing capacity so a later point delta cannot inherit a large
 	// constructor transaction's map iteration cost.
 	s.delta = make(map[string]proto.Message)
+	return nil
+}
+
+func (s *dataMapState) putEntry(collection *Node, key string, value proto.Message) error {
+	n := s.owner
+	child, exists := collection.children[key]
+	if exists && !child.isData() {
+		return serviceerror.NewInternal("DataMap entry is not DATA")
+	}
+	if !exists {
+		child = s.removed[key]
+		if child == nil {
+			child = newNode(n.nodeBase, collection, key)
+			child.initSerializedNode(fieldTypeData)
+		}
+		path, err := child.getEncodedPath()
+		if err != nil {
+			return err
+		}
+		delete(n.mutation.DeletedNodes, path)
+		collection.children[key] = child
+		if err := n.validateBoundedNode(child.path(), child); err != nil {
+			return err
+		}
+	}
+	child.setValue(value)
+	child.setValueState(valueStateNeedSerialize)
 	return nil
 }
 

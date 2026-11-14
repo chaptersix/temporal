@@ -20,7 +20,10 @@ func (s *Scheduler) HandleNexusCompletion(ctx chasm.MutableContext, completion *
 	if err := s.validateOperationStore(); err != nil {
 		return err
 	}
-	operation, ok := s.operationRecord(ctx, completion.GetRequestId())
+	operation, ok, err := s.operationRecord(ctx, completion.GetRequestId())
+	if err != nil {
+		return err
+	}
 	if !ok {
 		return nil
 	}
@@ -35,7 +38,6 @@ func (s *Scheduler) HandleNexusCompletion(ctx chasm.MutableContext, completion *
 		return serviceerror.NewInvalidArgument("workflow completion requires valid close time")
 	}
 	event := decision.Event{Kind: decision.Callback, Incarnation: s.Incarnation, OperationID: completion.RequestId, ChainID: chain, PublicCloseTime: completion.GetCloseTime().AsTime()}
-	var err error
 	switch outcome := completion.GetOutcome().(type) {
 	case *persistencespb.ChasmNexusCompletion_Success:
 		event.Outcome, event.Status = decision.Success, enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED

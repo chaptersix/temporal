@@ -128,6 +128,14 @@ func (s *Scheduler) storePublicDefinition(ctx chasm.MutableContext, definition *
 
 func (s *Scheduler) publicDefinition(ctx chasm.Context) (*schedulepb.Schedule, error) {
 	schedule := common.CloneProto(s.PublicSchedule.Get(ctx))
+	if s.ListControl.IsSet() {
+		if notes, ok := s.ListNotes.TryGet(ctx); ok {
+			if schedule.State == nil {
+				schedule.State = &schedulepb.ScheduleState{}
+			}
+			schedule.State.Notes = string(notes.Data)
+		}
+	}
 	if s.PublicActionRef == "" {
 		if s.PublicRevision != 0 {
 			return nil, serviceerror.NewInternal("public action payload reference is missing")
@@ -231,7 +239,12 @@ func splitGeneratedAttributes(attributes *commonpb.SearchAttributes) (userSA, ge
 func (s *Scheduler) reuseActionBundle(ctx chasm.Context, bundle *scheduler2pb.ActionPayloadBundle, preparedID string, prepared payloadPreparation) (string, error) {
 	candidates := []string{s.PublicActionRef}
 	if s.HasGenerator {
-		candidates = append(candidates, s.Generator.Get(ctx).Definition.Get(ctx).ActionRef)
+		g := s.Generator.Get(ctx)
+		if s.OperationStore != nil {
+			candidates = append(candidates, g.Request.Get(ctx).ActionRef)
+		} else {
+			candidates = append(candidates, g.Definition.Get(ctx).ActionRef)
+		}
 	}
 	for _, id := range candidates {
 		if id == "" {
@@ -302,8 +315,15 @@ func (s *Scheduler) assembleRequest(ctx chasm.Context, record *scheduler2pb.Payl
 	return request, nil
 }
 func (s *Scheduler) generationRequest(ctx chasm.Context) ([]byte, error) {
-	definition := s.Generator.Get(ctx).Definition.Get(ctx)
-	request, err := s.assembleRequest(ctx, &scheduler2pb.Payload{Data: definition.Request, ActionRef: definition.ActionRef})
+	g := s.Generator.Get(ctx)
+	var record *scheduler2pb.Payload
+	if s.OperationStore != nil {
+		record = g.Request.Get(ctx)
+	} else {
+		definition := g.Definition.Get(ctx)
+		record = &scheduler2pb.Payload{Data: definition.Request, ActionRef: definition.ActionRef}
+	}
+	request, err := s.assembleRequest(ctx, record)
 	if err != nil {
 		return nil, err
 	}

@@ -52,7 +52,7 @@ func (s *Scheduler) validatePublicProjection(ctx chasm.Context) error {
 			return err
 		}
 	}
-	batch := queueindex.NewCountStoreWithBackend(&indexBackend{ctx: ctx, pages: s.ProjectionPages}).Begin()
+	batch := queueindex.NewCountStoreWithBackend(s.projectionIndexReader(ctx)).Begin()
 	defer batch.Abort()
 	return validateRunningCount(batch, c.RunningCount)
 }
@@ -140,7 +140,7 @@ func (s *Scheduler) finalizePublicTransition(ctx chasm.Context, plan publicTrans
 		return plan, nil
 	}
 	p := plan.projection
-	capture := &operationIndexCapture{reader: &indexBackend{ctx: ctx, pages: s.ProjectionPages}}
+	capture := &operationIndexCapture{reader: s.projectionIndexReader(ctx)}
 	batch := queueindex.NewCountStoreWithBackend(capture).Begin()
 	defer batch.Abort()
 	for _, change := range records.changes {
@@ -152,7 +152,11 @@ func (s *Scheduler) finalizePublicTransition(ctx chasm.Context, plan publicTrans
 		record, known := p.actions[p.recentVictim]
 		if !known {
 			var ok bool
-			record, ok = s.ActionRecords.Get(ctx, p.recentVictim)
+			var err error
+			record, ok, err = s.actionRecord(ctx, p.recentVictim)
+			if err != nil {
+				return publicTransitionPlan{}, err
+			}
 			if !ok {
 				return publicTransitionPlan{}, serviceerror.NewInternal("recent action record is missing")
 			}
@@ -176,12 +180,18 @@ func (s *Scheduler) finalizePublicTransition(ctx chasm.Context, plan publicTrans
 
 func (s *Scheduler) prepareActionOwnership(ctx chasm.Context, plan *publicTransitionPlan, change operationRecordChange, batch *queueindex.CountBatch) error {
 	p := plan.projection
-	old, existed := s.ActionRecords.Get(ctx, change.id)
+	old, existed, err := s.actionRecord(ctx, change.id)
+	if err != nil {
+		return err
+	}
 	record, changed := p.actions[change.id]
 	if !changed {
 		record = common.CloneProto(old)
 	}
-	before, hadOperation := s.operationRecord(ctx, change.id)
+	before, hadOperation, err := s.operationRecord(ctx, change.id)
+	if err != nil {
+		return err
+	}
 	if record == nil {
 		if hadOperation || change.operation != nil {
 			return serviceerror.NewInternal("public action record is missing")
@@ -217,7 +227,10 @@ func (s *Scheduler) prepareRunningMembership(ctx chasm.Context, p *projectionMut
 	}
 	p.control.RunningCount = count
 	key := runningRecordKey(record.Sequence)
-	existing, present := s.RunningRecords.Get(ctx, key)
+	existing, present, err := s.runningRecord(ctx, record.Sequence)
+	if err != nil {
+		return err
+	}
 	if present != wasRunning {
 		return serviceerror.NewInternal("running public action membership mismatch")
 	}
@@ -239,6 +252,10 @@ func (s *Scheduler) prepareRunningMembership(ctx chasm.Context, p *projectionMut
 }
 
 func (s *Scheduler) publishActionRecords(ctx chasm.MutableContext, p *projectionMutation) {
+	if s.PackedStorage != nil {
+		s.ProjectionStore = p.control
+		return
+	}
 	for _, change := range p.indexes {
 		if change.Delete {
 			s.ProjectionPages.Delete(ctx, change.Key)
@@ -267,7 +284,7 @@ func (s *Scheduler) runningProjection(ctx chasm.Context) ([]*commonpb.WorkflowEx
 	if err := s.validatePublicProjection(ctx); err != nil {
 		return nil, err
 	}
-	batch := queueindex.NewCountStoreWithBackend(&indexBackend{ctx: ctx, pages: s.ProjectionPages}).Begin()
+	batch := queueindex.NewCountStoreWithBackend(s.projectionIndexReader(ctx)).Begin()
 	defer batch.Abort()
 	var result []*commonpb.WorkflowExecution
 	for lower := uint64(1); ; {
@@ -281,7 +298,10 @@ func (s *Scheduler) runningProjection(ctx chasm.Context) ([]*commonpb.WorkflowEx
 		if entry.Sequence == 0 || entry.Sequence >= s.ProjectionStore.NextActionSequence || entry.Time != (queueindex.CountKey{}) {
 			return nil, serviceerror.NewInternal("running public action index is invalid")
 		}
-		record, ok := s.RunningRecords.Get(ctx, runningRecordKey(entry.Sequence))
+		record, ok, err := s.runningRecord(ctx, entry.Sequence)
+		if err != nil {
+			return nil, err
+		}
 		if !ok || record.Sequence != entry.Sequence || record.OperationId == "" || record.Execution.GetWorkflowId() == "" || record.Execution.GetRunId() == "" {
 			return nil, serviceerror.NewInternal("running public action is missing or invalid")
 		}
@@ -325,7 +345,10 @@ func (s *Scheduler) prepareIndexedPublicTransition(ctx chasm.Context, before, ne
 		return plan, nil
 	}
 	id := next.Operation.ID
-	record, exists := s.ActionRecords.Get(ctx, id)
+	record, exists, err := s.actionRecord(ctx, id)
+	if err != nil {
+		return publicTransitionPlan{}, err
+	}
 	record = common.CloneProto(record)
 	if admitted {
 		if exists || plan.projection.control.NextActionSequence == math.MaxUint64 {

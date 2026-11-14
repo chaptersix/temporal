@@ -1,0 +1,25 @@
+=== RUN   TestPackedAddressCanonicalIdentity
+--- PASS: TestPackedAddressCanonicalIdentity (0.01s)
+=== RUN   TestIndependentPackedTouchedChildRange
+--- PASS: TestIndependentPackedTouchedChildRange (0.00s)
+=== RUN   TestIndependentPackedAllocationCollision
+--- PASS: TestIndependentPackedAllocationCollision (0.00s)
+=== RUN   TestIndependentPackedChildOutsideAllocationFrontier
+--- PASS: TestIndependentPackedChildOutsideAllocationFrontier (0.00s)
+=== RUN   TestIndependentPackedIDsAndPoisonedOverlay
+--- PASS: TestIndependentPackedIDsAndPoisonedOverlay (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/packedstore	0.259s
+=== RUN   TestMutablePackedSixClassIndexMeasurement
+=== RUN   TestMutablePackedSixClassIndexMeasurement/4
+    mutable_queue_index_measurement_test.go:92: MUTABLE_SIX_CLASS_INDEX_ONLY N=4 initial_framed=498 two_generation_framed=408 peak_committed=498 nodes=2 max_mutation_updated_framed_bytes=498 max_changed_pages=2 max_backend_reads=10; excludes queue records and Scheduler
+--- PASS: TestMutablePackedSixClassIndexMeasurement (0.00s)
+    --- PASS: TestMutablePackedSixClassIndexMeasurement/4 (0.00s)
+=== RUN   TestMutablePackedStorageMeasurement
+=== RUN   TestMutablePackedStorageMeasurement/4
+    mutable_storage_measurement_test.go:173: MUTABLE isolated_issuance=false N=4 original=10386 initial=6838 after_delete=6469 final=6838 peak_committed=6838 nodes=14 max_transaction_updated_framed_bytes=1010 max_changed_pages=2 max_backend_reads=2 verification_reads=70 fixed=4056
+    mutable_storage_measurement_test.go:173: MUTABLE isolated_issuance=true N=4 original=10386 initial=6915 after_delete=6494 final=6915 peak_committed=6915 nodes=16 max_transaction_updated_framed_bytes=1010 max_changed_pages=2 max_backend_reads=2 verification_reads=66 fixed=4056
+--- PASS: TestMutablePackedStorageMeasurement (0.00s)
+    --- PASS: TestMutablePackedStorageMeasurement/4 (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.664s

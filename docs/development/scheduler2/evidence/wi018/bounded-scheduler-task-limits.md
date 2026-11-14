@@ -128,3 +128,11 @@ plus memo on creation/update. Record actual enqueues/attempts separately from
 persisted and physical tasks. Existing physical tests prove runtime semantics but
 do not yet establish these actual bounded-registry maxima or full transaction
 cost; parent owns those integration gates.
+
+## Source task integration increment
+
+The registered source task contributes at most one persisted side-effect obligation, fenced by fixed SourcePreparationRequest owner/token/pending and closed-state validation. Root side-effect allowance is now4. A successful source response emits at most one successor source task; a completing response instead reconciles existing Work/Idle. The provisional regular allowance is26 (previous25 plus one source obligation). The handler does not enqueue one task per page and creates no new immediate chain. Current constructor paths do not yet invoke source preparation; staged ingress and per-evaluation checks require producer re-audit before activation acceptance. Fixed preparation child slots remain zero-task components.
+
+## Per-lookup source checks and prepared maintenance
+
+The prepared Work branch can now issue one source-check successor in addition to the previous conservative five producers. It never emits one task per page or per candidate in a single quantum. Root regular allowance therefore becomes (three persisted pure callbacks + two valid immediate Work quanta) * six producers =30. A single source response plus two immediate quanta remains below that. Prepared construction adds one initial source task to the former three-task ingress baseline:4+2*6=16<30. Maintenance is a fifth logical work class inside the same Work task, not another persisted pure obligation; pure3, side-effect4, immediate103 and Visibility limits stay unchanged. Root fixed preparation child slots still emit no tasks. Actual worst-case prepared-profile witnesses remain required before accepting the complete handler bound.

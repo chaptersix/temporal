@@ -402,6 +402,19 @@ func (t *visibilityQueueTaskExecutor) processChasmTask(
 		return serviceerror.NewInternalf("expected visibility component, but got %T", visComponent)
 	}
 
+	rootComponent, err := tree.ComponentByPath(visTaskContext, nil)
+	if err != nil {
+		return err
+	}
+
+	if ready, ok := rootComponent.(chasm.VisibilityReadinessProvider); ok && mutableState.IsWorkflowExecutionRunning() && !ready.VisibilityReady(visTaskContext) {
+		// Keep the initial task retryable across reloads. A later projection
+		// publication also generates a newer task through normal memo/SA change
+		// detection. Closed export must proceed so visibility deletion cannot
+		// wait forever for an initial projection that will never complete.
+		return consts.ErrDependencyTaskNotCompleted
+	}
+
 	namespaceEntry, err := t.shardContext.GetNamespaceRegistry().
 		GetNamespaceByID(namespace.ID(task.GetNamespaceID()))
 	if err != nil {
@@ -426,11 +439,6 @@ func (t *visibilityQueueTaskExecutor) processChasmTask(
 			continue
 		}
 		searchAttributes[fieldName] = value
-	}
-
-	rootComponent, err := tree.ComponentByPath(visTaskContext, nil)
-	if err != nil {
-		return err
 	}
 
 	// chasmMapper holds the archetype's search attribute registration, including which system

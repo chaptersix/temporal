@@ -248,3 +248,37 @@ func TestPreparedSpecExcludedFinalExhaustion(t *testing.T) {
 		require.Equal(t, PreparedSpecResult{Done: true, ComputeLimitWarning: want.ComputeLimitWarning}, got.Result())
 	}
 }
+
+func TestPreparedSpecPublicYearOneSentinel(t *testing.T) {
+	t.Parallel()
+	start := time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+	after := start.Add(-time.Nanosecond)
+	for _, tc := range []struct {
+		name string
+		spec *schedulepb.ScheduleSpec
+	}{
+		{"interval zero exhaustion", &schedulepb.ScheduleSpec{StartTime: timestamppb.New(start), Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}}}},
+		{"calendar zero ignored", &schedulepb.ScheduleSpec{StartTime: timestamppb.New(start), StructuredCalendar: []*schedulepb.StructuredCalendarSpec{{}, {Second: []*schedulepb.Range{{Start: 1}}}}}},
+		{"default epoch clamp", &schedulepb.ScheduleSpec{Interval: []*schedulepb.IntervalSpec{{Interval: durationpb.New(time.Second)}}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h, r, z, compiled := specFixture(t, tc.spec, "")
+			h.ReturnExcluded = true
+			boundary := after
+			if !h.HasStart {
+				boundary = time.Unix(0, 0).Add(-time.Nanosecond)
+			}
+			want, excluded := compiled.NextTimeCandidate("", boundary)
+			got := runPreparedSpec(t, h, r, z, after, 1)
+			require.Equal(t, want.Nominal, got.Nominal)
+			require.Equal(t, want.Next, got.Actual)
+			require.Equal(t, excluded, got.Excluded)
+			require.Equal(t, !want.Nominal.IsZero(), got.Found)
+			encoded, err := EncodePreparedSpecState(got)
+			require.NoError(t, err)
+			decoded, err := DecodePreparedSpecState(encoded, h, z, after)
+			require.NoError(t, err)
+			require.Equal(t, got, decoded)
+		})
+	}
+}

@@ -13,6 +13,7 @@ import (
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/chasm"
 	schedulerconfig "go.temporal.io/server/chasm/lib/scheduler"
+	"go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1"
 	"go.temporal.io/server/common"
 	legacyscheduler "go.temporal.io/server/service/worker/scheduler"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -35,10 +36,21 @@ func newAddressedPublicSchedule(ctx chasm.MutableContext, request *workflowservi
 }
 
 func newExecutingPublicScheduleWithStores(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, tweaks schedulerconfig.Tweakables, keyedPayloads, keyedRuntime bool) (*Scheduler, error) {
+	return newExecutingPublicScheduleWithStage(ctx, request, tweaks, keyedPayloads, keyedRuntime, nil)
+}
+
+func newPreparedPublicSchedule(ctx chasm.MutableContext, input *stagedPublicCreate, tweaks schedulerconfig.Tweakables) (*Scheduler, error) {
+	if input == nil || input.definition == nil {
+		return nil, serviceerror.NewInvalidArgument("staged create input is required")
+	}
+	return newExecutingPublicScheduleWithStage(ctx, input.request, tweaks, true, true, input.definition)
+}
+
+func newExecutingPublicScheduleWithStage(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, tweaks schedulerconfig.Tweakables, keyedPayloads, keyedRuntime bool, staged *stagedPublicDefinition) (*Scheduler, error) {
 	if request != nil && request.InitialPatch.GetTimeSkippingConfig() != nil {
 		ctx.SetTimeSkippingConfig(request.InitialPatch.TimeSkippingConfig)
 	}
-	s, err := newPublicScheduleWithStores(ctx, request, true, keyedPayloads, keyedRuntime)
+	s, err := newPublicScheduleWithStage(ctx, request, true, keyedPayloads, keyedRuntime, staged)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +59,9 @@ func newExecutingPublicScheduleWithStores(ctx chasm.MutableContext, request *wor
 		return nil, err
 	}
 	config := publicGeneration(ctx, request.Namespace, request.ScheduleId, definition, s.Revision, tweaks)
+	if staged != nil {
+		config.prepared = staged.definition
+	}
 	if err := s.ConfigureGeneration(ctx, config); err != nil {
 		return nil, err
 	}
@@ -99,8 +114,13 @@ func (s *Scheduler) checkPublicMutation(ctx chasm.Context) error {
 	if s.Closed {
 		return serviceerror.NewNotFound("schedule is closed")
 	}
-	if _, ok := s.PublicSchedule.TryGet(ctx); !ok {
+	if !s.PublicSchedule.IsSet() {
 		return serviceerror.NewFailedPrecondition("schedule has no public definition")
+	}
+	if !s.ListControl.IsSet() {
+		if _, ok := s.PublicSchedule.TryGet(ctx); !ok {
+			return serviceerror.NewFailedPrecondition("schedule has no public definition")
+		}
 	}
 	if s.PublicRevision == math.MaxUint64 {
 		return serviceerror.NewFailedPrecondition("schedule conflict token exhausted")
@@ -110,6 +130,23 @@ func (s *Scheduler) checkPublicMutation(ctx chasm.Context) error {
 
 // UpdatePublic replaces the complete future definition without changing admitted requests.
 func (s *Scheduler) UpdatePublic(ctx chasm.MutableContext, request *workflowservice.UpdateScheduleRequest, tweaks schedulerconfig.Tweakables) error {
+	return s.updatePublicStaged(ctx, request, tweaks, nil)
+}
+
+func (s *Scheduler) UpdatePreparedPublic(ctx chasm.MutableContext, input *stagedPublicUpdate, tweaks schedulerconfig.Tweakables) error {
+	if s.Closed {
+		return serviceerror.NewNotFound("schedule is closed")
+	}
+	if input == nil || input.definition == nil {
+		return serviceerror.NewInvalidArgument("staged update input is required")
+	}
+	if err := input.definition.validateBinding(ctx.ExecutionKey().NamespaceID, input.request.ScheduleId, s.Revision); err != nil {
+		return err
+	}
+	return s.updatePublicStaged(ctx, input.request, tweaks, input.definition)
+}
+
+func (s *Scheduler) updatePublicStaged(ctx chasm.MutableContext, request *workflowservice.UpdateScheduleRequest, tweaks schedulerconfig.Tweakables, staged *stagedPublicDefinition) error {
 	if err := s.checkPublicMutation(ctx); err != nil {
 		return err
 	}
@@ -140,6 +177,9 @@ func (s *Scheduler) UpdatePublic(ctx chasm.MutableContext, request *workflowserv
 	}
 	config := UpdateConfig{Generation: publicGeneration(ctx, request.Namespace, request.ScheduleId, schedule, s.Revision+1, tweaks),
 		Paused: schedule.State.Paused, Limited: schedule.State.LimitedActions, Remaining: schedule.State.RemainingActions, PauseOnFailure: schedule.Policies.PauseOnFailure}
+	if staged != nil {
+		config.Generation.prepared = staged.definition
+	}
 	generation, err := s.prepareConfiguration(ctx, config)
 	if err != nil {
 		return err
@@ -155,6 +195,14 @@ func (s *Scheduler) UpdatePublic(ctx chasm.MutableContext, request *workflowserv
 	if err != nil {
 		return err
 	}
+	var list publicListPlan
+	var preview *scheduler2pb.PublicListPreview
+	if staged != nil {
+		list, preview, err = s.prepareStagedPublicList(ctx, staged, ctx.Now(s), s.publicRecent(ctx, 5))
+		if err != nil {
+			return err
+		}
+	}
 	visibility := s.Visibility.Get(ctx)
 	if request.SearchAttributes != nil {
 		if err := visibility.ReplaceCustomSearchAttributes(ctx, common.CloneProto(request.SearchAttributes).IndexedFields); err != nil {
@@ -167,6 +215,10 @@ func (s *Scheduler) UpdatePublic(ctx chasm.MutableContext, request *workflowserv
 	s.publishBlobDelta(ctx, blobPlan)
 	s.publishGeneration(ctx, generation)
 	s.publishPublicDefinition(ctx, definition)
+	if staged != nil {
+		s.publishListRefresh(ctx, list)
+		s.ListPreview = chasm.NewDataField(ctx, preview)
+	}
 	if err := s.reconcileWork(ctx); err != nil {
 		return err
 	}
@@ -215,6 +267,9 @@ func (s *Scheduler) applyPublicPatch(ctx chasm.MutableContext, patch *schedulepb
 	if config := patch.GetTimeSkippingConfig(); config != nil {
 		ctx.SetTimeSkippingConfig(config)
 	}
+	if s.ListControl.IsSet() {
+		return s.applyPreparedPublicPatch(ctx, patch)
+	}
 	schedule := common.CloneProto(s.PublicSchedule.Get(ctx))
 	if patch.Pause != "" {
 		s.Paused, schedule.State.Paused, schedule.State.Notes = true, true, patch.Pause
@@ -246,7 +301,11 @@ func (s *Scheduler) publishPublicMutation(ctx chasm.MutableContext) {
 	info := common.CloneProto(s.PublicInfo.Get(ctx))
 	info.UpdateTime = timestamppb.New(ctx.Now(s))
 	s.PublicInfo = chasm.NewDataField(ctx, info)
-	s.publishPublicList(ctx, s.PublicSchedule.Get(ctx))
+	if s.ListControl.IsSet() {
+		s.publishMemoVersion(ctx)
+	} else {
+		s.publishPublicList(ctx, s.PublicSchedule.Get(ctx))
+	}
 }
 
 func (s *Scheduler) publishPublicList(ctx chasm.MutableContext, schedule *schedulepb.Schedule) {
@@ -298,7 +357,7 @@ func (s *Scheduler) projectPublicPause(ctx chasm.MutableContext, status enumspb.
 	}
 	schedule := common.CloneProto(stored)
 	schedule.State.Paused = true
-	schedule.State.Notes = fmt.Sprintf("paused, workflow %s: %s", strings.ToLower(status.String()), workflowID)
+	schedule.State.Notes = publicPauseNote(status, workflowID)
 	s.PublicSchedule = chasm.NewDataField(ctx, schedule)
 	s.publishPublicList(ctx, schedule)
 }
@@ -310,4 +369,57 @@ func (s *Scheduler) checkPublicCommandCapacity(additional int) error {
 		return schedulerconfig.ErrTooManyBackfillers
 	}
 	return nil
+}
+
+func publicPauseNote(status enumspb.WorkflowExecutionStatus, workflowID string) string {
+	return fmt.Sprintf("paused, workflow %s: %s", strings.ToLower(status.String()), workflowID)
+}
+
+// applyPreparedPublicPatch changes bounded controls without rebuilding the spec
+// or replacing an unfinished preview for a notes-only change.
+func (s *Scheduler) applyPreparedPublicPatch(ctx chasm.MutableContext, patch *schedulepb.SchedulePatch) error {
+	c, err := s.listControl(ctx)
+	if err != nil {
+		return err
+	}
+	var notes *string
+	paused := s.Paused
+	if patch.Pause != "" {
+		notes, paused = &patch.Pause, true
+	}
+	if patch.Unpause != "" {
+		notes, paused = &patch.Unpause, false
+	}
+	list, err := s.prepareListDynamic(ctx, c.RecentActions, notes)
+	if err != nil {
+		return err
+	}
+	s.Paused = paused
+	if patch.TriggerImmediately != nil {
+		if err := s.AcceptManual(ctx, patch.TriggerImmediately); err != nil {
+			return err
+		}
+	}
+	for _, request := range patch.BackfillRequest {
+		if err := s.AcceptBackfill(ctx, common.CloneProto(request)); err != nil {
+			return err
+		}
+	}
+	s.publishListRefresh(ctx, list)
+	if s.HasGenerator {
+		s.Generator.Get(ctx).arm(ctx, ctx.Now(s))
+	}
+	return s.reconcileWork(ctx)
+}
+
+// packedFreshProfileKey is consumed only while constructing a new root. Existing
+// executions never infer this layout from missing records or migrate implicitly.
+type packedFreshProfileKey struct{}
+
+func newPackedAddressedPublicSchedule(ctx chasm.MutableContext, request *workflowservice.CreateScheduleRequest, tweaks schedulerconfig.Tweakables) (*Scheduler, error) {
+	return newAddressedPublicSchedule(chasm.ContextWithValue(ctx, packedFreshProfileKey{}, true), request, tweaks)
+}
+
+func newPackedPreparedPublicSchedule(ctx chasm.MutableContext, input *stagedPublicCreate, tweaks schedulerconfig.Tweakables) (*Scheduler, error) {
+	return newPreparedPublicSchedule(chasm.ContextWithValue(ctx, packedFreshProfileKey{}, true), input, tweaks)
 }

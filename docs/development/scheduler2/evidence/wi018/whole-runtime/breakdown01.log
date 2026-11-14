@@ -1,0 +1,9 @@
+=== RUN   TestSelectedRuntimeStorageBreakdown
+    whole_runtime_breakdown_test.go:47: FIELDS request_record total=651 fields={"action_ref":73,"data":578}
+    whole_runtime_breakdown_test.go:47: FIELDS request_skeleton total=575 fields={"completion_callbacks":198,"identity":39,"namespace":11,"request_id":56,"search_attributes":191,"workflow_id":66,"workflow_id_reuse_policy":2,"workflow_type":12}
+    whole_runtime_breakdown_test.go:47: FIELDS operation total=240 fields={"action_id":50,"deadline":10,"id":56,"nominal":10,"occurrence_id":31,"phase":2,"policy":2,"ready_sequence":3,"retry_at":10,"workflow_id":66}
+    whole_runtime_breakdown_test.go:47: FIELDS callback total=194 fields={"nexus":194}
+    whole_runtime_breakdown_test.go:63: LEGACY_STRUCTURAL buffered_start_first=146 invoker_10000=1509746; same-length identities; excludes shared schedule and CHASM/execution framing
+--- PASS: TestSelectedRuntimeStorageBreakdown (0.01s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.684s

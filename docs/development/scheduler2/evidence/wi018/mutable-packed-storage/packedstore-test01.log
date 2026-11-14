@@ -1,0 +1,9 @@
+--- FAIL: TestPackedStoreMutableReference (0.00s)
+    store_test.go:103: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/packedstore/store_test.go:78
+        	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/packedstore/store_test.go:103
+        	Error:      	"map[]" should have 1 item(s), but has 0
+        	Test:       	TestPackedStoreMutableReference
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/packedstore	0.224s
+FAIL

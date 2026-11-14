@@ -1,0 +1,7 @@
+=== RUN   TestMutablePackedSixClassIndexMeasurement
+=== RUN   TestMutablePackedSixClassIndexMeasurement/4
+    mutable_queue_index_measurement_test.go:92: MUTABLE_SIX_CLASS_INDEX_ONLY N=4 initial_framed=568 two_generation_framed=478 peak_committed=568 nodes=2 max_mutation_updated_framed_bytes=568 max_changed_pages=2 max_backend_reads=10; excludes queue records and Scheduler
+--- PASS: TestMutablePackedSixClassIndexMeasurement (0.00s)
+    --- PASS: TestMutablePackedSixClassIndexMeasurement/4 (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.678s

@@ -1,0 +1,14 @@
+[
+  {
+    "path": "chasm/lib/scheduler2/library.go",
+    "sha256": "8b38973a29f9458d3e14545f1b28bdae1843937784651fdc4157d3670ab6708a"
+  },
+  {
+    "path": "chasm/lib/scheduler2/proto/v1/state.proto",
+    "sha256": "894dc3a693fd3a412225acbd09eff87231c7fd4369d2e7daa78a01d47e44407f"
+  },
+  {
+    "path": "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go",
+    "sha256": "d08fa3699c05b3c23a520768993d2bc70b0ade14a322103eab27a76c61e93486"
+  }
+]

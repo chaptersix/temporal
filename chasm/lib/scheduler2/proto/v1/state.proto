@@ -110,6 +110,8 @@ message RootState {
   ProjectionStoreControl projection_store = 47;
   // MemoRevision versions public memo content independently of conflict tokens.
   uint64 memo_revision = 48;
+  // Packed storage selects the fresh compact record layout and monotonic locators.
+  PackedStorageControl packed_storage = 49;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -279,6 +281,8 @@ message GeneratorState {
   EnumerationStatus last_status = 6;
   // Superseded records the last pending candidate discarded by a definition update.
   OccurrenceCandidate superseded = 7;
+  // Prepared source revision grants one logical automatic lookup after a source check.
+  int64 prepared_source_revision = 8;
 }
 
 // GenerationDefinition holds immutable large values separate from generator metadata.
@@ -393,6 +397,7 @@ enum WorkClass {
  WORK_CLASS_MANUAL = 2;
  WORK_CLASS_BACKFILL = 3;
  WORK_CLASS_AUTOMATIC = 4;
+ WORK_CLASS_PREPARED_MAINTENANCE = 5;
 }
 // CoordinationState persists task fencing separately from resource entitlement.
 message CoordinationState {
@@ -412,6 +417,8 @@ message CoordinationState {
  WorkClass owner_class = 7;
  // OwnerKey is empty when no vacancy is reserved.
  string owner_key = 8;
+ // Next prepared maintenance rotates definition cleanup, timezone cleanup and preview.
+ uint32 next_prepared_maintenance = 9;
 }
 // WorkTask drives the sole coordinator obligation.
 message WorkTask {
@@ -440,6 +447,8 @@ message BackfillState {
  google.protobuf.Timestamp start_time = 8;
  // end_time preserves seconds and nanoseconds when the legacy int64 field cannot represent the instant.
  google.protobuf.Timestamp end_time = 9;
+ // Prepared source revision grants one logical range lookup after a source check.
+ int64 prepared_source_revision = 10;
 }
 
 // IdleTask checks the current idle-close token and deadline.
@@ -608,6 +617,15 @@ message TimezonePreparationState {
   uint64 cleanup_tail = 10;
   // Cleanup count equals tail minus head.
   uint64 cleanup_count = 11;
+  // Last generation never decreases when a candidate is replaced or activated.
+  uint64 last_generation = 12;
+  // Source bytes is the complete active version-two source encoding length.
+  uint64 source_bytes = 13;
+  // Source hash binds the exact active source bytes and preparation instant.
+  bytes source_hash = 14;
+  // Pending owns an unselected source until both installation prefixes complete.
+  TimezonePendingSource pending = 15;
+
 }
 
 // TimezonePreparationSource is detached input for outside-mutation reconstruction.
@@ -644,6 +662,13 @@ message TimezoneSupersededSource {
   uint32 installed_pages = 3;
   // Cursor is the next page to reclaim from that prefix.
   uint32 cursor = 4;
+  // Source bytes determines exact expected raw-page sizes for this owner.
+  uint64 source_bytes = 5;
+  // Installed source pages retains the prefix present at supersession.
+  uint64 installed_source_pages = 6;
+  // Source cursor identifies the next raw page to reclaim.
+  uint64 source_cursor = 7;
+
 }
 
 // OperationStoreControl holds only maintained addressed-record counts.
@@ -817,4 +842,134 @@ message PublicActionMetadata {
   string workflow_type = 1;
   // Task queue attributes schedule API requests without reading the action.
   string task_queue = 2;
+}
+
+message PublicListControl {
+  // Published slot selects the complete static projection: zero absent, one A, two B.
+  uint32 published_slot = 1;
+  // Pending slot selects the static projection awaiting its complete preview.
+  uint32 pending_slot = 2;
+  // Slot A owner binds the canonical definition identity and revision.
+  bytes slot_a_owner = 3;
+  // Slot B owner binds the canonical definition identity and revision.
+  bytes slot_b_owner = 4;
+  // Published stamp identifies the complete public preview generation.
+  uint64 published_stamp = 5;
+  // Pending stamp fences unfinished preview work; zero means no pending preview.
+  uint64 pending_stamp = 6;
+  // Published list limit records the truncation used by the complete static projection.
+  int64 published_list_limit = 7;
+  // Pending list limit records the truncation used by the staged static projection.
+  int64 pending_list_limit = 8;
+  // Recent actions contains at most five current public action results.
+  repeated temporal.api.schedule.v1.ScheduleActionResult recent_actions = 9;
+  // Future action times contains at most five atomically published preview results.
+  repeated google.protobuf.Timestamp future_action_times = 10;
+  // Published target count distinguishes exhausted windows from changed action limits.
+  uint32 published_target_count = 11;
+}
+
+message PublicListPreview {
+  // Owner ID binds the prepared definition revision.
+  bytes owner_id = 1;
+  // Stamp matches the pending list publication generation.
+  uint64 stamp = 2;
+  // Original after is the fixed boundary used when restarting a changed zone.
+  google.protobuf.Timestamp original_after = 3;
+  // After is the previous completed actual time within this unpublished window.
+  google.protobuf.Timestamp after = 4;
+  // Limited captures whether remaining actions constrain this preview.
+  bool limited = 5;
+  // Remaining captures the action count at preview creation.
+  int64 remaining = 6;
+  // Target count is at most five and agrees with the captured action limit.
+  uint32 target_count = 7;
+  // Future action times is an unpublished prefix bounded by target count.
+  repeated google.protobuf.Timestamp future_action_times = 8;
+  // Zone fingerprint prevents mixing timezone snapshots within one window.
+  bytes zone_fingerprint = 9;
+  // Work is empty or the fixed encoded prepared-spec continuation.
+  bytes work = 10;
+  // Policy captured distinguishes a new logical lookup from its continuation.
+  bool policy_captured = 11;
+  // Warn iterations is sampled once per logical next-time lookup.
+  int64 warn_iterations = 12;
+  // Max iterations is sampled once per logical next-time lookup.
+  int64 max_iterations = 13;
+  // Done permits atomic publication of this complete window.
+  bool done = 14;
+  // Prepared source ready grants one logical preview lookup after a source check.
+  bool prepared_source_ready = 15;
+}
+
+message TimezonePendingSource {
+  // Definition source ID binds the pending snapshot to one definition owner.
+  bytes definition_source_id = 1;
+  // Source ID binds this candidate's source hash, generation and semantic rules.
+  bytes source_id = 2;
+  // Semantic fingerprint identifies exact conversion and loader-cache rules.
+  bytes semantic_fingerprint = 3;
+  // Generation is reserved monotonically before candidate publication.
+  uint64 generation = 4;
+  // Header is the fixed prepared timezone header.
+  bytes header = 5;
+  // Total pages counts compiled transition pages.
+  uint32 total_pages = 6;
+  // Installed pages is the compiled transition prefix.
+  uint32 installed_pages = 7;
+  // Source bytes is the exact original serialized source length.
+  uint64 source_bytes = 8;
+  // Installed source pages is the contiguous raw-source prefix.
+  uint64 installed_source_pages = 9;
+  // Source hash identifies the exact original input and preparation instant.
+  bytes source_hash = 10;
+  // Resolved at preserves the original source preparation instant on cache recovery.
+  google.protobuf.Timestamp resolved_at = 11;
+  // Native initialization year preserves the platform timezone initialization boundary.
+  int64 native_initialization_year = 12;
+  // Source kind identifies UTC (0), TZif (1), or native (2) source encoding.
+  uint32 source_kind = 13;
+  // Native word bits preserves the platform integer width used during preparation.
+  uint32 native_word_bits = 14;
+}
+message TimezoneSourcePage {
+  // Source ID identifies the immutable candidate owner.
+  bytes source_id = 1;
+  // Ordinal identifies this raw-source page.
+  uint64 ordinal = 2;
+  // Encoded contains at most1024 original source bytes.
+  bytes encoded = 3;
+}
+message SourcePreparationRequest {
+  // Definition owner ID fences replacement of the canonical input.
+  bytes definition_owner_id = 1;
+  // Token advances on every successful response before a successor is scheduled.
+  uint64 token = 2;
+  // Phase is definition pages1, timezone resolution2, or timezone pages3.
+  uint32 phase = 3;
+  // Timezone generation is the most recently reserved source generation.
+  uint64 timezone_generation = 4;
+  // Candidate source ID fences a pending immutable source installation.
+  bytes candidate_source_id = 5;
+  // Pending identifies the one current source task obligation.
+  bool pending = 6;
+  // Check kind identifies installation0, automatic1, backfill2, or preview3.
+  uint32 check_kind = 7;
+  // Backfill ID fences a range lookup grant to one accepted command.
+  uint64 backfill_id = 8;
+  // Preview stamp fences a grant to the current unpublished window.
+  uint64 preview_stamp = 9;
+}
+message SourcePreparationTask {
+  // Definition owner ID must match the current source request.
+  bytes definition_owner_id = 1;
+  // Token must match the current pending request.
+  uint64 token = 2;
+}
+
+message PackedStorageControl {
+  // Format version selects the compact storage representation.
+  uint32 format_version = 1;
+  // Next locator is never reused after admission or retention deletion.
+  uint64 next_locator = 2;
 }

@@ -1,0 +1,4 @@
+# go.temporal.io/server/chasm/lib/scheduler2 [go.temporal.io/server/chasm/lib/scheduler2.test]
+chasm/lib/scheduler2/packed_runtime_independent_test.go:71:5: op.Attempt undefined (type *scheduler2pb.OperationState has no field or method Attempt)
+FAIL	go.temporal.io/server/chasm/lib/scheduler2 [build failed]
+FAIL

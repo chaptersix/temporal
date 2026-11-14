@@ -20,12 +20,33 @@ type publicTransitionPlan struct {
 	info       *schedulepb.ScheduleInfo
 	eviction   string
 	projection *projectionMutation
+	list       *publicListPlan
 }
 
 // preparePublicTransition exposes completion retention before any owner writes.
 func (s *Scheduler) preparePublicTransition(ctx chasm.Context, before, next decision.State, event decision.Event, admitted bool) (publicTransitionPlan, error) {
 	if s.ProjectionStore != nil {
-		return s.prepareIndexedPublicTransition(ctx, before, next, event, admitted)
+		plan, err := s.prepareIndexedPublicTransition(ctx, before, next, event, admitted)
+		if err != nil {
+			return publicTransitionPlan{}, err
+		}
+		if s.ListControl.IsSet() && plan.runtime != nil {
+			recent := make([]*schedulepb.ScheduleActionResult, 0, min(5, len(plan.runtime.RecentActions)))
+			for _, entry := range plan.runtime.RecentActions[max(0, len(plan.runtime.RecentActions)-5):] {
+				recent = append(recent, entry.Action.Result)
+			}
+			var notes *string
+			if event.Kind == decision.Callback && !before.Root.Paused && next.Root.Paused {
+				note := publicPauseNote(event.Status, next.Operation.WorkflowID)
+				notes = &note
+			}
+			list, err := s.prepareListDynamic(ctx, recent, notes)
+			if err != nil {
+				return publicTransitionPlan{}, err
+			}
+			plan.list = &list
+		}
+		return plan, nil
 	}
 	return s.prepareLegacyPublicTransition(ctx, before, next, event, admitted), nil
 }
@@ -69,7 +90,9 @@ func (s *Scheduler) publishPublicTransition(ctx chasm.MutableContext, plan publi
 		s.retainPublicActions(runtime)
 	}
 	s.PublicRuntime = chasm.NewDataField(ctx, runtime)
-	if stored, ok := s.PublicSchedule.TryGet(ctx); ok {
+	if plan.list != nil {
+		s.publishListRefresh(ctx, *plan.list)
+	} else if stored, ok := s.PublicSchedule.TryGet(ctx); ok {
 		s.publishPublicList(ctx, stored)
 	}
 }
@@ -156,7 +179,10 @@ func (s *Scheduler) publicInfoProjection(ctx chasm.Context, info *schedulepb.Sch
 			return nil
 		}
 		for _, a := range runtime.Actions {
-			op, exists := s.operationRecord(ctx, a.OperationId)
+			op, exists, err := s.operationRecord(ctx, a.OperationId)
+			if err != nil {
+				return err
+			}
 			if !exists {
 				continue
 			}
@@ -259,15 +285,7 @@ func publicDispositionCounts(before, next decision.State, event decision.Event) 
 		}
 	case decision.Drain:
 		if eligible {
-			if before.IndexedQueue.Enabled {
-				if next.QueueChange.Drained {
-					for _, count := range next.QueueChange.Drain.Ineligible[:3] {
-						missed += count
-					}
-				}
-			} else {
-				missed = publicExpiredWaiters(before.Queue, next.Queue, event.Now, event.CatchupWindow)
-			}
+			missed = publicDrainMissed(before, next, event)
 		}
 		return
 	default:
@@ -275,6 +293,19 @@ func publicDispositionCounts(before, next decision.State, event decision.Event) 
 	}
 	skipped, dropped = publicOverlapCounts(before, next, policy)
 	return
+}
+
+func publicDrainMissed(before, next decision.State, event decision.Event) int64 {
+	if !before.IndexedQueue.Enabled {
+		return publicExpiredWaiters(before.Queue, next.Queue, event.Now, event.CatchupWindow)
+	}
+	var missed int64
+	if next.QueueChange.Drained {
+		for _, count := range next.QueueChange.Drain.Ineligible[:3] {
+			missed += count
+		}
+	}
+	return missed
 }
 
 func publicOverlapCounts(before, next decision.State, policy enumspb.ScheduleOverlapPolicy) (skipped, dropped int64) {

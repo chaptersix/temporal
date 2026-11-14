@@ -1,0 +1,12 @@
+{
+  "status": "implementing",
+  "files": {
+    "chasm/lib/scheduler2/generator.go": "b961ab2721ee7795e6654428f1f73484018ad2b23e227e17fb78eab5bb62494a",
+    "chasm/lib/scheduler2/staged_generation.go": "9478ebe10fbc1136404b264f8a1754508009e08440c4dbd4d78f49044874e465",
+    "chasm/lib/scheduler2/staged_generation_test.go": "b87cc8a95e41ca2222784c3006e102dba8ffa3a5203af7f642be4d6ef0acea2f",
+    "chasm/lib/scheduler2/public.go": "caf1b3f3d65066109d456cb5dc4b88dbf626179a0f66dca451a98391992d2189",
+    "chasm/lib/scheduler2/public_mutation.go": "46a843b9c3c6c09a5c0203b14a2e2f5e69b84182bace248cb3b43c4e563301e1",
+    "chasm/lib/scheduler2/prepared_definition.go": "868dcd958a6c5c574a51d1d7cf3c3bce80fe35a13217c665838819383e7d1f86",
+    "chasm/lib/scheduler2/component.go": "66e4b9e5497baa96b17fd49323f68b533d1f029097e3dca6f903262d1667adff"
+  }
+}

@@ -97,7 +97,7 @@ func TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover(t *testi
 			require.Equal(t, before, h.durable)
 			require.Len(t, h.physical, physical)
 			coordinatorStep(h, true)
-			s, ctx = h.root(false)
+			s, _ = h.root(false)
 			successorID := "incarnation/manual/2/action/start"
 			require.Equal(t, successorID, s.OperationId)
 			require.Empty(t, s.Queue)

@@ -1,0 +1,92 @@
+[
+  {
+    "path": "chasm/lib/scheduler2/definition_install_batch.go",
+    "sha256": "eb6926743ac9ad61f3082d0e25e9a48a755313ffd37690acb2e450baf0798d08",
+    "bytes": 3152,
+    "archive_path": "final-source/chasm/lib/scheduler2/definition_install_batch.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/preparation_service.go",
+    "sha256": "dfa660f1416ac6fb9c934eca7951f9648857ca5f7e7997befbdadd6e99d74ab5",
+    "bytes": 5038,
+    "archive_path": "final-source/chasm/lib/scheduler2/preparation_service.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/preparation_service_unix.go",
+    "sha256": "52ec7fed8b5d7a972dbfdacbb02f1855d94fb8cd6a8de0a0ba5cf0e81617e1b5",
+    "bytes": 517,
+    "archive_path": "final-source/chasm/lib/scheduler2/preparation_service_unix.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/preparation_service_windows.go",
+    "sha256": "e8e3ab19ce8270f89f8e587ee71b2560c226a60c617c32e5841ced5843237056",
+    "bytes": 498,
+    "archive_path": "final-source/chasm/lib/scheduler2/preparation_service_windows.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/preparation_service_test.go",
+    "sha256": "f8362abcd0b1df0e0f56da39416e3d3179004a4e810de4daef40590a25c06c10",
+    "bytes": 8440,
+    "archive_path": "final-source/chasm/lib/scheduler2/preparation_service_test.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/preparation_recovery.go",
+    "sha256": "78813ba0e2ee9648968680f165528ab285d4770c941dd1772ee1148730d41973",
+    "bytes": 2097,
+    "archive_path": "final-source/chasm/lib/scheduler2/preparation_recovery.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/preparation_recovery_test.go",
+    "sha256": "b53bdba758d16971eb2185e62e10668aa511145394c122406176e1c22b87a2ef",
+    "bytes": 6611,
+    "archive_path": "final-source/chasm/lib/scheduler2/preparation_recovery_test.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/timezone_candidate_staging.go",
+    "sha256": "27953af49000b1d3024294dfa0e86ee075e7cf25a8256eea50d91d16c59875ef",
+    "bytes": 7693,
+    "archive_path": "final-source/chasm/lib/scheduler2/timezone_candidate_staging.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/timezone_pending.go",
+    "sha256": "8c442b1487a725abf0e52e2e7544e9eb9a837960a04f42186903ffc5047f05c8",
+    "bytes": 13957,
+    "archive_path": "final-source/chasm/lib/scheduler2/timezone_pending.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/timezone_pending_test.go",
+    "sha256": "6c0c3d2a21638df2d2e2b6a3363cdfa1664cf87e2cba41eddc5bc1e806a966d2",
+    "bytes": 8190,
+    "archive_path": "final-source/chasm/lib/scheduler2/timezone_pending_test.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/timezone_source_pages.go",
+    "sha256": "06f33496523d61a78edad840cbae05e5d6375d926ace09a56885ddaf06d5a471",
+    "bytes": 5758,
+    "archive_path": "final-source/chasm/lib/scheduler2/timezone_source_pages.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/timezone_source_bounds_test.go",
+    "sha256": "a9da39dba3e711e84c67127690895ba0526f3c1a335b2a60601f8102f49d759d",
+    "bytes": 2025,
+    "archive_path": "final-source/chasm/lib/scheduler2/timezone_source_bounds_test.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/definition_publication_test.go",
+    "sha256": "079503a867c4cf9d48444f76d55cb91e1098041da50bc3aa37a2aa7634300efb",
+    "bytes": 2106,
+    "archive_path": "final-source/chasm/lib/scheduler2/definition_publication_test.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/timezone_preparation.go",
+    "sha256": "97f9ac17351418eac2dc31fd9ffc21563f27b9472145e610707477182eb67454",
+    "bytes": 11399,
+    "archive_path": "final-source/chasm/lib/scheduler2/timezone_preparation.go.txt"
+  },
+  {
+    "path": "chasm/lib/scheduler2/prepared_definition.go",
+    "sha256": "868dcd958a6c5c574a51d1d7cf3c3bce80fe35a13217c665838819383e7d1f86",
+    "bytes": 13688,
+    "archive_path": "final-source/chasm/lib/scheduler2/prepared_definition.go.txt"
+  }
+]

@@ -45,8 +45,16 @@ func (s *Scheduler) prepareEffects(ctx chasm.Context, next decision.State) (deci
 		}
 		break
 	}
+	requests, err := s.prepareEffectRequests(ctx, next.Effects)
+	if err != nil {
+		return decision.State{}, nil, err
+	}
+	return next, requests, nil
+}
+
+func (s *Scheduler) prepareEffectRequests(ctx chasm.Context, effects []decision.Effect) (map[string][]byte, error) {
 	requests := make(map[string][]byte)
-	for _, effect := range next.Effects {
+	for _, effect := range effects {
 		if effect.Phase != decision.EffectPending {
 			continue
 		}
@@ -57,18 +65,18 @@ func (s *Scheduler) prepareEffects(ctx chasm.Context, next decision.State) (deci
 		start := &workflowservice.StartWorkflowExecutionRequest{}
 		record, err := s.requiredRequestRecord(ctx, effect.TargetID)
 		if err != nil {
-			return decision.State{}, nil, err
+			return nil, err
 		}
 		if err := proto.Unmarshal(record.Data, start); err != nil {
-			return decision.State{}, nil, err
+			return nil, err
 		}
 		wire, err := freezeEffect(effect, start)
 		if err != nil {
-			return decision.State{}, nil, err
+			return nil, err
 		}
 		requests[effect.ID] = wire
 	}
-	return next, requests, nil
+	return requests, nil
 }
 
 func freezeEffect(effect decision.Effect, start *workflowservice.StartWorkflowExecutionRequest) ([]byte, error) {

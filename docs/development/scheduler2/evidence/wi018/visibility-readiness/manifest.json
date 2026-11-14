@@ -1,0 +1,5 @@
+{
+  "chasm/visibility.go": "dd06cd3611ef96498e1ae0c7cae81535ac2338a90cabb9edd6ee97cc097142c9",
+  "service/history/visibility_queue_task_executor.go": "34df8f159b974bc4a0e764670004e0e5b18051ce935b79e979a31fa779ff9d05",
+  "service/history/visibility_readiness_test.go": "bf80313b20f8f19fcc6f9c30a5a6d19deb5d9300dc26c9c4b4fb4a16ea808153"
+}

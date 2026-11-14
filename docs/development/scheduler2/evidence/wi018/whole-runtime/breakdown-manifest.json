@@ -1,0 +1,5 @@
+{
+  "note": "Supplemental decomposition on later source; not the frozen large-measurement binary",
+  "test": "chasm/lib/scheduler2/whole_runtime_breakdown_test.go",
+  "sha256": "61b68add3a11829f56207b91c8505c23bd96f3492fa905746755f6b6507734e3"
+}

@@ -1,0 +1,76 @@
+--- FAIL: TestSourcePreparationCompletionCounterRejection (0.89s)
+    --- FAIL: TestSourcePreparationCompletionCounterRejection/coordinator (0.45s)
+        preparation_task_test.go:293: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/preparation_task_test.go:293
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x49320f151340), "BlobRecords":(*persistence.ChasmNode)(0x49320f151900), "BlobRecords#action-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855":(*persistence.ChasmNode)(0x49320f151540), "BlobReferences":(*persistence.ChasmNode)(0x49320f150fc0), "BlobReferences#action-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855":(*persistence.ChasmNode)(0x49320f151080), "Generator":(*persistence.ChasmNode)(0x49320f151840), "Generator$Definition":(*persistence.ChasmNode)(0x49320f151c00), "Generator$PreparedDefinition":(*persistence.ChasmNode)(0x49320f151cc0), "Generator$PreparedDefinition$Pages":(*persistence.ChasmNode)(0x49320f15c3c0), "Generator$PreparedDefinition$Pages#d7892d8d7277ce44bec0fc50c25b2b083f5a9564ab174078c363f852d2b015cf/0":(*persistence.ChasmNode)(0x49320f15c000), "Generator$PreparedDefinition$Pages#d7892d8d7277ce44bec0fc50c25b2b083f5a9564ab174078c363f852d2b015cf/1":(*persistence.ChasmNode)(0x49320f151e40), "Generator$PreparedDefinition$Source":(*persistence.ChasmNode)(0x49320f151d80), "Generator$PreparedDefinition$Timezone":(*persistence.ChasmNode)(0x49320f151600), "Generator$PreparedDefinition$Timezone$SourcePages":(*persistence.ChasmNode)(0x49320f15c240), "Generator$PreparedDefinition$Timezone$SourcePages#ee80d1f822aaca5ed1c1983bb2d0a7720430ddb1be657e2f3975277fd1f942a3/0":(*persistence.ChasmNode)(0x49320f15c0c0), "Generator$Request":(*persistence.ChasmNode)(0x49320f151140), "PublicInfo":(*persistence.ChasmNode)(0x49320f151a80), "PublicList":(*persistence.ChasmNode)(0x49320f15c300), "PublicMetadata":(*persistence.ChasmNode)(0x49320f1516c0), "PublicRuntime":(*persistence.ChasmNode)(0x49320f1519c0), "PublicSchedule":(*persistence.ChasmNode)(0x49320f151780), "SourceRequest":(*persistence.ChasmNode)(0x49320f151480), "Visibility":(*persistence.ChasmNode)(0x49320f151200), "Visibility$Memo":(*persistence.ChasmNode)(0x49320f151b40), "Visibility$SA":(*persistence.ChasmNode)(0x49320f15c180)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x49320f15dbc0), "BlobRecords":(*persistence.ChasmNode)(0x49320f15d480), "BlobRecords#action-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855":(*persistence.ChasmNode)(0x49320f15cc40), "BlobReferences":(*persistence.ChasmNode)(0x49320f15d240), "BlobReferences#action-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855":(*persistence.ChasmNode)(0x49320f15cd00), "Generator":(*persistence.ChasmNode)(0x49320f15cf40), "Generator$Definition":(*persistence.ChasmNode)(0x49320f15d740), "Generator$PreparedDefinition":(*persistence.ChasmNode)(0x49320f15d3c0), "Generator$PreparedDefinition$Pages":(*persistence.ChasmNode)(0x49320f15da40), "Generator$PreparedDefinition$Pages#d7892d8d7277ce44bec0fc50c25b2b083f5a9564ab174078c363f852d2b015cf/0":(*persistence.ChasmNode)(0x49320f15d000), "Generator$PreparedDefinition$Pages#d7892d8d7277ce44bec0fc50c25b2b083f5a9564ab174078c363f852d2b015cf/1":(*persistence.ChasmNode)(0x49320f15db00), "Generator$PreparedDefinition$Source":(*persistence.ChasmNode)(0x49320f15d0c0), "Generator$PreparedDefinition$Timezone":(*persistence.ChasmNode)(0x49320f15d800), "Generator$PreparedDefinition$Timezone$SourcePages":(*persistence.ChasmNode)(0x49320f15d8c0), "Generator$PreparedDefinition$Timezone$SourcePages#ee80d1f822aaca5ed1c1983bb2d0a7720430ddb1be657e2f3975277fd1f942a3/0":(*persistence.ChasmNode)(0x49320f15d980), "Generator$Request":(*persistence.ChasmNode)(0x49320f15de80), "PublicInfo":(*persistence.ChasmNode)(0x49320f15ce80), "PublicList":(*persistence.ChasmNode)(0x49320f15cb80), "PublicMetadata":(*persistence.ChasmNode)(0x49320f15d300), "PublicRuntime":(*persistence.ChasmNode)(0x49320f15cdc0), "PublicSchedule":(*persistence.ChasmNode)(0x49320f15d680), "SourceRequest":(*persistence.ChasmNode)(0x49320f15d180), "Visibility":(*persistence.ChasmNode)(0x49320f15d540), "Visibility$Memo":(*persistence.ChasmNode)(0x49320f15ddc0), "Visibility$SA":(*persistence.ChasmNode)(0x49320f15dd00)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 7,
+            	            	+    TransitionCount: (int64) 8,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	            	@@ -18594,3 +18594,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 7,
+            	            	+    TransitionCount: (int64) 8,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	            	@@ -24814,3 +24814,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 7,
+            	            	+    TransitionCount: (int64) 8,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	            	@@ -62009,3 +62009,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 6,
+            	            	+    TransitionCount: (int64) 8,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	            	@@ -68204,3 +68204,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 7,
+            	            	+    TransitionCount: (int64) 8,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestSourcePreparationCompletionCounterRejection/coordinator
+    --- FAIL: TestSourcePreparationCompletionCounterRejection/idle (0.44s)
+        preparation_task_test.go:293: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/preparation_task_test.go:293
+            	Error:      	Not equal: 
+            	            	expected: map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x49320ee56c40), "BlobRecords":(*persistence.ChasmNode)(0x49320ee56b80), "BlobRecords#action-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855":(*persistence.ChasmNode)(0x49320ee57340), "BlobReferences":(*persistence.ChasmNode)(0x49320ee56f80), "BlobReferences#action-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855":(*persistence.ChasmNode)(0x49320ee568c0), "Generator":(*persistence.ChasmNode)(0x49320ee577c0), "Generator$Definition":(*persistence.ChasmNode)(0x49320ee57940), "Generator$PreparedDefinition":(*persistence.ChasmNode)(0x49320ee57a00), "Generator$PreparedDefinition$Pages":(*persistence.ChasmNode)(0x49320ee56740), "Generator$PreparedDefinition$Pages#d7892d8d7277ce44bec0fc50c25b2b083f5a9564ab174078c363f852d2b015cf/0":(*persistence.ChasmNode)(0x49320ee57280), "Generator$PreparedDefinition$Pages#d7892d8d7277ce44bec0fc50c25b2b083f5a9564ab174078c363f852d2b015cf/1":(*persistence.ChasmNode)(0x49320ee57040), "Generator$PreparedDefinition$Source":(*persistence.ChasmNode)(0x49320ee57400), "Generator$PreparedDefinition$Timezone":(*persistence.ChasmNode)(0x49320ee57580), "Generator$PreparedDefinition$Timezone$SourcePages":(*persistence.ChasmNode)(0x49320ee574c0), "Generator$PreparedDefinition$Timezone$SourcePages#ee80d1f822aaca5ed1c1983bb2d0a7720430ddb1be657e2f3975277fd1f942a3/0":(*persistence.ChasmNode)(0x49320ee565c0), "Generator$Request":(*persistence.ChasmNode)(0x49320ee57880), "PublicInfo":(*persistence.ChasmNode)(0x49320ee56e00), "PublicList":(*persistence.ChasmNode)(0x49320ee57100), "PublicMetadata":(*persistence.ChasmNode)(0x49320ee57640), "PublicRuntime":(*persistence.ChasmNode)(0x49320ee56680), "PublicSchedule":(*persistence.ChasmNode)(0x49320ee56980), "SourceRequest":(*persistence.ChasmNode)(0x49320ee56800), "Visibility":(*persistence.ChasmNode)(0x49320ee56a40), "Visibility$Memo":(*persistence.ChasmNode)(0x49320ee571c0), "Visibility$SA":(*persistence.ChasmNode)(0x49320ee57700)}
+            	            	actual  : map[string]*persistence.ChasmNode{"":(*persistence.ChasmNode)(0x49320ef1ce40), "BlobRecords":(*persistence.ChasmNode)(0x49320ef1c500), "BlobRecords#action-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855":(*persistence.ChasmNode)(0x49320ef1c980), "BlobReferences":(*persistence.ChasmNode)(0x49320ef1cb40), "BlobReferences#action-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855":(*persistence.ChasmNode)(0x49320ef1cc00), "Generator":(*persistence.ChasmNode)(0x49320ef1c740), "Generator$Definition":(*persistence.ChasmNode)(0x49320ef1c400), "Generator$PreparedDefinition":(*persistence.ChasmNode)(0x49320ef1d740), "Generator$PreparedDefinition$Pages":(*persistence.ChasmNode)(0x49320ef1d300), "Generator$PreparedDefinition$Pages#d7892d8d7277ce44bec0fc50c25b2b083f5a9564ab174078c363f852d2b015cf/0":(*persistence.ChasmNode)(0x49320ef1d480), "Generator$PreparedDefinition$Pages#d7892d8d7277ce44bec0fc50c25b2b083f5a9564ab174078c363f852d2b015cf/1":(*persistence.ChasmNode)(0x49320ef1d3c0), "Generator$PreparedDefinition$Source":(*persistence.ChasmNode)(0x49320ef1c340), "Generator$PreparedDefinition$Timezone":(*persistence.ChasmNode)(0x49320ef1d800), "Generator$PreparedDefinition$Timezone$SourcePages":(*persistence.ChasmNode)(0x49320ef1cd80), "Generator$PreparedDefinition$Timezone$SourcePages#ee80d1f822aaca5ed1c1983bb2d0a7720430ddb1be657e2f3975277fd1f942a3/0":(*persistence.ChasmNode)(0x49320ef1c800), "Generator$Request":(*persistence.ChasmNode)(0x49320ef1d240), "PublicInfo":(*persistence.ChasmNode)(0x49320ef1d180), "PublicList":(*persistence.ChasmNode)(0x49320ef1d000), "PublicMetadata":(*persistence.ChasmNode)(0x49320ef1ca80), "PublicRuntime":(*persistence.ChasmNode)(0x49320ef1d0c0), "PublicSchedule":(*persistence.ChasmNode)(0x49320ef1ccc0), "SourceRequest":(*persistence.ChasmNode)(0x49320ef1c5c0), "Visibility":(*persistence.ChasmNode)(0x49320ef1d540), "Visibility$Memo":(*persistence.ChasmNode)(0x49320ef1c680), "Visibility$SA":(*persistence.ChasmNode)(0x49320ef1d680)}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -3056,3 +3056,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 7,
+            	            	+    TransitionCount: (int64) 8,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	            	@@ -18659,3 +18659,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 7,
+            	            	+    TransitionCount: (int64) 8,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	            	@@ -24879,3 +24879,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 7,
+            	            	+    TransitionCount: (int64) 8,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	            	@@ -62074,3 +62074,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 6,
+            	            	+    TransitionCount: (int64) 8,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	            	@@ -68269,3 +68269,3 @@
+            	            	     NamespaceFailoverVersion: (int64) 1,
+            	            	-    TransitionCount: (int64) 7,
+            	            	+    TransitionCount: (int64) 8,
+            	            	     unknownFields: ([]uint8) <nil>,
+            	Test:       	TestSourcePreparationCompletionCounterRejection/idle
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	1.576s
+FAIL

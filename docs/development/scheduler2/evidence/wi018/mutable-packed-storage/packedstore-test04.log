@@ -1,0 +1,17 @@
+=== RUN   TestPackedStoreMutableReference
+--- PASS: TestPackedStoreMutableReference (1.22s)
+=== RUN   TestPackedStoreAtomicFaults
+--- PASS: TestPackedStoreAtomicFaults (0.00s)
+=== RUN   TestPackedStoreMalformedPages
+--- PASS: TestPackedStoreMalformedPages (0.00s)
+=== RUN   TestPackedStoreInsertFaultsAndExhaustion
+--- PASS: TestPackedStoreInsertFaultsAndExhaustion (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/packedstore	1.458s
+=== RUN   TestMutablePackedStorageMeasurement
+=== RUN   TestMutablePackedStorageMeasurement/4
+    mutable_storage_measurement_test.go:207: MUTABLE N=4 original=10386 initial=7330 after_delete=6961 final=7330 peak_committed=7330 nodes=14 max_transaction_updated_framed_bytes=1080 max_changed_pages=2 max_backend_reads=2 verification_reads=70 fixed=4056
+--- PASS: TestMutablePackedStorageMeasurement (0.01s)
+    --- PASS: TestMutablePackedStorageMeasurement/4 (0.01s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.695s

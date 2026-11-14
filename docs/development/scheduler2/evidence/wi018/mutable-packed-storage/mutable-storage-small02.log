@@ -1,0 +1,13 @@
+=== RUN   TestMutablePackedSixClassIndexMeasurement
+=== RUN   TestMutablePackedSixClassIndexMeasurement/4
+    mutable_queue_index_measurement_test.go:92: MUTABLE_SIX_CLASS_INDEX_ONLY N=4 initial_framed=568 two_generation_framed=478 peak_committed=568 nodes=2 max_mutation_updated_framed_bytes=568 max_changed_pages=2 max_backend_reads=10; excludes queue records and Scheduler
+--- PASS: TestMutablePackedSixClassIndexMeasurement (0.01s)
+    --- PASS: TestMutablePackedSixClassIndexMeasurement/4 (0.01s)
+=== RUN   TestMutablePackedStorageMeasurement
+=== RUN   TestMutablePackedStorageMeasurement/4
+    mutable_storage_measurement_test.go:172: MUTABLE isolated_issuance=false N=4 original=10386 initial=7330 after_delete=6961 final=7330 peak_committed=7330 nodes=14 max_transaction_updated_framed_bytes=1080 max_changed_pages=2 max_backend_reads=2 verification_reads=70 fixed=4056
+    mutable_storage_measurement_test.go:172: MUTABLE isolated_issuance=true N=4 original=10386 initial=7381 after_delete=6949 final=7381 peak_committed=7381 nodes=16 max_transaction_updated_framed_bytes=1080 max_changed_pages=2 max_backend_reads=2 verification_reads=66 fixed=4056
+--- PASS: TestMutablePackedStorageMeasurement (0.00s)
+    --- PASS: TestMutablePackedStorageMeasurement/4 (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.673s

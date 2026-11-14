@@ -1,0 +1,15 @@
+=== RUN   TestCompactStorageExactWire
+--- PASS: TestCompactStorageExactWire (0.00s)
+=== RUN   TestCompactStorageIdentityFallback
+--- PASS: TestCompactStorageIdentityFallback (0.00s)
+=== RUN   TestCompactStoragePageIsolation
+--- PASS: TestCompactStoragePageIsolation (0.00s)
+=== RUN   TestCompactStoragePrototypeMeasurement
+=== RUN   TestCompactStoragePrototypeMeasurement/1000
+    compact_storage_measurement_test.go:167: COMPACT N=1000 original_framed=1898183 prototype_framed=780904 nodes=601 groups_records_pages_data_template={"A":[1000,63,28059,86],"E":[1000,63,8095,73],"I":[1000,63,52690,58],"O":[1000,63,111739,106],"Q":[1000,63,237593,575],"R":[1000,63,14825,20],"X":[2999,188,300149,90]}
+=== RUN   TestCompactStoragePrototypeMeasurement/10000
+    compact_storage_measurement_test.go:167: COMPACT N=10000 original_framed=18975955 prototype_framed=7947424 nodes=5660 groups_records_pages_data_template={"A":[10000,625,298589,86],"E":[10000,625,80625,73],"I":[10000,625,529221,58],"O":[10000,625,1120269,106],"Q":[10000,625,2524349,575],"R":[10000,625,150213,20],"X":[30000,1875,3005147,90]}
+--- PASS: TestCompactStoragePrototypeMeasurement (3.47s)
+    --- PASS: TestCompactStoragePrototypeMeasurement/1000 (0.23s)
+    --- PASS: TestCompactStoragePrototypeMeasurement/10000 (3.24s)
+PASS

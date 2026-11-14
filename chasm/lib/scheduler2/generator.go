@@ -19,8 +19,11 @@ import (
 type Generator struct {
 	chasm.UnimplementedComponent
 	*scheduler2pb.GeneratorState
-	Scheduler  chasm.ParentPtr[*Scheduler]
-	Definition chasm.Field[*scheduler2pb.GenerationDefinition]
+	Scheduler          chasm.ParentPtr[*Scheduler]
+	Definition         chasm.Field[*scheduler2pb.GenerationDefinition]
+	PreparedDefinition chasm.Field[*DefinitionPreparation]
+	PreparedWork       chasm.Field[*scheduler2pb.Payload]
+	Request            chasm.Field[*scheduler2pb.Payload]
 }
 
 func (*Generator) LifecycleState(chasm.Context) chasm.LifecycleState {
@@ -29,6 +32,7 @@ func (*Generator) LifecycleState(chasm.Context) chasm.LifecycleState {
 
 // GenerationConfig supplies an immutable local definition and workflow template.
 type GenerationConfig struct {
+	prepared      *StagedDefinitionSource
 	Policy        enumspb.ScheduleOverlapPolicy
 	Spec          *schedulepb.ScheduleSpec
 	Seed          string
@@ -49,6 +53,7 @@ func (s *Scheduler) ConfigureGeneration(ctx chasm.MutableContext, config Generat
 // configureGeneration prepares the full successor before publishing any fields.
 // Both control entry points check terminal authority before calling it.
 type generationPreparation struct {
+	prepared   *preparedGenerationPlan
 	generator  *Generator
 	definition *scheduler2pb.GenerationDefinition
 	state      occurrence.State
@@ -68,7 +73,7 @@ func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config Generat
 	return s.commitGeneration(ctx, plan)
 }
 func (s *Scheduler) commitGeneration(ctx chasm.MutableContext, plan *generationPreparation) error {
-	if s.PublicList.IsSet() && s.Paused != plan.preview.Root.Paused {
+	if (s.PublicList.IsSet() || s.ListControl.IsSet()) && s.Paused != plan.preview.Root.Paused {
 		var err error
 		ctx, err = s.reserveMemoVersion(ctx)
 		if err != nil {
@@ -89,19 +94,17 @@ func (s *Scheduler) commitGeneration(ctx chasm.MutableContext, plan *generationP
 }
 
 func (s *Scheduler) prepareGeneration(ctx chasm.Context, config GenerationConfig, controls *UpdateConfig) (*generationPreparation, error) {
-	if !decision.ValidPolicy(config.Policy) || config.Request == nil || config.Request.WorkflowId == "" || config.CatchupWindow < 0 || config.Revision < s.Revision {
-		return nil, serviceerror.NewInvalidArgument("invalid local generation configuration")
+	if err := config.validate(s.Revision); err != nil {
+		return nil, err
 	}
-	e, err := s.newEnumerator(config.Spec, config.Seed, config.Revision)
+	g, e, prepared, err := s.prepareGenerationCursor(ctx, config)
 	if err != nil {
 		return nil, err
 	}
 	now := ctx.Now(s)
-	var g *Generator
 	var state occurrence.State
 	var superseded *occurrence.Candidate
-	if s.HasGenerator {
-		g = s.Generator.Get(ctx)
+	if g != nil {
 		state, superseded, err = e.Update(decodeContinuation(g.Continuation), now)
 	} else {
 		after := config.After
@@ -113,13 +116,15 @@ func (s *Scheduler) prepareGeneration(ctx chasm.Context, config GenerationConfig
 	if err != nil {
 		return nil, err
 	}
-	// Validate the execution clock without consuming the new continuation.
-	if _, err = e.Run(state, now, occurrence.Limits{Probes: 1, Outputs: 1}); err != nil {
-		return nil, err
-	}
-	spec, err := proto.MarshalOptions{Deterministic: true}.Marshal(config.Spec)
-	if err != nil {
-		return nil, err
+	var spec []byte
+	if legacy, ok := e.(*occurrence.Enumerator); ok {
+		if _, err := legacy.Run(state, now, occurrence.Limits{Probes: 1, Outputs: 1}); err != nil {
+			return nil, err
+		}
+		spec, err = proto.MarshalOptions{Deterministic: true}.Marshal(config.Spec)
+		if err != nil {
+			return nil, err
+		}
 	}
 	request, err := proto.MarshalOptions{Deterministic: true}.Marshal(config.Request)
 	if err != nil {
@@ -163,7 +168,14 @@ func (s *Scheduler) prepareGeneration(ctx chasm.Context, config GenerationConfig
 	}
 
 	oldRef := s.generatorOwnerRef(ctx, g)
-	return &generationPreparation{generator: g, definition: &scheduler2pb.GenerationDefinition{Spec: spec, Seed: config.Seed, Request: requestRecord.Data, ActionRef: requestRecord.ActionRef}, state: state, superseded: superseded, config: config, preview: preview, now: now, blobs: blobs, owner: blobOwnerChange{owner: "generator-definition", before: [3]string{oldRef}, after: [3]string{requestRecord.ActionRef}}}, nil
+	return &generationPreparation{prepared: prepared, generator: g, definition: &scheduler2pb.GenerationDefinition{Spec: spec, Seed: config.Seed, Request: requestRecord.Data, ActionRef: requestRecord.ActionRef}, state: state, superseded: superseded, config: config, preview: preview, now: now, blobs: blobs, owner: blobOwnerChange{owner: "generator-definition", before: [3]string{oldRef}, after: [3]string{requestRecord.ActionRef}}}, nil
+}
+
+func (config GenerationConfig) validate(currentRevision int64) error {
+	if !decision.ValidPolicy(config.Policy) || config.Request == nil || config.Request.WorkflowId == "" || config.CatchupWindow < 0 || config.Revision < currentRevision {
+		return serviceerror.NewInvalidArgument("invalid local generation configuration")
+	}
+	return nil
 }
 
 func (s *Scheduler) publishGeneration(ctx chasm.MutableContext, plan *generationPreparation) {
@@ -173,13 +185,20 @@ func (s *Scheduler) publishGeneration(ctx chasm.MutableContext, plan *generation
 		g = &Generator{GeneratorState: &scheduler2pb.GeneratorState{}}
 		s.Generator = chasm.NewComponentField(ctx, g)
 	}
-	g.Definition = chasm.NewDataField(ctx, plan.definition)
+	if plan.prepared != nil {
+		s.publishPreparedGeneration(ctx, g, plan.prepared)
+	} else {
+		g.Definition = chasm.NewDataField(ctx, plan.definition)
+	}
+	if s.OperationStore != nil {
+		g.Request = chasm.NewDataField(ctx, &scheduler2pb.Payload{Data: plan.definition.Request, ActionRef: plan.definition.ActionRef})
+	}
 	g.Continuation = encodeContinuation(state)
 	g.CatchupWindow = int64(config.CatchupWindow)
 	g.Superseded = encodeCandidate(superseded)
 	g.LastStatus = scheduler2pb.ENUMERATION_STATUS_ACTIVE
 	s.ActivitySet, s.ActivityAt = preview.Root.ActivitySet, preview.Root.ActivityAt
-	if s.PublicList.IsSet() && s.Paused != preview.Root.Paused {
+	if (s.PublicList.IsSet() || s.ListControl.IsSet()) && s.Paused != preview.Root.Paused {
 		s.publishMemoVersion(ctx)
 	}
 	s.Paused = preview.Root.Paused
@@ -268,6 +287,9 @@ func (s *Scheduler) newEnumerator(spec *schedulepb.ScheduleSpec, seed string, re
 
 func (s *Scheduler) generatorOwnerRef(ctx chasm.Context, g *Generator) string {
 	if s.PayloadStore != nil && g != nil {
+		if s.OperationStore != nil {
+			return g.Request.Get(ctx).ActionRef
+		}
 		return g.Definition.Get(ctx).ActionRef
 	}
 	return ""

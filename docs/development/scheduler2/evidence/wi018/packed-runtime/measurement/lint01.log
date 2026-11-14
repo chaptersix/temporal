@@ -1,0 +1,671 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 13.039958ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (compiled_files|exports_file|deps|files|imports|name|types_sizes) took 17.692913167s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 144.933458ms"
+level=info msg="[linters_context/goanalysis] analyzers took 2m8.008861912s with top 10 stages: goimports: 37.185136083s, revive: 15.185555503s, buildir: 7.626106725s, gci: 7.372291834s, S1038: 6.003883544s, testifylint: 5.636554876s, forbidigo: 4.103692835s, nilness: 3.516789654s, QF1010: 2.498714794s, printf: 2.02306962s"
+level=info msg="[runner] Applying suggested fixes"
+level=info msg="[runner] fixer took 19.829083ms with stages: all: 19.829083ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 4 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 109 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 6 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 78 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 27 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 29 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 147 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 2 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 125 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 1153 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 29 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 33 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 273 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=warning msg="[runner/nolint_filter] Found unknown linters in //nolint directives: cognitive-complexity"
+level=info msg="[runner] Issues before processing: 5758, after processing: 11"
+level=info msg="[runner] Processors filtering stat (in/out): sort_results: 11/11, path_relativity: 5758/5758, exclusion_rules: 5681/3666, nolint_filter: 3666/2965, diff: 2965/17, max_per_file_from_linter: 11/11, source_code: 11/11, path_shortener: 11/11, cgo: 5758/5758, max_same_issues: 11/11, path_absoluter: 5758/5758, invalid_issue: 5758/5758, generated_file_filter: 5758/5681, uniq_by_line: 13/11, severity-rules: 11/11, path_prettifier: 11/11, filename_unadjuster: 5758/5758, exclusion_paths: 5758/5758, fixer: 17/13, max_from_linter: 11/11"
+level=info msg="[runner] processing took 895.396709ms with stages: diff: 584.180542ms, nolint_filter: 242.934042ms, generated_file_filter: 26.033ms, fixer: 19.926249ms, exclusion_rules: 17.830542ms, path_relativity: 3.046291ms, exclusion_paths: 477.125µs, cgo: 396.917µs, source_code: 354.959µs, invalid_issue: 144.084µs, path_absoluter: 39.5µs, filename_unadjuster: 22.333µs, path_prettifier: 3.625µs, uniq_by_line: 3.167µs, path_shortener: 2.375µs, sort_results: 1.291µs, max_same_issues: 334ns, max_per_file_from_linter: 250ns, max_from_linter: 83ns, severity-rules: 0s"
+level=info msg="[runner] linters took 21.962916041s with stages: goanalysis_metalinter: 21.067420333s"
+../chasm/bounded_layout.go:207:1: cyclomatic: function (*Node).validateBoundedNode has cyclomatic complexity 29 (> max enabled 25) (revive)
+func (n *Node) validateBoundedNode(path []string, node *Node) error {
+	b := n.bounded
+	if b == nil {
+		return nil
+	}
+	if node.serializedNode == nil || node.serializedNode.Metadata == nil {
+		return serviceerror.NewInternal("bounded layout contains missing node metadata")
+	}
+	if index, ok := b.layout.byPath[boundedPath(path)]; ok {
+		return n.validateBoundedComponent(index, node, path)
+	}
+	if len(path) == 1 && slices.Contains(reservedRootChildren, path[0]) && node.isData() && len(node.children) == 0 {
+		return nil
+	}
+	if len(path) > 0 {
+		if parent, ok := b.layout.byPath[boundedPath(path[:len(path)-1])]; ok {
+			field, ok := b.layout.fields[parent][path[len(path)-1]]
+			if ok && field.requiredEmpty && node.isMap() && len(node.children) == 0 {
+				return nil
+			}
+			if ok && field.kind == fieldKindDataMap && node.isMap() {
+				return nil
+			}
+			if ok && field.kind == fieldKindSubField && !field.typ.Implements(reflect.TypeFor[Component]()) && node.isData() && len(node.children) == 0 {
+				return nil
+			}
+		}
+	}
+	if len(path) > 1 {
+		if owner, ok := b.layout.byPath[boundedPath(path[:len(path)-2])]; ok {
+			field, ok := b.layout.fields[owner][path[len(path)-2]]
+			if ok && field.kind == fieldKindDataMap && node.isData() && len(node.children) == 0 {
+				return nil
+			}
+		}
+	}
+	return serviceerror.NewInternalf("unexpected bounded layout node at %v", path)
+}
+../chasm/data_map.go:206:1: cognitive-complexity: function (*dataMapState).sync has cognitive complexity 29 (> max enabled 25) (revive)
+func (s *dataMapState) sync() error {
+	n := s.owner
+	if n.value != s.ownerValue || s.root.valueToNode[s.ownerValue] != n || !n.currentTreeNode() {
+		return serviceerror.NewInternal("DataMap owner has been removed or replaced")
+	}
+	collection := n.children[s.field]
+	if collection != nil && !collection.isMap() {
+		return serviceerror.NewInternal("DataMap field is not a collection")
+	}
+	for key, value := range s.delta {
+		if value == nil {
+			if err := s.deleteEntry(collection, key); err != nil {
+				return err
+			}
+			continue
+		}
+		if collection == nil {
+			collection = newNode(n.nodeBase, n, s.field)
+			collection.initSerializedCollectionNode()
+			collection.setValueState(valueStateNeedSerialize)
+			n.children[s.field] = collection
+			if err := n.validateBoundedNode(collection.path(), collection); err != nil {
+				return err
+			}
+		}
+		child, exists := collection.children[key]
+		if exists && !child.isData() {
+			return serviceerror.NewInternal("DataMap entry is not DATA")
+		}
+		if !exists {
+			child = s.removed[key]
+			if child == nil {
+				child = newNode(n.nodeBase, collection, key)
+				child.initSerializedNode(fieldTypeData)
+			}
+			path, err := child.getEncodedPath()
+			if err != nil {
+				return err
+			}
+			delete(n.mutation.DeletedNodes, path)
+			collection.children[key] = child
+			if err := n.validateBoundedNode(child.path(), child); err != nil {
+				return err
+			}
+		}
+		child.setValue(value)
+		child.setValueState(valueStateNeedSerialize)
+	}
+	// Discard backing capacity so a later point delta cannot inherit a large
+	// constructor transaction's map iteration cost.
+	s.delta = make(map[string]proto.Message)
+	return nil
+}
+../chasm/lib/scheduler2/component.go:160:1: cognitive-complexity: function (*Scheduler).applyTransition has cognitive complexity 60 (> max enabled 25) (revive)
+func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Event) error {
+	if err := s.validateOperationStore(); err != nil {
+		return err
+	}
+	if s.OperationStore != nil && !s.completeOperationProfile() {
+		return serviceerror.NewFailedPrecondition("addressed operation runtime integration is incomplete")
+	}
+	if s.Closed {
+		return nil
+	}
+	if event.Incarnation != s.Incarnation {
+		return nil
+	}
+	if s.PublicList.IsSet() || s.ListControl.IsSet() {
+		var err error
+		ctx, err = s.reserveMemoVersion(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	now := ctx.Now(s)
+	if !time.Unix(0, now.UnixNano()).Equal(now) {
+		return serviceerror.NewInvalidArgument("execution time exceeds nanosecond range")
+	}
+	event.Now = now.UnixNano()
+	operationID := event.OperationID
+	if admissionEvent(event.Kind) || event.Kind == decision.Update {
+		operationID = s.OperationId
+	}
+	before, err := s.stateFor(ctx, operationID)
+	if err != nil {
+		return err
+	}
+	if err := s.prepareManual(ctx, before, &event); err != nil {
+		return err
+	}
+	if err := s.prepareDrain(ctx, before, &event); err != nil {
+		return err
+	}
+	if err := s.prepareCompletion(before, &event); err != nil {
+		return err
+	}
+	if err := s.prepareFailureCarryover(ctx, &before, event); err != nil {
+		return err
+	}
+
+	next, err := decision.Step(before, event)
+	if err != nil {
+		return err
+	}
+	publicMutation := s.PublicRevision != 0 && ((admissionEvent(event.Kind) && next.Root.Remaining < before.Root.Remaining) || (event.Kind == decision.Callback && !before.Root.Paused && next.Root.Paused))
+	if publicMutation && s.PublicRevision == math.MaxUint64 {
+		return serviceerror.NewFailedPrecondition("public mutation counter exhausted")
+	}
+	next, effectRequests, err := s.prepareEffects(ctx, next)
+	if err != nil {
+		return err
+	}
+	newAdmission := admissionEvent(event.Kind) && next.Operation != nil && (before.Operation == nil || next.Operation.ID != before.Operation.ID)
+	if newAdmission {
+		if err := s.freezeAdmission(ctx, next.Operation); err != nil {
+			return err
+		}
+	}
+	if decision.QueueLength(next) > 0 && !s.HasGenerator {
+		return serviceerror.NewFailedPrecondition("buffering requires a configured template")
+	}
+	if err := s.checkNextWorkToken(ctx, next); err != nil {
+		return err
+	}
+	if err := s.checkNextIdle(ctx, next); err != nil {
+		return err
+	}
+	eviction, err := s.retentionEviction(ctx, before, next)
+	if err != nil {
+		return err
+	}
+	prepared := payloadPreparation{}
+	var requestRecord *scheduler2pb.Payload
+	var carryoverRecord *scheduler2pb.CarryoverState
+	if newAdmission {
+		var blobs payloadPreparation
+		requestRecord, blobs, err = s.splitRequest(ctx, next.Operation.Request)
+		if err != nil {
+			return err
+		}
+		maps.Copy(prepared, blobs)
+	}
+	if next.Carryover != nil {
+		var blobs payloadPreparation
+		carryoverRecord, blobs, err = s.prepareCarryover(ctx, &scheduler2pb.CarryoverState{Result: next.Carryover.Result, Failure: next.Carryover.Failure, FailurePresent: next.Carryover.FailurePresent})
+		if err != nil {
+			return err
+		}
+		maps.Copy(prepared, blobs)
+	}
+	publicPlan, err := s.preparePublicTransition(ctx, before, next, event, newAdmission)
+	if err != nil {
+		return err
+	}
+	recordPlan, err := s.prepareTransitionRecords(ctx, next, newAdmission, eviction, publicPlan.eviction, requestRecord)
+	if err != nil {
+		return err
+	}
+	publicPlan, err = s.finalizePublicTransition(ctx, publicPlan, recordPlan)
+	if err != nil {
+		return err
+	}
+	owners := recordPlan.owners
+	if next.Carryover != nil {
+		var old *scheduler2pb.CarryoverState
+		if s.CarryoverSet && s.PayloadStore != nil {
+			old = s.Carryover.Get(ctx)
+		}
+		owners = append(owners, blobOwnerChange{owner: "carryover", before: carryoverRefs(old), after: carryoverRefs(carryoverRecord)})
+	}
+	blobPlan, err := s.prepareBlobDelta(ctx, owners, prepared)
+	if err != nil {
+		return err
+	}
+	packedPlan, err := s.preparePackedPublication(ctx, recordPlan, publicPlan)
+	if err != nil {
+		return err
+	}
+	if next.QueueChange.Appended {
+		if err := s.stageQueueAppend(ctx, next.QueueChange.Append); err != nil {
+			return err
+		}
+	} else if next.QueueChange.Drained {
+		if err := s.stageQueueDrain(ctx, next.QueueChange.Drain, before); err != nil {
+			return err
+		}
+	}
+	s.publishPackedMutation(ctx, packedPlan)
+	s.publishOperationRecords(ctx, recordPlan)
+	s.publishBlobDelta(ctx, blobPlan)
+	s.publishTransition(ctx, before, next, event.Kind, newAdmission, eviction, effectRequests, carryoverRecord)
+	s.publishPublicTransition(ctx, publicPlan)
+	if publicMutation {
+		s.PublicRevision++
+		if event.Kind == decision.Callback && !before.Root.Paused && next.Root.Paused && !s.ListControl.IsSet() {
+			s.projectPublicPause(ctx, event.Status, next.Operation.WorkflowID)
+		}
+	}
+	s.collectPayloadBlobs(ctx)
+	return nil
+}
+../chasm/lib/scheduler2/component.go:310:1: cognitive-complexity: function (*Scheduler).publishTransition has cognitive complexity 26 (> max enabled 25) (revive)
+func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next decision.State, kind decision.Kind, newAdmission bool, eviction string, effectRequests map[string][]byte, carryoverRecord *scheduler2pb.CarryoverState) {
+	if (s.PublicList.IsSet() || s.ListControl.IsSet()) && s.Paused != next.Root.Paused {
+		s.publishMemoVersion(ctx)
+	}
+	var pendingStarts map[string]int64
+	if s.OperationStore == nil || s.OperationStore.StartDispatch == nil {
+		pendingStarts = maps.Clone(s.PendingStarts)
+		if pendingStarts == nil {
+			pendingStarts = make(map[string]int64)
+		}
+		delete(pendingStarts, eviction)
+		if next.Operation != nil {
+			if wake, pending := decision.Wake(next); pending {
+				pendingStarts[next.Operation.ID] = wake
+			} else {
+				delete(pendingStarts, next.Operation.ID)
+			}
+		}
+	}
+	hasGenerator, latestOperationID := s.HasGenerator, s.OperationId
+	drainToken, drainArmed, drainAt := s.DrainToken, s.DrainArmed, s.DrainAt
+	manualToken, manualArmed, manualAt := s.ManualToken, s.ManualArmed, s.ManualAt
+	if kind == decision.DispatchManual {
+		manualArmed = false
+	}
+	previousRoot := s.RootState
+	s.RootState = &scheduler2pb.RootState{
+		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef, IndexedQueue: previousRoot.IndexedQueue, OperationStore: previousRoot.OperationStore, PayloadStore: previousRoot.PayloadStore, ProjectionStore: previousRoot.ProjectionStore, MemoRevision: previousRoot.MemoRevision, PackedStorage: previousRoot.PackedStorage,
+		ActivitySet: next.Root.ActivitySet, ActivityAt: next.Root.ActivityAt, UnconfirmedStarts: next.Root.UnconfirmedStarts,
+		IdleDuration: previousRoot.IdleDuration, IdleToken: previousRoot.IdleToken, IdleArmed: previousRoot.IdleArmed, IdleAt: previousRoot.IdleAt,
+		Closed: previousRoot.Closed, Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
+		ManualSequence: next.Root.ManualSequence, ManualToken: manualToken, ManualArmed: manualArmed, ManualAt: manualAt,
+		Incarnation: next.Root.Incarnation, Revision: next.Root.Revision, Cursor: next.Root.Cursor,
+		Paused: next.Root.Paused, Limited: next.Root.Limited, Remaining: next.Root.Remaining,
+		DrainToken: drainToken, DrainArmed: drainArmed, DrainAt: drainAt, Policy: next.Root.Policy, BufferDropped: next.Root.BufferDropped,
+		Unfinished: next.Root.Unfinished, BlockingOperationId: next.Root.BlockingOperationID, CapacityDropped: next.Root.CapacityDropped, OverlapSuperseded: next.Root.OverlapSuperseded,
+		PendingStarts: pendingStarts, OperationId: latestOperationID, HasGenerator: hasGenerator, Started: next.Root.Started, CarryoverSet: next.Root.CarryoverSet, PauseOnFailure: next.Root.PauseOnFailure,
+	}
+	for _, m := range next.Manuals {
+		s.Manuals = append(s.Manuals, &scheduler2pb.ManualCommand{Id: m.ID, Nominal: m.Nominal, NominalTime: encodeDecisionTime(m.NominalTime), Policy: m.Policy})
+	}
+	if !next.IndexedQueue.Enabled {
+		for _, q := range next.Queue {
+			s.Queue = append(s.Queue, encodeQueued(q))
+		}
+	}
+	if next.Carryover != nil {
+		s.Carryover = chasm.NewDataField(ctx, carryoverRecord)
+	}
+	if newAdmission {
+		s.OperationId = next.Operation.ID
+	}
+	oldWake, hadWake := decision.Wake(before)
+	wake, hasWake := decision.Wake(next)
+	if (s.OperationStore == nil || s.OperationStore.StartDispatch == nil) && hasWake && (!hadWake || before.Operation.ID != next.Operation.ID || oldWake != wake) {
+		scheduled := time.Unix(0, wake)
+		if s.workQuanta(ctx) > 0 && !scheduled.After(ctx.Now(s)) {
+			// Due side effects use the transfer queue, as in the legacy invoker.
+			// The payload retains the logical wake/deadline fencing; future retries remain timers.
+			scheduled = chasm.TaskScheduledTimeImmediate
+		}
+		ctx.AddTask(s, chasm.TaskAttributes{ScheduledTime: scheduled},
+			&scheduler2pb.StartTask{OperationId: next.Operation.ID, WakeTime: wake})
+	}
+	s.publishEffects(ctx, before, next, effectRequests)
+
+}
+../chasm/lib/scheduler2/effects.go:19:1: cognitive-complexity: function (*Scheduler).prepareEffects has cognitive complexity 26 (> max enabled 25) (revive)
+func (s *Scheduler) prepareEffects(ctx chasm.Context, next decision.State) (decision.State, map[string][]byte, error) {
+	if err := s.validateEffects(); err != nil {
+		return decision.State{}, nil, err
+	}
+	if err := validateDecisionEffects(next); err != nil {
+		return decision.State{}, nil, err
+	}
+	for _, effect := range next.Effects {
+		if effect.Phase != decision.AwaitingTarget {
+			continue
+		}
+		target := next.Operation
+		if target == nil || target.ID != effect.TargetID {
+			targetState, err := s.stateFor(ctx, effect.TargetID)
+			if err != nil {
+				return decision.State{}, nil, err
+			}
+			target = targetState.Operation
+		}
+		if target == nil {
+			return decision.State{}, nil, serviceerror.NewFailedPrecondition("effect target metadata is missing")
+		}
+		var err error
+		next, err = decision.BindEffects(next, target, ctx.Now(s).UnixNano())
+		if err != nil {
+			return decision.State{}, nil, err
+		}
+		break
+	}
+	requests := make(map[string][]byte)
+	for _, effect := range next.Effects {
+		if effect.Phase != decision.EffectPending {
+			continue
+		}
+		if s.effectRequestPresent(effect.ID, effect.Kind) {
+			continue
+		}
+		// Effect identity lives in the small skeleton; large fields are irrelevant.
+		start := &workflowservice.StartWorkflowExecutionRequest{}
+		record, err := s.requiredRequestRecord(ctx, effect.TargetID)
+		if err != nil {
+			return decision.State{}, nil, err
+		}
+		if err := proto.Unmarshal(record.Data, start); err != nil {
+			return decision.State{}, nil, err
+		}
+		wire, err := freezeEffect(effect, start)
+		if err != nil {
+			return decision.State{}, nil, err
+		}
+		requests[effect.ID] = wire
+	}
+	return next, requests, nil
+}
+../chasm/lib/scheduler2/generator.go:96:1: cyclomatic: function (*Scheduler).prepareGeneration has cyclomatic complexity 26 (> max enabled 25) (revive)
+func (s *Scheduler) prepareGeneration(ctx chasm.Context, config GenerationConfig, controls *UpdateConfig) (*generationPreparation, error) {
+	if !decision.ValidPolicy(config.Policy) || config.Request == nil || config.Request.WorkflowId == "" || config.CatchupWindow < 0 || config.Revision < s.Revision {
+		return nil, serviceerror.NewInvalidArgument("invalid local generation configuration")
+	}
+	g, e, prepared, err := s.prepareGenerationCursor(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+	now := ctx.Now(s)
+	var state occurrence.State
+	var superseded *occurrence.Candidate
+	if g != nil {
+		state, superseded, err = e.Update(decodeContinuation(g.Continuation), now)
+	} else {
+		after := config.After
+		if boundary := time.Unix(0, s.Cursor).UTC(); boundary.After(after) {
+			after = boundary
+		}
+		state, err = e.Begin(after)
+	}
+	if err != nil {
+		return nil, err
+	}
+	var spec []byte
+	if legacy, ok := e.(*occurrence.Enumerator); ok {
+		if _, err := legacy.Run(state, now, occurrence.Limits{Probes: 1, Outputs: 1}); err != nil {
+			return nil, err
+		}
+		spec, err = proto.MarshalOptions{Deterministic: true}.Marshal(config.Spec)
+		if err != nil {
+			return nil, err
+		}
+	}
+	request, err := proto.MarshalOptions{Deterministic: true}.Marshal(config.Request)
+	if err != nil {
+		return nil, err
+	}
+	requestRecord, blobs, err := s.splitRequest(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if requestRecord.ResultRef != "" || requestRecord.FailureRef != "" {
+		return nil, serviceerror.NewInvalidArgument("generation template cannot contain completion carryover")
+	}
+	if g != nil && g.Token == math.MaxUint64 {
+		return nil, serviceerror.NewFailedPrecondition("generation token exhausted")
+	}
+	// Configuration arms an immediate scan even for an empty source. Preflight
+	// its coordinator wake before replacing any root, generator or DATA fields.
+	if err := checkWorkWakeToken(s.Coordination, now); err != nil {
+		return nil, err
+	}
+	atNano, err := activityNano(now)
+	if err != nil {
+		return nil, err
+	}
+	preview, err := s.stateFor(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	if controls != nil {
+		preview.Root.Paused = controls.Paused
+		preview.Root.Limited = controls.Limited
+		preview.Root.Remaining = controls.Remaining
+		preview.Root.PauseOnFailure = controls.PauseOnFailure
+	}
+	if !preview.Root.ActivitySet || atNano > preview.Root.ActivityAt {
+		preview.Root.ActivityAt = atNano
+	}
+	preview.Root.ActivitySet = true
+	if _, _, err := s.checkIdlePlan(preview, encodeContinuation(state), true, len(s.Backfills) > 0); err != nil {
+		return nil, err
+	}
+
+	oldRef := s.generatorOwnerRef(ctx, g)
+	return &generationPreparation{prepared: prepared, generator: g, definition: &scheduler2pb.GenerationDefinition{Spec: spec, Seed: config.Seed, Request: requestRecord.Data, ActionRef: requestRecord.ActionRef}, state: state, superseded: superseded, config: config, preview: preview, now: now, blobs: blobs, owner: blobOwnerChange{owner: "generator-definition", before: [3]string{oldRef}, after: [3]string{requestRecord.ActionRef}}}, nil
+}
+../chasm/lib/scheduler2/operation_store.go:113:1: cognitive-complexity: function (*Scheduler).prepareOperationRecords has cognitive complexity 27 (> max enabled 25) (revive)
+func (s *Scheduler) prepareOperationRecords(ctx chasm.Context, changes []operationRecordChange) (operationRecordPlan, error) {
+	if err := s.validateOperationStore(); err != nil {
+		return operationRecordPlan{}, err
+	}
+	if len(changes) > 3 {
+		return operationRecordPlan{}, serviceerror.NewInternal("operation record mutation budget exceeded")
+	}
+	plan := operationRecordPlan{control: common.CloneProto(s.OperationStore)}
+	seen := make(map[string]bool, len(changes))
+	for _, change := range changes {
+		if change.id == "" || seen[change.id] || change.operation != nil && change.operation.Id != change.id {
+			return operationRecordPlan{}, serviceerror.NewInternal("invalid operation record identity")
+		}
+		seen[change.id] = true
+		oldRefs, err := s.prepareOperationRecord(ctx, change, plan.control)
+		if err != nil {
+			return operationRecordPlan{}, err
+		}
+		if change.changeRequest {
+			plan.owners = append(plan.owners, blobOwnerChange{owner: "request/" + change.id, before: oldRefs, after: payloadRefs(change.request)})
+		}
+		change.operation = common.CloneProto(change.operation)
+		change.request = common.CloneProto(change.request)
+		plan.changes = append(plan.changes, change)
+	}
+	if plan.control != nil && plan.control.RequestCount > plan.control.OperationCount {
+		return operationRecordPlan{}, serviceerror.NewInternal("invalid request owner count")
+	}
+	indexes, err := s.prepareOperationIndexes(ctx, changes, plan.control)
+	if err != nil {
+		return operationRecordPlan{}, err
+	}
+	plan.indexes = indexes
+	if plan.control != nil && plan.control.StartDispatch != nil {
+		editor, err := s.newOperationReadinessEditor(ctx, plan.control)
+		if err != nil {
+			return operationRecordPlan{}, err
+		}
+		defer editor.abort()
+		for _, change := range plan.changes {
+			if err := editor.change(change); err != nil {
+				return operationRecordPlan{}, err
+			}
+		}
+		plan.dispatchChanged, err = prepareStartDispatch(editor, false)
+		if err != nil {
+			return operationRecordPlan{}, err
+		}
+		plan.readiness, err = editor.finish()
+		if err != nil {
+			return operationRecordPlan{}, err
+		}
+	}
+	return plan, nil
+}
+../chasm/lib/scheduler2/operation_store.go:259:1: cognitive-complexity: function (*Scheduler).prepareOperationRecord has cognitive complexity 28 (> max enabled 25) (revive)
+func (s *Scheduler) prepareOperationRecord(ctx chasm.Context, change operationRecordChange, control *pb.OperationStoreControl) (refs [3]string, err error) {
+	_, existed, err := s.operationRecord(ctx, change.id)
+	if err != nil {
+		return refs, err
+	}
+	hadRequest := false
+	if change.changeRequest || change.operation == nil {
+		if s.PayloadStore != nil {
+			old, ok, readErr := s.requestEnvelopeRecord(ctx, change.id)
+			if readErr != nil {
+				return refs, readErr
+			}
+			hadRequest = ok
+			refs = payloadRefs(old)
+		} else if s.OperationStore == nil {
+			_, hadRequest = s.Requests[change.id]
+		} else {
+			_, hadRequest = s.RequestRecords.Get(ctx, change.id)
+		}
+	}
+	if change.changeRequest && change.request != nil && hadRequest {
+		return refs, serviceerror.NewInternal("immutable operation request cannot be replaced")
+	}
+	if change.operation == nil && (!change.changeRequest && hadRequest || change.request != nil) {
+		return refs, serviceerror.NewInternal("request owner requires operation metadata")
+	}
+	if control != nil {
+		if existed && control.OperationCount == 0 || hadRequest && control.RequestCount == 0 {
+			return refs, serviceerror.NewInternal("operation record membership exceeds summary")
+		}
+		var err error
+		control.OperationCount, err = changedRecordCount(control.OperationCount, existed, change.operation != nil)
+		if err != nil {
+			return refs, err
+		}
+		if change.changeRequest {
+			control.RequestCount, err = changedRecordCount(control.RequestCount, hadRequest, change.request != nil)
+			if err != nil {
+				return refs, err
+			}
+		}
+	}
+	return refs, nil
+}
+../chasm/lib/scheduler2/public_projection.go:258:1: cognitive-complexity: function publicDispositionCounts has cognitive complexity 32 (> max enabled 25) (revive)
+func publicDispositionCounts(before, next decision.State, event decision.Event) (skipped, missed, dropped int64) {
+	policy := before.Root.Policy
+	eligible := !before.Root.Paused && (!before.Root.Limited || before.Root.Remaining > 0)
+	switch event.Kind {
+	case decision.Due:
+		if next.Root.Cursor <= before.Root.Cursor || !eligible {
+			return
+		}
+		if event.Now > event.CatchupDeadline {
+			return 0, 1, 0
+		}
+	case decision.DispatchManual:
+		if len(next.Manuals) >= len(before.Manuals) {
+			return
+		}
+		if override := before.Manuals[0].Policy; override != enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
+			policy = override
+		}
+	case decision.DispatchBackfill:
+		if event.BackfillBatchSkip {
+			return 1, 0, 0
+		}
+		if !decision.QueueAvailable(before) {
+			return
+		}
+		if event.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED {
+			policy = event.Policy
+		}
+	case decision.Drain:
+		if eligible {
+			if before.IndexedQueue.Enabled {
+				if next.QueueChange.Drained {
+					for _, count := range next.QueueChange.Drain.Ineligible[:3] {
+						missed += count
+					}
+				}
+			} else {
+				missed = publicExpiredWaiters(before.Queue, next.Queue, event.Now, event.CatchupWindow)
+			}
+		}
+		return
+	default:
+		return
+	}
+	skipped, dropped = publicOverlapCounts(before, next, policy)
+	return
+}
+../chasm/lib/scheduler2/timeskipping.go:10:1: cyclomatic: function (*Scheduler).IsExecutionSkippable has cyclomatic complexity 31 (> max enabled 25) (revive)
+func (s *Scheduler) IsExecutionSkippable(ctx chasm.Context) bool {
+	if ready, err := s.preparedMaintenanceReady(ctx, s.sourcePreparationPending(ctx)); err != nil || ready {
+		return false
+	}
+	if err := s.validateOperationStore(); err != nil {
+		return false
+	}
+	if c := s.OperationStore; c != nil && c.StartDispatch != nil && (c.PendingCount != 0 || c.StartDispatch.Claim != nil || c.StartDispatch.Armed && c.StartDispatch.At <= ctx.Now(s).UnixNano()) {
+		return false
+	}
+	if _, err := s.queueSummary(); err != nil {
+		return false
+	}
+	if s.sourcePreparationPending(ctx) || s.queueMaintenancePending() || s.Closed || s.Paused || !s.HasGenerator || s.Unfinished != 0 || s.UnconfirmedStarts != 0 ||
+		len(s.PendingStarts) != 0 || len(s.Effects) != 0 || s.queueLength() != 0 || len(s.Manuals) != 0 || len(s.Backfills) != 0 {
+		return false
+	}
+	now := ctx.Now(s).UnixNano()
+	if c := s.Coordination; c != nil && (c.OwnerKey != "" || c.Armed && c.At <= now) {
+		return false
+	}
+	g := s.Generator.Get(ctx)
+	if !g.Armed || g.WakeAt > now {
+		return true
+	}
+	// A control patch re-arms the generator at now even when its next candidate
+	// is already cached. The coordinator waits for that candidate's actual time;
+	// the old wake is not runnable work in that case (see automaticDemand).
+	pending := g.Continuation.GetPending()
+	return pending != nil && !pending.Excluded && pending.Actual > now
+}
+../chasm/lib/scheduler2/update_failure_test.go:100:4: SA4006: this value of ctx is never used (staticcheck)
+			s, ctx = h.root(false)
+			^
+11 issues:
+* revive: 10
+* staticcheck: 1
+level=info msg="File cache stats: 10 entries of total size 88.9KiB"
+level=info msg="Memory: 393 samples, avg is 1471.6MB, max is 3771.5MB"
+level=info msg="Execution took 39.875535209s"
+make[1]: *** [lint-code] Error 1
+make: *** [lint-code-fast] Error 2

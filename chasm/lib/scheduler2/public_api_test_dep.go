@@ -25,12 +25,15 @@ import (
 )
 
 type publicTestFrontend struct {
-	addressed   bool
-	engine      chasm.Engine
-	visibility  chasm.VisibilityManager
-	mapper      *chasm.VisibilitySearchAttributesMapper
-	tweaks      func(string) schedulerconfig.Tweakables
-	specBuilder *legacyscheduler.SpecBuilder
+	addressed      bool
+	packedPrepared bool
+	preparation    *PreparationService
+	computeLimits  func() (int, int)
+	engine         chasm.Engine
+	visibility     chasm.VisibilityManager
+	mapper         *chasm.VisibilitySearchAttributesMapper
+	tweaks         func(string) schedulerconfig.Tweakables
+	specBuilder    *legacyscheduler.SpecBuilder
 }
 
 // NewPublicTestFrontend installs the paused public profile before a dedicated
@@ -63,6 +66,9 @@ func (f *publicTestFrontend) SearchAttributesMapper() *chasm.VisibilitySearchAtt
 }
 
 func (f *publicTestFrontend) CreateSchedule(ctx context.Context, namespaceID namespace.ID, request *workflowservice.CreateScheduleRequest) (*workflowservice.CreateScheduleResponse, error) {
+	if f.preparation != nil {
+		return f.createPreparedSchedule(ctx, namespaceID, request)
+	}
 	constructor := NewPublicSchedule
 	if f.tweaks != nil {
 		constructor = func(cc chasm.MutableContext, r *workflowservice.CreateScheduleRequest) (*Scheduler, error) {
@@ -83,6 +89,9 @@ func (f *publicTestFrontend) CreateSchedule(ctx context.Context, namespaceID nam
 }
 
 func (f *publicTestFrontend) DescribeSchedule(ctx context.Context, namespaceID namespace.ID, request *workflowservice.DescribeScheduleRequest) (*workflowservice.DescribeScheduleResponse, error) {
+	if f.preparation != nil {
+		return f.describePreparedSchedule(ctx, namespaceID, request)
+	}
 	return chasm.ReadComponent(f.bind(ctx), chasm.NewComponentRef[*Scheduler](chasm.ExecutionKey{NamespaceID: namespaceID.String(), BusinessID: request.ScheduleId}),
 		func(s *Scheduler, cc chasm.Context, _ struct{}) (*workflowservice.DescribeScheduleResponse, error) {
 			return s.DescribePublic(cc)
@@ -135,20 +144,20 @@ func (f *publicTestFrontend) CountSchedules(ctx context.Context, _ namespace.ID,
 // NewPublicExecutionTestFrontend binds side effects to actual service clients.
 // Activation remains confined to explicitly constructed dedicated test clusters.
 func NewPublicExecutionTestFrontend(runtime testhooks.HistoryChasmRuntime) (testhooks.ScheduleFrontend, error) {
-	return newPublicExecutionTestFrontend(runtime, false)
+	return newPublicExecutionTestFrontend(runtime, false, false)
 }
 
 // NewBoundedPublicExecutionTestFrontend selects the fresh addressed runtime and
 // bounded CHASM traversal in an explicitly isolated test cluster.
 func NewBoundedPublicExecutionTestFrontend(runtime testhooks.HistoryChasmRuntime) (testhooks.ScheduleFrontend, error) {
-	return newPublicExecutionTestFrontend(runtime, true)
+	return newPublicExecutionTestFrontend(runtime, true, false)
 }
 
 // NewBoundedPublicTestNilLibrary supplies the matching offline descriptor for
 // dedicated frontend and history registries in bounded-profile tests.
 func NewBoundedPublicTestNilLibrary() *Library { return newBoundedNilLibrary() }
 
-func newPublicExecutionTestFrontend(runtime testhooks.HistoryChasmRuntime, addressed bool) (testhooks.ScheduleFrontend, error) {
+func newPublicExecutionTestFrontend(runtime testhooks.HistoryChasmRuntime, addressed, prepared bool) (*publicTestFrontend, error) {
 	start := NewStartHandler(nil)
 	start.startWorkflow = func(ctx context.Context, request *workflowservice.StartWorkflowExecutionRequest) (*workflowservice.StartWorkflowExecutionResponse, error) {
 		if err := runtime.CallbackValidator.Validate(ctx, request.Namespace, request.CompletionCallbacks, callbacks.ValidatorOptions{EnabledKinds: chasmworkflow.EnabledCallbackKinds.Get(runtime.DynamicConfig)(request.Namespace)}); err != nil {
@@ -188,19 +197,33 @@ func newPublicExecutionTestFrontend(runtime testhooks.HistoryChasmRuntime, addre
 	if addressed {
 		library = newBoundedLibrary(start, effects)
 	}
+	if prepared {
+		service, err := NewProcessPreparationService()
+		if err != nil {
+			return nil, err
+		}
+		library.preparation = service
+	}
 	library.tweaks = schedulerconfig.CurrentTweakables.Get(runtime.DynamicConfig)
-	library.specBuilder = legacyscheduler.NewSpecBuilder(dynamicconfig.SchedulerSpecWarnIterations.Get(runtime.DynamicConfig), dynamicconfig.SchedulerSpecMaxIterations.Get(runtime.DynamicConfig))
+	warn, maximum := dynamicconfig.SchedulerSpecWarnIterations.Get(runtime.DynamicConfig), dynamicconfig.SchedulerSpecMaxIterations.Get(runtime.DynamicConfig)
+	library.specBuilder = legacyscheduler.NewSpecBuilder(warn, maximum)
+	library.previewLimits = func() (int, int) { return warn(), maximum() }
 	frontend, err := newPublicTestFrontend(runtime.Engine, runtime.Visibility, runtime.Registry, library)
 	if err != nil {
 		return nil, err
 	}
 	frontend.addressed = addressed
+	frontend.preparation = library.preparation
+	frontend.computeLimits = library.previewLimits
 	frontend.tweaks = schedulerconfig.CurrentTweakables.Get(runtime.DynamicConfig)
 	frontend.specBuilder = library.specBuilder
 	return frontend, nil
 }
 
 func (f *publicTestFrontend) UpdateSchedule(ctx context.Context, namespaceID namespace.ID, request *workflowservice.UpdateScheduleRequest) (*workflowservice.UpdateScheduleResponse, error) {
+	if f.preparation != nil {
+		return f.updatePreparedSchedule(ctx, namespaceID, request)
+	}
 	if f.tweaks == nil {
 		return nil, serviceerror.NewUnimplemented("scheduler2 public UpdateSchedule is not enabled")
 	}
@@ -229,6 +252,9 @@ func (f *publicTestFrontend) PatchSchedule(ctx context.Context, namespaceID name
 }
 
 func (f *publicTestFrontend) ListScheduleMatchingTimes(ctx context.Context, namespaceID namespace.ID, request *workflowservice.ListScheduleMatchingTimesRequest) (*workflowservice.ListScheduleMatchingTimesResponse, error) {
+	if f.preparation != nil {
+		return f.matchingPreparedSchedule(ctx, namespaceID, request)
+	}
 	if f.specBuilder == nil {
 		return nil, serviceerror.NewUnimplemented("scheduler2 public ListScheduleMatchingTimes is not enabled")
 	}

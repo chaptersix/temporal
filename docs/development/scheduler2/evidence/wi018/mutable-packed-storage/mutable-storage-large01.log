@@ -1,0 +1,19 @@
+=== RUN   TestMutablePackedSixClassIndexMeasurement
+=== RUN   TestMutablePackedSixClassIndexMeasurement/1000
+    mutable_queue_index_measurement_test.go:92: MUTABLE_SIX_CLASS_INDEX_ONLY N=1000 initial_framed=344237 two_generation_framed=195251 peak_committed=344335 nodes=229 max_mutation_updated_framed_bytes=81223 max_changed_pages=68 max_backend_reads=858; excludes queue records and Scheduler
+=== RUN   TestMutablePackedSixClassIndexMeasurement/10000
+    mutable_queue_index_measurement_test.go:92: MUTABLE_SIX_CLASS_INDEX_ONLY N=10000 initial_framed=4583844 two_generation_framed=2555365 peak_committed=4583844 nodes=2819 max_mutation_updated_framed_bytes=304691 max_changed_pages=269 max_backend_reads=2625; excludes queue records and Scheduler
+--- PASS: TestMutablePackedSixClassIndexMeasurement (37.08s)
+    --- PASS: TestMutablePackedSixClassIndexMeasurement/1000 (1.09s)
+    --- PASS: TestMutablePackedSixClassIndexMeasurement/10000 (35.99s)
+=== RUN   TestMutablePackedStorageMeasurement
+=== RUN   TestMutablePackedStorageMeasurement/1000
+    mutable_storage_measurement_test.go:172: MUTABLE isolated_issuance=false N=1000 original=1898183 initial=767769 after_delete=550424 final=715217 peak_committed=767769 nodes=829 max_transaction_updated_framed_bytes=6320 max_changed_pages=8 max_backend_reads=8 verification_reads=38995 fixed=4091
+    mutable_storage_measurement_test.go:172: MUTABLE isolated_issuance=true N=1000 original=1898183 initial=821638 after_delete=593240 final=774186 peak_committed=821638 nodes=1737 max_transaction_updated_framed_bytes=4541 max_changed_pages=8 max_backend_reads=8 verification_reads=35995 fixed=4091
+=== RUN   TestMutablePackedStorageMeasurement/10000
+    mutable_storage_measurement_test.go:172: MUTABLE isolated_issuance=false N=10000 original=18975955 initial=7835573 after_delete=5566238 final=7276600 peak_committed=7835573 nodes=8283 max_transaction_updated_framed_bytes=6785 max_changed_pages=10 max_backend_reads=10 verification_reads=480000 fixed=4091
+    mutable_storage_measurement_test.go:172: MUTABLE isolated_issuance=true N=10000 original=18975955 initial=8371789 after_delete=6000690 final=7865556 peak_committed=8371789 nodes=17352 max_transaction_updated_framed_bytes=5788 max_changed_pages=10 max_backend_reads=10 verification_reads=440000 fixed=4091
+--- PASS: TestMutablePackedStorageMeasurement (12.03s)
+    --- PASS: TestMutablePackedStorageMeasurement/1000 (0.72s)
+    --- PASS: TestMutablePackedStorageMeasurement/10000 (11.31s)
+PASS

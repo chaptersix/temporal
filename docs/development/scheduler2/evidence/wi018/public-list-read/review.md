@@ -1,0 +1,9 @@
+# Selected public list read wiring
+
+Scheduler.Memo selects listMemo when ListControl.IsSet; initial unpublished window returns a nil interface, avoiding typed-nil protobuf output. SearchAttributes selects listFirstFuture from fixed control. Helper errors panic as framework invariant failures, matching existing DATA/projection error handling. Legacy read branches remain unchanged when ListControl is absent; no constructor or transition writer activation is added.
+
+Tests register NewNilLibrary and publish actual two-slot list state. Cold detached Memo remains coherent while old PublicList/PublicSchedule DATA are invalid; returned nested spec/action/window are detached. SearchAttributes and actual CloseTransaction succeed with additional static Spec and Notes DATA poisoned, including a MemoRevision change and paused metadata publication. No poisoned field materializes; ListControl does. Malformed owner control panics with no legacy fallback.
+
+Directed02 PASS0.693s including existing public visibility and memo-version tests. Initial01 failed only because test reflect equality compared protobuf implementation caches; corrected to proto.Equal without changing product code/asserted semantics. Parent owns required combined lint and final shared-file freeze. Snapshot of Memo function is retained separately because parent edits public.go constructor concurrently; reviewer changed only Memo in that file.
+
+Remaining integration gates: selected writers must publish dynamic metadata and reserve MemoVersion, actual preview maintenance/source staging must run, and constructor activation remains disabled. Full Memo export necessarily reads the selected static projection as output work; the hot-close/SearchAttributes tests prove it is not decoded there. No live visibility delivery or complete prepared scheduler activation is claimed by these read tests.

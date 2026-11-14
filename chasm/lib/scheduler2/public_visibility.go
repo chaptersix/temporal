@@ -20,9 +20,15 @@ func (s *Scheduler) SearchAttributes(ctx chasm.Context) []chasm.SearchAttributeK
 	if s.Closed {
 		return attributes
 	}
-	// The list preview is refreshed by accepted transitions using the live spec
-	// builder. Indexing reads its first entry without loading action payloads.
-	if list, ok := s.PublicList.TryGet(ctx); ok && len(list.FutureActionTimes) > 0 {
+	if s.ListControl.IsSet() {
+		first, err := s.listFirstFuture(ctx)
+		if err != nil {
+			panic(err) //nolint:forbidigo // Framework invariant failure, as with DATA decoding.
+		}
+		if first != nil {
+			attributes = append(attributes, publicNextActionTime.Value(first.AsTime()))
+		}
+	} else if list, ok := s.PublicList.TryGet(ctx); ok && len(list.FutureActionTimes) > 0 {
 		attributes = append(attributes, publicNextActionTime.Value(list.FutureActionTimes[0].AsTime()))
 	}
 	if s.IdleArmed {

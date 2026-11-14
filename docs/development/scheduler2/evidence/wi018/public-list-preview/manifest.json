@@ -1,0 +1,10 @@
+[
+  {
+    "path": "chasm/lib/scheduler2/public_list_preview.go",
+    "sha256": "b22bfaa70db386f8d61c10ecd6c0e6c0f7324d98365e568c95541aef54d30df3"
+  },
+  {
+    "path": "chasm/lib/scheduler2/public_list_preview_test.go",
+    "sha256": "14a888a44c503b7ccaa924a6de60912c457db9e75d1bc3e5603b515e0d685a88"
+  }
+]

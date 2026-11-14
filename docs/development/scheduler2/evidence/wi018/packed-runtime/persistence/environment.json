@@ -1,0 +1,13 @@
+{
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "go": "go version go1.27.3 darwin/arm64",
+  "HEAD": "2baaa149adfebec2b33bc55cdb44e968cc1ba008",
+  "CGO_ENABLED": "0",
+  "GOMAXPROCS": "4",
+  "tags": "test_dep,integration",
+  "MaxBufferSize": 0,
+  "storage_transport_limits": "unchanged defaults",
+  "fixture": "actual local testcore History SQLite; source preparation America/New_York; retryable start wrapper; one generated admission per History update",
+  "command": "SCHEDULER_PACKED_PERSISTENCE_LARGE=1 CGO_ENABLED=0 GOMAXPROCS=4 /private/tmp/scheduler2-packed-persistence.test -test.run '^TestSchedule2PackedPreparedPersistenceStorage$' -test.v -test.count=1 -test.timeout=20m"
+}

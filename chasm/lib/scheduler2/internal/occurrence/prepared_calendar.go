@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"math/bits"
 	"time"
 )
 
@@ -143,7 +144,7 @@ func validateCalendarNext(state CalendarNextState, definition PreparedCalendar, 
 	if zone == nil || zone.location == nil || zone.fingerprint == [32]byte{} {
 		return errors.New("resolved timezone unavailable")
 	}
-	if after.Year() < 1 || after.Year() > 9999 {
+	if !validPreparedBoundary(after) {
 		return errors.New("prepared calendar search boundary outside supported domain")
 	}
 	if state.Phase == CalendarNextInitial {
@@ -185,21 +186,23 @@ func advanceCalendarPhase(s *CalendarNextState, d PreparedCalendar, z *PreparedL
 		s.AfterSeconds, s.AfterNanos = after.Unix(), int32(after.Nanosecond())
 		s.Second++
 		s.Phase = CalendarNextNormalize
+		if !preparedCalendarCanMatch(d.Masks) {
+			s.Phase = CalendarNextComplete
+		}
 	case CalendarNextNormalize:
 		return normalizeCalendarNext(s, z, stats)
 	case CalendarNextYear:
-		if calendarYearMatches(d.Masks, s.Year) {
-			s.Phase = CalendarNextMonth
-		} else {
-			s.Year++
-			s.Month = 1
-			s.Day = 1
-			s.Hour = 0
-			s.Minute = 0
-			s.Second = 0
-			s.SecondCopy = false
-			s.Phase = CalendarNextNormalize
+		year, found := nextPreparedCalendarYear(d.Masks, s.Year)
+		if !found {
+			s.Phase = CalendarNextComplete
+			break
 		}
+		if year != s.Year {
+			s.Year, s.Month, s.Day = year, 1, 1
+			s.Hour, s.Minute, s.Second = 0, 0, 0
+			s.SecondCopy = false
+		}
+		s.Phase = CalendarNextMonth
 	case CalendarNextMonth:
 		if calendarBit(d.Masks.Fields[4], s.Month) {
 			s.Phase = CalendarNextDay
@@ -381,8 +384,8 @@ func preparedDaysInMonth(month, year int) int {
 		}
 		return 28
 	}
-	const bits = 0b1010110101010
-	return 30 + (bits>>month)&1
+	const monthBits = 0b1010110101010
+	return 30 + (monthBits>>month)&1
 }
 
 func calendarWall(z *PreparedLocation, sec int64, stats *CalendarNextStats) (time.Time, error) {
@@ -425,4 +428,37 @@ func preparedCalendarDate(year, month, day, hour, minute, second int, zone *Prep
 		return earlier, nil
 	}
 	return result, nil
+}
+
+// nextPreparedCalendarYear examines at most the two fixed year-mask words.
+// Skipped years cannot produce a candidate; jumping resets the same lower
+// fields as the reference year-by-year search without changing its horizon.
+func nextPreparedCalendarYear(m CalendarMasks, year int) (int, bool) {
+	if year > 2100 {
+		return 0, false
+	}
+	if m.AllYears {
+		return year, true
+	}
+	index := max(year, 2000) - 2000
+	word, bit := index/64, uint(index%64)
+	remaining := m.Years[word] & (^uint64(0) << bit)
+	if remaining != 0 {
+		return 2000 + word*64 + bits.TrailingZeros64(remaining), true
+	}
+	if word == 0 && m.Years[1] != 0 {
+		return 2064 + bits.TrailingZeros64(m.Years[1]), true
+	}
+	return 0, false
+}
+
+// An empty required field makes the calendar intersection empty independently
+// of timezone, boundary or the other field masks. There are exactly six fields.
+func preparedCalendarCanMatch(m CalendarMasks) bool {
+	for _, mask := range m.Fields {
+		if mask == 0 {
+			return false
+		}
+	}
+	return m.AllYears || m.Years[0] != 0 || m.Years[1] != 0
 }

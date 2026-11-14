@@ -26,5 +26,17 @@ const (
 	workTaskRegularEnqueues
 	workTaskImmediateEnqueues
 	workTaskImmediateAttempts
+	workPackedReadCalls
+	workPackedReadEntries
+	workPackedReadBytes
+	workPackedWriteCalls
+	workPackedWriteEntries
+	workPackedWriteBytes
+	workPackedRecordDecodeCalls
+	workPackedRecordDecodeBytes
+	workPackedRecordEncodeCalls
+	workPackedRecordEncodeBytes
+	workPackedBackendCalls
+	workPackedBackendBytes
 	workCounterCount
 )

@@ -9,18 +9,21 @@ import (
 
 type Library struct {
 	chasm.UnimplementedLibrary
-	start       *StartHandler
-	effects     *EffectHandler
-	specBuilder *legacy.SpecBuilder
-	tweaks      func(string) schedulerconfig.Tweakables
-	workQuanta  int
-	bounded     bool
+	start         *StartHandler
+	effects       *EffectHandler
+	specBuilder   *legacy.SpecBuilder
+	tweaks        func(string) schedulerconfig.Tweakables
+	workQuanta    int
+	bounded       bool
+	preparation   *PreparationService
+	previewLimits func() (int, int)
 }
 
 // NewNilLibrary exposes independent identities to offline readers.
 func NewNilLibrary() *Library {
 	config := dynamicconfig.NewNoopCollection()
-	return &Library{tweaks: schedulerconfig.CurrentTweakables.Get(config), specBuilder: legacy.NewSpecBuilder(dynamicconfig.SchedulerSpecWarnIterations.Get(config), dynamicconfig.SchedulerSpecMaxIterations.Get(config))}
+	warn, maxIterations := dynamicconfig.SchedulerSpecWarnIterations.Get(config), dynamicconfig.SchedulerSpecMaxIterations.Get(config)
+	return &Library{previewLimits: func() (int, int) { return warn(), maxIterations() }, tweaks: schedulerconfig.CurrentTweakables.Get(config), specBuilder: legacy.NewSpecBuilder(dynamicconfig.SchedulerSpecWarnIterations.Get(config), dynamicconfig.SchedulerSpecMaxIterations.Get(config))}
 }
 
 // NewLibrary selects an explicitly supplied local workflow starter.
@@ -50,15 +53,17 @@ func newBoundedLibrary(start *StartHandler, effects *EffectHandler) *Library {
 // Stale duplicate immediate attempts count against the 103 limit as well.
 func addressedLayout() chasm.BoundedDataLayout {
 	return chasm.BoundedDataLayout{MaxImmediateExecutions: 103, Components: []chasm.BoundedComponentSlot{
-		chasm.BoundedComponent[*Scheduler](nil, chasm.BoundedTaskLimits{Pure: 3, SideEffect: 3, NewPerTransaction: 25, ImmediatePerTransaction: 103}).WithRequiredEmptyMaps("Operations", "Requests", "PayloadBlobs", "EffectRequests"),
+		chasm.BoundedComponent[*Scheduler](nil, chasm.BoundedTaskLimits{Pure: 3, SideEffect: 4, NewPerTransaction: 30, ImmediatePerTransaction: 103}).WithRequiredEmptyMaps("Operations", "Requests", "PayloadBlobs", "EffectRequests"),
 		chasm.BoundedComponent[*Generator]([]string{"Generator"}, chasm.BoundedTaskLimits{}),
+		chasm.BoundedComponent[*DefinitionPreparation]([]string{"Generator", "PreparedDefinition"}, chasm.BoundedTaskLimits{}),
+		chasm.BoundedComponent[*TimezonePreparation]([]string{"Generator", "PreparedDefinition", "Timezone"}, chasm.BoundedTaskLimits{}),
 		chasm.BoundedComponent[*chasm.Visibility]([]string{"Visibility"}, chasm.BoundedTaskLimits{SideEffect: 1, NewPerTransaction: 4}),
 	}}
 }
 
 func (*Library) Name() string { return "scheduler2" }
 func (l *Library) Components() []*chasm.RegistrableComponent {
-	opts := []chasm.RegistrableComponentOption{chasm.WithBusinessIDAlias("ScheduleId"), chasm.WithSearchAttributes(publicNextActionTime, publicRunningWorkflowCount, publicBufferedStartsCount, publicIdleCloseTime), chasm.WithContextValues(map[any]any{publicSpecBuilderKey{}: l.specBuilder, backfillBatchConfigKey{}: l.tweaks, workQuantaKey{}: l.workQuanta, publicListSpecLimitKey{}: func() int { return legacy.CurrentTweakablePolicies.SpecFieldLengthLimit }})}
+	opts := []chasm.RegistrableComponentOption{chasm.WithBusinessIDAlias("ScheduleId"), chasm.WithSearchAttributes(publicNextActionTime, publicRunningWorkflowCount, publicBufferedStartsCount, publicIdleCloseTime), chasm.WithContextValues(map[any]any{publicSpecBuilderKey{}: l.specBuilder, previewLimitsKey{}: l.previewLimits, backfillBatchConfigKey{}: l.tweaks, workQuantaKey{}: l.workQuanta, publicListSpecLimitKey{}: func() int { return legacy.CurrentTweakablePolicies.SpecFieldLengthLimit }})}
 	if l.bounded {
 		opts = append(opts, chasm.WithBoundedDataLayout(addressedLayout()))
 	}
@@ -66,9 +71,19 @@ func (l *Library) Components() []*chasm.RegistrableComponent {
 		chasm.NewRegistrableComponent[*Scheduler]("scheduler", opts...),
 		chasm.NewRegistrableComponent[*Generator]("generator"),
 		chasm.NewRegistrableComponent[*CalendarPreparation]("calendarPreparation"),
+		chasm.NewRegistrableComponent[*DefinitionPreparation]("definitionPreparation"),
 		chasm.NewRegistrableComponent[*TimezonePreparation]("timezonePreparation"),
 	}
 }
 func (l *Library) Tasks() []*chasm.RegistrableTask {
-	return []*chasm.RegistrableTask{chasm.NewRegistrablePureTask("idle", &IdleHandler{}), chasm.NewRegistrablePureTask("work", &WorkHandler{}), chasm.NewRegistrableSideEffectTask("start", l.start), chasm.NewRegistrableSideEffectTask("startDispatch", &StartDispatchHandler{start: l.start}), chasm.NewRegistrablePureTask("startRecovery", &StartRecoveryHandler{}), chasm.NewRegistrableSideEffectTask("effect", l.effects), chasm.NewRegistrablePureTask("generate", &GenerateHandler{}), chasm.NewRegistrablePureTask("drain", &DrainHandler{}), chasm.NewRegistrablePureTask("manual", &ManualHandler{})}
+	return []*chasm.RegistrableTask{chasm.NewRegistrableSideEffectTask("sourcePreparation", &SourcePreparationHandler{service: l.preparation}), chasm.NewRegistrablePureTask("idle", &IdleHandler{}), chasm.NewRegistrablePureTask("work", &WorkHandler{}), chasm.NewRegistrableSideEffectTask("start", l.start), chasm.NewRegistrableSideEffectTask("startDispatch", &StartDispatchHandler{start: l.start}), chasm.NewRegistrablePureTask("startRecovery", &StartRecoveryHandler{}), chasm.NewRegistrableSideEffectTask("effect", l.effects), chasm.NewRegistrablePureTask("generate", &GenerateHandler{}), chasm.NewRegistrablePureTask("drain", &DrainHandler{}), chasm.NewRegistrablePureTask("manual", &ManualHandler{})}
+}
+
+type previewLimitsKey struct{}
+
+func previewLimits(ctx chasm.Context) func() (int, int) {
+	if limits, ok := ctx.Value(previewLimitsKey{}).(func() (int, int)); ok && limits != nil {
+		return limits
+	}
+	return func() (int, int) { return 0, 0 }
 }

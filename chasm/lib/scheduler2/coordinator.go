@@ -44,6 +44,10 @@ func directAdmissionFor(state decision.State, policy enumspb.ScheduleOverlapPoli
 
 // demands describes metadata readiness without materializing workflow payloads.
 func (s *Scheduler) demands(ctx chasm.Context, state decision.State) ([]workDemand, time.Time, error) {
+	return s.demandsForSource(ctx, state, s.sourcePreparationPending(ctx))
+}
+
+func (s *Scheduler) demandsForSource(ctx chasm.Context, state decision.State, preparing bool) ([]workDemand, time.Time, error) {
 	var demands []workDemand
 	var future time.Time
 	now := ctx.Now(s)
@@ -93,7 +97,10 @@ func (s *Scheduler) demands(ctx chasm.Context, state decision.State) ([]workDema
 	if state.IndexedQueue.Maintenance {
 		future = now
 	}
-	return demands, future, nil
+	if preparing {
+		demands = withoutSourceScans(demands)
+	}
+	return s.withPreparedMaintenance(ctx, demands, future, preparing)
 }
 func automaticDemand(g *Generator, state decision.State, now time.Time) (*workDemand, time.Time) {
 	if !g.Armed {
@@ -125,8 +132,8 @@ func automaticDemand(g *Generator, state decision.State, now time.Time) (*workDe
 }
 
 func cyclicClass(start scheduler2pb.WorkClass, eligible func(scheduler2pb.WorkClass) bool) (scheduler2pb.WorkClass, bool) {
-	for offset := 0; offset < 4; offset++ {
-		class := scheduler2pb.WorkClass((max(int(start), 1)-1+offset)%4 + 1)
+	for offset := 0; offset < 5; offset++ {
+		class := scheduler2pb.WorkClass((max(int(start), 1)-1+offset)%5 + 1)
 		if eligible(class) {
 			return class, true
 		}
@@ -147,11 +154,15 @@ func (s *Scheduler) planWork(ctx chasm.Context) (*scheduler2pb.CoordinationState
 // planWorkFor previews next control metadata without publishing it. Context.Now
 // is a transaction snapshot (chasm.immutableCtx.Now), so preview and commit agree.
 func (s *Scheduler) planWorkFor(ctx chasm.Context, state decision.State) (*scheduler2pb.CoordinationState, *workDemand, time.Time, error) {
+	return s.planWorkForSource(ctx, state, s.sourcePreparationPending(ctx))
+}
+
+func (s *Scheduler) planWorkForSource(ctx chasm.Context, state decision.State, preparing bool) (*scheduler2pb.CoordinationState, *workDemand, time.Time, error) {
 	c := &scheduler2pb.CoordinationState{}
 	if s.Coordination != nil {
 		c = common.CloneProto(s.Coordination)
 	}
-	demands, future, err := s.demands(ctx, state)
+	demands, future, err := s.demandsForSource(ctx, state, preparing)
 	if err != nil {
 		return nil, nil, time.Time{}, err
 	}
@@ -338,6 +349,8 @@ func (*WorkHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.
 		} else {
 			err = s.transferAutomatic(ctx)
 		}
+	case scheduler2pb.WORK_CLASS_PREPARED_MAINTENANCE:
+		err = s.maintainPrepared(ctx, planned, previewLimits(ctx), s.ensurePreviewSourceReady)
 	default:
 		return serviceerror.NewInternal("unknown coordinator work class")
 	}
@@ -346,7 +359,7 @@ func (*WorkHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.
 	}
 	s.Coordination = planned
 	c = planned
-	c.NextWork = nextClass(d.class)
+	c.NextWork = s.nextWorkClass(ctx, d.class)
 	if d.vacancy {
 		c.OwnerKey = ""
 		c.NextQueue = nextClass(d.class)
@@ -370,6 +383,9 @@ func (s *Scheduler) scanAutomatic(ctx chasm.MutableContext) error {
 	if g.Token == math.MaxUint64 {
 		return serviceerror.NewFailedPrecondition("generation token exhausted")
 	}
+	if g.PreparedDefinition.IsSet() {
+		return s.scanPreparedAutomatic(ctx, g)
+	}
 	e, err := s.currentEnumerator(ctx)
 	if err != nil {
 		return err
@@ -378,6 +394,10 @@ func (s *Scheduler) scanAutomatic(ctx chasm.MutableContext) error {
 	if err != nil {
 		return err
 	}
+	return s.publishAutomaticScan(ctx, g, result, nil)
+}
+
+func (s *Scheduler) publishAutomaticScan(ctx chasm.MutableContext, g *Generator, result occurrence.Result, work *scheduler2pb.Payload) error {
 	continuation := encodeContinuation(result.State)
 	state, err := s.stateFor(ctx, "")
 	if err != nil {
@@ -385,6 +405,13 @@ func (s *Scheduler) scanAutomatic(ctx chasm.MutableContext) error {
 	}
 	if _, _, err := s.checkIdlePlan(state, continuation, true, len(s.Backfills) > 0); err != nil {
 		return err
+	}
+	if g.PreparedDefinition.IsSet() {
+		if work == nil {
+			g.PreparedWork = chasm.NewEmptyField[*scheduler2pb.Payload]()
+		} else {
+			g.PreparedWork = chasm.NewDataField(ctx, work)
+		}
 	}
 	g.Continuation = continuation
 	s.Cursor = max(s.Cursor, result.State.DisposedThrough.UnixNano())
@@ -414,7 +441,11 @@ func (s *Scheduler) transferAutomatic(ctx chasm.MutableContext) error {
 	if pending == nil {
 		return serviceerror.NewFailedPrecondition("automatic candidate is missing")
 	}
-	e, err := s.currentEnumerator(ctx)
+	e, err := s.automaticDisposer(ctx, g)
+	if err != nil {
+		return err
+	}
+	state, err := e.DisposeRange(decodeContinuation(g.Continuation))
 	if err != nil {
 		return err
 	}
@@ -423,10 +454,6 @@ func (s *Scheduler) transferAutomatic(ctx chasm.MutableContext) error {
 		return err
 	}
 	if err = s.admitGenerated(ctx, template, *pending, time.Duration(g.CatchupWindow)); err != nil {
-		return err
-	}
-	state, err := e.DisposeRange(decodeContinuation(g.Continuation))
-	if err != nil {
 		return err
 	}
 	g.Continuation = encodeContinuation(state)
@@ -477,4 +504,40 @@ func (s *Scheduler) transferBackfill(ctx chasm.MutableContext) error {
 		current.SkipBatchRemaining = 0
 	}
 	return s.finishBackfill(ctx)
+}
+
+func withoutSourceScans(demands []workDemand) []workDemand {
+	ready := demands[:0]
+	for _, demand := range demands {
+		if !demand.scan {
+			ready = append(ready, demand)
+		}
+	}
+	return ready
+}
+
+func (s *Scheduler) withPreparedMaintenance(ctx chasm.Context, demands []workDemand, future time.Time, preparing bool) ([]workDemand, time.Time, error) {
+	maintenance, maintenanceWake, err := s.preparedMaintenanceWake(ctx, preparing)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	if !maintenanceWake.IsZero() && (future.IsZero() || maintenanceWake.Before(future)) {
+		future = maintenanceWake
+	}
+	if maintenance {
+		demands = append(demands, workDemand{class: scheduler2pb.WORK_CLASS_PREPARED_MAINTENANCE, key: "prepared-maintenance"})
+	}
+	return demands, future, nil
+}
+
+// nextWorkClass adds maintenance only for prepared executions. Existing profiles
+// retain their persisted four-class rotation and saved replay behavior.
+func (s *Scheduler) nextWorkClass(ctx chasm.Context, class scheduler2pb.WorkClass) scheduler2pb.WorkClass {
+	if class == scheduler2pb.WORK_CLASS_PREPARED_MAINTENANCE {
+		return scheduler2pb.WORK_CLASS_DRAIN
+	}
+	if class == scheduler2pb.WORK_CLASS_AUTOMATIC && s.HasGenerator && s.Generator.Get(ctx).PreparedDefinition.IsSet() {
+		return scheduler2pb.WORK_CLASS_PREPARED_MAINTENANCE
+	}
+	return nextClass(class)
 }

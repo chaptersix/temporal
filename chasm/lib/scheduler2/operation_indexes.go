@@ -77,7 +77,7 @@ func (s *Scheduler) prepareOperationIndexes(ctx chasm.Context, changes []operati
 	if len(changes) > 3 {
 		return plan, serviceerror.NewInternal("operation index mutation budget exceeded")
 	}
-	capture := &operationIndexCapture{reader: &indexBackend{ctx: ctx, pages: s.OperationPages}}
+	capture := &operationIndexCapture{reader: s.operationIndexReader(ctx, true)}
 	batch := queueindex.NewCountStoreWithBackend(capture).Begin()
 	defer batch.Abort()
 	if err := validateRetirementCount(batch, s.OperationStore); err != nil {
@@ -105,6 +105,9 @@ func (s *Scheduler) prepareOperationIndexes(ctx chasm.Context, changes []operati
 // publishOperationIndexes follows every rejecting preflight under the same lease.
 // A framework panic requires discarding the enclosing CHASM transaction.
 func (s *Scheduler) publishOperationIndexes(ctx chasm.MutableContext, plan operationIndexPlan) {
+	if s.PackedStorage != nil {
+		return
+	}
 	for _, change := range plan.changes {
 		if change.Delete {
 			s.OperationPages.Delete(ctx, change.Key)
@@ -124,7 +127,7 @@ func (s *Scheduler) indexedRetentionEviction(ctx chasm.Context, before, next dec
 	if next.Operation == nil || before.Operation != nil && before.Operation.ID == next.Operation.ID || s.OperationStore.OperationCount < 4 {
 		return "", nil
 	}
-	batch := queueindex.NewCountStoreWithBackend(&indexBackend{ctx: ctx, pages: s.OperationPages}).Begin()
+	batch := queueindex.NewCountStoreWithBackend(s.operationIndexReader(ctx, true)).Begin()
 	defer batch.Abort()
 	if err := validateRetirementCount(batch, s.OperationStore); err != nil {
 		return "", err
@@ -134,7 +137,10 @@ func (s *Scheduler) indexedRetentionEviction(ctx chasm.Context, before, next dec
 		return "", err
 	}
 	id := s.Incarnation + "/" + key.Suffix()
-	op, ok := s.operationRecord(ctx, id)
+	op, ok, err := s.operationRecord(ctx, id)
+	if err != nil {
+		return "", err
+	}
 	if !ok || op == nil || op.Phase != pb.PHASE_START_ONLY {
 		return "", serviceerror.NewInternal("retirement index references missing or ineligible operation")
 	}
@@ -163,7 +169,10 @@ func validateRetirementCount(batch *queueindex.CountBatch, control *pb.Operation
 }
 
 func (s *Scheduler) prepareRetirementChange(ctx chasm.Context, batch *queueindex.CountBatch, change operationRecordChange, control *pb.OperationStoreControl) error {
-	old, exists := s.operationRecord(ctx, change.id)
+	old, exists, err := s.operationRecord(ctx, change.id)
+	if err != nil {
+		return err
+	}
 	if exists && (old == nil || old.Id != change.id) {
 		return serviceerror.NewInternal("retirement record identity mismatch")
 	}
@@ -172,7 +181,6 @@ func (s *Scheduler) prepareRetirementChange(ctx chasm.Context, batch *queueindex
 	}
 	before := exists && old.Phase == pb.PHASE_START_ONLY
 	after := change.operation != nil && change.operation.Phase == pb.PHASE_START_ONLY
-	var err error
 	control.RetirementCount, err = changedRecordCount(control.RetirementCount, before, after)
 	if err != nil {
 		return err

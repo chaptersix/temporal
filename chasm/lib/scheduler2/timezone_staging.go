@@ -54,13 +54,17 @@ func StageCalendarUTC(calendar *StagedCalendarSource, generation uint64) (*Stage
 }
 
 func stageCalendarTimezone(calendar *StagedCalendarSource, name string, data []byte, resolvedAt time.Time, generation uint64, utc bool, zone *occurrence.PreparedTimezone) (*StagedTimezoneSource, error) {
+	return stageTimezoneForDefinition(calendar.sourceID, name, data, resolvedAt, generation, utc, zone)
+}
+
+func stageTimezoneForDefinition(definitionID [32]byte, name string, data []byte, resolvedAt time.Time, generation uint64, utc bool, zone *occurrence.PreparedTimezone) (*StagedTimezoneSource, error) {
 	if generation == 0 {
 		return nil, serviceerror.NewInvalidArgument("timezone generation must be positive")
 	}
 	if err := timestamppb.New(resolvedAt).CheckValid(); err != nil {
 		return nil, serviceerror.NewInvalidArgument("timezone preparation instant is not representable")
 	}
-	stage := &StagedTimezoneSource{definitionID: calendar.sourceID, generation: generation, fingerprint: zone.Fingerprint(), header: zone.Header(), name: name, source: bytes.Clone(data), resolvedAt: resolvedAt.UTC(), utc: utc}
+	stage := &StagedTimezoneSource{definitionID: definitionID, generation: generation, fingerprint: zone.Fingerprint(), header: zone.Header(), name: name, source: bytes.Clone(data), resolvedAt: resolvedAt.UTC(), utc: utc}
 	hash := sha256.New()
 	_, _ = hash.Write([]byte("scheduler2-timezone-owner-v1"))
 	_, _ = hash.Write(stage.definitionID[:])

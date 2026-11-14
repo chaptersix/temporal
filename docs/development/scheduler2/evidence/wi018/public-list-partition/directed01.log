@@ -1,0 +1,4 @@
+# go.temporal.io/server/chasm/lib/scheduler2 [go.temporal.io/server/chasm/lib/scheduler2.test]
+chasm/lib/scheduler2/public_list_storage_test.go:20: undefined: schedulepb.NewWorkflowExecutionInfo
+FAIL	go.temporal.io/server/chasm/lib/scheduler2 [build failed]
+FAIL

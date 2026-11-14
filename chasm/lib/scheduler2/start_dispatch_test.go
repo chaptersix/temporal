@@ -60,7 +60,8 @@ func TestStartClaimPublicationAndRecovery(t *testing.T) {
 	h.commit(true)
 	h.now = result.claim.Expiry
 	s, raw = h.root(true)
-	old, ok := s.operationRecord(raw, result.claim.OperationId)
+	old, ok, readErr := s.operationRecord(raw, result.claim.OperationId)
+	require.NoError(t, readErr)
 	require.True(t, ok)
 	require.NoError(t, (&StartRecoveryHandler{}).Execute(raw.(chasm.MutableContext), s, chasm.TaskAttributes{}, &pb.StartRecoveryTask{Token: result.token, WakeTime: result.claim.Expiry}))
 	h.commit(true)

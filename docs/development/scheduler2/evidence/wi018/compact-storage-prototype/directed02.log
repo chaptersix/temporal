@@ -1,0 +1,13 @@
+=== RUN   TestCompactStorageExactWire
+--- PASS: TestCompactStorageExactWire (0.00s)
+=== RUN   TestCompactStorageIdentityFallback
+--- PASS: TestCompactStorageIdentityFallback (0.00s)
+=== RUN   TestCompactStoragePageIsolation
+--- PASS: TestCompactStoragePageIsolation (0.00s)
+=== RUN   TestCompactStoragePrototypeMeasurement
+=== RUN   TestCompactStoragePrototypeMeasurement/4
+    compact_storage_measurement_test.go:167: COMPACT N=4 original_framed=10386 prototype_framed=7108 nodes=42 groups_records_pages_data_template={"A":[4,1,111,86],"E":[4,1,81,73],"I":[4,1,210,58],"O":[4,1,387,106],"Q":[4,1,423,575],"R":[4,1,99,20],"X":[11,1,923,116]}
+--- PASS: TestCompactStoragePrototypeMeasurement (0.00s)
+    --- PASS: TestCompactStoragePrototypeMeasurement/4 (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.702s

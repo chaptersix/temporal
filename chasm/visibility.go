@@ -44,6 +44,17 @@ type VisibilityMemoProvider interface {
 	Memo(Context) proto.Message
 }
 
+// VisibilityReadinessProvider optionally defers visibility export until a root's
+// initial projection is complete. VisibilityReady must read only persisted
+// metadata and must not require runtime configuration. Returning false keeps a
+// running execution's visibility task retryable; closed execution export is
+// never deferred. Once ready, later updates must retain a coherent projection.
+// The false-to-true transition must also change Memo/MemoVersion or search
+// attributes so the ordinary visibility task generation observes readiness.
+type VisibilityReadinessProvider interface {
+	VisibilityReady(Context) bool
+}
+
 // VisibilityMemoVersionProvider supplements VisibilityMemoProvider with a
 // persisted, nonzero revision. Every change to Memo content must atomically
 // increase this revision; the provider must reject overflow before changing its

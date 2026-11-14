@@ -1,0 +1,10 @@
+--- FAIL: TestStagedGenerationReplacementFencesOldTask (0.01s)
+    staged_generation_test.go:59: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/staged_generation_test.go:59
+        	Error:      	Not equal: 
+        	            	expected: 1
+        	            	actual  : 2
+        	Test:       	TestStagedGenerationReplacementFencesOldTask
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.672s
+FAIL
