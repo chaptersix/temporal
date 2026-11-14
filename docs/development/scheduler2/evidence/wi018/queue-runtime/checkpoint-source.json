@@ -1,0 +1,50 @@
+{
+  "base": "d5425fa2c",
+  "source_sha256": {
+    "chasm/lib/scheduler2/backfill.go": "eb30ce022c126ae93e7e17d00ceb89c43f67c1059600900265fe427ef49940a3",
+    "chasm/lib/scheduler2/backfill_batch.go": "8cacaf0565083cf3fa19fa71b29a363d73d4431d3f1c759e2d66bee9b13c0556",
+    "chasm/lib/scheduler2/backfill_batch_test.go": "a5d31a42f4b7cfc5437106d219a90c2315d55186a1dceeea3b1c3abdeb8d7492",
+    "chasm/lib/scheduler2/buffer.go": "735b2831995f8c4701340ce688df3b9f690aca0392e757150df3cec120898a83",
+    "chasm/lib/scheduler2/component.go": "700e329f32d0427d9fa31bb62ec94b087fd0e41222434164a89f6c2117c51305",
+    "chasm/lib/scheduler2/coordinator.go": "83e5853d76da7785ec90fde90095dd955f55c5b12607844765af9b1822955cc6",
+    "chasm/lib/scheduler2/effects.go": "28943ec609f7d9e672b014419f60b56545255a5e3117d5ef9076c346e62532b1",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go": "0defbd3ed7e6aeaf84b45c905b28934d4d431ea635088f519aaf96d6202e01d2",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "d6947fd4c4df80be6617e7f4d5f180980b368b33173745794bf2fad9b459d53e",
+    "chasm/lib/scheduler2/generator.go": "9bb7be7e0be6405deea80a6c00422a5696dac3be45f13fd0098f34c329e4ce12",
+    "chasm/lib/scheduler2/idle.go": "078701f54b2907f2d19a45a51e7bfd688454e826c097a2b4b054db23ab77888f",
+    "chasm/lib/scheduler2/internal/decision/buffer.go": "b0f49c6d9e344f3e75894f370d6a0e99216d41a50fcb7f4d00bf3cbabd8fc819",
+    "chasm/lib/scheduler2/internal/decision/capacity.go": "acb8603b37301d340d1a291494d6c7daaccdb7d11498f15289975a9b7f1a64dc",
+    "chasm/lib/scheduler2/internal/decision/decision.go": "5a157d5f12958459b1575f8460f497e9fbee82ff1dc2938700c1fa8637f68c9b",
+    "chasm/lib/scheduler2/internal/decision/effects.go": "36e0c07a483c171e01cf39c8cb8ee1742e393b34b2e78029cca43ff3bb528904",
+    "chasm/lib/scheduler2/internal/decision/manual.go": "d07f6c6788d027fba2c7d12d7cc073948702eac769edc20f8ad58235e79adf4b",
+    "chasm/lib/scheduler2/internal/decision/queue_summary.go": "118eed6099514d4843bd74aa9644f5e5573b86396136d6178861428b5a11f1a6",
+    "chasm/lib/scheduler2/internal/decision/queue_summary_test.go": "69137de760b5dbd8ffa28692ed8e9a38d71661aede48e638640181fac73b3364",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "c1bbef3890033e5574e3d5e2d4258a0f53661bb49330360f423dd1416470b63f",
+    "chasm/lib/scheduler2/public.go": "26bd6e305e3a70fd9f1f2ba77f6296a8af6af15b3c8559aa290540ac1b2fbdd4",
+    "chasm/lib/scheduler2/public_capacity_test.go": "a46d1cf04ac97636634a3d6308df59984cb10d68187304e59fedc99fd6c24718",
+    "chasm/lib/scheduler2/public_command_capacity_test.go": "8b2303c3f7175a0223b25b556fe939c6a6c01517b1ed6d38b8bae8a1b04502b6",
+    "chasm/lib/scheduler2/public_projection.go": "f0557f5cd4a636823376e1166d28f69b50afd7ca3a4ab97b07c9b78496d6bc78",
+    "chasm/lib/scheduler2/public_time_test.go": "077d03b742d1706cd3c704f259d6db35c0b1d42f7e780ec4a3cd25aeb184f6cb",
+    "chasm/lib/scheduler2/public_visibility.go": "5d9cd9e865fd0f853b8c13169c2449bab5042cd07e3fe471c5cacd6eb2246c2c",
+    "chasm/lib/scheduler2/queue_consumers.go": "83cfcbc991081eb773ce30b8b9c16fc239762a194564fdfe902a795b1f701ce5",
+    "chasm/lib/scheduler2/queue_consumers_test.go": "e259d8d149db3a0f5feb7289d0aac5c45a500e0b2157db0908ed7ec4839ae7c6",
+    "chasm/lib/scheduler2/queue_state.go": "7894920424ed009a06031416b52527fc13b3525b926e6cfbd49b43199d59a903",
+    "chasm/lib/scheduler2/queue_state_test.go": "10139ac4263e732a6cda346d5d08e5e624a7f60a53bb9f29b61ea2ebb8bc2f84",
+    "chasm/lib/scheduler2/queue_storage_size_test.go": "775b078658a47030bf296934ab383f2af3596e2cc1bd8928b6668715d8807b65",
+    "chasm/lib/scheduler2/timeskipping.go": "582a4df0ee273a379e3e08eac4ce57dbf81df7fd0e555a3cd3976f25fc3afd7d",
+    "chasm/lib/scheduler2/update_composition_test.go": "fce54c33b8ba09c473aa5cd4552bdbc9d8810787633acb6f35eb120d517f1707",
+    "chasm/lib/scheduler2/update_failure_test.go": "2abad633b826098c972c262058b41ea361a842b3c78dbe800624274255dc9881"
+  },
+  "verification": {
+    "composed": "composed03.log.gz",
+    "required_fast_lint": "fastlint03.log.gz",
+    "initial_public_integration": "public-integration01.log.gz",
+    "final_public_integration": "public-integration02.log.gz"
+  },
+  "limitations": [
+    "Scheduler does not yet select bounded DATA layout",
+    "Other operation/payload/definition work remains unbounded",
+    "Storage fixture omits execution metadata and operation/request payloads",
+    "Tree harness publication failures model atomic persistence; not SQLite crash injection"
+  ]
+}

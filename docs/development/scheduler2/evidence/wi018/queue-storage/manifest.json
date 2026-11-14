@@ -1,0 +1,21 @@
+{
+  "final_test_log": "facade-storage10.log",
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2 -run TestQueueState|TestQueueStorageSix -count=1 -v",
+  "pre_lint_fix_source_sha256": {
+    "chasm/lib/scheduler2/queue_state.go": "7894920424ed009a06031416b52527fc13b3525b926e6cfbd49b43199d59a903",
+    "chasm/lib/scheduler2/queue_state_test.go": "10139ac4263e732a6cda346d5d08e5e624a7f60a53bb9f29b61ea2ebb8bc2f84",
+    "chasm/lib/scheduler2/queue_storage_size_test.go": "28624f268d945fdffb280b4d8411be4405eea9ae03053ce0e024c03a189cfa63",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "c1bbef3890033e5574e3d5e2d4258a0f53661bb49330360f423dd1416470b63f",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "d6947fd4c4df80be6617e7f4d5f180980b368b33173745794bf2fad9b459d53e",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go": "0defbd3ed7e6aeaf84b45c905b28934d4d431ea635088f519aaf96d6202e01d2"
+  },
+  "source_sha256": {
+    "chasm/lib/scheduler2/queue_state.go": "7894920424ed009a06031416b52527fc13b3525b926e6cfbd49b43199d59a903",
+    "chasm/lib/scheduler2/queue_state_test.go": "10139ac4263e732a6cda346d5d08e5e624a7f60a53bb9f29b61ea2ebb8bc2f84",
+    "chasm/lib/scheduler2/queue_storage_size_test.go": "775b078658a47030bf296934ab383f2af3596e2cc1bd8928b6668715d8807b65",
+    "chasm/lib/scheduler2/proto/v1/state.proto": "c1bbef3890033e5574e3d5e2d4258a0f53661bb49330360f423dd1416470b63f",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.pb.go": "d6947fd4c4df80be6617e7f4d5f180980b368b33173745794bf2fad9b459d53e",
+    "chasm/lib/scheduler2/gen/scheduler2pb/v1/state.go-helpers.pb.go": "0defbd3ed7e6aeaf84b45c905b28934d4d431ea635088f519aaf96d6202e01d2"
+  },
+  "note": "Run10 precedes test-only removal of unused ctx assignment; root owns composed final verification."
+}

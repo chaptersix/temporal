@@ -23,7 +23,11 @@ func (s *Scheduler) prepareEffects(ctx chasm.Context, next decision.State) (deci
 		}
 		target := next.Operation
 		if target == nil || target.ID != effect.TargetID {
-			target = s.stateFor(ctx, effect.TargetID).Operation
+			targetState, err := s.stateFor(ctx, effect.TargetID)
+			if err != nil {
+				return decision.State{}, nil, err
+			}
+			target = targetState.Operation
 		}
 		if target == nil {
 			return decision.State{}, nil, serviceerror.NewFailedPrecondition("effect target metadata is missing")

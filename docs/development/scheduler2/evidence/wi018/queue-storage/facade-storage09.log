@@ -1,0 +1,173 @@
+=== RUN   TestQueueStateDrainReferenceAndMaintenance
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance
+=== RUN   TestQueueStateRejectsStaleAndExhausted
+=== PAUSE TestQueueStateRejectsStaleAndExhausted
+=== RUN   TestQueueStatePlanningControlsAndPreview
+=== PAUSE TestQueueStatePlanningControlsAndPreview
+=== RUN   TestQueueStateCorruptionAndCleanupPreflight
+=== PAUSE TestQueueStateCorruptionAndCleanupPreflight
+=== RUN   TestQueueStatePlannerRejectsMalformedPreview
+=== PAUSE TestQueueStatePlannerRejectsMalformedPreview
+=== RUN   TestQueueStateSignedExtremeEligibility
+=== PAUSE TestQueueStateSignedExtremeEligibility
+=== RUN   TestQueueStateIndexedPlanReferenceTraces
+=== PAUSE TestQueueStateIndexedPlanReferenceTraces
+=== RUN   TestQueueStorageSixClassesAndTwoGenerations
+=== PAUSE TestQueueStorageSixClassesAndTwoGenerations
+=== CONT  TestQueueStateDrainReferenceAndMaintenance
+=== RUN   TestQueueStateDrainReferenceAndMaintenance/replacement
+=== CONT  TestQueueStatePlannerRejectsMalformedPreview
+=== CONT  TestQueueStatePlanningControlsAndPreview
+=== CONT  TestQueueStateIndexedPlanReferenceTraces
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/0
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance/replacement
+=== RUN   TestQueueStateDrainReferenceAndMaintenance/nonprefix
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance/nonprefix
+=== RUN   TestQueueStateDrainReferenceAndMaintenance/paused
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance/paused
+=== RUN   TestQueueStateDrainReferenceAndMaintenance/budget
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance/budget
+=== RUN   TestQueueStateDrainReferenceAndMaintenance/expired
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance/expired
+=== CONT  TestQueueStorageSixClassesAndTwoGenerations
+=== RUN   TestQueueStorageSixClassesAndTwoGenerations/4
+=== PAUSE TestQueueStorageSixClassesAndTwoGenerations/4
+=== RUN   TestQueueStorageSixClassesAndTwoGenerations/5
+=== PAUSE TestQueueStorageSixClassesAndTwoGenerations/5
+=== RUN   TestQueueStorageSixClassesAndTwoGenerations/1000
+=== PAUSE TestQueueStorageSixClassesAndTwoGenerations/1000
+=== RUN   TestQueueStorageSixClassesAndTwoGenerations/10000
+=== PAUSE TestQueueStorageSixClassesAndTwoGenerations/10000
+=== CONT  TestQueueStateCorruptionAndCleanupPreflight
+--- PASS: TestQueueStatePlannerRejectsMalformedPreview (0.00s)
+=== CONT  TestQueueStateSignedExtremeEligibility
+--- PASS: TestQueueStateCorruptionAndCleanupPreflight (0.00s)
+=== CONT  TestQueueStateRejectsStaleAndExhausted
+--- PASS: TestQueueStateSignedExtremeEligibility (0.00s)
+=== CONT  TestQueueStateDrainReferenceAndMaintenance/replacement
+--- PASS: TestQueueStatePlanningControlsAndPreview (0.01s)
+=== CONT  TestQueueStorageSixClassesAndTwoGenerations/4
+--- PASS: TestQueueStateRejectsStaleAndExhausted (0.00s)
+=== CONT  TestQueueStateDrainReferenceAndMaintenance/expired
+=== NAME  TestQueueStorageSixClassesAndTwoGenerations/4
+    queue_storage_size_test.go:68: initial N=4 logical=4 source_remaining=0 index_nodes=8 index_node_protobuf=280 record_nodes=4 record_node_protobuf=426 other_node_protobuf=98 encoded_path_bytes=546 total=1350
+    queue_storage_size_test.go:89: two_generations N=4 logical=2 source_remaining=2 index_nodes=6 index_node_protobuf=210 record_nodes=3 record_node_protobuf=320 other_node_protobuf=132 encoded_path_bytes=415 total=1077
+=== CONT  TestQueueStateDrainReferenceAndMaintenance/budget
+=== CONT  TestQueueStateDrainReferenceAndMaintenance/paused
+=== CONT  TestQueueStateDrainReferenceAndMaintenance/nonprefix
+=== CONT  TestQueueStorageSixClassesAndTwoGenerations/1000
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/1
+=== CONT  TestQueueStorageSixClassesAndTwoGenerations/10000
+--- PASS: TestQueueStateDrainReferenceAndMaintenance (0.00s)
+    --- PASS: TestQueueStateDrainReferenceAndMaintenance/expired (0.00s)
+    --- PASS: TestQueueStateDrainReferenceAndMaintenance/budget (0.01s)
+    --- PASS: TestQueueStateDrainReferenceAndMaintenance/replacement (0.01s)
+    --- PASS: TestQueueStateDrainReferenceAndMaintenance/paused (0.01s)
+    --- PASS: TestQueueStateDrainReferenceAndMaintenance/nonprefix (0.00s)
+=== CONT  TestQueueStorageSixClassesAndTwoGenerations/5
+    queue_storage_size_test.go:68: initial N=5 logical=5 source_remaining=0 index_nodes=10 index_node_protobuf=350 record_nodes=5 record_node_protobuf=538 other_node_protobuf=100 encoded_path_bytes=677 total=1665
+    queue_storage_size_test.go:89: two_generations N=5 logical=2 source_remaining=3 index_nodes=8 index_node_protobuf=280 record_nodes=4 record_node_protobuf=432 other_node_protobuf=134 encoded_path_bytes=546 total=1392
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/2
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/3
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/4
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/5
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/6
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/7
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/8
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/9
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/10
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/11
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/12
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/13
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/14
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/15
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/16
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/17
+=== NAME  TestQueueStorageSixClassesAndTwoGenerations/1000
+    queue_storage_size_test.go:68: initial N=1000 logical=1000 source_remaining=0 index_nodes=3663 index_node_protobuf=292225 record_nodes=1000 record_node_protobuf=114536 other_node_protobuf=110 encoded_path_bytes=238754 total=645625
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/18
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/19
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/20
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/21
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/22
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/23
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/24
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/25
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/26
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/27
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/28
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/29
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/30
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/31
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/32
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/33
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/34
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/35
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/36
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/37
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/38
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/39
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/40
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/41
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/42
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/43
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/44
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/45
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/46
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/47
+--- PASS: TestQueueStateIndexedPlanReferenceTraces (0.24s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/0 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/1 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/2 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/3 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/4 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/5 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/6 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/7 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/8 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/9 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/10 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/11 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/12 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/13 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/14 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/15 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/16 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/17 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/18 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/19 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/20 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/21 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/22 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/23 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/24 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/25 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/26 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/27 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/28 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/29 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/30 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/31 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/32 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/33 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/34 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/35 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/36 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/37 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/38 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/39 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/40 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/41 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/42 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/43 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/44 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/45 (0.01s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/46 (0.00s)
+    --- PASS: TestQueueStateIndexedPlanReferenceTraces/47 (0.01s)
+=== NAME  TestQueueStorageSixClassesAndTwoGenerations/10000
+    queue_storage_size_test.go:68: initial N=10000 logical=10000 source_remaining=0 index_nodes=43029 index_node_protobuf=3845225 record_nodes=10000 record_node_protobuf=1146256 other_node_protobuf=110 encoded_path_bytes=2771714 total=7763305
+=== NAME  TestQueueStorageSixClassesAndTwoGenerations/1000
+    queue_storage_size_test.go:89: two_generations N=1000 logical=375 source_remaining=500 index_nodes=2466 index_node_protobuf=186061 record_nodes=749 record_node_protobuf=83860 other_node_protobuf=146 encoded_path_bytes=162149 total=432216
+signal: terminated
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	169.948s
+FAIL

@@ -1,6 +1,8 @@
 package decision
 
 import (
+	"time"
+
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 )
@@ -31,20 +33,20 @@ func enqueue(next State, event Event) (State, error) {
 	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ALL && effectPolicy(policy) == NoEffect {
 		return next, nil
 	}
-	if !QueueAvailable(next) || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(next.Queue) > 0) {
+	if !QueueAvailable(next) || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && QueueLength(next) > 0) {
 		next.Root.BufferDropped++
 		return next, nil
 	}
 	if event.WorkflowID == "" || event.Actual < event.Nominal || event.Actual > event.Now {
 		return State{}, serviceerror.NewInvalidArgument("buffering requires due occurrence identity")
 	}
-	next.Queue = append(next.Queue, Queued{Nominal: event.Nominal, Actual: event.Actual, WorkflowID: event.WorkflowID, Policy: policy})
-	return next, nil
+	return appendQueued(next, Queued{Nominal: event.Nominal, Actual: event.Actual, WorkflowID: event.WorkflowID, Policy: policy})
 }
 
-// DrainIndex selects an eligible waiter, applying overlap replacement without preparing payloads.
+// DrainIndex selects a finite-profile waiter without preparing payloads.
+// Indexed callers must use an adapter query plan instead of a slice position.
 func DrainIndex(state State, now, catchup int64) int {
-	if occupied(state) || catchup < 0 {
+	if state.IndexedQueue.Enabled || occupied(state) || catchup < 0 {
 		return -1
 	}
 	selected := -1
@@ -56,13 +58,14 @@ func DrainIndex(state State, now, catchup int64) int {
 	return selected
 }
 
-// CanDrain excludes external capacity waits while permitting ineligible disposition.
+// CanDrain handles finite-profile capacity waits and ineligible disposition.
+// Indexed callers use the adapter query plan and its maintenance fence.
 func CanDrain(state State, now, catchup int64) bool {
-	return NeedsDrain(state) && (DrainIndex(state, now, catchup) < 0 || OperationAvailable(state))
+	return !state.IndexedQueue.Enabled && NeedsDrain(state) && (DrainIndex(state, now, catchup) < 0 || OperationAvailable(state))
 }
 
 // NeedsDrain distinguishes internal pending work from waiting on an active operation.
-func NeedsDrain(state State) bool { return len(state.Queue) > 0 && !occupied(state) }
+func NeedsDrain(state State) bool { return QueueLength(state) > 0 && !occupied(state) }
 
 func drain(next State, event Event) (State, error) {
 	if event.CatchupWindow < 0 {
@@ -70,6 +73,9 @@ func drain(next State, event Event) (State, error) {
 	}
 	if !NeedsDrain(next) {
 		return next, nil
+	}
+	if next.IndexedQueue.Enabled {
+		return drainIndexed(next, event)
 	}
 	index := DrainIndex(next, event.Now, event.CatchupWindow)
 	if index < 0 {
@@ -102,5 +108,5 @@ func drain(next State, event Event) (State, error) {
 }
 
 func queueEligible(state State, q Queued, now, catchup int64) bool {
-	return q.ManualID != 0 || q.BackfillID != 0 || (!state.Root.Paused && (!state.Root.Limited || state.Root.Remaining > 0) && (now <= q.Actual || now-q.Actual <= catchup))
+	return q.ManualID != 0 || q.BackfillID != 0 || (!state.Root.Paused && (!state.Root.Limited || state.Root.Remaining > 0) && !q.ActualTime.Time(q.Actual).Before(time.Unix(0, now).Add(-time.Duration(catchup))))
 }

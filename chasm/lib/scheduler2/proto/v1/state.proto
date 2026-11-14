@@ -100,6 +100,8 @@ message RootState {
   uint64 public_revision = 42;
   // PublicActionRef owns the immutable payload bundle for the current public action.
   string public_action_ref = 43;
+  // IndexedQueue selects exclusive indexed queue storage for newly created public executions.
+  QueueState indexed_queue = 44;
 }
 
 // Phase distinguishes an operation's durable progress from delivery attempts.
@@ -510,4 +512,62 @@ message CalendarSupersededSource {
   repeated uint32 range_counts = 2;
   uint64 installed_pages = 3;
   uint64 cursor = 4;
+}
+
+// QueueState is the fixed logical summary of two physical queue generations.
+message QueueState {
+  // FormatVersion rejects incompatible local prototype layouts.
+  uint32 format_version = 1;
+  // Generation identifies the current append destination.
+  uint64 generation = 2;
+  // Version fences every logical append or drain.
+  uint64 version = 3;
+  // NextSequence never reuses an admission identity; zero is reserved.
+  uint64 next_sequence = 4;
+  // AutomaticOrdinary counts logical automatic non-effect waiters.
+  int64 automatic_ordinary = 5;
+  // AutomaticCancel counts logical automatic cancel waiters.
+  int64 automatic_cancel = 6;
+  // AutomaticTerminate counts logical automatic terminate waiters.
+  int64 automatic_terminate = 7;
+  // ExplicitOrdinary counts logical manual/backfill non-effect waiters.
+  int64 explicit_ordinary = 8;
+  // ExplicitCancel counts logical manual/backfill cancel waiters.
+  int64 explicit_cancel = 9;
+  // ExplicitTerminate counts logical manual/backfill terminate waiters.
+  int64 explicit_terminate = 10;
+  // CompletedDrain retains an already published logical disposition during point cleanup.
+  CompletedDrain completed_drain = 11;
+}
+
+// CompletedDrain freezes one source generation's exact logical filtering predicate.
+message CompletedDrain {
+  // SourceGeneration owns immutable pre-drain physical membership.
+  uint64 source_generation = 1;
+  // MaximumSequence fences records admitted before descriptor publication.
+  uint64 maximum_sequence = 2;
+  // Remaining counts physical source records, including logically removed records.
+  int64 remaining = 3;
+  // NextSequence addresses the minimum remaining source record.
+  uint64 next_sequence = 4;
+  // NextClass identifies its one source class index.
+  uint32 next_class = 5;
+  // AutomaticEnabled freezes paused and remaining-action eligibility.
+  bool automatic_enabled = 6;
+  // Threshold is the exact chronological seconds/nanoseconds key, twelve bytes.
+  bytes threshold = 7;
+  // FirstSequence identifies the first eligible predecessor removed by replacement.
+  uint64 first_sequence = 8;
+  // FirstClass identifies the first eligible predecessor's class.
+  uint32 first_class = 9;
+  // SelectedSequence is zero for an all-ineligible disposition.
+  uint64 selected_sequence = 10;
+  // SelectedClass identifies the admitted occurrence's class.
+  uint32 selected_class = 11;
+  // Removed records the already applied logical removal count.
+  int64 removed = 12;
+  // Missed records the already applied enabled-automatic catchup count.
+  int64 missed = 13;
+  // Superseded records the already applied overlap replacement count.
+  int64 superseded = 14;
 }

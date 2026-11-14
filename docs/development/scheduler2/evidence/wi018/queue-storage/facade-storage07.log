@@ -1,0 +1,73 @@
+=== RUN   TestQueueStateDrainReferenceAndMaintenance
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance
+=== RUN   TestQueueStateRejectsStaleAndExhausted
+=== PAUSE TestQueueStateRejectsStaleAndExhausted
+=== RUN   TestQueueStatePlanningControlsAndPreview
+=== PAUSE TestQueueStatePlanningControlsAndPreview
+=== RUN   TestQueueStateCorruptionAndCleanupPreflight
+=== PAUSE TestQueueStateCorruptionAndCleanupPreflight
+=== RUN   TestQueueStatePlannerRejectsMalformedPreview
+=== PAUSE TestQueueStatePlannerRejectsMalformedPreview
+=== RUN   TestQueueStateSignedExtremeEligibility
+=== PAUSE TestQueueStateSignedExtremeEligibility
+=== RUN   TestQueueStateIndexedPlanReferenceTraces
+=== PAUSE TestQueueStateIndexedPlanReferenceTraces
+=== RUN   TestQueueStorageSixClassesAndTwoGenerations
+=== PAUSE TestQueueStorageSixClassesAndTwoGenerations
+=== CONT  TestQueueStateDrainReferenceAndMaintenance
+=== CONT  TestQueueStatePlannerRejectsMalformedPreview
+=== CONT  TestQueueStatePlanningControlsAndPreview
+=== RUN   TestQueueStateDrainReferenceAndMaintenance/replacement
+=== CONT  TestQueueStateCorruptionAndCleanupPreflight
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance/replacement
+=== RUN   TestQueueStateDrainReferenceAndMaintenance/nonprefix
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance/nonprefix
+=== RUN   TestQueueStateDrainReferenceAndMaintenance/paused
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance/paused
+=== RUN   TestQueueStateDrainReferenceAndMaintenance/budget
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance/budget
+=== RUN   TestQueueStateDrainReferenceAndMaintenance/expired
+=== PAUSE TestQueueStateDrainReferenceAndMaintenance/expired
+=== CONT  TestQueueStateIndexedPlanReferenceTraces
+=== RUN   TestQueueStateIndexedPlanReferenceTraces/0
+--- PASS: TestQueueStatePlannerRejectsMalformedPreview (0.00s)
+=== CONT  TestQueueStorageSixClassesAndTwoGenerations
+=== RUN   TestQueueStorageSixClassesAndTwoGenerations/4
+=== PAUSE TestQueueStorageSixClassesAndTwoGenerations/4
+=== RUN   TestQueueStorageSixClassesAndTwoGenerations/5
+=== PAUSE TestQueueStorageSixClassesAndTwoGenerations/5
+=== RUN   TestQueueStorageSixClassesAndTwoGenerations/1000
+=== PAUSE TestQueueStorageSixClassesAndTwoGenerations/1000
+=== RUN   TestQueueStorageSixClassesAndTwoGenerations/10000
+=== PAUSE TestQueueStorageSixClassesAndTwoGenerations/10000
+=== CONT  TestQueueStateRejectsStaleAndExhausted
+--- PASS: TestQueueStatePlanningControlsAndPreview (0.00s)
+=== CONT  TestQueueStateSignedExtremeEligibility
+--- FAIL: TestQueueStateCorruptionAndCleanupPreflight (0.01s)
+panic: invalid indexed queue format [recovered, repanicked]
+
+goroutine 24 [running]:
+testing.tRunner.func1.2({0x10443b430, 0x105ab05cef78})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2125 +0x1a0
+testing.tRunner.func1()
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2128 +0x2c8
+panic({0x10443b430?, 0x105ab05cef78?})
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/runtime/panic.go:859 +0x120
+go.temporal.io/server/chasm/lib/scheduler2.(*Scheduler).queueLength(0x105ab0b31500)
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/queue_consumers.go:12 +0x138
+go.temporal.io/server/chasm/lib/scheduler2.(*Scheduler).SearchAttributes(0x105ab0b31500, {0x104bcc628, 0x105ab0595dc0})
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/public_visibility.go:42 +0x44c
+go.temporal.io/server/chasm.(*Node).closeTransactionForceUpdateVisibility(0x105ab01da3c0, {0x104bcc628, 0x105ab0595dc0}, 0x0)
+	/private/tmp/sch-redesign-execution/chasm/tree.go:2096 +0x11c
+go.temporal.io/server/chasm.(*Node).CloseTransaction(0x105ab01da3c0, {0x104bbfdb0, 0x105ab05c66e0}, 0x1)
+	/private/tmp/sch-redesign-execution/chasm/tree.go:1920 +0x13c
+go.temporal.io/server/chasm/lib/scheduler2.(*treeHarness).commit(0x105aafdbed70, 0x0)
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/persistence_test.go:108 +0x58
+go.temporal.io/server/chasm/lib/scheduler2.TestQueueStateCorruptionAndCleanupPreflight(0x105ab052f8c8)
+	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/queue_state_test.go:231 +0x884
+testing.tRunner(0x105ab052f8c8, 0x104bd07d8)
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2195 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/testing/testing.go:2260 +0x3b8
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.671s
+FAIL

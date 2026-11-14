@@ -1,0 +1,25 @@
+{
+  "base": "4f301d7645989ee782e49c59698702ad41f218ac",
+  "sources": {
+    "chasm/lib/scheduler2/component.go": "700e329f32d0427d9fa31bb62ec94b087fd0e41222434164a89f6c2117c51305",
+    "chasm/lib/scheduler2/coordinator.go": "83e5853d76da7785ec90fde90095dd955f55c5b12607844765af9b1822955cc6",
+    "chasm/lib/scheduler2/coordinator_immediate.go": "552f864d5d4562f887014a60f98d37c6660cd7261895f09d4676e4e4734e57e2",
+    "chasm/lib/scheduler2/buffer.go": "735b2831995f8c4701340ce688df3b9f690aca0392e757150df3cec120898a83",
+    "chasm/lib/scheduler2/queue_consumers.go": "7232a7f182f159df57e39981ab684058fa57fa486c091558e49fc31db6c7b2a7",
+    "chasm/lib/scheduler2/queue_consumers_test.go": "baf31ab6483471d2c013610ec0b03ee15bd107ad47b260055f810a8ed3cb3b13",
+    "chasm/lib/scheduler2/idle.go": "078701f54b2907f2d19a45a51e7bfd688454e826c097a2b4b054db23ab77888f",
+    "chasm/lib/scheduler2/timeskipping.go": "582a4df0ee273a379e3e08eac4ce57dbf81df7fd0e555a3cd3976f25fc3afd7d",
+    "chasm/lib/scheduler2/public.go": "26bd6e305e3a70fd9f1f2ba77f6296a8af6af15b3c8559aa290540ac1b2fbdd4",
+    "chasm/lib/scheduler2/public_projection.go": "f0557f5cd4a636823376e1166d28f69b50afd7ca3a4ab97b07c9b78496d6bc78",
+    "chasm/lib/scheduler2/public_visibility.go": "5d9cd9e865fd0f853b8c13169c2449bab5042cd07e3fe471c5cacd6eb2246c2c",
+    "chasm/lib/scheduler2/backfill_batch.go": "8cacaf0565083cf3fa19fa71b29a363d73d4431d3f1c759e2d66bee9b13c0556",
+    "chasm/lib/scheduler2/backfill.go": "eb30ce022c126ae93e7e17d00ceb89c43f67c1059600900265fe427ef49940a3",
+    "chasm/lib/scheduler2/generator.go": "9bb7be7e0be6405deea80a6c00422a5696dac3be45f13fd0098f34c329e4ce12",
+    "chasm/lib/scheduler2/effects.go": "28943ec609f7d9e672b014419f60b56545255a5e3117d5ef9076c346e62532b1",
+    "chasm/lib/scheduler2/queue_state.go": "7894920424ed009a06031416b52527fc13b3525b926e6cfbd49b43199d59a903",
+    "chasm/lib/scheduler2/lifecycle.go": "1c5488f7e447103556cbaa7305459193a581bf73a5828075d00b57f74e819e55"
+  },
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2 -run '^(TestQueueConsumersRejectInvalidSummaryBeforePublication|TestIndexedQueueCoordinatorPublicationAndCleanup|TestPublicQueueExpiryWideNanoseconds|TestPublicCreationUsesIndexedQueue|TestPublicWideManualQueuedReload)$' -count=1 -v",
+  "result": "PASS 0.651s",
+  "scope": "directed component/tree integration, not actual History physical failure injection"
+}

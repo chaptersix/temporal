@@ -39,5 +39,5 @@ func (s *Scheduler) SearchAttributes(ctx chasm.Context) []chasm.SearchAttributeK
 	}
 	// Successful start acknowledgement separates buffered and running actions,
 	// matching Describe and the existing scheduler visibility contract.
-	return append(attributes, publicRunningWorkflowCount.Value(running), publicBufferedStartsCount.Value(int64(len(s.Queue))+s.UnconfirmedStarts))
+	return append(attributes, publicRunningWorkflowCount.Value(running), publicBufferedStartsCount.Value(s.queueLength()+s.UnconfirmedStarts))
 }

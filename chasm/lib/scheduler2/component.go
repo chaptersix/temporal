@@ -21,6 +21,8 @@ import (
 type Scheduler struct {
 	chasm.UnimplementedComponent
 	*scheduler2pb.RootState
+	QueueRecords   chasm.DataMap[*scheduler2pb.QueuedOccurrence]
+	QueuePages     chasm.DataMap[*commonpb.Payload]
 	Operations     chasm.Map[string, *scheduler2pb.OperationState]
 	Requests       chasm.Map[string, *scheduler2pb.Payload]
 	PayloadBlobs   chasm.Map[string, *scheduler2pb.Payload]
@@ -42,11 +44,11 @@ func New(incarnation string, remaining int64) *Scheduler {
 }
 
 // state reads only control and selected operation metadata.
-func (s *Scheduler) state(ctx chasm.Context) decision.State {
+func (s *Scheduler) state(ctx chasm.Context) (decision.State, error) {
 	return s.stateFor(ctx, s.OperationId)
 }
 
-func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.State {
+func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) (decision.State, error) {
 	state := decision.State{Root: decision.Root{
 		ActivitySet: s.ActivitySet, ActivityAt: s.ActivityAt, UnconfirmedStarts: s.UnconfirmedStarts,
 		ManualSequence: s.ManualSequence, Incarnation: s.Incarnation, Revision: s.Revision, Cursor: s.Cursor,
@@ -54,15 +56,25 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.Sta
 		CarryoverSet: s.CarryoverSet, PauseOnFailure: s.PauseOnFailure, Policy: s.Policy, BufferDropped: s.BufferDropped,
 		Unfinished: s.Unfinished, BlockingOperationID: s.BlockingOperationId, CapacityDropped: s.CapacityDropped, OverlapSuperseded: s.OverlapSuperseded,
 	}}
+	summary, err := s.queueSummary()
+	if err != nil {
+		return decision.State{}, err
+	}
+	state.IndexedQueue = summary
 	state.Capacity = s.capacity(ctx)
+	if err := decision.ValidateQueueSummary(state); err != nil {
+		return decision.State{}, err
+	}
 	for _, m := range s.Manuals {
 		state.Manuals = append(state.Manuals, decision.ManualCommand{ID: m.Id, Nominal: m.Nominal, NominalTime: decodeDecisionTime(m.NominalTime), Policy: m.Policy})
 	}
 	for _, e := range s.Effects {
 		state.Effects = append(state.Effects, decodeEffect(e))
 	}
-	for _, q := range s.Queue {
-		state.Queue = append(state.Queue, decision.Queued{Nominal: q.Nominal, Actual: q.Actual, NominalTime: decodeDecisionTime(q.NominalTime), ActualTime: decodeDecisionTime(q.ActualTime), WorkflowID: q.WorkflowId, Policy: q.Policy, ManualID: q.ManualId, BackfillID: q.BackfillId})
+	if !summary.Enabled {
+		for _, q := range s.Queue {
+			state.Queue = append(state.Queue, decodeQueued(q))
+		}
 	}
 	if field, ok := s.Operations[operationID]; ok {
 		op := field.Get(ctx)
@@ -73,7 +85,7 @@ func (s *Scheduler) stateFor(ctx chasm.Context, operationID string) decision.Sta
 			BackfillID: op.BackfillId, ManualID: op.ManualId, RetryAt: op.RetryAt, Phase: decision.Phase(op.Phase), WorkflowID: op.WorkflowId, Policy: op.Policy,
 		}
 	}
-	return state
+	return state, nil
 }
 
 // Apply records the transition and successor task in the same CHASM transaction.
@@ -128,7 +140,10 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 	if admissionEvent(event.Kind) || event.Kind == decision.Update {
 		operationID = s.OperationId
 	}
-	before := s.stateFor(ctx, operationID)
+	before, err := s.stateFor(ctx, operationID)
+	if err != nil {
+		return err
+	}
 	if err := s.prepareManual(ctx, before, &event); err != nil {
 		return err
 	}
@@ -160,7 +175,7 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 			return err
 		}
 	}
-	if len(next.Queue) > 0 && !s.HasGenerator {
+	if decision.QueueLength(next) > 0 && !s.HasGenerator {
 		return serviceerror.NewFailedPrecondition("buffering requires a configured template")
 	}
 	if err := s.checkNextWorkToken(ctx, next); err != nil {
@@ -191,6 +206,15 @@ func (s *Scheduler) applyTransition(ctx chasm.MutableContext, event decision.Eve
 			return err
 		}
 		maps.Copy(prepared, blobs)
+	}
+	if next.QueueChange.Appended {
+		if err := s.stageQueueAppend(ctx, next.QueueChange.Append); err != nil {
+			return err
+		}
+	} else if next.QueueChange.Drained {
+		if err := s.stageQueueDrain(ctx, next.QueueChange.Drain, before); err != nil {
+			return err
+		}
 	}
 	s.publishBlobs(ctx, prepared)
 	s.publishTransition(ctx, before, next, event.Kind, newAdmission, eviction, effectRequests, requestRecord, carryoverRecord)
@@ -232,7 +256,7 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 	}
 	previousRoot := s.RootState
 	s.RootState = &scheduler2pb.RootState{
-		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef,
+		PublicRevision: previousRoot.PublicRevision, PublicActionRef: previousRoot.PublicActionRef, IndexedQueue: previousRoot.IndexedQueue,
 		ActivitySet: next.Root.ActivitySet, ActivityAt: next.Root.ActivityAt, UnconfirmedStarts: next.Root.UnconfirmedStarts,
 		IdleDuration: previousRoot.IdleDuration, IdleToken: previousRoot.IdleToken, IdleArmed: previousRoot.IdleArmed, IdleAt: previousRoot.IdleAt,
 		Closed: previousRoot.Closed, Coordination: previousRoot.Coordination, BackfillSequence: previousRoot.BackfillSequence, Backfills: previousRoot.Backfills, BackfillFocus: previousRoot.BackfillFocus, LastBackfill: previousRoot.LastBackfill,
@@ -246,8 +270,10 @@ func (s *Scheduler) publishTransition(ctx chasm.MutableContext, before, next dec
 	for _, m := range next.Manuals {
 		s.Manuals = append(s.Manuals, &scheduler2pb.ManualCommand{Id: m.ID, Nominal: m.Nominal, NominalTime: encodeDecisionTime(m.NominalTime), Policy: m.Policy})
 	}
-	for _, q := range next.Queue {
-		s.Queue = append(s.Queue, &scheduler2pb.QueuedOccurrence{Nominal: q.Nominal, Actual: q.Actual, NominalTime: encodeDecisionTime(q.NominalTime), ActualTime: encodeDecisionTime(q.ActualTime), WorkflowId: q.WorkflowID, Policy: q.Policy, ManualId: q.ManualID, BackfillId: q.BackfillID})
+	if !next.IndexedQueue.Enabled {
+		for _, q := range next.Queue {
+			s.Queue = append(s.Queue, encodeQueued(q))
+		}
 	}
 	if next.Carryover != nil {
 		s.Carryover = chasm.NewDataField(ctx, carryoverRecord)
@@ -291,7 +317,10 @@ func (s *Scheduler) request(ctx chasm.Context, operationID string) (*workflowser
 	if s.Closed {
 		return nil, nil
 	}
-	state := s.stateFor(ctx, operationID)
+	state, err := s.stateFor(ctx, operationID)
+	if err != nil {
+		return nil, err
+	}
 	if state.Operation == nil {
 		return nil, nil
 	}

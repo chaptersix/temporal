@@ -80,14 +80,16 @@ func TestUpdateFailureBeforeAcknowledgmentUsesCurrentPolicyAndCarryover(t *testi
 			// separate transaction, never part of the rejected handoff publication.
 			for step := 0; step < 3; step++ {
 				s, ctx = h.root(false)
-				_, demand, _ := s.planWork(ctx)
+				_, demand, _, planErr := s.planWork(ctx)
+				require.NoError(t, planErr)
 				if demand != nil && demand.class == scheduler2pb.WORK_CLASS_DRAIN {
 					break
 				}
 				coordinatorStep(h, true)
 			}
 			s, ctx = h.root(false)
-			_, demand, _ := s.planWork(ctx)
+			_, demand, _, planErr := s.planWork(ctx)
+			require.NoError(t, planErr)
 			require.NotNil(t, demand)
 			require.Equal(t, scheduler2pb.WORK_CLASS_DRAIN, demand.class)
 			before, physical = cloneNodes(h.durable), len(h.physical)

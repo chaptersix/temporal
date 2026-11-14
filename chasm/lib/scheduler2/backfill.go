@@ -157,7 +157,11 @@ func (s *Scheduler) scanBackfill(ctx chasm.MutableContext) error {
 				kept = append(kept, other)
 			}
 		}
-		if _, _, err := s.checkIdlePlan(s.stateFor(ctx, ""), g.Continuation, true, len(kept) > 0); err != nil {
+		state, err := s.stateFor(ctx, "")
+		if err != nil {
+			return err
+		}
+		if _, _, err := s.checkIdlePlan(state, g.Continuation, true, len(kept) > 0); err != nil {
 			return err
 		}
 		s.Backfills = kept

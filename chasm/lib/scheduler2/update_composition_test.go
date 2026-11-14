@@ -147,7 +147,8 @@ func TestUpdateCompositionQueuedIdentityCurrentCarryoverAndRetry(t *testing.T) {
 	// Consume only the automatic empty-source scan if it wins before drain.
 	for step := 0; step < 2; step++ {
 		s, ctx = h.root(false)
-		_, d, _ := s.planWork(ctx)
+		_, d, _, planErr := s.planWork(ctx)
+		require.NoError(t, planErr)
 		if d != nil && d.class == scheduler2pb.WORK_CLASS_DRAIN {
 			break
 		}

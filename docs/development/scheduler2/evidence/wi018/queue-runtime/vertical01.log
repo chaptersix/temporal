@@ -1,0 +1,22 @@
+=== RUN   TestQueueConsumersRejectInvalidSummaryBeforePublication
+=== PAUSE TestQueueConsumersRejectInvalidSummaryBeforePublication
+=== RUN   TestIndexedQueueCoordinatorPublicationAndCleanup
+=== PAUSE TestIndexedQueueCoordinatorPublicationAndCleanup
+=== CONT  TestQueueConsumersRejectInvalidSummaryBeforePublication
+=== RUN   TestQueueConsumersRejectInvalidSummaryBeforePublication/unknown_format
+=== CONT  TestIndexedQueueCoordinatorPublicationAndCleanup
+=== PAUSE TestQueueConsumersRejectInvalidSummaryBeforePublication/unknown_format
+=== RUN   TestQueueConsumersRejectInvalidSummaryBeforePublication/negative_count
+=== PAUSE TestQueueConsumersRejectInvalidSummaryBeforePublication/negative_count
+=== RUN   TestQueueConsumersRejectInvalidSummaryBeforePublication/mixed_representations
+=== PAUSE TestQueueConsumersRejectInvalidSummaryBeforePublication/mixed_representations
+=== CONT  TestQueueConsumersRejectInvalidSummaryBeforePublication/unknown_format
+=== CONT  TestQueueConsumersRejectInvalidSummaryBeforePublication/mixed_representations
+=== CONT  TestQueueConsumersRejectInvalidSummaryBeforePublication/negative_count
+--- PASS: TestQueueConsumersRejectInvalidSummaryBeforePublication (0.00s)
+    --- PASS: TestQueueConsumersRejectInvalidSummaryBeforePublication/negative_count (0.00s)
+    --- PASS: TestQueueConsumersRejectInvalidSummaryBeforePublication/unknown_format (0.00s)
+    --- PASS: TestQueueConsumersRejectInvalidSummaryBeforePublication/mixed_representations (0.00s)
+--- PASS: TestIndexedQueueCoordinatorPublicationAndCleanup (0.01s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.673s

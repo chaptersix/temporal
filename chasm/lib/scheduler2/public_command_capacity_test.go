@@ -60,6 +60,6 @@ func TestPublicManualIngressRetainsHundredAcrossReload(t *testing.T) {
 	require.Len(t, s.Manuals, 100)
 	var capacity *serviceerror.FailedPrecondition
 	require.ErrorAs(t, s.AcceptManual(ctx.(chasm.MutableContext), &schedulepb.TriggerImmediatelyRequest{}), &capacity)
-	require.Empty(t, s.Queue)
+	require.Zero(t, s.queueLength())
 	require.Zero(t, s.Unfinished)
 }

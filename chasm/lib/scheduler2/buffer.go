@@ -27,6 +27,18 @@ func (s *Scheduler) prepareDrain(ctx chasm.Context, state decision.State, event 
 	}
 	g := s.Generator.Get(ctx)
 	event.CatchupWindow = g.CatchupWindow
+	if state.IndexedQueue.Enabled {
+		plan, err := s.planQueueDrain(ctx, state, event.Now, event.CatchupWindow)
+		if err != nil {
+			return err
+		}
+		event.QueueDrain = plan
+		if plan != nil && plan.Selected && decision.OperationAvailable(state) {
+			event.Request, err = s.generationRequest(ctx)
+			return err
+		}
+		return nil
+	}
 	if decision.OperationAvailable(state) && decision.DrainIndex(state, event.Now, event.CatchupWindow) >= 0 {
 		var err error
 		event.Request, err = s.generationRequest(ctx)
@@ -35,11 +47,4 @@ func (s *Scheduler) prepareDrain(ctx chasm.Context, state decision.State, event 
 		}
 	}
 	return nil
-}
-
-func (s *Scheduler) canDrain(ctx chasm.Context, state decision.State) bool {
-	if !decision.NeedsDrain(state) || !s.HasGenerator {
-		return false
-	}
-	return decision.CanDrain(state, ctx.Now(s).UnixNano(), s.Generator.Get(ctx).CatchupWindow)
 }

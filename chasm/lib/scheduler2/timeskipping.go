@@ -8,8 +8,11 @@ var _ chasm.TimeSkippingRuntimeGate = (*Scheduler)(nil)
 // tracked workflow executions settle. Future coordinator wakes remain eligible
 // skip targets; due work must be serviced before advancing the execution clock.
 func (s *Scheduler) IsExecutionSkippable(ctx chasm.Context) bool {
-	if s.Closed || s.Paused || !s.HasGenerator || s.Unfinished != 0 || s.UnconfirmedStarts != 0 ||
-		len(s.PendingStarts) != 0 || len(s.Effects) != 0 || len(s.Queue) != 0 || len(s.Manuals) != 0 || len(s.Backfills) != 0 {
+	if _, err := s.queueSummary(); err != nil {
+		return false
+	}
+	if s.queueMaintenancePending() || s.Closed || s.Paused || !s.HasGenerator || s.Unfinished != 0 || s.UnconfirmedStarts != 0 ||
+		len(s.PendingStarts) != 0 || len(s.Effects) != 0 || s.queueLength() != 0 || len(s.Manuals) != 0 || len(s.Backfills) != 0 {
 		return false
 	}
 	now := ctx.Now(s).UnixNano()

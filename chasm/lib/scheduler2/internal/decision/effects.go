@@ -56,10 +56,7 @@ func reconcileEffects(next State) State {
 	if len(next.Effects) > 0 && next.Effects[0].TargetID != next.Root.BlockingOperationID {
 		next.Effects = nil
 	}
-	desired := NoEffect
-	for _, q := range next.Queue {
-		desired = max(desired, effectPolicy(q.Policy))
-	}
+	desired := QueueEffect(next)
 	if desired == NoEffect {
 		return next
 	}

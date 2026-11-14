@@ -26,7 +26,7 @@ func (s *Scheduler) backfillBatchCapacity(ctx chasm.Context) int64 {
 		return 0
 	}
 	tweaks := getter(ctx.NamespaceEntry().Name().String())
-	buffered := int64(len(s.Queue)) + s.capacity(ctx).BufferedOperations
+	buffered := s.queueLength() + s.capacity(ctx).BufferedOperations
 	available := max(int64(0), int64(tweaks.MaxBufferSize)/2-max(int64(0), buffered-10)-int64(tweaks.GeneratorBufferReserveSize))
 	return available / int64(max(1, len(s.Backfills)))
 }

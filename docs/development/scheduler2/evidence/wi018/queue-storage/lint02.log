@@ -1,0 +1,92 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 11.72925ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (compiled_files|exports_file|files|imports|name|deps|types_sizes) took 1.150435291s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 13.608334ms"
+level=info msg="[linters_context/goanalysis] analyzers took 3.411613338s with top 10 stages: goimports: 1.562101084s, revive: 817.666041ms, buildir: 171.303041ms, S1038: 120.263417ms, gci: 97.8335ms, forbidigo: 72.968166ms, nilness: 71.010479ms, testifylint: 55.121458ms, QF1010: 34.123ms, printf: 33.828708ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 100 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 13 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 26 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner] Issues before processing: 147, after processing: 2"
+level=info msg="[runner] Processors filtering stat (in/out): diff: 7/2, uniq_by_line: 2/2, path_relativity: 147/147, max_same_issues: 2/2, path_shortener: 2/2, severity-rules: 2/2, max_per_file_from_linter: 2/2, invalid_issue: 147/147, exclusion_paths: 147/147, nolint_filter: 8/7, max_from_linter: 2/2, source_code: 2/2, sort_results: 2/2, cgo: 147/147, generated_file_filter: 147/147, fixer: 2/2, path_prettifier: 2/2, path_absoluter: 147/147, filename_unadjuster: 147/147, exclusion_rules: 147/8"
+level=info msg="[runner] processing took 81.278871ms with stages: diff: 78.279458ms, nolint_filter: 1.629ms, generated_file_filter: 774.958µs, exclusion_rules: 346.041µs, source_code: 88.458µs, path_relativity: 70.791µs, exclusion_paths: 66.25µs, cgo: 5.333µs, invalid_issue: 4.291µs, uniq_by_line: 3.916µs, filename_unadjuster: 3.208µs, path_absoluter: 2.584µs, sort_results: 1.875µs, max_same_issues: 1µs, path_shortener: 792ns, max_per_file_from_linter: 334ns, fixer: 208ns, path_prettifier: 208ns, max_from_linter: 83ns, severity-rules: 83ns"
+level=info msg="[runner] linters took 2.5592215s with stages: goanalysis_metalinter: 2.477887375s"
+../chasm/lib/scheduler2/coordinator.go:149:1: cyclomatic: function (*Scheduler).planWorkFor has cyclomatic complexity 30 (> max enabled 25) (revive)
+func (s *Scheduler) planWorkFor(ctx chasm.Context, state decision.State) (*scheduler2pb.CoordinationState, *workDemand, time.Time, error) {
+	c := &scheduler2pb.CoordinationState{}
+	if s.Coordination != nil {
+		c = common.CloneProto(s.Coordination)
+	}
+	demands, future, err := s.demands(ctx, state)
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+	byClass := make(map[scheduler2pb.WorkClass]workDemand, len(demands))
+	for _, d := range demands {
+		byClass[d.class] = d
+		if state.Capacity.Public && d.vacancy && !decision.QueueAvailable(state) {
+			// Live configuration can restore capacity without an operation result.
+			// Keep accepted intent and its lease, with a physical retry rather than an immediate loop.
+			retry := ctx.Now(s).Add(time.Second)
+			if future.IsZero() || retry.Before(future) {
+				future = retry
+			}
+		}
+	}
+	owner, exists := byClass[c.OwnerClass]
+	if c.OwnerKey != "" && (!exists || !owner.vacancy || owner.key != c.OwnerKey) {
+		c.OwnerKey = ""
+	}
+	if c.OwnerKey == "" && decision.QueueAvailable(state) {
+		if class, ok := cyclicClass(c.NextQueue, func(class scheduler2pb.WorkClass) bool { return byClass[class].vacancy && !byClass[class].deferred }); ok {
+			c.OwnerClass = class
+			c.OwnerKey = byClass[class].key
+		}
+	}
+	owns := func(d workDemand) bool {
+		return !d.vacancy || (c.OwnerClass == d.class && c.OwnerKey == d.key && decision.QueueAvailable(state))
+	}
+	op, hasOp := cyclicClass(c.NextOperation, func(class scheduler2pb.WorkClass) bool {
+		d, ok := byClass[class]
+		return ok && !d.deferred && d.operation && owns(d)
+	})
+	selected, ready := cyclicClass(c.NextWork, func(class scheduler2pb.WorkClass) bool {
+		d, ok := byClass[class]
+		return ok && !d.deferred && owns(d) && (!d.operation || (hasOp && op == class && decision.OperationAvailable(state)))
+	})
+	if ready {
+		d := byClass[selected]
+		return c, &d, ctx.Now(s), nil
+	}
+	return c, nil, future, nil
+}
+../chasm/lib/scheduler2/queue_state.go:180:167: confusing-results: unnamed results of the same type may be confusing, consider using named results (revive)
+func queryQueueClass(b *queueindex.CountBatch, index queueindex.SequenceIndex, lower queueindex.CountKey, count int64, effect bool) (int64, queueindex.SequenceEntry, queueindex.SequenceEntry, error) {
+                                                                                                                                                                      ^
+2 issues:
+* revive: 2
+level=info msg="File cache stats: 2 entries of total size 35.4KiB"
+level=info msg="Memory: 39 samples, avg is 486.4MB, max is 860.9MB"
+level=info msg="Execution took 3.75845775s"
+make: *** [lint-code] Error 1

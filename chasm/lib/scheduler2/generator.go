@@ -104,7 +104,10 @@ func (s *Scheduler) configureGeneration(ctx chasm.MutableContext, config Generat
 	if err != nil {
 		return err
 	}
-	preview := s.stateFor(ctx, "")
+	preview, err := s.stateFor(ctx, "")
+	if err != nil {
+		return err
+	}
 	if controls != nil {
 		preview.Root.Paused = controls.Paused
 		preview.Root.Limited = controls.Limited

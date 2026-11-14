@@ -203,24 +203,28 @@ func TestPublicBackfillBatchBudgetRetainsVacancyLease(t *testing.T) {
 	s, ctx := h.root(false)
 	owner := s.Coordination.OwnerKey
 	require.NotEmpty(t, owner)
-	state := s.stateFor(ctx, "")
+	state, stateErr := s.stateFor(ctx, "")
+	require.NoError(t, stateErr)
 	// Public admission now waits on configured retained capacity, not four operations.
 	state.Capacity.MaxBuffer = 2
 	state.Capacity.BufferedOperations = 2
-	planned, ready, _ := s.planWorkFor(ctx, state)
+	planned, ready, _, planErr := s.planWorkFor(ctx, state)
+	require.NoError(t, planErr)
 	require.Nil(t, ready)
 	require.Equal(t, owner, planned.OwnerKey)
 	tweaks.MaxBufferSize = 100
 	// A newly competing producer cannot invalidate the older reserved candidate.
 	state.Manuals = []decision.ManualCommand{{ID: 1, Nominal: h.now, Policy: enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL}}
-	planned, ready, wake := s.planWorkFor(ctx, state)
+	planned, ready, wake, planErr := s.planWorkFor(ctx, state)
+	require.NoError(t, planErr)
 	require.Nil(t, ready)
 	require.Equal(t, owner, planned.OwnerKey)
 	require.True(t, wake.After(time.Unix(0, h.now)))
 	tweaks.MaxBufferSize = 104
 	state.Capacity.MaxBuffer = 104
 	state.Capacity.BufferedOperations = 0
-	planned, ready, _ = s.planWorkFor(ctx, state)
+	planned, ready, _, planErr = s.planWorkFor(ctx, state)
+	require.NoError(t, planErr)
 	require.NotNil(t, ready)
 	require.Equal(t, owner, planned.OwnerKey)
 	require.Equal(t, owner, ready.key)

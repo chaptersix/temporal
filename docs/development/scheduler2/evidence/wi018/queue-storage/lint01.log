@@ -1,0 +1,360 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 15.864709ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (deps|imports|name|types_sizes|compiled_files|exports_file|files) took 1.347890417s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 14.41175ms"
+level=info msg="[linters_context/goanalysis] analyzers took 5.897402344s with top 10 stages: goimports: 2.108250459s, revive: 1.100952042s, buildir: 287.01902ms, gci: 264.614334ms, forbidigo: 206.238541ms, testifylint: 184.260459ms, S1038: 167.234875ms, SA4000: 91.883667ms, S1019: 90.02275ms, stdversion: 84.266209ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 26 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 13 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 99 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner] Issues before processing: 150, after processing: 5"
+level=info msg="[runner] Processors filtering stat (in/out): exclusion_paths: 150/150, generated_file_filter: 150/150, nolint_filter: 12/11, fixer: 6/6, source_code: 5/5, path_absoluter: 150/150, exclusion_rules: 150/12, uniq_by_line: 6/5, path_shortener: 5/5, path_relativity: 150/150, diff: 11/6, max_from_linter: 5/5, invalid_issue: 150/150, max_same_issues: 5/5, severity-rules: 5/5, path_prettifier: 5/5, sort_results: 5/5, max_per_file_from_linter: 5/5, cgo: 150/150, filename_unadjuster: 150/150"
+level=info msg="[runner] processing took 110.785544ms with stages: diff: 106.157958ms, nolint_filter: 2.368ms, generated_file_filter: 1.131417ms, exclusion_rules: 672.166µs, path_relativity: 188.792µs, source_code: 154.917µs, exclusion_paths: 84.959µs, cgo: 10.375µs, uniq_by_line: 4.501µs, invalid_issue: 3.625µs, path_absoluter: 2.751µs, sort_results: 1.792µs, max_same_issues: 1.167µs, path_shortener: 1.125µs, filename_unadjuster: 749ns, max_per_file_from_linter: 458ns, fixer: 417ns, path_prettifier: 292ns, max_from_linter: 42ns, severity-rules: 41ns"
+level=info msg="[runner] linters took 3.389440375s with stages: goanalysis_metalinter: 3.278541042s"
+../chasm/lib/scheduler2/coordinator.go:149:1: cyclomatic: function (*Scheduler).planWorkFor has cyclomatic complexity 30 (> max enabled 25) (revive)
+func (s *Scheduler) planWorkFor(ctx chasm.Context, state decision.State) (*scheduler2pb.CoordinationState, *workDemand, time.Time, error) {
+	c := &scheduler2pb.CoordinationState{}
+	if s.Coordination != nil {
+		c = common.CloneProto(s.Coordination)
+	}
+	demands, future, err := s.demands(ctx, state)
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+	byClass := make(map[scheduler2pb.WorkClass]workDemand, len(demands))
+	for _, d := range demands {
+		byClass[d.class] = d
+		if state.Capacity.Public && d.vacancy && !decision.QueueAvailable(state) {
+			// Live configuration can restore capacity without an operation result.
+			// Keep accepted intent and its lease, with a physical retry rather than an immediate loop.
+			retry := ctx.Now(s).Add(time.Second)
+			if future.IsZero() || retry.Before(future) {
+				future = retry
+			}
+		}
+	}
+	owner, exists := byClass[c.OwnerClass]
+	if c.OwnerKey != "" && (!exists || !owner.vacancy || owner.key != c.OwnerKey) {
+		c.OwnerKey = ""
+	}
+	if c.OwnerKey == "" && decision.QueueAvailable(state) {
+		if class, ok := cyclicClass(c.NextQueue, func(class scheduler2pb.WorkClass) bool { return byClass[class].vacancy && !byClass[class].deferred }); ok {
+			c.OwnerClass = class
+			c.OwnerKey = byClass[class].key
+		}
+	}
+	owns := func(d workDemand) bool {
+		return !d.vacancy || (c.OwnerClass == d.class && c.OwnerKey == d.key && decision.QueueAvailable(state))
+	}
+	op, hasOp := cyclicClass(c.NextOperation, func(class scheduler2pb.WorkClass) bool {
+		d, ok := byClass[class]
+		return ok && !d.deferred && d.operation && owns(d)
+	})
+	selected, ready := cyclicClass(c.NextWork, func(class scheduler2pb.WorkClass) bool {
+		d, ok := byClass[class]
+		return ok && !d.deferred && owns(d) && (!d.operation || (hasOp && op == class && decision.OperationAvailable(state)))
+	})
+	if ready {
+		d := byClass[selected]
+		return c, &d, ctx.Now(s), nil
+	}
+	return c, nil, future, nil
+}
+../chasm/lib/scheduler2/queue_state.go:115:1: cognitive-complexity: function (*Scheduler).planQueueDrain has cognitive complexity 62 (> max enabled 25) (revive)
+func (s *Scheduler) planQueueDrain(ctx chasm.Context, state decision.State, now, catchup int64) (*decision.QueueDrainPlan, error) {
+	if err := decision.ValidateQueueSummary(state); err != nil {
+		return nil, err
+	}
+	if catchup < 0 {
+		return nil, serviceerror.NewInvalidArgument("catchup window must be nonnegative")
+	}
+	if !state.IndexedQueue.Enabled {
+		return nil, serviceerror.NewInternal("queue planner requires indexed state")
+	}
+	if state.IndexedQueue.Maintenance || state.Root.BlockingOperationID != "" || decision.QueueLength(state) == 0 {
+		return nil, nil
+	}
+	b, err := s.queuePlanBatch(ctx, state)
+	if err != nil {
+		return nil, err
+	}
+	defer b.Abort()
+	p := &decision.QueueDrainPlan{Fence: decision.QueueDrainFence{Summary: state.IndexedQueue, Root: state.Root, Capacity: state.Capacity, Now: now, Catchup: catchup}}
+	automatic := !state.Root.Paused && (!state.Root.Limited || state.Root.Remaining > 0)
+	threshold := queueThreshold(now, catchup)
+	var eligible [6]int64
+	var first, last queueindex.SequenceEntry
+	firstClass, selectedClass := 0, 0
+	for class, count := range state.IndexedQueue.Counts {
+		if class < 3 && !automatic {
+			p.Ineligible[class] = count
+			continue
+		}
+		lower := queueindex.CountKey{}
+		if class < 3 {
+			lower = threshold
+		}
+		n, err := b.SequenceCount(queueIndex(state.IndexedQueue.Generation, class), 0, math.MaxUint64, lower)
+		if err != nil {
+			return nil, err
+		}
+		if n > uint64(count) {
+			return nil, serviceerror.NewInternal("queue class count mismatch")
+		}
+		eligible[class] = int64(n)
+		p.Ineligible[class] = count - int64(n)
+		if n == 0 {
+			continue
+		}
+		e, ok, err := b.SequenceExtreme(queueIndex(state.IndexedQueue.Generation, class), lower, false)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, serviceerror.NewInternal("queue eligible extreme absent")
+		}
+		if first.Sequence == 0 || e.Sequence < first.Sequence {
+			first = e
+			firstClass = class
+		}
+		if class%3 != 0 {
+			e, ok, err = b.SequenceExtreme(queueIndex(state.IndexedQueue.Generation, class), lower, true)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, serviceerror.NewInternal("queue effect extreme absent")
+			}
+			if e.Sequence > last.Sequence {
+				last = e
+				selectedClass = class
+			}
+		}
+	}
+	if first.Sequence == 0 {
+		return validatedQueuePlan(state, p)
+	}
+	if last.Sequence == 0 {
+		last = first
+		selectedClass = firstClass
+	}
+	p.Selected = true
+	p.FirstSequence = first.Sequence
+	p.FirstClass = firstClass
+	p.SelectedSequence = last.Sequence
+	if state.QueueChange.Appended && last.Sequence == s.IndexedQueue.NextSequence {
+		p.Candidate = state.QueueChange.Append
+	} else {
+		record, ok := s.QueueRecords.Get(ctx, queueRecordKey(last.Sequence))
+		if !ok {
+			return nil, serviceerror.NewInternal("selected queue record absent")
+		}
+		p.Candidate = decodeQueued(record)
+	}
+	if decision.QueueClass(p.Candidate) != selectedClass || queueTime(p.Candidate) != last.Time {
+		return nil, serviceerror.NewInternal("selected queue record mismatch")
+	}
+	for class, n := range eligible {
+		replaced := int64(0)
+		lower := queueindex.CountKey{}
+		if class < 3 {
+			lower = threshold
+		}
+		if class%3 != 0 && n > 0 {
+			count, err := b.SequenceCount(queueIndex(state.IndexedQueue.Generation, class), 0, last.Sequence-1, lower)
+			if err != nil {
+				return nil, err
+			}
+			if count > uint64(n) {
+				return nil, serviceerror.NewInternal("queue supersession count mismatch")
+			}
+			replaced = int64(count)
+		} else if class == firstClass && first.Sequence < last.Sequence {
+			replaced = 1
+		}
+		p.Superseded[class] = replaced
+		p.Retained[class] = n - replaced
+		if class == selectedClass {
+			p.Retained[class]--
+		}
+	}
+	return validatedQueuePlan(state, p)
+}
+../chasm/lib/scheduler2/queue_state.go:296:1: cognitive-complexity: function (*Scheduler).stageQueueDrain has cognitive complexity 28 (> max enabled 25) (revive)
+func (s *Scheduler) stageQueueDrain(ctx chasm.MutableContext, p decision.QueueDrainPlan, state decision.State) error {
+	summary, err := s.queueSummary()
+	if err != nil {
+		return err
+	}
+	if summary != state.IndexedQueue {
+		return serviceerror.NewInternal("queue drain publication fence mismatch")
+	}
+	if err = decision.ValidateQueueDrainPlan(state, decision.Event{Now: p.Fence.Now, CatchupWindow: p.Fence.Catchup}, p); err != nil {
+		return err
+	}
+	if p.Selected && !decision.OperationAvailable(state) {
+		return serviceerror.NewInternal("queue drain lacks operation capacity")
+	}
+	q := s.IndexedQueue
+	if q.Generation == math.MaxUint64 || q.Version == math.MaxUint64 {
+		return serviceerror.NewFailedPrecondition("queue generation exhausted")
+	}
+	total, err := queueTotal(summary.Counts)
+	if err != nil {
+		return err
+	}
+	if total == 0 {
+		return serviceerror.NewInternal("empty queue drain")
+	}
+	b := s.queueBatch(ctx)
+	defer b.Abort()
+	for class, count := range summary.Counts {
+		n, err := b.SequenceCount(queueIndex(q.Generation, class), 0, math.MaxUint64, queueindex.CountKey{})
+		if err != nil {
+			return err
+		}
+		if n != uint64(count) {
+			return serviceerror.NewInternal("queue physical count mismatch")
+		}
+		n, err = b.SequenceCount(queueIndex(q.Generation+1, class), 0, math.MaxUint64, queueindex.CountKey{})
+		if err != nil {
+			return err
+		}
+		if n != 0 {
+			return serviceerror.NewInternal("queue next generation collision")
+		}
+	}
+	first, class, err := minimumQueueRecord(b, q.Generation)
+	if err != nil {
+		return err
+	}
+	if first.Sequence == 0 {
+		return serviceerror.NewInternal("queue source cursor absent")
+	}
+	threshold := queueThreshold(p.Fence.Now, p.Fence.Catchup)
+	d := &pb.CompletedDrain{SourceGeneration: q.Generation, MaximumSequence: q.NextSequence - 1, Remaining: total, NextSequence: first.Sequence, NextClass: uint32(class), AutomaticEnabled: !state.Root.Paused && (!state.Root.Limited || state.Root.Remaining > 0), Threshold: slices.Clone(threshold[:]), FirstSequence: p.FirstSequence, FirstClass: uint32(p.FirstClass), SelectedSequence: p.SelectedSequence}
+	if p.Selected {
+		d.SelectedClass = uint32(decision.QueueClass(p.Candidate))
+	}
+	retained, err := queueTotal(p.Retained)
+	if err != nil {
+		return err
+	}
+	d.Removed = total - retained
+	for class := 0; class < 6; class++ {
+		d.Superseded += p.Superseded[class]
+		if class < 3 && d.AutomaticEnabled {
+			d.Missed += p.Ineligible[class]
+		}
+	}
+	next := common.CloneProto(q)
+	next.Generation++
+	next.Version++
+	next.CompletedDrain = d
+	setQueueCounts(next, p.Retained)
+	s.IndexedQueue = next
+	return nil
+}
+../chasm/lib/scheduler2/queue_state.go:453:1: cognitive-complexity: function (*Scheduler).queueProjection has cognitive complexity 34 (> max enabled 25) (revive)
+func (s *Scheduler) queueProjection(ctx chasm.Context) ([]decision.Queued, error) {
+	summary, err := s.queueSummary()
+	if err != nil {
+		return nil, err
+	}
+	if !summary.Enabled {
+		var result []decision.Queued
+		for _, q := range s.Queue {
+			result = append(result, decodeQueued(q))
+		}
+		return result, nil
+	}
+	b := s.queueBatch(ctx)
+	defer b.Abort()
+	// Export walks indexed live sequences by removing them from an unpublished
+	// overlay. Abort discards all temporary page/refcount changes.
+	generations := []uint64{s.IndexedQueue.Generation}
+	if d := s.IndexedQueue.CompletedDrain; d != nil {
+		generations = append(generations, d.SourceGeneration)
+	}
+	type item struct {
+		sequence uint64
+		value    decision.Queued
+	}
+	var items []item
+	for _, generation := range generations {
+		for {
+			e, class, err := minimumQueueRecord(b, generation)
+			if err != nil {
+				return nil, err
+			}
+			if e.Sequence == 0 {
+				break
+			}
+			record, ok := s.QueueRecords.Get(ctx, queueRecordKey(e.Sequence))
+			if !ok {
+				return nil, serviceerror.NewInternal("queue export record absent")
+			}
+			q := decodeQueued(record)
+			if decision.QueueClass(q) != class || queueTime(q) != e.Time {
+				return nil, serviceerror.NewInternal("queue export record mismatch")
+			}
+			d := s.IndexedQueue.CompletedDrain
+			if d == nil || generation != d.SourceGeneration || survivesQueueDrain(d, e.Sequence, class, e.Time) {
+				items = append(items, item{e.Sequence, q})
+			}
+			if err = b.DeleteSequence(queueIndex(generation, class), e.Sequence); err != nil {
+				return nil, err
+			}
+		}
+	}
+	slices.SortFunc(items, func(a, b item) int {
+		if a.sequence < b.sequence {
+			return -1
+		}
+		if a.sequence > b.sequence {
+			return 1
+		}
+		return 0
+	})
+	var result []decision.Queued
+	var counts [6]int64
+	for _, item := range items {
+		result = append(result, item.value)
+		counts[decision.QueueClass(item.value)]++
+	}
+	if counts != summary.Counts {
+		return nil, serviceerror.NewInternal("queue export logical count mismatch")
+	}
+	return result, nil
+}
+../chasm/lib/scheduler2/queue_state_test.go:225:2: SA4006: this value of ctx is never used (staticcheck)
+	s, ctx, _ = queueHarnessState(t, h)
+	^
+5 issues:
+* revive: 4
+* staticcheck: 1
+level=info msg="File cache stats: 3 entries of total size 42.8KiB"
+level=info msg="Memory: 49 samples, avg is 504.4MB, max is 918.2MB"
+level=info msg="Execution took 4.792801167s"
+make: *** [lint-code] Error 1

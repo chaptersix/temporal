@@ -10,6 +10,7 @@ import (
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/server/chasm"
+	scheduler2pb "go.temporal.io/server/chasm/lib/scheduler2/gen/scheduler2pb/v1"
 	"go.temporal.io/server/chasm/lib/scheduler2/internal/decision"
 	"go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence"
 	"go.temporal.io/server/common"
@@ -63,6 +64,9 @@ func newPublicSchedule(ctx chasm.MutableContext, request *workflowservice.Create
 	if err != nil {
 		return nil, err
 	}
+	s.IndexedQueue = newQueueState()
+	s.QueueRecords = chasm.NewDataMap[*scheduler2pb.QueuedOccurrence](ctx)
+	s.QueuePages = chasm.NewDataMap[*commonpb.Payload](ctx)
 	s.PublicRevision = 1
 	s.Paused, s.Limited, s.Policy = schedule.State.Paused, schedule.State.LimitedActions, policy
 	s.PauseOnFailure = schedule.Policies.PauseOnFailure

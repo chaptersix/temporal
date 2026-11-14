@@ -39,9 +39,14 @@ func (s *Scheduler) publishPublicTransition(ctx chasm.MutableContext, before, ne
 		case decision.DispatchManual:
 			at = next.Operation.NominalTime.Time(next.Operation.Nominal)
 		case decision.Drain:
-			index := decision.DrainIndex(before, event.Now, event.CatchupWindow)
-			if index >= 0 {
-				at = before.Queue[index].ActualTime.Time(before.Queue[index].Actual)
+			if before.IndexedQueue.Enabled {
+				candidate := next.QueueChange.Drain.Candidate
+				at = candidate.ActualTime.Time(candidate.Actual)
+			} else {
+				index := decision.DrainIndex(before, event.Now, event.CatchupWindow)
+				if index >= 0 {
+					at = before.Queue[index].ActualTime.Time(before.Queue[index].Actual)
+				}
 			}
 		default:
 			// Automatic and backfill events carry their jittered time.
@@ -116,7 +121,7 @@ func (s *Scheduler) publicFuture(ctx chasm.Context, spec *schedulepb.ScheduleSpe
 
 func (s *Scheduler) publicInfoProjection(ctx chasm.Context, info *schedulepb.ScheduleInfo, spec *schedulepb.ScheduleSpec) {
 	info.ActionCount = s.Started
-	info.BufferSize = int64(len(s.Queue)) + s.UnconfirmedStarts
+	info.BufferSize = s.queueLength() + s.UnconfirmedStarts
 	info.RecentActions = s.publicRecent(ctx, 10)
 	info.FutureActionTimes = s.publicFuture(ctx, spec, 10)
 	info.RunningWorkflows = nil
@@ -227,7 +232,15 @@ func publicDispositionCounts(before, next decision.State, event decision.Event) 
 		}
 	case decision.Drain:
 		if eligible {
-			missed = publicExpiredWaiters(before.Queue, next.Queue, event.Now, event.CatchupWindow)
+			if before.IndexedQueue.Enabled {
+				if next.QueueChange.Drained {
+					for _, count := range next.QueueChange.Drain.Ineligible[:3] {
+						missed += count
+					}
+				}
+			} else {
+				missed = publicExpiredWaiters(before.Queue, next.Queue, event.Now, event.CatchupWindow)
+			}
 		}
 		return
 	default:
@@ -238,8 +251,8 @@ func publicDispositionCounts(before, next decision.State, event decision.Event) 
 }
 
 func publicOverlapCounts(before, next decision.State, policy enumspb.ScheduleOverlapPolicy) (skipped, dropped int64) {
-	occupied := before.Root.BlockingOperationID != "" || len(before.Queue) > 0
-	policySkip := policy == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || policy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(before.Queue) > 0)
+	occupied := before.Root.BlockingOperationID != "" || decision.QueueLength(before) > 0
+	policySkip := policy == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || policy == enumspb.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && decision.QueueLength(before) > 0)
 	if before.Capacity.Public && !decision.QueueAvailable(before) && next.Root.BufferDropped > before.Root.BufferDropped {
 		return 0, next.Root.BufferDropped - before.Root.BufferDropped
 	}
@@ -255,7 +268,7 @@ func publicOverlapCounts(before, next decision.State, policy enumspb.ScheduleOve
 func publicExpiredWaiters(before, after []decision.Queued, now, catchup int64) int64 {
 	var count int64
 	for _, q := range before {
-		if q.ManualID == 0 && q.BackfillID == 0 && now > q.Actual && now-q.Actual > catchup && !slices.Contains(after, q) {
+		if q.ManualID == 0 && q.BackfillID == 0 && time.Unix(0, q.Actual).Before(time.Unix(0, now).Add(-time.Duration(catchup))) && !slices.Contains(after, q) {
 			count++
 		}
 	}

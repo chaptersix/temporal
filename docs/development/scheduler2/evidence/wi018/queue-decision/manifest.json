@@ -1,0 +1,17 @@
+{
+  "base": "4f301d7645989ee782e49c59698702ad41f218ac",
+  "sources": {
+    "chasm/lib/scheduler2/internal/decision/queue_summary.go": "118eed6099514d4843bd74aa9644f5e5573b86396136d6178861428b5a11f1a6",
+    "chasm/lib/scheduler2/internal/decision/queue_summary_test.go": "69137de760b5dbd8ffa28692ed8e9a38d71661aede48e638640181fac73b3364",
+    "chasm/lib/scheduler2/internal/decision/decision.go": "5a157d5f12958459b1575f8460f497e9fbee82ff1dc2938700c1fa8637f68c9b",
+    "chasm/lib/scheduler2/internal/decision/buffer.go": "b0f49c6d9e344f3e75894f370d6a0e99216d41a50fcb7f4d00bf3cbabd8fc819",
+    "chasm/lib/scheduler2/internal/decision/capacity.go": "acb8603b37301d340d1a291494d6c7daaccdb7d11498f15289975a9b7f1a64dc",
+    "chasm/lib/scheduler2/internal/decision/effects.go": "36e0c07a483c171e01cf39c8cb8ee1742e393b34b2e78029cca43ff3bb528904",
+    "chasm/lib/scheduler2/internal/decision/manual.go": "d07f6c6788d027fba2c7d12d7cc073948702eac769edc20f8ad58235e79adf4b"
+  },
+  "tests": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2/internal/decision -count=1 -rapid.checks=100 -rapid.seed=1 -v",
+  "lint": "CGO_ENABLED=0 GOMAXPROCS=4 make lint-code LINT_CODE_TARGETS=./chasm/lib/scheduler2/internal/decision GOLANGCI_LINT_BASE_REV=HEAD GOLANGCI_LINT_FIX=false",
+  "scope": "value seam, not runtime queue activation; adapter source membership proof remains separate",
+  "final_test_log": "07.log.gz",
+  "final_lint_log": "lint04.log.gz"
+}

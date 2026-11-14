@@ -1,0 +1,20 @@
+--- FAIL: TestQueueStateDrainReferenceAndMaintenance (0.00s)
+    --- FAIL: TestQueueStateDrainReferenceAndMaintenance/expired (0.00s)
+        queue_state_test.go:99: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/queue_state_test.go:99
+            	Error:      	Not equal: 
+            	            	expected: []decision.Queued(nil)
+            	            	actual  : []decision.Queued{}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,2 +1,3 @@
+            	            	-([]decision.Queued) <nil>
+            	            	+([]decision.Queued) {
+            	            	+}
+            	            	 
+            	Test:       	TestQueueStateDrainReferenceAndMaintenance/expired
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2	0.606s
+FAIL

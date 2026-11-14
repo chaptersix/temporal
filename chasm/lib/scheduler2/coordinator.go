@@ -36,23 +36,34 @@ func resolvedPolicy(override, policy enumspb.ScheduleOverlapPolicy) enumspb.Sche
 	return enumspb.SCHEDULE_OVERLAP_POLICY_SKIP
 }
 func (s *Scheduler) directAdmission(policy enumspb.ScheduleOverlapPolicy) bool {
-	return policy == enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL || (s.BlockingOperationId == "" && len(s.Queue) == 0)
+	return policy == enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL || (s.BlockingOperationId == "" && s.queueLength() == 0)
 }
 func directAdmissionFor(state decision.State, policy enumspb.ScheduleOverlapPolicy) bool {
-	return policy == enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL || (state.Root.BlockingOperationID == "" && len(state.Queue) == 0)
+	return policy == enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL || (state.Root.BlockingOperationID == "" && decision.QueueLength(state) == 0)
 }
 
 // demands describes metadata readiness without materializing workflow payloads.
-func (s *Scheduler) demands(ctx chasm.Context, state decision.State) ([]workDemand, time.Time) {
+func (s *Scheduler) demands(ctx chasm.Context, state decision.State) ([]workDemand, time.Time, error) {
 	var demands []workDemand
 	var future time.Time
 	now := ctx.Now(s)
 	if !s.HasGenerator {
-		return nil, future
+		return nil, future, nil
 	}
 	g := s.Generator.Get(ctx)
 	if decision.NeedsDrain(state) {
-		demands = append(demands, workDemand{class: scheduler2pb.WORK_CLASS_DRAIN, key: "drain", operation: decision.DrainIndex(state, now.UnixNano(), g.CatchupWindow) >= 0})
+		operation, deferred := false, false
+		if state.IndexedQueue.Enabled {
+			plan, err := s.planQueueDrain(ctx, state, now.UnixNano(), g.CatchupWindow)
+			if err != nil {
+				return nil, time.Time{}, err
+			}
+			deferred = state.IndexedQueue.Maintenance
+			operation = plan != nil && plan.Selected
+		} else {
+			operation = decision.DrainIndex(state, now.UnixNano(), g.CatchupWindow) >= 0
+		}
+		demands = append(demands, workDemand{class: scheduler2pb.WORK_CLASS_DRAIN, key: "drain", operation: operation, deferred: deferred})
 	}
 	if len(state.Manuals) > 0 {
 		m := state.Manuals[0]
@@ -79,7 +90,10 @@ func (s *Scheduler) demands(ctx chasm.Context, state decision.State) ([]workDema
 			future = wake
 		}
 	}
-	return demands, future
+	if state.IndexedQueue.Maintenance {
+		future = now
+	}
+	return demands, future, nil
 }
 func automaticDemand(g *Generator, state decision.State, now time.Time) (*workDemand, time.Time) {
 	if !g.Armed {
@@ -98,13 +112,13 @@ func automaticDemand(g *Generator, state decision.State, now time.Time) (*workDe
 	if pending.Actual > now.UnixNano() {
 		return nil, time.Unix(0, pending.Actual)
 	}
-	eligible := !state.Root.Paused && (!state.Root.Limited || state.Root.Remaining > 0) && (now.UnixNano() <= pending.Actual || now.UnixNano()-pending.Actual <= g.CatchupWindow)
+	eligible := !state.Root.Paused && (!state.Root.Limited || state.Root.Remaining > 0) && !time.Unix(0, pending.Actual).Before(now.Add(-time.Duration(g.CatchupWindow)))
 	if eligible {
 		policy := resolvedPolicy(state.Root.Policy, state.Root.Policy)
 		if directAdmissionFor(state, policy) {
 			d.operation = decision.OperationAvailable(state)
 		} else {
-			d.vacancy = decision.QueueAvailable(state) && policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || len(state.Queue) == 0)
+			d.vacancy = decision.QueueAvailable(state) && policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || decision.QueueLength(state) == 0)
 		}
 	}
 	return &d, time.Time{}
@@ -122,18 +136,25 @@ func cyclicClass(start scheduler2pb.WorkClass, eligible func(scheduler2pb.WorkCl
 func nextClass(class scheduler2pb.WorkClass) scheduler2pb.WorkClass { return class%4 + 1 }
 
 // planWork keeps resource contention distinct from runnable scan selection.
-func (s *Scheduler) planWork(ctx chasm.Context) (*scheduler2pb.CoordinationState, *workDemand, time.Time) {
-	return s.planWorkFor(ctx, s.stateFor(ctx, ""))
+func (s *Scheduler) planWork(ctx chasm.Context) (*scheduler2pb.CoordinationState, *workDemand, time.Time, error) {
+	state, err := s.stateFor(ctx, "")
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+	return s.planWorkFor(ctx, state)
 }
 
 // planWorkFor previews next control metadata without publishing it. Context.Now
 // is a transaction snapshot (chasm.immutableCtx.Now), so preview and commit agree.
-func (s *Scheduler) planWorkFor(ctx chasm.Context, state decision.State) (*scheduler2pb.CoordinationState, *workDemand, time.Time) {
+func (s *Scheduler) planWorkFor(ctx chasm.Context, state decision.State) (*scheduler2pb.CoordinationState, *workDemand, time.Time, error) {
 	c := &scheduler2pb.CoordinationState{}
 	if s.Coordination != nil {
 		c = common.CloneProto(s.Coordination)
 	}
-	demands, future := s.demands(ctx, state)
+	demands, future, err := s.demands(ctx, state)
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
 	byClass := make(map[scheduler2pb.WorkClass]workDemand, len(demands))
 	for _, d := range demands {
 		byClass[d.class] = d
@@ -146,16 +167,7 @@ func (s *Scheduler) planWorkFor(ctx chasm.Context, state decision.State) (*sched
 			}
 		}
 	}
-	owner, exists := byClass[c.OwnerClass]
-	if c.OwnerKey != "" && (!exists || !owner.vacancy || owner.key != c.OwnerKey) {
-		c.OwnerKey = ""
-	}
-	if c.OwnerKey == "" && decision.QueueAvailable(state) {
-		if class, ok := cyclicClass(c.NextQueue, func(class scheduler2pb.WorkClass) bool { return byClass[class].vacancy && !byClass[class].deferred }); ok {
-			c.OwnerClass = class
-			c.OwnerKey = byClass[class].key
-		}
-	}
+	planQueueOwner(c, byClass, state)
 	owns := func(d workDemand) bool {
 		return !d.vacancy || (c.OwnerClass == d.class && c.OwnerKey == d.key && decision.QueueAvailable(state))
 	}
@@ -169,9 +181,22 @@ func (s *Scheduler) planWorkFor(ctx chasm.Context, state decision.State) (*sched
 	})
 	if ready {
 		d := byClass[selected]
-		return c, &d, ctx.Now(s)
+		return c, &d, ctx.Now(s), nil
 	}
-	return c, nil, future
+	return c, nil, future, nil
+}
+
+func planQueueOwner(c *scheduler2pb.CoordinationState, byClass map[scheduler2pb.WorkClass]workDemand, state decision.State) {
+	owner, exists := byClass[c.OwnerClass]
+	if c.OwnerKey != "" && (!exists || !owner.vacancy || owner.key != c.OwnerKey) {
+		c.OwnerKey = ""
+	}
+	if c.OwnerKey == "" && decision.QueueAvailable(state) {
+		if class, ok := cyclicClass(c.NextQueue, func(class scheduler2pb.WorkClass) bool { return byClass[class].vacancy && !byClass[class].deferred }); ok {
+			c.OwnerClass = class
+			c.OwnerKey = byClass[class].key
+		}
+	}
 }
 
 func checkWorkWakeToken(c *scheduler2pb.CoordinationState, wake time.Time) error {
@@ -185,12 +210,19 @@ func (s *Scheduler) checkNextWorkToken(ctx chasm.Context, next decision.State) e
 	if !s.HasGenerator || s.Coordination == nil || s.Coordination.Token < math.MaxUint64 {
 		return nil
 	}
-	c, _, wake := s.planWorkFor(ctx, next)
+	c, _, wake, err := s.planWorkFor(ctx, next)
+	if err != nil {
+		return err
+	}
 	return checkWorkWakeToken(c, wake)
 }
 
 func (s *Scheduler) reconcileWork(ctx chasm.MutableContext) error {
-	if err := s.checkNextIdle(ctx, s.stateFor(ctx, "")); err != nil {
+	state, stateErr := s.stateFor(ctx, "")
+	if stateErr != nil {
+		return stateErr
+	}
+	if err := s.checkNextIdle(ctx, state); err != nil {
 		return err
 	}
 	if err := s.reconcileCoordinator(ctx); err != nil {
@@ -206,7 +238,10 @@ func (s *Scheduler) reconcileCoordinator(ctx chasm.MutableContext) error {
 	if !s.HasGenerator {
 		return nil
 	}
-	c, _, wake := s.planWork(ctx)
+	c, _, wake, err := s.planWork(ctx)
+	if err != nil {
+		return err
+	}
 	if wake.IsZero() {
 		c.Armed = false
 		s.Coordination = c
@@ -258,20 +293,34 @@ func (*WorkHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.
 		remaining = int(task.RemainingQuanta)
 	}
 	ctx = chasm.ContextWithValue(ctx, workRemainingKey{}, max(0, remaining-1))
-	planned, d, _ := s.planWork(ctx)
+	if s.queueMaintenancePending() {
+		if c.Token == math.MaxUint64 {
+			return serviceerror.NewFailedPrecondition("coordinator token exhausted")
+		}
+		if _, err := s.maintainQueue(ctx); err != nil {
+			return err
+		}
+	}
+	planned, d, _, err := s.planWork(ctx)
+	if err != nil {
+		return err
+	}
 	if planned.Token == math.MaxUint64 {
 		return serviceerror.NewFailedPrecondition("coordinator token exhausted")
 	}
 	planned.Armed = false
 	if d == nil {
-		if err := s.checkNextIdle(ctx, s.stateFor(ctx, "")); err != nil {
+		state, stateErr := s.stateFor(ctx, "")
+		if stateErr != nil {
+			return stateErr
+		}
+		if err := s.checkNextIdle(ctx, state); err != nil {
 			return err
 		}
 		s.Coordination = planned
 		return s.reconcileWork(ctx)
 	}
 	beforeUnfinished := s.Unfinished
-	var err error
 	switch d.class {
 	case scheduler2pb.WORK_CLASS_DRAIN:
 		err = s.applyTransition(ctx, decision.Event{Kind: decision.Drain, Incarnation: s.Incarnation})
@@ -330,7 +379,11 @@ func (s *Scheduler) scanAutomatic(ctx chasm.MutableContext) error {
 		return err
 	}
 	continuation := encodeContinuation(result.State)
-	if _, _, err := s.checkIdlePlan(s.stateFor(ctx, ""), continuation, true, len(s.Backfills) > 0); err != nil {
+	state, err := s.stateFor(ctx, "")
+	if err != nil {
+		return err
+	}
+	if _, _, err := s.checkIdlePlan(state, continuation, true, len(s.Backfills) > 0); err != nil {
 		return err
 	}
 	g.Continuation = continuation
@@ -396,7 +449,7 @@ func (s *Scheduler) transferBackfill(ctx chasm.MutableContext) error {
 			return serviceerror.NewUnavailable("backfill batch capacity is unavailable")
 		}
 	}
-	needsPayload := !event.BackfillBatchSkip && (s.directAdmission(policy) || (policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || len(s.Queue) == 0)))
+	needsPayload := !event.BackfillBatchSkip && (s.directAdmission(policy) || (policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || s.queueLength() == 0)))
 	if needsPayload {
 		var err error
 		event.Request, err = s.generationRequest(ctx)

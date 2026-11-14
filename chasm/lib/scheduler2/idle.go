@@ -47,7 +47,7 @@ func idleDeadline(state decision.State, continuation *scheduler2pb.OccurrenceCon
 		return 0, false, serviceerror.NewFailedPrecondition("idle deadline exceeds supported range")
 	}
 	deadlineNano := state.Root.ActivityAt + duration
-	if !initialized || state.Root.Paused || backfills || len(state.Manuals) > 0 || len(state.Queue) > 0 || state.Root.UnconfirmedStarts != 0 {
+	if state.IndexedQueue.Maintenance || !initialized || state.Root.Paused || backfills || len(state.Manuals) > 0 || decision.QueueLength(state) > 0 || state.Root.UnconfirmedStarts != 0 {
 		return deadlineNano, false, nil
 	}
 	for _, effect := range state.Effects {
@@ -104,7 +104,11 @@ func (s *Scheduler) reconcileIdle(ctx chasm.MutableContext) error {
 		s.IdleArmed = false
 		return nil
 	}
-	atNano, armed, err := s.planIdle(ctx, s.stateFor(ctx, ""))
+	state, err := s.stateFor(ctx, "")
+	if err != nil {
+		return err
+	}
+	atNano, armed, err := s.planIdle(ctx, state)
 	if err != nil {
 		return err
 	}
@@ -129,7 +133,11 @@ func (*IdleHandler) Validate(ctx chasm.Context, s *Scheduler, attrs chasm.TaskIn
 	if s.Closed || !s.IdleArmed || task.Token != s.IdleToken || attrs.ScheduledTime.UnixNano() != s.IdleAt {
 		return false, nil
 	}
-	atNano, armed, err := s.planIdle(ctx, s.stateFor(ctx, ""))
+	state, err := s.stateFor(ctx, "")
+	if err != nil {
+		return false, err
+	}
+	atNano, armed, err := s.planIdle(ctx, state)
 	return err == nil && armed && atNano == s.IdleAt, err
 }
 func (h *IdleHandler) Execute(ctx chasm.MutableContext, s *Scheduler, attrs chasm.TaskAttributes, task *scheduler2pb.IdleTask) error {

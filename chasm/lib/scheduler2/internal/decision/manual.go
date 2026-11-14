@@ -53,7 +53,7 @@ func CanDispatchManual(state State) bool {
 	if len(state.Manuals) == 0 || !QueueAvailable(state) {
 		return false
 	}
-	if manualPolicy(state) != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(state) || len(state.Queue) > 0) {
+	if manualPolicy(state) != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(state) || QueueLength(state) > 0) {
 		return true
 	}
 	return OperationAvailable(state)
@@ -66,18 +66,17 @@ func dispatchManual(next State, event Event) (State, error) {
 	command := next.Manuals[0]
 	policy := manualPolicy(next)
 	next.Manuals = next.Manuals[1:]
-	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || len(next.Queue) > 0) {
+	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || QueueLength(next) > 0) {
 		if policy == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP {
 			return next, nil
 		}
-		if policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(next.Queue) > 0 {
+		if policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && QueueLength(next) > 0 {
 			return next, nil
 		}
 		if event.WorkflowID == "" {
 			return State{}, serviceerror.NewInvalidArgument("manual queue requires workflow identity")
 		}
-		next.Queue = append(next.Queue, Queued{Nominal: command.Nominal, Actual: command.Nominal, NominalTime: command.NominalTime, ActualTime: command.NominalTime, WorkflowID: event.WorkflowID, Policy: policy, ManualID: command.ID})
-		return next, nil
+		return appendQueued(next, Queued{Nominal: command.Nominal, Actual: command.Nominal, NominalTime: command.NominalTime, ActualTime: command.NominalTime, WorkflowID: event.WorkflowID, Policy: policy, ManualID: command.ID})
 	}
 	if len(event.Request) == 0 || next.Root.Incarnation == "" {
 		return State{}, serviceerror.NewInvalidArgument("manual admission requires incarnation and request")
@@ -91,8 +90,8 @@ func ManualNeedsTemplate(state State) bool {
 		return false
 	}
 	policy := manualPolicy(state)
-	if occupied(state) || len(state.Queue) > 0 {
-		return policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || len(state.Queue) == 0)
+	if occupied(state) || QueueLength(state) > 0 {
+		return policy != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP && (policy != enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE || QueueLength(state) == 0)
 	}
 	return true
 }
@@ -118,15 +117,14 @@ func dispatchBackfill(next State, event Event) (State, error) {
 		return next, nil
 	}
 	candidate := Queued{BackfillID: event.BackfillID, Nominal: event.Nominal, Actual: event.Actual, NominalTime: event.NominalTime, ActualTime: event.ActualTime, WorkflowID: event.WorkflowID, Policy: policy}
-	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || len(next.Queue) > 0) {
-		if policy == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && len(next.Queue) > 0) {
+	if policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || QueueLength(next) > 0) {
+		if policy == enumspb.SCHEDULE_OVERLAP_POLICY_SKIP || (policy == enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE && QueueLength(next) > 0) {
 			return next, nil
 		}
 		if event.WorkflowID == "" {
 			return State{}, serviceerror.NewInvalidArgument("backfill queue requires workflow identity")
 		}
-		next.Queue = append(next.Queue, candidate)
-		return next, nil
+		return appendQueued(next, candidate)
 	}
 	if !OperationAvailable(next) {
 		return next, nil

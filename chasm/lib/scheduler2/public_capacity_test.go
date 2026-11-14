@@ -29,7 +29,7 @@ func TestPublicConfiguredAutomaticCapacity(t *testing.T) {
 				if limit > 0 {
 					accepted = min(count, limit)
 				}
-				require.EqualValues(t, accepted, int64(len(s.Queue))+s.UnconfirmedStarts, "retained intent follows configured capacity")
+				require.EqualValues(t, accepted, s.queueLength()+s.UnconfirmedStarts, "retained intent follows configured capacity")
 				require.EqualValues(t, count-accepted, s.BufferDropped+s.CapacityDropped, "every excess automatic candidate is accounted")
 			})
 		}
@@ -89,7 +89,7 @@ func TestPublicCapacityTrackedCompletionAndFullBufferDrain(t *testing.T) {
 	h.apply(decision.Event{Kind: decision.Acknowledged, Incarnation: "incarnation", OperationID: id, ChainID: "chain"}, true)
 	publicProjectionAdmission(h)
 	s, ctx := h.root(false)
-	require.Len(t, s.Queue, 1)
+	require.EqualValues(t, 1, s.queueLength())
 	require.EqualValues(t, 1, s.capacity(ctx).BufferedOperations, "running tracked action remains buffered")
 	h.apply(decision.Event{Kind: decision.Callback, Incarnation: "incarnation", OperationID: id, ChainID: "chain", Outcome: decision.Success, Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED, PublicCloseTime: time.Unix(123, 0)}, true)
 	s, ctx = h.root(false)
@@ -97,7 +97,7 @@ func TestPublicCapacityTrackedCompletionAndFullBufferDrain(t *testing.T) {
 	before := s.Remaining
 	h.apply(decision.Event{Kind: decision.Drain, Incarnation: "incarnation", CatchupWindow: int64(time.Hour)}, true)
 	s, ctx = h.root(false)
-	require.Empty(t, s.Queue, "transferring an accepted waiter requires no additional capacity")
+	require.Zero(t, s.queueLength(), "transferring an accepted waiter requires no additional capacity")
 	require.EqualValues(t, 2, s.capacity(ctx).BufferedOperations)
 	require.Equal(t, before, s.Remaining, "queued admission already consumed its action budget only when applicable")
 }
@@ -160,12 +160,14 @@ func TestPublicCapacityWaitRetainsManualAndRetriesConfiguration(t *testing.T) {
 	s, ctx := h.root(false)
 	require.Len(t, s.Manuals, 1)
 	before := cloneNodes(h.durable)
-	_, ready, wake := s.planWork(ctx)
+	_, ready, wake, planErr := s.planWork(ctx)
+	require.NoError(t, planErr)
 	require.Nil(t, ready)
 	require.True(t, wake.After(time.Unix(0, h.now)))
 	require.Equal(t, before, h.durable)
 	limit = 5
-	plan, ready, _ := s.planWork(ctx)
+	plan, ready, _, planErr := s.planWork(ctx)
+	require.NoError(t, planErr)
 	require.NotNil(t, ready)
 	require.Equal(t, plan.OwnerKey, ready.key)
 	require.Equal(t, "manual/1", ready.key)

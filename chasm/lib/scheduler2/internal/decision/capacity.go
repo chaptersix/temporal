@@ -12,9 +12,9 @@ type Capacity struct {
 // queued intent can move to an operation even when this returns false.
 func QueueAvailable(state State) bool {
 	if state.Capacity.Public {
-		return state.Capacity.MaxBuffer <= 0 || int64(len(state.Queue))+state.Capacity.BufferedOperations < state.Capacity.MaxBuffer
+		return state.Capacity.MaxBuffer <= 0 || (state.Capacity.BufferedOperations < state.Capacity.MaxBuffer && QueueLength(state) < state.Capacity.MaxBuffer-state.Capacity.BufferedOperations)
 	}
-	return len(state.Queue) < 4
+	return QueueLength(state) < 4
 }
 
 // OperationAvailable separates operation authority from public ingress limits.

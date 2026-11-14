@@ -68,8 +68,10 @@ type Operation struct {
 }
 
 type State struct {
-	Capacity Capacity
-	Root     Root
+	IndexedQueue QueueSummary
+	QueueChange  QueueChange
+	Capacity     Capacity
+	Root         Root
 	// Operation is the event-addressed record; admission callers supply the latest record.
 	Operation *Operation
 	Carryover *Carryover
@@ -99,6 +101,7 @@ const (
 )
 
 type Event struct {
+	QueueDrain  *QueueDrainPlan
 	NominalTime Timestamp
 	ActualTime  Timestamp
 	// PublicCloseTime is canonical workflow close time, independent of callback arrival.
@@ -139,6 +142,10 @@ type Event struct {
 
 // Step returns an independent state value; callers publish it only after commit.
 func Step(state State, event Event) (State, error) {
+	state.QueueChange = QueueChange{}
+	if err := ValidateQueueSummary(state); err != nil {
+		return State{}, err
+	}
 	next := clone(state)
 	if event.Incarnation != state.Root.Incarnation {
 		return next, nil
@@ -187,7 +194,7 @@ func admit(next State, event Event) (State, error) {
 		next.Root.BufferDropped++
 		return next, nil
 	}
-	if next.Root.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || len(next.Queue) > 0) {
+	if next.Root.Policy != enumspb.SCHEDULE_OVERLAP_POLICY_ALLOW_ALL && (occupied(next) || QueueLength(next) > 0) {
 		return enqueue(next, event)
 	}
 	if !OperationAvailable(next) {

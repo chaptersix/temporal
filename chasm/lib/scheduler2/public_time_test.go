@@ -74,24 +74,26 @@ func TestPublicWideManualQueuedReload(t *testing.T) {
 	commitGeneration(h, true)
 	for range 8 {
 		s, _ = h.root(false)
-		if len(s.Queue) > 0 {
-			break
-		}
-		coordinatorStep(h, true)
-	}
-	s, _ = h.root(false)
-	require.Len(t, s.Queue, 1)
-	require.Equal(t, secondTime, decodeTime(s.Queue[0].Nominal, s.Queue[0].NominalTime))
-	h.apply(decision.Event{Kind: decision.Callback, Incarnation: s.Incarnation, OperationID: firstID, ChainID: "first", Outcome: decision.Success, Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED}, true)
-	for range 8 {
-		s, _ = h.root(false)
-		if len(s.Queue) == 0 {
+		if s.queueLength() > 0 {
 			break
 		}
 		coordinatorStep(h, true)
 	}
 	s, ctx = h.root(false)
-	require.Empty(t, s.Queue)
+	queued, err := s.queueProjection(ctx)
+	require.NoError(t, err)
+	require.Len(t, queued, 1)
+	require.Equal(t, secondTime, queued[0].NominalTime.Time(queued[0].Nominal))
+	h.apply(decision.Event{Kind: decision.Callback, Incarnation: s.Incarnation, OperationID: firstID, ChainID: "first", Outcome: decision.Success, Status: enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED}, true)
+	for range 8 {
+		s, _ = h.root(false)
+		if s.queueLength() == 0 {
+			break
+		}
+		coordinatorStep(h, true)
+	}
+	s, ctx = h.root(false)
+	require.Zero(t, s.queueLength())
 	require.NotEqual(t, firstID, s.OperationId)
 	operation := s.Operations[s.OperationId].Get(ctx)
 	require.Equal(t, secondTime, decodeTime(operation.Nominal, operation.NominalTime))
