@@ -1,0 +1,11 @@
+{
+  "reference": "local Go1.27.3 source; implementation audit only",
+  "sha256": {
+    "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo.go": "198928e8d2573d88d8743db57b86777a26506f17ef2b0283882a9f5c884979b7",
+    "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo_read.go": "812b0025c6e4face22e709053183d59e03e71e3c1459187350f4088587f4a134",
+    "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo_unix.go": "d2001a2351a080f1a47ebb3999be74f99caceb4a8f1ea6369a3c843fa0442f08",
+    "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo_goroot.go": "984267b22b58101becfd3612f836c3e32a6f4190e149e257315a4179ec279992",
+    "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/tzdata/tzdata.go": "168b73df4bab177f54c1cd852adfe2b85cf6cca11a8d5756003057dca8f02aa3",
+    "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/tzdata/zzipdata.go": "fdf3446025d8460a2d2e7f2b0fc79906daa338529030dd8204a8307bf4fb0302"
+  }
+}
