@@ -1,0 +1,15 @@
+{
+  "chasm/bounded_layout.go": "506dc015d195e8a3948a50b9ec0357a8f6f01b226eb44ab04deea13d4431a783",
+  "chasm/bounded_layout_test.go": "713ffb0ad3986d4235e7f560fc317300ade8ffdbf1bdae98acc519e37cab26e9",
+  "chasm/bounded_work.go": "c4ade533c7b45f1d4ede469ec050ccd4d4c6640d9081c04901025872b145302e",
+  "chasm/bounded_work_test.go": "fc28d0d9380b8a11c1262a57ea9bc09a7e51d16503835bb15c4913da78769fdc",
+  "chasm/bounded_tasks.go": "049ee27278f00d4d59a107541d48d087daf513c4dafdf40c70629444407cd0e6",
+  "chasm/bounded_tasks_test.go": "7a398e77e03f5c37a1964443479a125cd37358a1dc84d2d6bd5fe6d3a18351ad",
+  "chasm/data_map.go": "78a1f903db37a82daa7f9d815cc32103f4e40443cc083202818ae2be54e0a5c8",
+  "chasm/tree.go": "428a391df12fcf8e7a0b159a9aaa728117cbef679a88c8228054532f6496f772",
+  "chasm/field.go": "098a962641c0bd54598b26c5fc41a149a80176684e6a7ae21446cd6c37ac6580",
+  "chasm/registry.go": "68421e72a723d5c936fadcac871a3730d8d393fa3eee748653c36931391a7de6",
+  "chasm/registrable_component.go": "a5c0410edf9fd0f0d474407a349eefb442d4a57d359c4541ed485cae39977f3c",
+  "chasm/work_observation.go": "358ef5b87afd6df24b07b271e77ad8f3e23df8dfbf67c9bf0cdaaa102dc4f8b9",
+  "chasm/work_observation_test_dep.go": "a4c30ffee62293ab7e0a332af62e6f8ffc85a195438119a39ee9d70c23d2ed48"
+}

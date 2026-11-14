@@ -142,15 +142,17 @@ type (
 
 	// nodeBase is a set of dependencies and states shared by all nodes in a CHASM tree.
 	nodeBase struct {
-		epoch           uint64
-		pendingDataMaps map[*dataMapState]struct{}
-		touchedDataMaps map[*dataMapState]struct{}
-		observation     workObservation
-		registry        *Registry
-		backend         NodeBackend
-		pathEncoder     NodePathEncoder
-		logger          log.Logger
-		metricsHandler  metrics.Handler
+		bounded          *boundedTree
+		applyingMutation bool
+		epoch            uint64
+		pendingDataMaps  map[*dataMapState]struct{}
+		touchedDataMaps  map[*dataMapState]struct{}
+		observation      workObservation
+		registry         *Registry
+		backend          NodeBackend
+		pathEncoder      NodePathEncoder
+		logger           log.Logger
+		metricsHandler   metrics.Handler
 
 		// Following fields are changes accumulated in this transaction,
 		// and will get cleaned up after CloseTransaction().
@@ -299,6 +301,9 @@ func NewTreeFromDB(
 		root.setSerializedNode(nodePath, encodedPath, serializedNode)
 	}
 
+	if err := root.initializeBoundedLayout(); err != nil {
+		return nil, err
+	}
 	if err := newTreeInitSearchAttributesAndMemo(root, registry); err != nil {
 		return nil, err
 	}
@@ -395,10 +400,18 @@ func (n *Node) SetRootComponent(
 	rootComponent RootComponent,
 ) error {
 	root := n.root()
+	if root.value != rootComponent {
+		if err := root.checkBoundedRemoval(); err != nil {
+			return err
+		}
+	}
 	root.setValue(rootComponent)
 	root.setValueState(valueStateNeedSyncStructure)
 	if componentID, ok := n.registry.ComponentIDFor(rootComponent); ok {
 		root.serializedNode.GetMetadata().GetComponentAttributes().TypeId = componentID
+	}
+	if err := root.initializeBoundedLayout(); err != nil {
+		return err
 	}
 	if err := root.syncSubComponents(); err != nil {
 		return err
@@ -429,6 +442,9 @@ func (n *Node) setValue(value any) {
 
 func (n *Node) setValueState(state valueState) {
 	n.valueState = state
+	if n.bounded != nil {
+		n.enqueueBoundedState()
+	}
 	if state >= valueStateNeedSerialize {
 		n.markSubtreeDirty()
 	}
@@ -440,6 +456,10 @@ func (n *Node) setValueState(state valueState) {
 // markSubtreeDirty marks this node and its entire lineage (ancestors and descendants)
 // as dirty so that CloseTransaction knows to validate their tasks.
 func (n *Node) markSubtreeDirty() {
+	if n.bounded != nil {
+		n.markBoundedDirty()
+		return
+	}
 	// Propagate upward to ancestors.
 	for cur := n; cur != nil && !cur.subtreeIsDirty; cur = cur.parent {
 		cur.subtreeIsDirty = true
@@ -931,6 +951,9 @@ func (n *Node) serializeComponentNode() error {
 // nolint:revive,cognitive-complexity
 func (n *Node) syncSubComponents() error {
 	n.noteWork(workSyncVisits, 1)
+	if n.bounded != nil {
+		return n.syncBoundedStructure()
+	}
 	if n.parent == nil {
 		for pending := range n.pendingDataMaps {
 			if err := pending.sync(); err != nil {
@@ -948,6 +971,12 @@ func (n *Node) syncSubComponents() error {
 		}
 		return nil
 	}
+
+	return n.syncComponentFields()
+}
+
+// nolint:revive,cognitive-complexity
+func (n *Node) syncComponentFields() error {
 
 	childrenToKeep := make(map[string]struct{})
 	for field := range n.valueFields() {
@@ -1186,6 +1215,19 @@ func (n *Node) syncSubField(
 	fieldValue := internal.value()
 	if internal.node == nil && fieldValue != nil {
 		fieldType := internal.fieldType()
+		if n.bounded != nil {
+			if fieldType == fieldTypePointer || fieldType == fieldTypeDeferredPointer {
+				return false, reflect.Value{}, serviceerror.NewInternal("bounded layout does not support Field pointers")
+			}
+			if previous, exists := n.children[fieldN]; exists {
+				if err = previous.checkBoundedRemoval(); err != nil {
+					return
+				}
+				if err = previous.delete(false); err != nil {
+					return
+				}
+			}
+		}
 
 		// Field is not empty but tree node is not set. It means this is a new field, and a node must be created.
 		childNode := newNode(n.nodeBase, n, fieldN)
@@ -1234,13 +1276,16 @@ func (n *Node) syncSubField(
 		childNode.setValue(fieldValue)
 
 		n.children[fieldN] = childNode
+		if err = n.validateBoundedNode(childNode.path(), childNode); err != nil {
+			return
+		}
 		internal.node = childNode
 
 		updatedFieldV = reflect.New(fieldV.Type()).Elem()
 		updatedFieldV.FieldByName(internalFieldName).Set(reflect.ValueOf(internal))
 	}
 
-	if internal.fieldType() == fieldTypeComponent && internal.value() != nil {
+	if n.bounded == nil && internal.fieldType() == fieldTypeComponent && internal.value() != nil {
 		err = internal.node.syncSubComponents()
 		if err != nil {
 			return
@@ -1644,7 +1689,7 @@ func (n *Node) closeTransactionApplyPendingComponentMetadata() error {
 	if len(n.pendingRequestLinks) == 0 && len(n.pendingUserMetadata) == 0 {
 		return nil
 	}
-	for _, node := range n.andAllChildren() {
+	for _, node := range n.componentNodes() {
 		if !node.applyPendingComponentMetadata() {
 			continue
 		}
@@ -1816,6 +1861,10 @@ func (n *Node) AddTask(
 	task any,
 ) {
 	rt, ok := n.registry.taskFor(task)
+	if err := n.recordBoundedTask(component, ok && rt.isPureTask && taskAttributes.IsImmediate()); err != nil {
+		// nolint:forbidigo // Framework entry points recover invariant violations.
+		panic(err)
+	}
 	if ok && rt.isPureTask && taskAttributes.IsImmediate() {
 		// Those tasks will be executed in the current transaction.
 		n.immediatePureTasks[component] = append(n.immediatePureTasks[component], taskWithAttributes{
@@ -1934,6 +1983,10 @@ func (n *Node) executeImmediatePureTasks() error {
 				taskNode, ok := n.valueToNode[component]
 				if !ok {
 					break
+				}
+
+				if err := n.countBoundedImmediateExecution(); err != nil {
+					return err
 				}
 
 				// Only syncStructure on next iteration if task is executed (the first return value).
@@ -2108,7 +2161,7 @@ func (n *Node) closeTransactionForceUpdateVisibility(
 
 func (n *Node) closeTransactionSerializeNodes() error {
 	skipPersistenceIfClean := n.backend.ChasmSkipPersistenceEnabled()
-	for nodePath, node := range n.andAllChildren() {
+	for nodePath, node := range n.nodesToSerialize() {
 		if node.valueState > valueStateNeedSerialize {
 			return serviceerror.NewInternalf("invalid valueState for serializing: %v", node.valueState)
 		}
@@ -2195,7 +2248,7 @@ func (n *Node) closeTransactionUpdateComponentTasks(
 	// type opted in.
 	var taskCounts map[uint32]int
 
-	for nodePath, node := range n.andAllChildren() {
+	for nodePath, node := range n.componentNodes() {
 		// no-op if node is not a component
 		componentAttr := node.serializedNode.Metadata.GetComponentAttributes()
 		if componentAttr == nil {
@@ -2254,6 +2307,10 @@ func (n *Node) closeTransactionUpdateComponentTasks(
 			); err != nil {
 				return err
 			}
+		}
+
+		if err := node.checkBoundedTasks(); err != nil {
+			return err
 		}
 
 		// Invalid tasks are removed and new tasks added by this point, so counts are final.
@@ -2644,7 +2701,7 @@ func (n *Node) closeTransactionGeneratePhysicalPureTask(
 // Returns error if any deferred pointer cannot be resolved, as deferred pointers
 // cannot be persisted after transaction close.
 func (n *Node) resolveDeferredPointers() error {
-	for _, node := range n.andAllChildren() {
+	for _, node := range n.componentNodes() {
 		if node.value == nil || !node.isComponent() {
 			continue
 		}
@@ -2735,8 +2792,8 @@ func (n *Node) andAllChildren() iter.Seq2[[]string, *Node] {
 func (n *Node) cleanupTransaction() {
 	n.epoch++
 	for touched := range n.touchedDataMaps {
-		clear(touched.delta)
-		clear(touched.removed)
+		touched.delta = make(map[string]proto.Message)
+		touched.removed = nil
 	}
 	clear(n.touchedDataMaps)
 	clear(n.pendingDataMaps)
@@ -2769,6 +2826,11 @@ func (n *Node) cleanupTransaction() {
 
 	n.needsPointerResolution = false
 	n.totalTimeSkippedUpdatedInPassive = false
+
+	if n.bounded != nil {
+		n.cleanupBoundedWork()
+		return
+	}
 
 	// Reset per-node subtreeIsDirty on all nodes in the tree.
 	for _, node := range n.andAllChildren() {
@@ -2941,11 +3003,17 @@ func mergeTaskStatuses(taskList []*persistencespb.ChasmComponentAttributes_Task,
 func (n *Node) ApplySystemMutation(
 	mutation NodesMutation,
 ) error {
+	previous := n.applyingMutation
+	n.applyingMutation = true
+	defer func() { n.applyingMutation = previous }()
 	if err := n.applyDeletions(mutation.DeletedNodes, true); err != nil {
 		return err
 	}
 
-	return n.applyUpdates(mutation.UpdatedNodes, true)
+	if err := n.applyUpdates(mutation.UpdatedNodes, true); err != nil {
+		return err
+	}
+	return n.validateBoundedMutation(mutation)
 }
 
 // ApplyMutation is used by replication stack to apply node
@@ -2957,11 +3025,18 @@ func (n *Node) ApplySystemMutation(
 func (n *Node) ApplyMutation(
 	mutation NodesMutation,
 ) error {
+	previous := n.applyingMutation
+	n.applyingMutation = true
+	defer func() { n.applyingMutation = previous }()
 	if err := n.applyDeletions(mutation.DeletedNodes, false); err != nil {
 		return err
 	}
 
 	if err := n.applyUpdates(mutation.UpdatedNodes, false); err != nil {
+		return err
+	}
+
+	if err := n.validateBoundedMutation(mutation); err != nil {
 		return err
 	}
 
@@ -3154,7 +3229,7 @@ func (n *Node) RefreshTasks() error {
 	// flag to avoid generating those timer tasks twice in the same CloseTransaction.
 	n.totalTimeSkippedUpdatedInPassive = false
 
-	for _, node := range n.andAllChildren() {
+	for _, node := range n.componentNodes() {
 		// Only reset task status here, the actual task generation will be done when
 		// CloseTransaction() is called to persist the changes.
 		if reset := node.resetTaskStatus(); !reset {
@@ -3255,6 +3330,14 @@ func (n *Node) isAncestorOf(descendant *Node) bool {
 }
 
 func (n *Node) delete(isSystemDelete bool) error {
+	if err := n.checkBoundedRemoval(); err != nil {
+		return err
+	}
+	if n.bounded != nil {
+		if i, ok := n.bounded.layout.byPath[boundedPath(n.path())]; ok && n.bounded.slots[i] == n {
+			n.bounded.slots[i] = nil
+		}
+	}
 	for _, childNode := range n.children {
 		if err := childNode.delete(isSystemDelete); err != nil {
 			return err
@@ -3490,7 +3573,7 @@ func (n *Node) EachPureTask(
 	// Because tree structure may change during the processing,
 	// we first gather all nodes that have pure tasks that are ready for execution.
 	var componentToProcess []any
-	for _, node := range n.andAllChildren() {
+	for _, node := range n.componentNodes() {
 		// Skip nodes that aren't serialized yet.
 		if node.serializedNode == nil || node.serializedNode.Metadata == nil {
 			continue
@@ -4314,7 +4397,7 @@ func (n *Node) regenerateTimerTasksForTimeSkipping() error {
 	var firstPureTask *persistencespb.ChasmComponentAttributes_Task
 	var firstPureTaskNode *Node
 
-	for nodePath, node := range n.andAllChildren() {
+	for nodePath, node := range n.componentNodes() {
 		componentAttr := node.serializedNode.GetMetadata().GetComponentAttributes()
 		if componentAttr == nil {
 			continue
@@ -4358,7 +4441,7 @@ func (n *Node) regenerateTimerTasksForTimeSkipping() error {
 func (n *Node) defaultFindNextTargetTime() *TimeSkippingTransition {
 	transition := NewTimeSkippingTransition(n.Now(nil))
 	now := transition.CurrentTime
-	for _, node := range n.andAllChildren() {
+	for _, node := range n.componentNodes() {
 		componentAttr := node.serializedNode.GetMetadata().GetComponentAttributes()
 		if componentAttr == nil {
 			continue

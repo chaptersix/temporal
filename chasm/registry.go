@@ -284,6 +284,11 @@ func (r *Registry) registerComponent(
 	if err := validateDataMapFields(rc.goType); err != nil {
 		return err
 	}
+	compiled, err := compileBoundedLayout(rc)
+	if err != nil {
+		return err
+	}
+	rc.compiledBoundedLayout = compiled
 	if err := validateFieldNames(rc); err != nil {
 		return err
 	}

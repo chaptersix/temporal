@@ -31,7 +31,9 @@ type (
 
 		searchAttributesMapper *VisibilitySearchAttributesMapper
 
-		contextValues map[any]any
+		contextValues         map[any]any
+		boundedLayout         *BoundedDataLayout
+		compiledBoundedLayout *compiledBoundedLayout
 	}
 
 	RegistrableComponentOption func(*RegistrableComponent)

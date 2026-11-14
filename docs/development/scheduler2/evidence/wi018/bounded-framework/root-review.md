@@ -1,0 +1,9 @@
+# Root independent framework verification
+
+Verified all13 framework source SHA256 values in manifest.json against the current execution worktree. Independently ran `CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm -count=1`; PASS0.485s (root-full01.log). This is a full CHASM package run, not scheduler runtime acceptance.
+
+Source review covered descriptor registration/cold validation, pointwise passive/system slot validation, DATA owner lifetime, dirty structure/byte/touched queues, task enqueue/execution budgets and changed tree consumers. Root found the original component iterator widened child receiver scope; the final implementation filters fixed paths and returns relative paths. Dirty structure/byte drains likewise preserve sibling work for later root close, with a direct sibling regression. The retained DataMap delta/removal and workset membership capacity fixes are present on the verified source.
+
+The task differential fixture compares persisted nodes and physical envelopes against default traversal, including cross-slot DATA-driven invalidation, detached lifecycle, refresh, time skipping and duplicate logical delivery. Failure/reload tests preserve prior DATA and tasks after discarding a failed candidate. Complete export and nil-handler detached decoding are independently exercised. No additional blocker found in this scope; final peer review is recorded separately.
+
+Limits: fixture count equality proves the stated fixed-topology transactions, not arbitrary validator/handler work. Full cold reconstruction/export remain proportional to input/output. Failure publication is modeled by candidate discard, not injected SQLite failure. Scheduler runtime has not opted into this layout; application indexes, payload bounds, dispatch, calendar preparation and physical integration gates remain open.

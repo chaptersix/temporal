@@ -124,7 +124,7 @@ func (m dataMapInternal) checked(ctx Context) (*dataMapState, *immutableCtx) {
 			dataMapMust(serviceerror.NewInternal("DataMap staging transaction has ended"))
 		}
 	} else {
-		if s.owner.value != s.ownerValue || s.root.valueToNode[s.ownerValue] != s.owner {
+		if s.owner.value != s.ownerValue || s.root.valueToNode[s.ownerValue] != s.owner || !s.owner.currentTreeNode() {
 			dataMapMust(serviceerror.NewInternal("DataMap owner has been removed or replaced"))
 		}
 	}
@@ -205,7 +205,7 @@ func (n *Node) syncDataMap(field fieldInfo) error {
 
 func (s *dataMapState) sync() error {
 	n := s.owner
-	if n.value != s.ownerValue || s.root.valueToNode[s.ownerValue] != n {
+	if n.value != s.ownerValue || s.root.valueToNode[s.ownerValue] != n || !n.currentTreeNode() {
 		return serviceerror.NewInternal("DataMap owner has been removed or replaced")
 	}
 	collection := n.children[s.field]
@@ -224,6 +224,9 @@ func (s *dataMapState) sync() error {
 			collection.initSerializedCollectionNode()
 			collection.setValueState(valueStateNeedSerialize)
 			n.children[s.field] = collection
+			if err := n.validateBoundedNode(collection.path(), collection); err != nil {
+				return err
+			}
 		}
 		child, exists := collection.children[key]
 		if exists && !child.isData() {
@@ -241,11 +244,16 @@ func (s *dataMapState) sync() error {
 			}
 			delete(n.mutation.DeletedNodes, path)
 			collection.children[key] = child
+			if err := n.validateBoundedNode(child.path(), child); err != nil {
+				return err
+			}
 		}
 		child.setValue(value)
 		child.setValueState(valueStateNeedSerialize)
 	}
-	clear(s.delta)
+	// Discard backing capacity so a later point delta cannot inherit a large
+	// constructor transaction's map iteration cost.
+	s.delta = make(map[string]proto.Message)
 	return nil
 }
 

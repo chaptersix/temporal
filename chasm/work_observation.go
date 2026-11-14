@@ -19,5 +19,9 @@ const (
 	workSerializeBytes
 	workTaskValidations
 	workSerializedNodeProtoBytes
+	workSetEnqueues
+	workSetDrains
+	workSlotVisits
+	workPathInspections
 	workCounterCount
 )

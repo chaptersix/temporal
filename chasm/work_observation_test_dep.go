@@ -35,7 +35,7 @@ func (n *Node) BeginWorkInspectionForTest() *WorkCountersForTest {
 func (c *WorkCountersForTest) Reset() { c.values = [workCounterCount]int64{} }
 
 func (c *WorkCountersForTest) Snapshot() map[string]int64 {
-	names := []string{"cold_nodes", "tree_visits", "sync_visits", "map_hydration_keys", "map_sync_keys", "map_key_copies", "delete_child_visits", "decode_calls", "decode_data_bytes", "data_decode_calls", "serialize_calls", "serialize_data_bytes", "task_validations", "serialized_node_proto_bytes"}
+	names := []string{"cold_nodes", "tree_visits", "sync_visits", "map_hydration_keys", "map_sync_keys", "map_key_copies", "delete_child_visits", "decode_calls", "decode_data_bytes", "data_decode_calls", "serialize_calls", "serialize_data_bytes", "task_validations", "serialized_node_proto_bytes", "workset_enqueues", "workset_drains", "slot_visits", "path_inspections"}
 	result := make(map[string]int64, len(names))
 	for i, name := range names {
 		result[name] = c.values[i]

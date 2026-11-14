@@ -17,6 +17,8 @@ type Field[T any] struct {
 	Internal fieldInternal
 }
 
+func (Field[T]) valueType() reflect.Type { return reflect.TypeFor[T]() }
+
 // re. Data v.s. Component.
 // Components have behavior and has a lifecycle.
 // while Data doesn't and must be attached to a component.
