@@ -13,15 +13,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// configWith returns DefaultConfig with Tweakables adjusted by fn.
-func configWith(fn func(*scheduler.Tweakables)) *scheduler.Config {
-	cfg := schedulertest.DefaultConfig()
-	tweakables := scheduler.DefaultTweakables
-	fn(&tweakables)
-	cfg.Tweakables = func(string) scheduler.Tweakables { return tweakables }
-	return cfg
-}
-
 // oneShotSchedule fires exactly once, at start+offset.
 func oneShotSchedule(start time.Time, offset time.Duration) *schedulepb.Schedule {
 	s := schedulertest.DefaultSchedule()
@@ -76,7 +67,7 @@ func TestLedger_FinalStartPendingAtIdle(t *testing.T) {
 			d := schedulertest.NewDriver(t,
 				schedulertest.WithStartTime(start),
 				schedulertest.WithSchedule(oneShotSchedule(start, tc.offset)),
-				schedulertest.WithConfig(configWith(func(tw *scheduler.Tweakables) {
+				schedulertest.WithConfig(schedulertest.ConfigWith(func(tw *scheduler.Tweakables) {
 					tw.IdleTime = idle
 					tw.EnablePendingStartIdleFix = tc.fixOn
 				})),
@@ -169,14 +160,18 @@ func uniq(names []string) []string {
 	return out
 }
 
-// A start deferred behind a running workflow is only re-enabled by a workflow
-// completion. If that completion arrives while the schedule is paused,
-// ProcessBuffer drops the first start (paused) and re-defers the rest with
-// nothing running, so no completion will ever re-enable them. Unpause doesn't
-// re-process the buffer either; the starts (including a manual trigger, which
-// pause allows) sit until the idle task closes the schedule.
+// A start deferred behind a running workflow is normally re-enabled by that
+// workflow completing. When the completion arrives while the schedule is
+// paused, ProcessBuffer selects the first start, drops it because the schedule
+// is paused, and re-defers the rest — leaving deferred starts with nothing
+// running whose completion could ever wake them.
+//
+// Invoker.addTasks closes that gap: with no pending or running start it calls
+// reenableDeferredStarts, which returns the deferred starts to Attempt == 0 so
+// the next ProcessBuffer pass reconsiders them. This test guards that path, in
+// particular that a manual trigger (which pause permits) still starts rather
+// than sitting in the buffer until the idle task closes the schedule.
 func TestLedger_DeferredStartsStrandedByPausedCompletion(t *testing.T) {
-	t.Skip("known bug: deferred starts stranded after a completion while paused")
 
 	const idle = time.Hour
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -188,7 +183,7 @@ func TestLedger_DeferredStartsStrandedByPausedCompletion(t *testing.T) {
 	d := schedulertest.NewDriver(t,
 		schedulertest.WithStartTime(start),
 		schedulertest.WithSchedule(s),
-		schedulertest.WithConfig(configWith(func(tw *scheduler.Tweakables) { tw.IdleTime = idle })),
+		schedulertest.WithConfig(schedulertest.ConfigWith(func(tw *scheduler.Tweakables) { tw.IdleTime = idle })),
 		schedulertest.WithAfterStep(collectViolations(&violations)),
 	)
 

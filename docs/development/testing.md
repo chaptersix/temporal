@@ -87,6 +87,143 @@ unless there is a reason not to.
 `make parallelize-tests` can be used to automatically add `t.Parallel()`.
 Use `//parallelize:ignore` to opt your test out of it.
 
+## Property tests
+
+Property tests assert invariants against randomly-generated inputs instead of hand-written cases.
+They use [rapid](https://pkg.go.dev/pgregory.net/rapid), which generates the inputs and, on
+failure, shrinks them to a minimal counterexample.
+
+They run in their own tier, separate from unit tests, because they need a different runner
+configuration; see [Why retries are disabled](#why-retries-are-disabled).
+
+The tier is every package directory whose name ends in `proptest`; see
+[Adding a property test](#adding-a-property-test).
+
+### Running locally
+
+```bash
+make property-test                     # 1000 generated cases per property
+make property-test RAPID_CHECKS=50000  # soak before pushing a change to a covered package
+```
+
+Or with plain `go test`. Note that `-rapid.*` are test *binary* flags, so the package has to come
+before them — otherwise `go test` stops parsing and fails with `[setup failed]`:
+
+```bash
+go test -tags test_dep ./chasm/lib/scheduler/schedulerproptest/ -run TestSchedulerProperties -rapid.checks=1000
+```
+
+### Configuration
+
+`RAPID_CHECKS` sets the number of generated cases per property, and defaults to `1000` — cheap
+enough to run on every PR. Every rapid flag also has an environment variable form
+(`-rapid.checks` / `RAPID_CHECKS`, and so on); see rapid's documentation for the full set.
+
+Seeds are **not** pinned in CI. Retries are disabled instead, which keeps a counterexample from
+being discarded while still letting coverage accumulate across commits.
+
+### In CI
+
+| Job | Workflow | Gates merges |
+| --- | --- | --- |
+| `Property test` | `run-tests.yml`, every PR | intended |
+| `Property test soak` | `property-test-soak.yml`, nightly 0600 UTC | no |
+
+Both run a single attempt. The soak also accepts a manual `workflow_dispatch` with a `rapid_checks`
+input.
+
+`Property test` only blocks a merge once it is listed as a required status check in the repository's
+branch protection settings; the workflow alone does not make it one.
+
+The soak is deliberately never a required check. A counterexample it finds is a real bug, but it is
+found on an input that no particular PR introduced, so it must not block unrelated merges.
+
+### When a counterexample is found
+
+rapid prints the minimized counterexample along with a line naming both ways to reproduce it — the
+*fail file* it just wrote, and the seed:
+
+```
+To reproduce, specify -run="<TestName>" -rapid.failfile="<path>" (or -rapid.seed=<seed>)
+```
+
+Either form works. The fail file path is relative to the package directory:
+
+```bash
+go test -tags test_dep ./chasm/lib/scheduler/schedulerproptest/ -run TestSchedulerProperties \
+  -rapid.failfile="testdata/rapid/TestSchedulerProperties/TestSchedulerProperties-<timestamp>-<pid>.fail"
+```
+
+In CI the fail file is uploaded as a job artifact — `property-test-counterexamples`, or
+`property-test-soak-counterexamples` for the nightly. Download it to reproduce locally.
+
+### Pinning a counterexample
+
+**Pin the counterexample as a hand-written deterministic test, in the same change as the fix.**
+Translate the shrunk inputs into an explicit test — `TestLedger_DeferredStartsStrandedByPausedCompletion`
+in [schedulertest](../../chasm/lib/scheduler/schedulertest) is an example — and put it next to the
+other unit tests for the package, not in the property tier.
+
+**Do not commit the fail file.** `testdata/rapid/` is gitignored, because a fail file is not a
+durable regression test: it replays a raw sequence of draws, so adding, removing or reordering a
+draw in the generator makes the stored sequence decode to different values. It then stops
+reproducing the bug **silently** — rapid reports no error, the replay simply passes, and the
+protection is gone without anything failing to tell you. A hand-written test says what it means and
+breaks loudly when behaviour changes.
+
+Use the fail file for what it is good at — reproducing the failure *now*, while you write the
+real test.
+
+### Deferring a fix
+
+If the bug cannot be fixed immediately, the thing to avoid is any marker that passes silently once
+the bug is gone. A `t.Skip` and a filter in the invariant hook both do, which is how this
+repository ended up carrying a skip *and* an invariant exemption for a stranding bug that had
+already been fixed on main seven hours earlier — the skip's own comment asked for its deletion, and
+nothing deleted it because nothing broke when the bug disappeared.
+
+So, in order of preference:
+
+- Fix it. A shrunk counterexample is usually small, and the fix often is too.
+- Open an issue, and paste in both the seed and the fail file's contents — a few lines of hex that
+  fully describe the case. Do not rely on the CI artifact; those expire.
+- If the property has to keep running while the bug is open, constrain the **generator** rather
+  than filtering violations in the hook. A generator constraint is visible in the inputs and
+  self-documenting; a violation filter silently swallows every other bug of the same shape, not
+  just the one it names.
+- If you must leave a marker, make it fail when the bug is fixed — for example a deterministic test
+  that asserts the current wrong outcome behind a `// BUG(#NNNNN):` comment, so whoever fixes the
+  bug is forced to update it. Put the issue number in any `t.Skip` message so it is at least
+  greppable.
+
+### Why retries are disabled
+
+`property-test-coverage` passes `--max-attempts=1` to the test runner, unlike the unit and
+functional tiers, which retry up to `MAX_TEST_ATTEMPTS` times. **Do not re-enable retries for this
+tier.**
+
+The test runner exits with the exit code of its *last* attempt, and each retry re-runs the test in a
+fresh process, where rapid draws a new random seed. A retried property test therefore checks a
+different set of inputs than the one that failed: the counterexample would be replaced by a
+likely-passing run, and the job would go green having found a real bug.
+
+### Adding a property test
+
+**Put property tests in their own package directory, named with a `proptest` suffix.** The tier is
+selected by directory name — `PROPERTY_TEST_DIRS` in the [Makefile](../../Makefile) matches any
+directory ending in `proptest` — so creating one enrolls it automatically and excludes it from the
+unit tier. Nothing needs registering. Also add it to the `property` category in
+[find_altered_tests.go](../../cmd/tools/test/find_altered_tests.go), which is a separate list.
+
+The dedicated directory is not stylistic. The tier subtracts whole directories from
+`UNIT_TEST_DIRS`, so a property test placed inside the package it exercises forces a choice between
+pulling that package's entire unit test suite into the no-retry tier, or leaving the property test
+in the retrying tier where its counterexamples are discarded.
+
+Because a sibling directory can only reach exported API, the package under test needs an exported
+harness — see [schedulertest](../../chasm/lib/scheduler/schedulertest), which is a non-test package
+precisely so property tests can import its driver.
+
 ## Test helpers
 
 Test helpers can be found in the [common/testing](../../common/testing) package.

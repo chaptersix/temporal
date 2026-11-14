@@ -1,4 +1,13 @@
-package schedulertest_test
+// Package schedulerproptest holds the property tests for the CHASM scheduler,
+// driving the [schedulertest] harness against randomly-generated schedules and
+// operation sequences.
+//
+// Property tests live in their own directory rather than alongside the unit
+// tests in package schedulertest because the CI tier that runs them is selected
+// by directory name (any directory matching *proptest) and runs without retries
+// — retrying a property test re-draws rapid's seed and discards the
+// counterexample. See docs/development/testing.md ("Property tests").
+package schedulerproptest
 
 import (
 	"testing"
@@ -19,9 +28,10 @@ import (
 // failing operation sequence to a minimal reproducer — directly useful for the
 // "stuck open" bug class.
 //
-// The outer *testing.T owns the engine scaffolding (it requires a real
-// testing.TB); invariant violations are reported through the *rapid.T so rapid
-// can shrink them.
+// The engine scaffolding is built on the *rapid.T rather than the outer
+// *testing.T, so a harness failure (a gomock expectation, an engine assertion,
+// an error-level log) shrinks and is attributed to the generated case that
+// caused it, exactly like an invariant violation.
 func TestSchedulerProperties(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -30,10 +40,10 @@ func TestSchedulerProperties(t *testing.T) {
 		idle := rapid.SampledFrom([]time.Duration{10 * time.Minute, time.Hour, 2 * time.Hour}).Draw(rt, "idleTime")
 		sched := drawSchedule(rt, start, idle)
 
-		d := schedulertest.NewDriver(t,
+		d := schedulertest.NewDriver(rt,
 			schedulertest.WithStartTime(start),
 			schedulertest.WithSchedule(sched),
-			schedulertest.WithConfig(configWith(func(tw *scheduler.Tweakables) {
+			schedulertest.WithConfig(schedulertest.ConfigWith(func(tw *scheduler.Tweakables) {
 				tw.IdleTime = idle
 			})),
 			// InvokerExecuteTask may lag the timers, and workflows may run, but
@@ -42,7 +52,7 @@ func TestSchedulerProperties(t *testing.T) {
 			schedulertest.WithMaxSideEffectLag(idle/2),
 			schedulertest.WithMaxRunDuration(idle/2),
 		)
-		hook := checkInvariantsIgnoringKnownBugs(rt)
+		hook := schedulertest.CheckInvariantsHook(rt)
 		d.AfterStep = hook
 
 		// Check the initial settled state too.
@@ -131,25 +141,4 @@ func drawSchedule(rt *rapid.T, start time.Time, idle time.Duration) *schedulepb.
 	}
 
 	return s
-}
-
-// checkInvariantsIgnoringKnownBugs is CheckInvariantsHook minus one known bug
-// (TestLedger_DeferredStartsStrandedByPausedCompletion): a lost start where
-// every pending start is deferred and nothing is running to re-enable them.
-// Delete this once that bug is fixed.
-func checkInvariantsIgnoringKnownBugs(rt *rapid.T) func(*schedulertest.Driver) {
-	var prev *schedulertest.Snapshot
-	return func(d *schedulertest.Driver) {
-		rt.Helper()
-		cur := d.Snapshot()
-		for _, v := range schedulertest.CheckInvariants(prev, cur) {
-			if v.Name == "ledger-lost-start" && cur.RunningWorkflows == 0 &&
-				cur.DeferredStarts == len(cur.PendingStarts) {
-				continue
-			}
-			rt.Fatalf("scheduler invariant violation at step (now=%s): %s",
-				cur.Now.Format("2006-01-02T15:04:05"), v)
-		}
-		prev = &cur
-	}
 }
