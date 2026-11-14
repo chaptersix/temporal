@@ -1,0 +1,485 @@
+package queueindex
+
+import (
+	"bytes"
+	"encoding/base64"
+	"encoding/binary"
+	"errors"
+	"math"
+	"math/bits"
+)
+
+// SequenceIndex identifies one owned queue generation and policy partition.
+// Its pages are mutable only through the shared batch; generations never share them.
+type SequenceIndex [16]byte
+
+type sequenceID [9]byte
+
+type sequenceNode struct {
+	Bit         uint8
+	Min         uint64
+	Time        CountKey
+	Summary     CountRoot
+	Left, Right sequenceID
+}
+
+// SequenceEntry is an indexed admission identity and its exact chronological key.
+type SequenceEntry struct {
+	Sequence uint64
+	Time     CountKey
+}
+
+func (index SequenceIndex) rootKey() string {
+	return "sequence-root/" + base64.RawURLEncoding.EncodeToString(index[:])
+}
+func (index SequenceIndex) pageKey(id sequenceID) string {
+	return "sequence/" + base64.RawURLEncoding.EncodeToString(index[:]) + "/" + base64.RawURLEncoding.EncodeToString(id[:])
+}
+func sequenceKey(at uint8, minimum uint64) sequenceID {
+	var id sequenceID
+	id[0] = at + 1
+	if at < 64 {
+		minimum &= math.MaxUint64 << (64 - at)
+	}
+	binary.BigEndian.PutUint64(id[1:], minimum)
+	return id
+}
+func sequenceBit(value uint64, at uint8) uint64 { return (value >> (63 - at)) & 1 }
+func (n sequenceNode) id() sequenceID           { return sequenceKey(n.Bit, n.Min) }
+func (n sequenceNode) encode() []byte {
+	if n.Bit == 64 {
+		wire := make([]byte, 13)
+		wire[0] = 5
+		copy(wire[1:], n.Time[:])
+		return wire
+	}
+	wire := make([]byte, 59)
+	wire[0] = 3
+	binary.BigEndian.PutUint64(wire[1:9], n.Min)
+	copy(wire[9:41], n.Summary[:])
+	copy(wire[41:50], n.Left[:])
+	copy(wire[50:59], n.Right[:])
+	return wire
+}
+
+func (b *CountBatch) sequenceRoot(index SequenceIndex) (sequenceID, error) {
+	wire, ok, err := b.readIndex(index.rootKey())
+	if err != nil {
+		return sequenceID{}, err
+	}
+	if !ok {
+		return sequenceID{}, nil
+	}
+	if len(wire) != 9 {
+		return sequenceID{}, b.fail(errors.New("invalid sequence root"))
+	}
+	var root sequenceID
+	copy(root[:], wire)
+	if root == (sequenceID{}) {
+		return root, b.fail(errors.New("empty sequence root record"))
+	}
+	return root, nil
+}
+
+func (b *CountBatch) sequenceNode(index SequenceIndex, id sequenceID) (sequenceNode, error) {
+	wire, ok, err := b.readIndex(index.pageKey(id))
+	if err != nil {
+		return sequenceNode{}, err
+	}
+	if !ok {
+		return sequenceNode{}, b.fail(errors.New("missing sequence node"))
+	}
+	if id[0] == 0 || id[0] > 65 {
+		return sequenceNode{}, b.fail(errors.New("invalid sequence node identity"))
+	}
+	n := sequenceNode{Bit: id[0] - 1}
+	if n.Bit == 64 {
+		if len(wire) != 13 || wire[0] != 5 {
+			return sequenceNode{}, b.fail(errors.New("invalid sequence leaf encoding"))
+		}
+		n.Min = binary.BigEndian.Uint64(id[1:])
+		copy(n.Time[:], wire[1:13])
+	} else {
+		if len(wire) != 59 || wire[0] != 3 {
+			return sequenceNode{}, b.fail(errors.New("invalid sequence branch encoding"))
+		}
+		n.Min = binary.BigEndian.Uint64(wire[1:9])
+		copy(n.Summary[:], wire[9:41])
+		copy(n.Left[:], wire[41:50])
+		copy(n.Right[:], wire[50:59])
+	}
+	if n.id() != id || n.Bit < 64 && n.Summary == (CountRoot{}) {
+		return sequenceNode{}, b.fail(errors.New("invalid sequence node identity"))
+	}
+	if n.Bit == 64 && (n.Left != (sequenceID{}) || n.Right != (sequenceID{})) || n.Bit < 64 && (n.Left == (sequenceID{}) || n.Right == (sequenceID{}) || n.Time != (CountKey{})) {
+		return sequenceNode{}, b.fail(errors.New("invalid sequence node children"))
+	}
+	return n, nil
+}
+
+func (b *CountBatch) sequenceChildren(index SequenceIndex, n sequenceNode) (left sequenceNode, right sequenceNode, err error) {
+	l, err := b.sequenceNode(index, n.Left)
+	if err != nil {
+		return sequenceNode{}, sequenceNode{}, err
+	}
+	r, err := b.sequenceNode(index, n.Right)
+	if err != nil {
+		return sequenceNode{}, sequenceNode{}, err
+	}
+	if n.Bit >= 64 || l.Bit <= n.Bit || r.Bit <= n.Bit || n.Min != l.Min || uint8(bits.LeadingZeros64(l.Min^r.Min)) != n.Bit || sequenceBit(l.Min, n.Bit) != 0 || sequenceBit(r.Min, n.Bit) != 1 {
+		return sequenceNode{}, sequenceNode{}, b.fail(errors.New("invalid sequence branch relationship"))
+	}
+	return l, r, nil
+}
+
+func (b *CountBatch) saveSequence(index SequenceIndex, n sequenceNode) error {
+	return b.stageIndex(index.pageKey(n.id()), n.encode(), false)
+}
+
+// releaseSharedCount removes only a proven duplicate owner, never a subtree.
+// The caller has read a surviving outer page whose Summary equals survivor.
+func (b *CountBatch) releaseSharedCount(root, survivor CountRoot) error {
+	if err := b.ready(); err != nil {
+		return err
+	}
+	if root == (CountRoot{}) || root != survivor {
+		return b.fail(errors.New("sequence collapse summary mismatch"))
+	}
+	e, err := b.tx.read(root)
+	if err != nil {
+		return b.fail(err)
+	}
+	if e.Refs < 2 {
+		return b.fail(errors.New("sequence collapse lacks surviving summary owner"))
+	}
+	e.Refs--
+	b.tx.stats.Releases++
+	b.tx.put(root, e)
+	return nil
+}
+
+// InsertSequence stages one unique admission in an owned generation.
+func (b *CountBatch) InsertSequence(index SequenceIndex, sequence uint64, at CountKey) error {
+	root, err := b.sequenceRoot(index)
+	if err != nil {
+		return err
+	}
+	next, err := b.insertSequence(index, root, sequence, at, -1)
+	if err != nil {
+		return b.fail(err)
+	}
+	return b.stageIndex(index.rootKey(), next[:], false)
+}
+
+func (b *CountBatch) sequenceLeaf(index SequenceIndex, sequence uint64, at CountKey) (sequenceNode, error) {
+	n := sequenceNode{Bit: 64, Min: sequence, Time: at}
+	return n, b.saveSequence(index, n)
+}
+
+func (b *CountBatch) insertSequence(index SequenceIndex, id sequenceID, sequence uint64, at CountKey, parentBit int) (sequenceID, error) {
+	if id == (sequenceID{}) {
+		leaf, err := b.sequenceLeaf(index, sequence, at)
+		return leaf.id(), err
+	}
+	n, err := b.sequenceNode(index, id)
+	if err != nil {
+		return sequenceID{}, err
+	}
+	if int(n.Bit) <= parentBit {
+		return sequenceID{}, errors.New("invalid sequence branch progression")
+	}
+	if n.Bit < 64 {
+		if _, _, err = b.sequenceChildren(index, n); err != nil {
+			return sequenceID{}, err
+		}
+	}
+	different := uint8(bits.LeadingZeros64(n.Min ^ sequence))
+	if different < n.Bit {
+		return b.splitSequence(index, n, sequence, at, different)
+	}
+	if n.Bit == 64 {
+		return sequenceID{}, errors.New("sequence already indexed")
+	}
+	n.Summary, err = b.Update(n.Summary, at, true)
+	if err != nil {
+		return sequenceID{}, err
+	}
+	if sequenceBit(sequence, n.Bit) == 0 {
+		n.Left, err = b.insertSequence(index, n.Left, sequence, at, int(n.Bit))
+	} else {
+		n.Right, err = b.insertSequence(index, n.Right, sequence, at, int(n.Bit))
+	}
+	if err != nil {
+		return sequenceID{}, err
+	}
+	left, err := b.sequenceNode(index, n.Left)
+	if err != nil {
+		return sequenceID{}, err
+	}
+	n.Min = left.Min
+	return n.id(), b.saveSequence(index, n)
+}
+
+func (b *CountBatch) splitSequence(index SequenceIndex, old sequenceNode, sequence uint64, at CountKey, different uint8) (sequenceID, error) {
+	var summary CountRoot
+	var err error
+	if old.Bit == 64 {
+		summary, err = b.Update(CountRoot{}, old.Time, true)
+	} else {
+		err = b.Fork(old.Summary)
+		summary = old.Summary
+	}
+	if err != nil {
+		return sequenceID{}, err
+	}
+	summary, err = b.Update(summary, at, true)
+	if err != nil {
+		return sequenceID{}, err
+	}
+	leaf, err := b.sequenceLeaf(index, sequence, at)
+	if err != nil {
+		return sequenceID{}, err
+	}
+	n := sequenceNode{Bit: different, Summary: summary, Min: old.Min, Left: old.id(), Right: leaf.id()}
+	if sequenceBit(sequence, different) == 0 {
+		n.Min = sequence
+		n.Left, n.Right = leaf.id(), old.id()
+	}
+	return n.id(), b.saveSequence(index, n)
+}
+
+// Sequence returns an exact admission record without scanning neighboring keys.
+func (b *CountBatch) Sequence(index SequenceIndex, sequence uint64) (SequenceEntry, bool, error) {
+	root, err := b.sequenceRoot(index)
+	if err != nil {
+		return SequenceEntry{}, false, err
+	}
+	parentBit := -1
+	for root != (sequenceID{}) {
+		n, err := b.sequenceNode(index, root)
+		if err != nil {
+			return SequenceEntry{}, false, err
+		}
+		if int(n.Bit) <= parentBit {
+			return SequenceEntry{}, false, b.fail(errors.New("invalid sequence branch progression"))
+		}
+		if n.Bit == 64 {
+			if n.Min != sequence {
+				return SequenceEntry{}, false, nil
+			}
+			return SequenceEntry{Sequence: n.Min, Time: n.Time}, true, nil
+		}
+		if _, _, err = b.sequenceChildren(index, n); err != nil {
+			return SequenceEntry{}, false, err
+		}
+		if uint8(bits.LeadingZeros64(n.Min^sequence)) < n.Bit {
+			return SequenceEntry{}, false, nil
+		}
+		parentBit = int(n.Bit)
+		if sequenceBit(sequence, n.Bit) == 0 {
+			root = n.Left
+		} else {
+			root = n.Right
+		}
+	}
+	return SequenceEntry{}, false, nil
+}
+
+// DeleteSequence stages one removal and collapses unary outer branches atomically.
+func (b *CountBatch) DeleteSequence(index SequenceIndex, sequence uint64) error {
+	entry, ok, err := b.Sequence(index, sequence)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return b.fail(errors.New("sequence absent"))
+	}
+	root, err := b.sequenceRoot(index)
+	if err != nil {
+		return err
+	}
+	next, err := b.deleteSequence(index, root, sequence, entry.Time, -1)
+	if err != nil {
+		return b.fail(err)
+	}
+	return b.stageIndex(index.rootKey(), next[:], next == (sequenceID{}))
+}
+
+func (b *CountBatch) deleteSequence(index SequenceIndex, id sequenceID, sequence uint64, at CountKey, parentBit int) (sequenceID, error) {
+	n, err := b.sequenceNode(index, id)
+	if err != nil {
+		return sequenceID{}, err
+	}
+	if int(n.Bit) <= parentBit {
+		return sequenceID{}, errors.New("invalid sequence branch progression")
+	}
+	if n.Bit == 64 {
+		return sequenceID{}, b.stageIndex(index.pageKey(id), nil, true)
+	}
+	if _, _, err = b.sequenceChildren(index, n); err != nil {
+		return sequenceID{}, err
+	}
+	n.Summary, err = b.Update(n.Summary, at, false)
+	if err != nil {
+		return sequenceID{}, err
+	}
+	if sequenceBit(sequence, n.Bit) == 0 {
+		n.Left, err = b.deleteSequence(index, n.Left, sequence, at, int(n.Bit))
+	} else {
+		n.Right, err = b.deleteSequence(index, n.Right, sequence, at, int(n.Bit))
+	}
+	if err != nil {
+		return sequenceID{}, err
+	}
+	if n.Left == (sequenceID{}) || n.Right == (sequenceID{}) {
+		survivor := n.Left
+		if survivor == (sequenceID{}) {
+			survivor = n.Right
+		}
+		child, err := b.sequenceNode(index, survivor)
+		if err != nil {
+			return sequenceID{}, err
+		}
+		if child.Bit == 64 {
+			entry, err := b.tx.read(n.Summary)
+			if err != nil {
+				return sequenceID{}, err
+			}
+			if entry.Node != countLeaf(child.Time, 1) {
+				return sequenceID{}, errors.New("sequence collapse singleton mismatch")
+			}
+			residual, err := b.Update(n.Summary, child.Time, false)
+			if err != nil {
+				return sequenceID{}, err
+			}
+			if residual != (CountRoot{}) {
+				return sequenceID{}, errors.New("sequence collapse residual summary")
+			}
+		} else if err = b.releaseSharedCount(n.Summary, child.Summary); err != nil {
+			return sequenceID{}, err
+		}
+		return survivor, b.stageIndex(index.pageKey(id), nil, true)
+	}
+	left, err := b.sequenceNode(index, n.Left)
+	if err != nil {
+		return sequenceID{}, err
+	}
+	n.Min = left.Min
+	return n.id(), b.saveSequence(index, n)
+}
+
+func (b *CountBatch) eligibleCount(n sequenceNode, at CountKey) (uint64, error) {
+	if n.Bit == 64 {
+		if bytes.Compare(n.Time[:], at[:]) >= 0 {
+			return 1, nil
+		}
+		return 0, nil
+	}
+	summary := n.Summary
+	total, err := b.Count(summary)
+	if err != nil {
+		return 0, err
+	}
+	before, _, err := b.CountBefore(summary, at)
+	if err != nil {
+		return 0, err
+	}
+	if before > total {
+		return 0, b.fail(errors.New("sequence summary count mismatch"))
+	}
+	return total - before, nil
+}
+
+// SequenceCount returns records in the inclusive sequence range whose time is
+// at least lowerTime. Prefix decomposition visits only two sequence boundaries.
+func (b *CountBatch) SequenceCount(index SequenceIndex, low, high uint64, lowerTime CountKey) (uint64, error) {
+	if err := b.ready(); err != nil {
+		return 0, err
+	}
+	if low > high {
+		return 0, b.fail(errors.New("reversed sequence range"))
+	}
+	root, err := b.sequenceRoot(index)
+	if err != nil {
+		return 0, err
+	}
+	return b.sequenceCount(index, root, low, high, lowerTime, -1)
+}
+
+func (b *CountBatch) sequenceCount(index SequenceIndex, id sequenceID, low, high uint64, at CountKey, parentBit int) (uint64, error) {
+	if id == (sequenceID{}) {
+		return 0, nil
+	}
+	n, err := b.sequenceNode(index, id)
+	if err != nil {
+		return 0, err
+	}
+	if int(n.Bit) <= parentBit {
+		return 0, b.fail(errors.New("invalid sequence branch progression"))
+	}
+	prefix := binary.BigEndian.Uint64(id[1:])
+	upper := prefix | (math.MaxUint64 >> n.Bit)
+	if high < prefix || low > upper {
+		return 0, nil
+	}
+	if low <= prefix && upper <= high {
+		return b.eligibleCount(n, at)
+	}
+	if n.Bit == 64 {
+		return b.eligibleCount(n, at)
+	}
+	if _, _, err = b.sequenceChildren(index, n); err != nil {
+		return 0, err
+	}
+	l, err := b.sequenceCount(index, n.Left, low, high, at, int(n.Bit))
+	if err != nil {
+		return 0, err
+	}
+	r, err := b.sequenceCount(index, n.Right, low, high, at, int(n.Bit))
+	if err != nil {
+		return 0, err
+	}
+	if l > math.MaxUint64-r {
+		return 0, b.fail(errors.New("sequence count exhausted"))
+	}
+	return l + r, nil
+}
+
+// SequenceExtreme selects the first/last sequence whose time reaches lowerTime.
+func (b *CountBatch) SequenceExtreme(index SequenceIndex, lowerTime CountKey, last bool) (SequenceEntry, bool, error) {
+	root, err := b.sequenceRoot(index)
+	if err != nil {
+		return SequenceEntry{}, false, err
+	}
+	if root == (sequenceID{}) {
+		return SequenceEntry{}, false, nil
+	}
+	n, err := b.sequenceNode(index, root)
+	if err != nil {
+		return SequenceEntry{}, false, err
+	}
+	count, err := b.eligibleCount(n, lowerTime)
+	if err != nil || count == 0 {
+		return SequenceEntry{}, false, err
+	}
+	for n.Bit < 64 {
+		l, r, err := b.sequenceChildren(index, n)
+		if err != nil {
+			return SequenceEntry{}, false, err
+		}
+		first, second := l, r
+		if last {
+			first, second = r, l
+		}
+		count, err = b.eligibleCount(first, lowerTime)
+		if err != nil {
+			return SequenceEntry{}, false, err
+		}
+		if count > 0 {
+			n = first
+		} else {
+			n = second
+		}
+	}
+	return SequenceEntry{Sequence: n.Min, Time: n.Time}, true, nil
+}

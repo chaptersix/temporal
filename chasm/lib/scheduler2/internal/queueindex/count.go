@@ -23,11 +23,26 @@ type CountStats struct {
 	MutationBytes, KeyBytes               int
 }
 
+const countBucketSize = 16
+const countHeaderBytes = 94
+const countMaxNodeBytes = 2 + 22*countBucketSize
+
+type countItem struct {
+	Key   CountKey
+	Count uint64
+}
+
 type countNode struct {
 	Key         CountKey
-	Bit         uint8 // A leaf has Bit=96; branches distinguish the indicated key bit.
+	Bit         uint8 // Bit96 denotes a canonical sorted bucket of at most16 distinct keys.
 	Count       uint64
+	Distinct    uint64
 	Left, Right CountRoot
+	Items       [countBucketSize]countItem
+}
+
+func countLeaf(key CountKey, count uint64) countNode {
+	return countNode{Key: key, Bit: 96, Count: count, Distinct: 1, Items: [countBucketSize]countItem{{Key: key, Count: count}}}
 }
 
 type countEntry struct {
@@ -55,33 +70,93 @@ func (s *CountStore) Fork(root CountRoot) error {
 }
 
 func (e countEntry) encode() []byte {
-	node := e.Node.encode()
-	wire := make([]byte, 94)
-	copy(wire, node[:])
-	binary.BigEndian.PutUint64(wire[86:], e.Refs)
-	return wire
+	wire := binary.AppendUvarint([]byte{6}, e.Refs)
+	return append(wire, e.Node.encode()...)
+}
+
+// canonicalUint rejects alternate encodings so stored pages have one wire form.
+// binary.Uvarint examines at most ten bytes for a uint64.
+func canonicalUint(wire []byte) (uint64, int, error) {
+	value, size := binary.Uvarint(wire)
+	if size <= 0 || size > 1 && wire[size-1] == 0 {
+		return 0, 0, errors.New("invalid canonical unsigned integer")
+	}
+	return value, size, nil
 }
 
 func decodeCount(id CountRoot, wire []byte) (countEntry, error) {
-	if len(wire) != 94 || wire[0] != 1 || wire[1] > 96 {
+	if len(wire) < 4 || len(wire) > countMaxNodeBytes+11 || wire[0] != 6 {
 		return countEntry{}, errors.New("invalid count page encoding")
 	}
-	if sha256.Sum256(wire[:86]) != id {
+	refs, size, err := canonicalUint(wire[1:])
+	if err != nil || refs == 0 {
+		return countEntry{}, errors.New("invalid count page references")
+	}
+	nodeWire := wire[1+size:]
+	if len(nodeWire) < 2 || sha256.Sum256(nodeWire) != id {
 		return countEntry{}, errors.New("count page identity mismatch")
 	}
-	n := countNode{Bit: wire[1], Count: binary.BigEndian.Uint64(wire[14:22])}
+	var n countNode
+	switch nodeWire[0] {
+	case 4:
+		n, err = decodeCountBranch(nodeWire)
+	case 7:
+		n, err = decodeCountBucket(nodeWire)
+	default:
+		err = errors.New("invalid count page schema")
+	}
+	if err != nil {
+		return countEntry{}, err
+	}
+	return countEntry{Node: n, Refs: refs}, nil
+}
+
+func decodeCountBranch(wire []byte) (countNode, error) {
+	if len(wire) != countHeaderBytes || wire[1] >= 96 {
+		return countNode{}, errors.New("invalid count branch encoding")
+	}
+	n := countNode{Bit: wire[1], Count: binary.BigEndian.Uint64(wire[14:22]), Distinct: binary.BigEndian.Uint64(wire[86:94])}
 	copy(n.Key[:], wire[2:14])
 	copy(n.Left[:], wire[22:54])
 	copy(n.Right[:], wire[54:86])
-	e := countEntry{Node: n, Refs: binary.BigEndian.Uint64(wire[86:])}
-	if n.Count == 0 || e.Refs == 0 {
-		return countEntry{}, errors.New("invalid count page counters")
+	if n.Distinct <= countBucketSize || n.Distinct > n.Count || n.Left == (CountRoot{}) || n.Right == (CountRoot{}) {
+		return countNode{}, errors.New("invalid count branch counters")
 	}
-	leaf := n.Bit == 96
-	if leaf && (n.Left != (CountRoot{}) || n.Right != (CountRoot{})) || !leaf && (n.Left == (CountRoot{}) || n.Right == (CountRoot{})) {
-		return countEntry{}, errors.New("invalid count page children")
+	return n, nil
+}
+
+func decodeCountBucket(wire []byte) (countNode, error) {
+	if len(wire) < 2 {
+		return countNode{}, errors.New("invalid count bucket encoding")
 	}
-	return e, nil
+	distinct := int(wire[1])
+	if distinct == 0 || distinct > countBucketSize {
+		return countNode{}, errors.New("invalid count bucket encoding")
+	}
+	n := countNode{Bit: 96, Distinct: uint64(distinct)}
+	offset := 2
+	for i := range distinct {
+		if len(wire)-offset < 13 {
+			return countNode{}, errors.New("invalid count bucket encoding")
+		}
+		copy(n.Items[i].Key[:], wire[offset:offset+12])
+		count, size, err := canonicalUint(wire[offset+12:])
+		if err != nil {
+			return countNode{}, err
+		}
+		n.Items[i].Count = count
+		offset += 12 + size
+		item := n.Items[i]
+		if item.Count == 0 || n.Count > math.MaxUint64-item.Count || i > 0 && bytes.Compare(n.Items[i-1].Key[:], item.Key[:]) >= 0 {
+			return countNode{}, errors.New("invalid count bucket ordering")
+		}
+		n.Count += item.Count
+	}
+	if offset != len(wire) {
+		return countNode{}, errors.New("trailing count bucket bytes")
+	}
+	n.Key = n.Items[0].Key
+	return n, nil
 }
 
 func (s *CountStore) load(id CountRoot) (countEntry, bool, error) {
@@ -97,6 +172,7 @@ type countTxn struct {
 	store   *CountStore
 	changed map[CountRoot]*countEntry
 	stats   CountStats
+	created []CountRoot
 }
 
 func (t *countTxn) read(id CountRoot) (countEntry, error) {
@@ -120,13 +196,24 @@ func (t *countTxn) read(id CountRoot) (countEntry, error) {
 
 func (t *countTxn) put(id CountRoot, e countEntry) { t.changed[id] = &e }
 
-func (n countNode) encode() [86]byte {
-	var wire [86]byte
-	wire[0], wire[1] = 1, n.Bit
+func (n countNode) encode() []byte {
+	if n.Bit == 96 {
+		distinct := int(min(n.Distinct, countBucketSize))
+		wire := make([]byte, 2, 2+22*distinct)
+		wire[0], wire[1] = 7, byte(distinct)
+		for i := range distinct {
+			wire = append(wire, n.Items[i].Key[:]...)
+			wire = binary.AppendUvarint(wire, n.Items[i].Count)
+		}
+		return wire
+	}
+	wire := make([]byte, countHeaderBytes)
+	wire[0], wire[1] = 4, n.Bit
 	copy(wire[2:14], n.Key[:])
 	binary.BigEndian.PutUint64(wire[14:22], n.Count)
 	copy(wire[22:54], n.Left[:])
 	copy(wire[54:86], n.Right[:])
+	binary.BigEndian.PutUint64(wire[86:94], n.Distinct)
 	return wire
 }
 
@@ -180,6 +267,7 @@ func (t *countTxn) intern(n countNode) (CountRoot, error) {
 		return CountRoot{}, err
 	}
 	t.put(id, countEntry{Node: n})
+	t.created = append(t.created, id)
 	return id, nil
 }
 
@@ -206,7 +294,24 @@ func (t *countTxn) branch(left, right CountRoot, at uint8) (CountRoot, error) {
 	if l.Node.Count > math.MaxUint64-r.Node.Count {
 		return CountRoot{}, errors.New("count exhausted")
 	}
-	return t.intern(countNode{Key: l.Node.Key, Bit: at, Count: l.Node.Count + r.Node.Count, Left: left, Right: right})
+	if l.Node.Distinct > math.MaxUint64-r.Node.Distinct {
+		return CountRoot{}, errors.New("distinct count exhausted")
+	}
+	distinct := l.Node.Distinct + r.Node.Distinct
+	if distinct <= countBucketSize {
+		if l.Node.Bit != 96 || r.Node.Bit != 96 {
+			return CountRoot{}, errors.New("noncanonical small count branch")
+		}
+		items := make([]countItem, 0, int(distinct))
+		items = append(items, l.Node.Items[:int(l.Node.Distinct)]...)
+		items = append(items, r.Node.Items[:int(r.Node.Distinct)]...)
+		return t.bucket(items)
+	}
+	return t.intern(countNode{Key: l.Node.Key, Bit: at, Count: l.Node.Count + r.Node.Count, Distinct: distinct, Left: left, Right: right})
+}
+
+func bucketCrossesBit(n countNode, bit uint8) bool {
+	return n.Bit == 96 && firstDifferent(n.Key, n.Items[int(n.Distinct)-1].Key) <= bit
 }
 
 func validateCountBranch(n countNode, read func(CountRoot) (countEntry, error)) (left countEntry, right countEntry, err error) {
@@ -218,7 +323,7 @@ func validateCountBranch(n countNode, read func(CountRoot) (countEntry, error)) 
 	if err != nil {
 		return countEntry{}, countEntry{}, err
 	}
-	if n.Bit >= 96 || l.Node.Bit <= n.Bit || r.Node.Bit <= n.Bit || n.Key != l.Node.Key || firstDifferent(l.Node.Key, r.Node.Key) != n.Bit || keyBit(l.Node.Key, n.Bit) != 0 || keyBit(r.Node.Key, n.Bit) != 1 || l.Node.Count > math.MaxUint64-r.Node.Count || n.Count != l.Node.Count+r.Node.Count {
+	if n.Bit >= 96 || bucketCrossesBit(l.Node, n.Bit) || bucketCrossesBit(r.Node, n.Bit) || l.Node.Bit <= n.Bit || r.Node.Bit <= n.Bit || n.Key != l.Node.Key || firstDifferent(l.Node.Key, r.Node.Key) != n.Bit || keyBit(l.Node.Key, n.Bit) != 0 || keyBit(r.Node.Key, n.Bit) != 1 || l.Node.Count > math.MaxUint64-r.Node.Count || n.Count != l.Node.Count+r.Node.Count || l.Node.Distinct > math.MaxUint64-r.Node.Distinct || n.Distinct != l.Node.Distinct+r.Node.Distinct {
 		return countEntry{}, countEntry{}, errors.New("invalid count branch relationship")
 	}
 	return l, r, nil
@@ -233,7 +338,7 @@ func (t *countTxn) changeAfter(root CountRoot, key CountKey, add bool, parentBit
 		if !add {
 			return CountRoot{}, errors.New("count key absent")
 		}
-		return t.intern(countNode{Key: key, Bit: 96, Count: 1})
+		return t.intern(countLeaf(key, 1))
 	}
 	e, err := t.read(root)
 	if err != nil {
@@ -248,12 +353,15 @@ func (t *countTxn) changeAfter(root CountRoot, key CountKey, add bool, parentBit
 			return CountRoot{}, err
 		}
 	}
+	if n.Bit == 96 {
+		return t.changeBucket(n, key, add)
+	}
 	different := firstDifferent(n.Key, key)
 	if different < n.Bit {
 		if !add {
 			return CountRoot{}, errors.New("count key absent")
 		}
-		leaf, err := t.intern(countNode{Key: key, Bit: 96, Count: 1})
+		leaf, err := t.intern(countLeaf(key, 1))
 		if err != nil {
 			return CountRoot{}, err
 		}
@@ -261,9 +369,6 @@ func (t *countTxn) changeAfter(root CountRoot, key CountKey, add bool, parentBit
 			return t.branch(leaf, root, different)
 		}
 		return t.branch(root, leaf, different)
-	}
-	if n.Bit == 96 {
-		return t.changeLeaf(n, add)
 	}
 	if keyBit(key, n.Bit) == 0 {
 		n.Left, err = t.changeAfter(n.Left, key, add, int(n.Bit))
@@ -282,19 +387,85 @@ func (t *countTxn) changeAfter(root CountRoot, key CountKey, add bool, parentBit
 	return t.branch(n.Left, n.Right, n.Bit)
 }
 
-func (t *countTxn) changeLeaf(n countNode, add bool) (CountRoot, error) {
-	if add {
-		if n.Count == math.MaxUint64 {
+func (t *countTxn) bucket(items []countItem) (CountRoot, error) {
+	if len(items) == 0 {
+		return CountRoot{}, nil
+	}
+	if len(items) > countBucketSize {
+		at := firstDifferent(items[0].Key, items[len(items)-1].Key)
+		split := 0
+		for split < len(items) && keyBit(items[split].Key, at) == 0 {
+			split++
+		}
+		left, err := t.bucket(items[:split])
+		if err != nil {
+			return CountRoot{}, err
+		}
+		right, err := t.bucket(items[split:])
+		if err != nil {
+			return CountRoot{}, err
+		}
+		return t.branch(left, right, at)
+	}
+	n := countNode{Key: items[0].Key, Bit: 96, Distinct: uint64(len(items))}
+	for i, item := range items {
+		if n.Count > math.MaxUint64-item.Count {
 			return CountRoot{}, errors.New("count exhausted")
 		}
-		n.Count++
-	} else {
-		if n.Count == 1 {
-			return CountRoot{}, nil
-		}
-		n.Count--
+		n.Items[i] = item
+		n.Count += item.Count
 	}
 	return t.intern(n)
+}
+
+func (t *countTxn) changeBucket(n countNode, key CountKey, add bool) (CountRoot, error) {
+	items := make([]countItem, int(n.Distinct), countBucketSize+1)
+	copy(items, n.Items[:int(n.Distinct)])
+	i := 0
+	for i < len(items) && bytes.Compare(items[i].Key[:], key[:]) < 0 {
+		i++
+	}
+	if i < len(items) && items[i].Key == key {
+		if add {
+			if items[i].Count == math.MaxUint64 {
+				return CountRoot{}, errors.New("count exhausted")
+			}
+			items[i].Count++
+		} else if items[i].Count == 1 {
+			items = append(items[:i], items[i+1:]...)
+		} else {
+			items[i].Count--
+		}
+	} else {
+		if !add {
+			return CountRoot{}, errors.New("count key absent")
+		}
+		items = append(items, countItem{})
+		copy(items[i+1:], items[i:])
+		items[i] = countItem{Key: key, Count: 1}
+	}
+	return t.bucket(items)
+}
+
+// discardUnowned removes bounded temporary pages superseded by bucket merging.
+// It scans only nodes constructed by this point update, never the whole overlay.
+func (t *countTxn) discardUnowned(start int) error {
+	for i := len(t.created) - 1; i >= start; i-- {
+		id := t.created[i]
+		t.stats.Reads++
+		e := t.changed[id]
+		if e == nil || e.Refs != 0 {
+			continue
+		}
+		t.changed[id] = nil
+		if err := t.release(e.Node.Left); err != nil {
+			return err
+		}
+		if err := t.release(e.Node.Right); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (t *countTxn) release(id CountRoot) error { return t.releaseAfter(id, -1) }
@@ -389,6 +560,14 @@ func countBefore(root CountRoot, key CountKey, read func(CountRoot) (countEntry,
 	}
 	for {
 		n := e.Node
+		if n.Bit == 96 {
+			for _, item := range n.Items[:int(n.Distinct)] {
+				if bytes.Compare(item.Key[:], key[:]) < 0 {
+					count += item.Count
+				}
+			}
+			return count, reads, nil
+		}
 		var l, r countEntry
 		if n.Bit < 96 {
 			l, r, err = validateCountBranch(n, counted)

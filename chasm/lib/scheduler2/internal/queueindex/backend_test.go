@@ -144,7 +144,7 @@ func TestCountBatchReferenceOverflowAfterAncestor(t *testing.T) {
 	a, _, err := s.Update(CountRoot{}, countTestKey(1), true)
 	require.NoError(t, err)
 	var b CountRoot
-	for _, key := range []uint64{100, 200} {
+	for key := uint64(100); key < 117; key++ {
 		b, _, err = s.Update(b, countTestKey(key), true)
 		require.NoError(t, err)
 	}
@@ -177,16 +177,16 @@ func TestCountBatchRejectsMalformedTouchedBranches(t *testing.T) {
 				require.NoError(t, s.backend.Apply([]IndexChange{{Key: countPageKey(id), Value: (countEntry{Node: node, Refs: 1}).encode()}}))
 				return id
 			}
-			zero := put(countNode{Bit: 96, Count: 1})
-			high := put(countNode{Key: CountKey{0x80}, Bit: 96, Count: 1})
-			child := put(countNode{Bit: 0, Count: 2, Left: zero, Right: high})
-			right := put(countNode{Key: CountKey{0x40}, Bit: 96, Count: 1})
-			malformed := countNode{Bit: 1, Count: 3, Left: child, Right: right}
+			zero := put(countLeaf(CountKey{}, 1))
+			high := put(countLeaf(CountKey{0x80}, 1))
+			child := put(countNode{Bit: 0, Count: 20, Distinct: 20, Left: zero, Right: high})
+			right := put(countLeaf(CountKey{0x40}, 1))
+			malformed := countNode{Bit: 1, Count: 21, Distinct: 21, Left: child, Right: right}
 			if kind != "nonincreasing_bit" {
-				malformed = countNode{Bit: 0, Count: 2, Left: zero, Right: high}
+				malformed = countNode{Bit: 0, Count: 20, Distinct: 20, Left: zero, Right: high}
 			}
 			if kind == "wrong_aggregate" {
-				malformed.Count = 3
+				malformed.Count = 21
 			}
 			root := put(malformed)
 			if kind == "missing_child" {

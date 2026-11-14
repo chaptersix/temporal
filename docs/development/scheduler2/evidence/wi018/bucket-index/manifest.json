@@ -1,0 +1,13 @@
+{
+  "source_sha256": {
+    "chasm/lib/scheduler2/internal/queueindex/count.go": "5ef84f99ae77802916381e195c4bd930e14c79224510619b404c1be0e7bacd11",
+    "chasm/lib/scheduler2/internal/queueindex/count_test.go": "ce25f8327364225d6fa0dbef79687f9b11f5e86971f090f11a183870bad869fa",
+    "chasm/lib/scheduler2/internal/queueindex/backend.go": "40fe3c2b59b45f5859ef554b0020fb823ebbdb09a373127e4d6f5e8c6c5b9140",
+    "chasm/lib/scheduler2/internal/queueindex/backend_test.go": "a854364d3cab5cbf68c6f1449ab263642500f1631ed1e63e3249a29c5f53ca70",
+    "chasm/lib/scheduler2/internal/queueindex/sequence.go": "a273308221309d1e1712b1bbb4062672a766d3f536a57644d5bc751b420beafa",
+    "chasm/lib/scheduler2/internal/queueindex/sequence_test.go": "92fbb4019f2af67ab05af30667ce76c67528de0c7f3ddc62e4350785a7166f54"
+  },
+  "command": "CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2/internal/queueindex -count=1 -rapid.checks=100 -rapid.seed=1 -v",
+  "result": "PASS1.489s behavior; storage acceptance remains failed at N10000",
+  "scope": "standalone point/range index only; no runtime adoption"
+}

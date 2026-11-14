@@ -1,0 +1,7 @@
+# Compact outer encoding checkpoint
+
+Outer branch schema3 stores exact minimum8bytes, summary32bytes and two9-byte child identities plus tag:59bytes. The branch bit is already authenticated structurally by the keyed prefix; unused Time bytes are omitted. Outer leaf schema4 stores tag+summary32bytes:33bytes; sequence comes from key and exact time comes from reading/validating a singleton count summary (Bit96,Distinct1,Count1). Exact minimum relationship checks remain unchanged. This adds at most one addressed summary read per visited leaf, not a scan.
+
+Routine PASS1.569s. Actual CHASM adapter suite PASS2.413s: N10000 retains53891nodes but uses7,770,295 node-protobuf/path bytes. The additional update changes74nodes, deletes30nodes and writes13,103 updated-node/path bytes. This is not the full queue footprint or final bound. Frozen source and SHA256 manifest retained.
+
+Current QueuedOccurrence protobuf itself measures44/88/153bytes for20/64/128-byte workflow IDs with narrow timestamps;74/118/183bytes with both exact timestamp fields populated. Each independently persisted record also adds CHASM wrapper and encoded path bytes. Queue records, multiple classes/generations, existing fixed metadata and operations must fit existing resource semantics;7.77MB index-only does not close acceptance. Next candidate removes redundant owned singleton summaries from outer leaves, subject to ownership proof and rollback/reference gates.

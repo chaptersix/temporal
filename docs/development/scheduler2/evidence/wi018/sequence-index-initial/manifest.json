@@ -1,0 +1,11 @@
+{
+  "source_sha256": {
+    "chasm/lib/scheduler2/internal/queueindex/sequence.go": "794ba820f0c3b145d75d1df3feeefd32ec537c17ca2e58e771b3e9efb2e1336d",
+    "chasm/lib/scheduler2/internal/queueindex/sequence_test.go": "92fbb4019f2af67ab05af30667ce76c67528de0c7f3ddc62e4350785a7166f54",
+    "chasm/lib/scheduler2/internal/queueindex/count.go": "a2d026fea4cdbe385265828c57939bf468ea30b6a0fc77d2bafc9baba3ff3c57",
+    "chasm/lib/scheduler2/internal/queueindex/backend.go": "330e89a4454d135531128e3111b7fe9d716aea5d51f074362bb9f3f8a85272e1"
+  },
+  "result": "PASS3.764s behavior; FAIL storage acceptance at N10000",
+  "note": "count.go includes later semantics-neutral lint extraction; this delta is separately tested by batch05; outer files match routine02",
+  "scope": "standalone outer index primitive, no runtime adoption"
+}

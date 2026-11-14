@@ -1,0 +1,55 @@
+=== RUN   TestIndexBackendPublicationAndReload
+=== PAUSE TestIndexBackendPublicationAndReload
+=== RUN   TestIndexBackendSerializedFootprint
+=== PAUSE TestIndexBackendSerializedFootprint
+=== RUN   TestIndexBackendHotWorkIsolation
+=== PAUSE TestIndexBackendHotWorkIsolation
+=== CONT  TestIndexBackendPublicationAndReload
+=== CONT  TestIndexBackendHotWorkIsolation
+=== CONT  TestIndexBackendSerializedFootprint
+=== RUN   TestIndexBackendHotWorkIsolation/4
+=== RUN   TestIndexBackendSerializedFootprint/4
+=== PAUSE TestIndexBackendSerializedFootprint/4
+=== RUN   TestIndexBackendSerializedFootprint/5
+=== PAUSE TestIndexBackendSerializedFootprint/5
+=== RUN   TestIndexBackendSerializedFootprint/1000
+=== PAUSE TestIndexBackendSerializedFootprint/1000
+=== RUN   TestIndexBackendSerializedFootprint/10000
+=== PAUSE TestIndexBackendSerializedFootprint/10000
+=== CONT  TestIndexBackendSerializedFootprint/4
+=== CONT  TestIndexBackendSerializedFootprint/1000
+=== NAME  TestIndexBackendSerializedFootprint/4
+    index_backend_test.go:121: N=4 nodes=17 node_protobuf_bytes=904 path_bytes=782 total=1686; excludes database rows/whole-record wrapper/heap
+--- PASS: TestIndexBackendPublicationAndReload (0.00s)
+=== CONT  TestIndexBackendSerializedFootprint/5
+=== NAME  TestIndexBackendSerializedFootprint/4
+    index_backend_test.go:131: N=4 next_point_updated_nodes=7 deleted_nodes=0 changed_node_and_path_bytes=720
+=== CONT  TestIndexBackendSerializedFootprint/10000
+=== NAME  TestIndexBackendHotWorkIsolation/4
+    index_backend_work_test.go:51: N=4 hot_counts=map[cold_nodes:0 data_decode_calls:3 decode_calls:3 decode_data_bytes:65 delete_child_visits:1 map_hydration_keys:0 map_key_copies:0 map_sync_keys:0 path_inspections:33 serialize_calls:7 serialize_data_bytes:177 serialized_node_proto_bytes:335 slot_visits:15 sync_visits:1 task_validations:0 tree_visits:0 workset_drains:16 workset_enqueues:16]
+=== NAME  TestIndexBackendSerializedFootprint/5
+    index_backend_test.go:121: N=5 nodes=21 node_protobuf_bytes=1178 path_bytes=992 total=2170; excludes database rows/whole-record wrapper/heap
+=== RUN   TestIndexBackendHotWorkIsolation/5
+=== NAME  TestIndexBackendSerializedFootprint/5
+    index_backend_test.go:131: N=5 next_point_updated_nodes=9 deleted_nodes=1 changed_node_and_path_bytes=936
+=== NAME  TestIndexBackendHotWorkIsolation/5
+    index_backend_work_test.go:51: N=5 hot_counts=map[cold_nodes:0 data_decode_calls:3 decode_calls:3 decode_data_bytes:65 delete_child_visits:1 map_hydration_keys:0 map_key_copies:0 map_sync_keys:0 path_inspections:33 serialize_calls:7 serialize_data_bytes:177 serialized_node_proto_bytes:335 slot_visits:15 sync_visits:1 task_validations:0 tree_visits:0 workset_drains:16 workset_enqueues:16]
+=== RUN   TestIndexBackendHotWorkIsolation/1000
+    index_backend_work_test.go:51: N=1000 hot_counts=map[cold_nodes:0 data_decode_calls:3 decode_calls:3 decode_data_bytes:65 delete_child_visits:1 map_hydration_keys:0 map_key_copies:0 map_sync_keys:0 path_inspections:33 serialize_calls:7 serialize_data_bytes:177 serialized_node_proto_bytes:335 slot_visits:15 sync_visits:1 task_validations:0 tree_visits:0 workset_drains:16 workset_enqueues:16]
+--- PASS: TestIndexBackendHotWorkIsolation (0.01s)
+    --- PASS: TestIndexBackendHotWorkIsolation/4 (0.00s)
+    --- PASS: TestIndexBackendHotWorkIsolation/5 (0.00s)
+    --- PASS: TestIndexBackendHotWorkIsolation/1000 (0.01s)
+=== NAME  TestIndexBackendSerializedFootprint/1000
+    index_backend_test.go:121: N=1000 nodes=4751 node_protobuf_bytes=395420 path_bytes=251192 total=646612; excludes database rows/whole-record wrapper/heap
+    index_backend_test.go:131: N=1000 next_point_updated_nodes=59 deleted_nodes=25 changed_node_and_path_bytes=10536
+=== NAME  TestIndexBackendSerializedFootprint/10000
+    index_backend_test.go:121: N=10000 nodes=53891 node_protobuf_bytes=4906403 path_bytes=2863892 total=7770295; excludes database rows/whole-record wrapper/heap
+    index_backend_test.go:131: N=10000 next_point_updated_nodes=74 deleted_nodes=30 changed_node_and_path_bytes=13103
+--- PASS: TestIndexBackendSerializedFootprint (0.00s)
+    --- PASS: TestIndexBackendSerializedFootprint/4 (0.00s)
+    --- PASS: TestIndexBackendSerializedFootprint/5 (0.00s)
+    --- PASS: TestIndexBackendSerializedFootprint/1000 (0.11s)
+    --- PASS: TestIndexBackendSerializedFootprint/10000 (1.73s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	2.413s

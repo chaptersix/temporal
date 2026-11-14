@@ -2,7 +2,7 @@ package queueindex
 
 import (
 	"bytes"
-	"encoding/hex"
+	"encoding/base64"
 	"errors"
 )
 
@@ -47,7 +47,7 @@ func (b *MemoryIndexBackend) Apply(changes []IndexChange) error {
 	return nil
 }
 
-func countPageKey(id CountRoot) string { return "count/" + hex.EncodeToString(id[:]) }
+func countPageKey(id CountRoot) string { return "count/" + base64.RawURLEncoding.EncodeToString(id[:]) }
 
 // CountBatch shares staged secondary-node changes across all ancestor updates.
 // Any operation error poisons the batch. Commit publishes once; Abort never writes.
@@ -86,12 +86,16 @@ func (b *CountBatch) Update(root CountRoot, key CountKey, add bool) (CountRoot, 
 	if err := b.ready(); err != nil {
 		return root, err
 	}
+	start := len(b.tx.created)
 	next, err := b.tx.change(root, key, add)
 	if err == nil {
 		err = b.tx.retain(next)
 	}
 	if err == nil {
 		err = b.tx.release(root)
+	}
+	if err == nil {
+		err = b.tx.discardUnowned(start)
 	}
 	if err != nil {
 		return root, b.fail(err)

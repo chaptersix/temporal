@@ -1,0 +1,5 @@
+# Compact count encoding checkpoint
+
+The count-page envelope6 stores a canonical unsigned varint reference count followed by the hashed node. Bucket schema7 has a two-byte header, then at most16 fixed12-byte chronological keys with canonical unsigned varint multiplicities. Branch schema4 remains94bytes. Integer decode examines at most10bytes; overlong/nonminimal/truncated/overflow and zero ownership/multiplicity are rejected. A maximal bucket is354bytes and maximal envelope365bytes. Hash identity covers exact canonical node bytes; reference count is mutable ownership metadata outside the hash.
+
+Routine PASS2.031s with100 Rapid checks, existing canonical/refcount/rollback/full-depth tests plus explicit0/127/128/16383/16384/MaxUint64 and malformed encoding tests. Actual CHASM adapter suite PASS2.869s: N10000 uses8,290,282 node-protobuf/path bytes, below8MiB by only98,326bytes before queue records and whole-record/database overhead. This is insufficient end-to-end headroom. N1000=698,599bytes. Frozen source copies and SHA256 manifest accompany logs; standalone backend interfaces unchanged. Independent review/lint and further storage work remain open.

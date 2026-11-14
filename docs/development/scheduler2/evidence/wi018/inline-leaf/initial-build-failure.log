@@ -1,0 +1,4 @@
+# go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex [go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex.test]
+chasm/lib/scheduler2/internal/queueindex/sequence_test.go:43:32: cannot use node.Summary (variable of array type CountRoot) as sequenceNode value in argument to b.eligibleCount
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex [build failed]
+FAIL

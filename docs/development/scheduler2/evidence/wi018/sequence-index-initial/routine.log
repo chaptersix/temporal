@@ -1,0 +1,168 @@
+=== RUN   TestCountBatchAtomicAncestors
+=== PAUSE TestCountBatchAtomicAncestors
+=== RUN   TestCountBatchFailurePoisonsAllLayers
+=== PAUSE TestCountBatchFailurePoisonsAllLayers
+=== RUN   TestCountBatchCanonicalRecreationAndAbort
+=== PAUSE TestCountBatchCanonicalRecreationAndAbort
+=== RUN   TestCountBatchReferenceOverflowAfterAncestor
+=== PAUSE TestCountBatchReferenceOverflowAfterAncestor
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches
+=== RUN   TestCountTrieReference
+=== PAUSE TestCountTrieReference
+=== RUN   TestCountTrieCanonicalSharingAndRollback
+=== PAUSE TestCountTrieCanonicalSharingAndRollback
+=== RUN   TestCountTrieExhaustionRollback
+=== PAUSE TestCountTrieExhaustionRollback
+=== RUN   TestCountTrieStorageAndWork
+=== PAUSE TestCountTrieStorageAndWork
+=== RUN   TestCountTrieFullWidthPaths
+=== PAUSE TestCountTrieFullWidthPaths
+=== RUN   TestCountTrieReferenceExhaustionRollback
+=== PAUSE TestCountTrieReferenceExhaustionRollback
+=== RUN   TestTimeKeyChronologicalOrder
+=== PAUSE TestTimeKeyChronologicalOrder
+=== RUN   TestTimeKeyNormalizesInstant
+=== PAUSE TestTimeKeyNormalizesInstant
+=== RUN   TestSequenceIndexReference
+=== PAUSE TestSequenceIndexReference
+=== RUN   TestSequenceIndexRollbackAndGenerations
+=== PAUSE TestSequenceIndexRollbackAndGenerations
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage
+=== RUN   TestSequenceIndexEveryReadFailureRollsBack
+=== PAUSE TestSequenceIndexEveryReadFailureRollsBack
+=== RUN   TestSequenceIndexClockRollbackRectangle
+=== PAUSE TestSequenceIndexClockRollbackRectangle
+=== CONT  TestCountBatchAtomicAncestors
+=== CONT  TestCountTrieFullWidthPaths
+=== CONT  TestSequenceIndexRollbackAndGenerations
+=== CONT  TestCountTrieReference
+--- PASS: TestSequenceIndexRollbackAndGenerations (0.00s)
+=== CONT  TestSequenceIndexClockRollbackRectangle
+--- PASS: TestCountBatchAtomicAncestors (0.00s)
+--- PASS: TestSequenceIndexClockRollbackRectangle (0.00s)
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches
+=== CONT  TestSequenceIndexEveryReadFailureRollsBack
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches/missing_child
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches/missing_child
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit
+=== CONT  TestCountBatchReferenceOverflowAfterAncestor
+--- PASS: TestCountBatchReferenceOverflowAfterAncestor (0.00s)
+=== CONT  TestCountBatchCanonicalRecreationAndAbort
+--- PASS: TestCountBatchCanonicalRecreationAndAbort (0.00s)
+=== CONT  TestCountBatchFailurePoisonsAllLayers
+=== RUN   TestCountBatchFailurePoisonsAllLayers/later_read
+=== PAUSE TestCountBatchFailurePoisonsAllLayers/later_read
+=== RUN   TestCountBatchFailurePoisonsAllLayers/publication
+=== PAUSE TestCountBatchFailurePoisonsAllLayers/publication
+=== RUN   TestCountBatchFailurePoisonsAllLayers/missing_key
+=== PAUSE TestCountBatchFailurePoisonsAllLayers/missing_key
+=== CONT  TestCountBatchFailurePoisonsAllLayers/later_read
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches/missing_child
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate
+--- PASS: TestCountBatchRejectsMalformedTouchedBranches (0.00s)
+    --- PASS: TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit (0.00s)
+    --- PASS: TestCountBatchRejectsMalformedTouchedBranches/missing_child (0.00s)
+    --- PASS: TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate (0.00s)
+=== CONT  TestCountBatchFailurePoisonsAllLayers/missing_key
+=== CONT  TestCountBatchFailurePoisonsAllLayers/publication
+--- PASS: TestCountBatchFailurePoisonsAllLayers (0.00s)
+    --- PASS: TestCountBatchFailurePoisonsAllLayers/later_read (0.00s)
+    --- PASS: TestCountBatchFailurePoisonsAllLayers/missing_key (0.00s)
+    --- PASS: TestCountBatchFailurePoisonsAllLayers/publication (0.00s)
+=== CONT  TestCountTrieExhaustionRollback
+--- PASS: TestCountTrieExhaustionRollback (0.00s)
+=== CONT  TestCountTrieStorageAndWork
+=== RUN   TestCountTrieStorageAndWork/4
+=== PAUSE TestCountTrieStorageAndWork/4
+=== RUN   TestCountTrieStorageAndWork/5
+=== PAUSE TestCountTrieStorageAndWork/5
+=== RUN   TestCountTrieStorageAndWork/1000
+=== PAUSE TestCountTrieStorageAndWork/1000
+=== RUN   TestCountTrieStorageAndWork/10000
+=== PAUSE TestCountTrieStorageAndWork/10000
+=== CONT  TestCountTrieStorageAndWork/4
+    count_test.go:202: N=4 nodes=7 canonical_plus_ref_bytes=658 peak={Reads:33 Writes:6 Releases:3 EncodedBytes:258 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== CONT  TestCountTrieStorageAndWork/10000
+--- PASS: TestSequenceIndexEveryReadFailureRollsBack (0.00s)
+=== CONT  TestSequenceIndexReference
+=== NAME  TestCountTrieFullWidthPaths
+    count_test.go:228: maximal-depth increment work={Reads:1927 Writes:290 Releases:193 EncodedBytes:8342 MutationBytes:18142 KeyBytes:20300}
+--- PASS: TestCountTrieFullWidthPaths (0.04s)
+=== CONT  TestTimeKeyNormalizesInstant
+=== RUN   TestTimeKeyNormalizesInstant/negative_nanosecond
+=== PAUSE TestTimeKeyNormalizesInstant/negative_nanosecond
+=== RUN   TestTimeKeyNormalizesInstant/normalized_nanosecond
+=== PAUSE TestTimeKeyNormalizesInstant/normalized_nanosecond
+=== RUN   TestTimeKeyNormalizesInstant/different_location
+=== PAUSE TestTimeKeyNormalizesInstant/different_location
+=== CONT  TestTimeKeyChronologicalOrder
+--- PASS: TestTimeKeyChronologicalOrder (0.00s)
+=== CONT  TestCountTrieReferenceExhaustionRollback
+=== RUN   TestCountTrieReferenceExhaustionRollback/fork_root
+=== PAUSE TestCountTrieReferenceExhaustionRollback/fork_root
+=== RUN   TestCountTrieReferenceExhaustionRollback/update_shared_child
+=== PAUSE TestCountTrieReferenceExhaustionRollback/update_shared_child
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/4
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/4
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/5
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/5
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/1000
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/1000
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/10000
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/10000
+=== NAME  TestSequenceIndexAdversarialDepthAndStorage
+    sequence_test.go:226: full sequence-depth deletion={Reads:2504 Writes:258 Releases:194 EncodedBytes:5418 MutationBytes:16483 KeyBytes:17386}
+=== CONT  TestCountTrieCanonicalSharingAndRollback
+--- PASS: TestCountTrieCanonicalSharingAndRollback (0.00s)
+=== CONT  TestCountTrieStorageAndWork/1000
+    count_test.go:202: N=1000 nodes=1999 canonical_plus_ref_bytes=187906 peak={Reads:213 Writes:33 Releases:21 EncodedBytes:1032 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== CONT  TestCountTrieStorageAndWork/5
+    count_test.go:202: N=5 nodes=9 canonical_plus_ref_bytes=846 peak={Reads:37 Writes:6 Releases:3 EncodedBytes:258 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== CONT  TestTimeKeyNormalizesInstant/negative_nanosecond
+=== CONT  TestCountTrieReferenceExhaustionRollback/fork_root
+=== CONT  TestTimeKeyNormalizesInstant/different_location
+=== CONT  TestTimeKeyNormalizesInstant/normalized_nanosecond
+--- PASS: TestTimeKeyNormalizesInstant (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/negative_nanosecond (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/different_location (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/normalized_nanosecond (0.00s)
+=== CONT  TestCountTrieReferenceExhaustionRollback/update_shared_child
+--- PASS: TestCountTrieReferenceExhaustionRollback (0.00s)
+    --- PASS: TestCountTrieReferenceExhaustionRollback/fork_root (0.00s)
+    --- PASS: TestCountTrieReferenceExhaustionRollback/update_shared_child (0.00s)
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/4
+    sequence_test.go:196: N=4 pages=17 value_bytes=1359 key_bytes=1096 peak={Reads:59 Writes:12 Releases:4 EncodedBytes:516 MutationBytes:883 KeyBytes:786}; excludes CHASM envelopes/heap
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/10000
+=== NAME  TestCountTrieStorageAndWork/10000
+    count_test.go:202: N=10000 nodes=19999 canonical_plus_ref_bytes=1879906 peak={Reads:273 Writes:42 Releases:27 EncodedBytes:1290 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+--- PASS: TestCountTrieStorageAndWork (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/4 (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/1000 (0.05s)
+    --- PASS: TestCountTrieStorageAndWork/5 (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/10000 (0.59s)
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/1000
+    sequence_test.go:196: N=1000 pages=11594 value_bytes=1045773 key_bytes=791566 peak={Reads:1027 Writes:156 Releases:92 EncodedBytes:5332 MutationBytes:10433 KeyBytes:10806}; excludes CHASM envelopes/heap
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/5
+    sequence_test.go:196: N=5 pages=22 value_bytes=1785 key_bytes=1426 peak={Reads:59 Writes:12 Releases:4 EncodedBytes:516 MutationBytes:883 KeyBytes:786}; excludes CHASM envelopes/heap
+=== NAME  TestSequenceIndexReference
+    sequence_test.go:58: [rapid] OK, passed 100 tests (1.23444475s)
+--- PASS: TestSequenceIndexReference (1.23s)
+=== NAME  TestSequenceIndexAdversarialDepthAndStorage/10000
+    sequence_test.go:196: N=10000 pages=148206 value_bytes=13491301 key_bytes=10174406 peak={Reads:1915 Writes:285 Releases:179 EncodedBytes:9718 MutationBytes:18595 KeyBytes:19786}; excludes CHASM envelopes/heap
+--- PASS: TestSequenceIndexAdversarialDepthAndStorage (0.00s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/4 (0.00s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/1000 (0.08s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/5 (0.00s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/10000 (1.28s)
+=== NAME  TestCountTrieReference
+    count_test.go:68: [rapid] OK, passed 100 tests (3.443318416s)
+--- PASS: TestCountTrieReference (3.44s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex	3.764s

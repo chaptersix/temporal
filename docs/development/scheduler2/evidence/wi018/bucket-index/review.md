@@ -1,0 +1,21 @@
+# Canonical fixed buckets: behavior evidence and remaining storage failure
+
+Standalone index optimization, no runtime/schema migration/production routing. Prior reviewed count+batch checkpoints and initial outer amplification witness remain unchanged artifacts. Current count wire schema3 is a new prototype encoding; it does not pretend to read prior prototype pages as the same format.
+
+A canonical bucket contains at most16 distinct chronological keys in sorted order, each with uint64 multiplicity. Branches have more than16 distinct keys and split at the first differing bit of the minimum/maximum key. Branches retain exact multiplicity and distinct counts separately. Adding a17th distinct key builds at most two buckets and one branch. Deletion merges children only when totaldistinct<=16; canonical children are then buckets, so union work is fixed. Parent branch validation additionally rejects buckets whose key range crosses the split bit.
+
+Count node encoding:94-byte versioned header (including two32-byte child IDs, total and distinct counts), plus20 bytes per bucket item, then8 reference bytes in the stored value. Branch value102 bytes; bucket value122..422 bytes. Count keys are70-byte ASCII prefix+hex identities. Outer pages remain72-byte values with60-byte generation/prefix keys; root records have9-byte values and46-byte keys. All numbers exclude CHASM wrappers/path ancestry/DB/Go heap.
+
+Canonical merging can supersede a freshly constructed child page before that page gains a parent. The point update tracks its own newly created IDs and discards zero-owner temporary nodes after retaining the successor/releasing the predecessor. This scans only that point's constructed paths, never all staged or stored nodes. Existing committed root owners and shared child references remain atomic with the shared batch. Tests independently audit every edge/root reference after mutations and reject unowned committed pages.
+
+Final command: `CGO_ENABLED=0 GOMAXPROCS=4 go test -tags test_dep -p 2 ./chasm/lib/scheduler2/internal/queueindex -count=1 -rapid.checks=100 -rapid.seed=1 -v`
+
+Final03 PASS1.489s. Includes100×150 count-reference events,100×60 outer-reference events, every-read failure injection for outer point operations, final publication rollback across generations, touched malformed branch rejection, maximal multiplicity/reference overflow, full-width paths, and the new33-key insertion-order-independent root followed by shared-owner deletion down to one16-key bucket. The two initial failing reference-overflow fixtures assumed two keys necessarily formed a branch; schema3 represents them as a bucket. Fixtures now use17 keys so the unchanged shared-child overflow condition is actually exercised. Initial failure log is preserved; no production defect or weakened overflow expectation is claimed.
+
+Conservative point bounds remain reads<=32*97, committed key writes<=8*97, reference-release visits<=2*97, canonical hash-input bytes<=97*414. Bucket comparisons add a fixed16-key term; node reads alone are not a claim of zero intra-page work. The prior full-width chain now ends in a bucket: measured increment1709 reads,245 writes,163 release visits,8028 hash bytes,18566 staged value bytes and17150 key bytes. Full outer-operation bounds multiply by the fixed64-bit sequence depth; final integration count gates remain open.
+
+## Storage result
+
+At1000 permuted-time admissions:4749 total pages,644015 value bytes+312416 keys. At10000:53889 pages,7821855 values+3572216 keys =11394071 bytes before CHASM overhead. The initial representation was23665707 bytes at10000. Buckets approximately halve this footprint but **still fail the8MiB storage acceptance gate**. A standalone secondary root with10000 keys is2047 nodes/408794 value+ref bytes; outer ancestor-summary duplication remains the material cost.
+
+No smaller public capacity limit, larger global resource limit or favorable timestamp distribution has been substituted. These are exact encoded-size/count witnesses, not performance benchmarks. Runtime adoption, actual CHASM accounting, full two-generation scheduler refinement and a storage-efficient final representation remain required. Independent review and consolidated lint follow this frozen source snapshot.

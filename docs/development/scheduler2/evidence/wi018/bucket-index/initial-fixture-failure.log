@@ -1,0 +1,180 @@
+=== RUN   TestCountBatchAtomicAncestors
+=== PAUSE TestCountBatchAtomicAncestors
+=== RUN   TestCountBatchFailurePoisonsAllLayers
+=== PAUSE TestCountBatchFailurePoisonsAllLayers
+=== RUN   TestCountBatchCanonicalRecreationAndAbort
+=== PAUSE TestCountBatchCanonicalRecreationAndAbort
+=== RUN   TestCountBatchReferenceOverflowAfterAncestor
+=== PAUSE TestCountBatchReferenceOverflowAfterAncestor
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches
+=== RUN   TestCountTrieReference
+=== PAUSE TestCountTrieReference
+=== RUN   TestCountTrieCanonicalSharingAndRollback
+=== PAUSE TestCountTrieCanonicalSharingAndRollback
+=== RUN   TestCountTrieExhaustionRollback
+=== PAUSE TestCountTrieExhaustionRollback
+=== RUN   TestCountTrieStorageAndWork
+=== PAUSE TestCountTrieStorageAndWork
+=== RUN   TestCountTrieFullWidthPaths
+=== PAUSE TestCountTrieFullWidthPaths
+=== RUN   TestCountTrieReferenceExhaustionRollback
+=== PAUSE TestCountTrieReferenceExhaustionRollback
+=== RUN   TestTimeKeyChronologicalOrder
+=== PAUSE TestTimeKeyChronologicalOrder
+=== RUN   TestTimeKeyNormalizesInstant
+=== PAUSE TestTimeKeyNormalizesInstant
+=== RUN   TestSequenceIndexReference
+=== PAUSE TestSequenceIndexReference
+=== RUN   TestSequenceIndexRollbackAndGenerations
+=== PAUSE TestSequenceIndexRollbackAndGenerations
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage
+=== RUN   TestSequenceIndexEveryReadFailureRollsBack
+=== PAUSE TestSequenceIndexEveryReadFailureRollsBack
+=== RUN   TestSequenceIndexClockRollbackRectangle
+=== PAUSE TestSequenceIndexClockRollbackRectangle
+=== CONT  TestCountBatchAtomicAncestors
+=== CONT  TestCountTrieFullWidthPaths
+=== CONT  TestCountTrieReference
+=== CONT  TestCountTrieExhaustionRollback
+--- PASS: TestCountTrieExhaustionRollback (0.00s)
+=== CONT  TestCountTrieStorageAndWork
+--- PASS: TestCountBatchAtomicAncestors (0.00s)
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit
+=== RUN   TestCountTrieStorageAndWork/4
+=== PAUSE TestCountTrieStorageAndWork/4
+=== RUN   TestCountTrieStorageAndWork/5
+=== PAUSE TestCountTrieStorageAndWork/5
+=== RUN   TestCountTrieStorageAndWork/1000
+=== PAUSE TestCountTrieStorageAndWork/1000
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate
+=== RUN   TestCountTrieStorageAndWork/10000
+=== PAUSE TestCountTrieStorageAndWork/10000
+=== RUN   TestCountBatchRejectsMalformedTouchedBranches/missing_child
+=== PAUSE TestCountBatchRejectsMalformedTouchedBranches/missing_child
+=== CONT  TestSequenceIndexRollbackAndGenerations
+=== CONT  TestSequenceIndexClockRollbackRectangle
+--- PASS: TestSequenceIndexClockRollbackRectangle (0.00s)
+=== CONT  TestSequenceIndexEveryReadFailureRollsBack
+--- PASS: TestSequenceIndexRollbackAndGenerations (0.00s)
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/4
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/4
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/5
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/5
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/1000
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/1000
+=== RUN   TestSequenceIndexAdversarialDepthAndStorage/10000
+=== PAUSE TestSequenceIndexAdversarialDepthAndStorage/10000
+--- PASS: TestSequenceIndexEveryReadFailureRollsBack (0.00s)
+=== CONT  TestTimeKeyNormalizesInstant
+=== RUN   TestTimeKeyNormalizesInstant/negative_nanosecond
+=== PAUSE TestTimeKeyNormalizesInstant/negative_nanosecond
+=== RUN   TestTimeKeyNormalizesInstant/normalized_nanosecond
+=== PAUSE TestTimeKeyNormalizesInstant/normalized_nanosecond
+=== RUN   TestTimeKeyNormalizesInstant/different_location
+=== PAUSE TestTimeKeyNormalizesInstant/different_location
+=== CONT  TestSequenceIndexReference
+=== NAME  TestSequenceIndexAdversarialDepthAndStorage
+    sequence_test.go:226: full sequence-depth deletion={Reads:2096 Writes:244 Releases:164 EncodedBytes:14322 MutationBytes:19009 KeyBytes:16406}
+=== CONT  TestCountBatchCanonicalRecreationAndAbort
+--- PASS: TestCountBatchCanonicalRecreationAndAbort (0.00s)
+=== CONT  TestCountBatchReferenceOverflowAfterAncestor
+    backend_test.go:163: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/queueindex/backend_test.go:163
+        	Error:      	An error is expected but got nil.
+        	Test:       	TestCountBatchReferenceOverflowAfterAncestor
+--- FAIL: TestCountBatchReferenceOverflowAfterAncestor (0.00s)
+=== CONT  TestTimeKeyChronologicalOrder
+--- PASS: TestTimeKeyChronologicalOrder (0.00s)
+=== CONT  TestCountTrieCanonicalSharingAndRollback
+--- PASS: TestCountTrieCanonicalSharingAndRollback (0.00s)
+=== CONT  TestCountTrieReferenceExhaustionRollback
+=== RUN   TestCountTrieReferenceExhaustionRollback/fork_root
+=== PAUSE TestCountTrieReferenceExhaustionRollback/fork_root
+=== RUN   TestCountTrieReferenceExhaustionRollback/update_shared_child
+=== PAUSE TestCountTrieReferenceExhaustionRollback/update_shared_child
+=== CONT  TestCountBatchFailurePoisonsAllLayers
+=== RUN   TestCountBatchFailurePoisonsAllLayers/later_read
+=== PAUSE TestCountBatchFailurePoisonsAllLayers/later_read
+=== RUN   TestCountBatchFailurePoisonsAllLayers/publication
+=== PAUSE TestCountBatchFailurePoisonsAllLayers/publication
+=== RUN   TestCountBatchFailurePoisonsAllLayers/missing_key
+=== PAUSE TestCountBatchFailurePoisonsAllLayers/missing_key
+=== CONT  TestCountTrieStorageAndWork/4
+    count_test.go:208: N=4 nodes=1 canonical_plus_ref_bytes=182 peak={Reads:8 Writes:2 Releases:1 EncodedBytes:174 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== CONT  TestCountTrieStorageAndWork/10000
+=== NAME  TestCountTrieFullWidthPaths
+    count_test.go:234: maximal-depth increment work={Reads:1709 Writes:245 Releases:163 EncodedBytes:8028 MutationBytes:18566 KeyBytes:17150}
+--- PASS: TestCountTrieFullWidthPaths (0.05s)
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit
+=== CONT  TestCountTrieStorageAndWork/1000
+    count_test.go:208: N=1000 nodes=137 canonical_plus_ref_bytes=33974 peak={Reads:144 Writes:22 Releases:13 EncodedBytes:1186 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== CONT  TestCountTrieStorageAndWork/5
+    count_test.go:208: N=5 nodes=1 canonical_plus_ref_bytes=202 peak={Reads:8 Writes:2 Releases:1 EncodedBytes:194 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches/missing_child
+=== CONT  TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate
+--- PASS: TestCountBatchRejectsMalformedTouchedBranches (0.00s)
+    --- PASS: TestCountBatchRejectsMalformedTouchedBranches/nonincreasing_bit (0.00s)
+    --- PASS: TestCountBatchRejectsMalformedTouchedBranches/missing_child (0.00s)
+    --- PASS: TestCountBatchRejectsMalformedTouchedBranches/wrong_aggregate (0.00s)
+=== CONT  TestTimeKeyNormalizesInstant/negative_nanosecond
+=== CONT  TestTimeKeyNormalizesInstant/different_location
+=== CONT  TestTimeKeyNormalizesInstant/normalized_nanosecond
+--- PASS: TestTimeKeyNormalizesInstant (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/negative_nanosecond (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/different_location (0.00s)
+    --- PASS: TestTimeKeyNormalizesInstant/normalized_nanosecond (0.00s)
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/4
+    sequence_test.go:196: N=4 pages=15 value_bytes=1467 key_bytes=956 peak={Reads:32 Writes:9 Releases:2 EncodedBytes:422 MutationBytes:793 KeyBytes:576}; excludes CHASM envelopes/heap
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/10000
+=== NAME  TestCountTrieReference
+    count_test.go:71: [rapid] OK, passed 10 tests (109.746083ms)
+--- PASS: TestCountTrieReference (0.11s)
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/1000
+=== NAME  TestSequenceIndexReference
+    sequence_test.go:58: [rapid] OK, passed 10 tests (155.555584ms)
+--- PASS: TestSequenceIndexReference (0.16s)
+=== CONT  TestSequenceIndexAdversarialDepthAndStorage/5
+    sequence_test.go:196: N=5 pages=19 value_bytes=1935 key_bytes=1216 peak={Reads:32 Writes:9 Releases:2 EncodedBytes:422 MutationBytes:793 KeyBytes:576}; excludes CHASM envelopes/heap
+=== CONT  TestCountTrieReferenceExhaustionRollback/fork_root
+=== CONT  TestCountBatchFailurePoisonsAllLayers/later_read
+=== CONT  TestCountTrieReferenceExhaustionRollback/update_shared_child
+    count_test.go:314: 
+        	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/queueindex/count_test.go:314
+        	            				/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/queueindex/count_test.go:283
+        	Error:      	Received unexpected error:
+        	            	count page identity mismatch
+        	Test:       	TestCountTrieReferenceExhaustionRollback/update_shared_child
+--- FAIL: TestCountTrieReferenceExhaustionRollback (0.00s)
+    --- PASS: TestCountTrieReferenceExhaustionRollback/fork_root (0.00s)
+    --- FAIL: TestCountTrieReferenceExhaustionRollback/update_shared_child (0.00s)
+=== CONT  TestCountBatchFailurePoisonsAllLayers/missing_key
+=== CONT  TestCountBatchFailurePoisonsAllLayers/publication
+--- PASS: TestCountBatchFailurePoisonsAllLayers (0.00s)
+    --- PASS: TestCountBatchFailurePoisonsAllLayers/later_read (0.00s)
+    --- PASS: TestCountBatchFailurePoisonsAllLayers/missing_key (0.00s)
+    --- PASS: TestCountBatchFailurePoisonsAllLayers/publication (0.00s)
+=== NAME  TestSequenceIndexAdversarialDepthAndStorage/1000
+    sequence_test.go:196: N=1000 pages=4749 value_bytes=644015 key_bytes=312416 peak={Reads:553 Writes:89 Releases:48 EncodedBytes:5034 MutationBytes:9491 KeyBytes:6106}; excludes CHASM envelopes/heap
+=== NAME  TestCountTrieStorageAndWork/10000
+    count_test.go:208: N=10000 nodes=2047 canonical_plus_ref_bytes=408794 peak={Reads:218 Writes:32 Releases:21 EncodedBytes:1468 MutationBytes:0 KeyBytes:0}; excludes CHASM paths/envelopes, mutable-state accounting, Go heap
+--- PASS: TestCountTrieStorageAndWork (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/4 (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/1000 (0.04s)
+    --- PASS: TestCountTrieStorageAndWork/5 (0.00s)
+    --- PASS: TestCountTrieStorageAndWork/10000 (0.45s)
+=== NAME  TestSequenceIndexAdversarialDepthAndStorage/10000
+    sequence_test.go:196: N=10000 pages=53889 value_bytes=7821855 key_bytes=3572216 peak={Reads:1213 Writes:189 Releases:103 EncodedBytes:10294 MutationBytes:18791 KeyBytes:13066}; excludes CHASM envelopes/heap
+--- PASS: TestSequenceIndexAdversarialDepthAndStorage (0.00s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/4 (0.00s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/5 (0.00s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/1000 (0.08s)
+    --- PASS: TestSequenceIndexAdversarialDepthAndStorage/10000 (1.01s)
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/queueindex	1.432s
+FAIL

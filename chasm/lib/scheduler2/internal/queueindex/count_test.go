@@ -3,8 +3,8 @@ package queueindex
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"math"
 	"strings"
@@ -40,6 +40,8 @@ func requireCountStore(t require.TestingT, s *CountStore, roots ...CountRoot) {
 			require.True(t, rok)
 			require.Equal(t, l.Node.Key, e.Node.Key)
 			require.Equal(t, l.Node.Count+r.Node.Count, e.Node.Count)
+			require.Equal(t, l.Node.Distinct+r.Node.Distinct, e.Node.Distinct)
+			require.Greater(t, e.Node.Distinct, uint64(countBucketSize))
 			require.Equal(t, firstDifferent(l.Node.Key, r.Node.Key), e.Node.Bit)
 			require.Less(t, e.Node.Bit, l.Node.Bit)
 			require.Less(t, e.Node.Bit, r.Node.Bit)
@@ -47,6 +49,7 @@ func requireCountStore(t require.TestingT, s *CountStore, roots ...CountRoot) {
 			expected[e.Node.Right]++
 		} else {
 			require.Equal(t, uint8(96), e.Node.Bit)
+			require.LessOrEqual(t, e.Node.Distinct, uint64(countBucketSize))
 		}
 	}
 	require.Len(t, expected, len(entries))
@@ -60,7 +63,7 @@ func requirePointBudget(t require.TestingT, stats CountStats) {
 	require.LessOrEqual(t, stats.Reads, 32*97)
 	require.LessOrEqual(t, stats.Writes, 8*97)
 	require.LessOrEqual(t, stats.Releases, 2*97)
-	require.LessOrEqual(t, stats.EncodedBytes, 97*86)
+	require.LessOrEqual(t, stats.EncodedBytes, 97*countMaxNodeBytes)
 }
 
 func TestCountTrieReference(t *testing.T) {
@@ -158,7 +161,7 @@ func TestCountTrieExhaustionRollback(t *testing.T) {
 	// Construct a valid maximal multiplicity leaf without billions of operations.
 	tx := &countTxn{store: s, changed: make(map[CountRoot]*countEntry)}
 	key := countTestKey(1)
-	root, err := tx.intern(countNode{Key: key, Bit: 96, Count: math.MaxUint64})
+	root, err := tx.intern(countLeaf(key, math.MaxUint64))
 	require.NoError(t, err)
 	require.NoError(t, tx.retain(root))
 	for id, e := range tx.changed {
@@ -169,7 +172,7 @@ func TestCountTrieExhaustionRollback(t *testing.T) {
 	require.ErrorContains(t, err, "count exhausted")
 	require.Equal(t, root, next)
 	require.Equal(t, map[CountRoot]countEntry{root: before}, countTestEntries(t, s))
-	// Overflow after creating a new staged leaf must also leave no orphan pages.
+	// Overflow while adding a distinct key must also leave no orphan pages.
 	next, _, err = s.Update(root, countTestKey(2), true)
 	require.ErrorContains(t, err, "count exhausted")
 	require.Equal(t, root, next)
@@ -196,10 +199,13 @@ func TestCountTrieStorageAndWork(t *testing.T) {
 				peak.Releases = max(peak.Releases, stats.Releases)
 				peak.EncodedBytes = max(peak.EncodedBytes, stats.EncodedBytes)
 			}
-			require.Len(t, countTestEntries(t, s), 2*n-1)
-			require.Equal(t, (2*n-1)*94, len(countTestEntries(t, s))*94)
+			require.LessOrEqual(t, len(countTestEntries(t, s)), 2*n-1)
+			valueBytes := 0
+			for _, value := range s.backend.(*MemoryIndexBackend).values {
+				valueBytes += len(value)
+			}
 			requireCountStore(t, s, root)
-			t.Logf("N=%d nodes=%d canonical_plus_ref_bytes=%d peak=%+v; excludes CHASM paths/envelopes, mutable-state accounting, Go heap", n, len(countTestEntries(t, s)), len(countTestEntries(t, s))*94, peak)
+			t.Logf("N=%d nodes=%d canonical_plus_ref_bytes=%d peak=%+v; excludes CHASM paths/envelopes, mutable-state accounting, Go heap", n, len(countTestEntries(t, s)), valueBytes, peak)
 		})
 	}
 }
@@ -262,7 +268,7 @@ func TestCountTrieReferenceExhaustionRollback(t *testing.T) {
 			s := NewCountStore()
 			var root CountRoot
 			var err error
-			for _, value := range []uint64{0, 100} {
+			for value := uint64(0); value < 17; value++ {
 				root, _, err = s.Update(root, countTestKey(value), true)
 				require.NoError(t, err)
 			}
@@ -299,7 +305,7 @@ func countTestEntries(t require.TestingT, s *CountStore) map[CountRoot]countEntr
 		if !strings.HasPrefix(key, "count/") {
 			continue
 		}
-		raw, err := hex.DecodeString(strings.TrimPrefix(key, "count/"))
+		raw, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(key, "count/"))
 		require.NoError(t, err)
 		require.Len(t, raw, 32)
 		var id CountRoot
@@ -309,4 +315,38 @@ func countTestEntries(t require.TestingT, s *CountStore) map[CountRoot]countEntr
 		entries[id] = e
 	}
 	return entries
+}
+
+func TestCountBucketsCanonicalSplitMerge(t *testing.T) {
+	t.Parallel()
+	s := NewCountStore()
+	var forward, reverse CountRoot
+	for i := range 33 {
+		var err error
+		forward, _, err = s.Update(forward, countTestKey(uint64(i)), true)
+		require.NoError(t, err)
+		reverse, _, err = s.Update(reverse, countTestKey(uint64(32-i)), true)
+		require.NoError(t, err)
+	}
+	require.Equal(t, forward, reverse)
+	requireCountStore(t, s, forward, reverse)
+	for i := range 17 {
+		var err error
+		var stats CountStats
+		forward, stats, err = s.Update(forward, countTestKey(uint64(i)), false)
+		require.NoError(t, err)
+		requirePointBudget(t, stats)
+		reverse, stats, err = s.Update(reverse, countTestKey(uint64(i)), false)
+		require.NoError(t, err)
+		requirePointBudget(t, stats)
+		require.Equal(t, forward, reverse)
+		requireCountStore(t, s, forward, reverse)
+	}
+	entry, ok, err := s.load(forward)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, uint8(96), entry.Node.Bit)
+	require.EqualValues(t, 16, entry.Node.Distinct)
+	// Forked owners share the same sorted bucket after the branch collapses.
+	require.EqualValues(t, 2, entry.Refs)
 }

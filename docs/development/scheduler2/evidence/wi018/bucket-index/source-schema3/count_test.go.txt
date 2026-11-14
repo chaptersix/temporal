@@ -1,0 +1,352 @@
+package queueindex
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"math"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"pgregory.net/rapid"
+)
+
+func countTestKey(value uint64) CountKey {
+	var key CountKey
+	binary.BigEndian.PutUint64(key[4:], value)
+	return key
+}
+
+func requireCountStore(t require.TestingT, s *CountStore, roots ...CountRoot) {
+	entries := countTestEntries(t, s)
+	expected := make(map[CountRoot]uint64)
+	for _, root := range roots {
+		if root != (CountRoot{}) {
+			expected[root]++
+		}
+	}
+	for id, e := range entries {
+		wire := e.Node.encode()
+		require.Equal(t, id, CountRoot(sha256.Sum256(wire[:])))
+		if e.Node.Bit < 96 {
+			require.NotEqual(t, CountRoot{}, e.Node.Left)
+			require.NotEqual(t, CountRoot{}, e.Node.Right)
+			l, lok := entries[e.Node.Left]
+			r, rok := entries[e.Node.Right]
+			require.True(t, lok)
+			require.True(t, rok)
+			require.Equal(t, l.Node.Key, e.Node.Key)
+			require.Equal(t, l.Node.Count+r.Node.Count, e.Node.Count)
+			require.Equal(t, l.Node.Distinct+r.Node.Distinct, e.Node.Distinct)
+			require.Greater(t, e.Node.Distinct, uint64(countBucketSize))
+			require.Equal(t, firstDifferent(l.Node.Key, r.Node.Key), e.Node.Bit)
+			require.Less(t, e.Node.Bit, l.Node.Bit)
+			require.Less(t, e.Node.Bit, r.Node.Bit)
+			expected[e.Node.Left]++
+			expected[e.Node.Right]++
+		} else {
+			require.Equal(t, uint8(96), e.Node.Bit)
+			require.LessOrEqual(t, e.Node.Distinct, uint64(countBucketSize))
+		}
+	}
+	require.Len(t, expected, len(entries))
+	for id, e := range entries {
+		require.Positive(t, e.Refs)
+		require.Equal(t, expected[id], e.Refs)
+	}
+}
+
+func requirePointBudget(t require.TestingT, stats CountStats) {
+	require.LessOrEqual(t, stats.Reads, 32*97)
+	require.LessOrEqual(t, stats.Writes, 8*97)
+	require.LessOrEqual(t, stats.Releases, 2*97)
+	require.LessOrEqual(t, stats.EncodedBytes, 97*countMaxNodeBytes)
+}
+
+func TestCountTrieReference(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		s := NewCountStore()
+		var root CountRoot
+		model := make(map[CountKey]uint64)
+		for range 150 {
+			key := countTestKey(rapid.Uint64Range(0, 63).Draw(rt, "key"))
+			add := rapid.Bool().Draw(rt, "add")
+			before := make(map[CountRoot]countEntry, len(countTestEntries(t, s)))
+			for id, e := range countTestEntries(t, s) {
+				before[id] = e
+			}
+			next, stats, err := s.Update(root, key, add)
+			requirePointBudget(rt, stats)
+			if !add && model[key] == 0 {
+				require.ErrorContains(rt, err, "absent")
+				require.Equal(rt, root, next)
+				require.Equal(rt, before, countTestEntries(t, s))
+			} else {
+				require.NoError(rt, err)
+				root = next
+				if add {
+					model[key]++
+				} else {
+					model[key]--
+				}
+			}
+			var total uint64
+			for _, n := range model {
+				total += n
+			}
+			got, err := s.Count(root)
+			require.NoError(rt, err)
+			require.Equal(rt, total, got)
+			query := countTestKey(rapid.Uint64Range(0, 64).Draw(rt, "query"))
+			var expected uint64
+			for k, n := range model {
+				if bytes.Compare(k[:], query[:]) < 0 {
+					expected += n
+				}
+			}
+			actual, reads, err := s.CountBefore(root, query)
+			require.NoError(rt, err)
+			require.Equal(rt, expected, actual)
+			require.LessOrEqual(rt, reads, 193)
+			requireCountStore(rt, s, root)
+		}
+	})
+}
+
+func TestCountTrieCanonicalSharingAndRollback(t *testing.T) {
+	t.Parallel()
+	s := NewCountStore()
+	var a, b CountRoot
+	for _, v := range []uint64{0, 1, 10, 100, math.MaxUint64} {
+		var err error
+		a, _, err = s.Update(a, countTestKey(v), true)
+		require.NoError(t, err)
+	}
+	for _, v := range []uint64{math.MaxUint64, 100, 10, 1, 0} {
+		var err error
+		b, _, err = s.Update(b, countTestKey(v), true)
+		require.NoError(t, err)
+	}
+	require.Equal(t, a, b, "canonical shape is independent of insertion order")
+	requireCountStore(t, s, a, b)
+	require.NoError(t, s.Fork(a))
+	c := a
+	var err error
+	c, _, err = s.Update(c, countTestKey(1), false)
+	require.NoError(t, err)
+	require.NotEqual(t, a, c)
+	c, _, err = s.Update(c, countTestKey(1), true)
+	require.NoError(t, err)
+	require.Equal(t, a, c)
+	requireCountStore(t, s, a, b, c)
+	for _, root := range []*CountRoot{&a, &b, &c} {
+		for _, v := range []uint64{0, 1, 10, 100, math.MaxUint64} {
+			var stats CountStats
+			*root, stats, err = s.Update(*root, countTestKey(v), false)
+			require.NoError(t, err)
+			requirePointBudget(t, stats)
+			requireCountStore(t, s, a, b, c)
+		}
+	}
+	require.Empty(t, countTestEntries(t, s))
+}
+
+func TestCountTrieExhaustionRollback(t *testing.T) {
+	t.Parallel()
+	s := NewCountStore()
+	// Construct a valid maximal multiplicity leaf without billions of operations.
+	tx := &countTxn{store: s, changed: make(map[CountRoot]*countEntry)}
+	key := countTestKey(1)
+	root, err := tx.intern(countLeaf(key, math.MaxUint64))
+	require.NoError(t, err)
+	require.NoError(t, tx.retain(root))
+	for id, e := range tx.changed {
+		require.NoError(t, s.backend.Apply([]IndexChange{{Key: countPageKey(id), Value: e.encode()}}))
+	}
+	before := countTestEntries(t, s)[root]
+	next, _, err := s.Update(root, key, true)
+	require.ErrorContains(t, err, "count exhausted")
+	require.Equal(t, root, next)
+	require.Equal(t, map[CountRoot]countEntry{root: before}, countTestEntries(t, s))
+	// Overflow while adding a distinct key must also leave no orphan pages.
+	next, _, err = s.Update(root, countTestKey(2), true)
+	require.ErrorContains(t, err, "count exhausted")
+	require.Equal(t, root, next)
+	require.Equal(t, map[CountRoot]countEntry{root: before}, countTestEntries(t, s))
+}
+
+func TestCountTrieStorageAndWork(t *testing.T) {
+	t.Parallel()
+	for _, n := range []int{4, 5, 1000, 10000} {
+		t.Run(fmt.Sprint(n), func(t *testing.T) {
+			t.Parallel()
+			s := NewCountStore()
+			var root CountRoot
+			var peak CountStats
+			for i := range n {
+				// Multiplication permutes low bits, avoiding a sorted-only shape witness.
+				key := countTestKey(uint64(i) * 11400714819323198485)
+				next, stats, err := s.Update(root, key, true)
+				require.NoError(t, err)
+				requirePointBudget(t, stats)
+				root = next
+				peak.Reads = max(peak.Reads, stats.Reads)
+				peak.Writes = max(peak.Writes, stats.Writes)
+				peak.Releases = max(peak.Releases, stats.Releases)
+				peak.EncodedBytes = max(peak.EncodedBytes, stats.EncodedBytes)
+			}
+			require.LessOrEqual(t, len(countTestEntries(t, s)), 2*n-1)
+			valueBytes := 0
+			for _, value := range s.backend.(*MemoryIndexBackend).values {
+				valueBytes += len(value)
+			}
+			requireCountStore(t, s, root)
+			t.Logf("N=%d nodes=%d canonical_plus_ref_bytes=%d peak=%+v; excludes CHASM paths/envelopes, mutable-state accounting, Go heap", n, len(countTestEntries(t, s)), valueBytes, peak)
+		})
+	}
+}
+
+func TestCountTrieFullWidthPaths(t *testing.T) {
+	t.Parallel()
+	s := NewCountStore()
+	var root CountRoot
+	keys := []CountKey{{}}
+	for bit := range 96 {
+		var key CountKey
+		key[bit/8] = 1 << (7 - bit%8)
+		keys = append(keys, key)
+	}
+	for _, key := range keys {
+		next, stats, err := s.Update(root, key, true)
+		require.NoError(t, err)
+		requirePointBudget(t, stats)
+		root = next
+	}
+	// The zero leaf follows all 96 branch bits, unlike uniformly spaced keys.
+	next, stats, err := s.Update(root, CountKey{}, true)
+	require.NoError(t, err)
+	requirePointBudget(t, stats)
+	root = next
+	t.Logf("maximal-depth increment work=%+v", stats)
+	for _, key := range keys {
+		var expected uint64
+		for _, candidate := range keys {
+			if bytes.Compare(candidate[:], key[:]) < 0 {
+				expected++
+			}
+		}
+		if key != (CountKey{}) {
+			expected++
+		}
+		actual, reads, err := s.CountBefore(root, key)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+		require.LessOrEqual(t, reads, 193)
+	}
+	next, stats, err = s.Update(root, CountKey{}, false)
+	require.NoError(t, err)
+	requirePointBudget(t, stats)
+	root = next
+	for _, key := range keys {
+		next, stats, err = s.Update(root, key, false)
+		require.NoError(t, err)
+		requirePointBudget(t, stats)
+		root = next
+	}
+	require.Empty(t, countTestEntries(t, s))
+}
+
+func TestCountTrieReferenceExhaustionRollback(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []string{"fork_root", "update_shared_child"} {
+		t.Run(tc, func(t *testing.T) {
+			t.Parallel()
+			s := NewCountStore()
+			var root CountRoot
+			var err error
+			for value := uint64(0); value < 17; value++ {
+				root, _, err = s.Update(root, countTestKey(value), true)
+				require.NoError(t, err)
+			}
+			target := root
+			if tc == "update_shared_child" {
+				target = countTestEntries(t, s)[root].Node.Right
+			}
+			// Model the maximal number of external owners without allocating handles.
+			entry := countTestEntries(t, s)[target]
+			entry.Refs = math.MaxUint64
+			require.NoError(t, s.backend.Apply([]IndexChange{{Key: countPageKey(target), Value: entry.encode()}}))
+			before := make(map[CountRoot]countEntry, len(countTestEntries(t, s)))
+			for id, e := range countTestEntries(t, s) {
+				before[id] = e
+			}
+			if tc == "fork_root" {
+				require.ErrorContains(t, s.Fork(root), "references exhausted")
+			} else {
+				next, stats, err := s.Update(root, countTestKey(1), true)
+				require.ErrorContains(t, err, "references exhausted")
+				require.Equal(t, root, next)
+				require.Positive(t, stats.EncodedBytes, "new left-branch pages were staged before retaining unchanged right child")
+			}
+			require.Equal(t, before, countTestEntries(t, s))
+		})
+	}
+}
+
+func countTestEntries(t require.TestingT, s *CountStore) map[CountRoot]countEntry {
+	backend, ok := s.backend.(*MemoryIndexBackend)
+	require.True(t, ok)
+	entries := make(map[CountRoot]countEntry)
+	for key, wire := range backend.values {
+		if !strings.HasPrefix(key, "count/") {
+			continue
+		}
+		raw, err := hex.DecodeString(strings.TrimPrefix(key, "count/"))
+		require.NoError(t, err)
+		require.Len(t, raw, 32)
+		var id CountRoot
+		copy(id[:], raw)
+		e, err := decodeCount(id, wire)
+		require.NoError(t, err)
+		entries[id] = e
+	}
+	return entries
+}
+
+func TestCountBucketsCanonicalSplitMerge(t *testing.T) {
+	t.Parallel()
+	s := NewCountStore()
+	var forward, reverse CountRoot
+	for i := range 33 {
+		var err error
+		forward, _, err = s.Update(forward, countTestKey(uint64(i)), true)
+		require.NoError(t, err)
+		reverse, _, err = s.Update(reverse, countTestKey(uint64(32-i)), true)
+		require.NoError(t, err)
+	}
+	require.Equal(t, forward, reverse)
+	requireCountStore(t, s, forward, reverse)
+	for i := range 17 {
+		var err error
+		var stats CountStats
+		forward, stats, err = s.Update(forward, countTestKey(uint64(i)), false)
+		require.NoError(t, err)
+		requirePointBudget(t, stats)
+		reverse, stats, err = s.Update(reverse, countTestKey(uint64(i)), false)
+		require.NoError(t, err)
+		requirePointBudget(t, stats)
+		require.Equal(t, forward, reverse)
+		requireCountStore(t, s, forward, reverse)
+	}
+	entry, ok, err := s.load(forward)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, uint8(96), entry.Node.Bit)
+	require.EqualValues(t, 16, entry.Node.Distinct)
+	// Forked owners share the same sorted bucket after the branch collapses.
+	require.EqualValues(t, 2, entry.Refs)
+}
