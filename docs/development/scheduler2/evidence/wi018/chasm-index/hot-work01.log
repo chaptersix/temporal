@@ -1,0 +1,15 @@
+=== RUN   TestIndexBackendHotWorkIsolation
+=== PAUSE TestIndexBackendHotWorkIsolation
+=== CONT  TestIndexBackendHotWorkIsolation
+=== RUN   TestIndexBackendHotWorkIsolation/4
+    index_backend_work_test.go:51: N=4 hot_counts=map[cold_nodes:0 data_decode_calls:3 decode_calls:3 decode_data_bytes:104 delete_child_visits:1 map_hydration_keys:0 map_key_copies:0 map_sync_keys:0 path_inspections:33 serialize_calls:7 serialize_data_bytes:229 serialized_node_proto_bytes:387 slot_visits:15 sync_visits:1 task_validations:0 tree_visits:0 workset_drains:16 workset_enqueues:16]
+=== RUN   TestIndexBackendHotWorkIsolation/5
+    index_backend_work_test.go:51: N=5 hot_counts=map[cold_nodes:0 data_decode_calls:3 decode_calls:3 decode_data_bytes:104 delete_child_visits:1 map_hydration_keys:0 map_key_copies:0 map_sync_keys:0 path_inspections:33 serialize_calls:7 serialize_data_bytes:229 serialized_node_proto_bytes:387 slot_visits:15 sync_visits:1 task_validations:0 tree_visits:0 workset_drains:16 workset_enqueues:16]
+=== RUN   TestIndexBackendHotWorkIsolation/1000
+    index_backend_work_test.go:51: N=1000 hot_counts=map[cold_nodes:0 data_decode_calls:3 decode_calls:3 decode_data_bytes:104 delete_child_visits:1 map_hydration_keys:0 map_key_copies:0 map_sync_keys:0 path_inspections:33 serialize_calls:7 serialize_data_bytes:229 serialized_node_proto_bytes:387 slot_visits:15 sync_visits:1 task_validations:0 tree_visits:0 workset_drains:16 workset_enqueues:16]
+--- PASS: TestIndexBackendHotWorkIsolation (0.01s)
+    --- PASS: TestIndexBackendHotWorkIsolation/4 (0.00s)
+    --- PASS: TestIndexBackendHotWorkIsolation/5 (0.00s)
+    --- PASS: TestIndexBackendHotWorkIsolation/1000 (0.00s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	0.662s

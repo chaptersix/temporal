@@ -1,0 +1,37 @@
+=== RUN   TestIndexBackendPublicationAndReload
+=== PAUSE TestIndexBackendPublicationAndReload
+=== RUN   TestIndexBackendSerializedFootprint
+=== PAUSE TestIndexBackendSerializedFootprint
+=== CONT  TestIndexBackendPublicationAndReload
+=== CONT  TestIndexBackendSerializedFootprint
+=== RUN   TestIndexBackendSerializedFootprint/4
+=== PAUSE TestIndexBackendSerializedFootprint/4
+=== RUN   TestIndexBackendSerializedFootprint/5
+=== PAUSE TestIndexBackendSerializedFootprint/5
+=== RUN   TestIndexBackendSerializedFootprint/1000
+=== PAUSE TestIndexBackendSerializedFootprint/1000
+=== RUN   TestIndexBackendSerializedFootprint/10000
+=== PAUSE TestIndexBackendSerializedFootprint/10000
+=== CONT  TestIndexBackendSerializedFootprint/4
+=== CONT  TestIndexBackendSerializedFootprint/10000
+=== CONT  TestIndexBackendSerializedFootprint/1000
+=== NAME  TestIndexBackendSerializedFootprint/4
+    index_backend_test.go:121: N=4 nodes=17 node_protobuf_bytes=1225 path_bytes=782 total=2007; excludes database rows/whole-record wrapper/heap
+    index_backend_test.go:131: N=4 next_point_updated_nodes=7 deleted_nodes=0 changed_node_and_path_bytes=860
+--- PASS: TestIndexBackendPublicationAndReload (0.00s)
+=== CONT  TestIndexBackendSerializedFootprint/5
+    index_backend_test.go:121: N=5 nodes=21 node_protobuf_bytes=1605 path_bytes=992 total=2597; excludes database rows/whole-record wrapper/heap
+    index_backend_test.go:131: N=5 next_point_updated_nodes=9 deleted_nodes=1 changed_node_and_path_bytes=1098
+=== NAME  TestIndexBackendSerializedFootprint/1000
+    index_backend_test.go:121: N=1000 nodes=4751 node_protobuf_bytes=541497 path_bytes=251192 total=792689; excludes database rows/whole-record wrapper/heap
+    index_backend_test.go:131: N=1000 next_point_updated_nodes=59 deleted_nodes=25 changed_node_and_path_bytes=12064
+=== NAME  TestIndexBackendSerializedFootprint/10000
+    index_backend_test.go:121: N=10000 nodes=53891 node_protobuf_bytes=6664895 path_bytes=2863892 total=9528787; excludes database rows/whole-record wrapper/heap
+    index_backend_test.go:131: N=10000 next_point_updated_nodes=74 deleted_nodes=30 changed_node_and_path_bytes=14603
+--- PASS: TestIndexBackendSerializedFootprint (0.00s)
+    --- PASS: TestIndexBackendSerializedFootprint/4 (0.00s)
+    --- PASS: TestIndexBackendSerializedFootprint/5 (0.00s)
+    --- PASS: TestIndexBackendSerializedFootprint/1000 (0.10s)
+    --- PASS: TestIndexBackendSerializedFootprint/10000 (1.54s)
+PASS
+ok  	go.temporal.io/server/chasm/lib/scheduler2	2.207s
