@@ -1,0 +1,74 @@
+{
+  "sources": [
+    {
+      "path": "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/tzdata/zzipdata.go",
+      "sha256": "fdf3446025d8460a2d2e7f2b0fc79906daa338529030dd8204a8307bf4fb0302",
+      "bytes": 1375382
+    },
+    {
+      "path": "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/tzdata/tzdata.go",
+      "sha256": "168b73df4bab177f54c1cd852adfe2b85cf6cca11a8d5756003057dca8f02aa3",
+      "bytes": 3040
+    },
+    {
+      "path": "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo.go",
+      "sha256": "198928e8d2573d88d8743db57b86777a26506f17ef2b0283882a9f5c884979b7",
+      "bytes": 18613
+    },
+    {
+      "path": "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo_read.go",
+      "sha256": "812b0025c6e4face22e709053183d59e03e71e3c1459187350f4088587f4a134",
+      "bytes": 14741
+    },
+    {
+      "path": "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo_unix.go",
+      "sha256": "d2001a2351a080f1a47ebb3999be74f99caceb4a8f1ea6369a3c843fa0442f08",
+      "bytes": 1726
+    },
+    {
+      "path": "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/src/time/zoneinfo_windows.go",
+      "sha256": "831f1d99fc109507783841c65f0e196f063a1ce6490354869bf6df68aa626434",
+      "bytes": 6731
+    },
+    {
+      "path": "/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/lib/time/zoneinfo.zip",
+      "sha256": "b2d18a7c8fa8142097a48c99609fb3c92db5ee98bc740294e57eab8ae9f94779",
+      "bytes": 408467
+    },
+    {
+      "path": "cmd/server/main.go",
+      "sha256": "09118e503486ea79371a44e00c666d66fb6476492368177e8af6e179e2709612",
+      "bytes": 7901
+    },
+    {
+      "path": "service/worker/scheduler/spec.go",
+      "sha256": "c34ce2e2aee0bb05fe7bf2fdc8017638b36127c69e671fbe3c6bf69d48c9da84",
+      "bytes": 13271
+    },
+    {
+      "path": "common/cache/cache.go",
+      "sha256": "5470ef2a08ae1288016178684cf1be675bc838a7fb3fb455b836d0126453854a",
+      "bytes": 2903
+    },
+    {
+      "path": "common/cache/lru.go",
+      "sha256": "612d6d9ee43a85c1b28236486a93d48026aab5daa37fd994ece015c9e8706ec9",
+      "bytes": 13378
+    },
+    {
+      "path": "go.mod",
+      "sha256": "e6e484565f5051837f9300ae1a639ca62bd3d26c53dd037e978f3e71e10eb410",
+      "bytes": 11188
+    },
+    {
+      "path": ".github/workflows/run-tests.yml",
+      "sha256": "b1b84f36304b026a7ea54300cefe85409b92dc7359640c64b5906ce0e82c0b2d",
+      "bytes": 21054
+    }
+  ],
+  "embedded": {
+    "bytes": 408467,
+    "entries": 598,
+    "sha256": "b2d18a7c8fa8142097a48c99609fb3c92db5ee98bc740294e57eab8ae9f94779"
+  }
+}

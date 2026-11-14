@@ -1,0 +1,65 @@
+{
+  "scope": "Owned exact Go1.27.3 embedded asset and isolated Unix source/cache engine; no runtime consumer, no native Windows Local implementation",
+  "sources": [
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/LICENSE",
+      "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+      "bytes": 1453
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/bundle.go",
+      "sha256": "df05f99597b010d7ccffd97ef17d3617b8f48333b829ea794f75e1c2495d6aec",
+      "bytes": 1460
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/bundle.zip",
+      "sha256": "b2d18a7c8fa8142097a48c99609fb3c92db5ee98bc740294e57eab8ae9f94779",
+      "bytes": 408467
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/bundle_provenance.json",
+      "sha256": "f1548ceaf2643572a626098e32d2db3561c85ed60da65244eaf0a01aa5ade77c",
+      "bytes": 264
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/bundle_test.go",
+      "sha256": "17c6087456e10fa0b3651479082ca427dc9f3bc50e48b034e41e627de0b10829",
+      "bytes": 3374
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/cmd/tzbundle/main.go",
+      "sha256": "03c1fdfe1e6855b6d3556fcaaab19357b5773ec380aaceb499467438aeab75ca",
+      "bytes": 2259
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/files.go",
+      "sha256": "48fa857ba38f293d63388470d51c4d8d45cf50185a6d07c7aec6e92a7d4f9cfb",
+      "bytes": 3544
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/files_test.go",
+      "sha256": "8f87d35106e8b135fa061ba03dd7df09ffc26f29fce05fabb3229bd5aa06ea09",
+      "bytes": 2820
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/provider_unix.go",
+      "sha256": "4b062c5d9f8e587d3937d8306d991f1c5d43bc34f48c90ddf65757befc368731",
+      "bytes": 851
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/resolver.go",
+      "sha256": "451465beb57ea1038665002b92126b241b31b8a5818b5d2914a8902491944497",
+      "bytes": 6573
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/resolver_test.go",
+      "sha256": "ec13e5c145b6e7b1634f81544df4b42004f9a87e14c5bd7ea0089a4423822b63",
+      "bytes": 7262
+    },
+    {
+      "path": "chasm/lib/scheduler2/internal/timezonesource/subprocess_unix_test.go",
+      "sha256": "a2c618cd0f835a3f80e1d77928bc82bbe255100e6d7e0c1fab65161836151970",
+      "bytes": 4481
+    }
+  ]
+}
