@@ -1,0 +1,167 @@
+[1;36mLinting code...[0m
+level=info msg="golangci-lint has version 2.14.0 built with go1.27.3 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)"
+level=info msg="[config_reader] Used config file .github/.golangci.yml"
+level=info msg="[config_reader] Module name \"go.temporal.io/server\""
+level=info msg="[goenv] Read go env for 10.84575ms: map[string]string{\"GOCACHE\":\"/Users/alex/Library/Caches/go-build\", \"GOROOT\":\"/Users/alex/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\"}"
+level=info msg="[lintersdb] Active 13 linters: [depguard errcheck exhaustive forbidigo gci godox goimports govet importas iotamixing revive staticcheck testifylint]"
+level=info msg="[loader] Using build tags: [disable_grpc_modules  test_dep ]"
+level=info msg="[loader] Go packages loading at mode 8767 (files|name|types_sizes|compiled_files|imports|deps|exports_file) took 2.736858834s"
+level=info msg="[runner/filename_unadjuster] Pre-built 0 adjustments in 1.744792ms"
+level=info msg="[linters_context/goanalysis] analyzers took 2.54956007s with top 10 stages: revive: 571.146333ms, buildir: 447.713659ms, nilness: 431.054623ms, goimports: 239.822625ms, fact_deprecated: 137.41742ms, exhaustive: 91.736468ms, fact_purity: 91.581937ms, printf: 91.429662ms, typeindex: 57.349557ms, SA5012: 57.120434ms"
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^proto\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^.git\""
+level=info msg="[runner/exclusion_paths] Skipped 0 issues by pattern \"^api\""
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ActiveInCluster\", Path: \"common/namespace/(namespace|replication_resolver)(_test)?\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"context.Background\", Path Except: \"tests/.+_test\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"assert\\\\.CollectT\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 8 issues by rules: [Text: \"(cyclomatic|cognitive)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path: \"chasm/lib/.*_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path Except: \"common/persistence/cassandra/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Unix|UnixMilli|UnixNano\", Path: \"_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"Eventually\", Path: \"tests/(nexus_standalone|nexus_workflow)_test\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"ST1003: should not use underscores in Go names; (func|method) \", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"staticcheck\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Now\", Path Except: \"chasm/lib/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"panic\", Path: \"chasm/lib/activity/model/.*\\\\.go$\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Path: \"^tools\\\\/.+\\\\.go\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"time.Sleep\", Path Except: \"_test\\\\.go|tests/.+\\\\.go\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"use of `softassert\\\\.\\\\w+`\", Linters: \"forbidigo\"]"
+level=info msg="[runner/exclusion_rules] Skipped 3 issues by rules: [Text: \"(dot-imports|unchecked-type-assertion)\", Path: \"_test\\\\.go|tests/.+\\\\.go|common/testing/\", Linters: \"revive\"]"
+level=info msg="[runner/exclusion_rules] Skipped 0 issues by rules: [Text: \"SA1019: go.temporal.io/server/service/history/hsm/(callbacks|nexusoperations) is deprecated\", Linters: \"staticcheck\"]"
+level=info msg="[runner] Issues before processing: 14, after processing: 2"
+level=info msg="[runner] Processors filtering stat (in/out): path_absoluter: 14/14, cgo: 14/14, path_relativity: 14/14, diff: 2/2, max_same_issues: 2/2, path_prettifier: 2/2, sort_results: 2/2, invalid_issue: 14/14, nolint_filter: 3/2, uniq_by_line: 2/2, filename_unadjuster: 14/14, exclusion_paths: 14/14, exclusion_rules: 14/3, max_from_linter: 2/2, severity-rules: 2/2, generated_file_filter: 14/14, fixer: 2/2, max_per_file_from_linter: 2/2, source_code: 2/2, path_shortener: 2/2"
+level=info msg="[runner] processing took 78.212917ms with stages: diff: 76.723292ms, nolint_filter: 1.055667ms, generated_file_filter: 161.251µs, exclusion_rules: 144.625µs, source_code: 60.792µs, exclusion_paths: 45.042µs, path_relativity: 10.125µs, uniq_by_line: 3.833µs, cgo: 3.167µs, sort_results: 1.167µs, max_same_issues: 1.166µs, invalid_issue: 708ns, path_shortener: 625ns, filename_unadjuster: 374ns, path_absoluter: 250ns, fixer: 250ns, path_prettifier: 209ns, max_per_file_from_linter: 208ns, max_from_linter: 83ns, severity-rules: 83ns"
+level=info msg="[runner] linters took 1.658287583s with stages: goanalysis_metalinter: 1.580016792s"
+../chasm/lib/scheduler2/internal/occurrence/prepared_calendar.go:137:1: cyclomatic: function validateCalendarNext has cyclomatic complexity 26 (> max enabled 25) (revive)
+func validateCalendarNext(state CalendarNextState, definition PreparedCalendar, zone *PreparedLocation, after time.Time, budget int) error {
+	if budget < 1 || budget > MaxPreparationSteps {
+		return errors.New("prepared calendar budget outside supported bounds")
+	}
+	if definition.SourceID == [32]byte{} || !validPreparationMasks(PreparationState{Field: 7, Partial: definition.Masks}) {
+		return errors.New("invalid prepared calendar definition")
+	}
+	if zone == nil || zone.location == nil || zone.fingerprint == [32]byte{} {
+		return errors.New("resolved timezone unavailable")
+	}
+	if !supported(after) {
+		return errors.New("prepared calendar search boundary outside supported domain")
+	}
+	if state.Phase == CalendarNextInitial {
+		if state != (CalendarNextState{}) {
+			return errors.New("invalid initial prepared calendar cursor")
+		}
+		return nil
+	}
+	if state.SourceID != definition.SourceID || state.AfterSeconds != after.Unix() || state.AfterNanos != int32(after.Nanosecond()) {
+		return errors.New("prepared calendar continuation identity mismatch")
+	}
+	if state.ResolvedZoneID == [32]byte{} || state.Phase > CalendarNextComplete || state.Month < 1 || state.Month > 13 || state.Day < 1 || state.Day > 32 || state.Hour < 0 || state.Hour > 24 || state.Minute < 0 || state.Minute > 60 || state.Second < 0 || state.Second > 60 {
+		return errors.New("invalid prepared calendar cursor")
+	}
+	return nil
+}
+../chasm/lib/scheduler2/internal/occurrence/prepared_calendar.go:165:1: cognitive-complexity: function advanceCalendarPhase has cognitive complexity 27 (> max enabled 25) (revive)
+func advanceCalendarPhase(s *CalendarNextState, d PreparedCalendar, z *PreparedLocation, after time.Time, stats *CalendarNextStats) {
+	switch s.Phase {
+	case CalendarNextInitial:
+		local := after.In(z.location)
+		stats.ZoneConversions += 3 // Date, Clock, previous-hour comparison.
+		var month time.Month
+		s.Year, month, s.Day = local.Date()
+		s.Month = int(month)
+		s.Hour, s.Minute, s.Second = local.Clock()
+		s.SecondCopy = local.Add(-time.Hour).Hour() == s.Hour
+		s.SourceID, s.ResolvedZoneID = d.SourceID, z.fingerprint
+		s.AfterSeconds, s.AfterNanos = after.Unix(), int32(after.Nanosecond())
+		s.Second++
+		s.Phase = CalendarNextNormalize
+	case CalendarNextNormalize:
+		normalizeCalendarNext(s, z, stats)
+	case CalendarNextYear:
+		if calendarYearMatches(d.Masks, s.Year) {
+			s.Phase = CalendarNextMonth
+		} else {
+			s.Year++
+			s.Month = 1
+			s.Day = 1
+			s.Hour = 0
+			s.Minute = 0
+			s.Second = 0
+			s.SecondCopy = false
+			s.Phase = CalendarNextNormalize
+		}
+	case CalendarNextMonth:
+		if calendarBit(d.Masks.Fields[4], s.Month) {
+			s.Phase = CalendarNextDay
+		} else {
+			s.Month++
+			s.Day = 1
+			s.Hour = 0
+			s.Minute = 0
+			s.Second = 0
+			s.SecondCopy = false
+			if s.Month > 12 {
+				s.Phase = CalendarNextNormalize
+			}
+		}
+	case CalendarNextDay:
+		advanceCalendarDay(s, d, z, stats)
+	case CalendarNextHour:
+		if calendarBit(d.Masks.Fields[2], s.Hour) {
+			s.Phase = CalendarNextMinute
+		} else {
+			s.Hour++
+			s.Minute = 0
+			s.Second = 0
+			s.SecondCopy = false
+			if s.Hour >= 24 {
+				s.Phase = CalendarNextNormalize
+			}
+		}
+	case CalendarNextMinute:
+		if calendarBit(d.Masks.Fields[1], s.Minute) {
+			s.Phase = CalendarNextSecond
+		} else {
+			s.Minute++
+			s.Second = 0
+			if s.Minute >= 60 {
+				s.Phase = CalendarNextNormalize
+			}
+		}
+	case CalendarNextSecond:
+		if calendarBit(d.Masks.Fields[0], s.Second) {
+			s.Phase = CalendarNextCandidate
+		} else {
+			s.Second++
+			if s.Second >= 60 {
+				s.Phase = CalendarNextNormalize
+			}
+		}
+	case CalendarNextCandidate:
+		candidate := preparedCalendarDate(s.Year, s.Month, s.Day, s.Hour, s.Minute, s.Second, z.location, stats)
+		stats.ZoneConversions++
+		if candidate.Hour() != s.Hour {
+			s.Hour++
+			s.Minute = 0
+			s.Second = 0
+			s.Phase = CalendarNextNormalize
+			return
+		}
+		if s.SecondCopy {
+			candidate = candidate.Add(time.Hour)
+		}
+		s.CandidateSeconds = candidate.Unix()
+		s.Found = true
+		s.Phase = CalendarNextComplete
+	case CalendarNextComplete:
+		// Already complete; the driver does not call this phase.
+	default:
+		return // Invalid phases are rejected before entering the driver.
+	}
+}
+2 issues:
+* revive: 2
+level=info msg="File cache stats: 1 entries of total size 11.4KiB"
+level=info msg="Memory: 46 samples, avg is 271.3MB, max is 916.8MB"
+level=info msg="Execution took 4.4382875s"
+make: *** [lint-code] Error 1

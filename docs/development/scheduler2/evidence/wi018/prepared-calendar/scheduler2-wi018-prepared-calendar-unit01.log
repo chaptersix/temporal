@@ -1,0 +1,4 @@
+# go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence
+chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go:102:3: expected statement, found ')'
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence [setup failed]
+FAIL

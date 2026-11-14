@@ -1,0 +1,11 @@
+--- FAIL: TestPreparedCalendarReference (0.00s)
+    --- FAIL: TestPreparedCalendarReference/America/New_York/every_second (0.00s)
+        prepared_calendar_test.go:123: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go:123
+            	Error:      	Not equal: 
+            	            	expected: false
+            	            	actual  : true
+            	Test:       	TestPreparedCalendarReference/America/New_York/every_second
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	1.090s
+FAIL

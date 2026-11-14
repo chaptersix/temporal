@@ -1,0 +1,9 @@
+# go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence [go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence.test]
+chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go:60:39: undefined: newYorkTZ
+chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go:60:69: undefined: specLondonTZ
+chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go:106:52: undefined: newYorkTZ
+chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go:108:54: undefined: specLondonTZ
+chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go:156:30: undefined: newYorkTZ
+chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go:160:52: undefined: newYorkTZ
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence [build failed]
+FAIL

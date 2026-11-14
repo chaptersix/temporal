@@ -1,0 +1,12 @@
+{
+  "sources": {
+    "chasm/lib/scheduler2/internal/occurrence/prepared_calendar.go": "eaa41a5f3221232652c24dbb683577e13e05bfd7056f841d863753474e8951d7",
+    "chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go": "4219cc9fbe04906fb4f3faa3ead9aa33443865d6da284d9606217b33f9197455",
+    "chasm/lib/scheduler2/internal/occurrence/preparation.go": "ed5140387a49c97451796ef033a8829b5364a7526f41f687180a535ae93be110",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/America_New_York.tzif": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+    "chasm/lib/scheduler2/internal/occurrence/testdata/Europe_London.tzif": "c85495070dca42687df6a1c3ee780a27cbcb82f1844750ea6f642833a44d29b4",
+    "service/worker/scheduler/calendar.go": "479689bac6ee9d23ddf4e721d174a6578781fd1008cb56b4040981dc04dbd97d",
+    "service/worker/scheduler/spec.go": "c34ce2e2aee0bb05fe7bf2fdc8017638b36127c69e671fbe3c6bf69d48c9da84"
+  },
+  "scope": "unselected pure calendar evaluator; no bounded timezone adapter or runtime integration"
+}

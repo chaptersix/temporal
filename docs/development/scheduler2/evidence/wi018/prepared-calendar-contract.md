@@ -1,0 +1,59 @@
+# Prepared calendar and timezone supply contract (accepted slice 4 implementation boundary)
+
+This slice adds an unselected pure evaluator in internal/occurrence/prepared_calendar.go and tests. It consumes the already prepared fixed CalendarMasks; it does not compile ranges, enable Scheduler/Generator routing or alter existing calendar semantics. Parent reviewed this boundary; implementation is authorized without runtime activation.
+
+## Source semantics
+
+service/worker/scheduler/calendar.go compiledCalendar.next is the reference: convert after to local wall fields, detect the second copy of a repeated one-hour DST interval, advance one second, normalize carries, then test year/month/date/hour/minute/second in that order. Failed outer fields reset lower fields exactly as the reference does. Weekday uses time.Date, whereas candidate and hour-boundary conversion use the corrected calendarDate first-copy normalization. The one-hour fold correction is preserved exactly; this increment does not broaden semantics to arbitrary fold lengths. End of supported enumeration remains year 2100, and existing cursor domain restrictions remain explicit.
+
+Every inner month/day/hour/minute/second loop becomes a resumable phase. A step either performs one fixed normalization/carry operation, tests one field value and advances/resets a phase, initializes from after, or verifies/returns one candidate. The continuation contains only fixed wall fields, phase, DST offset bit, original after seconds/nanoseconds, definition ID and timezone identity. A full unsuccessful step is a stutter in the external candidate trace. A completed successful search returns precisely the reference candidate; exhaustion is explicit and distinct from an uninitialized cursor.
+
+## Timezone supply and identity
+
+Legacy SpecBuilder.loadTimezone uses LoadLocationFromTZData whenever TimezoneData is nonnil (including empty bytes), and otherwise LoadLocation(name) with a name cache. Preserve this distinction. Do not normalize Local to UTC or silently fall back on invalid data.
+
+Accepted prototype API:
+
+- NewResolvedLocation(location *time.Location, fingerprint [32]byte) binds an immutable resolved capability to a caller-verified semantic fingerprint. Named resolution and refresh happen outside mutation; the fingerprint represents actual resolved rules, never only the name. The caller owns that resolver/cache; no package global or synchronous fallback exists.
+- PreparedLocationFromTZData(name string, data []byte) parses custom data outside mutation and derives an exact identity from length-delimited name and bytes. Nil is rejected as absent custom data; present-empty bytes produce the Go parser error. Neither operation claims bounded parsing work.
+- PreparedCalendar holds fixed CalendarMasks and the immutable definition SourceID, including revision and timezone input identity. CalendarNextState separately pins the resolved fingerprint for one unfinished evaluation.
+- AdvancePreparedCalendar(state CalendarNextState, definition PreparedCalendar, location *PreparedLocation, after time.Time, budget int) returns state, step/zone-operation counts and error. Budget is 1..64. Definition/after mismatch or nil capability fails unchanged. A changed resolved fingerprint returns ErrPreparedZoneChanged and the unchanged original search boundary; callers must restart unfinished union/exclusion computation as described below. Completed results remain unchanged under refresh.
+
+Nil-library/offline decoding requires no runtime timezone dependency. Evaluation requires the supplied verified capability; cache misses are resolved outside mutation. Named-zone resolution is not implemented by this pure prototype, and injected fixture snapshots do not establish production resolution/refresh evidence. Custom TZif has exact content identity. The caller-verified named fingerprint and immutable-location promises are explicit API preconditions, to be discharged by a future resolver/prepared adapter before runtime adoption.
+
+## Remaining timezone work gate
+
+The current Go toolchain source (go1.27.3 src/time/zoneinfo.go Location.lookup and lookupFirstZone; time.go Date) proves that a loaded *time.Location is not by itself constant-work for arbitrary custom TZif: transition search, pre-first-transition zone selection, and POSIX extension parsing still occur during Date/Date()/Clock()/Weekday operations. Date performs up to two zone lookups. An immutable cache eliminates loading/parsing on cache misses inside mutation, but does not erase these lookup costs. The prototype therefore establishes a fixed number of calendar phase steps and explicitly counted zone operations, not a complete input-independent timezone CPU/byte bound.
+
+Before runtime bounded-work acceptance, supply a prepared timezone lookup representation with bounded indexed lookup plus precomputed extension rules (or move exact requested wall/instant conversions outside mutation with pinned results). Required semantics include Go's before-first-zone selection, Date's two-lookup offset choice, normalized nonexistent wall times and the corrected first-copy fold helper. Do not invent a timezone byte/transition cap absent from the current public contract. Preparation of that representation is input-proportional outside mutation; persistence/cache rehydration and exact tzdata pinning need independent evidence.
+
+## Planned gates
+
+Compare completed traces with the actual legacy compiled spec using a single structured calendar, no intervals/jitter/excludes, across UTC, New York and London spring/fall transitions, leap boundaries, impossible dates, sparse explicit years and the supported horizon. Include custom TZif and malformed/empty-present TZif, source/zone/after mismatch, nil capability, budget 1 and mixed budgets, serializable value-only cursor copies at every phase, and failed-step unchanged state. Count total steps across partitioned budgets to ensure replay does not repeat hidden scans. Union/exclude/jitter and public List projection are subsequent slices.
+
+## Named-zone refresh refinement from reference source
+
+SpecBuilder.NewSpecBuilder sets a 1000-entry location cache with 24-hour TTL and explicitly documents handling changed timezone databases; failures are cached too. loadTimezone custom bytes bypass that cache. Therefore permanent pinning of a named timezone at schedule creation is not source-compatible.
+
+The evaluator must distinguish definition/input identity from resolved timezone fingerprint. The caller resolves outside mutation using the named-zone cache's existing refresh policy; one unfinished evaluation is tied to the resolved fingerprint. If refresh produces a different fingerprint, discard only the partial wall-field search and restart at its original after boundary. No candidate has been disposed/admitted during that partial computation. For subsequent union/exclusion layers, discard every partial minimum, candidate exclusion accumulator and child calendar continuation together; never mix results from fingerprints. Already completed/published Pending candidates keep their existing identity and must not be recomputed away. Custom TZif retains its exact bytes identity and does not acquire named refresh semantics.
+
+A name-only hash must NOT be used as the resolved fingerprint. Concrete supply boundary: a caller-owned resolver returns immutable PreparedLocation plus an identity derived from the actually resolved TZif/prepared representation, not its input name. The evaluator performs no resolver call. Custom-byte preparation can construct this directly. Named resolver implementation must preserve Go's ZONEINFO/system/GOROOT/embedded tzdata lookup order, UTC/empty special cases and Local behavior; it cannot substitute GOROOT-only bytes. A prototype may inject already resolved snapshots for differential tests, but that is not production named resolution evidence.
+
+The eventual bounded prepared adapter can retain ordered transitions and perform binary search with at most machine-word-bit comparisons, provided random-access pages are fixed. Precompute lookupFirstZone and parse POSIX extension grammar outside mutation. Preserve accepted unusual order/offset inputs through differential tests against LoadLocationFromTZData; do not silently sort or reject inputs that Go currently accepts. A canonical fingerprint of that representation supports named refresh without permanent pinning. These obligations are source-resolvable implementation work, not a request to weaken the contract.
+
+## Exact phase transition sketch
+
+Initialization reads local Date/Clock from after, sets the second-copy flag when after-minus-one-hour has the same local hour, then increments second. Normalize performs reference carry sequence (second→minute, minute→hour with two corrected calendarDate calls and repeated-hour comparison, hour→day, day→month, month→year), then applies the reference upper-year exhaustion check. MatchYear failure increments year and resets month/day/time plus DST flag. Month/Day/Hour failures advance just that value, reset lower fields and DST flag, and return to Normalize only when their reference loop would continue Outer. Day uses time.Date(...).Weekday, not corrected calendarDate. Minute/Second failures increment and preserve the DST flag exactly as reference; overflow returns to Normalize. Candidate uses corrected calendarDate and rejects nonexistent-hour normalization by advancing hour/resetting minute/second without an additional DST reset. A matching candidate adds the saved one-hour second-copy offset and completes.
+
+Each phase handler performs no calendar-field loop. Fixed masks replace predicates directly; AllYears accepts all local years, including before 2000, while explicit year words match only their represented 2000..2100 bits. Supported UTC input can map to earlier local years, especially for accepted custom TZif offsets; no guessed local-year lower bound is added. Cursor validation checks phase and wall-field structural domains and identity, but does not pretend to independently prove the semantic history of a trusted persisted prefix.
+
+
+## Verified prototype scope and review corrections
+
+Final prototype tests explicitly populate required structured-calendar month/day/weekday ranges. Earlier comparisons omitted those fields and could agree only on exhaustion; their logs are retained but do not establish candidate or DST semantics. Corrected comparisons assert nonempty candidates before the horizon and include six independently stated UTC instants for first/second folds and skipped hours in New York and London.
+
+The primitive preserves compiledCalendar.next's local-year2100 horizon. CompiledSpec.GetNextTime adds a separate UTC candidate.Year()>2100 rejection (spec.go). The comparison applies only that explicit wrapper rule, with a separate witness: after2100-12-31T23:59:59Z New York's calendar returns2101-01-01T00:00Z, while the public wrapper exhausts; UTC's calendar itself exhausts. The eventual union/public evaluator must retain this wrapper gate.
+
+ZoneConversions counts time.Date construction and each zone-dependent Date/Clock/Hour/Weekday API call, not underlying timezone lookups. The first-copy helper uses one construction plus two Date/Clock pairs (five calls), which preserves reference wall-field equality. Normalization calls it twice at an hour carry, so the maximum is10 counted calls per phase step. Tests assert both partition-independent aggregate counts and exact no-carry/hour-carry totals. Go lookup work remains explicitly unbounded in arbitrary TZif size until the prepared timezone adapter is implemented.
+
+Final source hashes, full occurrence tests, lint and failed historical fixture/style logs are archived in prepared-calendar/. No scheduler runtime route or named resolver is activated.

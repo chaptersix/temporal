@@ -555,3 +555,9 @@ Initial actual CHASM footprint accounting still exceeds8MiB at10000 sequence rec
 The opt-in bounded DATA layout and transaction worklists are verified as a framework capability. Full CHASM tests pass0.533s; root independent full suite passes0.485s; peer directed bounded tests pass0.425s. Scoped required lint passes normal/minimal/vet with zero issues. All13 final source hashes match both author and independent review manifests. Evidence: wi018/bounded-framework/ and independent-layout-review.md.
 
 Review fixes preserve child receiver scope and deferred sibling work, refresh system/passive slot caches, enforce transaction-wide task budgets, and discard historical delta/workset map capacity. Fixed-count, cross-slot task, lifecycle, timer, failure/reload, nil-handler detached read and complete export gates pass within the recorded scope. Scheduler2 does not yet opt into this layout. Application index/key/payload bounds, dispatch, incremental calendar integration and public physical recovery remain WI018/M3 requirements; M4 measurements remain pending.
+
+### Resumable prepared-calendar prerequisite
+
+The standalone prepared-calendar evaluator now advances fixed phases over prepared masks with value-only continuation and resolved-timezone identity checks. Known DST fold/gap outputs, mixed/single budget equivalence, restart fencing and distinct local/UTC horizon behavior pass. Final full occurrence tests pass1.100s; root independent full run passes1.050s; scoped lint zero issues. Evidence: wi018/prepared-calendar/ and prepared-calendar-contract.md. Earlier vacuous exhaustion-only fixture passes are explicitly superseded.
+
+This is not runtime adoption or a bounded timezone implementation. Go timezone lookups, production named-zone resolution, union/exclusion/jitter and list-preview integration remain open. WI018/M3 and M4 remain incomplete.

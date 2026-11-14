@@ -1,0 +1,14 @@
+--- FAIL: TestPreparedCalendarZoneOperationCounts (0.00s)
+    --- FAIL: TestPreparedCalendarZoneOperationCounts/no_carry (0.01s)
+        prepared_calendar_test.go:200: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go:200
+            	Error:      	Should be true
+            	Test:       	TestPreparedCalendarZoneOperationCounts/no_carry
+    --- FAIL: TestPreparedCalendarZoneOperationCounts/hour_carry (0.01s)
+        prepared_calendar_test.go:200: 
+            	Error Trace:	/private/tmp/sch-redesign-execution/chasm/lib/scheduler2/internal/occurrence/prepared_calendar_test.go:200
+            	Error:      	Should be true
+            	Test:       	TestPreparedCalendarZoneOperationCounts/hour_carry
+FAIL
+FAIL	go.temporal.io/server/chasm/lib/scheduler2/internal/occurrence	1.287s
+FAIL
