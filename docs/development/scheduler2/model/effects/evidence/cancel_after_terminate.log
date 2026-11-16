@@ -1,0 +1,50 @@
+Model checking /private/tmp/scheduler2-effects-model-witness-fixed/cancel_after_terminate/effects.json
+configFileName: /private/tmp/scheduler2-effects-model-witness-fixed/cancel_after_terminate/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 140, queued: 575, elapsed: 54.268458ms
+Time taken for model checking: 54.306666ms
+Writen graph dotfile: /private/tmp/scheduler2-effects-model-witness-fixed/cancel_after_terminate/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-effects-model-witness-fixed/cancel_after_terminate/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  TerminateDominatesFutureIssuance
+------
+Init
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":false,"completed":false,"drain_task":false,"drained":false,"effects":{},"frozen":{},"initial_budget":4,"issued":[],"next_entry":4,"now":0,"retry_at":{},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":false,"saw_updated_retry":false,"snapshots":{},"started":0,"terminate_demand":false,"updated":false}
+------
+EnqueueOverlap
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":false,"completed":false,"drain_task":false,"drained":false,"effects":{},"frozen":{},"initial_budget":4,"issued":[],"next_entry":4,"now":0,"retry_at":{},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":false,"saw_updated_retry":false,"snapshots":{},"started":0,"terminate_demand":false,"updated":false}
+------
+Any:kind="cancel"
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":false,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"desired"},"frozen":{},"initial_budget":4,"issued":[],"next_entry":5,"now":0,"retry_at":{},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{},"started":0,"terminate_demand":false,"updated":false}
+------
+EnqueueOverlap
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":false,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"desired"},"frozen":{},"initial_budget":4,"issued":[],"next_entry":5,"now":0,"retry_at":{},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{},"started":0,"terminate_demand":false,"updated":false}
+------
+Any:kind="terminate"
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":false,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"desired","terminate":"desired"},"frozen":{},"initial_budget":4,"issued":[],"next_entry":6,"now":0,"retry_at":{},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{},"started":0,"terminate_demand":true,"updated":false}
+------
+BindAcknowledgment
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"ready","terminate":"ready"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1],"terminate":["namespace","workflow","chain-1","","1/terminate",0,60,1]},"initial_budget":4,"issued":[],"next_entry":6,"now":0,"retry_at":{"cancel":0,"terminate":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1],"terminate":["namespace","workflow","chain-1","","1/terminate",0,60,1]},"started":1,"terminate_demand":true,"updated":false}
+------
+Issue
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"ready","terminate":"ready"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1],"terminate":["namespace","workflow","chain-1","","1/terminate",0,60,1]},"initial_budget":4,"issued":[],"next_entry":6,"now":0,"retry_at":{"cancel":0,"terminate":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1],"terminate":["namespace","workflow","chain-1","","1/terminate",0,60,1]},"started":1,"terminate_demand":true,"updated":false}
+------
+Any:kind="cancel"
+--
+state: {"attempts":{"cancel":1,"terminate":0},"blocker":1,"budget":4,"busy":"cancel","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"inflight","terminate":"ready"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1],"terminate":["namespace","workflow","chain-1","","1/terminate",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],true,0]],"next_entry":6,"now":0,"retry_at":{"cancel":0,"terminate":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1],"terminate":["namespace","workflow","chain-1","","1/terminate",0,60,1]},"started":1,"terminate_demand":true,"updated":false}
+------
+Writen graph json: /private/tmp/scheduler2-effects-model-witness-fixed/cancel_after_terminate/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-effects-model-witness-fixed/cancel_after_terminate/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-effects-model-witness-fixed/cancel_after_terminate/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-effects-model-witness-fixed/cancel_after_terminate/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-effects-model-witness-fixed/cancel_after_terminate/graph/error-states.html

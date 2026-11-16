@@ -1,0 +1,190 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+DEBIT_MANUAL = False
+ADVANCE_AUTO_CURSOR = False
+EARLY_INHERITED_POLICY = False
+LOSE_CAPACITY_WAKE = False
+QUEUE_TIME_TEMPLATE = False
+
+action Init:
+    override = oneof ["inherit", "skip", "one", "all", "allow", "cancel", "term"]
+    current_policy = "all"
+    initial_policy = current_policy
+    nominal = oneof [-10, 100]
+    now = 0
+    existing_queue = oneof [0, 4]
+    blocker = oneof [False, True]
+    unfinished = oneof [1, 4]
+    pending = True
+    queued = False
+    admitted = False
+    disposed = False
+    sequence = 1
+    frozen_policy = ""
+    expected_policy = ""
+    frozen_workflow = ""
+    revision = 1
+    transfer_revision = 0
+    updated_while_queued = False
+    request = []
+    expected_request = []
+    budget = 0
+    paused = True
+    catchup = 0
+    automatic_cursor = 7
+    task = False
+    token = 0
+    retired = []
+    updated = False
+    capacity_wait_seen = False
+    woke_after_capacity = False
+    admitted_after_wait = False
+    policy_changed_before_transfer = False
+    disposition_observed = False
+    space_without_slot = False
+    transferred_without_slot_after_wait = False
+    policy = current_policy if override == "inherit" else override
+    want = existing_queue < 4 and (unfinished < 4 or (policy != "allow" and (blocker or existing_queue > 0)))
+    if want:
+        task = True
+        token = 1
+
+atomic action ObserveWait:
+    policy = current_policy if override == "inherit" else override
+    require pending and (existing_queue == 4 or (unfinished == 4 and (policy == "allow" or (not blocker and existing_queue == 0))))
+    capacity_wait_seen = True
+
+atomic action Update:
+    require not updated
+    updated = True
+    revision = 2
+    if queued:
+        updated_while_queued = True
+    current_policy = oneof ["allow", "term"]
+    policy = current_policy if override == "inherit" else override
+    want = pending and existing_queue < 4 and (unfinished < 4 or (policy != "allow" and (blocker or existing_queue > 0)))
+    if want and not task:
+        token += 1
+    task = want
+
+atomic action ExternalCapacityProgress:
+    require pending or queued
+    resource = oneof ["queue", "operation", "blocker"]
+    if resource == "queue":
+        require existing_queue > 0
+        existing_queue -= 1
+        if capacity_wait_seen and unfinished == 4 and blocker:
+            space_without_slot = True
+    elif resource == "operation":
+        require unfinished > int(blocker)
+        unfinished -= 1
+    else:
+        require blocker
+        blocker = False
+        unfinished -= 1
+    policy = current_policy if override == "inherit" else override
+    want = pending and existing_queue < 4 and (unfinished < 4 or (policy != "allow" and (blocker or existing_queue > 0)))
+    if want and not task:
+        if not LOSE_CAPACITY_WAKE:
+            token += 1
+            task = True
+            if capacity_wait_seen:
+                woke_after_capacity = True
+    if not want:
+        task = False
+
+atomic action Transfer:
+    require task and pending
+    retired.append(token)
+    task = False
+    pending = False
+    resolved = current_policy if override == "inherit" else override
+    expected_policy = resolved
+    if EARLY_INHERITED_POLICY and override == "inherit":
+        resolved = initial_policy
+    frozen_policy = resolved
+    transfer_revision = revision
+    frozen_workflow = "workflow/" + str(nominal)
+    if updated:
+        policy_changed_before_transfer = True
+    # Manual does not bypass the existing overlap dispositions.
+    if resolved == "allow" or (not blocker and existing_queue == 0):
+        admitted = True
+        request = [sequence, frozen_policy, frozen_workflow, revision, "ALLOW_DUPLICATE", now + 60]
+        expected_request = [sequence, expected_policy, "workflow/" + str(nominal), revision, "ALLOW_DUPLICATE", now + 60]
+        if DEBIT_MANUAL:
+            budget -= 1
+        if ADVANCE_AUTO_CURSOR:
+            automatic_cursor = nominal
+        if woke_after_capacity:
+            admitted_after_wait = True
+    elif resolved == "skip" or (resolved == "one" and existing_queue > 0):
+        disposed = True
+        disposition_observed = True
+    else:
+        queued = True
+        if space_without_slot and unfinished == 4:
+            transferred_without_slot_after_wait = True
+
+atomic action DrainManual:
+    require queued and not blocker and existing_queue == 0 and unfinished < 4
+    queued = False
+    admitted = True
+    request = [sequence, frozen_policy, frozen_workflow, transfer_revision if QUEUE_TIME_TEMPLATE else revision, "ALLOW_DUPLICATE", now + 60]
+    expected_request = [sequence, expected_policy, "workflow/" + str(nominal), revision, "ALLOW_DUPLICATE", now + 60]
+    if DEBIT_MANUAL:
+        budget -= 1
+    if ADVANCE_AUTO_CURSOR:
+        automatic_cursor = nominal
+
+atomic action FailedPublicationOrStaleTask:
+    pass
+
+always assertion ManualBypassesEligibilityAndDebit:
+    return budget == 0 and paused and catchup == 0
+
+always assertion AutomaticCursorIndependent:
+    return automatic_cursor == 7
+
+always assertion LatePolicyAndFrozenAdmission:
+    return (pending or frozen_policy == expected_policy) and (not admitted or request == expected_request)
+
+always assertion DurableWakeWithoutSpin:
+    policy = current_policy if override == "inherit" else override
+    want = pending and existing_queue < 4 and (unfinished < 4 or (policy != "allow" and (blocker or existing_queue > 0)))
+    return task == want and (not task or token not in retired)
+
+always assertion ConservedCommand:
+    return int(pending) + int(queued) + int(admitted) + int(disposed) == 1
+
+exists assertion CapacityRecoveryActuallyAdmits:
+    return admitted_after_wait
+
+exists assertion InheritedPolicyAfterUpdate:
+    return override == "inherit" and policy_changed_before_transfer and not pending
+
+exists assertion ExplicitOverrideSurvivesUpdate:
+    return override != "inherit" and policy_changed_before_transfer and admitted
+
+exists assertion FutureIdentityDoesNotWait:
+    return nominal > now and admitted
+
+exists assertion PastIdentityIgnoresCatchup:
+    return nominal < now and admitted
+
+exists assertion ManualStillObeysOverlap:
+    return disposition_observed
+
+exists assertion BlockedTrackedTransfersWithoutSlot:
+    return queued and blocker and unfinished == 4
+
+exists assertion QueueSpaceProgressWithoutOperationSlot:
+    return transferred_without_slot_after_wait
+
+exists assertion UpdatedTemplateAtQueuedAdmission:
+    return admitted and updated_while_queued and request[3] == 2

@@ -1,0 +1,516 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": null,
+      "state": {
+        "accepted": false,
+        "ack_available": false,
+        "admitted": false,
+        "attempt": 0,
+        "budget": 1,
+        "chain": "",
+        "commit_failure_used": false,
+        "completed": false,
+        "crash_used": false,
+        "crashed": false,
+        "cursor": 0,
+        "expired": false,
+        "frozen": -1,
+        "inflight": false,
+        "issued_id": "",
+        "issued_input": -1,
+        "lost_ack_used": false,
+        "now": 1,
+        "operation": "",
+        "remote_id": "",
+        "remote_input": -1,
+        "revision": 0,
+        "started": false,
+        "started_count": 0,
+        "task": false,
+        "tentative": false
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": false,
+        "ack_available": false,
+        "admitted": false,
+        "attempt": 0,
+        "budget": 1,
+        "chain": "",
+        "commit_failure_used": false,
+        "completed": false,
+        "crash_used": false,
+        "crashed": false,
+        "cursor": 0,
+        "expired": false,
+        "frozen": -1,
+        "inflight": false,
+        "issued_id": "",
+        "issued_input": -1,
+        "lost_ack_used": false,
+        "now": 1,
+        "operation": "",
+        "remote_id": "",
+        "remote_input": -1,
+        "revision": 0,
+        "started": false,
+        "started_count": 0,
+        "task": false,
+        "tentative": true
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "PrepareAdmission": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "PrepareAdmission",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": false,
+        "ack_available": false,
+        "admitted": true,
+        "attempt": 0,
+        "budget": 0,
+        "chain": "",
+        "commit_failure_used": false,
+        "completed": false,
+        "crash_used": false,
+        "crashed": false,
+        "cursor": 1,
+        "expired": false,
+        "frozen": 0,
+        "inflight": false,
+        "issued_id": "",
+        "issued_input": -1,
+        "lost_ack_used": false,
+        "now": 1,
+        "operation": "incarnation/automatic/1/action/start",
+        "remote_id": "",
+        "remote_input": -1,
+        "revision": 0,
+        "started": false,
+        "started_count": 0,
+        "task": true,
+        "tentative": false
+      },
+      "stats": {
+        "totalActions": 2,
+        "counts": {
+          "CommitAdmission": 1,
+          "PrepareAdmission": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "CommitAdmission",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": false,
+        "ack_available": false,
+        "admitted": true,
+        "attempt": 1,
+        "budget": 0,
+        "chain": "",
+        "commit_failure_used": false,
+        "completed": false,
+        "crash_used": false,
+        "crashed": false,
+        "cursor": 1,
+        "expired": false,
+        "frozen": 0,
+        "inflight": true,
+        "issued_id": "incarnation/automatic/1/action/start",
+        "issued_input": 0,
+        "lost_ack_used": false,
+        "now": 1,
+        "operation": "incarnation/automatic/1/action/start",
+        "remote_id": "",
+        "remote_input": -1,
+        "revision": 0,
+        "started": false,
+        "started_count": 0,
+        "task": true,
+        "tentative": false
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "CommitAdmission": 1,
+          "DeliverStart": 1,
+          "PrepareAdmission": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "DeliverStart",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": true,
+        "ack_available": true,
+        "admitted": true,
+        "attempt": 1,
+        "budget": 0,
+        "chain": "",
+        "commit_failure_used": false,
+        "completed": false,
+        "crash_used": false,
+        "crashed": false,
+        "cursor": 1,
+        "expired": false,
+        "frozen": 0,
+        "inflight": true,
+        "issued_id": "incarnation/automatic/1/action/start",
+        "issued_input": 0,
+        "lost_ack_used": false,
+        "now": 1,
+        "operation": "incarnation/automatic/1/action/start",
+        "remote_id": "incarnation/automatic/1/action/start",
+        "remote_input": 0,
+        "revision": 0,
+        "started": false,
+        "started_count": 0,
+        "task": true,
+        "tentative": false
+      },
+      "stats": {
+        "totalActions": 4,
+        "counts": {
+          "CommitAdmission": 1,
+          "DeliverStart": 1,
+          "ExternalAccept": 1,
+          "PrepareAdmission": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "ExternalAccept",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": true,
+        "ack_available": true,
+        "admitted": true,
+        "attempt": 1,
+        "budget": 0,
+        "chain": "first-run",
+        "commit_failure_used": false,
+        "completed": true,
+        "crash_used": false,
+        "crashed": false,
+        "cursor": 1,
+        "expired": false,
+        "frozen": 0,
+        "inflight": true,
+        "issued_id": "incarnation/automatic/1/action/start",
+        "issued_input": 0,
+        "lost_ack_used": false,
+        "now": 1,
+        "operation": "incarnation/automatic/1/action/start",
+        "remote_id": "incarnation/automatic/1/action/start",
+        "remote_input": 0,
+        "revision": 0,
+        "started": true,
+        "started_count": 1,
+        "task": false,
+        "tentative": false
+      },
+      "stats": {
+        "totalActions": 5,
+        "counts": {
+          "CommitAdmission": 1,
+          "Complete": 1,
+          "DeliverStart": 1,
+          "ExternalAccept": 1,
+          "PrepareAdmission": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          false,
+          true,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Complete",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          3
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": true,
+        "ack_available": false,
+        "admitted": true,
+        "attempt": 1,
+        "budget": 0,
+        "chain": "first-run",
+        "commit_failure_used": false,
+        "completed": true,
+        "crash_used": false,
+        "crashed": false,
+        "cursor": 1,
+        "expired": false,
+        "frozen": 0,
+        "inflight": false,
+        "issued_id": "incarnation/automatic/1/action/start",
+        "issued_input": 0,
+        "lost_ack_used": false,
+        "now": 1,
+        "operation": "incarnation/automatic/1/action/start",
+        "remote_id": "incarnation/automatic/1/action/start",
+        "remote_input": 0,
+        "revision": 0,
+        "started": true,
+        "started_count": 2,
+        "task": false,
+        "tentative": false
+      },
+      "stats": {
+        "totalActions": 6,
+        "counts": {
+          "Acknowledge": 1,
+          "CommitAdmission": 1,
+          "Complete": 1,
+          "DeliverStart": 1,
+          "ExternalAccept": 1,
+          "PrepareAdmission": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Acknowledge",
+    "Labels": null,
+    "Fairness": 2,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]

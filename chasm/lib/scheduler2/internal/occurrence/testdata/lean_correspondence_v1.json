@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "fixture": {"start":"2024-01-01T00:00:00Z","span":4,"periods":[1],"exclude":[1],"jitter_ms":1700,"seed":"saved","revision":1},
+  "steps": [
+    {"op":"begin","time":"2023-12-31T23:59:59.999999999Z"},
+    {"op":"run","time":"2024-01-01T00:00:00Z","probes":1,"outputs":1},
+    {"op":"peekRange","time":"2024-01-01T00:00:06Z","probes":1},
+    {"op":"disposeRange"},
+    {"op":"run","time":"2024-01-01T00:00:06Z","probes":1,"outputs":1},
+    {"op":"run","time":"2024-01-01T00:00:06Z","probes":2,"outputs":1},
+    {"op":"run","time":"2024-01-01T00:00:06Z","probes":2,"outputs":1},
+    {"op":"run","time":"2024-01-01T00:00:06Z","probes":2,"outputs":1},
+    {"op":"run","time":"2024-01-01T00:00:06Z","probes":2,"outputs":1}
+  ]
+}

@@ -1,0 +1,26 @@
+Model checking /private/tmp/scheduler2-sequential-model-accepted/advance_cursor_on_failure/sequential.json
+configFileName: /private/tmp/scheduler2-sequential-model-accepted/advance_cursor_on_failure/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 3, queued: 18, elapsed: 1.083125ms
+Time taken for model checking: 1.091042ms
+Writen graph dotfile: /private/tmp/scheduler2-sequential-model-accepted/advance_cursor_on_failure/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-sequential-model-accepted/advance_cursor_on_failure/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  CursorAccountsForDispositions
+------
+Init
+--
+state: {"active":0,"carryover":0,"completed":[],"cursor":0,"deadline":2,"dispositions":[],"failed_publication":false,"failure_before_first":false,"frozen":{},"history":[],"phases":{},"remaining":6,"retained":[],"retired_tokens":[],"skipped_ambiguous":false,"stale_after_eviction":false,"started":[],"timer":true,"token":1,"yielded":false}
+------
+FailGeneratorPublication
+--
+state: {"active":0,"carryover":0,"completed":[],"cursor":1,"deadline":2,"dispositions":[],"failed_publication":true,"failure_before_first":true,"frozen":{},"history":[],"phases":{},"remaining":6,"retained":[],"retired_tokens":[],"skipped_ambiguous":false,"stale_after_eviction":false,"started":[],"timer":true,"token":1,"yielded":false}
+------
+Writen graph json: /private/tmp/scheduler2-sequential-model-accepted/advance_cursor_on_failure/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-sequential-model-accepted/advance_cursor_on_failure/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-sequential-model-accepted/advance_cursor_on_failure/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-sequential-model-accepted/advance_cursor_on_failure/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-sequential-model-accepted/advance_cursor_on_failure/graph/error-states.html

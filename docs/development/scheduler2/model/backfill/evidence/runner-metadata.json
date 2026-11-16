@@ -1,0 +1,6 @@
+{
+  "runner_sha256": "7bd480ff02868282f6cfc7730dde1e1dec07b09999d22510b407b20b47ffabe5",
+  "base": "c96e3526fc004affd95b6b6773f2606836e90f80",
+  "contract_review_checkout": "403e778e1f286b63e11ea36670f528f524adf675",
+  "scope": "Queue4; one contended operation slot; two ready finite requests; conditional weak-fair liveness in arbitration only; cursor factor safety; no automatic composition/refinement."
+}

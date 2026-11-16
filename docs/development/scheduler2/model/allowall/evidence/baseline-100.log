@@ -1,0 +1,17 @@
+Model checking /private/tmp/scheduler2-allowall-model-bounded/baseline-100/allowall.json
+configFileName: /private/tmp/scheduler2-allowall-model-bounded/baseline-100/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 20000, queued: 25827, elapsed: 18.671643583s
+Nodes: 40000, queued: 37517, elapsed: 35.109384708s
+Nodes: 60000, queued: 38067, elapsed: 45.836280708s
+Nodes: 80000, queued: 31967, elapsed: 56.107314667s
+Nodes: 100000, queued: 13497, elapsed: 1m4.471680083s
+Nodes: 109320, queued: 0, elapsed: 1m7.394508583s
+Time taken for model checking: 1m7.39453925s
+Skipping dotfile generation. Too many Nodes: 109320
+Valid Nodes: 73988 Unique states: 18220
+IsLive: true
+Time taken to check liveness: 439.854208ms
+PASSED: Model checker completed successfully
+Writen 1 node files and 1 link files to dir /private/tmp/scheduler2-allowall-model-bounded/baseline-100/graph

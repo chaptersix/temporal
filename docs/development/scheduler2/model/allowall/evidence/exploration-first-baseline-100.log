@@ -1,0 +1,34 @@
+Model checking /private/tmp/scheduler2-allowall-model-first/baseline-100/allowall.json
+configFileName: /private/tmp/scheduler2-allowall-model-first/baseline-100/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+E1111 13:42:01.482107   40181 starlark.go:28] Error evaluating expr: key 2 not in dict
+panic: Line 269: Error evaluating expr: 2 in admitted and admitted.index(2) > 1 and policies[2] == "buffer"
+
+goroutine 1 [running]:
+github.com/fizzbee-io/fizzbee/modelchecker.(*Process).PanicOnError(...)
+	modelchecker/processor.go:853
+github.com/fizzbee-io/fizzbee/modelchecker.(*Thread).executeStatement(0x7075f348a80)
+	modelchecker/thread.go:829 +0x3968
+github.com/fizzbee-io/fizzbee/modelchecker.(*Thread).Execute(0x7075f348a80)
+	modelchecker/thread.go:507 +0x330
+github.com/fizzbee-io/fizzbee/modelchecker.execFunctionBlock(0x707698ff380, {0x7074832a3a0, 0x1a}, {0x70766ff3000, 0xe})
+	modelchecker/invariants.go:207 +0xf0
+github.com/fizzbee-io/fizzbee/modelchecker.execAssertionFunction(0x707698ff380, 0x707547fbce0?, 0x707483c78c0)
+	modelchecker/invariants.go:189 +0x74
+github.com/fizzbee-io/fizzbee/modelchecker.CheckAssertion(0x70756486000, 0x707483c78c0, 0xd, 0x707541c6c00)
+	modelchecker/invariants.go:185 +0x280
+github.com/fizzbee-io/fizzbee/modelchecker.CheckInvariantsWithProber(0x70756486000, 0x707541c6c00)
+	modelchecker/invariants.go:104 +0x2b0
+github.com/fizzbee-io/fizzbee/modelchecker.(*Processor).processNode(0x70748674000, 0x7075644fa00)
+	modelchecker/processor.go:2460 +0x780
+github.com/fizzbee-io/fizzbee/modelchecker.(*Processor).expandToYield(0x70748674000, 0x707484a1308?, {0x100000000000003?, 0x6600563305c13?, 0x100d692c0?}, 0x70748531308)
+	modelchecker/processor.go:1627 +0x24c
+github.com/fizzbee-io/fizzbee/modelchecker.(*Processor).Start(0x70748674000)
+	modelchecker/processor.go:1560 +0x120
+main.startModelChecker(0x70748674000)
+	main.go:1164 +0x8c
+main.modelCheckSingleSpec(0x707483f2a20, 0x7074858a240, {0x16f871d8d, 0x39}, {0x16f871d4d, 0x3f}, {0x7074832eb90, 0x47}, {0x16f871d8d, 0x47}, ...)
+	main.go:709 +0x80c
+main.main()
+	main.go:130 +0x58c

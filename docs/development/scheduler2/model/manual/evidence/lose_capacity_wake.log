@@ -1,0 +1,50 @@
+Model checking /private/tmp/scheduler2-manual-model-reviewed/lose_capacity_wake/admission.json
+configFileName: /private/tmp/scheduler2-manual-model-reviewed/lose_capacity_wake/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 230, queued: 705, elapsed: 102.932541ms
+Time taken for model checking: 102.963625ms
+Writen graph dotfile: /private/tmp/scheduler2-manual-model-reviewed/lose_capacity_wake/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-manual-model-reviewed/lose_capacity_wake/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  DurableWakeWithoutSpin
+------
+Init
+--
+state: {}
+------
+Any:override="inherit"
+--
+state: {}
+------
+Any:nominal=-10
+--
+state: {}
+------
+Any:existing_queue=0
+--
+state: {}
+------
+Any:blocker=False
+--
+state: {}
+------
+Any:unfinished=4
+--
+state: {"admitted":false,"admitted_after_wait":false,"automatic_cursor":7,"blocker":false,"budget":0,"capacity_wait_seen":false,"catchup":0,"current_policy":"all","disposed":false,"disposition_observed":false,"existing_queue":0,"expected_policy":"","expected_request":[],"frozen_policy":"","frozen_workflow":"","initial_policy":"all","nominal":-10,"now":0,"override":"inherit","paused":true,"pending":true,"policy":"all","policy_changed_before_transfer":false,"queued":false,"request":[],"retired":[],"revision":1,"sequence":1,"space_without_slot":false,"task":false,"token":0,"transfer_revision":0,"transferred_without_slot_after_wait":false,"unfinished":4,"updated":false,"updated_while_queued":false,"want":false,"woke_after_capacity":false}
+------
+ExternalCapacityProgress
+--
+state: {"admitted":false,"admitted_after_wait":false,"automatic_cursor":7,"blocker":false,"budget":0,"capacity_wait_seen":false,"catchup":0,"current_policy":"all","disposed":false,"disposition_observed":false,"existing_queue":0,"expected_policy":"","expected_request":[],"frozen_policy":"","frozen_workflow":"","initial_policy":"all","nominal":-10,"now":0,"override":"inherit","paused":true,"pending":true,"policy":"all","policy_changed_before_transfer":false,"queued":false,"request":[],"retired":[],"revision":1,"sequence":1,"space_without_slot":false,"task":false,"token":0,"transfer_revision":0,"transferred_without_slot_after_wait":false,"unfinished":4,"updated":false,"updated_while_queued":false,"want":false,"woke_after_capacity":false}
+------
+Any:resource="operation"
+--
+state: {"admitted":false,"admitted_after_wait":false,"automatic_cursor":7,"blocker":false,"budget":0,"capacity_wait_seen":false,"catchup":0,"current_policy":"all","disposed":false,"disposition_observed":false,"existing_queue":0,"expected_policy":"","expected_request":[],"frozen_policy":"","frozen_workflow":"","initial_policy":"all","nominal":-10,"now":0,"override":"inherit","paused":true,"pending":true,"policy":"all","policy_changed_before_transfer":false,"queued":false,"request":[],"retired":[],"revision":1,"sequence":1,"space_without_slot":false,"task":false,"token":0,"transfer_revision":0,"transferred_without_slot_after_wait":false,"unfinished":3,"updated":false,"updated_while_queued":false,"want":true,"woke_after_capacity":false}
+------
+Writen graph json: /private/tmp/scheduler2-manual-model-reviewed/lose_capacity_wake/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-manual-model-reviewed/lose_capacity_wake/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-manual-model-reviewed/lose_capacity_wake/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-manual-model-reviewed/lose_capacity_wake/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-manual-model-reviewed/lose_capacity_wake/graph/error-states.html

@@ -1,0 +1,78 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+ANCHOR_REGRESSES = False
+DUPLICATE_ACK_REFRESH = False
+
+action Init:
+    anchor = 1
+    expected = 1
+    control = 1
+    retained = [True, True]
+    phase = ["pending", "pending"]
+    observed = [0, 0]
+    first = [0, 0]
+    early = [False, False]
+    early_ack = False
+    evicted_latest = False
+
+atomic action ControlUpdate:
+    require control == 1
+    control = 4
+    anchor = max(anchor, control)
+    expected = max(expected, control)
+
+atomic action Completion:
+    i = oneof [0, 1]
+    require retained[i] and phase[i] != "completed"
+    early[i] = phase[i] == "pending"
+    phase[i] = "completed"
+    # Completion contains no start clock: neither anchor nor observed changes.
+
+atomic action Acknowledge:
+    i = oneof [0, 1]
+    require retained[i]
+    observation = 3 if i == 0 else 5
+    if first[i] == 0:
+        first[i] = observation
+        observed[i] = observation
+        anchor = max(anchor, observation)
+        expected = max(expected, observation)
+        if early[i]:
+            early_ack = True
+        if phase[i] == "pending":
+            phase[i] = "started"
+    elif DUPLICATE_ACK_REFRESH:
+        observed[i] = 6
+        anchor = max(anchor, 6)
+
+atomic action Evict:
+    i = oneof [0, 1]
+    require retained[i] and phase[i] == "completed"
+    if first[i] > 0 and first[i] == expected:
+        evicted_latest = True
+    retained[i] = False
+    if ANCHOR_REGRESSES:
+        anchor = max(control, observed[0] if retained[0] else 0, observed[1] if retained[1] else 0)
+
+atomic action FailedPublicationOrOldResult:
+    pass
+
+always assertion AnchorMatchesAcceptedEvidence:
+    return anchor == expected
+
+always assertion FirstObservationImmutable:
+    return observed == first
+
+exists assertion EarlyCompletionThenFirstAck:
+    return early_ack
+
+exists assertion LatestAnchorRecordEvicted:
+    return evicted_latest and anchor == expected
+
+exists assertion OutOfOrderRetention:
+    return not retained[1] and retained[0] and first == [3, 5]

@@ -1,0 +1,68 @@
+Model checking /private/tmp/scheduler2-effects-model-witness-fixed/retry_fence_drifts/effects.json
+configFileName: /private/tmp/scheduler2-effects-model-witness-fixed/retry_fence_drifts/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 2971, queued: 8475, elapsed: 918.134542ms
+Time taken for model checking: 918.174291ms
+Skipping dotfile generation. Too many Nodes: 2971
+FAILED: Model checker failed. Invariant:  FencedImmutableDistinctRequests
+------
+Init
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":false,"completed":false,"drain_task":false,"drained":false,"effects":{},"frozen":{},"initial_budget":4,"issued":[],"next_entry":4,"now":0,"retry_at":{},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":false,"saw_updated_retry":false,"snapshots":{},"started":0,"terminate_demand":false,"updated":false}
+------
+EnqueueOverlap
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":false,"completed":false,"drain_task":false,"drained":false,"effects":{},"frozen":{},"initial_budget":4,"issued":[],"next_entry":4,"now":0,"retry_at":{},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":false,"saw_updated_retry":false,"snapshots":{},"started":0,"terminate_demand":false,"updated":false}
+------
+Any:kind="cancel"
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":false,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"desired"},"frozen":{},"initial_budget":4,"issued":[],"next_entry":5,"now":0,"retry_at":{},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{},"started":0,"terminate_demand":false,"updated":false}
+------
+BindAcknowledgment
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"ready"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":false}
+------
+DefinitionUpdate
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"ready"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":true}
+------
+Issue
+--
+state: {"attempts":{"cancel":0,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"ready"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":true}
+------
+Any:kind="cancel"
+--
+state: {"attempts":{"cancel":1,"terminate":0},"blocker":1,"budget":4,"busy":"cancel","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"inflight"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],false,0]],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":true}
+------
+Result
+--
+state: {"attempts":{"cancel":1,"terminate":0},"blocker":1,"budget":4,"busy":"cancel","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"inflight"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],false,0]],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":true}
+------
+Any:delivery=["cancel", ["namespace", "workflow", "chain-1", "", "1/cancel", 0, 60, 1], False, 0]
+--
+state: {"attempts":{"cancel":1,"terminate":0},"blocker":1,"budget":4,"busy":"cancel","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"inflight"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],false,0]],"next_entry":5,"now":0,"retry_at":{"cancel":0},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":true}
+------
+Any:result="unknown"
+--
+state: {"attempts":{"cancel":1,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"retry"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],false,0]],"next_entry":5,"now":0,"retry_at":{"cancel":1},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":true}
+------
+AdvanceClock
+--
+state: {"attempts":{"cancel":1,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"retry"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],false,0]],"next_entry":5,"now":1,"retry_at":{"cancel":1},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":true}
+------
+Issue
+--
+state: {"attempts":{"cancel":1,"terminate":0},"blocker":1,"budget":4,"busy":"","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"retry"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],false,0]],"next_entry":5,"now":1,"retry_at":{"cancel":1},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":false,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":true}
+------
+Any:kind="cancel"
+--
+state: {"attempts":{"cancel":2,"terminate":0},"blocker":1,"budget":4,"busy":"cancel","carryover":0,"chain_known":true,"completed":false,"drain_task":false,"drained":false,"effects":{"cancel":"inflight"},"frozen":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"initial_budget":4,"issued":[["cancel",["namespace","workflow","chain-1","","1/cancel",0,60,1],false,0],["cancel",["namespace","workflow","chain-2","","1/cancel",0,60,1],false,1]],"next_entry":5,"now":1,"retry_at":{"cancel":1},"saw_late_cancel":false,"saw_stale":false,"saw_unbound":true,"saw_updated_retry":true,"snapshots":{"cancel":["namespace","workflow","chain-1","","1/cancel",0,60,1]},"started":1,"terminate_demand":false,"updated":true}
+------
+Writen graph json: /private/tmp/scheduler2-effects-model-witness-fixed/retry_fence_drifts/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-effects-model-witness-fixed/retry_fence_drifts/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-effects-model-witness-fixed/retry_fence_drifts/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-effects-model-witness-fixed/retry_fence_drifts/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-effects-model-witness-fixed/retry_fence_drifts/graph/error-states.html

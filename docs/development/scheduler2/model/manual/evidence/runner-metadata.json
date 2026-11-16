@@ -1,0 +1,5 @@
+{
+  "runner_sha256": "81aa989c74496030a4df4a7768b1acfe9e015f1d670294fd45eb101fca18379d",
+  "base": "0232beba726aceedafa1707acba9ca3fc3ea7ab2",
+  "scope": "Two factored finite specifications, symbolic framework expiry, sequence bound6; no liveness or automated correspondence claim."
+}

@@ -1,0 +1,264 @@
+[
+  {
+    "case": "effects-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/effects-100/graph",
+      "/private/tmp/scheduler2-effects-model-factored/effects-100/effects.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "4b3d0be3dc372cb755025c0f1b8e6891ec28fb131a7295cf428b54553607aa60",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 29675, elapsed: 5.119764167s",
+      "Nodes: 40000, queued: 43784, elapsed: 10.545885875s",
+      "Nodes: 60000, queued: 46594, elapsed: 17.105875708s",
+      "Nodes: 80000, queued: 39295, elapsed: 23.950236625s",
+      "Nodes: 100000, queued: 25815, elapsed: 34.054102667s",
+      "Nodes: 120000, queued: 6334, elapsed: 43.743265s",
+      "Nodes: 125188, queued: 0, elapsed: 46.791563583s",
+      "Nodes: 125188",
+      "Valid Nodes: 90394 Unique states: 25266"
+    ]
+  },
+  {
+    "case": "effects-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/effects-200/graph",
+      "/private/tmp/scheduler2-effects-model-factored/effects-200/effects.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "511000ec123b033df2c2f9caff0b4c544f752a9f944fdd276826315d7f671b25",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 29675, elapsed: 5.244556625s",
+      "Nodes: 40000, queued: 43784, elapsed: 11.249141917s",
+      "Nodes: 60000, queued: 46594, elapsed: 16.680955583s",
+      "Nodes: 80000, queued: 39295, elapsed: 21.971939167s",
+      "Nodes: 100000, queued: 25815, elapsed: 28.937561042s",
+      "Nodes: 120000, queued: 6334, elapsed: 39.313977542s",
+      "Nodes: 125188, queued: 0, elapsed: 40.479551917s",
+      "Nodes: 125188",
+      "Valid Nodes: 90394 Unique states: 25266"
+    ]
+  },
+  {
+    "case": "selection-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/selection-100/graph",
+      "/private/tmp/scheduler2-effects-model-factored/selection-100/selection.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "a3115377a81e363805d0069022efdd40bd4951f1e65ce5a24f593827054bae6c",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 121, queued: 0, elapsed: 24.258875ms",
+      "Valid Nodes: 121 Unique states: 99"
+    ]
+  },
+  {
+    "case": "selection-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/selection-200/graph",
+      "/private/tmp/scheduler2-effects-model-factored/selection-200/selection.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "0c6a6ad2769a6c15b548164eb97cff29413d1507caa231c5a42ed5b9ec344d1b",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 121, queued: 0, elapsed: 24.920625ms",
+      "Valid Nodes: 121 Unique states: 99"
+    ]
+  },
+  {
+    "case": "binding-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/binding-100/graph",
+      "/private/tmp/scheduler2-effects-model-factored/binding-100/binding.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "89cae5d0efd3d6ca598c53776f1fea8843fe6579ede7327cdccbf1abbd1cadda",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 176, queued: 0, elapsed: 25.596375ms",
+      "Valid Nodes: 176 Unique states: 138"
+    ]
+  },
+  {
+    "case": "binding-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/binding-200/graph",
+      "/private/tmp/scheduler2-effects-model-factored/binding-200/binding.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "4d4b80ebd36bf297b3a2d1ba747bd915fe4b403e7755231f3f2f2b676b3f203b",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 176, queued: 0, elapsed: 24.928291ms",
+      "Valid Nodes: 176 Unique states: 138"
+    ]
+  },
+  {
+    "case": "effect_releases_blocker",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/effect_releases_blocker/graph",
+      "/private/tmp/scheduler2-effects-model-factored/effect_releases_blocker/effects.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "EFFECT_RELEASES_BLOCKER",
+    "expected_invariant": [
+      "OnlyCompletionReleasesTarget",
+      "CompletionCreatesDrain"
+    ],
+    "sha256": "e336b32cbee90cac9fae32f638b4540d36d7bfaad05422a5bf27d4caa99a7dc5",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 164, queued: 664, elapsed: 43.249209ms"
+    ]
+  },
+  {
+    "case": "cancel_after_terminate",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/cancel_after_terminate/graph",
+      "/private/tmp/scheduler2-effects-model-factored/cancel_after_terminate/effects.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "CANCEL_AFTER_TERMINATE",
+    "expected_invariant": [
+      "TerminateDominatesFutureIssuance"
+    ],
+    "sha256": "716dfe4878a99e9286d0bcfb15cea0eb0d7860a51b4891b08f0754069fd6f903",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 140, queued: 575, elapsed: 35.780625ms"
+    ]
+  },
+  {
+    "case": "retry_fence_drifts",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/retry_fence_drifts/graph",
+      "/private/tmp/scheduler2-effects-model-factored/retry_fence_drifts/effects.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "RETRY_FENCE_DRIFTS",
+    "expected_invariant": [
+      "FencedImmutableDistinctRequests"
+    ],
+    "sha256": "b68d59b32c3534758e376b9afbf51fae34b31d4ac0ba2e3d60bef6b300d4afc0",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 3043, queued: 8955, elapsed: 813.037875ms",
+      "Nodes: 3043"
+    ]
+  },
+  {
+    "case": "first_effect_wins",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/first_effect_wins/graph",
+      "/private/tmp/scheduler2-effects-model-factored/first_effect_wins/selection.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "FIRST_EFFECT_WINS",
+    "expected_invariant": [
+      "SelectionAfterEligibility"
+    ],
+    "sha256": "d175e7cb7d6a10e98eefbe66e96bfdc2edeb15a7ef8e5ee251e3c5ab9f362176",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 87, queued: 116, elapsed: 12.416792ms"
+    ]
+  },
+  {
+    "case": "overflow_creates_demand",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/overflow_creates_demand/graph",
+      "/private/tmp/scheduler2-effects-model-factored/overflow_creates_demand/selection.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "OVERFLOW_CREATES_DEMAND",
+    "expected_invariant": [
+      "AcceptedDemandOnly"
+    ],
+    "sha256": "6bfbd405717dc9353a45b35f6854a6fdaf7dc76b6d0be7d96f9861ea3213a752",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 46, queued: 86, elapsed: 6.409542ms"
+    ]
+  },
+  {
+    "case": "horizon_from_demand",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-factored/horizon_from_demand/graph",
+      "/private/tmp/scheduler2-effects-model-factored/horizon_from_demand/binding.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "HORIZON_FROM_DEMAND",
+    "expected_invariant": [
+      "BindingStartsHorizon"
+    ],
+    "sha256": "784a5f1fb1d80b7d9267c2f44b32ac73db9380c3e22d9d371f59cd9dbede204f",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 4, queued: 8, elapsed: 623.459\u00b5s"
+    ]
+  }
+]

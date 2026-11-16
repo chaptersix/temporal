@@ -1,0 +1,118 @@
+[
+  {
+    "case": "baseline-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-allowall-model-bounded/baseline-100/graph",
+      "/private/tmp/scheduler2-allowall-model-bounded/baseline-100/allowall.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "543c4cd5f8265093ee9ff65445ae35ac4ba7f4d2e0e18e3d754cc7d0058cb2bb",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 25827, elapsed: 18.671643583s",
+      "Nodes: 40000, queued: 37517, elapsed: 35.109384708s",
+      "Nodes: 60000, queued: 38067, elapsed: 45.836280708s",
+      "Nodes: 80000, queued: 31967, elapsed: 56.107314667s",
+      "Nodes: 100000, queued: 13497, elapsed: 1m4.471680083s",
+      "Nodes: 109320, queued: 0, elapsed: 1m7.394508583s",
+      "Nodes: 109320",
+      "Valid Nodes: 73988 Unique states: 18220"
+    ]
+  },
+  {
+    "case": "baseline-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-allowall-model-bounded/baseline-200/graph",
+      "/private/tmp/scheduler2-allowall-model-bounded/baseline-200/allowall.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "1d710799c6e8cc9b7809349f686501fda5cce0b7759481d9f144941074093b40",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 25827, elapsed: 12.533651958s",
+      "Nodes: 40000, queued: 37517, elapsed: 24.263867333s",
+      "Nodes: 60000, queued: 38067, elapsed: 34.7585235s",
+      "Nodes: 80000, queued: 31967, elapsed: 44.603256041s",
+      "Nodes: 100000, queued: 13497, elapsed: 52.786730041s",
+      "Nodes: 109320, queued: 0, elapsed: 55.71035375s",
+      "Nodes: 109320",
+      "Valid Nodes: 73988 Unique states: 18220"
+    ]
+  },
+  {
+    "case": "ignore_older_result",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-allowall-model-bounded/ignore_older_result/graph",
+      "/private/tmp/scheduler2-allowall-model-bounded/ignore_older_result/allowall.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "IGNORE_OLDER_RESULT",
+    "expected_invariant": [
+      "KeyedEvidenceCountedOnce",
+      "TerminalEvidenceSettlesItsIntent"
+    ],
+    "sha256": "b901edee2837d345f46393029b724cc3b92f995219ae84fa67890d1902cb1739",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 9, queued: 27, elapsed: 4.4965ms"
+    ]
+  },
+  {
+    "case": "allow_result_leaks",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-allowall-model-bounded/allow_result_leaks/graph",
+      "/private/tmp/scheduler2-allowall-model-bounded/allow_result_leaks/allowall.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "ALLOW_RESULT_LEAKS",
+    "expected_invariant": [
+      "NoAllowCarryoverOrPause"
+    ],
+    "sha256": "8cfc4542821d9ca5905d872badd390a286003f602da916494148b09c333fcf51",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 12, queued: 57, elapsed: 9.031583ms"
+    ]
+  },
+  {
+    "case": "lose_capacity_wake",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-allowall-model-bounded/lose_capacity_wake/graph",
+      "/private/tmp/scheduler2-allowall-model-bounded/lose_capacity_wake/allowall.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "LOSE_CAPACITY_WAKE",
+    "expected_invariant": [
+      "DrainObligationWithoutSpin"
+    ],
+    "sha256": "0fafccc4a6d9d5ccf6682c946373f46edf4d1d6129621e720709e4d1b8f8594e",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 95, queued: 347, elapsed: 70.259916ms"
+    ]
+  }
+]

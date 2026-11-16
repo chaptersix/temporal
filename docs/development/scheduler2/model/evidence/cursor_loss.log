@@ -1,0 +1,30 @@
+Model checking /private/tmp/scheduler2-model-final-v2/cursor_loss/start.json
+configFileName: /private/tmp/scheduler2-model-final-v2/cursor_loss/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  liveness:"strict"  deadlock_detection:false
+Nodes: 6, queued: 53, elapsed: 1.481625ms
+Time taken for model checking: 1.48625ms
+Writen graph dotfile: /private/tmp/scheduler2-model-final-v2/cursor_loss/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-model-final-v2/cursor_loss/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  AdmissionAtomicity
+------
+Init
+--
+state: {"accepted":false,"ack_available":false,"admitted":false,"attempt":0,"budget":1,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":0,"expired":false,"frozen":-1,"inflight":false,"issued_id":"","issued_input":-1,"lost_ack_used":false,"now":1,"operation":"","remote_id":"","remote_input":-1,"revision":0,"started":false,"started_count":0,"task":false,"tentative":false}
+------
+PrepareAdmission
+--
+state: {"accepted":false,"ack_available":false,"admitted":false,"attempt":0,"budget":1,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":0,"expired":false,"frozen":-1,"inflight":false,"issued_id":"","issued_input":-1,"lost_ack_used":false,"now":1,"operation":"","remote_id":"","remote_input":-1,"revision":0,"started":false,"started_count":0,"task":false,"tentative":true}
+------
+FailCommit
+--
+state: {"accepted":false,"ack_available":false,"admitted":false,"attempt":0,"budget":1,"chain":"","commit_failure_used":true,"completed":false,"crash_used":false,"crashed":false,"cursor":1,"expired":false,"frozen":-1,"inflight":false,"issued_id":"","issued_input":-1,"lost_ack_used":false,"now":1,"operation":"","remote_id":"","remote_input":-1,"revision":0,"started":false,"started_count":0,"task":false,"tentative":false}
+------
+Writen graph json: /private/tmp/scheduler2-model-final-v2/cursor_loss/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-model-final-v2/cursor_loss/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-model-final-v2/cursor_loss/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-model-final-v2/cursor_loss/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-model-final-v2/cursor_loss/graph/error-states.html

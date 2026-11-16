@@ -1,0 +1,137 @@
+[
+  {
+    "case": "baseline-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-buffer-model-second/baseline-100/graph",
+      "/private/tmp/scheduler2-buffer-model-second/baseline-100/buffer.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "ff6dd22c30d5ba14acbe319fb4bb1a2536ef9deb716056b9c5fe7a44df033a1e",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 66990, elapsed: 10.361011834s",
+      "Nodes: 40000, queued: 103837, elapsed: 22.372113417s",
+      "Nodes: 60000, queued: 79310, elapsed: 35.688923792s",
+      "Nodes: 69207, queued: 0, elapsed: 43.246912917s",
+      "Nodes: 69207",
+      "Valid Nodes: 69207 Unique states: 69196"
+    ]
+  },
+  {
+    "case": "baseline-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-buffer-model-second/baseline-200/graph",
+      "/private/tmp/scheduler2-buffer-model-second/baseline-200/buffer.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "c2c63adefb6520b49eef508bf71b5defd63dbeb7186c6b8c49e9cce6c980229b",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 66990, elapsed: 10.690431s",
+      "Nodes: 40000, queued: 103837, elapsed: 22.470501458s",
+      "Nodes: 60000, queued: 79310, elapsed: 36.059178333s",
+      "Nodes: 69207, queued: 0, elapsed: 44.118692875s",
+      "Nodes: 69207",
+      "Valid Nodes: 69207 Unique states: 69196"
+    ]
+  },
+  {
+    "case": "debit_on_enqueue",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-buffer-model-second/debit_on_enqueue/graph",
+      "/private/tmp/scheduler2-buffer-model-second/debit_on_enqueue/buffer.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "DEBIT_ON_ENQUEUE",
+    "expected_invariant": [
+      "NoEnqueueBudgetDebit"
+    ],
+    "sha256": "87d8513145e4f33179b9b6e156f634b74f3b918dfc1b60d7aaf998a8e982327c",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 36, queued: 215, elapsed: 13.341166ms"
+    ]
+  },
+  {
+    "case": "lose_completion_wake",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-buffer-model-second/lose_completion_wake/graph",
+      "/private/tmp/scheduler2-buffer-model-second/lose_completion_wake/buffer.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "LOSE_COMPLETION_WAKE",
+    "expected_invariant": [
+      "DrainObligation"
+    ],
+    "sha256": "698a6aa383a039ab1ec762a6a890ff9f6c04db2df557475c66029ae3ec018ae3",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 1807, queued: 7925, elapsed: 774.682583ms",
+      "Nodes: 1807"
+    ]
+  },
+  {
+    "case": "stale_drain_consumes_queue",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-buffer-model-second/stale_drain_consumes_queue/graph",
+      "/private/tmp/scheduler2-buffer-model-second/stale_drain_consumes_queue/buffer.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "STALE_DRAIN_CONSUMES_QUEUE",
+    "expected_invariant": [
+      "FIFOConservation"
+    ],
+    "sha256": "16460b6f1830effa2272b88a49aba38089c1eb79d716f6fe6c1798b20e8a50ba",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 960, queued: 4394, elapsed: 398.053875ms",
+      "Nodes: 960"
+    ]
+  },
+  {
+    "case": "reuse_queued_template",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-buffer-model-second/reuse_queued_template/graph",
+      "/private/tmp/scheduler2-buffer-model-second/reuse_queued_template/buffer.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "REUSE_QUEUED_TEMPLATE",
+    "expected_invariant": [
+      "FrozenAdoption"
+    ],
+    "sha256": "1e91ac92e0d5e27ac3955a331d6c68a8e6556166c1a2114d8e96eff599d6f902",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 469, queued: 2262, elapsed: 188.296ms",
+      "Nodes: 469"
+    ]
+  }
+]

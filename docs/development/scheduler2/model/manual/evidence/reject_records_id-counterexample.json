@@ -1,0 +1,626 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": null,
+      "state": {
+        "accepted": [],
+        "body": {},
+        "call": 0,
+        "calls": [
+          "A",
+          "",
+          "B",
+          "",
+          "C",
+          "A",
+          "D"
+        ],
+        "dedup": {},
+        "duplicate_after_eviction": false,
+        "duplicate_changed_body": false,
+        "exhausted_rejected": false,
+        "expired": false,
+        "full_rejected": false,
+        "identities": [],
+        "pending": [],
+        "recorded_success": [],
+        "records": [],
+        "replay_after_expiry": false,
+        "retention_evicted": false,
+        "sequence": 0,
+        "snapshots": {}
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": [
+          [
+            "A",
+            1,
+            100
+          ]
+        ],
+        "body": {
+          "1": 0
+        },
+        "call": 1,
+        "calls": [
+          "A",
+          "",
+          "B",
+          "",
+          "C",
+          "A",
+          "D"
+        ],
+        "dedup": {
+          "A": 1
+        },
+        "duplicate_after_eviction": false,
+        "duplicate_changed_body": false,
+        "exhausted_rejected": false,
+        "expired": false,
+        "full_rejected": false,
+        "identities": [
+          "manual/1"
+        ],
+        "pending": [
+          1
+        ],
+        "recorded_success": [
+          [
+            "A",
+            1
+          ]
+        ],
+        "records": [],
+        "replay_after_expiry": false,
+        "retention_evicted": false,
+        "sequence": 1,
+        "snapshots": {
+          "1": 0
+        }
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "Call": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Call",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": [
+          [
+            "A",
+            1,
+            100
+          ],
+          [
+            "",
+            2,
+            100
+          ]
+        ],
+        "body": {
+          "1": 0,
+          "2": 1
+        },
+        "call": 2,
+        "calls": [
+          "A",
+          "",
+          "B",
+          "",
+          "C",
+          "A",
+          "D"
+        ],
+        "dedup": {
+          "A": 1
+        },
+        "duplicate_after_eviction": false,
+        "duplicate_changed_body": false,
+        "exhausted_rejected": false,
+        "expired": false,
+        "full_rejected": false,
+        "identities": [
+          "manual/1",
+          "manual/2"
+        ],
+        "pending": [
+          1,
+          2
+        ],
+        "recorded_success": [
+          [
+            "A",
+            1
+          ]
+        ],
+        "records": [],
+        "replay_after_expiry": false,
+        "retention_evicted": false,
+        "sequence": 2,
+        "snapshots": {
+          "1": 0,
+          "2": 1
+        }
+      },
+      "stats": {
+        "totalActions": 2,
+        "counts": {
+          "Call": 2
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Call",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": [
+          [
+            "A",
+            1,
+            100
+          ],
+          [
+            "",
+            2,
+            100
+          ],
+          [
+            "B",
+            3,
+            100
+          ]
+        ],
+        "body": {
+          "1": 0,
+          "2": 1,
+          "3": 2
+        },
+        "call": 3,
+        "calls": [
+          "A",
+          "",
+          "B",
+          "",
+          "C",
+          "A",
+          "D"
+        ],
+        "dedup": {
+          "A": 1,
+          "B": 3
+        },
+        "duplicate_after_eviction": false,
+        "duplicate_changed_body": false,
+        "exhausted_rejected": false,
+        "expired": false,
+        "full_rejected": false,
+        "identities": [
+          "manual/1",
+          "manual/2",
+          "manual/3"
+        ],
+        "pending": [
+          1,
+          2,
+          3
+        ],
+        "recorded_success": [
+          [
+            "A",
+            1
+          ],
+          [
+            "B",
+            3
+          ]
+        ],
+        "records": [],
+        "replay_after_expiry": false,
+        "retention_evicted": false,
+        "sequence": 3,
+        "snapshots": {
+          "1": 0,
+          "2": 1,
+          "3": 2
+        }
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "Call": 3
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Call",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": [
+          [
+            "A",
+            1,
+            100
+          ],
+          [
+            "",
+            2,
+            100
+          ],
+          [
+            "B",
+            3,
+            100
+          ],
+          [
+            "",
+            4,
+            100
+          ]
+        ],
+        "body": {
+          "1": 0,
+          "2": 1,
+          "3": 2,
+          "4": 3
+        },
+        "call": 4,
+        "calls": [
+          "A",
+          "",
+          "B",
+          "",
+          "C",
+          "A",
+          "D"
+        ],
+        "dedup": {
+          "A": 1,
+          "B": 3
+        },
+        "duplicate_after_eviction": false,
+        "duplicate_changed_body": false,
+        "exhausted_rejected": false,
+        "expired": false,
+        "full_rejected": false,
+        "identities": [
+          "manual/1",
+          "manual/2",
+          "manual/3",
+          "manual/4"
+        ],
+        "pending": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "recorded_success": [
+          [
+            "A",
+            1
+          ],
+          [
+            "B",
+            3
+          ]
+        ],
+        "records": [],
+        "replay_after_expiry": false,
+        "retention_evicted": false,
+        "sequence": 4,
+        "snapshots": {
+          "1": 0,
+          "2": 1,
+          "3": 2,
+          "4": 3
+        }
+      },
+      "stats": {
+        "totalActions": 4,
+        "counts": {
+          "Call": 4
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Call",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          3
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "accepted": [
+          [
+            "A",
+            1,
+            100
+          ],
+          [
+            "",
+            2,
+            100
+          ],
+          [
+            "B",
+            3,
+            100
+          ],
+          [
+            "",
+            4,
+            100
+          ]
+        ],
+        "body": {
+          "1": 0,
+          "2": 1,
+          "3": 2,
+          "4": 3
+        },
+        "call": 4,
+        "calls": [
+          "A",
+          "",
+          "B",
+          "",
+          "C",
+          "A",
+          "D"
+        ],
+        "dedup": {
+          "A": 1,
+          "B": 3,
+          "C": 0
+        },
+        "duplicate_after_eviction": false,
+        "duplicate_changed_body": false,
+        "exhausted_rejected": false,
+        "expired": false,
+        "full_rejected": true,
+        "identities": [
+          "manual/1",
+          "manual/2",
+          "manual/3",
+          "manual/4"
+        ],
+        "pending": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "recorded_success": [
+          [
+            "A",
+            1
+          ],
+          [
+            "B",
+            3
+          ]
+        ],
+        "records": [],
+        "replay_after_expiry": false,
+        "retention_evicted": false,
+        "sequence": 4,
+        "snapshots": {
+          "1": 0,
+          "2": 1,
+          "3": 2,
+          "4": 3
+        }
+      },
+      "stats": {
+        "totalActions": 5,
+        "counts": {
+          "Call": 5
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Call",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]

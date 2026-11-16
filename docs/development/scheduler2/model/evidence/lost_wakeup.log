@@ -1,0 +1,42 @@
+Model checking /private/tmp/scheduler2-model-final-v2/lost_wakeup/start.json
+configFileName: /private/tmp/scheduler2-model-final-v2/lost_wakeup/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  liveness:"strict"  deadlock_detection:false
+Nodes: 43, queued: 273, elapsed: 12.507416ms
+Time taken for model checking: 12.514875ms
+Writen graph dotfile: /private/tmp/scheduler2-model-final-v2/lost_wakeup/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-model-final-v2/lost_wakeup/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  DurableObligation
+------
+Init
+--
+state: {"accepted":false,"ack_available":false,"admitted":false,"attempt":0,"budget":1,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":0,"expired":false,"frozen":-1,"inflight":false,"issued_id":"","issued_input":-1,"lost_ack_used":false,"now":1,"operation":"","remote_id":"","remote_input":-1,"revision":0,"started":false,"started_count":0,"task":false,"tentative":false}
+------
+PrepareAdmission
+--
+state: {"accepted":false,"ack_available":false,"admitted":false,"attempt":0,"budget":1,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":0,"expired":false,"frozen":-1,"inflight":false,"issued_id":"","issued_input":-1,"lost_ack_used":false,"now":1,"operation":"","remote_id":"","remote_input":-1,"revision":0,"started":false,"started_count":0,"task":false,"tentative":true}
+------
+CommitAdmission
+--
+state: {"accepted":false,"ack_available":false,"admitted":true,"attempt":0,"budget":0,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":1,"expired":false,"frozen":0,"inflight":false,"issued_id":"","issued_input":-1,"lost_ack_used":false,"now":1,"operation":"incarnation/automatic/1/action/start","remote_id":"","remote_input":-1,"revision":0,"started":false,"started_count":0,"task":true,"tentative":false}
+------
+DeliverStart
+--
+state: {"accepted":false,"ack_available":false,"admitted":true,"attempt":1,"budget":0,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":1,"expired":false,"frozen":0,"inflight":true,"issued_id":"incarnation/automatic/1/action/start","issued_input":0,"lost_ack_used":false,"now":1,"operation":"incarnation/automatic/1/action/start","remote_id":"","remote_input":-1,"revision":0,"started":false,"started_count":0,"task":true,"tentative":false}
+------
+ExternalAccept
+--
+state: {"accepted":true,"ack_available":true,"admitted":true,"attempt":1,"budget":0,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":1,"expired":false,"frozen":0,"inflight":true,"issued_id":"incarnation/automatic/1/action/start","issued_input":0,"lost_ack_used":false,"now":1,"operation":"incarnation/automatic/1/action/start","remote_id":"incarnation/automatic/1/action/start","remote_input":0,"revision":0,"started":false,"started_count":0,"task":true,"tentative":false}
+------
+LoseAcknowledgment
+--
+state: {"accepted":true,"ack_available":false,"admitted":true,"attempt":1,"budget":0,"chain":"","commit_failure_used":false,"completed":false,"crash_used":false,"crashed":false,"cursor":1,"expired":false,"frozen":0,"inflight":false,"issued_id":"incarnation/automatic/1/action/start","issued_input":0,"lost_ack_used":true,"now":1,"operation":"incarnation/automatic/1/action/start","remote_id":"incarnation/automatic/1/action/start","remote_input":0,"revision":0,"started":false,"started_count":0,"task":false,"tentative":false}
+------
+Writen graph json: /private/tmp/scheduler2-model-final-v2/lost_wakeup/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-model-final-v2/lost_wakeup/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-model-final-v2/lost_wakeup/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-model-final-v2/lost_wakeup/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-model-final-v2/lost_wakeup/graph/error-states.html

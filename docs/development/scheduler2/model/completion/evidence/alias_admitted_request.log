@@ -1,0 +1,46 @@
+Model checking /private/tmp/scheduler2-completion-model-accepted/alias_admitted_request/completion.json
+configFileName: /private/tmp/scheduler2-completion-model-accepted/alias_admitted_request/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 181, queued: 974, elapsed: 32.246167ms
+Time taken for model checking: 32.255375ms
+Writen graph dotfile: /private/tmp/scheduler2-completion-model-accepted/alias_admitted_request/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-completion-model-accepted/alias_admitted_request/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  AdmittedRequestIsImmutable
+------
+Init
+--
+state: {}
+------
+Any:initial_success="absent"
+--
+state: {}
+------
+Any:initial_failure="absent"
+--
+state: {"admitted":false,"chain":"","completed":false,"duplicate_payload_seen":false,"early":false,"failed_publication":false,"failure":"absent","first_outcome":"none","frozen_failure":"not-admitted","frozen_success":"not-admitted","initial_failure":"absent","initial_success":"absent","invalid_seen":false,"late_ack":false,"paused":false,"policy":false,"policy_at_first":false,"remaining":1,"started_count":0,"success":"absent","tentative":"none"}
+------
+Admit
+--
+state: {"admitted":true,"chain":"","completed":false,"duplicate_payload_seen":false,"early":false,"failed_publication":false,"failure":"absent","first_outcome":"none","frozen_failure":"absent","frozen_success":"absent","initial_failure":"absent","initial_success":"absent","invalid_seen":false,"late_ack":false,"paused":false,"policy":false,"policy_at_first":false,"remaining":0,"started_count":0,"success":"absent","tentative":"none"}
+------
+PrepareCompletion
+--
+state: {"admitted":true,"chain":"","completed":false,"duplicate_payload_seen":false,"early":false,"failed_publication":false,"failure":"absent","first_outcome":"none","frozen_failure":"absent","frozen_success":"absent","initial_failure":"absent","initial_success":"absent","invalid_seen":false,"late_ack":false,"paused":false,"policy":false,"policy_at_first":false,"remaining":0,"started_count":0,"success":"absent","tentative":"none"}
+------
+Any:tentative="null"
+--
+state: {"admitted":true,"chain":"","completed":false,"duplicate_payload_seen":false,"early":false,"failed_publication":false,"failure":"absent","first_outcome":"none","frozen_failure":"absent","frozen_success":"absent","initial_failure":"absent","initial_success":"absent","invalid_seen":false,"late_ack":false,"paused":false,"policy":false,"policy_at_first":false,"remaining":0,"started_count":0,"success":"absent","tentative":"null"}
+------
+CommitCompletion
+--
+state: {"admitted":true,"chain":"first-run","completed":true,"duplicate_payload_seen":false,"early":true,"failed_publication":false,"failure":"absent","first_outcome":"null","frozen_failure":"absent","frozen_success":"null","initial_failure":"absent","initial_success":"absent","invalid_seen":false,"late_ack":false,"paused":false,"policy":false,"policy_at_first":false,"remaining":0,"started_count":1,"success":"null","tentative":"none"}
+------
+Writen graph json: /private/tmp/scheduler2-completion-model-accepted/alias_admitted_request/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-completion-model-accepted/alias_admitted_request/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-completion-model-accepted/alias_admitted_request/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-completion-model-accepted/alias_admitted_request/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-completion-model-accepted/alias_admitted_request/graph/error-states.html

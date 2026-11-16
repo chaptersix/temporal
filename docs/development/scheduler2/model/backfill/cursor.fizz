@@ -1,0 +1,114 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+DISPOSE_ON_PEEK = False
+UPDATE_USES_NOW = False
+END_USES_NOMINAL = False
+
+action Init:
+    # Nominals in milliseconds; jitter5 is strictly below next raw nominal.
+    source = [10, 20, 30]
+    start = 10
+    end = oneof [25, 32]
+    revision = 0
+    search_after = 9
+    disposed_through = 9
+    pending = []
+    published = []
+    dispositions = []
+    expected_disposed = 9
+    done = False
+    endpoint = []
+    blocked = True
+    updated = False
+    failed_candidate = []
+    published_after_failure = False
+    rebased_after_pending = False
+
+atomic action Peek:
+    require not done and len(pending) == 0
+    next_raw = [nominal for nominal in source if nominal > search_after]
+    if len(next_raw) == 0:
+        done = True
+    else:
+        nominal = next_raw[0]
+        actual = nominal + 5
+        search_after = nominal
+        if (nominal if END_USES_NOMINAL else actual) > end:
+            endpoint = [nominal, actual, revision]
+            done = True
+        elif nominal == 20 and revision == 0:
+            # Current-definition exclusion is a committed disposition.
+            disposed_through = nominal
+            expected_disposed = nominal
+            dispositions.append([nominal, revision, "excluded"])
+        else:
+            pending = [nominal, actual, revision]
+            if DISPOSE_ON_PEEK:
+                disposed_through = nominal
+
+atomic action CapacityWait:
+    require blocked and len(pending) > 0
+    # A denied candidate is retained in full, not disposed by search advancement.
+    pass
+
+atomic action ReleaseCapacity:
+    require blocked
+    blocked = False
+
+atomic action Publish:
+    require not blocked and len(pending) > 0
+    published.append(pending[:])
+    disposed_through = pending[0]
+    expected_disposed = pending[0]
+    dispositions.append([pending[0], pending[2], "published"])
+    if pending == failed_candidate:
+        published_after_failure = True
+    pending = []
+
+atomic action FailedPublication:
+    require len(pending) > 0
+    failed_candidate = pending[:]
+    # Only the observation flag changes. All durable fields remain unchanged.
+
+atomic action UpdateDefinition:
+    require not updated
+    updated = True
+    revision = 1
+    if len(pending) > 0:
+        rebased_after_pending = True
+    pending = []
+    endpoint = []
+    done = False
+    search_after = 100 if UPDATE_USES_NOW else disposed_through
+
+always assertion DispositionRequiresCommit:
+    return disposed_through == expected_disposed
+
+always assertion RangeUsesActualUpperBound:
+    return all([candidate[0] >= start and candidate[1] <= end for candidate in published])
+
+always assertion RebaseNeverExecutionNow:
+    return not updated or search_after <= 30
+
+always assertion UniqueNominalHandoff:
+    return len(published) == len(set([candidate[0] for candidate in published]))
+
+always assertion PendingRetainsNominalActualRevision:
+    return len(pending) == 0 or (pending[0] == search_after and pending[1] == pending[0] + 5 and pending[2] == revision and pending[0] > disposed_through)
+
+exists assertion InclusiveEndpoints:
+    return end == 25 and [10, 15, 1] in published and [20, 25, 1] in published
+
+exists assertion EndWitnessDoesNotDisposePastRange:
+    return done and len(endpoint) > 0 and endpoint[1] > end and disposed_through <= end
+
+exists assertion FailedPublishThenSuccessfulHandoff:
+    return published_after_failure
+
+exists assertion UpdatePreservesUnadmittedHistoricalRange:
+    return rebased_after_pending and len(published) == 2

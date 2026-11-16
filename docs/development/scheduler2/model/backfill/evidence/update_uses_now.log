@@ -1,0 +1,30 @@
+Model checking /private/tmp/scheduler2-backfill-model-leases/update_uses_now/cursor.json
+configFileName: /private/tmp/scheduler2-backfill-model-leases/update_uses_now/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 6, queued: 18, elapsed: 1.153917ms
+Time taken for model checking: 1.16025ms
+Writen graph dotfile: /private/tmp/scheduler2-backfill-model-leases/update_uses_now/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-backfill-model-leases/update_uses_now/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  RebaseNeverExecutionNow
+------
+Init
+--
+state: {}
+------
+Any:end=25
+--
+state: {"blocked":true,"disposed_through":9,"dispositions":[],"done":false,"end":25,"endpoint":[],"expected_disposed":9,"failed_candidate":[],"pending":[],"published":[],"published_after_failure":false,"rebased_after_pending":false,"revision":0,"search_after":9,"source":[10,20,30],"start":10,"updated":false}
+------
+UpdateDefinition
+--
+state: {"blocked":true,"disposed_through":9,"dispositions":[],"done":false,"end":25,"endpoint":[],"expected_disposed":9,"failed_candidate":[],"pending":[],"published":[],"published_after_failure":false,"rebased_after_pending":false,"revision":1,"search_after":100,"source":[10,20,30],"start":10,"updated":true}
+------
+Writen graph json: /private/tmp/scheduler2-backfill-model-leases/update_uses_now/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-backfill-model-leases/update_uses_now/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-backfill-model-leases/update_uses_now/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-backfill-model-leases/update_uses_now/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-backfill-model-leases/update_uses_now/graph/error-states.html

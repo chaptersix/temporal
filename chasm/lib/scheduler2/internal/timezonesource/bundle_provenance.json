@@ -1,0 +1,7 @@
+{
+  "Toolchain": "go1.27.3",
+  "Source": "src/time/tzdata/zzipdata.go",
+  "SourceSHA256": "fdf3446025d8460a2d2e7f2b0fc79906daa338529030dd8204a8307bf4fb0302",
+  "BundleSHA256": "b2d18a7c8fa8142097a48c99609fb3c92db5ee98bc740294e57eab8ae9f94779",
+  "Bytes": 408467
+}

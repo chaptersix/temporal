@@ -1,0 +1,180 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+liveness: strict
+---
+
+# Fault switches are changed individually by run.py, never in product code.
+LOST_WAKEUP = False
+CURSOR_LOSS = False
+DUPLICATE_ACCOUNTING = False
+RETRY_IDENTITY = False
+RETRY_INPUT = False
+
+action Init:
+    revision = 0
+    tentative = False
+    admitted = False
+    cursor = 0
+    budget = 1
+    frozen = -1
+    operation = ""
+    task = False
+    started = False
+    completed = False
+    started_count = 0
+    now = 1
+    expired = False
+    crashed = False
+    crash_used = False
+    commit_failure_used = False
+    lost_ack_used = False
+    attempt = 0
+    inflight = False
+    issued_id = ""
+    issued_input = -1
+    accepted = False
+    remote_id = ""
+    remote_input = -1
+    chain = ""
+    ack_available = False
+
+atomic fair action PrepareAdmission:
+    require not admitted and not tentative and not crashed and cursor < 1 and now >= 1
+    tentative = True
+
+atomic fair action CommitAdmission:
+    require tentative and not crashed
+    admitted = True
+    tentative = False
+    cursor = 1
+    budget = 0
+    frozen = revision
+    # Admission clock is fixed at 1: only admitted executions can advance time.
+    operation = "incarnation/automatic/1/action/start"
+    task = True
+
+atomic action FailCommit:
+    require tentative and not commit_failure_used and not crashed
+    tentative = False
+    commit_failure_used = True
+    if CURSOR_LOSS:
+        cursor = 1
+
+atomic action UpdateDefinition:
+    require revision == 0 and not crashed
+    revision = 1
+
+atomic fair action DeliverStart:
+    require task and not crashed and not completed and now < 61 and not inflight
+    attempt = min(attempt + 1, 2)
+    issued_id = operation
+    issued_input = frozen
+    if RETRY_IDENTITY and attempt == 2:
+        issued_id = "different-operation"
+    if RETRY_INPUT and attempt == 2:
+        issued_input = revision
+    inflight = True
+
+atomic fair action ExternalAccept:
+    require inflight and not ack_available
+    if not accepted:
+        accepted = True
+        remote_id = issued_id
+        remote_input = issued_input
+    ack_available = True
+
+atomic action LoseAcknowledgment:
+    require ack_available and not lost_ack_used
+    ack_available = False
+    inflight = False
+    lost_ack_used = True
+    if LOST_WAKEUP:
+        task = False
+
+atomic fair action Acknowledge:
+    require ack_available and not crashed
+    ack_available = False
+    inflight = False
+    if not started:
+        started = True
+        started_count += 1
+    elif DUPLICATE_ACCOUNTING:
+        started_count += 1
+    chain = "first-run"
+    task = False
+
+atomic fair action Complete:
+    require accepted and not completed and not crashed
+    if not started:
+        started = True
+        started_count += 1
+    completed = True
+    chain = "first-run"
+    task = False
+
+atomic action Crash:
+    require not crash_used
+    crashed = True
+    crash_used = True
+    tentative = False
+
+atomic fair action Restart:
+    require crashed
+    crashed = False
+
+atomic fair action AdvanceTime:
+    require admitted and now < 61
+    if now == 1:
+        now = 2
+    else:
+        now = 61
+
+atomic fair action Expire:
+    require admitted and now >= 61 and not expired and not crashed
+    expired = True
+    task = False
+
+# Invalid incarnation/operation/chain messages are modeled as explicit stutters.
+atomic action InvalidResult:
+    require admitted
+    pass
+
+always assertion AdmissionAtomicity:
+    return (cursor == 1) == admitted and budget == (0 if admitted else 1)
+
+always assertion StableRequest:
+    return attempt == 0 or (issued_id == operation and issued_input == frozen)
+
+always assertion RemoteRequest:
+    return not accepted or (remote_id == operation and remote_input == frozen)
+
+always assertion AccountingOnce:
+    return started_count == (1 if started else 0) and (not completed or started)
+
+always assertion DurableObligation:
+    return not admitted or started or expired or task
+
+always assertion CompletionIsBound:
+    return not completed or (accepted and chain == "first-run")
+
+# Weakly fair time may expire before RPC execution. This is a permitted ambiguous
+# disposition, not a claim that every admitted operation starts successfully.
+eventually always assertion ResolvesOrRetainsAmbiguity:
+    return admitted and (completed or expired)
+
+# Once the external service accepts, fair authenticated completion is assumed.
+always eventually assertion AcceptedWorkCompletes:
+    return not accepted or completed
+
+exists assertion LostAckUpdateRetry:
+    return lost_ack_used and attempt == 2 and revision == 1 and frozen == 0
+
+exists assertion EarlyCompletion:
+    return completed and ack_available
+
+exists assertion RestartWithIntent:
+    return crash_used and not crashed and admitted and not started

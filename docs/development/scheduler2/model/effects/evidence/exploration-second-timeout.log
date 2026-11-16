@@ -1,0 +1,24 @@
+Model checking /private/tmp/scheduler2-effects-model-second/baseline-100/effects.json
+configFileName: /private/tmp/scheduler2-effects-model-second/baseline-100/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 20000, queued: 65355, elapsed: 9.382732833s
+Nodes: 40000, queued: 111908, elapsed: 17.8879895s
+Nodes: 60000, queued: 155541, elapsed: 26.802653625s
+Nodes: 80000, queued: 189435, elapsed: 35.426029791s
+Nodes: 100000, queued: 218585, elapsed: 43.2620925s
+Nodes: 120000, queued: 252773, elapsed: 51.367239541s
+Nodes: 140000, queued: 279767, elapsed: 59.892712625s
+Nodes: 160000, queued: 302636, elapsed: 1m9.686272708s
+Nodes: 180000, queued: 323646, elapsed: 1m17.476886291s
+Nodes: 200000, queued: 346559, elapsed: 1m26.100577791s
+Nodes: 220000, queued: 367525, elapsed: 1m34.513936625s
+Nodes: 240000, queued: 390482, elapsed: 1m44.255885666s
+Nodes: 260000, queued: 407224, elapsed: 1m57.396311416s
+Nodes: 280000, queued: 424901, elapsed: 2m15.822807958s
+Nodes: 300000, queued: 434570, elapsed: 2m38.025274125s
+Nodes: 320000, queued: 442666, elapsed: 3m2.661868875s
+Nodes: 340000, queued: 459342, elapsed: 3m21.059542375s
+Nodes: 360000, queued: 469693, elapsed: 4m1.253147041s
+Nodes: 380000, queued: 478218, elapsed: 4m18.4383275s
+Command '['/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz', '--output-dir', '/private/tmp/scheduler2-effects-model-second/baseline-100/graph', '/private/tmp/scheduler2-effects-model-second/baseline-100/effects.fizz']' timed out after 300 seconds

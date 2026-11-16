@@ -1,0 +1,205 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+
+DEBIT_ON_ENQUEUE = False
+LOSE_COMPLETION_WAKE = False
+STALE_DRAIN_CONSUMES_QUEUE = False
+REUSE_QUEUED_TEMPLATE = False
+
+CAPACITY = 4
+LAST_OCCURRENCE = 6
+
+action Init:
+    policy = oneof ["one", "all"]
+    scenario = oneof ["normal", "pause", "budget", "catchup"]
+    phase = oneof ["pending", "started", "ambiguous"]
+    active = 1
+    admitted = [1]
+    completed = []
+    discarded = []
+    queue = []
+    enqueue_history = []
+    drained = []
+    requests = {}
+    admission_context = {}
+    next_occurrence = 2
+    revision = 1
+    catchup = 10
+    now = 6
+    carryover = 0
+    remaining = 2
+    granted = 3
+    paused = False
+    updated = False
+    recovered = False
+    overflow = 0
+    skipped_ingress = []
+    drain_task = False
+    token = 0
+    retired_tokens = []
+    failed_publication = False
+    admissions_at_failure = 0
+    refilled_after_discard = False
+    terminal_completion_woke = False
+    late_bound_admission = False
+    ambiguous_waiter = False
+
+atomic action AutomaticIngress:
+    require next_occurrence <= LAST_OCCURRENCE
+    nominal = next_occurrence
+    next_occurrence += 1
+    if paused or remaining == 0 or now > nominal + catchup:
+        skipped_ingress.append(nominal)
+    elif len(queue) >= CAPACITY or (policy == "one" and len(queue) >= 1):
+        overflow += 1
+    else:
+        # Queue-time resolved policy and fully suffixed workflow identity are
+        # represented by policy and (revision, nominal), separate from template.
+        item = [nominal, revision, policy]
+        queue.append(item)
+        enqueue_history.append(item)
+        if phase == "ambiguous":
+            ambiguous_waiter = True
+        if DEBIT_ON_ENQUEUE:
+            remaining -= 1
+        # Existing queue always precedes new ingress, even when the slot is free.
+        if phase == "completed" and not drain_task:
+            drain_task = True
+            token += 1
+
+atomic action UpdateDefinition:
+    require not updated
+    updated = True
+    revision = 2
+    policy = "all" if policy == "one" else "one"
+    if scenario == "pause":
+        paused = True
+    elif scenario == "budget":
+        remaining = 0
+        granted = len(admitted)
+    elif scenario == "catchup":
+        catchup = 0
+
+atomic action RecoverEligibility:
+    require updated and not recovered
+    recovered = True
+    if scenario == "budget" and len(discarded) > 0:
+        refilled_after_discard = True
+    paused = False
+    catchup = 10
+    if scenario == "budget":
+        remaining = 2
+        granted = len(admitted) + 2
+
+atomic action FirstCompletion:
+    require phase != "completed"
+    phase = "completed"
+    completed.append(active)
+    carryover = active
+    if len(queue) > 0:
+        if not (LOSE_COMPLETION_WAKE and next_occurrence > LAST_OCCURRENCE):
+            drain_task = True
+            token += 1
+            if next_occurrence > LAST_OCCURRENCE:
+                terminal_completion_woke = True
+
+atomic action FailDrainPublication:
+    require drain_task and not failed_publication
+    # Failure publishes none of the tentative queue/budget/request/task updates.
+    failed_publication = True
+    admissions_at_failure = len(admitted)
+
+atomic action Drain:
+    require drain_task and phase == "completed" and len(queue) > 0
+    retired_tokens.append(token)
+    drain_task = False
+    item = queue.pop(0)
+    nominal = item[0]
+    drained.append(item)
+    if paused or remaining == 0 or now > nominal + catchup:
+        discarded.append(nominal)
+    else:
+        # The independent context journal records the environment at admission.
+        admission_context[nominal] = [revision, carryover, item[1], item[2]]
+        template_revision = item[1] if REUSE_QUEUED_TEMPLATE else revision
+        requests[nominal] = [template_revision, carryover, item[1], item[2]]
+        if revision != item[1]:
+            late_bound_admission = True
+        admitted.append(nominal)
+        active = nominal
+        phase = "pending"
+        remaining -= 1
+    if phase == "completed" and len(queue) > 0:
+        drain_task = True
+        token += 1
+
+atomic action StaleDrain:
+    require len(retired_tokens) > 0
+    if STALE_DRAIN_CONSUMES_QUEUE and len(queue) > 0:
+        queue.pop(0)
+
+atomic action StaleCompletion:
+    # Old/duplicate callbacks cannot affect the current operation or queue.
+    require len(admitted) > 1
+    pass
+
+atomic action Restart:
+    # All modeled state is durable. Serializer/reload correspondence is separate.
+    pass
+
+always assertion NoEnqueueBudgetDebit:
+    return remaining == granted - len(admitted)
+
+always assertion FIFOConservation:
+    return drained == enqueue_history[:len(drained)] and queue == enqueue_history[len(drained):]
+
+always assertion QueueCapacity:
+    return len(queue) <= CAPACITY
+
+always assertion DrainObligation:
+    return (phase != "completed" or len(queue) == 0 or drain_task) and (not drain_task or token not in retired_tokens)
+
+always assertion FrozenAdoption:
+    return requests == admission_context
+
+always assertion NoResurrection:
+    for nominal in discarded + skipped_ingress:
+        if nominal in admitted:
+            return False
+    return len(admitted) == len(set(admitted))
+
+always assertion OccupancyAndFIFOAdmission:
+    # Only Drain can change active, and it always selects the oldest waiter.
+    for nominal in admitted[:-1]:
+        if nominal >= active:
+            return False
+    return active == admitted[-1] and len(admitted) - len(completed) <= 1
+
+exists assertion Saturation:
+    return len(queue) == CAPACITY and overflow > 0
+
+exists assertion ExhaustedGeneratorCompletionWakes:
+    return terminal_completion_woke
+
+exists assertion CurrentTemplateOldWorkflowIdentity:
+    return late_bound_admission
+
+exists assertion AmbiguousOccupancyBuffers:
+    return ambiguous_waiter
+
+exists assertion DroppedQueueDoesNotReturnAfterRefill:
+    return refilled_after_discard
+
+exists assertion FailedPublicationThenAdmission:
+    return failed_publication and len(admitted) > admissions_at_failure
+
+exists assertion ChangedPolicyPreservesQueuedResolution:
+    for item in queue:
+        if item[2] != policy:
+            return True
+    return False

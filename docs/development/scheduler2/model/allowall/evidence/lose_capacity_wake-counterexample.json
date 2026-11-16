@@ -1,0 +1,941 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": null,
+      "state": {
+        "admitted": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "blocker": 1,
+        "carryover": 0,
+        "counted": [],
+        "drain_task": false,
+        "drops": [],
+        "eligible": true,
+        "evicted": [],
+        "expected_carryover": 0,
+        "expected_inputs": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "failure": true,
+        "frozen": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "latest": 5,
+        "next_id": 6,
+        "older_ambiguous_ack": false,
+        "oldest_eviction_valid": true,
+        "paused": false,
+        "phases": {
+          "1": "pending",
+          "3": "pending",
+          "4": "pending",
+          "5": "pending"
+        },
+        "policies": {
+          "1": "buffer",
+          "3": "allow",
+          "4": "allow",
+          "5": "allow"
+        },
+        "queue": [
+          2
+        ],
+        "queue_disposed": false,
+        "queued_while_capacity_blocked": false,
+        "records": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "recovered_capacity": false,
+        "remaining": 3,
+        "retired_tokens": [],
+        "revision": 2,
+        "root_policy": "buffer",
+        "started_count": 0,
+        "started_evidence": [],
+        "terminal_evidence": [],
+        "token": 0,
+        "unfinished": 4
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "blocker": 1,
+        "carryover": 0,
+        "counted": [],
+        "drain_task": false,
+        "drops": [
+          6
+        ],
+        "eligible": true,
+        "evicted": [],
+        "expected_carryover": 0,
+        "expected_inputs": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "failure": true,
+        "frozen": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "latest": 5,
+        "next_id": 7,
+        "older_ambiguous_ack": false,
+        "oldest_eviction_valid": true,
+        "paused": false,
+        "phases": {
+          "1": "pending",
+          "3": "pending",
+          "4": "pending",
+          "5": "pending"
+        },
+        "policies": {
+          "1": "buffer",
+          "3": "allow",
+          "4": "allow",
+          "5": "allow"
+        },
+        "queue": [
+          2
+        ],
+        "queue_disposed": false,
+        "queued_while_capacity_blocked": false,
+        "records": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "recovered_capacity": false,
+        "remaining": 3,
+        "retired_tokens": [],
+        "revision": 2,
+        "root_policy": "buffer",
+        "started_count": 0,
+        "started_evidence": [],
+        "terminal_evidence": [],
+        "token": 0,
+        "unfinished": 4
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "AutomaticAllowIngress": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "AutomaticAllowIngress",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "blocker": 1,
+        "carryover": 0,
+        "counted": [],
+        "drain_task": false,
+        "drops": [
+          6,
+          7
+        ],
+        "eligible": true,
+        "evicted": [],
+        "expected_carryover": 0,
+        "expected_inputs": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "failure": true,
+        "frozen": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "latest": 5,
+        "next_id": 8,
+        "older_ambiguous_ack": false,
+        "oldest_eviction_valid": true,
+        "paused": false,
+        "phases": {
+          "1": "pending",
+          "3": "pending",
+          "4": "pending",
+          "5": "pending"
+        },
+        "policies": {
+          "1": "buffer",
+          "3": "allow",
+          "4": "allow",
+          "5": "allow"
+        },
+        "queue": [
+          2
+        ],
+        "queue_disposed": false,
+        "queued_while_capacity_blocked": false,
+        "records": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "recovered_capacity": false,
+        "remaining": 3,
+        "retired_tokens": [],
+        "revision": 2,
+        "root_policy": "buffer",
+        "started_count": 0,
+        "started_evidence": [],
+        "terminal_evidence": [],
+        "token": 0,
+        "unfinished": 4
+      },
+      "stats": {
+        "totalActions": 2,
+        "counts": {
+          "AutomaticAllowIngress": 2
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "AutomaticAllowIngress",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "KeyedEvidence",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "blocker": 1,
+        "carryover": 0,
+        "counted": [],
+        "drain_task": false,
+        "drops": [
+          6,
+          7
+        ],
+        "eligible": true,
+        "evicted": [],
+        "expected_carryover": 0,
+        "expected_inputs": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "failure": true,
+        "frozen": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "latest": 5,
+        "next_id": 8,
+        "older_ambiguous_ack": false,
+        "oldest_eviction_valid": true,
+        "paused": false,
+        "phases": {
+          "1": "pending",
+          "3": "pending",
+          "4": "pending",
+          "5": "pending"
+        },
+        "policies": {
+          "1": "buffer",
+          "3": "allow",
+          "4": "allow",
+          "5": "allow"
+        },
+        "queue": [
+          2
+        ],
+        "queue_disposed": false,
+        "queued_while_capacity_blocked": false,
+        "records": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "recovered_capacity": false,
+        "remaining": 3,
+        "retired_tokens": [],
+        "revision": 2,
+        "root_policy": "buffer",
+        "started_count": 0,
+        "started_evidence": [],
+        "terminal_evidence": [],
+        "token": 0,
+        "unfinished": 4
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "AutomaticAllowIngress": 2,
+          "KeyedEvidence": 1
+        }
+      },
+      "threads": [
+        {
+          "id": 245,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "KeyedEvidence",
+              "pc": "Actions[3].Block.Stmts[0].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 1
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "KeyedEvidence",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Any:operation=1",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "blocker": 1,
+        "carryover": 0,
+        "counted": [],
+        "drain_task": false,
+        "drops": [
+          6,
+          7
+        ],
+        "eligible": true,
+        "evicted": [],
+        "expected_carryover": 0,
+        "expected_inputs": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "failure": true,
+        "frozen": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "latest": 5,
+        "next_id": 8,
+        "older_ambiguous_ack": false,
+        "oldest_eviction_valid": true,
+        "paused": false,
+        "phases": {
+          "1": "pending",
+          "3": "pending",
+          "4": "pending",
+          "5": "pending"
+        },
+        "policies": {
+          "1": "buffer",
+          "3": "allow",
+          "4": "allow",
+          "5": "allow"
+        },
+        "queue": [
+          2
+        ],
+        "queue_disposed": false,
+        "queued_while_capacity_blocked": false,
+        "records": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "recovered_capacity": false,
+        "remaining": 3,
+        "retired_tokens": [],
+        "revision": 2,
+        "root_policy": "buffer",
+        "started_count": 0,
+        "started_evidence": [],
+        "terminal_evidence": [],
+        "token": 0,
+        "unfinished": 4
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "AutomaticAllowIngress": 2,
+          "KeyedEvidence": 1
+        }
+      },
+      "threads": [
+        {
+          "id": 245,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "KeyedEvidence",
+              "pc": "Actions[3].Block.Stmts[1].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"operation\":1}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 1
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:operation=1",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          8
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "blocker": 0,
+        "carryover": 1,
+        "counted": [
+          1
+        ],
+        "drain_task": false,
+        "drops": [
+          6,
+          7
+        ],
+        "eligible": true,
+        "evicted": [],
+        "expected_carryover": 1,
+        "expected_inputs": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "failure": false,
+        "frozen": {
+          "1": [
+            1,
+            0,
+            true
+          ],
+          "3": [
+            1,
+            -1,
+            false
+          ],
+          "4": [
+            1,
+            -1,
+            false
+          ],
+          "5": [
+            1,
+            -1,
+            false
+          ]
+        },
+        "latest": 5,
+        "next_id": 8,
+        "older_ambiguous_ack": false,
+        "oldest_eviction_valid": true,
+        "paused": false,
+        "phases": {
+          "1": "completed",
+          "3": "pending",
+          "4": "pending",
+          "5": "pending"
+        },
+        "policies": {
+          "1": "buffer",
+          "3": "allow",
+          "4": "allow",
+          "5": "allow"
+        },
+        "queue": [
+          2
+        ],
+        "queue_disposed": false,
+        "queued_while_capacity_blocked": false,
+        "records": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "recovered_capacity": false,
+        "remaining": 3,
+        "retired_tokens": [],
+        "revision": 2,
+        "root_policy": "buffer",
+        "started_count": 1,
+        "started_evidence": [
+          1
+        ],
+        "terminal_evidence": [
+          1
+        ],
+        "token": 0,
+        "unfinished": 3
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "AutomaticAllowIngress": 2,
+          "KeyedEvidence": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:outcome=\"complete\"",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]

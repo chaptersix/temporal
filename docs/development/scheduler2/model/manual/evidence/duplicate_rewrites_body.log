@@ -1,0 +1,30 @@
+Model checking /private/tmp/scheduler2-manual-model-reviewed/duplicate_rewrites_body/commands.json
+configFileName: /private/tmp/scheduler2-manual-model-reviewed/duplicate_rewrites_body/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 4, queued: 8, elapsed: 1.365709ms
+Time taken for model checking: 1.373125ms
+Writen graph dotfile: /private/tmp/scheduler2-manual-model-reviewed/duplicate_rewrites_body/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-manual-model-reviewed/duplicate_rewrites_body/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  FirstSuccessfulBodyWins
+------
+Init
+--
+state: {"accepted":[],"body":{},"call":0,"calls":["A","","B","","C","A","D"],"dedup":{},"duplicate_after_eviction":false,"duplicate_changed_body":false,"exhausted_rejected":false,"expired":false,"full_rejected":false,"identities":[],"pending":[],"recorded_success":[],"records":[],"replay_after_expiry":false,"retention_evicted":false,"sequence":0,"snapshots":{}}
+------
+Call
+--
+state: {"accepted":[["A",1,100]],"body":{"1":0},"call":1,"calls":["A","","B","","C","A","D"],"dedup":{"A":1},"duplicate_after_eviction":false,"duplicate_changed_body":false,"exhausted_rejected":false,"expired":false,"full_rejected":false,"identities":["manual/1"],"pending":[1],"recorded_success":[["A",1]],"records":[],"replay_after_expiry":false,"retention_evicted":false,"sequence":1,"snapshots":{"1":0}}
+------
+DuplicateChangedBody
+--
+state: {"accepted":[["A",1,100]],"body":{"1":999},"call":1,"calls":["A","","B","","C","A","D"],"dedup":{"A":1},"duplicate_after_eviction":false,"duplicate_changed_body":true,"exhausted_rejected":false,"expired":false,"full_rejected":false,"identities":["manual/1"],"pending":[1],"recorded_success":[["A",1]],"records":[],"replay_after_expiry":false,"retention_evicted":false,"sequence":1,"snapshots":{"1":0}}
+------
+Writen graph json: /private/tmp/scheduler2-manual-model-reviewed/duplicate_rewrites_body/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-manual-model-reviewed/duplicate_rewrites_body/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-manual-model-reviewed/duplicate_rewrites_body/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-manual-model-reviewed/duplicate_rewrites_body/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-manual-model-reviewed/duplicate_rewrites_body/graph/error-states.html
