@@ -1,0 +1,983 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": null,
+      "state": {
+        "attempts": {
+          "cancel": 0,
+          "terminate": 0
+        },
+        "blocker": 1,
+        "budget": 4,
+        "busy": "",
+        "carryover": 0,
+        "chain_known": false,
+        "completed": false,
+        "drain_task": false,
+        "drained": false,
+        "effects": {},
+        "frozen": {},
+        "initial_budget": 4,
+        "issued": [],
+        "next_entry": 4,
+        "now": 0,
+        "retry_at": {},
+        "saw_late_cancel": false,
+        "saw_stale": false,
+        "saw_unbound": false,
+        "saw_updated_retry": false,
+        "snapshots": {},
+        "started": 0,
+        "terminate_demand": false,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "EnqueueOverlap",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "attempts": {
+          "cancel": 0,
+          "terminate": 0
+        },
+        "blocker": 1,
+        "budget": 4,
+        "busy": "",
+        "carryover": 0,
+        "chain_known": false,
+        "completed": false,
+        "drain_task": false,
+        "drained": false,
+        "effects": {},
+        "frozen": {},
+        "initial_budget": 4,
+        "issued": [],
+        "next_entry": 4,
+        "now": 0,
+        "retry_at": {},
+        "saw_late_cancel": false,
+        "saw_stale": false,
+        "saw_unbound": false,
+        "saw_updated_retry": false,
+        "snapshots": {},
+        "started": 0,
+        "terminate_demand": false,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "EnqueueOverlap": 1
+        }
+      },
+      "threads": [
+        {
+          "id": 16,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "EnqueueOverlap",
+              "pc": "Actions[1].Block.Stmts[1].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 1
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "EnqueueOverlap",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "attempts": {
+          "cancel": 0,
+          "terminate": 0
+        },
+        "blocker": 1,
+        "budget": 4,
+        "busy": "",
+        "carryover": 0,
+        "chain_known": false,
+        "completed": false,
+        "drain_task": false,
+        "drained": false,
+        "effects": {
+          "cancel": "desired"
+        },
+        "frozen": {},
+        "initial_budget": 4,
+        "issued": [],
+        "next_entry": 5,
+        "now": 0,
+        "retry_at": {},
+        "saw_late_cancel": false,
+        "saw_stale": false,
+        "saw_unbound": true,
+        "saw_updated_retry": false,
+        "snapshots": {},
+        "started": 0,
+        "terminate_demand": false,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "EnqueueOverlap": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:kind=\"cancel\"",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "attempts": {
+          "cancel": 0,
+          "terminate": 0
+        },
+        "blocker": 1,
+        "budget": 4,
+        "busy": "",
+        "carryover": 0,
+        "chain_known": true,
+        "completed": false,
+        "drain_task": false,
+        "drained": false,
+        "effects": {
+          "cancel": "ready"
+        },
+        "frozen": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "initial_budget": 4,
+        "issued": [],
+        "next_entry": 5,
+        "now": 0,
+        "retry_at": {
+          "cancel": 0
+        },
+        "saw_late_cancel": false,
+        "saw_stale": false,
+        "saw_unbound": true,
+        "saw_updated_retry": false,
+        "snapshots": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "started": 1,
+        "terminate_demand": false,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 2,
+        "counts": {
+          "BindAcknowledgment": 1,
+          "EnqueueOverlap": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "BindAcknowledgment",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Issue",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "attempts": {
+          "cancel": 0,
+          "terminate": 0
+        },
+        "blocker": 1,
+        "budget": 4,
+        "busy": "",
+        "carryover": 0,
+        "chain_known": true,
+        "completed": false,
+        "drain_task": false,
+        "drained": false,
+        "effects": {
+          "cancel": "ready"
+        },
+        "frozen": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "initial_budget": 4,
+        "issued": [],
+        "next_entry": 5,
+        "now": 0,
+        "retry_at": {
+          "cancel": 0
+        },
+        "saw_late_cancel": false,
+        "saw_stale": false,
+        "saw_unbound": true,
+        "saw_updated_retry": false,
+        "snapshots": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "started": 1,
+        "terminate_demand": false,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "BindAcknowledgment": 1,
+          "EnqueueOverlap": 1,
+          "Issue": 1
+        }
+      },
+      "threads": [
+        {
+          "id": 227,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Issue",
+              "pc": "Actions[5].Block.Stmts[0].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 1
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Issue",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "attempts": {
+          "cancel": 1,
+          "terminate": 0
+        },
+        "blocker": 1,
+        "budget": 4,
+        "busy": "cancel",
+        "carryover": 0,
+        "chain_known": true,
+        "completed": false,
+        "drain_task": false,
+        "drained": false,
+        "effects": {
+          "cancel": "inflight"
+        },
+        "frozen": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "initial_budget": 4,
+        "issued": [
+          [
+            "cancel",
+            [
+              "namespace",
+              "workflow",
+              "chain-1",
+              "",
+              "1/cancel",
+              0,
+              60,
+              1
+            ],
+            false,
+            0
+          ]
+        ],
+        "next_entry": 5,
+        "now": 0,
+        "retry_at": {
+          "cancel": 0
+        },
+        "saw_late_cancel": false,
+        "saw_stale": false,
+        "saw_unbound": true,
+        "saw_updated_retry": false,
+        "snapshots": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "started": 1,
+        "terminate_demand": false,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "BindAcknowledgment": 1,
+          "EnqueueOverlap": 1,
+          "Issue": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:kind=\"cancel\"",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Result",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "attempts": {
+          "cancel": 1,
+          "terminate": 0
+        },
+        "blocker": 1,
+        "budget": 4,
+        "busy": "cancel",
+        "carryover": 0,
+        "chain_known": true,
+        "completed": false,
+        "drain_task": false,
+        "drained": false,
+        "effects": {
+          "cancel": "inflight"
+        },
+        "frozen": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "initial_budget": 4,
+        "issued": [
+          [
+            "cancel",
+            [
+              "namespace",
+              "workflow",
+              "chain-1",
+              "",
+              "1/cancel",
+              0,
+              60,
+              1
+            ],
+            false,
+            0
+          ]
+        ],
+        "next_entry": 5,
+        "now": 0,
+        "retry_at": {
+          "cancel": 0
+        },
+        "saw_late_cancel": false,
+        "saw_stale": false,
+        "saw_unbound": true,
+        "saw_updated_retry": false,
+        "snapshots": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "started": 1,
+        "terminate_demand": false,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 4,
+        "counts": {
+          "BindAcknowledgment": 1,
+          "EnqueueOverlap": 1,
+          "Issue": 1,
+          "Result": 1
+        }
+      },
+      "threads": [
+        {
+          "id": 849,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Result",
+              "pc": "Actions[6].Block.Stmts[1].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 1
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Result",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Any:delivery=[\"cancel\", [\"namespace\", \"workflow\", \"chain-1\", \"\", \"1/cancel\", 0, 60, 1], False, 0]",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "attempts": {
+          "cancel": 1,
+          "terminate": 0
+        },
+        "blocker": 1,
+        "budget": 4,
+        "busy": "cancel",
+        "carryover": 0,
+        "chain_known": true,
+        "completed": false,
+        "drain_task": false,
+        "drained": false,
+        "effects": {
+          "cancel": "inflight"
+        },
+        "frozen": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "initial_budget": 4,
+        "issued": [
+          [
+            "cancel",
+            [
+              "namespace",
+              "workflow",
+              "chain-1",
+              "",
+              "1/cancel",
+              0,
+              60,
+              1
+            ],
+            false,
+            0
+          ]
+        ],
+        "next_entry": 5,
+        "now": 0,
+        "retry_at": {
+          "cancel": 0
+        },
+        "saw_late_cancel": false,
+        "saw_stale": false,
+        "saw_unbound": true,
+        "saw_updated_retry": false,
+        "snapshots": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "started": 1,
+        "terminate_demand": false,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 4,
+        "counts": {
+          "BindAcknowledgment": 1,
+          "EnqueueOverlap": 1,
+          "Issue": 1,
+          "Result": 1
+        }
+      },
+      "threads": [
+        {
+          "id": 849,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Result",
+              "pc": "Actions[6].Block.Stmts[3].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"delivery\":[\"cancel\",[\"namespace\",\"workflow\",\"chain-1\",\"\",\"1/cancel\",0,60,1],false,0],\"kind\":\"cancel\"}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 1
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:delivery=[\"cancel\", [\"namespace\", \"workflow\", \"chain-1\", \"\", \"1/cancel\", 0, 60, 1], False, 0]",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          0,
+          6
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "attempts": {
+          "cancel": 1,
+          "terminate": 0
+        },
+        "blocker": 0,
+        "budget": 4,
+        "busy": "",
+        "carryover": 0,
+        "chain_known": true,
+        "completed": false,
+        "drain_task": true,
+        "drained": false,
+        "effects": {
+          "cancel": "accepted"
+        },
+        "frozen": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "initial_budget": 4,
+        "issued": [
+          [
+            "cancel",
+            [
+              "namespace",
+              "workflow",
+              "chain-1",
+              "",
+              "1/cancel",
+              0,
+              60,
+              1
+            ],
+            false,
+            0
+          ]
+        ],
+        "next_entry": 5,
+        "now": 0,
+        "retry_at": {
+          "cancel": 0
+        },
+        "saw_late_cancel": false,
+        "saw_stale": false,
+        "saw_unbound": true,
+        "saw_updated_retry": false,
+        "snapshots": {
+          "cancel": [
+            "namespace",
+            "workflow",
+            "chain-1",
+            "",
+            "1/cancel",
+            0,
+            60,
+            1
+          ]
+        },
+        "started": 1,
+        "terminate_demand": false,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 4,
+        "counts": {
+          "BindAcknowledgment": 1,
+          "EnqueueOverlap": 1,
+          "Issue": 1,
+          "Result": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:result=\"success\"",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]

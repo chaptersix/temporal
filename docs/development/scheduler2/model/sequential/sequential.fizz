@@ -1,0 +1,176 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+
+ADVANCE_CURSOR_ON_FAILURE = False
+STALE_TIMER_ADVANCES = False
+STALE_COMPLETION_REPLACES_ACTIVE = False
+
+OCCURRENCES = 6
+CAPACITY = 4
+
+action Init:
+    cursor = 0
+    dispositions = []
+    history = []
+    retained = []
+    phases = {}
+    frozen = {}
+    active = 0
+    carryover = 0
+    remaining = OCCURRENCES
+    started = []
+    completed = []
+    token = 1
+    deadline = 2
+    timer = True
+    retired_tokens = []
+    yielded = False
+    failed_publication = False
+    stale_after_eviction = False
+    failure_before_first = False
+    skipped_ambiguous = False
+
+atomic action YieldProbeWork:
+    require timer and not yielded
+    # Bounded source computation can yield without disposing an occurrence.
+    retired_tokens.append(token)
+    token += 1
+    deadline += 1
+    yielded = True
+
+atomic action FailGeneratorPublication:
+    require timer and not failed_publication
+    # The same token remains deliverable; all tentative admission state is lost.
+    failed_publication = True
+    failure_before_first = len(history) == 0
+    if ADVANCE_CURSOR_ON_FAILURE:
+        cursor += 1
+
+atomic action RunGenerator:
+    require timer
+    nominal = cursor + 1
+    # Delivery occurs at its deadline. Actual = nominal + 1 in this finite source.
+    require deadline >= nominal + 1
+    occupied = active != 0 and phases[active] != "completed"
+    if occupied:
+        dispositions.append("skip")
+        if phases[active] == "ambiguous":
+            skipped_ambiguous = True
+    else:
+        if len(retained) == CAPACITY:
+            oldest = retained[0]
+            require phases[oldest] == "completed"
+            retained.pop(0)
+            phases.pop(oldest)
+            frozen.pop(oldest)
+        retained.append(nominal)
+        history.append(nominal)
+        phases[nominal] = "pending"
+        frozen[nominal] = carryover
+        active = nominal
+        remaining -= 1
+        dispositions.append("admit")
+    cursor = nominal
+    retired_tokens.append(token)
+    token += 1
+    if cursor == OCCURRENCES:
+        timer = False
+    else:
+        # Abstract output limit 1: schedule another bounded batch, without
+        # conflating its delivery identity with the occurrence cursor.
+        deadline += 1
+
+atomic action Acknowledge:
+    require active != 0 and phases[active] in ["pending", "ambiguous"]
+    phases[active] = "started"
+    started.append(active)
+
+atomic action ExpireAmbiguous:
+    require active != 0 and phases[active] == "pending"
+    phases[active] = "ambiguous"
+
+atomic action FirstCompletion:
+    require active != 0 and phases[active] != "completed"
+    if active not in started:
+        started.append(active)
+    phases[active] = "completed"
+    completed.append(active)
+    # Symbolic result identity represents this operation's completion carryover.
+    carryover = active
+
+atomic action DuplicateLatestCompletion:
+    require active != 0 and phases[active] == "completed"
+    pass
+
+atomic action StaleCompletion:
+    require len(history) >= 2
+    if len(history) >= 5:
+        stale_after_eviction = True
+    if STALE_COMPLETION_REPLACES_ACTIVE:
+        active = history[0]
+        carryover = history[0]
+
+atomic action StaleTimerDelivery:
+    require len(retired_tokens) > 0
+    if STALE_TIMER_ADVANCES:
+        cursor += 1
+
+atomic action Restart:
+    # All modeled fields are durable; volatile RPC/serializer behavior is separate.
+    pass
+
+always assertion CursorAccountsForDispositions:
+    return cursor == len(dispositions) and cursor <= OCCURRENCES
+
+always assertion OneOccupant:
+    unfinished = 0
+    for operation in retained:
+        if phases[operation] != "completed":
+            unfinished += 1
+    return unfinished <= 1
+
+always assertion LatestIdentityAndCarryover:
+    expected_active = history[-1] if len(history) > 0 else 0
+    expected_carryover = completed[-1] if len(completed) > 0 else 0
+    return active == expected_active and carryover == expected_carryover
+
+always assertion OldestCompletedEviction:
+    return retained == history[-CAPACITY:] and len(retained) <= CAPACITY
+
+always assertion ImmutableNextInput:
+    for index in range(len(history)):
+        operation = history[index]
+        if operation in retained:
+            previous = history[index - 1] if index > 0 else 0
+            if frozen[operation] != previous:
+                return False
+    return True
+
+always assertion AccountingSurvivesEviction:
+    return remaining == OCCURRENCES - len(history) and len(started) == len(set(started)) and len(completed) == len(set(completed)) and len(completed) <= len(started) and len(started) <= len(history)
+
+always assertion GeneratorObligation:
+    return timer == (cursor < OCCURRENCES) and (not timer or token not in retired_tokens)
+
+exists assertion FifthAdmissionEvictsOldest:
+    return len(history) >= 5 and len(retained) == CAPACITY and history[0] not in retained
+
+exists assertion AmbiguousOccupancySkips:
+    return skipped_ambiguous
+
+exists assertion TokenAdvancesWithoutCursor:
+    return yielded and cursor == 0 and token == 2
+
+exists assertion NextRequestUsesPriorCompletion:
+    return len(history) >= 2 and frozen[history[-1]] == history[-2]
+
+exists assertion StaleMessageAfterEviction:
+    return stale_after_eviction
+
+exists assertion FailedCommitThenFiveAdmissions:
+    return failure_before_first and len(history) >= 5

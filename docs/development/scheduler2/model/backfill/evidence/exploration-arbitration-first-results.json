@@ -1,0 +1,110 @@
+[
+  {
+    "case": "arbitration-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-backfill-arbitration-first/arbitration-100/graph",
+      "/private/tmp/scheduler2-backfill-arbitration-first/arbitration-100/arbitration.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "28e106af2e7d90dfc9e2999bd8278e385d771c01f6a005e74f523ecf1b9418da",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 563, queued: 0, elapsed: 127.783208ms",
+      "Nodes: 563",
+      "Valid Nodes: 563 Unique states: 562"
+    ]
+  },
+  {
+    "case": "arbitration-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-backfill-arbitration-first/arbitration-200/graph",
+      "/private/tmp/scheduler2-backfill-arbitration-first/arbitration-200/arbitration.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "b52f2ea1a10ec4639b69704262a1790149f507c00eb9a3ca8eb5355054fc2dce",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 563, queued: 0, elapsed: 127.824375ms",
+      "Nodes: 563",
+      "Valid Nodes: 563 Unique states: 562"
+    ]
+  },
+  {
+    "case": "naive_rr",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-backfill-arbitration-first/naive_rr/graph",
+      "/private/tmp/scheduler2-backfill-arbitration-first/naive_rr/arbitration.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "NAIVE_RR",
+    "expected_invariant": [
+      "FiniteBackfillsProgress"
+    ],
+    "sha256": "66c8c6a93f04044427aae23ace404d75b55d47af6a3f6d777900fb0b204c0cf4",
+    "passed": false,
+    "detected": false,
+    "counts": [
+      "Nodes: 782, queued: 0, elapsed: 180.344833ms",
+      "Nodes: 782",
+      "Valid Nodes: 782 Unique states: 781"
+    ]
+  },
+  {
+    "case": "unreserved_vacancy",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-backfill-arbitration-first/unreserved_vacancy/graph",
+      "/private/tmp/scheduler2-backfill-arbitration-first/unreserved_vacancy/arbitration.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "UNRESERVED_VACANCY",
+    "expected_invariant": [
+      "ProtectedVacancy"
+    ],
+    "sha256": "bac1050fae0388154840788451df846909ba573f8e82cb4992f534435f6be6df",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 19, queued: 78, elapsed: 2.929208ms"
+    ]
+  },
+  {
+    "case": "rotate_pinned_backfill",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-backfill-arbitration-first/rotate_pinned_backfill/graph",
+      "/private/tmp/scheduler2-backfill-arbitration-first/rotate_pinned_backfill/arbitration.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "ROTATE_PINNED_BACKFILL",
+    "expected_invariant": [
+      "PinnedCandidate",
+      "BackfillHandoffOnce"
+    ],
+    "sha256": "5e0c020f3935782d6c83c886f36e8bf1fb820733f37e6ee3179d8618c5ddb6d0",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 41, queued: 101, elapsed: 7.281917ms"
+    ]
+  }
+]

@@ -1,0 +1,38 @@
+Model checking /private/tmp/scheduler2-buffer-model-second/debit_on_enqueue/buffer.json
+configFileName: /private/tmp/scheduler2-buffer-model-second/debit_on_enqueue/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 36, queued: 215, elapsed: 13.341166ms
+Time taken for model checking: 13.346625ms
+Writen graph dotfile: /private/tmp/scheduler2-buffer-model-second/debit_on_enqueue/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-buffer-model-second/debit_on_enqueue/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  NoEnqueueBudgetDebit
+------
+Init
+--
+state: {}
+------
+Any:policy="one"
+--
+state: {}
+------
+Any:scenario="normal"
+--
+state: {}
+------
+Any:phase="pending"
+--
+state: {"active":1,"admission_context":{},"admissions_at_failure":0,"admitted":[1],"ambiguous_waiter":false,"carryover":0,"catchup":10,"completed":[],"discarded":[],"drain_task":false,"drained":[],"enqueue_history":[],"failed_publication":false,"granted":3,"late_bound_admission":false,"next_occurrence":2,"now":6,"overflow":0,"paused":false,"phase":"pending","policy":"one","queue":[],"recovered":false,"refilled_after_discard":false,"remaining":2,"requests":{},"retired_tokens":[],"revision":1,"scenario":"normal","skipped_ingress":[],"terminal_completion_woke":false,"token":0,"updated":false}
+------
+AutomaticIngress
+--
+state: {"active":1,"admission_context":{},"admissions_at_failure":0,"admitted":[1],"ambiguous_waiter":false,"carryover":0,"catchup":10,"completed":[],"discarded":[],"drain_task":false,"drained":[],"enqueue_history":[[2,1,"one"]],"failed_publication":false,"granted":3,"late_bound_admission":false,"next_occurrence":3,"now":6,"overflow":0,"paused":false,"phase":"pending","policy":"one","queue":[[2,1,"one"]],"recovered":false,"refilled_after_discard":false,"remaining":1,"requests":{},"retired_tokens":[],"revision":1,"scenario":"normal","skipped_ingress":[],"terminal_completion_woke":false,"token":0,"updated":false}
+------
+Writen graph json: /private/tmp/scheduler2-buffer-model-second/debit_on_enqueue/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-buffer-model-second/debit_on_enqueue/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-buffer-model-second/debit_on_enqueue/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-buffer-model-second/debit_on_enqueue/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-buffer-model-second/debit_on_enqueue/graph/error-states.html

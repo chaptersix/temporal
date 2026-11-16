@@ -1,0 +1,260 @@
+[
+  {
+    "case": "effects-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/effects-100/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/effects-100/effects.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "75f92f76aa1ed1e501dc97b87a856698ccb2edcb889d404fcdd800ffb8c75131",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 25964, elapsed: 5.414340875s",
+      "Nodes: 40000, queued: 30974, elapsed: 11.069180042s",
+      "Nodes: 60000, queued: 24074, elapsed: 17.1247005s",
+      "Nodes: 80000, queued: 11215, elapsed: 23.221068417s",
+      "Nodes: 90058, queued: 0, elapsed: 26.095000542s",
+      "Nodes: 90058",
+      "Valid Nodes: 72728 Unique states: 18168"
+    ]
+  },
+  {
+    "case": "effects-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/effects-200/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/effects-200/effects.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "c882389697cdcd22cf55e7c2d3d800f63a8105a90db51aa864ca2490a462183f",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 20000, queued: 25964, elapsed: 5.477184042s",
+      "Nodes: 40000, queued: 30974, elapsed: 11.212023375s",
+      "Nodes: 60000, queued: 24074, elapsed: 16.910089458s",
+      "Nodes: 80000, queued: 11215, elapsed: 22.835677417s",
+      "Nodes: 90058, queued: 0, elapsed: 25.972551667s",
+      "Nodes: 90058",
+      "Valid Nodes: 72728 Unique states: 18168"
+    ]
+  },
+  {
+    "case": "selection-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/selection-100/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/selection-100/selection.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "a3115377a81e363805d0069022efdd40bd4951f1e65ce5a24f593827054bae6c",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 121, queued: 0, elapsed: 30.235125ms",
+      "Valid Nodes: 121 Unique states: 99"
+    ]
+  },
+  {
+    "case": "selection-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/selection-200/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/selection-200/selection.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "0c6a6ad2769a6c15b548164eb97cff29413d1507caa231c5a42ed5b9ec344d1b",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 121, queued: 0, elapsed: 31.413167ms",
+      "Valid Nodes: 121 Unique states: 99"
+    ]
+  },
+  {
+    "case": "binding-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/binding-100/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/binding-100/binding.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "89cae5d0efd3d6ca598c53776f1fea8843fe6579ede7327cdccbf1abbd1cadda",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 176, queued: 0, elapsed: 30.820209ms",
+      "Valid Nodes: 176 Unique states: 138"
+    ]
+  },
+  {
+    "case": "binding-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/binding-200/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/binding-200/binding.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "4d4b80ebd36bf297b3a2d1ba747bd915fe4b403e7755231f3f2f2b676b3f203b",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 176, queued: 0, elapsed: 31.216625ms",
+      "Valid Nodes: 176 Unique states: 138"
+    ]
+  },
+  {
+    "case": "effect_releases_blocker",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/effect_releases_blocker/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/effect_releases_blocker/effects.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "EFFECT_RELEASES_BLOCKER",
+    "expected_invariant": [
+      "OnlyCompletionReleasesTarget",
+      "CompletionCreatesDrain"
+    ],
+    "sha256": "3dfadf7d974e466756607cfa4142ff4713c4ea040ea9ec8c3cfc908207808d6d",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 164, queued: 664, elapsed: 53.932834ms"
+    ]
+  },
+  {
+    "case": "cancel_after_terminate",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/cancel_after_terminate/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/cancel_after_terminate/effects.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "CANCEL_AFTER_TERMINATE",
+    "expected_invariant": [
+      "TerminateDominatesFutureIssuance"
+    ],
+    "sha256": "f672ad363ab2d1980d3f04c8e8fc925bdbc4de8c3d041ff46639a27d23f14fe2",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 140, queued: 575, elapsed: 54.268458ms"
+    ]
+  },
+  {
+    "case": "retry_fence_drifts",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/retry_fence_drifts/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/retry_fence_drifts/effects.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "RETRY_FENCE_DRIFTS",
+    "expected_invariant": [
+      "FencedImmutableDistinctRequests"
+    ],
+    "sha256": "a74c500de6a8e5048044bafaf88914848c36d2a307721685f50c6901236ad376",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 2971, queued: 8475, elapsed: 918.134542ms",
+      "Nodes: 2971"
+    ]
+  },
+  {
+    "case": "first_effect_wins",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/first_effect_wins/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/first_effect_wins/selection.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "FIRST_EFFECT_WINS",
+    "expected_invariant": [
+      "SelectionAfterEligibility"
+    ],
+    "sha256": "d175e7cb7d6a10e98eefbe66e96bfdc2edeb15a7ef8e5ee251e3c5ab9f362176",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 87, queued: 116, elapsed: 15.426958ms"
+    ]
+  },
+  {
+    "case": "overflow_creates_demand",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/overflow_creates_demand/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/overflow_creates_demand/selection.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "OVERFLOW_CREATES_DEMAND",
+    "expected_invariant": [
+      "AcceptedDemandOnly"
+    ],
+    "sha256": "6bfbd405717dc9353a45b35f6854a6fdaf7dc76b6d0be7d96f9861ea3213a752",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 46, queued: 86, elapsed: 7.53425ms"
+    ]
+  },
+  {
+    "case": "horizon_from_demand",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/horizon_from_demand/graph",
+      "/private/tmp/scheduler2-effects-model-witness-fixed/horizon_from_demand/binding.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "HORIZON_FROM_DEMAND",
+    "expected_invariant": [
+      "BindingStartsHorizon"
+    ],
+    "sha256": "784a5f1fb1d80b7d9267c2f44b32ac73db9380c3e22d9d371f59cd9dbede204f",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 4, queued: 8, elapsed: 613.417\u00b5s"
+    ]
+  }
+]

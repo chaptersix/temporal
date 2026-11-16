@@ -1,0 +1,46 @@
+Model checking /private/tmp/scheduler2-manual-model-reviewed/debit_manual/admission.json
+configFileName: /private/tmp/scheduler2-manual-model-reviewed/debit_manual/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 224, queued: 686, elapsed: 77.433292ms
+Time taken for model checking: 77.459167ms
+Writen graph dotfile: /private/tmp/scheduler2-manual-model-reviewed/debit_manual/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-manual-model-reviewed/debit_manual/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  ManualBypassesEligibilityAndDebit
+------
+Init
+--
+state: {}
+------
+Any:override="inherit"
+--
+state: {}
+------
+Any:nominal=-10
+--
+state: {}
+------
+Any:existing_queue=0
+--
+state: {}
+------
+Any:blocker=False
+--
+state: {}
+------
+Any:unfinished=1
+--
+state: {"admitted":false,"admitted_after_wait":false,"automatic_cursor":7,"blocker":false,"budget":0,"capacity_wait_seen":false,"catchup":0,"current_policy":"all","disposed":false,"disposition_observed":false,"existing_queue":0,"expected_policy":"","expected_request":[],"frozen_policy":"","frozen_workflow":"","initial_policy":"all","nominal":-10,"now":0,"override":"inherit","paused":true,"pending":true,"policy":"all","policy_changed_before_transfer":false,"queued":false,"request":[],"retired":[],"revision":1,"sequence":1,"space_without_slot":false,"task":true,"token":1,"transfer_revision":0,"transferred_without_slot_after_wait":false,"unfinished":1,"updated":false,"updated_while_queued":false,"want":true,"woke_after_capacity":false}
+------
+Transfer
+--
+state: {"admitted":true,"admitted_after_wait":false,"automatic_cursor":7,"blocker":false,"budget":-1,"capacity_wait_seen":false,"catchup":0,"current_policy":"all","disposed":false,"disposition_observed":false,"existing_queue":0,"expected_policy":"all","expected_request":[1,"all","workflow/-10",1,"ALLOW_DUPLICATE",60],"frozen_policy":"all","frozen_workflow":"workflow/-10","initial_policy":"all","nominal":-10,"now":0,"override":"inherit","paused":true,"pending":false,"policy":"all","policy_changed_before_transfer":false,"queued":false,"request":[1,"all","workflow/-10",1,"ALLOW_DUPLICATE",60],"retired":[1],"revision":1,"sequence":1,"space_without_slot":false,"task":false,"token":1,"transfer_revision":1,"transferred_without_slot_after_wait":false,"unfinished":1,"updated":false,"updated_while_queued":false,"want":true,"woke_after_capacity":false}
+------
+Writen graph json: /private/tmp/scheduler2-manual-model-reviewed/debit_manual/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-manual-model-reviewed/debit_manual/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-manual-model-reviewed/debit_manual/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-manual-model-reviewed/debit_manual/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-manual-model-reviewed/debit_manual/graph/error-states.html

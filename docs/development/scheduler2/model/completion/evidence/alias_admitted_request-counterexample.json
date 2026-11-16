@@ -1,0 +1,486 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Init",
+      "returns": "{}",
+      "roles": null,
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[0].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Any:initial_success=\"absent\"",
+      "returns": "{}",
+      "roles": [],
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[1].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"initial_success\":\"absent\"}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:initial_success=\"absent\"",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": false,
+        "chain": "",
+        "completed": false,
+        "duplicate_payload_seen": false,
+        "early": false,
+        "failed_publication": false,
+        "failure": "absent",
+        "first_outcome": "none",
+        "frozen_failure": "not-admitted",
+        "frozen_success": "not-admitted",
+        "initial_failure": "absent",
+        "initial_success": "absent",
+        "invalid_seen": false,
+        "late_ack": false,
+        "paused": false,
+        "policy": false,
+        "policy_at_first": false,
+        "remaining": 1,
+        "started_count": 0,
+        "success": "absent",
+        "tentative": "none"
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:initial_failure=\"absent\"",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": true,
+        "chain": "",
+        "completed": false,
+        "duplicate_payload_seen": false,
+        "early": false,
+        "failed_publication": false,
+        "failure": "absent",
+        "first_outcome": "none",
+        "frozen_failure": "absent",
+        "frozen_success": "absent",
+        "initial_failure": "absent",
+        "initial_success": "absent",
+        "invalid_seen": false,
+        "late_ack": false,
+        "paused": false,
+        "policy": false,
+        "policy_at_first": false,
+        "remaining": 0,
+        "started_count": 0,
+        "success": "absent",
+        "tentative": "none"
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "Admit": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "Admit",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "PrepareCompletion",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": true,
+        "chain": "",
+        "completed": false,
+        "duplicate_payload_seen": false,
+        "early": false,
+        "failed_publication": false,
+        "failure": "absent",
+        "first_outcome": "none",
+        "frozen_failure": "absent",
+        "frozen_success": "absent",
+        "initial_failure": "absent",
+        "initial_success": "absent",
+        "invalid_seen": false,
+        "late_ack": false,
+        "paused": false,
+        "policy": false,
+        "policy_at_first": false,
+        "remaining": 0,
+        "started_count": 0,
+        "success": "absent",
+        "tentative": "none"
+      },
+      "stats": {
+        "totalActions": 2,
+        "counts": {
+          "Admit": 1,
+          "PrepareCompletion": 1
+        }
+      },
+      "threads": [
+        {
+          "id": 132,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "PrepareCompletion",
+              "pc": "Actions[4].Block.Stmts[1].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 1
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "PrepareCompletion",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": true,
+        "chain": "",
+        "completed": false,
+        "duplicate_payload_seen": false,
+        "early": false,
+        "failed_publication": false,
+        "failure": "absent",
+        "first_outcome": "none",
+        "frozen_failure": "absent",
+        "frozen_success": "absent",
+        "initial_failure": "absent",
+        "initial_success": "absent",
+        "invalid_seen": false,
+        "late_ack": false,
+        "paused": false,
+        "policy": false,
+        "policy_at_first": false,
+        "remaining": 0,
+        "started_count": 0,
+        "success": "absent",
+        "tentative": "null"
+      },
+      "stats": {
+        "totalActions": 2,
+        "counts": {
+          "Admit": 1,
+          "PrepareCompletion": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:tentative=\"null\"",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          4
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "admitted": true,
+        "chain": "first-run",
+        "completed": true,
+        "duplicate_payload_seen": false,
+        "early": true,
+        "failed_publication": false,
+        "failure": "absent",
+        "first_outcome": "null",
+        "frozen_failure": "absent",
+        "frozen_success": "null",
+        "initial_failure": "absent",
+        "initial_success": "absent",
+        "invalid_seen": false,
+        "late_ack": false,
+        "paused": false,
+        "policy": false,
+        "policy_at_first": false,
+        "remaining": 0,
+        "started_count": 1,
+        "success": "null",
+        "tentative": "none"
+      },
+      "stats": {
+        "totalActions": 3,
+        "counts": {
+          "Admit": 1,
+          "CommitCompletion": 1,
+          "PrepareCompletion": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "CommitCompletion",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]

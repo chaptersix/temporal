@@ -1,0 +1,173 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+NAIVE_RR = False
+UNRESERVED_VACANCY = False
+ROTATE_PINNED_BACKFILL = False
+ALLOW_OVER_CAPACITY = False
+
+def owner(turn, contenders):
+    for offset in range(len(contenders)):
+        index = (turn + offset) % len(contenders)
+        if contenders[index]:
+            return index
+    return -1
+
+def needs_operation(policy, queue, tracked):
+    return policy == "allow" or (queue == 0 and not tracked)
+
+def operation_owner(turn, queue, tracked, lease, manual_policy, backfill_policy, automatic_mode):
+    return owner(turn, [queue > 0 and not tracked,
+        lease == 0 and needs_operation(manual_policy, queue, tracked),
+        lease == 1 and needs_operation(backfill_policy, queue, tracked),
+        automatic_mode == "allow" or (lease == 2 and needs_operation("buffer", queue, tracked))])
+
+action Init:
+    # Concrete capacity4: a tracked blocker plus three unresolved ALLOW intents.
+    queue = 4
+    tracked = True
+    allows = 3
+    manual_policy = oneof ["buffer", "allow", "skip"]
+    backfill_policy = oneof ["buffer", "allow", "skip"]
+    automatic_mode = oneof ["queued", "allow"]
+    queue_turn = 0
+    operation_turn = 0
+    lease = -1
+    lease_candidate = -1
+    backfill = 0
+    completed = []
+    manual_identity = 0
+    auto_identity = 0
+    retained_during_op_full = False
+    resumed_after_op_full = False
+
+atomic fair action AcquireVacancy:
+    require queue < 4 and lease == -1
+    lease = owner(queue_turn, [True, backfill < 2, automatic_mode == "queued"])
+    lease_candidate = manual_identity if lease == 0 else backfill if lease == 1 else auto_identity
+    if lease == 1 and needs_operation(backfill_policy, queue, tracked) and int(tracked) + allows == 4:
+        retained_during_op_full = True
+
+atomic fair action TransferManual:
+    require lease == 0 and queue < 4
+    if needs_operation(manual_policy, queue, tracked):
+        require int(tracked) + allows < 4 or ALLOW_OVER_CAPACITY
+        require operation_owner(operation_turn, queue, tracked, lease, manual_policy, backfill_policy, automatic_mode) == 1
+        if manual_policy == "allow":
+            allows += 1
+        else:
+            tracked = True
+        operation_turn = 2
+    elif manual_policy == "buffer":
+        queue += 1
+    # SKIP disposition also releases the vacancy entitlement.
+    lease = -1
+    lease_candidate = -1
+    manual_identity = 1 - manual_identity
+    queue_turn = 1
+
+atomic fair action TransferBackfill:
+    require lease == 1 and queue < 4
+    if needs_operation(backfill_policy, queue, tracked):
+        require int(tracked) + allows < 4 or ALLOW_OVER_CAPACITY
+        require operation_owner(operation_turn, queue, tracked, lease, manual_policy, backfill_policy, automatic_mode) == 2
+        if backfill_policy == "allow":
+            allows += 1
+        else:
+            tracked = True
+        operation_turn = 3
+    elif backfill_policy == "buffer":
+        queue += 1
+    completed.append(lease_candidate)
+    backfill += 1
+    lease = -1
+    lease_candidate = -1
+    queue_turn = 2
+    if retained_during_op_full:
+        resumed_after_op_full = True
+
+atomic fair action TransferAutomaticQueued:
+    require lease == 2 and queue < 4
+    if needs_operation("buffer", queue, tracked):
+        require int(tracked) + allows < 4 or ALLOW_OVER_CAPACITY
+        require operation_owner(operation_turn, queue, tracked, lease, manual_policy, backfill_policy, automatic_mode) == 3
+        tracked = True
+        operation_turn = 0
+    else:
+        queue += 1
+    lease = -1
+    lease_candidate = -1
+    auto_identity = 1 - auto_identity
+    queue_turn = 0
+
+atomic fair action DirectAutomaticAllow:
+    require automatic_mode == "allow" and (int(tracked) + allows < 4 or ALLOW_OVER_CAPACITY)
+    require operation_owner(operation_turn, queue, tracked, lease, manual_policy, backfill_policy, automatic_mode) == 3
+    allows += 1
+    operation_turn = 0
+
+atomic fair action Drain:
+    require queue > 0 and not tracked and (int(tracked) + allows < 4 or ALLOW_OVER_CAPACITY)
+    require operation_owner(operation_turn, queue, tracked, lease, manual_policy, backfill_policy, automatic_mode) == 0
+    queue -= 1
+    tracked = True
+    operation_turn = 1
+
+atomic fair action MatchingCompletion:
+    require tracked
+    tracked = False
+
+atomic fair action AllowSettlement:
+    require allows > 0
+    allows -= 1
+
+atomic action AutomaticScanOrDrop:
+    # Capacity-free work cannot move resource turns. Mutant resets producer order.
+    if NAIVE_RR and queue == 4:
+        queue_turn = 0
+    if ROTATE_PINNED_BACKFILL and lease == 1:
+        backfill = 1 - backfill
+
+atomic action UnreservedRefill:
+    require UNRESERVED_VACANCY and lease != -1 and queue == 3
+    queue += 1
+
+atomic action FailedPublicationOrStaleDelivery:
+    pass
+
+always assertion ProtectedVacancy:
+    return queue + (1 if lease != -1 else 0) <= 4
+
+always assertion PinnedCandidate:
+    return lease != 1 or lease_candidate == backfill
+
+always assertion BackfillHandoffOnce:
+    return completed == list(range(backfill)) and backfill <= 2
+
+always eventually assertion FiniteBackfillsProgress:
+    return backfill == 2
+
+exists assertion CompositeCapacityWaitRecovers:
+    return resumed_after_op_full
+
+exists assertion BothBackfillsHandedOff:
+    return completed == [0, 1]
+
+always assertion ConcreteOperationCapacity:
+    return allows >= 0 and allows <= 4 and int(tracked) + allows <= 4
+
+exists assertion FullMixedCapacity:
+    return tracked and allows == 3
+
+exists assertion FullAllowCapacity:
+    return not tracked and allows == 4
+
+exists assertion SpareCapacityWhileTracked:
+    return tracked and allows > 0 and int(tracked) + allows < 4
+
+exists assertion FullQueueWithTrackedAndSpareSlot:
+    return queue == 4 and tracked and allows == 2

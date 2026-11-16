@@ -1,0 +1,274 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+
+IGNORE_OLDER_RESULT = False
+ALLOW_RESULT_LEAKS = False
+LOSE_CAPACITY_WAKE = False
+
+action Init:
+    # Saturated fixture: tracked 1, ALLOW 3-5; waiter 2 froze BUFFER_ALL.
+    # Root definition already changed after these admissions.
+    records = [1, 3, 4, 5]
+    policies = {1: "buffer", 3: "allow", 4: "allow", 5: "allow"}
+    phases = {1: "pending", 3: "pending", 4: "pending", 5: "pending"}
+    frozen = {1: [1, 0, True], 3: [1, -1, False], 4: [1, -1, False], 5: [1, -1, False]}
+    expected_inputs = {1: [1, 0, True], 3: [1, -1, False], 4: [1, -1, False], 5: [1, -1, False]}
+    admitted = [1, 3, 4, 5]
+    started_evidence = []
+    terminal_evidence = []
+    started_count = 0
+    counted = []
+    evicted = []
+    oldest_eviction_valid = True
+    unfinished = 4
+    blocker = 1
+    latest = 5
+    queue = [2]
+    queue_disposed = False
+    remaining = 3
+    drops = []
+    next_id = 6
+    revision = 2
+    root_policy = "buffer"
+    carryover = 0
+    expected_carryover = 0
+    failure = True
+    paused = False
+    drain_task = False
+    token = 0
+    retired_tokens = []
+    eligible = True
+    recovered_capacity = False
+    queued_while_capacity_blocked = False
+    older_ambiguous_ack = False
+
+atomic action AutomaticAllowIngress:
+    require next_id <= 7
+    operation = next_id
+    next_id += 1
+    if unfinished == 4:
+        drops.append(operation)
+    else:
+        admission_policy = "allow"
+        if len(records) == 4:
+            oldest = 999
+            for old in records:
+                if phases[old] in ["completed", "start-only"]:
+                    oldest = min(oldest, old)
+            require oldest != 999
+            reclaimable = sorted([old for old in records if old in terminal_evidence])
+            oldest_eviction_valid = oldest_eviction_valid and oldest == reclaimable[0]
+            records.remove(oldest)
+            policies.pop(oldest)
+            phases.pop(oldest)
+            frozen.pop(oldest)
+            evicted.append(oldest)
+            evicted = sorted(evicted)
+        records.append(operation)
+        policies[operation] = admission_policy
+        phases[operation] = "pending"
+        frozen[operation] = [revision, -1 if admission_policy == "allow" else carryover, False if admission_policy == "allow" else failure]
+        expected_inputs[operation] = [revision, -1 if admission_policy == "allow" else carryover, False if admission_policy == "allow" else failure]
+        admitted.append(operation)
+        unfinished += 1
+        remaining -= 1
+        latest = operation
+        if admission_policy != "allow":
+            blocker = operation
+    want = len(queue) > 0 and blocker == 0 and (not eligible or unfinished < 4)
+    if want and not drain_task:
+        token += 1
+    drain_task = want
+
+atomic action ExpireOne:
+    operation = 3
+    require operation in records
+    require phases[operation] == "pending"
+    phases[operation] = "ambiguous"
+
+atomic action KeyedEvidence:
+    operation = oneof records
+    outcome = oneof ["ack", "complete"]
+    require phases[operation] not in ["completed", "start-only"]
+    was_ambiguous = phases[operation] == "ambiguous"
+    # Oracle journals use immutable addressed policy, independently of writes.
+    if operation not in started_evidence:
+        started_evidence.append(operation)
+        started_evidence = sorted(started_evidence)
+    terminal = policies[operation] == "allow" or outcome == "complete"
+    if terminal:
+        terminal_evidence.append(operation)
+        terminal_evidence = sorted(terminal_evidence)
+        if policies[operation] != "allow":
+            expected_carryover = operation
+    if not (IGNORE_OLDER_RESULT and operation != latest):
+        if operation not in counted:
+            counted.append(operation)
+            counted = sorted(counted)
+            started_count += 1
+        if policies[operation] == "allow":
+            phases[operation] = "start-only"
+            if ALLOW_RESULT_LEAKS and outcome == "complete":
+                carryover = operation
+                paused = True
+        elif outcome == "complete":
+            phases[operation] = "completed"
+            carryover = operation
+            failure = False
+        else:
+            phases[operation] = "started"
+        if terminal:
+            unfinished -= 1
+            if blocker == operation:
+                blocker = 0
+        if operation != latest and was_ambiguous and outcome == "ack":
+            older_ambiguous_ack = True
+    want = len(queue) > 0 and blocker == 0 and (not eligible or unfinished < 4)
+    if want and not drain_task:
+        if not (LOSE_CAPACITY_WAKE and next_id > 7):
+            token += 1
+            drain_task = True
+            if next_id > 7 and terminal and queued_while_capacity_blocked:
+                recovered_capacity = True
+    if not want:
+        drain_task = False
+
+atomic action ObserveCapacityWait:
+    require len(queue) > 0 and blocker == 0 and eligible and unfinished == 4
+    queued_while_capacity_blocked = True
+
+atomic action ChangeEligibility:
+    require eligible
+    eligible = False
+    want = len(queue) > 0 and blocker == 0 and (not eligible or unfinished < 4)
+    if want and not drain_task:
+        token += 1
+    drain_task = want
+
+atomic action Drain:
+    require drain_task and blocker == 0 and len(queue) > 0
+    retired_tokens.append(token)
+    drain_task = False
+    if not eligible:
+        queue = []
+        queue_disposed = True
+    elif unfinished < 4:
+        operation = queue.pop(0)
+        admission_policy = "buffer"
+        if len(records) == 4:
+            oldest = 999
+            for old in records:
+                if phases[old] in ["completed", "start-only"]:
+                    oldest = min(oldest, old)
+            require oldest != 999
+            reclaimable = sorted([old for old in records if old in terminal_evidence])
+            oldest_eviction_valid = oldest_eviction_valid and oldest == reclaimable[0]
+            records.remove(oldest)
+            policies.pop(oldest)
+            phases.pop(oldest)
+            frozen.pop(oldest)
+            evicted.append(oldest)
+            evicted = sorted(evicted)
+        records.append(operation)
+        policies[operation] = admission_policy
+        phases[operation] = "pending"
+        frozen[operation] = [revision, -1 if admission_policy == "allow" else carryover, False if admission_policy == "allow" else failure]
+        expected_inputs[operation] = [revision, -1 if admission_policy == "allow" else carryover, False if admission_policy == "allow" else failure]
+        admitted.append(operation)
+        unfinished += 1
+        remaining -= 1
+        latest = operation
+        if admission_policy != "allow":
+            blocker = operation
+    want = len(queue) > 0 and blocker == 0 and (not eligible or unfinished < 4)
+    if want and not drain_task:
+        token += 1
+    drain_task = want
+
+atomic action FailedPublication:
+    pass
+    # A tentative admission/result/drain publishes no durable field changes.
+
+atomic action DuplicateOrEvictedResult:
+    # Retained terminal duplicates and evicted identities do not resurrect state.
+    pass
+
+atomic action StalePhysicalTask:
+    require token > 0
+    pass
+
+atomic action Restart:
+    pass
+
+always assertion KeyedEvidenceCountedOnce:
+    return started_count == len(started_evidence) and len(counted) == len(set(counted))
+
+always assertion TerminalEvidenceSettlesItsIntent:
+    for operation in records:
+        if operation in terminal_evidence and phases[operation] not in ["completed", "start-only"]:
+            return False
+        if policies[operation] == "allow" and operation in terminal_evidence and phases[operation] != "start-only":
+            return False
+    return True
+
+always assertion UnfinishedSummaryAndCapacity:
+    unresolved = 0
+    for operation in records:
+        if phases[operation] not in ["completed", "start-only"]:
+            unresolved += 1
+    return unfinished == unresolved and unfinished <= 4 and len(records) <= 4
+
+always assertion BlockingOwner:
+    expected = 0
+    for operation in records:
+        if policies[operation] != "allow" and phases[operation] not in ["completed", "start-only"]:
+            if expected != 0:
+                return False
+            expected = operation
+    return blocker == expected
+
+always assertion NoAllowCarryoverOrPause:
+    return carryover == expected_carryover and not paused
+
+always assertion FrozenPolicyAndInputs:
+    for operation in records:
+        if policies[operation] != ("buffer" if operation in [1, 2] else "allow"):
+            return False
+        if frozen[operation] != expected_inputs[operation]:
+            return False
+        if policies[operation] == "allow" and frozen[operation][1:] != [-1, False]:
+            return False
+    return True
+
+always assertion OnlyTerminalEviction:
+    return oldest_eviction_valid and all([operation in terminal_evidence for operation in evicted])
+
+always assertion BudgetAndQueueIdentity:
+    return remaining == 7 - len(admitted) and (2 in queue or 2 in admitted or queue_disposed)
+
+always assertion DrainObligationWithoutSpin:
+    want = len(queue) > 0 and blocker == 0 and (not eligible or unfinished < 4)
+    return drain_task == want and (not drain_task or token not in retired_tokens)
+
+exists assertion FourUnresolvedDropsIngress:
+    return unfinished == 4 and len(drops) > 0
+
+exists assertion OlderAmbiguousAckApplied:
+    return older_ambiguous_ack
+
+exists assertion CapacityWaitWithoutSpin:
+    return queued_while_capacity_blocked and not drain_task and unfinished == 4
+
+exists assertion ExhaustedGeneratorCapacityRecovery:
+    return recovered_capacity
+
+exists assertion FIFOBypassThenQueuedPolicy:
+    return 2 in records and 2 in admitted and admitted.index(2) > 4 and policies[2] == "buffer"
+
+exists assertion FifthAdmissionEvictsTerminal:
+    return len(admitted) >= 5 and len(evicted) > 0

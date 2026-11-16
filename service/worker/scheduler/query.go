@@ -41,7 +41,33 @@ func ValidateVisibilityQuery(
 	metricsHandler metrics.Handler,
 	logger log.Logger,
 ) error {
-	fields, err := getQueryFields(
+	return validateVisibilityQuery(namespaceName, saNameType, saMapperProvider, chasmMapper, queryString, metricsHandler, logger, false)
+}
+
+// ValidateIsolatedVisibilityQuery rejects predicates that disable typed archetype isolation.
+func ValidateIsolatedVisibilityQuery(
+	namespaceName namespace.Name,
+	saNameType searchattribute.NameTypeMap,
+	saMapperProvider searchattribute.MapperProvider,
+	chasmMapper *chasm.VisibilitySearchAttributesMapper,
+	queryString string,
+	metricsHandler metrics.Handler,
+	logger log.Logger,
+) error {
+	return validateVisibilityQuery(namespaceName, saNameType, saMapperProvider, chasmMapper, queryString, metricsHandler, logger, true)
+}
+
+func validateVisibilityQuery(
+	namespaceName namespace.Name,
+	saNameType searchattribute.NameTypeMap,
+	saMapperProvider searchattribute.MapperProvider,
+	chasmMapper *chasm.VisibilitySearchAttributesMapper,
+	queryString string,
+	metricsHandler metrics.Handler,
+	logger log.Logger,
+	isolated bool,
+) error {
+	fields, err := getQueryFieldsWithIsolation(
 		namespaceName,
 		saNameType,
 		saMapperProvider,
@@ -49,6 +75,7 @@ func ValidateVisibilityQuery(
 		queryString,
 		metricsHandler,
 		logger,
+		isolated,
 	)
 	if err != nil {
 		return err
@@ -72,6 +99,19 @@ func getQueryFields(
 	metricsHandler metrics.Handler,
 	logger log.Logger,
 ) ([]string, error) {
+	return getQueryFieldsWithIsolation(namespaceName, saNameType, saMapperProvider, chasmMapper, queryString, metricsHandler, logger, false)
+}
+
+func getQueryFieldsWithIsolation(
+	namespaceName namespace.Name,
+	saNameType searchattribute.NameTypeMap,
+	saMapperProvider searchattribute.MapperProvider,
+	chasmMapper *chasm.VisibilitySearchAttributesMapper,
+	queryString string,
+	metricsHandler metrics.Handler,
+	logger log.Logger,
+	isolated bool,
+) ([]string, error) {
 	saMapper, err := saMapperProvider.GetMapper(namespaceName)
 	if err != nil {
 		return nil, err
@@ -90,6 +130,9 @@ func getQueryFields(
 			return nil, converterErr.ToInvalidArgument()
 		}
 		return nil, err
+	}
+	if isolated && queryConverter.SeenNamespaceDivision() {
+		return nil, serviceerror.NewInvalidArgument("invalid query filter for schedules: cannot filter on namespace division")
 	}
 	if !queryConverter.SeenNamespaceDivision() {
 		delete(saInterceptor.names, sadefs.TemporalNamespaceDivision)

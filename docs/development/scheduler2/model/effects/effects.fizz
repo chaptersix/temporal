@@ -1,0 +1,200 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+
+EFFECT_RELEASES_BLOCKER = False
+CANCEL_AFTER_TERMINATE = False
+RETRY_FENCE_DRIFTS = False
+
+action Init:
+    # Two accepted BUFFER entries precede at most two new overlap demands.
+    next_entry = 4
+    blocker = 1
+    completed = False
+    chain_known = False
+    now = 0
+    updated = False
+    effects = {}
+    frozen = {}
+    snapshots = {}
+    attempts = {"cancel": 0, "terminate": 0}
+    issued = []
+    busy = ""
+    retry_at = {}
+    terminate_demand = False
+    initial_budget = 4
+    budget = 4
+    started = 0
+    carryover = 0
+    drained = False
+    drain_task = False
+    saw_unbound = False
+    saw_late_cancel = False
+    saw_stale = False
+    saw_updated_retry = False
+
+atomic action EnqueueOverlap:
+    require blocker == 1 and next_entry <= 5
+    kind = oneof ["cancel", "terminate"]
+    entry = next_entry
+    next_entry += 1
+    if kind == "terminate":
+        terminate_demand = True
+    if kind not in effects:
+        effects[kind] = "desired"
+        if not chain_known:
+            saw_unbound = True
+        else:
+            effects[kind] = "ready"
+            frozen[kind] = ["namespace", "workflow", "chain-1", "", "1/" + kind, now, now + 60, 1]
+            snapshots[kind] = frozen[kind][:]
+            retry_at[kind] = now
+
+atomic action BindAcknowledgment:
+    require blocker == 1 and not chain_known
+    chain_known = True
+    started = 1
+    for kind in effects:
+        if effects[kind] == "desired":
+            effects[kind] = "ready"
+            frozen[kind] = ["namespace", "workflow", "chain-1", "", "1/" + kind, now, now + 60, 1]
+            snapshots[kind] = frozen[kind][:]
+            retry_at[kind] = now
+
+atomic action DefinitionUpdate:
+    require not updated
+    updated = True
+    # Target chain and bound effect snapshots do not follow replacement config.
+
+atomic action AdvanceClock:
+    require now < 60
+    now = 1 if now == 0 else 60
+    for kind in effects:
+        if kind in frozen and effects[kind] in ["ready", "retry"] and now >= frozen[kind][6]:
+            effects[kind] = "ambiguous"
+
+atomic action Issue:
+    kind = oneof ["cancel", "terminate"]
+    require blocker == 1 and kind in frozen and busy == ""
+    require effects[kind] in ["ready", "retry"]
+    require now < frozen[kind][6] and now >= retry_at[kind]
+    require attempts[kind] < 2
+    require kind != "cancel" or not terminate_demand or CANCEL_AFTER_TERMINATE
+    request = frozen[kind][:]
+    if RETRY_FENCE_DRIFTS and attempts[kind] > 0 and updated:
+        request[2] = "chain-2"
+    if attempts[kind] > 0 and updated:
+        saw_updated_retry = True
+    issued.append([kind, request, terminate_demand, now])
+    busy = kind
+    attempts[kind] += 1
+    effects[kind] = "inflight"
+
+atomic action Result:
+    require len(issued) > 0
+    delivery = oneof issued
+    kind = delivery[0]
+    result = oneof ["success", "notfound", "unknown"]
+    was_inflight = busy == kind and kind in effects and effects[kind] == "inflight"
+    if busy == kind:
+        busy = ""
+    # Duplicate, superseded and old-target responses cannot affect a successor.
+    if blocker != 1 or kind not in effects:
+        if drained:
+            saw_stale = True
+    elif kind == "cancel" and terminate_demand:
+        if was_inflight:
+            saw_late_cancel = True
+    elif effects[kind] in ["inflight", "retry", "ambiguous"]:
+        if result in ["success", "notfound"]:
+            effects[kind] = "accepted" if result == "success" else "no-target"
+            if EFFECT_RELEASES_BLOCKER:
+                blocker = 0
+                drain_task = True
+        elif now >= frozen[kind][6]:
+            effects[kind] = "ambiguous"
+        else:
+            effects[kind] = "retry"
+            retry_at[kind] = min(now + 1, frozen[kind][6])
+
+atomic action CompleteTarget:
+    require blocker == 1 and not completed
+    completed = True
+    started = 1
+    carryover = 1
+    blocker = 0
+    effects = {}
+    frozen = {}
+    terminate_demand = False
+    drain_task = True
+
+atomic action Drain:
+    require blocker == 0 and drain_task and not drained
+    budget -= 1
+    blocker = 10
+    drained = True
+    drain_task = False
+
+atomic action FailedPublication:
+    # Atomic tentative work is discarded: all durable state stutters.
+    pass
+
+atomic action StaleTaskOrRestart:
+    pass
+
+always assertion OnlyCompletionReleasesTarget:
+    return blocker == (10 if drained else 0 if completed else 1)
+
+always assertion EffectsNeverAccountOrCarry:
+    return started == (1 if chain_known or completed else 0) and carryover == (1 if completed else 0) and budget == initial_budget - (1 if drained else 0)
+
+always assertion FencedImmutableDistinctRequests:
+    for delivery in issued:
+        kind = delivery[0]
+        if delivery[1] != snapshots[kind] or delivery[1][2] != "chain-1" or delivery[1][3] != "" or delivery[1][4] != "1/" + kind:
+            return False
+    return True
+
+always assertion TerminateDominatesFutureIssuance:
+    return all([delivery[0] != "cancel" or not delivery[2] for delivery in issued])
+
+always assertion BoundHorizonAndBackoff:
+    prior = {}
+    for delivery in issued:
+        kind = delivery[0]
+        request = delivery[1]
+        tick = delivery[3]
+        if request[6] != request[5] + 60 or request[7] != 1 or tick < request[5] or tick >= request[6]:
+            return False
+        if kind in prior and tick < prior[kind] + 1:
+            return False
+        prior[kind] = tick
+    return True
+
+always assertion DesiredWaitsForFence:
+    return len(effects) <= 2 and (chain_known or len(issued) == 0)
+
+always assertion CompletionCreatesDrain:
+    return drain_task == (completed and not drained)
+
+exists assertion UnboundThenBound:
+    return saw_unbound and len(snapshots) > 0
+
+exists assertion RetriedImmutableRequest:
+    return saw_updated_retry
+
+exists assertion InflightCancelAfterTerminate:
+    return saw_late_cancel
+
+exists assertion NotFoundDoesNotRelease:
+    return "no-target" in effects.values() and blocker == 1
+
+exists assertion HorizonRetainsAmbiguity:
+    return "ambiguous" in effects.values() and blocker == 1
+
+exists assertion OldResponseAfterSuccessor:
+    return drained and saw_stale

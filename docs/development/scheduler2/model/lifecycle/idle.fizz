@@ -1,0 +1,98 @@
+---
+options:
+  max_actions: 100
+  max_concurrent_actions: 1
+  crash_on_yield: false
+deadlock_detection: false
+---
+CLOSE_WHILE_PENDING = False
+LOST_REARM = False
+STALE_TIMER_CLOSE = False
+
+action Init:
+    now = 0
+    anchor = 0
+    token = 1
+    deadline = 2
+    armed = True
+    physical = [(1, 2)]
+    hold = "none"
+    held_once = False
+    updated = False
+    stable = False
+    closed = False
+    unsafe_close = False
+    stale_rejected = False
+    rearmed = False
+    held_kind = "none"
+
+atomic action UpdateAnchor:
+    require not closed and not stable and not updated
+    updated = True
+    anchor = 2
+    token += 1
+    deadline = anchor + 2
+    armed = hold == "none"
+    if armed and not LOST_REARM:
+        physical.append((token, deadline))
+        rearmed = True
+
+atomic action HoldWork:
+    require not closed and not stable and not held_once
+    hold = oneof ["paused", "manual", "backfill", "queue", "pending", "ambiguous", "effect", "active_source", "yield_source", "uninitialized", "disabled"]
+    held_kind = hold
+    held_once = True
+    token += 1
+    armed = False
+
+atomic fair action StabilizeEnvironment:
+    require not stable and not closed
+    stable = True
+    # Conditional L3 premise: initialized, positive idle duration, no remaining
+    # holds, fixed anchor. This is an assumption, not a scheduler operation.
+    hold = "none"
+    token += 1
+    deadline = anchor + 2
+    armed = True
+    if not LOST_REARM:
+        physical.append((token, deadline))
+        rearmed = True
+
+atomic fair action AdvanceTime:
+    require now < 6
+    now += 1
+
+atomic fair action DeliverCurrent:
+    require not closed and armed and hold == "none" and now >= deadline
+    require (token, deadline) in physical
+    closed = True
+    armed = False
+
+atomic action DeliverOld:
+    require not closed
+    old = oneof physical
+    require old != (token, deadline) and now >= old[1]
+    if STALE_TIMER_CLOSE or (CLOSE_WHILE_PENDING and hold == "pending"):
+        unsafe_close = hold != "none" or not armed or now < deadline or old[0] != token
+        closed = True
+        armed = False
+    else:
+        stale_rejected = True
+
+atomic action FailedPublicationOrDuplicate:
+    pass
+
+always assertion NoUnauthorizedClose:
+    return not unsafe_close
+
+always eventually assertion StableIdleEventuallyCloses:
+    return closed
+
+exists assertion RearmedStaleTaskRejected:
+    return rearmed and stale_rejected and closed
+
+exists assertion PendingHoldThenEligibleClose:
+    return held_kind == "pending" and stable and closed
+
+exists assertion AmbiguousHoldThenEligibleClose:
+    return held_kind == "ambiguous" and stable and closed

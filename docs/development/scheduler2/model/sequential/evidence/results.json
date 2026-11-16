@@ -1,0 +1,108 @@
+[
+  {
+    "case": "baseline-100",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-sequential-model-accepted/baseline-100/graph",
+      "/private/tmp/scheduler2-sequential-model-accepted/baseline-100/sequential.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "c37d3414e20f217d431d65f3f7c2dfae7e1bdc6a38281e2ed930cae2321ed084",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 3076, queued: 0, elapsed: 2.039223542s",
+      "Nodes: 3076",
+      "Valid Nodes: 3076 Unique states: 3076"
+    ]
+  },
+  {
+    "case": "baseline-200",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-sequential-model-accepted/baseline-200/graph",
+      "/private/tmp/scheduler2-sequential-model-accepted/baseline-200/sequential.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 200,
+    "mutation": null,
+    "expected_invariant": null,
+    "sha256": "f8b852bc2491933387e30ed3bc3fea01972892f46bdc1c8c226c0d43ad8b79e8",
+    "passed": true,
+    "detected": false,
+    "counts": [
+      "Nodes: 3076, queued: 0, elapsed: 2.033981708s",
+      "Nodes: 3076",
+      "Valid Nodes: 3076 Unique states: 3076"
+    ]
+  },
+  {
+    "case": "advance_cursor_on_failure",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-sequential-model-accepted/advance_cursor_on_failure/graph",
+      "/private/tmp/scheduler2-sequential-model-accepted/advance_cursor_on_failure/sequential.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "ADVANCE_CURSOR_ON_FAILURE",
+    "expected_invariant": [
+      "CursorAccountsForDispositions"
+    ],
+    "sha256": "091d158993b4b74168ad340cff2527015de7ede6f62d1b4eab7c711153c25792",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 3, queued: 18, elapsed: 1.083125ms"
+    ]
+  },
+  {
+    "case": "stale_timer_advances",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-sequential-model-accepted/stale_timer_advances/graph",
+      "/private/tmp/scheduler2-sequential-model-accepted/stale_timer_advances/sequential.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "STALE_TIMER_ADVANCES",
+    "expected_invariant": [
+      "CursorAccountsForDispositions",
+      "GeneratorObligation"
+    ],
+    "sha256": "7bcf1ef91773569367f5ab1f77d5b7a4f70588e1d3f0132771d8a3ffb9485608",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 7, queued: 41, elapsed: 2.790833ms"
+    ]
+  },
+  {
+    "case": "stale_completion_replaces_active",
+    "command": [
+      "/private/tmp/fizzbee-v0.5.4/fizzbee-v0.5.4-macos_arm/fizz",
+      "--output-dir",
+      "/private/tmp/scheduler2-sequential-model-accepted/stale_completion_replaces_active/graph",
+      "/private/tmp/scheduler2-sequential-model-accepted/stale_completion_replaces_active/sequential.fizz"
+    ],
+    "exit_code": 0,
+    "bound": 100,
+    "mutation": "STALE_COMPLETION_REPLACES_ACTIVE",
+    "expected_invariant": [
+      "LatestIdentityAndCarryover"
+    ],
+    "sha256": "3c036c76d17dcb405cdc481e92f1c5b96e0e25e834cfb10fb529a48a5bd55d43",
+    "passed": false,
+    "detected": true,
+    "counts": [
+      "Nodes: 71, queued: 382, elapsed: 34.472209ms"
+    ]
+  }
+]

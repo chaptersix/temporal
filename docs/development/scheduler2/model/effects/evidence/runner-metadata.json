@@ -1,0 +1,5 @@
+{
+  "runner_sha256": "fc80dd0ef2cb80a752fbc225c90117afeadc4f1359e105aa1ab4668f6397f377",
+  "base": "d8a84beffd32cf0451bc6c9db56993c28fe162b4",
+  "scope": "Three factored finite specifications; manual mapping only; no liveness claims."
+}

@@ -1,0 +1,34 @@
+Model checking /private/tmp/scheduler2-allowall-model-bounded/ignore_older_result/allowall.json
+configFileName: /private/tmp/scheduler2-allowall-model-bounded/ignore_older_result/fizz.yaml
+fizz.yaml not found. Using default options
+StateSpaceOptions: options:{max_actions:100  max_concurrent_actions:1  crash_on_yield:false}  deadlock_detection:false
+Nodes: 9, queued: 27, elapsed: 4.4965ms
+Time taken for model checking: 4.506375ms
+Writen graph dotfile: /private/tmp/scheduler2-allowall-model-bounded/ignore_older_result/graph/graph.dot
+To generate svg, run:
+dot -Tsvg /private/tmp/scheduler2-allowall-model-bounded/ignore_older_result/graph/graph.dot -o graph.svg && open graph.svg
+FAILED: Model checker failed. Invariant:  KeyedEvidenceCountedOnce
+------
+Init
+--
+state: {"admitted":[1,3,4,5],"blocker":1,"carryover":0,"counted":[],"drain_task":false,"drops":[],"eligible":true,"evicted":[],"expected_carryover":0,"expected_inputs":{"1":[1,0,true],"3":[1,-1,false],"4":[1,-1,false],"5":[1,-1,false]},"failure":true,"frozen":{"1":[1,0,true],"3":[1,-1,false],"4":[1,-1,false],"5":[1,-1,false]},"latest":5,"next_id":6,"older_ambiguous_ack":false,"oldest_eviction_valid":true,"paused":false,"phases":{"1":"pending","3":"pending","4":"pending","5":"pending"},"policies":{"1":"buffer","3":"allow","4":"allow","5":"allow"},"queue":[2],"queue_disposed":false,"queued_while_capacity_blocked":false,"records":[1,3,4,5],"recovered_capacity":false,"remaining":3,"retired_tokens":[],"revision":2,"root_policy":"buffer","started_count":0,"started_evidence":[],"terminal_evidence":[],"token":0,"unfinished":4}
+------
+KeyedEvidence
+--
+state: {"admitted":[1,3,4,5],"blocker":1,"carryover":0,"counted":[],"drain_task":false,"drops":[],"eligible":true,"evicted":[],"expected_carryover":0,"expected_inputs":{"1":[1,0,true],"3":[1,-1,false],"4":[1,-1,false],"5":[1,-1,false]},"failure":true,"frozen":{"1":[1,0,true],"3":[1,-1,false],"4":[1,-1,false],"5":[1,-1,false]},"latest":5,"next_id":6,"older_ambiguous_ack":false,"oldest_eviction_valid":true,"paused":false,"phases":{"1":"pending","3":"pending","4":"pending","5":"pending"},"policies":{"1":"buffer","3":"allow","4":"allow","5":"allow"},"queue":[2],"queue_disposed":false,"queued_while_capacity_blocked":false,"records":[1,3,4,5],"recovered_capacity":false,"remaining":3,"retired_tokens":[],"revision":2,"root_policy":"buffer","started_count":0,"started_evidence":[],"terminal_evidence":[],"token":0,"unfinished":4}
+------
+Any:operation=1
+--
+state: {"admitted":[1,3,4,5],"blocker":1,"carryover":0,"counted":[],"drain_task":false,"drops":[],"eligible":true,"evicted":[],"expected_carryover":0,"expected_inputs":{"1":[1,0,true],"3":[1,-1,false],"4":[1,-1,false],"5":[1,-1,false]},"failure":true,"frozen":{"1":[1,0,true],"3":[1,-1,false],"4":[1,-1,false],"5":[1,-1,false]},"latest":5,"next_id":6,"older_ambiguous_ack":false,"oldest_eviction_valid":true,"paused":false,"phases":{"1":"pending","3":"pending","4":"pending","5":"pending"},"policies":{"1":"buffer","3":"allow","4":"allow","5":"allow"},"queue":[2],"queue_disposed":false,"queued_while_capacity_blocked":false,"records":[1,3,4,5],"recovered_capacity":false,"remaining":3,"retired_tokens":[],"revision":2,"root_policy":"buffer","started_count":0,"started_evidence":[],"terminal_evidence":[],"token":0,"unfinished":4}
+------
+Any:outcome="ack"
+--
+state: {"admitted":[1,3,4,5],"blocker":1,"carryover":0,"counted":[],"drain_task":false,"drops":[],"eligible":true,"evicted":[],"expected_carryover":0,"expected_inputs":{"1":[1,0,true],"3":[1,-1,false],"4":[1,-1,false],"5":[1,-1,false]},"failure":true,"frozen":{"1":[1,0,true],"3":[1,-1,false],"4":[1,-1,false],"5":[1,-1,false]},"latest":5,"next_id":6,"older_ambiguous_ack":false,"oldest_eviction_valid":true,"paused":false,"phases":{"1":"pending","3":"pending","4":"pending","5":"pending"},"policies":{"1":"buffer","3":"allow","4":"allow","5":"allow"},"queue":[2],"queue_disposed":false,"queued_while_capacity_blocked":false,"records":[1,3,4,5],"recovered_capacity":false,"remaining":3,"retired_tokens":[],"revision":2,"root_policy":"buffer","started_count":0,"started_evidence":[1],"terminal_evidence":[],"token":0,"unfinished":4}
+------
+Writen graph json: /private/tmp/scheduler2-allowall-model-bounded/ignore_older_result/graph/error-graph.json
+Writen graph dotfile: /private/tmp/scheduler2-allowall-model-bounded/ignore_older_result/graph/error-graph.dot
+To generate an image file, run:
+dot -Tsvg /private/tmp/scheduler2-allowall-model-bounded/ignore_older_result/graph/error-graph.dot -o error-graph.svg && open error-graph.svg
+Writen error states as html: /private/tmp/scheduler2-allowall-model-bounded/ignore_older_result/graph/error-states.html
+To open:
+open /private/tmp/scheduler2-allowall-model-bounded/ignore_older_result/graph/error-states.html

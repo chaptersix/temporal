@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "clock_domain": "UTC",
+  "seed": "",
+  "revision": 1,
+  "after": "2022-04-07T13:54:59.999999999Z",
+  "spec": {
+    "structuredCalendar": [{
+      "second": [{"start": 0, "end": 0, "step": 1}],
+      "minute": [{"start": 55, "end": 55, "step": 1}],
+      "hour": [{"start": 13, "end": 13, "step": 1}],
+      "dayOfMonth": [{"start": 7, "end": 7, "step": 1}],
+      "month": [{"start": 4, "end": 4, "step": 1}],
+      "year": [{"start": 2022, "end": 2022, "step": 1}],
+      "dayOfWeek": [{"start": 0, "end": 6, "step": 1}]
+    }],
+    "startTime": "2022-04-07T13:55:00Z",
+    "endTime": "2022-04-07T13:55:00Z",
+    "jitter": "3600s",
+    "timezoneName": "UTC"
+  },
+  "steps": [
+    {
+      "through": "2022-04-07T13:55:00Z",
+      "limits": {"probes": 1, "outputs": 1},
+      "expected_status": "waiting",
+      "expected_probes": 1,
+      "expected_pending": {"nominal": "2022-04-07T13:55:00Z", "actual": "2022-04-07T13:57:26.927Z", "revision": 1, "excluded": false}
+    },
+    {
+      "through": "2022-04-07T13:57:26.926Z",
+      "limits": {"probes": 2, "outputs": 1},
+      "expected_status": "waiting",
+      "expected_probes": 0,
+      "expected_pending": {"nominal": "2022-04-07T13:55:00Z", "actual": "2022-04-07T13:57:26.927Z", "revision": 1, "excluded": false}
+    },
+    {
+      "through": "2022-04-07T13:57:26.927Z",
+      "limits": {"probes": 1, "outputs": 1},
+      "expected_status": "limited",
+      "expected_probes": 0,
+      "expected_outputs": [{"nominal": "2022-04-07T13:55:00Z", "actual": "2022-04-07T13:57:26.927Z", "revision": 1, "excluded": false}]
+    },
+    {
+      "through": "2022-04-07T13:58:00Z",
+      "limits": {"probes": 1, "outputs": 1},
+      "expected_status": "exhausted",
+      "expected_probes": 1
+    },
+    {
+      "through": "2022-04-07T13:59:00Z",
+      "limits": {"probes": 1, "outputs": 1},
+      "expected_status": "exhausted",
+      "expected_probes": 0
+    }
+  ]
+}

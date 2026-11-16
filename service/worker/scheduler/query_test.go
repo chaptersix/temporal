@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
+	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/namespace"
@@ -243,4 +244,47 @@ func TestValidateVisibilityQuery(t *testing.T) {
 			},
 		)
 	}
+}
+
+func TestValidateIsolatedVisibilityQuery(t *testing.T) {
+	provider := searchattribute.NewTestMapperProvider(&searchattribute.TestMapper{})
+	validate := func(predicate string, isolated bool) error {
+		if isolated {
+			return ValidateIsolatedVisibilityQuery(testNamespace, searchattribute.TestNameTypeMap(), provider, nil, predicate, metrics.NoopMetricsHandler, log.NewNoopLogger())
+		}
+		return ValidateVisibilityQuery(testNamespace, searchattribute.TestNameTypeMap(), provider, nil, predicate, metrics.NoopMetricsHandler, log.NewNoopLogger())
+	}
+	for _, predicate := range []string{"NamespaceDivision = 'other'", "TemporalNamespaceDivision = 'other'", "NOT (NamespaceDivision = 'other')", "AliasForKeyword01 = 'foo' OR NamespaceDivision IN ('other')"} {
+		t.Run(predicate, func(t *testing.T) {
+			var invalid *serviceerror.InvalidArgument
+			require.ErrorAs(t, validate(predicate, true), &invalid)
+			require.ErrorContains(t, validate(predicate, true), "namespace division")
+		})
+	}
+	// The stricter path is opt-in; existing callers retain their behavior.
+	require.NoError(t, validate("NamespaceDivision = 'other'", false))
+	for _, predicate := range []string{"", "AliasForKeyword01 = 'custom-value'", "AliasForKeyword01 IN ('a', 'b')", "AliasForKeyword01 != 'id'", "TemporalSchedulePaused = true"} {
+		require.NoError(t, validate(predicate, true), predicate)
+	}
+}
+
+func TestValidateIsolatedVisibilityQuery_ScheduleIDPrecedence(t *testing.T) {
+	mapper := chasm.NewTestVisibilitySearchAttributesMapper(map[string]string{sadefs.WorkflowID: sadefs.ScheduleID}, map[string]enumspb.IndexedValueType{sadefs.WorkflowID: enumspb.INDEXED_VALUE_TYPE_KEYWORD})
+	for _, custom := range []bool{false, true} {
+		namespaceMapper := &searchattribute.TestMapper{WithCustomScheduleID: custom}
+		provider := searchattribute.NewTestMapperProvider(namespaceMapper)
+		for _, predicate := range []string{"ScheduleId = 'custom-value'", "ScheduleId IN ('custom-value', 'other')", "ScheduleId != 'business-id'"} {
+			require.NoError(t, ValidateIsolatedVisibilityQuery(testNamespace, searchattribute.TestNameTypeMap(), provider, mapper, predicate, metrics.NoopMetricsHandler, log.NewNoopLogger()))
+		}
+		field, _, err := query.ResolveSearchAttributeAlias(sadefs.ScheduleID, testNamespace, namespaceMapper, searchattribute.TestNameTypeMap(), mapper, 0)
+		require.NoError(t, err)
+		if custom {
+			require.Equal(t, searchattribute.TestScheduleIDFieldName, field)
+		} else {
+			require.Equal(t, sadefs.WorkflowID, field)
+		}
+	}
+	// A mapped alias that resolves to division must also be rejected.
+	err := ValidateIsolatedVisibilityQuery(testNamespace, searchattribute.TestNameTypeMap(), searchattribute.NewTestMapperProvider(&searchattribute.TestMapper{}), mapper, "AliasForTemporalNamespaceDivision = 'other'", metrics.NoopMetricsHandler, log.NewNoopLogger())
+	require.ErrorContains(t, err, "namespace division")
 }

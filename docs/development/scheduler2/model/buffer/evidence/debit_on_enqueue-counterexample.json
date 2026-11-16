@@ -1,0 +1,374 @@
+[
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Init",
+      "returns": "{}",
+      "roles": null,
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[0].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Init",
+    "Labels": [],
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Any:policy=\"one\"",
+      "returns": "{}",
+      "roles": [],
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[1].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"policy\":\"one\"}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:policy=\"one\"",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "Any:scenario=\"normal\"",
+      "returns": "{}",
+      "roles": [],
+      "state": {},
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [
+        {
+          "id": 2,
+          "stack": [
+            {
+              "fileIndex": 0,
+              "name": "Init",
+              "pc": "Actions[0].Block.Stmts[2].any",
+              "scope": {
+                "loopRange": null,
+                "parent": null,
+                "skipstmts": null,
+                "vars": "{\"policy\":\"one\",\"scenario\":\"normal\"}"
+              },
+              "vars": "{}"
+            }
+          ],
+          "fairness": 3
+        }
+      ],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:scenario=\"normal\"",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": null,
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "active": 1,
+        "admission_context": {},
+        "admissions_at_failure": 0,
+        "admitted": [
+          1
+        ],
+        "ambiguous_waiter": false,
+        "carryover": 0,
+        "catchup": 10,
+        "completed": [],
+        "discarded": [],
+        "drain_task": false,
+        "drained": [],
+        "enqueue_history": [],
+        "failed_publication": false,
+        "granted": 3,
+        "late_bound_admission": false,
+        "next_occurrence": 2,
+        "now": 6,
+        "overflow": 0,
+        "paused": false,
+        "phase": "pending",
+        "policy": "one",
+        "queue": [],
+        "recovered": false,
+        "refilled_after_discard": false,
+        "remaining": 2,
+        "requests": {},
+        "retired_tokens": [],
+        "revision": 1,
+        "scenario": "normal",
+        "skipped_ingress": [],
+        "terminal_completion_woke": false,
+        "token": 0,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 0,
+        "counts": {}
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "",
+    "Name": "Any:phase=\"pending\"",
+    "Labels": null,
+    "Fairness": 3,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  },
+  {
+    "Node": {
+      "channel_messages": {},
+      "channels": {},
+      "current": 0,
+      "failedInvariants": {
+        "0": [
+          0
+        ]
+      },
+      "name": "yield",
+      "returns": "{}",
+      "roles": [],
+      "state": {
+        "active": 1,
+        "admission_context": {},
+        "admissions_at_failure": 0,
+        "admitted": [
+          1
+        ],
+        "ambiguous_waiter": false,
+        "carryover": 0,
+        "catchup": 10,
+        "completed": [],
+        "discarded": [],
+        "drain_task": false,
+        "drained": [],
+        "enqueue_history": [
+          [
+            2,
+            1,
+            "one"
+          ]
+        ],
+        "failed_publication": false,
+        "granted": 3,
+        "late_bound_admission": false,
+        "next_occurrence": 3,
+        "now": 6,
+        "overflow": 0,
+        "paused": false,
+        "phase": "pending",
+        "policy": "one",
+        "queue": [
+          [
+            2,
+            1,
+            "one"
+          ]
+        ],
+        "recovered": false,
+        "refilled_after_discard": false,
+        "remaining": 1,
+        "requests": {},
+        "retired_tokens": [],
+        "revision": 1,
+        "scenario": "normal",
+        "skipped_ingress": [],
+        "terminal_completion_woke": false,
+        "token": 0,
+        "updated": false
+      },
+      "stats": {
+        "totalActions": 1,
+        "counts": {
+          "AutomaticIngress": 1
+        }
+      },
+      "threads": [],
+      "witness": [
+        [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      ]
+    },
+    "Type": "action",
+    "Name": "AutomaticIngress",
+    "Labels": null,
+    "Fairness": 1,
+    "ChoiceFairness": 0,
+    "Messages": null,
+    "ReqId": 0,
+    "ThreadsMap": null,
+    "FailedInvariants": null,
+    "Returns": null
+  }
+]
